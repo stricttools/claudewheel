@@ -331,11 +331,13 @@ class DoDeleteProfileIntegrationTests(_ProfileOpsTestCase):
         tokens = json.loads(self.tokens_file.read_text())
         self.assertNotIn("target", tokens)
         self.assertIn("other", tokens)
-        # Origins cleaned
+        # Origins preserved (historical data kept for analytics)
         origins_path = self.home / ".claude-common" / "profile-origins.jsonl"
         remaining = [json.loads(l) for l in origins_path.read_text().strip().splitlines()]
-        self.assertEqual(len(remaining), 1)
-        self.assertEqual(remaining[0]["profile"], "other")
+        self.assertEqual(len(remaining), 2)
+        profiles = {e["profile"] for e in remaining}
+        self.assertIn("target", profiles)
+        self.assertIn("other", profiles)
 
     def test_deletion_when_dir_already_gone(self) -> None:
         """Succeeds even if profile dir does not exist (cleans up metadata only)."""

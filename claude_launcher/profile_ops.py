@@ -215,7 +215,7 @@ def do_delete_profile(name: str, force: bool = False) -> int:
 
     print(f"Deleting profile '{name}'...")
 
-    # 3. Remove profile dir
+    # 3. Remove profile dir (config, credentials — not shared session data)
     sym, real = _remove_profile_dir(name)
     print(f"  Removed dir: {sym} symlinks unlinked, {real} real entries removed")
 
@@ -225,15 +225,10 @@ def do_delete_profile(name: str, force: bool = False) -> int:
     else:
         print("  Not found in options.json (already clean)")
 
-    # 5. Strip xattrs from shared files
-    stripped = _strip_xattrs(name)
-    print(f"  Stripped xattr from {stripped} shared file(s)")
+    # Session data preserved: xattrs and origins log entries are kept
+    # so a private project maintains correct historical attribution.
 
-    # 6. Clean origins file
-    origins_removed = _clean_origins_file(name)
-    print(f"  Removed {origins_removed} line(s) from profile-origins.jsonl")
-
-    # 7. Remove from tokens.json
+    # 5. Remove from tokens.json
     if _remove_from_tokens(name):
         print("  Removed from tokens.json")
     else:
