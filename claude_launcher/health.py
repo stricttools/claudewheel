@@ -136,6 +136,25 @@ def check_xattr_coverage() -> HealthResult:
     return HealthResult(False, "xattr-coverage", detail)
 
 
+def check_hook_integrity() -> HealthResult:
+    """Verify hook-stamp-origin contains sentinel and flock patterns."""
+    hook = Path.home() / ".claude-common" / "scripts" / "hook-stamp-origin"
+    if not hook.exists():
+        return HealthResult(False, "hook-integrity", "hook-stamp-origin missing")
+    try:
+        content = hook.read_text()
+    except OSError:
+        return HealthResult(False, "hook-integrity", "unreadable")
+    issues: list[str] = []
+    if ".stamped-" not in content:
+        issues.append("no sentinel check")
+    if "flock" not in content:
+        issues.append("no flock")
+    if issues:
+        return HealthResult(False, "hook-integrity", "; ".join(issues))
+    return HealthResult(True, "hook-integrity", "sentinel + flock present")
+
+
 def check_hooks_wired() -> HealthResult:
     """Verify each profile's settings.json has hook-timestamp and hook-stamp-origin hooks."""
     profiles = _discover_profiles()
@@ -368,6 +387,7 @@ def run_health_check() -> list[HealthResult]:
         check_token_expiry(),
         check_orphan_profiles(),
         check_file_permissions(),
+        check_hook_integrity(),
     ]
 
 
