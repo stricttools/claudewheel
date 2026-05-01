@@ -39,6 +39,7 @@ class WizardResult:
     disable_recap: bool
     cleanup_10y: bool
     disable_memory: bool
+    disable_attribution: bool
     cancelled: bool = False
 
 
@@ -54,6 +55,7 @@ def _build_fields(existing_profiles: list[str]) -> list[WizardField]:
         WizardField("Disable recap", "checkbox", value=True),
         WizardField("10-year cleanup period", "checkbox", value=True),
         WizardField("Disable auto-memory", "checkbox", value=True),
+        WizardField("Disable Co-Authored-By", "checkbox", value=True),
         WizardField("Create", "button"),
         WizardField("Cancel", "button"),
     ]
@@ -154,13 +156,13 @@ def run_profile_wizard(existing_profiles: list[str]) -> WizardResult:
                 key = term.read_key()
             except KeyboardInterrupt:
                 return WizardResult("", "", None, False, False, False, False, False,
-                                    cancelled=True)
+                                    False, cancelled=True)
 
             f = fields[focus]
 
             if key == "ESC" or key == "CTRL_C":
                 return WizardResult("", "", None, False, False, False, False, False,
-                                    cancelled=True)
+                                    False, cancelled=True)
 
             if key in ("UP", "DOWN", "TAB"):
                 step = -1 if key == "UP" else 1
@@ -200,6 +202,7 @@ def run_profile_wizard(existing_profiles: list[str]) -> WizardResult:
                             disable_recap=bool(fields[5].value),
                             cleanup_10y=bool(fields[6].value),
                             disable_memory=bool(fields[7].value),
+                            disable_attribution=bool(fields[8].value),
                         )
             elif key == " ":
                 if f.field_type == "checkbox":
@@ -281,6 +284,8 @@ def create_profile(result: WizardResult, cfg: ConfigManager) -> None:
         settings["cleanupPeriodDays"] = 3650
     if result.disable_memory:
         settings["autoMemoryEnabled"] = False
+    if result.disable_attribution:
+        settings["attribution"] = {"commit": "", "pr": ""}
 
     # Wire hooks — merge into existing hooks if cloned
     if result.wire_hooks:
@@ -334,6 +339,7 @@ def create_profile(result: WizardResult, cfg: ConfigManager) -> None:
     print(f"  Recap disabled: {result.disable_recap}")
     print(f"  Cleanup 10y:    {result.cleanup_10y}")
     print(f"  Auto-memory:    {not result.disable_memory}")
+    print(f"  Attribution:    {not result.disable_attribution}")
     print()
     print(f"  To set up long-lived auth, run:")
     print(f"    CLAUDE_CONFIG_DIR={result.config_dir} claude setup-token")

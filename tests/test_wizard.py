@@ -33,6 +33,7 @@ def _make_result(
     disable_recap: bool = False,
     cleanup_10y: bool = False,
     disable_memory: bool = False,
+    disable_attribution: bool = False,
 ) -> WizardResult:
     """Build a WizardResult with sensible defaults for testing."""
     return WizardResult(
@@ -44,6 +45,7 @@ def _make_result(
         disable_recap=disable_recap,
         cleanup_10y=cleanup_10y,
         disable_memory=disable_memory,
+        disable_attribution=disable_attribution,
     )
 
 
