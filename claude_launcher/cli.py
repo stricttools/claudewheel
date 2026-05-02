@@ -1,4 +1,4 @@
-"""main() function with argparse for ClaudeLauncher CLI."""
+"""main() function with argparse for claudewheel CLI."""
 
 from __future__ import annotations
 
@@ -77,7 +77,7 @@ def _do_show(cfg: ConfigManager) -> int:
     enabled = cfg.config.get("enabled_segments", [])
     last_config = cfg.state.get("last_config", {})
 
-    print("ClaudeLauncher state:")
+    print("claudewheel state:")
     # Compute label width for nice alignment across enabled segments
     enabled_segs = [s for s in cfg.segments_def if s["key"] in enabled]
     label_width = max((len(s.get("label", s["key"])) for s in enabled_segs), default=0)
@@ -145,7 +145,7 @@ def main() -> None:
     enabled = cfg.config.get("enabled_segments", [])
     segment_keys = [s["key"] for s in cfg.segments_def if s["key"] in enabled]
 
-    parser = argparse.ArgumentParser(prog="c", description="ClaudeLauncher - TUI launcher for Claude Code")
+    parser = argparse.ArgumentParser(prog="c", description="claudewheel - TUI launcher for Claude Code")
     parser.add_argument("--health", action="store_true", help="run health check and exit")
     parser.add_argument("--config", action="store_true", help="open ~/.claudelauncher/ in $EDITOR")
     parser.add_argument("--versions", action="store_true", help="list available versions and exit")

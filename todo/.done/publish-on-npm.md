@@ -1,12 +1,12 @@
-# Publish ClaudeLauncher on npm
+# Publish claudewheel on npm
 
 ## Context
 
-ClaudeLauncher is a pure Python 3.14+ TUI launcher for Claude Code. It has no npm presence yet. Since the target audience (Claude Code users) already has Node.js installed, npm is the natural distribution channel. The `rlsbl` tool can scaffold the release infrastructure.
+claudewheel is a pure Python 3.14+ TUI launcher for Claude Code. It has no npm presence yet. Since the target audience (Claude Code users) already has Node.js installed, npm is the natural distribution channel. The `rlsbl` tool can scaffold the release infrastructure.
 
 ## Problem
 
-ClaudeLauncher is only installable by cloning the repo and symlinking the `c` script manually. It should be `npm i -g claude-launcher` (or similar name -- check availability with `scripts/check-name` in the rlsbl project).
+claudewheel is only installable by cloning the repo and symlinking the `c` script manually. It should be `npm i -g claude-launcher` (or similar name -- check availability with `scripts/check-name` in the rlsbl project).
 
 ## Steps
 
@@ -17,7 +17,7 @@ ClaudeLauncher is only installable by cloning the repo and symlinking the `c` sc
    - Sets PYTHONPATH to the installed package location
    - Execs `python3 -m claude_launcher "$@"`
 4. Run `rlsbl init` to scaffold CI + publish workflows, CHANGELOG, LICENSE, etc.
-5. Create GitHub repo: `gh repo create Q.~TF/claude-launcher --public --source . --push`
+5. Create GitHub repo: `gh repo create %~rOe/claude-launcher --public --source . --push`
 6. First publish locally: `npm login && npm publish --access public` (with granular token)
 7. Configure Trusted Publishing on npmjs.com
 8. Verify `npm i -g <name>` works end-to-end on a clean machine

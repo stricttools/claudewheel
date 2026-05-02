@@ -1,4 +1,4 @@
-"""Health check utilities for ClaudeLauncher."""
+"""Health check utilities for claudewheel."""
 
 from __future__ import annotations
 

@@ -7,7 +7,7 @@ Claude Code stores conversation sessions per-profile in its `CLAUDE_CONFIG_DIR`.
 - `--continue` / `-c` : resume the most recent conversation
 - `--resume` / `-r` : open Claude Code's interactive session picker
 
-ClaudeLauncher already supports both as passthrough flags (`./c -c`, `./c -r`). This TODO is about a more integrated approach: a TUI segment that lists recent sessions for the currently selected profile, with metadata, so the user can pick a specific session from the launcher itself before Claude Code starts.
+claudewheel already supports both as passthrough flags (`./c -c`, `./c -r`). This TODO is about a more integrated approach: a TUI segment that lists recent sessions for the currently selected profile, with metadata, so the user can pick a specific session from the launcher itself before Claude Code starts.
 
 ## Problem
 

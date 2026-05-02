@@ -1,4 +1,4 @@
-# ClaudeLauncher Changelog
+# claudewheel Changelog
 
 ## 0.1.3
 - Fix freeform backspace bug: can now delete to empty string without resetting

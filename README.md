@@ -1,4 +1,4 @@
-# ClaudeLauncher
+# claudewheel
 
 TUI launcher for Claude Code with profile, GitHub account, version, model, directory, MCP, and permission switching.
 
@@ -135,7 +135,7 @@ Two themes ship with the launcher: `dark.json` and `light.json` in `~/.claudelau
 ## Tests
 
 ```bash
-cd /home/m/Projects/ClaudeLauncher
+cd /home/m/Projects/claudewheel
 python3 -m unittest discover tests/
 ```
 

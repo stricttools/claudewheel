@@ -1,4 +1,4 @@
-"""ANSI escape helpers and path constants for ClaudeLauncher."""
+"""ANSI escape helpers and path constants for claudewheel."""
 
 from pathlib import Path
 

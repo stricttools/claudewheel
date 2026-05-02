@@ -1,4 +1,4 @@
-"""State persistence for ClaudeLauncher."""
+"""State persistence for claudewheel."""
 
 from __future__ import annotations
 

@@ -1,1 +1,1 @@
-"""ClaudeLauncher - TUI launcher for Claude Code."""
+"""claudewheel - TUI launcher for Claude Code."""

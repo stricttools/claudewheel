@@ -47,7 +47,7 @@ def fetch_manifest(version: str) -> dict:
     """Fetch the version manifest from GCS. Returns the parsed JSON dict."""
     url = f"{GCS_BASE}/{version}/manifest.json"
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "ClaudeLauncher"})
+        req = urllib.request.Request(url, headers={"User-Agent": "claudewheel"})
         with urllib.request.urlopen(req, timeout=10) as resp:
             return json.loads(resp.read())
     except urllib.error.HTTPError as e:
@@ -89,7 +89,7 @@ def install_version(version: str, progress_callback=None) -> Path:
 
     # Download with progress reporting
     req = urllib.request.Request(
-        download_url, headers={"User-Agent": "ClaudeLauncher"}
+        download_url, headers={"User-Agent": "claudewheel"}
     )
     try:
         resp = urllib.request.urlopen(req, timeout=DOWNLOAD_TIMEOUT)

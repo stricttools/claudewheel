@@ -1,4 +1,4 @@
-"""Hook execution for ClaudeLauncher."""
+"""Hook execution for claudewheel."""
 
 from __future__ import annotations
 

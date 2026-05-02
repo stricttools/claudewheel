@@ -1,4 +1,4 @@
-"""Garbage collection for ClaudeLauncher shared infrastructure."""
+"""Garbage collection for claudewheel shared infrastructure."""
 from __future__ import annotations
 import fcntl
 import json
@@ -16,7 +16,7 @@ def _log(msg: str) -> None:
 
 
 def _known_profiles() -> set[str]:
-    known = {"personal", "work", "[|OR"}
+    known = {"personal", "work", "D_^E"}
     try:
         opts = json.loads(OPTIONS_FILE.read_text())
         known.update(opts.get("profile", {}).get("values", []))

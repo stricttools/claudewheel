@@ -181,7 +181,7 @@ class DoShowTests(unittest.TestCase):
         # Disabled segment must be hidden
         self.assertNotIn("MCP:", out)
         # Header / general state
-        self.assertIn("ClaudeLauncher state:", out)
+        self.assertIn("claudewheel state:", out)
         self.assertIn("Theme: dark", out)
         self.assertIn("--strict-mcp-config", out)
         self.assertIn("Health check on launch: True", out)

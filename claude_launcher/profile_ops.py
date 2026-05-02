@@ -1,4 +1,4 @@
-"""Profile lifecycle operations (delete, etc.) for ClaudeLauncher."""
+"""Profile lifecycle operations (delete, etc.) for claudewheel."""
 
 from __future__ import annotations
 

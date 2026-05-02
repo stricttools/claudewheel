@@ -1,4 +1,4 @@
-"""ThemeColors dataclass and parse_theme for ClaudeLauncher."""
+"""ThemeColors dataclass and parse_theme for claudewheel."""
 
 from __future__ import annotations
 

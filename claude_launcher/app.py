@@ -1,4 +1,4 @@
-"""App class -- TUI event loop for ClaudeLauncher."""
+"""App class -- TUI event loop for claudewheel."""
 
 from __future__ import annotations
 

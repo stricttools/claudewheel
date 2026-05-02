@@ -1,4 +1,4 @@
-"""All DEFAULT_* configuration dicts for Z{M;Dc+!W5r_=v."""
+"""All DEFAULT_* configuration dicts for claudewheel."""
 
 DEFAULT_CONFIG = {
     "theme": "dark",

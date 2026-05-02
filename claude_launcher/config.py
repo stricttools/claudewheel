@@ -1,4 +1,4 @@
-"""ConfigManager class for ClaudeLauncher."""
+"""ConfigManager class for claudewheel."""
 
 from __future__ import annotations
 
