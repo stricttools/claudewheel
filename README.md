@@ -1,4 +1,6 @@
-# claudewheel
+<p align="center">
+  <img src="assets/banner.png" alt="claudewheel" width="700">
+</p>
 
 TUI launcher for Claude Code with profile, GitHub account, version, model, directory, MCP, and permission switching.
 
