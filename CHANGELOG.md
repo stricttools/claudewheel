@@ -1,5 +1,9 @@
 # claudewheel Changelog
 
+## 0.1.4
+- Rename all internal references from ClaudeLauncher to claudewheel (docstrings, CLI output, User-Agent, tests)
+- Add branding assets (logo, banner) and banner to README
+
 ## 0.1.3
 - Fix freeform backspace bug: can now delete to empty string without resetting
 - Scaffold rlsbl scripts and hooks (check-prs.sh, pre-release.sh, record-gif.sh, pre-push hook)
