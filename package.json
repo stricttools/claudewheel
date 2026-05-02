@@ -23,7 +23,8 @@
     "claude-code",
     "launcher",
     "tui",
-    "config"
+    "config",
+    "rlsbl"
   ],
   "author": "smm-h"
 }
