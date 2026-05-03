@@ -1,5 +1,10 @@
 # claudewheel Changelog
 
+## 0.1.6
+- Default directory segment to current working directory
+- Raise `/tmp/claude` health check threshold from 500 MB to 2 GB
+- Add `npm test` script (runs pytest)
+
 ## 0.1.5
 - Add `--redir OLD NEW` subcommand for redirecting session data after a project directory rename
 - Fix `--redir` to find `.claude.json` project keys under `data["projects"]` (not top-level)
