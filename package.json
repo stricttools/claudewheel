@@ -26,5 +26,8 @@
     "config",
     "rlsbl"
   ],
-  "author": "smm-h"
+  "author": "smm-h",
+  "scripts": {
+    "test": "python3 -m pytest tests/"
+  }
 }
