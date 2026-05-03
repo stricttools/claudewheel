@@ -359,7 +359,10 @@ def main() -> None:
         merged = dict(cfg.state.get("last_config", {}))
         merged.update(segment_overrides)
         if args.print_prompt is not None:
-            missing = [k for k in required_keys if not merged.get(k)]
+            print_keys = {s["key"] for s in cfg.segments_def
+                          if s["key"] in enabled and s.get("print_mode", True)}
+            merged = {k: v for k, v in merged.items() if k in print_keys}
+            missing = [k for k in required_keys & print_keys if not merged.get(k)]
             if missing:
                 print(
                     f"Warning: required segments not set: {', '.join(sorted(missing))}; "
