@@ -358,6 +358,15 @@ def main() -> None:
     if skip_tui:
         merged = dict(cfg.state.get("last_config", {}))
         merged.update(segment_overrides)
+        if args.print_prompt is not None:
+            missing = [k for k in required_keys if not merged.get(k)]
+            if missing:
+                print(
+                    f"Warning: required segments not set: {', '.join(sorted(missing))}; "
+                    "using fallback defaults. Use --<segment> flags or run the TUI first "
+                    "to populate last_config.",
+                    file=sys.stderr,
+                )
         _do_launch_sequence(cfg, merged, extra_flags=extra_flags,
                             interactive=args.print_prompt is None)
         return
