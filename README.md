@@ -84,9 +84,16 @@ Mutually exclusive flags forwarded to Claude Code:
 c -c                       # --continue: resume the most recent session
 c -r                       # --resume: open Claude Code's session picker
 c -r 0123abcd              # --resume <id>: jump to a specific session
+c -p "summarize this repo" # --print: non-interactive print mode
 ```
 
 These compose with segment overrides: `c --profile personal -r` opens the picker against the personal profile.
+
+Print mode (`-p`) skips the TUI and launches Claude Code non-interactively. Extra flags after `--` are passed through:
+
+```bash
+c -p "explain auth.py" -- --output-format json --allowedTools "Read,Bash"
+```
 
 ## Config directory
 

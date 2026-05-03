@@ -172,8 +172,7 @@ def main() -> None:
     parser.add_argument("--dry-run", action="store_true",
                         help="preview changes without writing (for --migrate, --gc, --redir)")
 
-    # Mutually exclusive session passthrough flags (handed to claude as -c / -r)
-    # --resume optionally accepts a session ID; without one, Claude opens its picker.
+    # Mutually exclusive session/print passthrough flags
     _RESUME_NO_ID = object()  # sentinel for "-r with no value"
     session_group = parser.add_mutually_exclusive_group()
     session_group.add_argument("-c", "--continue", dest="cont", action="store_true",
@@ -181,6 +180,9 @@ def main() -> None:
     session_group.add_argument("-r", "--resume", nargs="?", default=None, const=_RESUME_NO_ID,
                                metavar="SESSION_ID",
                                help="resume a Claude session (with optional ID, or open picker)")
+    session_group.add_argument("-p", "--print", dest="print_prompt", default=None,
+                               metavar="PROMPT",
+                               help="run Claude in non-interactive print mode with the given prompt")
 
     # Dynamic --<segment_key> args, one per enabled segment
     seg_group = parser.add_argument_group("segment values")
@@ -192,7 +194,7 @@ def main() -> None:
                 help=f"preset value for the {sdef.get('label', key)} segment",
             )
 
-    args = parser.parse_args()
+    args, _remaining = parser.parse_known_args()
 
     # --versions: list installed versions and exit
     if args.versions:
@@ -335,13 +337,21 @@ def main() -> None:
         extra_flags.append("--resume")
         if args.resume is not _RESUME_NO_ID:
             extra_flags.append(args.resume)
+    elif args.print_prompt is not None:
+        extra_flags.extend(["--print", args.print_prompt])
 
-    # Skip TUI ONLY when the args themselves cover every required segment.
-    # Partial args (e.g. just --directory .) always show the TUI with the
-    # overrides pre-filled, regardless of what's in last_config.
+    # Append anything after "--" as raw Claude Code flags
+    if "--" in sys.argv:
+        passthrough_start = sys.argv.index("--") + 1
+        extra_flags.extend(sys.argv[passthrough_start:])
+
+    # Skip TUI when args cover every required segment, or when print mode is active.
     required_keys = {s["key"] for s in cfg.segments_def
                      if s["key"] in enabled and s.get("required", False)}
-    if required_keys and all(k in segment_overrides for k in required_keys):
+    skip_tui = args.print_prompt is not None or (
+        required_keys and all(k in segment_overrides for k in required_keys)
+    )
+    if skip_tui:
         merged = dict(cfg.state.get("last_config", {}))
         merged.update(segment_overrides)
         _do_launch_sequence(cfg, merged, extra_flags=extra_flags)
