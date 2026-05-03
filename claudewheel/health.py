@@ -45,8 +45,8 @@ def check_tmp_claude_size() -> HealthResult:
     try:
         total = sum(f.stat().st_size for f in tmp_dir.rglob("*") if f.is_file())
         mb = total / (1024 * 1024)
-        if mb > 500:
-            return HealthResult(False, "/tmp/claude", f"{mb:.0f} MB (>500 MB threshold)")
+        if mb > 2048:
+            return HealthResult(False, "/tmp/claude", f"{mb:.0f} MB (>2 GB threshold)")
         return HealthResult(True, "/tmp/claude", f"{mb:.0f} MB")
     except Exception as e:
         return HealthResult(True, "/tmp/claude", f"check failed: {e}")
