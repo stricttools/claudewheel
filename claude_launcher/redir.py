@@ -78,21 +78,25 @@ def _rewrite_jsonl_file(
 def _update_claude_json(
     path: Path, old_path: str, new_path: str, dry_run: bool,
 ) -> bool:
-    """Rename a top-level project key in .claude.json. Returns True if updated."""
+    """Rename a project key in .claude.json. Returns True if updated.
+
+    The key lives under data["projects"][old_path], not at the top level.
+    """
     try:
         data = json.loads(path.read_text())
     except (OSError, json.JSONDecodeError) as e:
         _log(f"  cannot parse {path}: {e}")
         return False
 
-    if old_path not in data:
+    projects = data.get("projects", {})
+    if not isinstance(projects, dict) or old_path not in projects:
         return False
 
     if dry_run:
         _log(f"  would rename key {old_path!r} -> {new_path!r} in {path}")
         return True
 
-    data[new_path] = data.pop(old_path)
+    projects[new_path] = projects.pop(old_path)
     tmp = path.with_suffix(".tmp")
     tmp.write_text(json.dumps(data, indent=2) + "\n")
     tmp.rename(path)

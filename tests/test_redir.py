@@ -103,7 +103,7 @@ class RewriteJsonlFileTests(unittest.TestCase):
 
 
 class UpdateClaudeJsonTests(unittest.TestCase):
-    """Top-level key rename in .claude.json."""
+    """Project key rename under data['projects'] in .claude.json."""
 
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
@@ -117,22 +117,32 @@ class UpdateClaudeJsonTests(unittest.TestCase):
 
     def test_renames_matching_key(self) -> None:
         f = self.tmp_path / ".claude.json"
-        f.write_text(json.dumps({"/old/proj": {"setting": 1}, "/other": {"x": 2}}))
+        f.write_text(json.dumps({
+            "projects": {"/old/proj": {"setting": 1}, "/other": {"x": 2}},
+            "topLevel": True,
+        }))
 
         result = _update_claude_json(f, "/old/proj", "/new/proj", dry_run=False)
 
         self.assertTrue(result)
         data = json.loads(f.read_text())
-        self.assertIn("/new/proj", data)
-        self.assertNotIn("/old/proj", data)
-        # Value preserved
-        self.assertEqual(data["/new/proj"], {"setting": 1})
-        # Other key untouched
-        self.assertIn("/other", data)
+        self.assertIn("/new/proj", data["projects"])
+        self.assertNotIn("/old/proj", data["projects"])
+        self.assertEqual(data["projects"]["/new/proj"], {"setting": 1})
+        self.assertIn("/other", data["projects"])
+        self.assertTrue(data["topLevel"])
 
     def test_returns_false_when_key_missing(self) -> None:
         f = self.tmp_path / ".claude.json"
-        f.write_text(json.dumps({"/other": {}}))
+        f.write_text(json.dumps({"projects": {"/other": {}}}))
+
+        result = _update_claude_json(f, "/old/proj", "/new/proj", dry_run=False)
+
+        self.assertFalse(result)
+
+    def test_returns_false_when_no_projects_key(self) -> None:
+        f = self.tmp_path / ".claude.json"
+        f.write_text(json.dumps({"topLevel": True}))
 
         result = _update_claude_json(f, "/old/proj", "/new/proj", dry_run=False)
 
@@ -140,13 +150,12 @@ class UpdateClaudeJsonTests(unittest.TestCase):
 
     def test_dry_run_returns_true_but_does_not_modify(self) -> None:
         f = self.tmp_path / ".claude.json"
-        original = json.dumps({"/old/proj": {"val": 42}})
+        original = json.dumps({"projects": {"/old/proj": {"val": 42}}})
         f.write_text(original)
 
         result = _update_claude_json(f, "/old/proj", "/new/proj", dry_run=True)
 
         self.assertTrue(result)
-        # File unchanged
         self.assertEqual(json.loads(f.read_text()), json.loads(original))
 
 
@@ -227,11 +236,13 @@ class RunRedirIntegrationTests(unittest.TestCase):
             + json.dumps({"cwd": self.old_resolved, "type": "resume"}) + "\n"
         )
 
-        # .claude.json with old path as a key
+        # .claude.json with old path as a key under "projects"
         self.claude_json = self.profile / ".claude.json"
         self.claude_json.write_text(json.dumps({
-            self.old_resolved: {"lastSession": "abc123"},
-            "/other/project": {"lastSession": "xyz"},
+            "projects": {
+                self.old_resolved: {"lastSession": "abc123"},
+                "/other/project": {"lastSession": "xyz"},
+            },
         }))
 
     def tearDown(self) -> None:
@@ -270,10 +281,11 @@ class RunRedirIntegrationTests(unittest.TestCase):
         # .claude.json key updated
         self.assertEqual(result.project_keys_updated, 1)
         data = json.loads(self.claude_json.read_text())
-        self.assertIn(self.new_resolved, data)
-        self.assertNotIn(self.old_resolved, data)
-        self.assertEqual(data[self.new_resolved], {"lastSession": "abc123"})
-        self.assertIn("/other/project", data)
+        projects = data["projects"]
+        self.assertIn(self.new_resolved, projects)
+        self.assertNotIn(self.old_resolved, projects)
+        self.assertEqual(projects[self.new_resolved], {"lastSession": "abc123"})
+        self.assertIn("/other/project", projects)
 
         # Profile count
         self.assertEqual(result.profiles_scanned, 1)
@@ -317,7 +329,7 @@ class RunRedirIntegrationTests(unittest.TestCase):
         shared = self.home / ".claude-shared"
         shared.mkdir()
         shared_json = shared / ".claude.json"
-        shared_json.write_text(json.dumps({self.old_resolved: {"x": 1}}))
+        shared_json.write_text(json.dumps({"projects": {self.old_resolved: {"x": 1}}}))
 
         with patch("claude_launcher.redir.Path.home", return_value=self.home), \
              patch(
@@ -329,8 +341,8 @@ class RunRedirIntegrationTests(unittest.TestCase):
         # Only the profile's .claude.json was updated, not shared's
         self.assertEqual(result.project_keys_updated, 1)
         shared_data = json.loads(shared_json.read_text())
-        self.assertIn(self.old_resolved, shared_data)
-        self.assertNotIn(self.new_resolved, shared_data)
+        self.assertIn(self.old_resolved, shared_data["projects"])
+        self.assertNotIn(self.new_resolved, shared_data["projects"])
 
 
 if __name__ == "__main__":
