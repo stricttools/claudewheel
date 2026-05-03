@@ -13,3 +13,7 @@ dist/
 .*-cache.json
 .env
 .env.local
+
+# Added by rlsbl
+.rlsbl-notes-*.tmp
+*.local-only
