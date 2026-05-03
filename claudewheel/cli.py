@@ -323,6 +323,10 @@ def main() -> None:
         if val is not None:
             segment_overrides[key] = val
 
+    # Default directory to cwd if not explicitly set
+    if "directory" in segment_keys and "directory" not in segment_overrides:
+        segment_overrides["directory"] = os.getcwd()
+
     # Build extra Claude Code flags from passthrough args
     extra_flags: list[str] = []
     if args.cont:
