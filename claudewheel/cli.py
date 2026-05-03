@@ -190,22 +190,22 @@ def main() -> None:
                                metavar="PROMPT",
                                help="run Claude in non-interactive print mode with the given prompt")
 
-    # Dynamic --<segment_key> args, one per enabled segment.
-    # "version" is remapped to --claude-version to avoid collision with the
-    # app-level --version flag; dest="version" keeps the rest of the code
-    # reading args.version unchanged.
+    # Individual --<segment_key> flags for non-colliding segments.
+    # Segments whose key collides with a top-level flag (e.g. "version")
+    # are skipped here; use -s key=value instead.
+    _reserved_flags = {"version"}
     seg_group = parser.add_argument_group("segment values")
-    flag_overrides = {"version": "--claude-version"}
     for sdef in cfg.segments_def:
         key = sdef["key"]
-        if key in enabled:
-            flag = flag_overrides.get(key, f"--{key}")
-            extra = {"dest": key} if flag != f"--{key}" else {}
+        if key in enabled and key not in _reserved_flags:
             seg_group.add_argument(
-                flag, default=None, metavar="VALUE",
+                f"--{key}", default=None, metavar="VALUE",
                 help=f"preset value for the {sdef.get('label', key)} segment",
-                **extra,
             )
+    seg_group.add_argument(
+        "-s", "--set", action="append", default=[], metavar="KEY=VALUE",
+        help="set a segment value (e.g. -s version=2.1.119); works for any segment",
+    )
 
     args, _remaining = parser.parse_known_args()
 
@@ -331,12 +331,24 @@ def main() -> None:
             sys.exit(1)
         return
 
-    # Collect segment value overrides from CLI args
+    # Collect segment value overrides from individual flags
     segment_overrides: dict[str, str] = {}
     for key in segment_keys:
-        val = getattr(args, key, None)
-        if val is not None:
-            segment_overrides[key] = val
+        if key not in _reserved_flags:
+            val = getattr(args, key, None)
+            if val is not None:
+                segment_overrides[key] = val
+
+    # Merge -s key=value overrides (these take precedence over individual flags)
+    for item in args.set:
+        if "=" not in item:
+            print(f"Invalid -s format: {item!r} (expected KEY=VALUE)", file=sys.stderr)
+            sys.exit(1)
+        key, _, value = item.partition("=")
+        if key not in segment_keys:
+            print(f"Unknown segment: {key!r} (available: {', '.join(segment_keys)})", file=sys.stderr)
+            sys.exit(1)
+        segment_overrides[key] = value
 
     # Default directory to cwd if not explicitly set
     if "directory" in segment_keys and "directory" not in segment_overrides:
