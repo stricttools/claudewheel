@@ -297,9 +297,9 @@ class RunRedirIntegrationTests(unittest.TestCase):
 
         result = self._run(dry_run=True)
 
-        # Counters reflect intended work
+        # Counters reflect intended work (dry-run scans old dir for accurate counts)
         self.assertEqual(result.dirs_renamed, 1)
-        self.assertEqual(result.files_rewritten, 0)  # file not rewritten in dry run
+        self.assertEqual(result.lines_replaced, 2)
         self.assertEqual(result.project_keys_updated, 1)
 
         # Nothing changed on disk

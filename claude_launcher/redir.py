@@ -160,9 +160,10 @@ def run_redir(
                 _log(f"  renamed {old_project} -> {new_project}")
                 result.dirs_renamed += 1
 
-        # 4b. Rewrite JSONL files in the (now renamed) project dir
-        if new_project.is_dir():
-            for jsonl_path in new_project.rglob("*.jsonl"):
+        # 4b. Rewrite JSONL files (scan new_project after rename, or old_project in dry-run)
+        scan_dir = new_project if new_project.is_dir() else old_project
+        if scan_dir.is_dir():
+            for jsonl_path in scan_dir.rglob("*.jsonl"):
                 # Skip history.jsonl -- append-only, not critical for resume
                 if jsonl_path.name == "history.jsonl":
                     continue
