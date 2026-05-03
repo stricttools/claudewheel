@@ -1,5 +1,11 @@
 # claudewheel Changelog
 
+## 0.1.9
+- Add `--version` flag (prints app version)
+- Add `-s`/`--set KEY=VALUE` flag for setting any segment value (e.g. `-s version=2.1.119`)
+- `-s` is required for the `version` segment (its `--version` flag collides with the app version flag)
+- `-s` takes precedence over individual `--<segment>` flags; validates segment name and format
+
 ## 0.1.8
 - Add `print_mode` toggle to segment definitions; segments declare whether they participate in `-p` mode
 - Exclude `github`, `mcp`, `permissions` segments from print mode by default (github is slow, mcp unreliable non-interactively, permissions can hang on interactive-only modes)
