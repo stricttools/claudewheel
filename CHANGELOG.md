@@ -1,5 +1,11 @@
 # claudewheel Changelog
 
+## 0.1.7
+- Add `-p`/`--print` flag for non-interactive print mode
+- Add `--` passthrough for raw Claude Code flags (e.g. `--output-format`, `--allowedTools`)
+- Add `scripts/redir-history.sh` for rewriting paths in history.jsonl files
+- Fix CI: add Python 3.14 setup and pytest install
+
 ## 0.1.6
 - Default directory segment to current working directory
 - Raise `/tmp/claude` health check threshold from 500 MB to 2 GB
