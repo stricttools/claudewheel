@@ -391,8 +391,8 @@ def run_health_check() -> list[HealthResult]:
     ]
 
 
-def print_health_report(results: list[HealthResult]) -> None:
-    """Print health check results to stdout."""
+def print_health_report(results: list[HealthResult], file=None) -> None:
+    """Print health check results. Defaults to stdout; pass file=sys.stderr for non-interactive mode."""
     for r in results:
         status = "OK" if r.ok else "WARN"
-        print(f"  [{status}] {r.label}: {r.detail}")
+        print(f"  [{status}] {r.label}: {r.detail}", file=file)

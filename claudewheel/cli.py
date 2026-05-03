@@ -108,21 +108,25 @@ def _do_show(cfg: ConfigManager) -> int:
 
 
 def _do_launch_sequence(
-    cfg: ConfigManager, selections: dict, extra_flags: list[str] | None = None
+    cfg: ConfigManager, selections: dict, extra_flags: list[str] | None = None,
+    interactive: bool = True,
 ) -> None:
     """Run health check, hooks, save state, resolve, and exec. Does not return on success."""
     if cfg.config.get("health_check_on_launch", True):
         results = run_health_check()
         warnings = [r for r in results if not r.ok]
         if warnings:
-            print("Health warnings:")
-            print_health_report(warnings)
-            print("Press Enter to continue or Ctrl-C to abort...")
-            try:
-                input()
-            except KeyboardInterrupt:
-                print()
-                sys.exit(1)
+            # In non-interactive mode (e.g. print mode), write to stderr and skip input()
+            dest = None if interactive else sys.stderr
+            print("Health warnings:", file=dest)
+            print_health_report(warnings, file=dest)
+            if interactive:
+                print("Press Enter to continue or Ctrl-C to abort...")
+                try:
+                    input()
+                except KeyboardInterrupt:
+                    print()
+                    sys.exit(1)
     if not run_hooks("pre-launch", selections):
         print("Pre-launch hook failed. Aborting.")
         sys.exit(1)
@@ -354,7 +358,8 @@ def main() -> None:
     if skip_tui:
         merged = dict(cfg.state.get("last_config", {}))
         merged.update(segment_overrides)
-        _do_launch_sequence(cfg, merged, extra_flags=extra_flags)
+        _do_launch_sequence(cfg, merged, extra_flags=extra_flags,
+                            interactive=args.print_prompt is None)
         return
 
     # Otherwise show the TUI (pre-filled from last_config + arg overrides)
