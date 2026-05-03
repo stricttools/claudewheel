@@ -1,5 +1,12 @@
 # claudewheel Changelog
 
+## 0.1.5
+- Add `--redir OLD NEW` subcommand for redirecting session data after a project directory rename
+- Fix `--redir` to find `.claude.json` project keys under `data["projects"]` (not top-level)
+- Fix `--redir --dry-run` to report accurate JSONL file/line counts
+- Rename Python package from `claude_launcher` to `claudewheel`
+- Simplify README quick start, add `--redir` to CLI docs
+
 ## 0.1.4
 - Rename all internal references from ClaudeLauncher to claudewheel (docstrings, CLI output, User-Agent, tests)
 - Add branding assets (logo, banner) and banner to README
