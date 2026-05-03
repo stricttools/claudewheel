@@ -1,5 +1,12 @@
 # claudewheel Changelog
 
+## 0.1.8
+- Add `print_mode` toggle to segment definitions; segments declare whether they participate in `-p` mode
+- Exclude `github`, `mcp`, `permissions` segments from print mode by default (github is slow, mcp unreliable non-interactively, permissions can hang on interactive-only modes)
+- Fix health check blocking `input()` in print mode; warnings now go to stderr without blocking
+- Warn to stderr when print mode uses fallback defaults for missing required segments
+- Add 7 unit tests for print mode
+
 ## 0.1.7
 - Add `-p`/`--print` flag for non-interactive print mode
 - Add `--` passthrough for raw Claude Code flags (e.g. `--output-format`, `--allowedTools`)
