@@ -1,10 +1,10 @@
-"""Smoke tests for Segment dataclass and version_sort_key in claude_launcher.segment."""
+"""Smoke tests for Segment dataclass and version_sort_key in claudewheel.segment."""
 
 from __future__ import annotations
 
 import unittest
 
-from claude_launcher.segment import Segment, version_sort_key
+from claudewheel.segment import Segment, version_sort_key
 
 
 class SegmentCycleWrapTests(unittest.TestCase):

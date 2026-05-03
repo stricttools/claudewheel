@@ -1,4 +1,4 @@
-"""Tests for create_profile() in claude_launcher.wizard."""
+"""Tests for create_profile() in claudewheel.wizard."""
 
 from __future__ import annotations
 
@@ -11,11 +11,11 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from claude_launcher.wizard import WizardResult, create_profile, _HOOKS_TEMPLATE, _SHARED_DIRS
-from claude_launcher import wizard as wizard_mod
-from claude_launcher import config as config_mod
-from claude_launcher.config import ConfigManager
-from claude_launcher.defaults import (
+from claudewheel.wizard import WizardResult, create_profile, _HOOKS_TEMPLATE, _SHARED_DIRS
+from claudewheel import wizard as wizard_mod
+from claudewheel import config as config_mod
+from claudewheel.config import ConfigManager
+from claudewheel.defaults import (
     DEFAULT_CONFIG,
     DEFAULT_SEGMENTS,
     DEFAULT_OPTIONS,

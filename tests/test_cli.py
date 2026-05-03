@@ -15,7 +15,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest import mock
 
-from claude_launcher import cli
+from claudewheel import cli
 
 
 class DoUninstallTests(unittest.TestCase):

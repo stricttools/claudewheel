@@ -1,4 +1,4 @@
-"""Tests for health check functions in claude_launcher.health."""
+"""Tests for health check functions in claudewheel.health."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from claude_launcher.health import (
+from claudewheel.health import (
     HealthResult,
     _discover_profiles,
     check_hooks_wired,
@@ -463,7 +463,7 @@ class CheckOrphanProfilesTests(_HomeDirTestCase):
         """Returns OK when all .claude-* dirs are registered profiles."""
         self._make_profile("alpha")
         self._write_options(["alpha"])
-        with patch("claude_launcher.health.OPTIONS_FILE",
+        with patch("claudewheel.health.OPTIONS_FILE",
                     self.home / ".claudelauncher" / "options.json"):
             result = check_orphan_profiles()
         self.assertTrue(result.ok)
@@ -476,7 +476,7 @@ class CheckOrphanProfilesTests(_HomeDirTestCase):
         orphan = self.home / ".claude-stale"
         orphan.mkdir()
         self._write_options(["known"])
-        with patch("claude_launcher.health.OPTIONS_FILE",
+        with patch("claudewheel.health.OPTIONS_FILE",
                     self.home / ".claudelauncher" / "options.json"):
             result = check_orphan_profiles()
         self.assertFalse(result.ok)
@@ -487,7 +487,7 @@ class CheckOrphanProfilesTests(_HomeDirTestCase):
         (self.home / ".claude-shared").mkdir()
         (self.home / ".claude-common").mkdir()
         self._write_options([])
-        with patch("claude_launcher.health.OPTIONS_FILE",
+        with patch("claudewheel.health.OPTIONS_FILE",
                     self.home / ".claudelauncher" / "options.json"):
             result = check_orphan_profiles()
         self.assertTrue(result.ok)
@@ -497,7 +497,7 @@ class CheckOrphanProfilesTests(_HomeDirTestCase):
         # Dir exists but has no .credentials.json
         (self.home / ".claude-pending").mkdir()
         self._write_options(["pending"])
-        with patch("claude_launcher.health.OPTIONS_FILE",
+        with patch("claudewheel.health.OPTIONS_FILE",
                     self.home / ".claudelauncher" / "options.json"):
             result = check_orphan_profiles()
         self.assertTrue(result.ok)
@@ -509,7 +509,7 @@ class CheckOrphanProfilesTests(_HomeDirTestCase):
         # Create a broken symlink inside
         (orphan / "projects").symlink_to(self.home / "nonexistent")
         self._write_options([])
-        with patch("claude_launcher.health.OPTIONS_FILE",
+        with patch("claudewheel.health.OPTIONS_FILE",
                     self.home / ".claudelauncher" / "options.json"):
             result = check_orphan_profiles()
         self.assertFalse(result.ok)
@@ -520,7 +520,7 @@ class CheckOrphanProfilesTests(_HomeDirTestCase):
         """A dir with .credentials.json (registered profile) is never orphan."""
         self._make_profile("real")
         self._write_options([])  # not in options, but has credentials
-        with patch("claude_launcher.health.OPTIONS_FILE",
+        with patch("claudewheel.health.OPTIONS_FILE",
                     self.home / ".claudelauncher" / "options.json"):
             result = check_orphan_profiles()
         self.assertTrue(result.ok)

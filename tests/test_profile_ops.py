@@ -11,7 +11,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
-from claude_launcher import profile_ops
+from claudewheel import profile_ops
 
 
 def _xattr_supported() -> bool:

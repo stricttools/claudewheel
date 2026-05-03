@@ -1,4 +1,4 @@
-"""Tests for claude_launcher.redir — redirect session data after a project rename."""
+"""Tests for claudewheel.redir — redirect session data after a project rename."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from claude_launcher.redir import (
+from claudewheel.redir import (
     RedirResult,
     _encode_path,
     _rewrite_jsonl_file,
@@ -251,9 +251,9 @@ class RunRedirIntegrationTests(unittest.TestCase):
 
     def _run(self, dry_run: bool = False) -> RedirResult:
         """Run redir with patched home and profile discovery."""
-        with patch("claude_launcher.redir.Path.home", return_value=self.home), \
+        with patch("claudewheel.redir.Path.home", return_value=self.home), \
              patch(
-                 "claude_launcher.redir._discover_profile_dirs",
+                 "claudewheel.redir._discover_profile_dirs",
                  return_value=[self.profile],
              ):
             return run_redir(str(self.old_dir), str(self.new_dir), dry_run=dry_run)
@@ -331,9 +331,9 @@ class RunRedirIntegrationTests(unittest.TestCase):
         shared_json = shared / ".claude.json"
         shared_json.write_text(json.dumps({"projects": {self.old_resolved: {"x": 1}}}))
 
-        with patch("claude_launcher.redir.Path.home", return_value=self.home), \
+        with patch("claudewheel.redir.Path.home", return_value=self.home), \
              patch(
-                 "claude_launcher.redir._discover_profile_dirs",
+                 "claudewheel.redir._discover_profile_dirs",
                  return_value=[self.profile, shared],
              ):
             result = run_redir(str(self.old_dir), str(self.new_dir))

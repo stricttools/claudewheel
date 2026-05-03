@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from claude_launcher.segment import discover_options
+from claudewheel.segment import discover_options
 
 
 class DirectoryListingDiscoveryTests(unittest.TestCase):

@@ -61,7 +61,7 @@ def resolve_launch_config(
             raise OSError(
                 f"Version {version} is not on disk. "
                 f"Use the TUI to install it, or run: "
-                f"python3 -m claude_launcher --install {version}"
+                f"python3 -m claudewheel --install {version}"
             )
     else:
         # Fall back to the symlink if no version selected

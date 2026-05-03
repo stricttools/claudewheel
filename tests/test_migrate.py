@@ -1,4 +1,4 @@
-"""Tests for claude_launcher.migrate — session migration between profile dirs."""
+"""Tests for claudewheel.migrate — session migration between profile dirs."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from claude_launcher.migrate import (
+from claudewheel.migrate import (
     XATTR_NAME,
     MigrateResult,
     _discover_uuids,
@@ -367,7 +367,7 @@ class MigrateSessionsTests(unittest.TestCase):
         todos.mkdir()
         (todos / f"{UUID_A}-agent-cleanup.json").write_text("{}")
 
-    @patch("claude_launcher.migrate.Path.home")
+    @patch("claudewheel.migrate.Path.home")
     def test_stamps_and_moves_non_shared(self, mock_home) -> None:
         """In non-shared mode, artifacts are stamped and moved."""
         mock_home.return_value = self.home
@@ -387,7 +387,7 @@ class MigrateSessionsTests(unittest.TestCase):
         orig_jsonl = self.src_dir / "projects" / "myproj" / f"{UUID_A}.jsonl"
         self.assertFalse(orig_jsonl.exists())
 
-    @patch("claude_launcher.migrate.Path.home")
+    @patch("claudewheel.migrate.Path.home")
     def test_stamps_but_skips_moves_shared_store(self, mock_home) -> None:
         """When stores are shared, artifacts are stamped but not moved."""
         mock_home.return_value = self.home
@@ -408,7 +408,7 @@ class MigrateSessionsTests(unittest.TestCase):
         # File is still in place (not moved)
         self.assertTrue((shared / "myproj" / f"{UUID_A}.jsonl").exists())
 
-    @patch("claude_launcher.migrate.Path.home")
+    @patch("claudewheel.migrate.Path.home")
     def test_uuid_filter_substring_match(self, mock_home) -> None:
         """uuid_filter keeps only UUIDs containing the given substring."""
         mock_home.return_value = self.home
@@ -423,7 +423,7 @@ class MigrateSessionsTests(unittest.TestCase):
 
         self.assertEqual(result.uuids_found, 1)
 
-    @patch("claude_launcher.migrate.Path.home")
+    @patch("claudewheel.migrate.Path.home")
     def test_dry_run_does_not_write(self, mock_home) -> None:
         """Dry run reports counts but makes no filesystem changes."""
         mock_home.return_value = self.home

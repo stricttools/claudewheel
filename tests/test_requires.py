@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from claude_launcher.segment import (
+from claudewheel.segment import (
     Segment,
     SegmentBar,
     _satisfies_constraint,

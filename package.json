@@ -8,7 +8,7 @@
   },
   "files": [
     "bin/",
-    "claude_launcher/**/*.py",
+    "claudewheel/**/*.py",
     "c"
   ],
   "repository": {

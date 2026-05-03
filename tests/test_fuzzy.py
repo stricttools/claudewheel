@@ -1,10 +1,10 @@
-"""Smoke tests for fuzzy matching in claude_launcher.fuzzy."""
+"""Smoke tests for fuzzy matching in claudewheel.fuzzy."""
 
 from __future__ import annotations
 
 import unittest
 
-from claude_launcher.fuzzy import (
+from claudewheel.fuzzy import (
     fuzzy_match_positions,
     fuzzy_rank,
     fuzzy_score,

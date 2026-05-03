@@ -1,4 +1,4 @@
-"""Tests for claude_launcher.gc — garbage collection for shared infrastructure."""
+"""Tests for claudewheel.gc — garbage collection for shared infrastructure."""
 
 from __future__ import annotations
 
@@ -12,8 +12,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from claude_launcher import gc
-from claude_launcher.gc import (
+from claudewheel import gc
+from claudewheel.gc import (
     _clean_sentinels,
     _compact_origins,
     _known_profiles,
@@ -168,7 +168,7 @@ class CompactOriginsTests(unittest.TestCase):
         self.assertEqual(removed, 0)
 
     def test_handles_malformed_json_lines(self) -> None:
-        good = json.dumps({"profile": "3IST", "path": f"/x/{UUID_A}"})
+        good = json.dumps({"profile": "g<>F", "path": f"/x/{UUID_A}"})
         bad = "this is not json {{"
         self.origins.write_text(good + "\n" + bad + "\n")
 
@@ -228,7 +228,7 @@ class KnownProfilesTests(unittest.TestCase):
 
         self.assertIn("personal", known)
         self.assertIn("work", known)
-        self.assertIn("c6]1", known)
+        self.assertIn(",n"X", known)
 
     def test_includes_profiles_from_options_json(self) -> None:
         self.options.write_text(json.dumps({
@@ -248,7 +248,7 @@ class KnownProfilesTests(unittest.TestCase):
         with patch.object(gc, "OPTIONS_FILE", self.tmp_path / "nonexistent.json"):
             known = _known_profiles()
 
-        self.assertEqual(known, {"personal", "work", "&=@~"})
+        self.assertEqual(known, {"personal", "work", "26n+"})
 
 
 # ---------------------------------------------------------------------------

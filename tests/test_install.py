@@ -11,7 +11,7 @@ import urllib.error
 from pathlib import Path
 from unittest import mock
 
-from claude_launcher import install
+from claudewheel import install
 
 
 class DetectPlatformTests(unittest.TestCase):
@@ -51,7 +51,7 @@ class FetchManifestTests(unittest.TestCase):
             hdrs=None,  # type: ignore[arg-type]
             fp=None,
         )
-        with mock.patch("claude_launcher.install.urllib.request.urlopen",
+        with mock.patch("claudewheel.install.urllib.request.urlopen",
                         side_effect=http_err):
             with self.assertRaises(OSError) as ctx:
                 install.fetch_manifest("99.99.99")
@@ -65,7 +65,7 @@ class FetchManifestTests(unittest.TestCase):
             }
         }
         payload = json.dumps(manifest).encode("utf-8")
-        with mock.patch("claude_launcher.install.urllib.request.urlopen",
+        with mock.patch("claudewheel.install.urllib.request.urlopen",
                         return_value=_FakeResponse(payload)):
             result = install.fetch_manifest("2.1.110")
         self.assertEqual(result, manifest)
@@ -92,7 +92,7 @@ class InstallVersionTests(unittest.TestCase):
         responses = iter([_FakeResponse(manifest_payload),
                           _FakeResponse(binary_payload)])
         return mock.patch(
-            "claude_launcher.install.urllib.request.urlopen",
+            "claudewheel.install.urllib.request.urlopen",
             side_effect=side_effect,
         )
 
@@ -166,7 +166,7 @@ class InstallVersionTests(unittest.TestCase):
         # Only the manifest call should happen; the binary call would raise StopIteration
         # via our iter() side-effect if reached -- which is itself a useful safety net.
         with mock.patch(
-            "claude_launcher.install.urllib.request.urlopen",
+            "claudewheel.install.urllib.request.urlopen",
             return_value=_FakeResponse(manifest_bytes),
         ):
             with self.assertRaises(OSError) as ctx:
