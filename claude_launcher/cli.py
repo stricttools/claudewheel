@@ -167,8 +167,10 @@ def main() -> None:
                         help="migrate sessions: SRC DST [UUID_SUBSTR]")
     parser.add_argument("--gc", action="store_true",
                         help="garbage-collect stale sentinels, compact origins, report stats")
+    parser.add_argument("--redir", nargs=2, metavar=("OLD", "NEW"),
+                        help="redirect session data after a project directory rename")
     parser.add_argument("--dry-run", action="store_true",
-                        help="preview changes without writing (for --migrate, --gc)")
+                        help="preview changes without writing (for --migrate, --gc, --redir)")
 
     # Mutually exclusive session passthrough flags (handed to claude as -c / -r)
     # --resume optionally accepts a session ID; without one, Claude opens its picker.
@@ -301,6 +303,17 @@ def main() -> None:
     if args.gc:
         from .gc import run_gc
         run_gc(dry_run=args.dry_run)
+        return
+
+    # --redir OLD NEW: redirect session data after a directory rename
+    if args.redir:
+        from .redir import run_redir
+        old, new = args.redir
+        try:
+            run_redir(old, new, dry_run=args.dry_run)
+        except (FileNotFoundError, FileExistsError, OSError) as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
         return
 
     # Collect segment value overrides from CLI args
