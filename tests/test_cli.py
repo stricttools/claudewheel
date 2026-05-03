@@ -327,7 +327,7 @@ class PrintModeTests(unittest.TestCase):
                 "c",
                 "--profile", "personal",
                 "--github", "ghuser",
-                "--version", "2.1.116",
+                "--claude-version", "2.1.116",
                 "--directory", "/some/dir",
             ],
             last_config={},

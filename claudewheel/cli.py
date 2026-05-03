@@ -6,6 +6,7 @@ import argparse
 import os
 import sys
 
+from . import __version__
 from .app import App
 from .config import ConfigManager
 from .constants import LAUNCHER_DIR, OPTIONS_FILE, VERSIONS_DIR, CLAUDE_SYMLINK
@@ -150,6 +151,7 @@ def main() -> None:
     segment_keys = [s["key"] for s in cfg.segments_def if s["key"] in enabled]
 
     parser = argparse.ArgumentParser(prog="c", description="claudewheel - TUI launcher for Claude Code")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     parser.add_argument("--health", action="store_true", help="run health check and exit")
     parser.add_argument("--config", action="store_true", help="open ~/.claudelauncher/ in $EDITOR")
     parser.add_argument("--versions", action="store_true", help="list available versions and exit")
@@ -188,14 +190,21 @@ def main() -> None:
                                metavar="PROMPT",
                                help="run Claude in non-interactive print mode with the given prompt")
 
-    # Dynamic --<segment_key> args, one per enabled segment
+    # Dynamic --<segment_key> args, one per enabled segment.
+    # "version" is remapped to --claude-version to avoid collision with the
+    # app-level --version flag; dest="version" keeps the rest of the code
+    # reading args.version unchanged.
     seg_group = parser.add_argument_group("segment values")
+    flag_overrides = {"version": "--claude-version"}
     for sdef in cfg.segments_def:
         key = sdef["key"]
         if key in enabled:
+            flag = flag_overrides.get(key, f"--{key}")
+            extra = {"dest": key} if flag != f"--{key}" else {}
             seg_group.add_argument(
-                f"--{key}", default=None, metavar="VALUE",
+                flag, default=None, metavar="VALUE",
                 help=f"preset value for the {sdef.get('label', key)} segment",
+                **extra,
             )
 
     args, _remaining = parser.parse_known_args()

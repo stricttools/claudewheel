@@ -1,1 +1,10 @@
 """claudewheel - TUI launcher for Claude Code."""
+
+import json as _json
+from pathlib import Path as _Path
+
+_package_json = _Path(__file__).resolve().parent.parent / "package.json"
+try:
+    __version__ = _json.loads(_package_json.read_text())["version"]
+except (OSError, KeyError, _json.JSONDecodeError):
+    __version__ = "unknown"
