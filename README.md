@@ -6,17 +6,9 @@ TUI launcher for Claude Code with profile, GitHub account, version, model, direc
 
 ## Quick start
 
-Clone (or already have) the repo, then symlink the entry point onto your `PATH`:
-
 ```bash
-ln -s "$PWD/c" ~/.local/bin/c
-```
-
-The symlink is optional -- you can also invoke `./c` from the repo directly. Either way:
-
-```bash
-c            # launch the TUI
-c --help     # show all flags
+./c            # launch the TUI
+./c --help     # show all flags
 ```
 
 The first run creates `~/.claudelauncher/` populated with defaults (config, segments, options, themes).
@@ -69,6 +61,8 @@ c --health                 # run pre-launch health checks and exit
 c --new-profile            # interactive wizard to create a new Claude Code profile
 c --migrate SRC DST        # migrate session artifacts between profiles
 c --migrate --dry-run S D  # preview migration without changes
+c --redir OLD NEW          # redirect session data after a project directory rename
+c --redir --dry-run O N    # preview redirect without changes
 ```
 
 ### Segment overrides
