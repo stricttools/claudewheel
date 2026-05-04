@@ -248,6 +248,10 @@ class Renderer:
         """Render edge arrows with off-screen segment counts when scrolling."""
         if not self._scrolling:
             return
+        # In degenerate terminals (width < 2*ARROW_MARGIN+1), there is no room
+        # for arrows plus even one column of content -- bail out.
+        if self.term.cols < 2 * ARROW_MARGIN + 1:
+            return
         left_count, right_count = self._count_offscreen()
         if left_count > 0:
             text = f"<{left_count}"
