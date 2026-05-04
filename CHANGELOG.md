@@ -1,5 +1,17 @@
 # claudewheel Changelog
 
+## 0.1.11
+- Viewport scrolling for narrow terminals: bar scrolls horizontally with focused segment centered
+- Edge arrows (`<2`, `3>`) show off-screen segment count at viewport edges
+- Minimap: colored block indicators in top-right corner showing all segments at a glance
+- Configurable minimap visibility (`"minimap": "auto"` or `"always"` in config.json)
+- Overflow theme colors: `arrow_fg`, `minimap_fg`, `minimap_focused_bg` in the `overflow` theme section
+- Clip partially visible segments at viewport edges instead of rendering past margins
+- Clip fan-out options at screen edges when scrolling
+- Minimum width guard for degenerate terminals (< 9 columns)
+- Config migration: missing default keys are merged into existing config/segments/theme files on startup
+- Wide terminals see no visual change (viewport only activates when the bar overflows)
+
 ## 0.1.10
 - Fix backspace in freeform segments trapping arrow keys (emptying the buffer now exits edit mode; LEFT/RIGHT work mid-edit)
 - Make GitHub segment optional (launching without a GH profile is legitimate)
