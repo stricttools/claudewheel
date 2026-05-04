@@ -1,5 +1,11 @@
 # claudewheel Changelog
 
+## 0.1.13
+- Schema-versioned config migrations: existing users' github segment automatically fixed to optional
+- Minimap character configurable via `overflow.minimap_char` theme key
+- Config migration runs on startup, adds missing keys and applies one-time value fixes
+- Updated README and CLAUDE.md with viewport, config, and theme documentation
+
 ## 0.1.12
 - Fix minimap: use small square (▪) instead of full block so focused segment's background highlight is visible
 
