@@ -6,7 +6,6 @@ import copy
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-
 from .constants import (
     LAUNCHER_DIR,
     CONFIG_FILE,
@@ -24,6 +23,32 @@ from .defaults import (
     DEFAULT_THEME_DARK,
     DEFAULT_THEME_LIGHT,
 )
+
+
+# ---------------------------------------------------------------------------
+# Versioned migrations
+# ---------------------------------------------------------------------------
+# Each migration targets a schema version. It runs exactly once: when the
+# config's _schema_version is less than the migration's version number.
+# The callable receives (config, segments_def, theme) and mutates in place.
+
+
+def _migration_1_github_optional(
+    config: dict, segments_def: list[dict], theme: dict
+) -> None:
+    """Make github segment optional (was incorrectly required)."""
+    for seg in segments_def:
+        if seg.get("key") == "github" and seg.get("required") is True:
+            seg["required"] = False
+
+
+_MIGRATIONS: list[dict] = [
+    {
+        "version": 1,
+        "description": "Make github segment optional",
+        "apply": _migration_1_github_optional,
+    },
+]
 
 
 @dataclass
@@ -45,6 +70,7 @@ class ConfigManager:
         theme_default = DEFAULT_THEME_LIGHT if theme_name == "light" else DEFAULT_THEME_DARK
         self.theme = self._load_json(theme_file, theme_default)
         self._migrate(theme_file, theme_default)
+        self._run_versioned_migrations(theme_file)
 
     def _ensure_dir(self):
         """Create config directories and write default files on first run."""
@@ -111,6 +137,44 @@ class ConfigManager:
         # 3. theme file — nested dict, recursively merge missing keys
         changed = self._deep_merge_missing(self.theme, theme_default)
         if changed:
+            self._save_json(theme_file, self.theme)
+
+    def _run_versioned_migrations(self, theme_file: Path) -> None:
+        """Run schema-versioned migrations that change existing values.
+
+        Complements _migrate() which only adds missing keys. Versioned
+        migrations can mutate values and run exactly once per version bump.
+        """
+        current_version = self.config.get("_schema_version", 0)
+        highest_applied = current_version
+        config_changed = False
+        segments_changed = False
+        theme_changed = False
+
+        for migration in _MIGRATIONS:
+            if migration["version"] > current_version:
+                # Snapshot segments/theme to detect mutations
+                seg_before = json.dumps(self.segments_def, sort_keys=True)
+                theme_before = json.dumps(self.theme, sort_keys=True)
+
+                migration["apply"](self.config, self.segments_def, self.theme)
+
+                if json.dumps(self.segments_def, sort_keys=True) != seg_before:
+                    segments_changed = True
+                if json.dumps(self.theme, sort_keys=True) != theme_before:
+                    theme_changed = True
+
+                highest_applied = max(highest_applied, migration["version"])
+
+        if highest_applied > current_version:
+            self.config["_schema_version"] = highest_applied
+            config_changed = True
+
+        if config_changed:
+            self._save_json(CONFIG_FILE, self.config)
+        if segments_changed:
+            self._save_json(SEGMENTS_FILE, self.segments_def)
+        if theme_changed:
             self._save_json(theme_file, self.theme)
 
     @staticmethod

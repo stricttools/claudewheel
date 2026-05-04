@@ -14,6 +14,7 @@ DEFAULT_CONFIG = {
     "default_flags": ["--dangerously-skip-permissions"],
     "health_check_on_launch": True,
     "minimap": "auto",
+    "_schema_version": 1,
 }
 
 DEFAULT_SEGMENTS = [
