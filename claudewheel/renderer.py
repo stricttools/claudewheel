@@ -31,38 +31,81 @@ class Renderer:
         """Get per-segment color dict, falling back to empty strings."""
         return self.theme.segment_colors.get(key, {})
 
+    def _compute_bar_layout(
+        self, bar: SegmentBar
+    ) -> tuple[list[dict], int]:
+        """Compute column positions and widths for each segment without rendering.
+
+        Returns (layout, total_width) where layout is a list of dicts with keys:
+        key, col, label_str, label_width, display_value, value_width, has_cursor,
+        is_focused.
+        """
+        th = self.theme
+        col = 2  # 1-indexed, with left margin
+        sep = th.separator_char
+        layout: list[dict] = []
+
+        for i, seg in enumerate(bar.segments):
+            is_focused = i == bar.focus_idx
+            label_str = seg.label + ": "
+
+            # Determine what to display as the value (mirrors rendering logic)
+            if is_focused and seg.creating:
+                raw_value = seg.create_buffer
+            elif is_focused and seg.searchable and seg.search_buffer:
+                raw_value = seg.search_buffer
+            elif seg.value is not None:
+                raw_value = seg.value
+            else:
+                raw_value = th.empty_value_text
+            display_value = self._fit_value(raw_value, seg.min_width, seg.max_width)
+
+            has_cursor = is_focused and (
+                seg.creating or (seg.searchable and seg.search_buffer)
+            )
+            extra = 1 if has_cursor else 0
+
+            layout.append({
+                "key": seg.key,
+                "col": col,
+                "label_str": label_str,
+                "label_width": len(label_str),
+                "display_value": display_value,
+                "value_width": len(display_value),
+                "has_cursor": has_cursor,
+                "is_focused": is_focused,
+            })
+
+            col += len(label_str) + len(display_value) + extra
+
+            # Separator width (not after the last segment)
+            if i < len(bar.segments) - 1:
+                col += len(sep)
+
+        return layout, col
+
     def _render_center_line(
         self, buf: list[str], bar: SegmentBar, center_row: int
     ) -> None:
         self._segment_positions.clear()
         th = self.theme
-        col = 2  # 1-indexed, with left margin
         sep = th.separator_char
 
-        for i, seg in enumerate(bar.segments):
-            is_focused = i == bar.focus_idx
-            sc = self._seg_colors(seg.key)
-            label_str = seg.label + ": "
+        # Pre-compute layout so later phases can access positions without rendering
+        layout, total_width = self._compute_bar_layout(bar)
+        self._bar_layout = layout
+        self._bar_total_width = total_width
 
-            # Determine what to display as the value
-            if is_focused and seg.creating:
-                # Creation mode: show the text input buffer
-                raw_value = seg.create_buffer
-                display_value = self._fit_value(raw_value, seg.min_width, seg.max_width)
-            elif is_focused and seg.searchable and seg.search_buffer:
-                # Show the search buffer text with a cursor
-                raw_value = seg.search_buffer
-                display_value = self._fit_value(raw_value, seg.min_width, seg.max_width)
-            elif seg.value is not None:
-                raw_value = seg.value
-                display_value = self._fit_value(raw_value, seg.min_width, seg.max_width)
-            else:
-                raw_value = th.empty_value_text
-                display_value = self._fit_value(raw_value, seg.min_width, seg.max_width)
+        for li, seg in zip(layout, bar.segments):
+            col = li["col"]
+            label_str = li["label_str"]
+            display_value = li["display_value"]
+            is_focused = li["is_focused"]
+            sc = self._seg_colors(seg.key)
 
             # Record position of the value (not label) for fan-out alignment
-            value_col = col + len(label_str)
-            self._segment_positions[seg.key] = (value_col, len(display_value))
+            value_col = col + li["label_width"]
+            self._segment_positions[seg.key] = (value_col, li["value_width"])
 
             buf.append(move_to(center_row, col))
 
@@ -119,18 +162,14 @@ class Renderer:
                     buf.append(display_value)
                     buf.append(RESET)
 
-            # Advance column past value; add 1 for cursor char if search or creation is active
-            has_cursor = is_focused and (seg.creating or (seg.searchable and seg.search_buffer))
-            extra = 1 if has_cursor else 0
-            col += len(label_str) + len(display_value) + extra
-
             # Separator between segments (not after the last one)
-            if i < len(bar.segments) - 1:
-                buf.append(move_to(center_row, col))
+            # Compute separator col from layout: after value + cursor
+            sep_col = col + li["label_width"] + li["value_width"] + (1 if li["has_cursor"] else 0)
+            if seg is not bar.segments[-1]:
+                buf.append(move_to(center_row, sep_col))
                 buf.append(th.separator_fg)
                 buf.append(sep)
                 buf.append(RESET)
-                col += len(sep)
 
     def _render_fan_out(
         self, buf: list[str], bar: SegmentBar, center_row: int
