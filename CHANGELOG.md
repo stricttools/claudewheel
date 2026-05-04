@@ -1,5 +1,8 @@
 # claudewheel Changelog
 
+## 0.1.12
+- Fix minimap: use small square (▪) instead of full block so focused segment's background highlight is visible
+
 ## 0.1.11
 - Viewport scrolling for narrow terminals: bar scrolls horizontally with focused segment centered
 - Edge arrows (`<2`, `3>`) show off-screen segment count at viewport edges
