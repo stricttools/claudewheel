@@ -347,6 +347,15 @@ class Renderer:
             if row < 1:
                 break
             display = self._fit_value(opt_text, seg.min_width, seg.max_width)
+            # Clip fan-out options at screen edges when scrolling
+            if self._scrolling:
+                if value_col < 1:
+                    continue
+                if value_col + len(display) > self.term.cols:
+                    avail = self.term.cols - value_col
+                    if avail <= 0:
+                        continue
+                    display = display[:avail]
             buf.append(move_to(row, value_col))
             self._render_option(
                 buf, seg, opt_text, display, option_fg, unavail_fg
@@ -358,6 +367,15 @@ class Renderer:
             if row >= self.term.rows:
                 break
             display = self._fit_value(opt_text, seg.min_width, seg.max_width)
+            # Clip fan-out options at screen edges when scrolling
+            if self._scrolling:
+                if value_col < 1:
+                    continue
+                if value_col + len(display) > self.term.cols:
+                    avail = self.term.cols - value_col
+                    if avail <= 0:
+                        continue
+                    display = display[:avail]
             buf.append(move_to(row, value_col))
             self._render_option(
                 buf, seg, opt_text, display, option_fg, unavail_fg
