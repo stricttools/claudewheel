@@ -236,6 +236,7 @@ DEFAULT_THEME_DARK = {
         "arrow_fg": "#666666",
         "minimap_fg": "#444444",
         "minimap_focused_bg": "#ffffff",
+        "minimap_char": "▪",
     },
 }
 
@@ -305,5 +306,6 @@ DEFAULT_THEME_LIGHT = {
         "arrow_fg": "#999999",
         "minimap_fg": "#cccccc",
         "minimap_focused_bg": "#000000",
+        "minimap_char": "▪",
     },
 }

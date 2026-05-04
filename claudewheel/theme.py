@@ -52,6 +52,7 @@ class ThemeColors:
     overflow_arrow_fg: str = ""
     overflow_minimap_fg: str = ""
     overflow_minimap_focused_bg: str = ""
+    overflow_minimap_char: str = "▪"
 
 
 def parse_theme(theme_dict: dict) -> ThemeColors:
@@ -85,4 +86,5 @@ def parse_theme(theme_dict: dict) -> ThemeColors:
         overflow_arrow_fg=_hex_to_fg(overflow.get("arrow_fg")),
         overflow_minimap_fg=_hex_to_fg(overflow.get("minimap_fg")),
         overflow_minimap_focused_bg=_hex_to_bg(overflow.get("minimap_focused_bg")),
+        overflow_minimap_char=overflow.get("minimap_char", "▪"),
     )
