@@ -21,7 +21,7 @@ The TUI is a single horizontal "segment bar" rendered at the vertical centre of 
 
 Keys:
 
-- Left / Right -- move focus between segments
+- Left / Right -- move focus between segments (also exits freeform edit mode)
 - Up / Down -- cycle the focused segment's value (blank state `---` is part of the ring)
 - Type characters -- start fuzzy search (on `searchable` segments) or freeform edit (on `freeform` segments)
 - Tab -- accept the current fuzzy match and advance to the next segment
@@ -31,6 +31,17 @@ Keys:
 - q or Ctrl-C -- quit without launching
 
 Search shows the matched characters in the search-match colour. The search buffer turns red when no option matches.
+
+## Narrow terminals
+
+When the segment bar is wider than the terminal, the renderer switches to a scrolling viewport:
+
+- The focused segment is centered horizontally
+- Edge arrows (`<2`, `3>`) show how many segments are off-screen in each direction
+- A minimap in the top-right corner shows all segments as small colored squares; the focused one has an opaque background highlight
+- Partially visible segments at the viewport edges are clipped rather than wrapped
+
+The viewport activates automatically and deactivates when the terminal is resized wider. All rendering is identical to the non-scrolling case when the bar fits.
 
 ## Segment types
 
@@ -101,7 +112,7 @@ c -p "explain auth.py" -- --output-format json --allowedTools "Read,Bash"
 
 | Path             | Purpose                                                     | Auto-written?     |
 |------------------|-------------------------------------------------------------|-------------------|
-| `config.json`    | Theme, enabled segments, default flags, health-check switch | No (user-edited)  |
+| `config.json`    | Theme, enabled segments, default flags, health-check switch, minimap mode | No (user-edited)  |
 | `segments.json`  | Segment definitions (label, width, wrap, searchable, etc.) | No                |
 | `options.json`   | Values, metadata, and discovery configs per segment         | Only via `+` UX   |
 | `state.json`     | `last_config`, `recent_dirs`, `launch_count`, npm cache    | Yes, every launch |
@@ -109,6 +120,8 @@ c -p "explain auth.py" -- --output-format json --allowedTools "Read,Bash"
 | `hooks/*`        | Executable scripts -- see below                             | No                |
 
 Defaults are regenerated on first run if any file is missing.
+
+On startup, missing keys from the current defaults are merged into existing files (config, segments, themes) without overwriting user values. Schema-versioned migrations handle value changes that must be applied once (e.g. correcting a default).
 
 ## Hooks
 
@@ -135,6 +148,15 @@ A nonzero exit aborts the launch (and prevents `launch_count` from being increme
 
 Two themes ship with the launcher: `dark.json` and `light.json` in `~/.claudelauncher/themes/`. Switch by setting `theme` in `config.json` to the file's basename. Themes define per-segment foreground / focus / option / unavailable colours and the search highlight palette. Add a new theme by writing another `themes/<name>.json` and pointing `config.json` at it.
 
+Themes also include an `overflow` section for viewport chrome:
+
+| Key                | Controls                                                     |
+|--------------------|--------------------------------------------------------------|
+| `arrow_fg`         | Colour of the `<N` / `N>` edge scroll indicators             |
+| `minimap_fg`       | Colour of unselected minimap squares                          |
+| `minimap_focused_bg` | Background highlight on the focused minimap square          |
+| `minimap_char`     | Character used for minimap squares (default `▪`)              |
+
 ## Tests
 
 ```bash
@@ -142,4 +164,4 @@ cd /home/m/Projects/claudewheel
 python3 -m unittest discover tests/
 ```
 
-Sixty-plus stdlib `unittest` tests covering segment cycling, fuzzy matching, requires-evaluation, install/manifest parsing, and discovery merge logic. Runs in well under 100 ms.
+240+ stdlib `unittest` tests covering segment cycling, fuzzy matching, requires-evaluation, install/manifest parsing, discovery merge logic, viewport scrolling, and config migration. Runs in under one second.
