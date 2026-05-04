@@ -8,6 +8,9 @@ from .segment import Segment, SegmentBar
 from .terminal import Terminal
 from .theme import ThemeColors
 
+# Chars reserved on each side for scroll arrows (e.g. "<99 " or " 99>")
+ARROW_MARGIN = 4
+
 
 class Renderer:
     """Renders the segment bar centered, with fan-out options and themed colors."""
@@ -85,6 +88,36 @@ class Renderer:
 
         return layout, col
 
+    def _compute_viewport(self, layout: list[dict], total_width: int) -> int:
+        """Compute horizontal viewport start offset for narrow terminals.
+
+        When the bar fits in the terminal, returns 0. Otherwise, centers the
+        viewport on the focused segment and reserves ARROW_MARGIN on each side
+        for scroll indicators.
+        """
+        if total_width <= self.term.cols:
+            return 0
+
+        usable = self.term.cols - 2 * ARROW_MARGIN
+        if usable <= 0:
+            return 0
+
+        # Find focused segment
+        focused = None
+        for item in layout:
+            if item["is_focused"]:
+                focused = item
+                break
+
+        # Fallback: if no segment is focused (shouldn't happen), start at 0
+        if focused is None:
+            return 0
+
+        seg_center = focused["col"] + (focused["label_width"] + focused["value_width"]) // 2
+        vp_start = seg_center - usable // 2
+        vp_start = max(0, min(vp_start, total_width - usable))
+        return vp_start
+
     def _render_center_line(
         self, buf: list[str], bar: SegmentBar, center_row: int
     ) -> None:
@@ -96,6 +129,11 @@ class Renderer:
         layout, total_width = self._compute_bar_layout(bar)
         self._bar_layout = layout
         self._bar_total_width = total_width
+
+        # Compute viewport offset for horizontal scrolling
+        vp_start = self._compute_viewport(layout, total_width)
+        self._viewport_start = vp_start
+        self._scrolling = total_width > self.term.cols
 
         for li, seg in zip(layout, bar.segments):
             col = li["col"]
