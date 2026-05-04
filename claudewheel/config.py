@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -121,7 +122,7 @@ class ConfigManager:
         changed = False
         for key, default_value in defaults.items():
             if key not in target:
-                target[key] = default_value
+                target[key] = copy.deepcopy(default_value)
                 changed = True
             elif isinstance(target[key], dict) and isinstance(default_value, dict):
                 if ConfigManager._deep_merge_missing(target[key], default_value):
