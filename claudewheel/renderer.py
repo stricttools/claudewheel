@@ -499,7 +499,7 @@ class Renderer:
                 # Has a value, not focused: segment accent color
                 buf.append(value_fg)
 
-            buf.append("█")  # full block character
+            buf.append("▪")  # small square
             buf.append(RESET)
 
     def _render_status(self, buf: list[str], bar: SegmentBar, flash: str = "") -> None:
