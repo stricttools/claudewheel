@@ -29,6 +29,7 @@ class Renderer:
         self._render_arrows(buf, center_row)
         self._render_fan_out(buf, bar, center_row)
         self._render_status(buf, bar, flash)
+        self._render_minimap(buf, bar)
         self.term.write("".join(buf))
         self.term.flush()
 
@@ -403,6 +404,46 @@ class Renderer:
                 current = target
             buf.append(ch)
         buf.append(RESET)
+
+    def _render_minimap(self, buf: list[str], bar: SegmentBar) -> None:
+        """Render a minimap of colored blocks in the top-right corner.
+
+        Each segment is one block character. Focused segment gets a highlight
+        background; segments with no value are muted; others use their accent color.
+        """
+        # Decide whether to show
+        if self.minimap_mode == "always":
+            pass  # always show
+        elif self.minimap_mode == "auto":
+            if not getattr(self, "_scrolling", False):
+                return
+        else:
+            # Unrecognized mode: treat as "auto"
+            if not getattr(self, "_scrolling", False):
+                return
+
+        num_segments = len(bar.segments)
+        start_col = self.term.cols - num_segments
+        if start_col < 1:
+            return  # terminal too narrow for minimap
+
+        buf.append(move_to(1, start_col))
+        for i, seg in enumerate(bar.segments):
+            sc = self._seg_colors(seg.key)
+            value_fg = sc.get("value_fg", "")
+
+            if i == bar.focus_idx:
+                # Focused: accent foreground + highlight background
+                buf.append(self.theme.overflow_minimap_focused_bg + value_fg)
+            elif seg.value is None:
+                # No value selected: muted foreground
+                buf.append(self.theme.overflow_minimap_fg)
+            else:
+                # Has a value, not focused: segment accent color
+                buf.append(value_fg)
+
+            buf.append("█")  # full block character
+            buf.append(RESET)
 
     def _render_status(self, buf: list[str], bar: SegmentBar, flash: str = "") -> None:
         buf.append(move_to(self.term.rows, 2))
