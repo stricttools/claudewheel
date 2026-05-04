@@ -150,17 +150,52 @@ class Renderer:
                 screen_col = col - vp_start + ARROW_MARGIN
                 cursor_extra = 1 if li["has_cursor"] else 0
                 seg_right = screen_col + li["label_width"] + li["value_width"] + cursor_extra
+                right_margin = self.term.cols - ARROW_MARGIN
                 # Visible if right edge past left margin AND left edge before right margin
-                if seg_right <= ARROW_MARGIN or screen_col >= self.term.cols - ARROW_MARGIN:
+                if seg_right <= ARROW_MARGIN or screen_col >= right_margin:
                     continue
                 render_col = screen_col
+
+                # --- Edge clipping for partially visible segments ---
+                # Right clipping: truncate label/value if they extend past right_margin
+                max_chars = right_margin - render_col
+                full_width = li["label_width"] + li["value_width"] + cursor_extra
+                if max_chars < full_width:
+                    if max_chars <= 0:
+                        continue
+                    if max_chars < len(label_str):
+                        label_str = label_str[:max_chars]
+                        display_value = ""
+                    else:
+                        avail_for_value = max_chars - len(label_str)
+                        display_value = display_value[:avail_for_value]
+                    # Suppress cursor if there's no room after value
+                    li = dict(li)
+                    li["has_cursor"] = False
+
+                # Left clipping: skip leading characters that fall before ARROW_MARGIN
+                if render_col < ARROW_MARGIN:
+                    skip = ARROW_MARGIN - render_col
+                    total_text = len(label_str) + len(display_value)
+                    if skip >= total_text:
+                        continue
+                    if skip >= len(label_str):
+                        # Label entirely off-screen, trim value from the left
+                        value_skip = skip - len(label_str)
+                        label_str = ""
+                        display_value = display_value[value_skip:]
+                    else:
+                        label_str = label_str[skip:]
+                    render_col = ARROW_MARGIN
+                    li = dict(li) if not isinstance(li, dict) else li
+                    li["has_cursor"] = False
             else:
                 render_col = col
 
             # Record position of the value (not label) for fan-out alignment
             # Uses screen-relative coords when scrolling so fan-out aligns correctly
-            value_col = render_col + li["label_width"]
-            self._segment_positions[seg.key] = (value_col, li["value_width"])
+            value_col = render_col + len(label_str)
+            self._segment_positions[seg.key] = (value_col, len(display_value))
 
             buf.append(move_to(center_row, render_col))
 
@@ -218,8 +253,8 @@ class Renderer:
                     buf.append(RESET)
 
             # Separator between segments (not after the last one)
-            # Compute separator col from layout: after value + cursor
-            sep_col = render_col + li["label_width"] + li["value_width"] + (1 if li["has_cursor"] else 0)
+            # Compute separator col from the actual (possibly clipped) strings
+            sep_col = render_col + len(label_str) + len(display_value) + (1 if li["has_cursor"] else 0)
             if seg is not bar.segments[-1]:
                 # When scrolling, skip separators that fall outside the visible area
                 if self._scrolling:
