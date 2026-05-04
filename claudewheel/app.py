@@ -78,11 +78,9 @@ class App:
         if focused.creating:
             return self._handle_create_key(key, focused)
 
-        # Freeform editing mode: when a freeform segment has an active search buffer,
-        # treat it like a text input (UP/DOWN/LEFT/RIGHT don't destroy the buffer).
-        # Use 'is not None' so an empty buffer ("") still routes here — prevents
-        # the main BACKSPACE handler from re-seeding the buffer from the old value.
-        if focused.freeform and focused.search_buffer is not None and focused._freeform_editing:
+        # Freeform editing mode: route all keys to the freeform handler which
+        # supports LEFT/RIGHT (exit + navigate) and BACKSPACE (exit when empty).
+        if focused.freeform and focused.search_buffer and focused._freeform_editing:
             return self._handle_freeform_key(key, focused)
 
         # Pending install confirmation
@@ -160,8 +158,10 @@ class App:
             case "BACKSPACE":
                 if focused.freeform and not focused._freeform_editing and focused.value:
                     # First backspace on a freeform segment: seed buffer from current value
-                    focused.search_buffer = focused.value[:-1]
-                    focused._freeform_editing = True
+                    trimmed = focused.value[:-1]
+                    if trimmed:
+                        focused.search_buffer = trimmed
+                        focused._freeform_editing = True
                 elif focused.searchable and focused.search_buffer:
                     focused.search_buffer = focused.search_buffer[:-1]
             case "ESC":
@@ -209,6 +209,18 @@ class App:
                 return None
             case "BACKSPACE":
                 seg.search_buffer = seg.search_buffer[:-1]
+                if not seg.search_buffer:
+                    seg._freeform_editing = False
+                return None
+            case "LEFT":
+                seg.search_buffer = ""
+                seg._freeform_editing = False
+                self.bar.move_focus(-1)
+                return None
+            case "RIGHT":
+                seg.search_buffer = ""
+                seg._freeform_editing = False
+                self.bar.move_focus(1)
                 return None
             case "ESC":
                 seg.search_buffer = ""
