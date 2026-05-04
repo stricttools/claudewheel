@@ -409,6 +409,7 @@ class MinimapVisibilityTests(unittest.TestCase):
         buf: list[str] = []
         r._render_minimap(buf, bar)
         self.assertGreater(len(buf), 0)
+        self.assertIn("▪", "".join(buf))
 
     def test_always_mode_no_scrolling_renders(self) -> None:
         """In 'always' mode, minimap renders even when _scrolling=False."""
@@ -417,6 +418,19 @@ class MinimapVisibilityTests(unittest.TestCase):
         buf: list[str] = []
         r._render_minimap(buf, bar)
         self.assertGreater(len(buf), 0)
+        self.assertIn("▪", "".join(buf))
+
+    def test_minimap_char_configurable(self) -> None:
+        """A theme with overflow_minimap_char='X' renders 'X' instead of default '▪'."""
+        theme = _make_theme(overflow_minimap_char="X")
+        r = Renderer(_MockTerminal(cols=80), theme, minimap_mode="always")
+        r._scrolling = True
+        bar = self._make_bar()
+        buf: list[str] = []
+        r._render_minimap(buf, bar)
+        joined = "".join(buf)
+        self.assertIn("X", joined)
+        self.assertNotIn("▪", joined)
 
     def test_narrow_terminal_suppresses_minimap(self) -> None:
         """When start_col < 1 (terminal too narrow for minimap), buf stays empty."""
