@@ -1,5 +1,10 @@
 # claudewheel Changelog
 
+## 0.1.10
+- Fix backspace in freeform segments trapping arrow keys (emptying the buffer now exits edit mode; LEFT/RIGHT work mid-edit)
+- Make GitHub segment optional (launching without a GH profile is legitimate)
+- Update session hook to use `rlsbl prs` instead of deleted script
+
 ## 0.1.9
 - Add `--version` flag (prints app version)
 - Add `-s`/`--set KEY=VALUE` flag for setting any segment value (e.g. `-s version=2.1.119`)
