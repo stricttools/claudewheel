@@ -123,6 +123,33 @@ class BarLayoutTests(unittest.TestCase):
         expected = layout[0]["col"] + layout[0]["label_width"] + layout[0]["value_width"] + 1
         self.assertEqual(total_width, expected)
 
+    def test_cursor_extra_shifts_subsequent_cols(self) -> None:
+        """A focused creating segment's +1 cursor extra shifts all subsequent columns."""
+        seg_a = _make_segment("a", "AA", creating=True, create_buffer="new")
+        seg_b = _make_segment("b", "BB")
+        bar = SegmentBar(segments=[seg_a, seg_b], focus_idx=0)
+        r = Renderer(_MockTerminal(), self.theme)
+        layout, _ = r._compute_bar_layout(bar)
+
+        # Second segment's col should account for cursor extra (+1)
+        expected_col = (
+            layout[0]["col"]
+            + layout[0]["label_width"]
+            + layout[0]["value_width"]
+            + 1  # cursor extra
+            + len(self.sep)
+        )
+        self.assertEqual(layout[1]["col"], expected_col)
+
+    def test_search_buffer_has_cursor(self) -> None:
+        """A focused searchable segment with a search_buffer has has_cursor=True."""
+        seg = _make_segment("a", "AA", searchable=True)
+        seg.search_buffer = "abc"
+        bar = SegmentBar(segments=[seg], focus_idx=0)
+        r = Renderer(_MockTerminal(), self.theme)
+        layout, _ = r._compute_bar_layout(bar)
+        self.assertTrue(layout[0]["has_cursor"])
+
 
 # ---------------------------------------------------------------------------
 # 2. ViewportMathTests
@@ -208,6 +235,21 @@ class ViewportMathTests(unittest.TestCase):
         layout, total_width = r._compute_bar_layout(bar)
         self.assertGreater(total_width, 5)
         vp = r._compute_viewport(layout, total_width)
+        self.assertEqual(vp, 0)
+
+    def test_exact_boundary_no_scrolling(self) -> None:
+        """When total_width == term.cols exactly, viewport returns 0 (the <= check)."""
+        # Build a single segment and compute its layout to learn total_width,
+        # then set term.cols to match exactly.
+        bar = SegmentBar(segments=[
+            _make_segment("a", "A"),
+        ], focus_idx=0)
+        r = Renderer(_MockTerminal(cols=9999), self.theme)
+        layout, total_width = r._compute_bar_layout(bar)
+
+        # Now create a renderer whose terminal width equals total_width exactly
+        r2 = Renderer(_MockTerminal(cols=total_width), self.theme)
+        vp = r2._compute_viewport(layout, total_width)
         self.assertEqual(vp, 0)
 
 
@@ -298,6 +340,36 @@ class OffscreenCountTests(unittest.TestCase):
         left, right = r._count_offscreen()
         self.assertEqual(left, 1)
         self.assertEqual(right, 1)
+
+    def test_boundary_exact_seg_right_equals_margin(self) -> None:
+        """seg_right == ARROW_MARGIN exactly counts as left-offscreen (<=, not <).
+
+        Also verify the right boundary: screen_col == cols - ARROW_MARGIN exactly
+        counts as right-offscreen (>=, not >).
+        """
+        r = self._make_renderer(cols=80)
+        # Left boundary: place a segment so seg_right == ARROW_MARGIN exactly.
+        # screen_col = col - vp_start + ARROW_MARGIN
+        # seg_right  = screen_col + label_width + value_width
+        # Want seg_right == 4 (ARROW_MARGIN).
+        # With col=10, vp_start=14: screen_col = 10 - 14 + 4 = 0
+        # seg_right = 0 + 2 + 2 = 4  => exactly ARROW_MARGIN
+        left_seg = self._fake_layout_item("left", col=10, label_width=2, value_width=2)
+
+        # Right boundary: place a segment so screen_col == cols - ARROW_MARGIN exactly.
+        # cols - ARROW_MARGIN = 80 - 4 = 76
+        # screen_col = col - vp_start + ARROW_MARGIN = col - 14 + 4
+        # Want screen_col == 76 => col = 76 + 14 - 4 = 86
+        right_seg = self._fake_layout_item("right", col=86, label_width=3, value_width=3)
+
+        # A visible segment in between so we can confirm it is NOT counted
+        mid_seg = self._fake_layout_item("mid", col=50, label_width=4, value_width=6)
+
+        r._bar_layout = [left_seg, mid_seg, right_seg]
+        r._viewport_start = 14
+        left, right = r._count_offscreen()
+        self.assertEqual(left, 1, "seg_right == ARROW_MARGIN should be left-offscreen")
+        self.assertEqual(right, 1, "screen_col == cols - ARROW_MARGIN should be right-offscreen")
 
 
 # ---------------------------------------------------------------------------
