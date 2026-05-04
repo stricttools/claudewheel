@@ -187,7 +187,7 @@ class Renderer:
                     else:
                         label_str = label_str[skip:]
                     render_col = ARROW_MARGIN
-                    li = dict(li) if not isinstance(li, dict) else li
+                    li = dict(li)
                     li["has_cursor"] = False
             else:
                 render_col = col
