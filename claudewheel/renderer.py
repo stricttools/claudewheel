@@ -142,11 +142,25 @@ class Renderer:
             is_focused = li["is_focused"]
             sc = self._seg_colors(seg.key)
 
+            # When scrolling, translate logical column to screen column
+            # and skip segments entirely outside the visible area.
+            if self._scrolling:
+                screen_col = col - vp_start + ARROW_MARGIN
+                cursor_extra = 1 if li["has_cursor"] else 0
+                seg_right = screen_col + li["label_width"] + li["value_width"] + cursor_extra
+                # Visible if right edge past left margin AND left edge before right margin
+                if seg_right <= ARROW_MARGIN or screen_col >= self.term.cols - ARROW_MARGIN:
+                    continue
+                render_col = screen_col
+            else:
+                render_col = col
+
             # Record position of the value (not label) for fan-out alignment
-            value_col = col + li["label_width"]
+            # Uses screen-relative coords when scrolling so fan-out aligns correctly
+            value_col = render_col + li["label_width"]
             self._segment_positions[seg.key] = (value_col, li["value_width"])
 
-            buf.append(move_to(center_row, col))
+            buf.append(move_to(center_row, render_col))
 
             if is_focused:
                 focus_bg = sc.get("focus_bg", "")
@@ -203,8 +217,12 @@ class Renderer:
 
             # Separator between segments (not after the last one)
             # Compute separator col from layout: after value + cursor
-            sep_col = col + li["label_width"] + li["value_width"] + (1 if li["has_cursor"] else 0)
+            sep_col = render_col + li["label_width"] + li["value_width"] + (1 if li["has_cursor"] else 0)
             if seg is not bar.segments[-1]:
+                # When scrolling, skip separators that fall outside the visible area
+                if self._scrolling:
+                    if sep_col + len(sep) <= ARROW_MARGIN or sep_col >= self.term.cols - ARROW_MARGIN:
+                        continue
                 buf.append(move_to(center_row, sep_col))
                 buf.append(th.separator_fg)
                 buf.append(sep)
