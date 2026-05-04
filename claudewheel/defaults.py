@@ -11,7 +11,7 @@ DEFAULT_CONFIG = {
         "mcp",
         "permissions",
     ],
-    "default_flags": ["--strict-mcp-config", "--dangerously-skip-permissions"],
+    "default_flags": ["--dangerously-skip-permissions"],
     "health_check_on_launch": True,
 }
 
@@ -36,7 +36,7 @@ DEFAULT_SEGMENTS = [
         "wrap": True,
         "min_width": 4,
         "max_width": 12,
-        "required": True,
+        "required": False,
         "print_mode": False,
         "searchable": False,
         "tab_advances": True,
