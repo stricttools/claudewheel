@@ -26,6 +26,7 @@ class Renderer:
         buf: list[str] = [CLEAR_SCREEN]
         center_row = self.term.rows // 2
         self._render_center_line(buf, bar, center_row)
+        self._render_arrows(buf, center_row)
         self._render_fan_out(buf, bar, center_row)
         self._render_status(buf, bar, flash)
         self.term.write("".join(buf))
@@ -227,6 +228,38 @@ class Renderer:
                 buf.append(th.separator_fg)
                 buf.append(sep)
                 buf.append(RESET)
+
+    def _count_offscreen(self) -> tuple[int, int]:
+        """Count segments fully off-screen to the left and right of the viewport."""
+        left_count = 0
+        right_count = 0
+        right_margin = self.term.cols - ARROW_MARGIN
+        for seg in self._bar_layout:
+            screen_col = seg["col"] - self._viewport_start + ARROW_MARGIN
+            seg_right = screen_col + seg["label_width"] + seg["value_width"]
+            if seg_right <= ARROW_MARGIN:
+                left_count += 1
+            elif screen_col >= right_margin:
+                right_count += 1
+        return left_count, right_count
+
+    def _render_arrows(self, buf: list[str], center_row: int) -> None:
+        """Render edge arrows with off-screen segment counts when scrolling."""
+        if not self._scrolling:
+            return
+        left_count, right_count = self._count_offscreen()
+        if left_count > 0:
+            text = f"<{left_count}"
+            buf.append(move_to(center_row, 1))
+            buf.append(self.theme.overflow_arrow_fg)
+            buf.append(text)
+            buf.append(RESET)
+        if right_count > 0:
+            text = f"{right_count}>"
+            buf.append(move_to(center_row, self.term.cols - len(text)))
+            buf.append(self.theme.overflow_arrow_fg)
+            buf.append(text)
+            buf.append(RESET)
 
     def _render_fan_out(
         self, buf: list[str], bar: SegmentBar, center_row: int
