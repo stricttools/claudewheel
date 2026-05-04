@@ -43,6 +43,7 @@ class ConfigManager:
         theme_file = THEMES_DIR / f"{theme_name}.json"
         theme_default = DEFAULT_THEME_LIGHT if theme_name == "light" else DEFAULT_THEME_DARK
         self.theme = self._load_json(theme_file, theme_default)
+        self._migrate(theme_file, theme_default)
 
     def _ensure_dir(self):
         """Create config directories and write default files on first run."""
@@ -74,6 +75,58 @@ class ConfigManager:
             json.dump(data, f, indent=2)
             f.write("\n")
         tmp.rename(path)
+
+    def _migrate(self, theme_file: Path, theme_default: dict) -> None:
+        """Add missing default keys to existing config files on startup.
+
+        Only adds keys that are absent — never overwrites existing user values.
+        Saves each file only when something actually changed, so running twice
+        is a no-op (idempotent).
+        """
+        # 1. config.json — flat dict, add missing top-level keys
+        changed = False
+        for key, value in DEFAULT_CONFIG.items():
+            if key not in self.config:
+                self.config[key] = value
+                changed = True
+        if changed:
+            self._save_json(CONFIG_FILE, self.config)
+
+        # 2. segments.json — list of dicts matched by "key" field
+        seg_by_key = {s["key"]: s for s in self.segments_def if "key" in s}
+        changed = False
+        for default_seg in DEFAULT_SEGMENTS:
+            dk = default_seg.get("key")
+            if dk is None or dk not in seg_by_key:
+                continue  # skip segments the user intentionally removed
+            user_seg = seg_by_key[dk]
+            for attr, value in default_seg.items():
+                if attr not in user_seg:
+                    user_seg[attr] = value
+                    changed = True
+        if changed:
+            self._save_json(SEGMENTS_FILE, self.segments_def)
+
+        # 3. theme file — nested dict, recursively merge missing keys
+        changed = self._deep_merge_missing(self.theme, theme_default)
+        if changed:
+            self._save_json(theme_file, self.theme)
+
+    @staticmethod
+    def _deep_merge_missing(target: dict, defaults: dict) -> bool:
+        """Recursively add keys from *defaults* that are absent in *target*.
+
+        Returns True if any key was added (i.e. the target was mutated).
+        """
+        changed = False
+        for key, default_value in defaults.items():
+            if key not in target:
+                target[key] = default_value
+                changed = True
+            elif isinstance(target[key], dict) and isinstance(default_value, dict):
+                if ConfigManager._deep_merge_missing(target[key], default_value):
+                    changed = True
+        return changed
 
     def add_option(self, segment_key: str, value: str) -> None:
         """Add a new option value to options.json for the given segment."""
