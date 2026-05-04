@@ -231,6 +231,11 @@ DEFAULT_THEME_DARK = {
         "match_fg": "#ffff00",
         "no_match_fg": "#ff4444",
     },
+    "overflow": {
+        "arrow_fg": "#666666",
+        "minimap_fg": "#444444",
+        "minimap_focused_bg": "#ffffff",
+    },
 }
 
 DEFAULT_THEME_LIGHT = {
@@ -294,5 +299,10 @@ DEFAULT_THEME_LIGHT = {
         "cursor_fg": "#000000",
         "match_fg": "#0066cc",
         "no_match_fg": "#cc0000",
+    },
+    "overflow": {
+        "arrow_fg": "#999999",
+        "minimap_fg": "#cccccc",
+        "minimap_focused_bg": "#000000",
     },
 }

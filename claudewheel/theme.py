@@ -48,6 +48,10 @@ class ThemeColors:
     search_cursor_fg: str = ""
     search_match_fg: str = ""
     search_no_match_fg: str = ""
+    # Overflow chrome colors (edge arrows and minimap)
+    overflow_arrow_fg: str = ""
+    overflow_minimap_fg: str = ""
+    overflow_minimap_focused_bg: str = ""
 
 
 def parse_theme(theme_dict: dict) -> ThemeColors:
@@ -65,6 +69,7 @@ def parse_theme(theme_dict: dict) -> ThemeColors:
         }
 
     search = theme_dict.get("search", {})
+    overflow = theme_dict.get("overflow", {})
 
     return ThemeColors(
         global_fg=_hex_to_fg(g.get("fg")),
@@ -77,4 +82,7 @@ def parse_theme(theme_dict: dict) -> ThemeColors:
         search_cursor_fg=_hex_to_fg(search.get("cursor_fg")),
         search_match_fg=_hex_to_fg(search.get("match_fg")),
         search_no_match_fg=_hex_to_fg(search.get("no_match_fg")),
+        overflow_arrow_fg=_hex_to_fg(overflow.get("arrow_fg")),
+        overflow_minimap_fg=_hex_to_fg(overflow.get("minimap_fg")),
+        overflow_minimap_focused_bg=_hex_to_bg(overflow.get("minimap_focused_bg")),
     )
