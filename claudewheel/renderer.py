@@ -12,9 +12,10 @@ from .theme import ThemeColors
 class Renderer:
     """Renders the segment bar centered, with fan-out options and themed colors."""
 
-    def __init__(self, terminal: Terminal, theme: ThemeColors):
+    def __init__(self, terminal: Terminal, theme: ThemeColors, minimap_mode: str = "auto"):
         self.term = terminal
         self.theme = theme
+        self.minimap_mode = minimap_mode
         # Tracks where each segment's value is drawn, for fan-out alignment
         self._segment_positions: dict[str, tuple[int, int]] = {}
 

@@ -27,7 +27,10 @@ class App:
                         seg.select_value(val)
         self.terminal = Terminal()
         self.theme = parse_theme(self.cfg.theme)
-        self.renderer = Renderer(self.terminal, self.theme)
+        self.renderer = Renderer(
+            self.terminal, self.theme,
+            minimap_mode=self.cfg.config.get("minimap", "auto"),
+        )
         self.running = False
         self._flash: str = ""  # Temporary message shown for one render cycle
         self._pending_install: str | None = None  # version awaiting install confirmation
