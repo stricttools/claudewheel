@@ -5,28 +5,8 @@ import json
 import sys
 from pathlib import Path
 
-# Same list as claudewheel/defaults.py DISALLOWED_TOOLS
-DISALLOWED_TOOLS = [
-    "CronCreate",
-    "CronDelete",
-    "CronList",
-    "EnterPlanMode",
-    "EnterWorktree",
-    "ExitPlanMode",
-    "ExitWorktree",
-    "LSP",
-    "NotebookEdit",
-    "PushNotification",
-    "RemoteTrigger",
-    "ScheduleWakeup",
-    "Skill",
-    "TaskCreate",
-    "TaskGet",
-    "TaskList",
-    "TaskOutput",
-    "TaskStop",
-    "TaskUpdate",
-]
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from claudewheel.defaults import DISALLOWED_TOOLS
 
 
 def patch_profile(name: str, profile_dir: Path) -> bool:
