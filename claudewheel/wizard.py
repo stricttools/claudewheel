@@ -13,6 +13,7 @@ from .constants import (
     move_to, fg_rgb,
 )
 from .config import ConfigManager
+from .defaults import DISALLOWED_TOOLS
 from .terminal import Terminal
 
 # Color constants
@@ -286,6 +287,10 @@ def create_profile(result: WizardResult, cfg: ConfigManager) -> None:
         settings["autoMemoryEnabled"] = False
     if result.disable_attribution:
         settings["attribution"] = {"commit": "", "pr": ""}
+
+    # Disable auto mode and disallowed tools
+    settings.setdefault("permissions", {})["disableAutoMode"] = "disable"
+    settings["disallowedTools"] = DISALLOWED_TOOLS[:]
 
     # Wire hooks — merge into existing hooks if cloned
     if result.wire_hooks:

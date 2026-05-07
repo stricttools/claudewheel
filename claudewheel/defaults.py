@@ -1,5 +1,27 @@
 """All DEFAULT_* configuration dicts for claudewheel."""
 
+DISALLOWED_TOOLS = [
+    "CronCreate",
+    "CronDelete",
+    "CronList",
+    "EnterPlanMode",
+    "EnterWorktree",
+    "ExitPlanMode",
+    "ExitWorktree",
+    "LSP",
+    "NotebookEdit",
+    "PushNotification",
+    "RemoteTrigger",
+    "ScheduleWakeup",
+    "Skill",
+    "TaskCreate",
+    "TaskGet",
+    "TaskList",
+    "TaskOutput",
+    "TaskStop",
+    "TaskUpdate",
+]
+
 DEFAULT_CONFIG = {
     "theme": "dark",
     "enabled_segments": [
@@ -159,7 +181,6 @@ DEFAULT_OPTIONS = {
             "bypass",
             "default",
             "plan",
-            "auto",
         ],
     },
 }
