@@ -1,5 +1,13 @@
 # claudewheel Changelog
 
+## 0.2.0
+- Enforce disallowedTools across all profiles: 19 Claude Code tools disabled via settings.json (plan mode, worktree, task tracking, cron, notebook, push notifications, remote triggers, LSP, skill auto-invoke)
+- Disable auto permission mode across all profiles (permissions.disableAutoMode)
+- Remove "auto" from permissions segment options
+- Wizard applies disallowedTools and disableAutoMode to new profiles automatically
+- Health check flags profiles missing disallowedTools or disableAutoMode
+- Add scripts/patch-profiles to retrofit existing profiles
+
 ## 0.1.13
 - Schema-versioned config migrations: existing users' github segment automatically fixed to optional
 - Minimap character configurable via `overflow.minimap_char` theme key
