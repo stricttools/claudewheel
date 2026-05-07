@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .constants import OPTIONS_FILE
+from .defaults import DISALLOWED_TOOLS
 
 
 @dataclass
@@ -227,6 +228,12 @@ def check_settings_defaults() -> HealthResult:
             issues.append(f"{name}: fewer than 5 deny rules")
         if len(perms.get("ask", [])) < 4:
             issues.append(f"{name}: fewer than 4 ask rules")
+        if perms.get("disableAutoMode") != "disable":
+            issues.append(f"{name}: auto mode not disabled")
+        current_disallowed = set(s.get("disallowedTools", []))
+        missing_tools = sorted(set(DISALLOWED_TOOLS) - current_disallowed)
+        if missing_tools:
+            issues.append(f"{name}: missing disallowedTools: {', '.join(missing_tools)}")
 
     if issues:
         return HealthResult(False, "settings-defaults", "; ".join(issues))
