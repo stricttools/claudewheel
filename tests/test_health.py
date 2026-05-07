@@ -9,6 +9,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from claudewheel.defaults import DISALLOWED_TOOLS
 from claudewheel.health import (
     HealthResult,
     _discover_profiles,
@@ -315,7 +316,9 @@ class CheckSettingsDefaultsTests(_HomeDirTestCase):
             "permissions": {
                 "deny": ["a", "b", "c", "d", "e"],
                 "ask": ["a", "b", "c", "d"],
+                "disableAutoMode": "disable",
             },
+            "disallowedTools": DISALLOWED_TOOLS[:],
         }
 
     def test_ok_when_all_correct(self) -> None:

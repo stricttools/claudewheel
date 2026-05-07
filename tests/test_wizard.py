@@ -22,6 +22,7 @@ from claudewheel.defaults import (
     DEFAULT_STATE,
     DEFAULT_THEME_DARK,
     DEFAULT_THEME_LIGHT,
+    DISALLOWED_TOOLS,
 )
 
 
@@ -151,17 +152,22 @@ class SettingsFromDefaultsTests(CreateProfileTestBase):
         self.assertEqual(settings["someKey"], "someValue")
         self.assertEqual(settings["nested"], {"a": 1})
 
-    def test_no_defaults_file_produces_empty_settings(self) -> None:
-        """When profile-defaults.json is missing, settings start empty."""
+    def test_no_defaults_file_produces_hardcoded_defaults(self) -> None:
+        """When profile-defaults.json is missing, settings contain only the
+        hardcoded disableAutoMode and disallowedTools entries."""
         result = _make_result(clone_from=None)
         create_profile(result, self.cfg)
 
         settings = self._read_settings()
-        # Should be empty (no checkbox overrides enabled in this result)
-        self.assertEqual(settings, {})
+        expected = {
+            "permissions": {"disableAutoMode": "disable"},
+            "disallowedTools": DISALLOWED_TOOLS[:],
+        }
+        self.assertEqual(settings, expected)
 
     def test_malformed_defaults_file_ignored(self) -> None:
-        """A corrupt profile-defaults.json is silently skipped."""
+        """A corrupt profile-defaults.json is silently skipped; hardcoded
+        defaults are still applied."""
         defaults_file = self.launcher_dir / "profile-defaults.json"
         defaults_file.write_text("NOT VALID JSON{{{")
 
@@ -169,7 +175,11 @@ class SettingsFromDefaultsTests(CreateProfileTestBase):
         create_profile(result, self.cfg)
 
         settings = self._read_settings()
-        self.assertEqual(settings, {})
+        expected = {
+            "permissions": {"disableAutoMode": "disable"},
+            "disallowedTools": DISALLOWED_TOOLS[:],
+        }
+        self.assertEqual(settings, expected)
 
 
 class SettingsFromCloneTests(CreateProfileTestBase):
@@ -188,8 +198,9 @@ class SettingsFromCloneTests(CreateProfileTestBase):
         self.assertEqual(settings["clonedKey"], True)
         self.assertEqual(settings["model"], "opus")
 
-    def test_missing_source_settings_produces_empty(self) -> None:
-        """If the source profile dir exists but has no settings.json, start empty."""
+    def test_missing_source_settings_gets_hardcoded_defaults(self) -> None:
+        """If the source profile dir exists but has no settings.json, settings
+        contain only the hardcoded disableAutoMode and disallowedTools."""
         source_dir = self.fake_home / ".claude-source"
         source_dir.mkdir()
         # No settings.json written
@@ -198,7 +209,11 @@ class SettingsFromCloneTests(CreateProfileTestBase):
         create_profile(result, self.cfg)
 
         settings = self._read_settings("cloned2")
-        self.assertEqual(settings, {})
+        expected = {
+            "permissions": {"disableAutoMode": "disable"},
+            "disallowedTools": DISALLOWED_TOOLS[:],
+        }
+        self.assertEqual(settings, expected)
 
 
 class CheckboxOverridesTests(CreateProfileTestBase):
