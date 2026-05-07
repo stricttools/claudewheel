@@ -1,0 +1,124 @@
+#!/usr/bin/env python3
+"""Patch existing Claude Code profiles with disallowedTools and disableAutoMode."""
+
+import json
+import sys
+from pathlib import Path
+
+# Same list as claudewheel/defaults.py DISALLOWED_TOOLS
+DISALLOWED_TOOLS = [
+    "CronCreate",
+    "CronDelete",
+    "CronList",
+    "EnterPlanMode",
+    "EnterWorktree",
+    "ExitPlanMode",
+    "ExitWorktree",
+    "LSP",
+    "NotebookEdit",
+    "PushNotification",
+    "RemoteTrigger",
+    "ScheduleWakeup",
+    "Skill",
+    "TaskCreate",
+    "TaskGet",
+    "TaskList",
+    "TaskOutput",
+    "TaskStop",
+    "TaskUpdate",
+]
+
+
+def patch_profile(name: str, profile_dir: Path) -> bool:
+    """Patch a single profile's settings.json. Returns True if changes were made."""
+    settings_file = profile_dir / "settings.json"
+    if not settings_file.exists():
+        print(f"  {name}: no settings.json, skipping")
+        return False
+
+    try:
+        settings = json.loads(settings_file.read_text())
+    except (json.JSONDecodeError, OSError) as e:
+        print(f"  {name}: unreadable settings.json ({e}), skipping")
+        return False
+
+    changed = False
+
+    # disableAutoMode
+    perms = settings.setdefault("permissions", {})
+    if perms.get("disableAutoMode") != "disable":
+        perms["disableAutoMode"] = "disable"
+        changed = True
+
+    # disallowedTools -- merge (don't lose any existing entries)
+    existing = set(settings.get("disallowedTools", []))
+    wanted = set(DISALLOWED_TOOLS)
+    if not wanted.issubset(existing):
+        merged = sorted(existing | wanted)
+        settings["disallowedTools"] = merged
+        changed = True
+
+    if changed:
+        settings_file.write_text(json.dumps(settings, indent=2) + "\n")
+        print(f"  {name}: patched")
+    else:
+        print(f"  {name}: already up to date")
+
+    return changed
+
+
+def patch_options_json() -> bool:
+    """Remove 'auto' from permissions values in ~/.claudelauncher/options.json."""
+    options_file = Path.home() / ".claudelauncher" / "options.json"
+    if not options_file.exists():
+        print("  options.json: not found, skipping")
+        return False
+
+    try:
+        options = json.loads(options_file.read_text())
+    except (json.JSONDecodeError, OSError) as e:
+        print(f"  options.json: unreadable ({e}), skipping")
+        return False
+
+    perms = options.get("permissions", {})
+    values = perms.get("values", [])
+    if "auto" in values:
+        values.remove("auto")
+        options_file.write_text(json.dumps(options, indent=2) + "\n")
+        print("  options.json: removed 'auto' from permissions")
+        return True
+    else:
+        print("  options.json: 'auto' already absent")
+        return False
+
+
+def main() -> None:
+    home = Path.home()
+    profiles = []
+    for entry in sorted(home.iterdir()):
+        if (
+            entry.is_dir()
+            and entry.name.startswith(".claude-")
+            and (entry / ".credentials.json").exists()
+        ):
+            name = entry.name[len(".claude-"):]
+            profiles.append((name, entry))
+
+    if not profiles:
+        print("No profiles found.")
+        sys.exit(0)
+
+    print(f"Found {len(profiles)} profile(s):\n")
+    patched = 0
+    for name, pdir in profiles:
+        if patch_profile(name, pdir):
+            patched += 1
+
+    print(f"\nPatching options.json:\n")
+    patch_options_json()
+
+    print(f"\nDone: {patched}/{len(profiles)} profile(s) patched.")
+
+
+if __name__ == "__main__":
+    main()
