@@ -8,6 +8,7 @@ import subprocess
 from pathlib import Path
 
 from .constants import VERSIONS_DIR, CLAUDE_SYMLINK, TOKENS_FILE
+from .defaults import DISALLOWED_TOOLS
 
 
 def fetch_gh_token(account: str) -> str | None:
@@ -94,7 +95,10 @@ def resolve_launch_config(
     elif perm in ("default", "plan", "auto"):
         perm_flags = [f"--permission-mode={perm}"]
 
-    # 7. Environment
+    # 7. Disallowed tools -- passed as CLI flags so the model never sees them
+    disallowed_flags = ["--disallowedTools"] + DISALLOWED_TOOLS if DISALLOWED_TOOLS else []
+
+    # 8. Environment
     env = dict(os.environ)
     env["CLAUDE_CONFIG_DIR"] = config_dir
     if gh_token:
@@ -112,8 +116,8 @@ def resolve_launch_config(
         except (json.JSONDecodeError, OSError):
             pass
 
-    # 8. Argv
-    argv = [binary_path] + default_flags + mcp_flags + perm_flags + model_flags
+    # 9. Argv
+    argv = [binary_path] + default_flags + mcp_flags + perm_flags + model_flags + disallowed_flags
     if extra_flags:
         argv += extra_flags
 
