@@ -288,9 +288,10 @@ def create_profile(result: WizardResult, cfg: ConfigManager) -> None:
     if result.disable_attribution:
         settings["attribution"] = {"commit": "", "pr": ""}
 
-    # Disable auto mode and disallowed tools
+    # Disable auto mode
     settings.setdefault("permissions", {})["disableAutoMode"] = "disable"
-    settings["disallowedTools"] = DISALLOWED_TOOLS[:]
+    # Record which tools claudewheel manages (enforcement is via --disallowedTools CLI flag in launch.py)
+    settings.setdefault("claudewheel", {})["disallowedTools"] = DISALLOWED_TOOLS[:]
 
     # Wire hooks — merge into existing hooks if cloned
     if result.wire_hooks:
