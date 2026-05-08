@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Patch existing Claude Code profiles with disallowedTools and disableAutoMode."""
+"""Patch existing Claude Code profiles: migrate disallowedTools to claudewheel namespace, enforce disableAutoMode."""
 
 import json
 import sys
@@ -30,12 +30,24 @@ def patch_profile(name: str, profile_dir: Path) -> bool:
         perms["disableAutoMode"] = "disable"
         changed = True
 
-    # disallowedTools -- merge (don't lose any existing entries)
-    existing = set(settings.get("disallowedTools", []))
+    # Migrate disallowedTools from inert top-level key to claudewheel namespace
+    # (enforcement is now via --disallowedTools CLI flag in launch.py)
+    cw = settings.setdefault("claudewheel", {})
+    existing = set(cw.get("disallowedTools", []))
+    # Also pick up any tools from the old inert top-level key
+    existing |= set(settings.get("disallowedTools", []))
     wanted = set(DISALLOWED_TOOLS)
     if not wanted.issubset(existing):
         merged = sorted(existing | wanted)
-        settings["disallowedTools"] = merged
+        cw["disallowedTools"] = merged
+        changed = True
+    elif "disallowedTools" not in cw:
+        cw["disallowedTools"] = sorted(existing | wanted)
+        changed = True
+
+    # Remove the inert top-level key that Claude Code ignores
+    if "disallowedTools" in settings:
+        del settings["disallowedTools"]
         changed = True
 
     if changed:
