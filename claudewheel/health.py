@@ -230,10 +230,13 @@ def check_settings_defaults() -> HealthResult:
             issues.append(f"{name}: fewer than 4 ask rules")
         if perms.get("disableAutoMode") != "disable":
             issues.append(f"{name}: auto mode not disabled")
-        current_disallowed = set(s.get("disallowedTools", []))
+        cw = s.get("claudewheel", {})
+        current_disallowed = set(cw.get("disallowedTools", []))
         missing_tools = sorted(set(DISALLOWED_TOOLS) - current_disallowed)
         if missing_tools:
             issues.append(f"{name}: missing disallowedTools: {', '.join(missing_tools)}")
+        if "disallowedTools" in s:
+            issues.append(f"{name}: has inert top-level disallowedTools key (run patch-profiles)")
 
     if issues:
         return HealthResult(False, "settings-defaults", "; ".join(issues))
