@@ -1,5 +1,7 @@
 # claudewheel
 
+A TUI launcher for Claude Code: pick a profile, model, directory, MCP mode, and permissions from a horizontal segment bar, then launch.
+
 ## Release workflow
 
 This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestration.
