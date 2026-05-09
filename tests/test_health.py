@@ -318,7 +318,7 @@ class CheckSettingsDefaultsTests(_HomeDirTestCase):
                 "ask": ["a", "b", "c", "d"],
                 "disableAutoMode": "disable",
             },
-            "disallowedTools": DISALLOWED_TOOLS[:],
+            "claudewheel": {"disallowedTools": DISALLOWED_TOOLS[:]},
         }
 
     def test_ok_when_all_correct(self) -> None:
@@ -373,6 +373,40 @@ class CheckSettingsDefaultsTests(_HomeDirTestCase):
         result = check_settings_defaults()
         self.assertFalse(result.ok)
         self.assertIn("autoMemoryEnabled != false", result.detail)
+
+    def test_warn_when_disallowed_tools_missing(self) -> None:
+        """Returns WARN when claudewheel.disallowedTools is absent."""
+        pdir = self._make_profile("noCw")
+        settings = self._good_settings()
+        del settings["claudewheel"]
+        self._write_settings(pdir, settings)
+
+        result = check_settings_defaults()
+        self.assertFalse(result.ok)
+        self.assertIn("missing disallowedTools", result.detail)
+
+    def test_warn_when_stale_top_level_disallowed_tools(self) -> None:
+        """Returns WARN when the old top-level disallowedTools key is still present."""
+        pdir = self._make_profile("staleKey")
+        settings = self._good_settings()
+        # Add the old inert top-level key alongside the correct nested one
+        settings["disallowedTools"] = DISALLOWED_TOOLS[:]
+        self._write_settings(pdir, settings)
+
+        result = check_settings_defaults()
+        self.assertFalse(result.ok)
+        self.assertIn("inert top-level disallowedTools", result.detail)
+
+    def test_ok_when_disallowed_tools_in_claudewheel_namespace(self) -> None:
+        """Returns OK when disallowedTools lives under claudewheel with no top-level key."""
+        pdir = self._make_profile("goodNs")
+        settings = self._good_settings()
+        # Ensure no top-level key exists
+        settings.pop("disallowedTools", None)
+        self._write_settings(pdir, settings)
+
+        result = check_settings_defaults()
+        self.assertTrue(result.ok)
 
     def test_ok_no_profiles(self) -> None:
         """Returns OK when no profiles exist."""
