@@ -154,14 +154,14 @@ class SettingsFromDefaultsTests(CreateProfileTestBase):
 
     def test_no_defaults_file_produces_hardcoded_defaults(self) -> None:
         """When profile-defaults.json is missing, settings contain only the
-        hardcoded disableAutoMode and disallowedTools entries."""
+        hardcoded disableAutoMode and claudewheel.disallowedTools entries."""
         result = _make_result(clone_from=None)
         create_profile(result, self.cfg)
 
         settings = self._read_settings()
         expected = {
             "permissions": {"disableAutoMode": "disable"},
-            "disallowedTools": DISALLOWED_TOOLS[:],
+            "claudewheel": {"disallowedTools": DISALLOWED_TOOLS[:]},
         }
         self.assertEqual(settings, expected)
 
@@ -177,7 +177,7 @@ class SettingsFromDefaultsTests(CreateProfileTestBase):
         settings = self._read_settings()
         expected = {
             "permissions": {"disableAutoMode": "disable"},
-            "disallowedTools": DISALLOWED_TOOLS[:],
+            "claudewheel": {"disallowedTools": DISALLOWED_TOOLS[:]},
         }
         self.assertEqual(settings, expected)
 
@@ -200,7 +200,7 @@ class SettingsFromCloneTests(CreateProfileTestBase):
 
     def test_missing_source_settings_gets_hardcoded_defaults(self) -> None:
         """If the source profile dir exists but has no settings.json, settings
-        contain only the hardcoded disableAutoMode and disallowedTools."""
+        contain only the hardcoded disableAutoMode and claudewheel.disallowedTools."""
         source_dir = self.fake_home / ".claude-source"
         source_dir.mkdir()
         # No settings.json written
@@ -211,7 +211,7 @@ class SettingsFromCloneTests(CreateProfileTestBase):
         settings = self._read_settings("cloned2")
         expected = {
             "permissions": {"disableAutoMode": "disable"},
-            "disallowedTools": DISALLOWED_TOOLS[:],
+            "claudewheel": {"disallowedTools": DISALLOWED_TOOLS[:]},
         }
         self.assertEqual(settings, expected)
 
