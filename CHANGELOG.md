@@ -1,5 +1,13 @@
 # claudewheel Changelog
 
+## 0.2.1
+- Fix: disallowedTools were never enforced -- the wizard wrote to a top-level `disallowedTools` key in settings.json that Claude Code silently ignores
+- Enforcement now uses `--disallowedTools` CLI flag in launch.py, which strips tools from the model's context entirely
+- Persist tool list under `settings.claudewheel.disallowedTools` (namespaced, not a Claude Code key)
+- Health check detects missing tools in claudewheel namespace and flags stale top-level key
+- patch-profiles migrates existing profiles: moves tools to new namespace, deletes inert key
+- Add launch.py tests for --disallowedTools flag in argv
+
 ## 0.2.0
 - Enforce disallowedTools across all profiles: 19 Claude Code tools disabled via settings.json (plan mode, worktree, task tracking, cron, notebook, push notifications, remote triggers, LSP, skill auto-invoke)
 - Disable auto permission mode across all profiles (permissions.disableAutoMode)
