@@ -1,5 +1,9 @@
 # claudewheel Changelog
 
+## 0.3.0
+- Publish to PyPI: `pip install claudewheel` or `uv pip install claudewheel` now works alongside the existing npm distribution
+- Lower minimum Python version from 3.14 to 3.10 (the JS wrapper now reads requires-python from pyproject.toml instead of hardcoding)
+
 ## 0.2.1
 - Fix: disallowedTools were never enforced -- the wizard wrote to a top-level `disallowedTools` key in settings.json that Claude Code silently ignores
 - Enforcement now uses `--disallowedTools` CLI flag in launch.py, which strips tools from the model's context entirely
