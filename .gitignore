@@ -8,7 +8,12 @@ node_modules/
 coverage/
 dist/
 *.egg-info/
+<<<<<<< /home/m/Projects/claudewheel/tmpqao03kzh.ours
 .share-it-on-notes-*.tmp
+=======
+.rlsbl-notes-*.tmp
+.rlsbl/lock
+>>>>>>> /home/m/Projects/claudewheel/tmpu1sdczob.theirs
 .credentials.json
 .*-cache.json
 .env
