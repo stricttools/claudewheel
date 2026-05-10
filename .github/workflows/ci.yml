@@ -7,30 +7,19 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-<<<<<<< /home/m/Projects/claudewheel/tmp20dnm8e1.ours
-    steps:
-    - uses: actions/checkout@v6
-    - uses: actions/setup-python@v5
-      with:
-        python-version: "3.14"
-    - run: pip install pytest
-    - run: python3 -m pytest tests/ -v
-    - uses: actions/setup-node@v6
-      with:
-        node-version: 22
-    - run: node -e "require('./package.json')"
-    - run: node bin/claudewheel.js --help || true
-=======
     strategy:
       matrix:
-        # engines.node: >= 18
-        node-version: [20, 22, 24]
+        python-version: ["3.10", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v6
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - uses: astral-sh/setup-uv@v7
+      - run: uv pip install --system -e . pytest
+      - run: python3 -m pytest tests/ -v
       - uses: actions/setup-node@v6
         with:
-          node-version: ${{ matrix.node-version }}
-      - run: npm ci
-      - run: npm test --if-present
-      - run: npm audit --audit-level=moderate || true
->>>>>>> /home/m/Projects/claudewheel/tmpbt95vsol.theirs
+          node-version: 22
+      - run: node -e "require('./package.json')"
+      - run: node bin/claudewheel.js --help || true
