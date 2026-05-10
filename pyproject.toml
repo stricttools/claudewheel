@@ -1,0 +1,31 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "claudewheel"
+version = "0.2.1"
+description = "TUI launcher for Claude Code"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [
+    { name = "smm-h", email = "smmh72@gmail.com" },
+]
+keywords = ["claude", "claude-code", "launcher", "tui", "config"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Environment :: Console",
+    "Topic :: Software Development :: User Interfaces",
+]
+dependencies = []
+
+[project.scripts]
+claudewheel = "claudewheel.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/smm-h/claudewheel"
+Repository = "https://github.com/smm-h/claudewheel"
+
+[tool.hatch.build.targets.wheel]
+packages = ["claudewheel"]
