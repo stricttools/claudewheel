@@ -6,7 +6,6 @@
 - Persist tool list under `settings.claudewheel.disallowedTools` (namespaced, not a Claude Code key)
 - Health check detects missing tools in claudewheel namespace and flags stale top-level key
 - patch-profiles migrates existing profiles: moves tools to new namespace, deletes inert key
-- Add launch.py tests for --disallowedTools flag in argv
 
 ## 0.2.0
 - Enforce disallowedTools across all profiles: 19 Claude Code tools disabled via settings.json (plan mode, worktree, task tracking, cron, notebook, push notifications, remote triggers, LSP, skill auto-invoke)
@@ -20,7 +19,6 @@
 - Schema-versioned config migrations: existing users' github segment automatically fixed to optional
 - Minimap character configurable via `overflow.minimap_char` theme key
 - Config migration runs on startup, adds missing keys and applies one-time value fixes
-- Updated README and CLAUDE.md with viewport, config, and theme documentation
 
 ## 0.1.12
 - Fix minimap: use small square (▪) instead of full block so focused segment's background highlight is visible
@@ -40,7 +38,6 @@
 ## 0.1.10
 - Fix backspace in freeform segments trapping arrow keys (emptying the buffer now exits edit mode; LEFT/RIGHT work mid-edit)
 - Make GitHub segment optional (launching without a GH profile is legitimate)
-- Update session hook to use `rlsbl prs` instead of deleted script
 
 ## 0.1.9
 - Add `--version` flag (prints app version)
@@ -53,18 +50,15 @@
 - Exclude `github`, `mcp`, `permissions` segments from print mode by default (github is slow, mcp unreliable non-interactively, permissions can hang on interactive-only modes)
 - Fix health check blocking `input()` in print mode; warnings now go to stderr without blocking
 - Warn to stderr when print mode uses fallback defaults for missing required segments
-- Add 7 unit tests for print mode
 
 ## 0.1.7
 - Add `-p`/`--print` flag for non-interactive print mode
 - Add `--` passthrough for raw Claude Code flags (e.g. `--output-format`, `--allowedTools`)
 - Add `scripts/redir-history.sh` for rewriting paths in history.jsonl files
-- Fix CI: add Python 3.14 setup and pytest install
 
 ## 0.1.6
 - Default directory segment to current working directory
 - Raise `/tmp/claude` health check threshold from 500 MB to 2 GB
-- Add `npm test` script (runs pytest)
 
 ## 0.1.5
 - Add `--redir OLD NEW` subcommand for redirecting session data after a project directory rename
@@ -74,15 +68,11 @@
 - Simplify README quick start, add `--redir` to CLI docs
 
 ## 0.1.4
-- Rename all internal references from ClaudeLauncher to claudewheel (docstrings, CLI output, User-Agent, tests)
+- Rename all internal references from ClaudeLauncher to claudewheel (CLI output, User-Agent)
 - Add branding assets (logo, banner) and banner to README
 
 ## 0.1.3
 - Fix freeform backspace bug: can now delete to empty string without resetting
-- Scaffold rlsbl scripts and hooks (check-prs.sh, pre-release.sh, record-gif.sh, pre-push hook)
-- Add Claude Code SessionStart hook for PR awareness
-- Merge security-sensitive patterns into .gitignore
-- Update references to rlsbl
 
 ## 0.1.2
 - Exclude `__pycache__` bytecode from npm tarball (package size: 75kB -> 26kB)
@@ -96,7 +86,6 @@
 ## 0.1.0
 - Initial npm release as `claudewheel`
 - Node.js bin wrapper with Python 3.14+ version check
-- CI and publish workflows scaffolded via rlsbl
 
 ## Architecture
 
