@@ -1,5 +1,9 @@
 # claudewheel Changelog
 
+## 0.3.1
+- Show README on the PyPI package page
+- Enforce minimum Python version in the `c` wrapper (reads requires-python from pyproject.toml, matching the JS wrapper)
+
 ## 0.3.0
 - Publish to PyPI: `pip install claudewheel` or `uv pip install claudewheel` now works alongside the existing npm distribution
 - Lower minimum Python version from 3.14 to 3.10 (the JS wrapper now reads requires-python from pyproject.toml instead of hardcoding)
