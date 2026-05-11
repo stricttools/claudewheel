@@ -17,3 +17,7 @@ dist/
 # Added by rlsbl
 .rlsbl-notes-*.tmp
 *.local-only
+
+# selfdoc / Cloudflare
+docs/_build/
+.wrangler/

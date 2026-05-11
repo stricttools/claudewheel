@@ -1,0 +1,8 @@
+{
+  "language": "python",
+  "source": ["claudewheel/"],
+  "deploy": {
+    "provider": "cloudflare-pages",
+    "project": "claudewheel"
+  }
+}
