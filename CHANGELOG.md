@@ -1,5 +1,8 @@
 # claudewheel Changelog
 
+## 0.3.2
+- Auto-generated API docs deployed to Cloudflare Pages on each release
+
 ## 0.3.1
 - Show README on the PyPI package page
 - Enforce minimum Python version in the `c` wrapper (reads requires-python from pyproject.toml, matching the JS wrapper)
