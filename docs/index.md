@@ -4,5 +4,4 @@ TUI launcher for Claude Code
 
 ## API Reference
 
-:::module claudewheel
-:::
+:-: ref path="claudewheel"
