@@ -275,17 +275,21 @@ class PrintModeTests(unittest.TestCase):
         """Invoke cli.main() with patched argv, ConfigManager, and _do_launch_sequence.
 
         Returns the mock for _do_launch_sequence so callers can inspect call args.
+        strictcli's app.run() calls sys.exit(0) after the handler, so we catch that.
         """
         fake_cfg = self._make_cfg(last_config)
         launch_mock = mock.MagicMock()
 
         with (
             mock.patch("sys.argv", argv),
-            mock.patch("claudewheel.cli.ConfigManager", return_value=fake_cfg),
+            mock.patch("claudewheel.config.ConfigManager", return_value=fake_cfg),
             mock.patch("claudewheel.cli._do_launch_sequence", launch_mock),
             mock.patch("os.getcwd", return_value="/test/dir"),
         ):
-            cli.main()
+            try:
+                cli.main()
+            except SystemExit:
+                pass
 
         return launch_mock
 
@@ -362,12 +366,15 @@ class PrintModeTests(unittest.TestCase):
 
         with (
             mock.patch("sys.argv", ["c", "-p", "test"]),
-            mock.patch("claudewheel.cli.ConfigManager", return_value=fake_cfg),
+            mock.patch("claudewheel.config.ConfigManager", return_value=fake_cfg),
             mock.patch("claudewheel.cli._do_launch_sequence", launch_mock),
             mock.patch("os.getcwd", return_value="/test/dir"),
             redirect_stderr(err),
         ):
-            cli.main()
+            try:
+                cli.main()
+            except SystemExit:
+                pass
 
         warning = err.getvalue()
         # directory auto-fills from cwd, so only profile and version should be warned
@@ -384,12 +391,15 @@ class PrintModeTests(unittest.TestCase):
 
         with (
             mock.patch("sys.argv", ["c", "-p", "test"]),
-            mock.patch("claudewheel.cli.ConfigManager", return_value=fake_cfg),
+            mock.patch("claudewheel.config.ConfigManager", return_value=fake_cfg),
             mock.patch("claudewheel.cli._do_launch_sequence", launch_mock),
             mock.patch("os.getcwd", return_value="/test/dir"),
             redirect_stderr(err),
         ):
-            cli.main()
+            try:
+                cli.main()
+            except SystemExit:
+                pass
 
         self.assertEqual(err.getvalue(), "", "no warning expected when all segments are present")
 

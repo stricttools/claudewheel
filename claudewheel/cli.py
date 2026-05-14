@@ -1,20 +1,19 @@
-"""main() function with argparse for claudewheel CLI."""
+"""main() function with strictcli for claudewheel CLI."""
 
 from __future__ import annotations
 
-import argparse
 import os
 import sys
 
+import strictcli
+from strictcli import App, Arg, Flag, MutexGroup, Tag
+
 from . import __version__
-from .app import App
-from .config import ConfigManager
 from .constants import LAUNCHER_DIR, OPTIONS_FILE, VERSIONS_DIR, CLAUDE_SYMLINK
-from .health import run_health_check, print_health_report
-from .hooks import run_hooks
-from .launch import resolve_launch_config, do_launch
 from .segment import version_sort_key
-from .state import save_launch_state
+
+# Passthrough args after "--" are stashed here by main() before strictcli sees argv.
+_passthrough: list[str] = []
 
 
 def _do_uninstall(version: str) -> int:
@@ -73,7 +72,7 @@ def _do_reset_options() -> int:
     return 0
 
 
-def _do_show(cfg: ConfigManager) -> int:
+def _do_show(cfg: object) -> int:
     """Print a git-status-like summary of last_config, segments, theme, and recent dirs."""
     enabled = cfg.config.get("enabled_segments", [])
     last_config = cfg.state.get("last_config", {})
@@ -109,10 +108,15 @@ def _do_show(cfg: ConfigManager) -> int:
 
 
 def _do_launch_sequence(
-    cfg: ConfigManager, selections: dict, extra_flags: list[str] | None = None,
+    cfg: object, selections: dict, extra_flags: list[str] | None = None,
     interactive: bool = True,
 ) -> None:
     """Run health check, hooks, save state, resolve, and exec. Does not return on success."""
+    from .health import run_health_check, print_health_report
+    from .hooks import run_hooks
+    from .launch import resolve_launch_config, do_launch
+    from .state import save_launch_state
+
     if cfg.config.get("health_check_on_launch", True):
         results = run_health_check()
         warnings = [r for r in results if not r.ok]
@@ -144,203 +148,172 @@ def _do_launch_sequence(
         sys.exit(1)
 
 
-def main() -> None:
-    # Load config first so we can build dynamic --<segment> CLI args
+# ---------------------------------------------------------------------------
+# Subcommand handlers
+# ---------------------------------------------------------------------------
+# Each handler's signature must exactly match the flags/args declared for its
+# command.  Handlers that need ConfigManager instantiate it lazily (only the
+# ones that actually need it), keeping the one-shot commands fast.
+
+def _handle_health() -> None:
+    from .health import run_health_check, print_health_report
+    results = run_health_check()
+    print_health_report(results)
+    if not all(r.ok for r in results):
+        sys.exit(1)
+
+
+def _handle_config() -> None:
+    editor = os.environ.get("EDITOR", os.environ.get("VISUAL", "vi"))
+    os.execlp(editor, editor, str(LAUNCHER_DIR))
+
+
+def _handle_versions() -> None:
+    if VERSIONS_DIR.is_dir():
+        versions = sorted(
+            [e.name for e in VERSIONS_DIR.iterdir() if e.is_file()],
+            key=version_sort_key,
+            reverse=True,
+        )
+    else:
+        versions = []
+
+    # Determine which version the symlink points to
+    current_version = None
+    try:
+        if CLAUDE_SYMLINK.is_symlink() or CLAUDE_SYMLINK.exists():
+            target = CLAUDE_SYMLINK.resolve()
+            current_version = target.name
+    except OSError:
+        pass
+
+    if not versions:
+        print("No versions found in", VERSIONS_DIR)
+    else:
+        for v in versions:
+            suffix = " (current)" if v == current_version else ""
+            print(f"  {v}{suffix}")
+
+
+def _handle_install(version: str) -> None:
+    from .install import install_version
+
+    def on_progress(downloaded: int, total: int) -> None:
+        if total > 0:
+            mb_done = downloaded / (1024 * 1024)
+            mb_total = total / (1024 * 1024)
+            pct = downloaded * 100 // total
+            print(f"\r  {mb_done:.0f}/{mb_total:.0f} MB ({pct}%)", end="", flush=True)
+
+    print(f"Downloading Claude Code {version}...")
+    try:
+        dest = install_version(version, progress_callback=on_progress)
+        print(f"\nInstalled to {dest}")
+    except OSError as e:
+        print(f"\nInstallation failed: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+def _handle_uninstall(version: str) -> None:
+    rc = _do_uninstall(version)
+    if rc != 0:
+        sys.exit(rc)
+
+
+def _handle_reset_options() -> None:
+    rc = _do_reset_options()
+    if rc != 0:
+        sys.exit(rc)
+
+
+def _handle_new_profile() -> None:
+    from .config import ConfigManager
+    from .wizard import run_profile_wizard, create_profile
+    from .health import _discover_profiles
+
+    cfg = ConfigManager()
+    existing = [name for name, _ in _discover_profiles()]
+    result = run_profile_wizard(existing)
+    if result.cancelled:
+        print("Cancelled.")
+        return
+    create_profile(result, cfg)
+
+
+@strictcli.flag("force", type=bool, help="force deletion even if sessions appear active")
+def _handle_delete_profile(name: str, force: bool) -> None:
+    from .profile_ops import do_delete_profile
+    rc = do_delete_profile(name, force=force)
+    if rc != 0:
+        sys.exit(rc)
+
+
+def _handle_show() -> None:
+    from .config import ConfigManager
+    cfg = ConfigManager()
+    rc = _do_show(cfg)
+    if rc != 0:
+        sys.exit(rc)
+
+
+def _handle_migrate(src: str, dst: str, uuid: str) -> None:
+    from .migrate import migrate_sessions
+    uuid_filter = uuid if uuid else None
+    try:
+        migrate_sessions(src, dst, uuid_filter=uuid_filter, dry_run=False)
+    except (FileNotFoundError, OSError) as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+@strictcli.flag("dry-run", type=bool, help="preview changes without writing")
+def _handle_gc(dry_run: bool) -> None:
+    from .gc import run_gc
+    run_gc(dry_run=dry_run)
+
+
+@strictcli.flag("dry-run", type=bool, help="preview changes without writing")
+def _handle_redir(old: str, new: str, dry_run: bool) -> None:
+    from .redir import run_redir
+    try:
+        run_redir(old, new, dry_run=dry_run)
+    except (FileNotFoundError, FileExistsError, OSError) as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+# "continue" and "print" are Python keywords, so we use "cont" / "print-prompt"
+# as flag names. Short forms -c and -p remain the same for user convenience.
+def _handle_launch(
+    # Mutex group flags
+    cont: bool, resume: str | None, print_prompt: str | None,
+    # Segment flags (via tag); empty string means "not provided"
+    profile: str, github: str, model: str,
+    directory: str, mcp: str, permissions: str,
+    # Repeatable set flag (via tag)
+    set: list[str],
+) -> None:
+    from .app import App as TuiApp
+    from .config import ConfigManager
+
     cfg = ConfigManager()
     enabled = cfg.config.get("enabled_segments", [])
     segment_keys = [s["key"] for s in cfg.segments_def if s["key"] in enabled]
 
-    parser = argparse.ArgumentParser(prog="c", description="claudewheel - TUI launcher for Claude Code")
-    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
-    parser.add_argument("--health", action="store_true", help="run health check and exit")
-    parser.add_argument("--config", action="store_true", help="open ~/.claudelauncher/ in $EDITOR")
-    parser.add_argument("--versions", action="store_true", help="list available versions and exit")
-    parser.add_argument("--install", metavar="VERSION", default=None,
-                        help="download and install a specific Claude Code version, then exit")
-    parser.add_argument("--uninstall", metavar="VERSION", default=None,
-                        help="delete an installed Claude Code version, then exit")
-    parser.add_argument("--reset-options", action="store_true",
-                        help="delete options.json so it regenerates from defaults on next run")
-    parser.add_argument("--new-profile", action="store_true",
-                        help="run the profile creation wizard")
-    parser.add_argument("--delete-profile", metavar="NAME", default=None,
-                        help="delete a registered profile and all associated data")
-    parser.add_argument("--force", action="store_true",
-                        help="force deletion even if sessions appear active (for --delete-profile)")
-    parser.add_argument("--show", action="store_true",
-                        help="print current selections and exit")
-    parser.add_argument("--migrate", nargs="+", metavar="ARG",
-                        help="migrate sessions: SRC DST [UUID_SUBSTR]")
-    parser.add_argument("--gc", action="store_true",
-                        help="garbage-collect stale sentinels, compact origins, report stats")
-    parser.add_argument("--redir", nargs=2, metavar=("OLD", "NEW"),
-                        help="redirect session data after a project directory rename")
-    parser.add_argument("--dry-run", action="store_true",
-                        help="preview changes without writing (for --migrate, --gc, --redir)")
-
-    # Mutually exclusive session/print passthrough flags
-    _RESUME_NO_ID = object()  # sentinel for "-r with no value"
-    session_group = parser.add_mutually_exclusive_group()
-    session_group.add_argument("-c", "--continue", dest="cont", action="store_true",
-                               help="continue the most recent Claude conversation")
-    session_group.add_argument("-r", "--resume", nargs="?", default=None, const=_RESUME_NO_ID,
-                               metavar="SESSION_ID",
-                               help="resume a Claude session (with optional ID, or open picker)")
-    session_group.add_argument("-p", "--print", dest="print_prompt", default=None,
-                               metavar="PROMPT",
-                               help="run Claude in non-interactive print mode with the given prompt")
-
-    # Individual --<segment_key> flags for non-colliding segments.
-    # Segments whose key collides with a top-level flag (e.g. "version")
-    # are skipped here; use -s key=value instead.
-    _reserved_flags = {"version"}
-    seg_group = parser.add_argument_group("segment values")
-    for sdef in cfg.segments_def:
-        key = sdef["key"]
-        if key in enabled and key not in _reserved_flags:
-            seg_group.add_argument(
-                f"--{key}", default=None, metavar="VALUE",
-                help=f"preset value for the {sdef.get('label', key)} segment",
-            )
-    seg_group.add_argument(
-        "-s", "--set", action="append", default=[], metavar="KEY=VALUE",
-        help="set a segment value (e.g. -s version=2.1.119); works for any segment",
-    )
-
-    args, _remaining = parser.parse_known_args()
-
-    # --versions: list installed versions and exit
-    if args.versions:
-        if VERSIONS_DIR.is_dir():
-            versions = sorted(
-                [e.name for e in VERSIONS_DIR.iterdir() if e.is_file()],
-                key=version_sort_key,
-                reverse=True,
-            )
-        else:
-            versions = []
-
-        # Determine which version the symlink points to
-        current_version = None
-        try:
-            if CLAUDE_SYMLINK.is_symlink() or CLAUDE_SYMLINK.exists():
-                target = CLAUDE_SYMLINK.resolve()
-                current_version = target.name
-        except OSError:
-            pass
-
-        if not versions:
-            print("No versions found in", VERSIONS_DIR)
-        else:
-            for v in versions:
-                suffix = " (current)" if v == current_version else ""
-                print(f"  {v}{suffix}")
-        return
-
-    # --config: open config dir in editor
-    if args.config:
-        editor = os.environ.get("EDITOR", os.environ.get("VISUAL", "vi"))
-        os.execlp(editor, editor, str(LAUNCHER_DIR))
-
-    # --health: run health checks and exit
-    if args.health:
-        results = run_health_check()
-        print_health_report(results)
-        sys.exit(0 if all(r.ok for r in results) else 1)
-
-    # --install <version>: download and install a version, then exit
-    if args.install:
-        from .install import install_version
-
-        def on_progress(downloaded: int, total: int) -> None:
-            if total > 0:
-                mb_done = downloaded / (1024 * 1024)
-                mb_total = total / (1024 * 1024)
-                pct = downloaded * 100 // total
-                print(f"\r  {mb_done:.0f}/{mb_total:.0f} MB ({pct}%)", end="", flush=True)
-
-        print(f"Downloading Claude Code {args.install}...")
-        try:
-            dest = install_version(args.install, progress_callback=on_progress)
-            print(f"\nInstalled to {dest}")
-        except OSError as e:
-            print(f"\nInstallation failed: {e}", file=sys.stderr)
-            sys.exit(1)
-        return
-
-    # --uninstall <version>: delete an installed version, then exit
-    if args.uninstall:
-        sys.exit(_do_uninstall(args.uninstall))
-
-    # --reset-options: delete options.json so it regenerates from defaults
-    if args.reset_options:
-        sys.exit(_do_reset_options())
-
-    # --new-profile: run the profile creation wizard
-    if args.new_profile:
-        from .wizard import run_profile_wizard, create_profile
-        from .health import _discover_profiles
-        existing = [name for name, _ in _discover_profiles()]
-        result = run_profile_wizard(existing)
-        if result.cancelled:
-            print("Cancelled.")
-            return
-        create_profile(result, cfg)
-        return
-
-    # --delete-profile <name>: delete a profile and all associated data
-    if args.delete_profile:
-        from .profile_ops import do_delete_profile
-        sys.exit(do_delete_profile(args.delete_profile, force=args.force))
-
-    # --show: print last_config + segment summary, then exit
-    if args.show:
-        sys.exit(_do_show(cfg))
-
-    # --migrate SRC DST [UUID_SUBSTR] [--dry-run]
-    if args.migrate:
-        from .migrate import migrate_sessions
-        migrate_args = list(args.migrate)
-        dry_run = args.dry_run
-        if len(migrate_args) < 2:
-            print("Usage: c --migrate [--dry-run] SRC_PROFILE DST_PROFILE [UUID_SUBSTR]", file=sys.stderr)
-            sys.exit(1)
-        src, dst = migrate_args[0], migrate_args[1]
-        uuid_filter = migrate_args[2] if len(migrate_args) > 2 else None
-        try:
-            migrate_sessions(src, dst, uuid_filter=uuid_filter, dry_run=dry_run)
-        except (FileNotFoundError, OSError) as e:
-            print(f"Error: {e}", file=sys.stderr)
-            sys.exit(1)
-        return
-
-    # --gc: garbage-collect stale data
-    if args.gc:
-        from .gc import run_gc
-        run_gc(dry_run=args.dry_run)
-        return
-
-    # --redir OLD NEW: redirect session data after a directory rename
-    if args.redir:
-        from .redir import run_redir
-        old, new = args.redir
-        try:
-            run_redir(old, new, dry_run=args.dry_run)
-        except (FileNotFoundError, FileExistsError, OSError) as e:
-            print(f"Error: {e}", file=sys.stderr)
-            sys.exit(1)
-        return
-
-    # Collect segment value overrides from individual flags
+    # Collect segment value overrides from individual flags.
+    # Empty string means "not provided" (strictcli default for optional str flags).
     segment_overrides: dict[str, str] = {}
+    flag_values = {
+        "profile": profile, "github": github, "model": model,
+        "directory": directory, "mcp": mcp, "permissions": permissions,
+    }
     for key in segment_keys:
-        if key not in _reserved_flags:
-            val = getattr(args, key, None)
-            if val is not None:
-                segment_overrides[key] = val
+        val = flag_values.get(key)
+        if val:
+            segment_overrides[key] = val
 
     # Merge -s key=value overrides (these take precedence over individual flags)
-    for item in args.set:
+    for item in set:
         if "=" not in item:
             print(f"Invalid -s format: {item!r} (expected KEY=VALUE)", file=sys.stderr)
             sys.exit(1)
@@ -354,32 +327,30 @@ def main() -> None:
     if "directory" in segment_keys and "directory" not in segment_overrides:
         segment_overrides["directory"] = os.getcwd()
 
-    # Build extra Claude Code flags from passthrough args
+    # Build extra Claude Code flags from session/print flags
     extra_flags: list[str] = []
-    if args.cont:
+    if cont:
         extra_flags.append("--continue")
-    elif args.resume is not None:
+    elif resume is not None:
         extra_flags.append("--resume")
-        if args.resume is not _RESUME_NO_ID:
-            extra_flags.append(args.resume)
-    elif args.print_prompt is not None:
-        extra_flags.extend(["--print", args.print_prompt])
+        if resume:
+            extra_flags.append(resume)
+    elif print_prompt is not None:
+        extra_flags.extend(["--print", print_prompt])
 
-    # Append anything after "--" as raw Claude Code flags
-    if "--" in sys.argv:
-        passthrough_start = sys.argv.index("--") + 1
-        extra_flags.extend(sys.argv[passthrough_start:])
+    # Append passthrough args (everything after "--" in original argv)
+    extra_flags.extend(_passthrough)
 
     # Skip TUI when args cover every required segment, or when print mode is active.
     required_keys = {s["key"] for s in cfg.segments_def
                      if s["key"] in enabled and s.get("required", False)}
-    skip_tui = args.print_prompt is not None or (
+    skip_tui = print_prompt is not None or (
         required_keys and all(k in segment_overrides for k in required_keys)
     )
     if skip_tui:
         merged = dict(cfg.state.get("last_config", {}))
         merged.update(segment_overrides)
-        if args.print_prompt is not None:
+        if print_prompt is not None:
             print_keys = {s["key"] for s in cfg.segments_def
                           if s["key"] in enabled and s.get("print_mode", True)}
             merged = {k: v for k, v in merged.items() if k in print_keys}
@@ -392,13 +363,147 @@ def main() -> None:
                     file=sys.stderr,
                 )
         _do_launch_sequence(cfg, merged, extra_flags=extra_flags,
-                            interactive=args.print_prompt is None)
+                            interactive=print_prompt is None)
         return
 
     # Otherwise show the TUI (pre-filled from last_config + arg overrides)
-    app = App(cfg=cfg, overrides=segment_overrides)
+    app = TuiApp(cfg=cfg, overrides=segment_overrides)
     selections = app.run_tui()
     if selections is None:
         return
 
     _do_launch_sequence(app.cfg, selections, extra_flags=extra_flags)
+
+
+# ---------------------------------------------------------------------------
+# Subcommand names for routing
+# ---------------------------------------------------------------------------
+_SUBCOMMANDS = frozenset({
+    "health", "config", "versions", "install", "uninstall",
+    "reset-options", "new-profile", "delete-profile", "show",
+    "migrate", "gc", "redir", "launch",
+})
+
+
+def _build_app() -> App:
+    """Build the strictcli App with all subcommands registered."""
+    app = App(name="c", version=__version__, help="claudewheel - TUI launcher for Claude Code")
+
+    # -- One-shot commands --
+
+    app.command("health", help="run health check and exit")(
+        _handle_health
+    )
+
+    app.command("config", help="open config dir in editor")(
+        _handle_config
+    )
+
+    app.command("versions", help="list available versions and exit")(
+        _handle_versions
+    )
+
+    app.command("install", help="download and install a specific Claude Code version",
+                args=[Arg(name="version", help="version to install")])(
+        _handle_install
+    )
+
+    app.command("uninstall", help="delete an installed Claude Code version",
+                args=[Arg(name="version", help="version to uninstall")])(
+        _handle_uninstall
+    )
+
+    app.command("reset-options", help="delete options.json so it regenerates from defaults")(
+        _handle_reset_options
+    )
+
+    app.command("new-profile", help="run the profile creation wizard")(
+        _handle_new_profile
+    )
+
+    app.command("delete-profile", help="delete a registered profile and all associated data",
+                args=[Arg(name="name", help="profile name to delete")])(
+        _handle_delete_profile
+    )
+
+    app.command("show", help="print current selections and exit")(
+        _handle_show
+    )
+
+    app.command("migrate", help="migrate sessions between profiles",
+                args=[
+                    Arg(name="src", help="source profile"),
+                    Arg(name="dst", help="destination profile"),
+                    Arg(name="uuid", help="UUID substring filter", required=False, default=""),
+                ])(
+        _handle_migrate
+    )
+
+    app.command("gc", help="garbage-collect stale sentinels, compact origins, report stats")(
+        _handle_gc
+    )
+
+    app.command("redir", help="redirect session data after a project directory rename",
+                args=[
+                    Arg(name="old", help="old directory path"),
+                    Arg(name="new", help="new directory path"),
+                ])(
+        _handle_redir
+    )
+
+    # -- Launch command (default when no subcommand given) --
+    _session_mutex = MutexGroup(flags=[
+        Flag(name="cont", short="c", type=bool,
+             help="continue the most recent conversation"),
+        Flag(name="resume", short="r", type=str,
+             help="resume a session (ID, or empty for picker)"),
+        Flag(name="print-prompt", short="p", type=str,
+             help="run in non-interactive print mode with the given prompt"),
+    ])
+
+    _segment_tag = Tag(name="segments", flags=[
+        Flag(name="profile", type=str, default="",
+             help="preset value for the Profile segment"),
+        Flag(name="github", type=str, default="",
+             help="preset value for the GH segment"),
+        Flag(name="model", type=str, default="",
+             help="preset value for the Model segment"),
+        Flag(name="directory", type=str, default="",
+             help="preset value for the Dir segment"),
+        Flag(name="mcp", type=str, default="",
+             help="preset value for the MCP segment"),
+        Flag(name="permissions", type=str, default="",
+             help="preset value for the Perms segment"),
+        Flag(name="set", short="s", type=str, repeatable=True,
+             help="set a segment value (e.g. -s version=2.1.119)"),
+    ])
+
+    app.command("launch", help="start the interactive TUI launcher",
+                mutex=[_session_mutex], tags=[_segment_tag])(
+        _handle_launch
+    )
+
+    return app
+
+
+def main() -> None:
+    global _passthrough
+
+    # Pre-process sys.argv: extract passthrough args after "--"
+    argv = list(sys.argv)
+    if "--" in argv:
+        idx = argv.index("--")
+        _passthrough = argv[idx + 1:]
+        sys.argv = argv[:idx]
+    else:
+        _passthrough = []
+
+    # If no subcommand given, inject "launch" so the TUI starts.
+    # Exception: --help/-h/--version/-v should be handled at the app level
+    # to show all commands, not the launch command's help.
+    rest = sys.argv[1:]
+    _APP_LEVEL_FLAGS = {"--help", "-h", "--version", "-v"}
+    if not rest or (rest[0] not in _SUBCOMMANDS and rest[0] not in _APP_LEVEL_FLAGS):
+        sys.argv = [sys.argv[0], "launch"] + rest
+
+    _build_app().run()
