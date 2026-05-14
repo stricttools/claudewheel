@@ -7,7 +7,7 @@ name = "claudewheel"
 version = "0.3.2"
 description = "TUI launcher for Claude Code"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = "MIT"
 authors = [
     { name = "smm-h", email = "smmh72@gmail.com" },
@@ -18,7 +18,6 @@ classifiers = [
     "Environment :: Console",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
