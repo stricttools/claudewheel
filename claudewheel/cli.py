@@ -155,20 +155,22 @@ def _do_launch_sequence(
 # command.  Handlers that need ConfigManager instantiate it lazily (only the
 # ones that actually need it), keeping the one-shot commands fast.
 
-def _handle_health() -> None:
+def _handle_health() -> int:
     from .health import run_health_check, print_health_report
     results = run_health_check()
     print_health_report(results)
     if not all(r.ok for r in results):
         sys.exit(1)
+    return 0
 
 
-def _handle_config() -> None:
+def _handle_config() -> int:
     editor = os.environ.get("EDITOR", os.environ.get("VISUAL", "vi"))
     os.execlp(editor, editor, str(LAUNCHER_DIR))
+    return 0
 
 
-def _handle_versions() -> None:
+def _handle_versions() -> int:
     if VERSIONS_DIR.is_dir():
         versions = sorted(
             [e.name for e in VERSIONS_DIR.iterdir() if e.is_file()],
@@ -193,9 +195,10 @@ def _handle_versions() -> None:
         for v in versions:
             suffix = " (current)" if v == current_version else ""
             print(f"  {v}{suffix}")
+    return 0
 
 
-def _handle_install(version: str) -> None:
+def _handle_install(version: str) -> int:
     from .install import install_version
 
     def on_progress(downloaded: int, total: int) -> None:
@@ -212,21 +215,24 @@ def _handle_install(version: str) -> None:
     except OSError as e:
         print(f"\nInstallation failed: {e}", file=sys.stderr)
         sys.exit(1)
+    return 0
 
 
-def _handle_uninstall(version: str) -> None:
+def _handle_uninstall(version: str) -> int:
     rc = _do_uninstall(version)
     if rc != 0:
         sys.exit(rc)
+    return 0
 
 
-def _handle_reset_options() -> None:
+def _handle_reset_options() -> int:
     rc = _do_reset_options()
     if rc != 0:
         sys.exit(rc)
+    return 0
 
 
-def _handle_new_profile() -> None:
+def _handle_new_profile() -> int:
     from .config import ConfigManager
     from .wizard import run_profile_wizard, create_profile
     from .health import _discover_profiles
@@ -236,27 +242,30 @@ def _handle_new_profile() -> None:
     result = run_profile_wizard(existing)
     if result.cancelled:
         print("Cancelled.")
-        return
+        return 0
     create_profile(result, cfg)
+    return 0
 
 
 @strictcli.flag("force", type=bool, help="force deletion even if sessions appear active")
-def _handle_delete_profile(name: str, force: bool) -> None:
+def _handle_delete_profile(name: str, force: bool) -> int:
     from .profile_ops import do_delete_profile
     rc = do_delete_profile(name, force=force)
     if rc != 0:
         sys.exit(rc)
+    return 0
 
 
-def _handle_show() -> None:
+def _handle_show() -> int:
     from .config import ConfigManager
     cfg = ConfigManager()
     rc = _do_show(cfg)
     if rc != 0:
         sys.exit(rc)
+    return 0
 
 
-def _handle_migrate(src: str, dst: str, uuid: str) -> None:
+def _handle_migrate(src: str, dst: str, uuid: str) -> int:
     from .migrate import migrate_sessions
     uuid_filter = uuid if uuid else None
     try:
@@ -264,22 +273,25 @@ def _handle_migrate(src: str, dst: str, uuid: str) -> None:
     except (FileNotFoundError, OSError) as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
+    return 0
 
 
 @strictcli.flag("dry-run", type=bool, help="preview changes without writing")
-def _handle_gc(dry_run: bool) -> None:
+def _handle_gc(dry_run: bool) -> int:
     from .gc import run_gc
     run_gc(dry_run=dry_run)
+    return 0
 
 
 @strictcli.flag("dry-run", type=bool, help="preview changes without writing")
-def _handle_redir(old: str, new: str, dry_run: bool) -> None:
+def _handle_redir(old: str, new: str, dry_run: bool) -> int:
     from .redir import run_redir
     try:
         run_redir(old, new, dry_run=dry_run)
     except (FileNotFoundError, FileExistsError, OSError) as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
+    return 0
 
 
 # "continue" and "print" are Python keywords, so we use "cont" / "print-prompt"
@@ -292,7 +304,7 @@ def _handle_launch(
     directory: str, mcp: str, permissions: str,
     # Repeatable set flag (via tag)
     set: list[str],
-) -> None:
+) -> int:
     from .app import App as TuiApp
     from .config import ConfigManager
 
@@ -364,15 +376,16 @@ def _handle_launch(
                 )
         _do_launch_sequence(cfg, merged, extra_flags=extra_flags,
                             interactive=print_prompt is None)
-        return
+        return 0
 
     # Otherwise show the TUI (pre-filled from last_config + arg overrides)
     app = TuiApp(cfg=cfg, overrides=segment_overrides)
     selections = app.run_tui()
     if selections is None:
-        return
+        return 0
 
     _do_launch_sequence(app.cfg, selections, extra_flags=extra_flags)
+    return 0
 
 
 # ---------------------------------------------------------------------------
