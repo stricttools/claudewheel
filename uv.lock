@@ -1,0 +1,24 @@
+version = 1
+revision = 3
+requires-python = ">=3.11"
+
+[[package]]
+name = "claudewheel"
+version = "0.3.2"
+source = { editable = "." }
+dependencies = [
+    { name = "strictcli" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "strictcli", directory = "../strictcli/python" }]
+
+[[package]]
+name = "strictcli"
+version = "0.2.0"
+source = { directory = "../strictcli/python" }
+
+[package.metadata]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest" }]
