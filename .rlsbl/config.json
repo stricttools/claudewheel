@@ -1,6 +1,7 @@
 {
   "targets": [
     "npm",
-    "pypi"
+    "pypi",
+    "docs"
   ]
 }
