@@ -14,6 +14,8 @@ from .defaults import DISALLOWED_TOOLS
 
 @dataclass
 class HealthResult:
+    """Health check result with ok status, label, and detail message."""
+
     ok: bool
     label: str
     detail: str

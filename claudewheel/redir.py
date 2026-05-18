@@ -15,6 +15,8 @@ def _log(msg: str) -> None:
 
 @dataclass
 class RedirResult:
+    """Counters tracking the outcome of a project-directory redirect operation."""
+
     dirs_renamed: int = 0
     files_rewritten: int = 0
     lines_replaced: int = 0

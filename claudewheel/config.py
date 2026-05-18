@@ -53,6 +53,8 @@ _MIGRATIONS: list[dict] = [
 
 @dataclass
 class ConfigManager:
+    """Loads, saves, and migrates JSON config files from ~/.claudelauncher/."""
+
     config: dict = field(default_factory=dict)
     segments_def: list[dict] = field(default_factory=list)
     options_def: dict = field(default_factory=dict)

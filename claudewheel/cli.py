@@ -501,6 +501,7 @@ def _build_app() -> App:
 
 
 def main() -> None:
+    """CLI entry point that parses arguments and dispatches to subcommands or the TUI."""
     global _passthrough
 
     # Pre-process sys.argv: extract passthrough args after "--"

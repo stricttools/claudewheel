@@ -13,6 +13,8 @@ from .renderer import Renderer
 
 
 class App:
+    """TUI application managing the event loop, keyboard handling, and segment interaction."""
+
     def __init__(self, cfg: ConfigManager | None = None, overrides: dict[str, str] | None = None):
         self.cfg = cfg if cfg is not None else ConfigManager()
         self.bar = build_segment_bar(self.cfg)

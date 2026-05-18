@@ -21,6 +21,8 @@ PREFIX = "[migrate]"
 
 @dataclass
 class MigrateResult:
+    """Counters tracking the outcome of a session migration operation."""
+
     stamped: int = 0
     already_stamped: int = 0
     moved: int = 0
