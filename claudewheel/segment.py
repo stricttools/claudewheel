@@ -17,6 +17,8 @@ NPM_CACHE_TTL = 3600  # 1 hour
 
 @dataclass
 class Segment:
+    """A single segment in the TUI bar with options, selection state, and search."""
+
     key: str
     label: str
     options: list[str] = field(default_factory=list)
@@ -92,6 +94,8 @@ class Segment:
 
 @dataclass
 class SegmentBar:
+    """Ordered collection of segments with focus tracking and navigation."""
+
     segments: list[Segment] = field(default_factory=list)
     focus_idx: int = 0
 

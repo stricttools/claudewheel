@@ -23,6 +23,8 @@ _DIM_CLR = (136, 136, 136)  # #888888
 
 @dataclass
 class WizardField:
+    """Defines a single input field in the profile creation wizard."""
+
     label: str
     field_type: str  # "text", "radio", "checkbox", "readonly", "button"
     value: str | bool | None = None
@@ -32,6 +34,8 @@ class WizardField:
 
 @dataclass
 class WizardResult:
+    """Collected values from a completed profile wizard run."""
+
     name: str
     config_dir: str
     clone_from: str | None  # profile name or None for defaults

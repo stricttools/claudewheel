@@ -16,6 +16,8 @@ from .constants import (ALT_SCREEN_ON, ALT_SCREEN_OFF, HIDE_CURSOR, SHOW_CURSOR,
 
 
 class Terminal:
+    """Low-level terminal I/O: raw mode, key reading, alt screen, and size detection."""
+
     def __init__(self):
         # Open /dev/tty directly so we work even when stdin is piped
         self._tty_file = open("/dev/tty", "r+b", buffering=0)
