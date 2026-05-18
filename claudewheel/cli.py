@@ -117,7 +117,7 @@ def _do_launch_sequence(
     from .launch import resolve_launch_config, do_launch
     from .state import save_launch_state
 
-    if cfg.config.get("health_check_on_launch", True):
+    if interactive and cfg.config.get("health_check_on_launch", True):
         results = run_health_check()
         warnings = [r for r in results if not r.ok]
         if warnings:
@@ -133,10 +133,11 @@ def _do_launch_sequence(
                     print()
                     sys.exit(1)
     if not run_hooks("pre-launch", selections):
-        print("Pre-launch hook failed. Aborting.")
+        print("Pre-launch hook failed. Aborting.", file=sys.stderr)
         sys.exit(1)
     # Save state only after hooks succeed, so launch_count isn't inflated by aborts
-    save_launch_state(cfg, selections)
+    if interactive:
+        save_launch_state(cfg, selections)
     try:
         cwd, argv, env = resolve_launch_config(
             selections, cfg.options_def, cfg.config.get("default_flags", []),
