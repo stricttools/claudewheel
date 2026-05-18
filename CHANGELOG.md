@@ -2,6 +2,13 @@
 
 # Changelog
 
+## Unreleased
+
+### Fixes
+
+- **Fix.** Profiles set up before claudewheel (without `.credentials.json`) were invisible to health checks and the TUI profile picker. They are now discovered via `tokens.json`.
+- **Fix.** Compatibility with strictcli 0.5.0 (MutexGroup is now always required; session flags moved to a Tag with manual mutual-exclusion check).
+
 ## 0.4.2
 
 - No user-facing changes.
