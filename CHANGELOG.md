@@ -2,6 +2,12 @@
 
 # Changelog
 
+## 0.4.5
+
+### Fixes
+
+- **Fix.** `resolve_profile()` now runs option discovery before reading metadata, fixing programmatic profile resolution from external callers.
+
 ## 0.4.4
 
 - No user-facing changes.
