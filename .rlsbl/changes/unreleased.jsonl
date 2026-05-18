@@ -1,3 +1,0 @@
-{"commits":["a6c606f6b726d3fbd3c89dc8af518cc159567a46"],"user_facing":true,"description":"**Fix.** `resolve_profile()` now runs option discovery before reading metadata, fixing programmatic profile resolution from external callers.","type":"fix"}
-{"commits":["21e5d8bd6ef4005ac498c98e8710d2f20c976428"],"user_facing":false}
-{"commits":["c82af6e6562b21982fc51c401b1e7da986b4c1de"],"user_facing":false}
