@@ -4,19 +4,19 @@
     "description": "7bc69aa7393378c2e0bc2a2b0b27c1e56c50252cf50729094e61be6f81985d3b"
   },
   "claudewheel-app.md": {
-    "content": "2a6bb35424db34c14989647be6b932b40261bc5e951850af2d55deebc0a709a6",
+    "content": "8d14497a7c683b02c8262775e5145841f0dc7fc8de95c3ff56e6d1cbc7f657f9",
     "description": "abf048f2130832286e095f305da9affc117c44015eb68c2480de9de798c7ac55"
   },
   "claudewheel-cli.md": {
-    "content": "77be4d22e4b16ee40e23f751378f944c8bb5b91ac5b878ee636fb3beb8f88b53",
+    "content": "ceaba04f4e6e331a0545010910f85a54e387921deb08b734daf48530b2239d11",
     "description": "308cba324c01756e136332d99e8d4880b00c90004f9ab76932c707c16d038c88"
   },
   "claudewheel-config.md": {
-    "content": "e0e957488a5fcaf1feb7432815f6294a972c6c163ceab262b4a5497aad32ba8c",
+    "content": "b0c0c6d3d87d061bf2c152909f9b64a45efce35cdb6af3dfdff401ba60424efd",
     "description": "d6ed48338728219ba805fd3f92dda680737ef85964e03c813a2331e694ca6761"
   },
   "claudewheel-constants.md": {
-    "content": "ae33df6bf0791fd08542c06d54aefc7e9cc3a1ee07b8b92eaafb9bfb9cbf99fc",
+    "content": "ef24250d09038a50805ffb3dd7a1b7d7cb44e335c27a5f69c360d932aa58d77d",
     "description": "86cef44bded03eb818bcb296f1166068f5d5fd3b6508d942da0b7a6405ee432a"
   },
   "claudewheel-defaults.md": {
@@ -32,7 +32,7 @@
     "description": "0b224656883de37c602ed635c31fccd8d917b133b5e8993dc58e40ff55081cb1"
   },
   "claudewheel-health.md": {
-    "content": "85243f0cc002098d25d40cb8772d8ab595014e3fb5f28c34ae368bff7b382b2f",
+    "content": "31e41a6d3846cb1f0eba8920b16b94c8a3b41096b9ae5066bd1276b8eeaf3ae8",
     "description": "1d0858ac423256112435e244345dae9b48abdbcb6f4a1aca21b4307b71ba6140"
   },
   "claudewheel-hooks.md": {
@@ -48,7 +48,7 @@
     "description": "a6126cfe2676583a424ea329fbde8debccdab10d71d584f01a9470ed83adadbf"
   },
   "claudewheel-migrate.md": {
-    "content": "47c9d9954c95827c23a338a5e1bc669ce216520027cc55de72d69e2476128915",
+    "content": "75ae48e871080bba44e01d9af5877e11dc2f8650252a45bb6ee2460b6126a191",
     "description": "f3ed3f0775e1042c340cfa4429498c08f44184702d073aaefe7a1476c0061436"
   },
   "claudewheel-profile.md": {
@@ -60,7 +60,7 @@
     "description": "b1df249e3f524ce972cd9a997afe286831010cc15fef2ae41a9765dc0758934c"
   },
   "claudewheel-redir.md": {
-    "content": "99fd1e4e6c250321919fb509e1d6c40b573f0cc690e8ef4bf0877067433a1044",
+    "content": "5258127942effea4b6473a099b8a73fdb8a3b50bd626bd2b2fcf0e6ca96d5798",
     "description": "46dd859044478e82f2b2d7d3839e08bb55de6df6cc3d43b45b237769684d18e5"
   },
   "claudewheel-renderer.md": {
@@ -68,7 +68,7 @@
     "description": "96a97bf498ece5a452e2a1b289ae1b45fec75c9a1f1bf1e9fdacb6827a9635b8"
   },
   "claudewheel-segment.md": {
-    "content": "c9a0d3f004312b85042571512b6ebae648610bd74531a81fdb9de94db8225156",
+    "content": "842d76c6fd7f5f4f71e1b4e23910e4aee884dc947f7714f4724ce818ecf72ff3",
     "description": "55f35c8f26b1ffa6716c179ce9a389592213bf9300627e0f0754f249c65539e5"
   },
   "claudewheel-state.md": {
@@ -76,7 +76,7 @@
     "description": "c79d0978bb5d5e652538b91e8bbb9af460caaaffa1f1839c7a016b35fe957bda"
   },
   "claudewheel-terminal.md": {
-    "content": "b4bfab394a07d2ebc027a2b1bae4e2027a5c71bd61dd1e68e1258fd7053f5dda",
+    "content": "7b0a27c9a7b578eb553740ba38f4261f5cd3f666a8ef120b26bf49a5b388020d",
     "description": "303fd84279dfcec990e06fb23d24bf12afa029dc0c2c3b15d3dede83ce66a4c4"
   },
   "claudewheel-theme.md": {
@@ -84,7 +84,7 @@
     "description": "2b891e9a7808d6a0219974b4947fa89b279a04f355d8c25a90bf3f0e7eceafca"
   },
   "claudewheel-wizard.md": {
-    "content": "f7ecb713f9786fd18e34b26a851e755f3fe090eccba030224b7f583eee9c2367",
+    "content": "18e8ccbc6b6e35e9037bf23adb40a7e4a5e81c7242dd48f48775719703e11e1e",
     "description": "37374a2074453a3d70b29b77f5d741337b5ed39a47c282a8c04ad504d9bb6341"
   },
   "claudewheel.md": {
@@ -98,5 +98,9 @@
   "gen-index.md": {
     "content": "9b27c0d4fdb9f9ca1e15d83e3cd989bca16956853916b3ee52ff132c232019cf",
     "description": "bc0df72d8e79b08f319aad256d06b946ee719ef2bfc5beab3544f708f1725922"
+  },
+  "index.md": {
+    "content": "56501c4a1ffa0c3ea1e8dc04aebc37d9e4fd7d3fdd7339117b602df47b027504",
+    "description": "5d4f63a642d61956b121fe80fb01bb63341e291b2b7d13e90842f692a33ce0aa"
   }
 }
