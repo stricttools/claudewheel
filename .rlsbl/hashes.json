@@ -5,5 +5,10 @@
   "scripts/pre-push-hook.sh": "68c436c3d16b88b289be8eb8af0d621d94a0249dd8287b2adca3b0bb85c9fa58",
   ".rlsbl/hooks/pre-release.sh": "1b13062dda97df66792df382312263d704a6cc706d2dd3da921f4c470488276d",
   ".rlsbl/hooks/post-release.sh": "b455f8511e0b2655509ecf5dcb0ab7da5bb7c961f47910ff8e00cab5bd51f833",
-  ".gitignore": "773ea3da02e79c42be002ec89b8b29cb7ad4001bf440b7fa78789210a8bbd7ef"
+  ".gitignore": "773ea3da02e79c42be002ec89b8b29cb7ad4001bf440b7fa78789210a8bbd7ef",
+  ".rlsbl/hooks/pre-checks.sh": "60c57d4563263124530e6f33aca77550ea2161ad3b33b3ba6ad1c03fea9eb6e2",
+  ".rlsbl/lint/python.toml": "9cfbcef2e010d5fad243437bf2fd8df54a1fae70ee0762f9d11da70fe207501c",
+  ".rlsbl/lint/go.toml": "807d5cf760baad6d571a5bfd43cb163efe356f7462ba9f1918d72de45f62339f",
+  ".rlsbl/lint/npm.toml": "baa36014e65923d8cc5c8b83c77fa651da79351627570476402da66840027645",
+  ".rlsbl/changes/unreleased.jsonl": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 }
