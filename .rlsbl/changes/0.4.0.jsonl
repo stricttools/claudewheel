@@ -1,0 +1,29 @@
+{"commits":["b3c10b4e00ea69dc5316b0285093a5038a22b23f"],"user_facing":true,"description":"**New API.** `resolve_profile(name)` returns environment variables (CLAUDE_CONFIG_DIR, CLAUDE_CODE_OAUTH_TOKEN) for a given profile, enabling programmatic consumers like claudestream.","type":"feature"}
+{"commits":["0ef66a951fec3b4ae6dee22d94d22196a5247d03"],"user_facing":true,"description":"**Print mode hygiene.** Print mode (`-p`) now skips health checks and state writes, preventing TUI default pollution and stderr noise for programmatic callers.","type":"fix"}
+{"commits":["07e412a55fb5cdfcad198dd5a3701158c6cf47ad"],"user_facing":true,"description":"**CLI rewrite.** Migrated from argparse to strictcli with typed subcommands, mutex groups, and structured flags.","type":"feature"}
+{"commits":["c906a9edd3cf85aa80c9bcd737672cafc8b7bab4"],"user_facing":true,"description":"**Python 3.11 required.** Bumped minimum Python version from 3.10 to 3.11 for strictcli compatibility.","type":"breaking"}
+{"commits":["10b64f53a4e6c5ce8d01d266099373ab69108005"],"user_facing":false}
+{"commits":["1efbbc8c07876cf94b28de967af471c002303929"],"user_facing":false}
+{"commits":["df4fec52cdb9bec1295ad44c051cc32d7edd4f47"],"user_facing":false}
+{"commits":["ac7a10935de531b5669e8d37913792bcf33e8ad0"],"user_facing":false}
+{"commits":["ff6777bc7a207bec78c17c37981c8b5131081a30"],"user_facing":false}
+{"commits":["b31c785b706cd65dd4700746b42bb4c08dd13b96"],"user_facing":false}
+{"commits":["2f02fd0247775fc1323b5b4e12ec13da426736ae"],"user_facing":false}
+{"commits":["230f1a3a610f7baa89aac507d57b8abff53755d7"],"user_facing":false}
+{"commits":["2e654fb9d6bb69ed9d3c986fb2f6ad32f258e698"],"user_facing":false}
+{"commits":["b778aa67539aa789efc3ea92e612424e60758174"],"user_facing":false}
+{"commits":["84e3a0ac04438f739727eb5d0c95f47b1b37cef0"],"user_facing":false}
+{"commits":["eadc1ac06dcd9d2338aa23380be289aac2d8bf32"],"user_facing":false}
+{"commits":["185985b8c6f228300e60499f8879ba074de25983"],"user_facing":false}
+{"commits":["493e21c16af2837fb03718b53d53475adee91b74"],"user_facing":false}
+{"commits":["80725380159bb11ead343c042c6f647e5b7c50c6"],"user_facing":false}
+{"commits":["bf340109c3118f8198118064503a03f2a692d95f"],"user_facing":false}
+{"commits":["5d1d1375048e881242532b14dfce8605d61bceee"],"user_facing":false}
+{"commits":["ac1f46031521e381a44e5079e8a0e8046c4825b7"],"user_facing":false}
+{"commits":["e7119e2f51675539313a8acc401b970aad6402f5"],"user_facing":false}
+{"commits":["502991736db417a33531ea92bfef9aa59ea87bb9"],"user_facing":false}
+{"commits":["296079476aabf089fe7654b193349d4c2d700916"],"user_facing":false}
+{"commits":["9bc1d9d1da0d945fb32460896e3b4205418d9de7"],"user_facing":false}
+{"commits":["cf6b9419050fb34aa3a706362b5a45f253edf53f"],"user_facing":false}
+{"commits":["b778aa67539aa789efc3ea92e612424e60758174"],"user_facing":false}
+{"commits":["d905aea4f0b8bf84eab42ab8a54ff2fb0d2d2f55"],"user_facing":false}
