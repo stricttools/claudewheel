@@ -1,6 +1,9 @@
 {
   "language": "python",
   "source": ["claudewheel/"],
+  "docs": "docs/",
+  "output": "docs/_build/",
+  "base_url": "https://claudewheel.smmh.dev",
   "deploy": {
     "provider": "cloudflare-pages",
     "project": "claudewheel"
