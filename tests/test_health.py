@@ -92,6 +92,33 @@ class DiscoverProfilesTests(_HomeDirTestCase):
         names = [name for name, _path in result]
         self.assertEqual(names, ["alpha", "mid", "zeta"])
 
+    def test_finds_token_backed_profile_without_credentials(self) -> None:
+        """A profile dir with a token entry but no .credentials.json is discovered."""
+        # Dir exists but has no .credentials.json
+        (self.home / ".claude-work").mkdir()
+        # Write tokens.json with a key for "work"
+        tokens_dir = self.home / ".claudelauncher"
+        tokens_dir.mkdir(parents=True, exist_ok=True)
+        tokens_file = tokens_dir / "tokens.json"
+        tokens_file.write_text(json.dumps({"work": "tok-abc"}))
+        with patch("claudewheel.health.TOKENS_FILE", tokens_file):
+            result = _discover_profiles()
+        names = [name for name, _path in result]
+        self.assertIn("work", names)
+
+    def test_token_profile_merged_and_sorted(self) -> None:
+        """Token-backed profiles are merged with credential-based ones and sorted."""
+        self._make_profile("beta")
+        (self.home / ".claude-alpha").mkdir()
+        tokens_dir = self.home / ".claudelauncher"
+        tokens_dir.mkdir(parents=True, exist_ok=True)
+        tokens_file = tokens_dir / "tokens.json"
+        tokens_file.write_text(json.dumps({"alpha": "tok-a"}))
+        with patch("claudewheel.health.TOKENS_FILE", tokens_file):
+            result = _discover_profiles()
+        names = [name for name, _path in result]
+        self.assertEqual(names, ["alpha", "beta"])
+
     def test_returns_empty_when_no_profiles(self) -> None:
         """Returns empty list when no .claude-* dirs exist."""
         result = _discover_profiles()

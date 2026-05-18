@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .config import ConfigManager
+from .constants import TOKENS_FILE
 from .fuzzy import fuzzy_rank
 
 NPM_CACHE_TTL = 3600  # 1 hour
@@ -248,6 +249,19 @@ def discover_options(options_def: dict, state: dict) -> dict[str, list[str]]:
                                 profile_name = entry.name[len(".claude-"):]
                                 if profile_name:
                                     profiles.append(profile_name)
+                    # Also discover profiles from tokens.json that have a dir but no .credentials.json
+                    try:
+                        tokens = json.loads(TOKENS_FILE.read_text())
+                        found = set(profiles)
+                        for key in tokens:
+                            if key not in found:
+                                pdir = base / f".claude-{key}"
+                                if pdir.is_dir():
+                                    profiles.append(key)
+                                    found.add(key)
+                        profiles.sort()
+                    except (FileNotFoundError, json.JSONDecodeError, OSError):
+                        pass
                     if profiles:
                         values = profiles
                     # Build metadata mapping profile names to config dirs
