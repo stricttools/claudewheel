@@ -329,6 +329,7 @@ class PrintModeTests(unittest.TestCase):
         launch_mock = self._run_main(
             [
                 "c",
+                "--cont",
                 "--profile", "personal",
                 "--github", "ghuser",
                 "-s", "version=2.1.116",
