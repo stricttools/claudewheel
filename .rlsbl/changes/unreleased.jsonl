@@ -1,0 +1,11 @@
+{"commits":["b3c10b4e00ea69dc5316b0285093a5038a22b23f"],"user_facing":true,"description":"**New API.** `resolve_profile(name)` returns environment variables (CLAUDE_CONFIG_DIR, CLAUDE_CODE_OAUTH_TOKEN) for a given profile, enabling programmatic consumers like claudestream.","type":"feature"}
+{"commits":["0ef66a951fec3b4ae6dee22d94d22196a5247d03"],"user_facing":true,"description":"**Print mode hygiene.** Print mode (`-p`) now skips health checks and state writes, preventing TUI default pollution and stderr noise for programmatic callers.","type":"fix"}
+{"commits":["07e412a55fb5cdfcad198dd5a3701158c6cf47ad"],"user_facing":true,"description":"**CLI rewrite.** Migrated from argparse to strictcli with typed subcommands, mutex groups, and structured flags.","type":"feature"}
+{"commits":["c906a9edd3cf85aa80c9bcd737672cafc8b7bab4"],"user_facing":true,"description":"**Python 3.11 required.** Bumped minimum Python version from 3.10 to 3.11 for strictcli compatibility.","type":"breaking"}
+{"commits":["10b64f53a4e6c5ce8d01d266099373ab69108005"],"user_facing":false}
+{"commits":["1efbbc8c07876cf94b28de967af471c002303929"],"user_facing":false}
+{"commits":["df4fec52cdb9bec1295ad44c051cc32d7edd4f47"],"user_facing":false}
+{"commits":["ac7a10935de531b5669e8d37913792bcf33e8ad0"],"user_facing":false}
+{"commits":["ff6777bc7a207bec78c17c37981c8b5131081a30"],"user_facing":false}
+{"commits":["b31c785b706cd65dd4700746b42bb4c08dd13b96"],"user_facing":false}
+{"commits":["2f02fd0247775fc1323b5b4e12ec13da426736ae"],"user_facing":false}
