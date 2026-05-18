@@ -253,12 +253,12 @@ def discover_options(options_def: dict, state: dict) -> dict[str, list[str]]:
                     try:
                         tokens = json.loads(TOKENS_FILE.read_text())
                         found = set(profiles)
-                        for key in tokens:
-                            if key not in found:
-                                pdir = base / f".claude-{key}"
+                        for tname in tokens:
+                            if tname not in found:
+                                pdir = base / f".claude-{tname}"
                                 if pdir.is_dir():
-                                    profiles.append(key)
-                                    found.add(key)
+                                    profiles.append(tname)
+                                    found.add(tname)
                         profiles.sort()
                     except (FileNotFoundError, json.JSONDecodeError, OSError):
                         pass
