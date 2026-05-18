@@ -27,9 +27,6 @@ classifiers = [
 ]
 dependencies = ["strictcli"]
 
-[tool.uv.sources]
-strictcli = { path = "../strictcli/python" }
-
 [project.scripts]
 claudewheel = "claudewheel.cli:main"
 
