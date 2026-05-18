@@ -6,7 +6,7 @@ import os
 import sys
 
 import strictcli
-from strictcli import App, Arg, Flag, MutexGroup, Tag
+from strictcli import App, Arg, Flag, Tag
 
 from . import __version__
 from .constants import LAUNCHER_DIR, OPTIONS_FILE, VERSIONS_DIR, CLAUDE_SYMLINK
@@ -298,14 +298,25 @@ def _handle_redir(old: str, new: str, dry_run: bool) -> int:
 # "continue" and "print" are Python keywords, so we use "cont" / "print-prompt"
 # as flag names. Short forms -c and -p remain the same for user convenience.
 def _handle_launch(
-    # Mutex group flags
-    cont: bool, resume: str | None, print_prompt: str | None,
+    # Session flags (via tag); mutually exclusive, all optional
+    cont: bool, resume: str, print_prompt: str,
     # Segment flags (via tag); empty string means "not provided"
     profile: str, github: str, model: str,
     directory: str, mcp: str, permissions: str,
     # Repeatable set flag (via tag)
     set: list[str],
 ) -> int:
+    # Normalize sentinel defaults to None for cleaner downstream logic
+    _UNSET = "\x00__unset__"
+    resume_val: str | None = None if resume == _UNSET else resume
+    print_prompt_val: str | None = None if print_prompt == _UNSET else print_prompt
+
+    provided = sum([cont, resume_val is not None, print_prompt_val is not None])
+    if provided > 1:
+        print("Error: --cont, --resume, and --print-prompt are mutually exclusive",
+              file=sys.stderr)
+        sys.exit(1)
+
     from .app import App as TuiApp
     from .config import ConfigManager
 
@@ -344,12 +355,12 @@ def _handle_launch(
     extra_flags: list[str] = []
     if cont:
         extra_flags.append("--continue")
-    elif resume is not None:
+    elif resume_val is not None:
         extra_flags.append("--resume")
-        if resume:
-            extra_flags.append(resume)
-    elif print_prompt is not None:
-        extra_flags.extend(["--print", print_prompt])
+        if resume_val:
+            extra_flags.append(resume_val)
+    elif print_prompt_val is not None:
+        extra_flags.extend(["--print", print_prompt_val])
 
     # Append passthrough args (everything after "--" in original argv)
     extra_flags.extend(_passthrough)
@@ -357,13 +368,13 @@ def _handle_launch(
     # Skip TUI when args cover every required segment, or when print mode is active.
     required_keys = {s["key"] for s in cfg.segments_def
                      if s["key"] in enabled and s.get("required", False)}
-    skip_tui = print_prompt is not None or (
+    skip_tui = print_prompt_val is not None or (
         required_keys and all(k in segment_overrides for k in required_keys)
     )
     if skip_tui:
         merged = dict(cfg.state.get("last_config", {}))
         merged.update(segment_overrides)
-        if print_prompt is not None:
+        if print_prompt_val is not None:
             print_keys = {s["key"] for s in cfg.segments_def
                           if s["key"] in enabled and s.get("print_mode", True)}
             merged = {k: v for k, v in merged.items() if k in print_keys}
@@ -376,7 +387,7 @@ def _handle_launch(
                     file=sys.stderr,
                 )
         _do_launch_sequence(cfg, merged, extra_flags=extra_flags,
-                            interactive=print_prompt is None)
+                            interactive=print_prompt_val is None)
         return 0
 
     # Otherwise show the TUI (pre-filled from last_config + arg overrides)
@@ -466,12 +477,13 @@ def _build_app() -> App:
     )
 
     # -- Launch command (default when no subcommand given) --
-    _session_mutex = MutexGroup(flags=[
+    _UNSET = "\x00__unset__"  # sentinel to distinguish "not passed" from ""
+    _session_tag = Tag(name="session", flags=[
         Flag(name="cont", short="c", type=bool,
              help="continue the most recent conversation"),
-        Flag(name="resume", short="r", type=str,
+        Flag(name="resume", short="r", type=str, default=_UNSET,
              help="resume a session (ID, or empty for picker)"),
-        Flag(name="print-prompt", short="p", type=str,
+        Flag(name="print-prompt", short="p", type=str, default=_UNSET,
              help="run in non-interactive print mode with the given prompt"),
     ])
 
@@ -493,7 +505,7 @@ def _build_app() -> App:
     ])
 
     app.command("launch", help="start the interactive TUI launcher",
-                mutex=[_session_mutex], tags=[_segment_tag])(
+                tags=[_session_tag, _segment_tag])(
         _handle_launch
     )
 
