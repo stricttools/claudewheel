@@ -2,6 +2,12 @@
 
 # Changelog
 
+## Unreleased
+
+### Fixes
+
+- **CI fix.** Resolved dependency resolution failure by removing local path override for strictcli.
+
 ## 0.4.0
 
 ### Breaking
