@@ -2,7 +2,7 @@
 
 # Changelog
 
-## Unreleased
+## 0.4.3
 
 ### Fixes
 

@@ -1,0 +1,4 @@
+{"commits":["171e6acd40c7965f8cce7fe04c0010bb256e15fe","4ebf8df1507acae10536181c5db4b663b158248c","1c0b94ae41f3c3f68ed661b19b514f23da31fc87"],"user_facing":true,"description":"**Fix.** Profiles set up before claudewheel (without `.credentials.json`) were invisible to health checks and the TUI profile picker. They are now discovered via `tokens.json`.","type":"fix"}
+{"commits":["0fb39658f67950bb799413816899d5acb0230b68"],"user_facing":true,"description":"**Fix.** Compatibility with strictcli 0.5.0 (MutexGroup is now always required; session flags moved to a Tag with manual mutual-exclusion check).","type":"fix"}
+{"commits":["a59ef7e1a8255c4757d9bd2e5092b2f5f512e163"],"user_facing":false}
+{"commits":["52e5339e7fdabebbff3409784fad612f7d9b7438"],"user_facing":false}
