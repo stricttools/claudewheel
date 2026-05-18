@@ -15,10 +15,14 @@ requires-dist = [{ name = "strictcli", directory = "../strictcli/python" }]
 
 [[package]]
 name = "strictcli"
-version = "0.2.0"
+version = "0.4.1"
 source = { directory = "../strictcli/python" }
 
 [package.metadata]
 
 [package.metadata.requires-dev]
-dev = [{ name = "pytest" }]
+dev = [
+    { name = "allpairspy" },
+    { name = "jsonschema" },
+    { name = "pytest" },
+]
