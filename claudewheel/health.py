@@ -8,7 +8,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from .constants import OPTIONS_FILE
+from .constants import OPTIONS_FILE, TOKENS_FILE
 from .defaults import DISALLOWED_TOOLS
 
 
@@ -312,13 +312,14 @@ def check_tokens() -> HealthResult:
 
 
 def check_orphan_profiles() -> HealthResult:
-    """Detect .claude-* dirs that are neither registered profiles nor in options.json.
+    """Detect .claude-* dirs that are neither registered profiles nor in options/tokens.
 
     A directory is "orphan" if it:
       - lives in ~/ and matches .claude-*
       - is NOT in the known non-profile set (.claude-shared, .claude-common)
       - has no .credentials.json (so _discover_profiles skips it)
       - is NOT listed in options.json's profile values
+      - is NOT listed as a key in tokens.json
 
     For each orphan, we also flag if it contains broken symlinks (symlinks
     whose target does not exist).
@@ -337,6 +338,14 @@ def check_orphan_profiles() -> HealthResult:
     except (FileNotFoundError, json.JSONDecodeError, OSError):
         pass
 
+    # Profiles known to tokens.json (may predate claudewheel registration)
+    token_profiles: set[str] = set()
+    try:
+        tokens = json.loads(TOKENS_FILE.read_text())
+        token_profiles = set(tokens.keys())
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        pass
+
     orphans: list[str] = []
     for entry in sorted(home.iterdir()):
         if not entry.name.startswith(".claude-") or entry.name in skip:
@@ -344,7 +353,7 @@ def check_orphan_profiles() -> HealthResult:
         if not entry.is_dir():
             continue
         name = entry.name[len(".claude-"):]
-        if name in registered or name in options_profiles:
+        if name in registered or name in options_profiles or name in token_profiles:
             continue
 
         # Check for broken symlinks inside this orphan dir

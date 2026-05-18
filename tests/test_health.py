@@ -562,6 +562,20 @@ class CheckOrphanProfilesTests(_HomeDirTestCase):
             result = check_orphan_profiles()
         self.assertTrue(result.ok)
 
+    def test_dir_in_tokens_not_orphan(self) -> None:
+        """A .claude-* dir with an entry in tokens.json is not orphan."""
+        (self.home / ".claude-work").mkdir()
+        self._write_options([])
+        tokens_dir = self.home / ".claudelauncher"
+        tokens_dir.mkdir(parents=True, exist_ok=True)
+        (tokens_dir / "tokens.json").write_text(json.dumps({"work": "tok-abc123"}))
+        with patch("claudewheel.health.OPTIONS_FILE",
+                    self.home / ".claudelauncher" / "options.json"), \
+             patch("claudewheel.health.TOKENS_FILE",
+                    self.home / ".claudelauncher" / "tokens.json"):
+            result = check_orphan_profiles()
+        self.assertTrue(result.ok)
+
 
 if __name__ == "__main__":
     unittest.main()
