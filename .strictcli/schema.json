@@ -1,0 +1,316 @@
+{
+  "name": "c",
+  "version": "0.4.3",
+  "help": "claudewheel - TUI launcher for Claude Code",
+  "env_prefix": null,
+  "config": false,
+  "global_flags": [],
+  "commands": {
+    "health": {
+      "name": "health",
+      "help": "run health check and exit",
+      "flags": [],
+      "args": [],
+      "passthrough": false
+    },
+    "config": {
+      "name": "config",
+      "help": "open config dir in editor",
+      "flags": [],
+      "args": [],
+      "passthrough": false
+    },
+    "versions": {
+      "name": "versions",
+      "help": "list available versions and exit",
+      "flags": [],
+      "args": [],
+      "passthrough": false
+    },
+    "install": {
+      "name": "install",
+      "help": "download and install a specific Claude Code version",
+      "flags": [],
+      "args": [
+        {
+          "name": "version",
+          "help": "version to install",
+          "required": true,
+          "variadic": false
+        }
+      ],
+      "passthrough": false
+    },
+    "uninstall": {
+      "name": "uninstall",
+      "help": "delete an installed Claude Code version",
+      "flags": [],
+      "args": [
+        {
+          "name": "version",
+          "help": "version to uninstall",
+          "required": true,
+          "variadic": false
+        }
+      ],
+      "passthrough": false
+    },
+    "reset-options": {
+      "name": "reset-options",
+      "help": "delete options.json so it regenerates from defaults",
+      "flags": [],
+      "args": [],
+      "passthrough": false
+    },
+    "new-profile": {
+      "name": "new-profile",
+      "help": "run the profile creation wizard",
+      "flags": [],
+      "args": [],
+      "passthrough": false
+    },
+    "delete-profile": {
+      "name": "delete-profile",
+      "help": "delete a registered profile and all associated data",
+      "flags": [
+        {
+          "name": "force",
+          "type": "bool",
+          "help": "force deletion even if sessions appear active",
+          "short": null,
+          "default": false,
+          "env": null,
+          "choices": null,
+          "repeatable": false,
+          "negatable": true,
+          "hidden": false
+        }
+      ],
+      "args": [
+        {
+          "name": "name",
+          "help": "profile name to delete",
+          "required": true,
+          "variadic": false
+        }
+      ],
+      "passthrough": false
+    },
+    "show": {
+      "name": "show",
+      "help": "print current selections and exit",
+      "flags": [],
+      "args": [],
+      "passthrough": false
+    },
+    "migrate": {
+      "name": "migrate",
+      "help": "migrate sessions between profiles",
+      "flags": [],
+      "args": [
+        {
+          "name": "src",
+          "help": "source profile",
+          "required": true,
+          "variadic": false
+        },
+        {
+          "name": "dst",
+          "help": "destination profile",
+          "required": true,
+          "variadic": false
+        },
+        {
+          "name": "uuid",
+          "help": "UUID substring filter",
+          "required": false,
+          "variadic": false
+        }
+      ],
+      "passthrough": false
+    },
+    "gc": {
+      "name": "gc",
+      "help": "garbage-collect stale sentinels, compact origins, report stats",
+      "flags": [
+        {
+          "name": "dry-run",
+          "type": "bool",
+          "help": "preview changes without writing",
+          "short": null,
+          "default": false,
+          "env": null,
+          "choices": null,
+          "repeatable": false,
+          "negatable": true,
+          "hidden": false
+        }
+      ],
+      "args": [],
+      "passthrough": false
+    },
+    "redir": {
+      "name": "redir",
+      "help": "redirect session data after a project directory rename",
+      "flags": [
+        {
+          "name": "dry-run",
+          "type": "bool",
+          "help": "preview changes without writing",
+          "short": null,
+          "default": false,
+          "env": null,
+          "choices": null,
+          "repeatable": false,
+          "negatable": true,
+          "hidden": false
+        }
+      ],
+      "args": [
+        {
+          "name": "old",
+          "help": "old directory path",
+          "required": true,
+          "variadic": false
+        },
+        {
+          "name": "new",
+          "help": "new directory path",
+          "required": true,
+          "variadic": false
+        }
+      ],
+      "passthrough": false
+    },
+    "launch": {
+      "name": "launch",
+      "help": "start the interactive TUI launcher",
+      "flags": [
+        {
+          "name": "cont",
+          "type": "bool",
+          "help": "continue the most recent conversation",
+          "short": "c",
+          "default": false,
+          "env": null,
+          "choices": null,
+          "repeatable": false,
+          "negatable": true,
+          "hidden": false
+        },
+        {
+          "name": "resume",
+          "type": "str",
+          "help": "resume a session (ID, or empty for picker)",
+          "short": "r",
+          "default": "\u0000__unset__",
+          "env": null,
+          "choices": null,
+          "repeatable": false,
+          "negatable": null,
+          "hidden": false
+        },
+        {
+          "name": "print-prompt",
+          "type": "str",
+          "help": "run in non-interactive print mode with the given prompt",
+          "short": "p",
+          "default": "\u0000__unset__",
+          "env": null,
+          "choices": null,
+          "repeatable": false,
+          "negatable": null,
+          "hidden": false
+        },
+        {
+          "name": "profile",
+          "type": "str",
+          "help": "preset value for the Profile segment",
+          "short": null,
+          "default": "",
+          "env": null,
+          "choices": null,
+          "repeatable": false,
+          "negatable": null,
+          "hidden": false
+        },
+        {
+          "name": "github",
+          "type": "str",
+          "help": "preset value for the GH segment",
+          "short": null,
+          "default": "",
+          "env": null,
+          "choices": null,
+          "repeatable": false,
+          "negatable": null,
+          "hidden": false
+        },
+        {
+          "name": "model",
+          "type": "str",
+          "help": "preset value for the Model segment",
+          "short": null,
+          "default": "",
+          "env": null,
+          "choices": null,
+          "repeatable": false,
+          "negatable": null,
+          "hidden": false
+        },
+        {
+          "name": "directory",
+          "type": "str",
+          "help": "preset value for the Dir segment",
+          "short": null,
+          "default": "",
+          "env": null,
+          "choices": null,
+          "repeatable": false,
+          "negatable": null,
+          "hidden": false
+        },
+        {
+          "name": "mcp",
+          "type": "str",
+          "help": "preset value for the MCP segment",
+          "short": null,
+          "default": "",
+          "env": null,
+          "choices": null,
+          "repeatable": false,
+          "negatable": null,
+          "hidden": false
+        },
+        {
+          "name": "permissions",
+          "type": "str",
+          "help": "preset value for the Perms segment",
+          "short": null,
+          "default": "",
+          "env": null,
+          "choices": null,
+          "repeatable": false,
+          "negatable": null,
+          "hidden": false
+        },
+        {
+          "name": "set",
+          "type": "str",
+          "help": "set a segment value (e.g. -s version=2.1.119)",
+          "short": "s",
+          "default": null,
+          "env": null,
+          "choices": null,
+          "repeatable": true,
+          "negatable": null,
+          "hidden": false
+        }
+      ],
+      "args": [],
+      "passthrough": false
+    }
+  },
+  "groups": {},
+  "deprecated": {}
+}
