@@ -5,6 +5,8 @@
 
 set -euo pipefail
 
+uv run claudewheel --dump-schema
+
 echo "Running pre-release checks..."
 
 if [ -f go.mod ]; then
