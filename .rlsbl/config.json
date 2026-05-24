@@ -3,5 +3,6 @@
     "npm",
     "pypi",
     "docs"
-  ]
+  ],
+  "private": false
 }
