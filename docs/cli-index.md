@@ -12,4 +12,20 @@ order: 91
 
 claudewheel - TUI launcher for Claude Code
 
-Version: __version__
+Version: 0.4.3
+
+## Commands
+
+- [health](cli-health.html) -- run health check and exit
+- [config](cli-config.html) -- open config dir in editor
+- [versions](cli-versions.html) -- list available versions and exit
+- [install](cli-install.html) -- download and install a specific Claude Code version
+- [uninstall](cli-uninstall.html) -- delete an installed Claude Code version
+- [reset-options](cli-reset-options.html) -- delete options.json so it regenerates from defaults
+- [new-profile](cli-new-profile.html) -- run the profile creation wizard
+- [delete-profile](cli-delete-profile.html) -- delete a registered profile and all associated data
+- [show](cli-show.html) -- print current selections and exit
+- [migrate](cli-migrate.html) -- migrate sessions between profiles
+- [gc](cli-gc.html) -- garbage-collect stale sentinels, compact origins, report stats
+- [redir](cli-redir.html) -- redirect session data after a project directory rename
+- [launch](cli-launch.html) -- start the interactive TUI launcher

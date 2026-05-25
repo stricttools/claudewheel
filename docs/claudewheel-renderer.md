@@ -1,6 +1,6 @@
 ---
 title: claudewheel.renderer
-description: "API reference for the claudewheel.renderer module — auto-generated documentation covering public functions, classes, and type signatures."
+description: "Renderer class for drawing the segment bar TUI."
 generated: true
 nav_group: "API Reference"
 nav_order: 18

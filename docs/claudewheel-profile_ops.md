@@ -1,6 +1,6 @@
 ---
 title: claudewheel.profile_ops
-description: "API reference for the claudewheel.profile_ops module — auto-generated documentation covering public functions, classes, and type signatures."
+description: "Profile lifecycle operations (delete, etc.) for claudewheel."
 generated: true
 nav_group: "API Reference"
 nav_order: 16

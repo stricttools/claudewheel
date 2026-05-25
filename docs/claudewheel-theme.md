@@ -1,6 +1,6 @@
 ---
 title: claudewheel.theme
-description: "API reference for the claudewheel.theme module — auto-generated documentation covering public functions, classes, and type signatures."
+description: "ThemeColors dataclass and parse_theme for claudewheel."
 generated: true
 nav_group: "API Reference"
 nav_order: 22

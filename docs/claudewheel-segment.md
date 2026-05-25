@@ -1,6 +1,6 @@
 ---
 title: claudewheel.segment
-description: "API reference for the claudewheel.segment module — auto-generated documentation covering public functions, classes, and type signatures."
+description: "Segment model, SegmentBar, and option discovery logic."
 generated: true
 nav_group: "API Reference"
 nav_order: 19

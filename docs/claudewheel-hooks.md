@@ -1,6 +1,6 @@
 ---
 title: claudewheel.hooks
-description: "API reference for the claudewheel.hooks module — auto-generated documentation covering public functions, classes, and type signatures."
+description: "Hook execution for claudewheel."
 generated: true
 nav_group: "API Reference"
 nav_order: 11

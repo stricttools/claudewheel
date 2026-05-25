@@ -1,6 +1,6 @@
 ---
 title: claudewheel
-description: "API reference for the claudewheel module — auto-generated documentation covering public functions, classes, and type signatures."
+description: "claudewheel - TUI launcher for Claude Code."
 generated: true
 nav_group: "API Reference"
 nav_order: 1

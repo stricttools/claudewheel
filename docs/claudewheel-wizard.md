@@ -1,6 +1,6 @@
 ---
 title: claudewheel.wizard
-description: "API reference for the claudewheel.wizard module — auto-generated documentation covering public functions, classes, and type signatures."
+description: "Form-style TUI wizard for creating new Claude Code profiles."
 generated: true
 nav_group: "API Reference"
 nav_order: 23

@@ -1,6 +1,6 @@
 ---
 title: claudewheel.config
-description: "API reference for the claudewheel.config module — auto-generated documentation covering public functions, classes, and type signatures."
+description: "ConfigManager class for claudewheel."
 generated: true
 nav_group: "API Reference"
 nav_order: 5

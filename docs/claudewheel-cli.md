@@ -1,6 +1,6 @@
 ---
 title: claudewheel.cli
-description: "API reference for the claudewheel.cli module — auto-generated documentation covering public functions, classes, and type signatures."
+description: "main() function with strictcli for claudewheel CLI."
 generated: true
 nav_group: "API Reference"
 nav_order: 4

@@ -1,6 +1,6 @@
 ---
 title: claudewheel.migrate
-description: "API reference for the claudewheel.migrate module — auto-generated documentation covering public functions, classes, and type signatures."
+description: "Migrate session-keyed artifacts between Claude Code profile dirs."
 generated: true
 nav_group: "API Reference"
 nav_order: 14

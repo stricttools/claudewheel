@@ -1,6 +1,6 @@
 ---
 title: claudewheel.fuzzy
-description: "API reference for the claudewheel.fuzzy module — auto-generated documentation covering public functions, classes, and type signatures."
+description: "Fuzzy search functions for matching user input against option lists."
 generated: true
 nav_group: "API Reference"
 nav_order: 8

@@ -1,6 +1,6 @@
 ---
 title: claudewheel.health
-description: "API reference for the claudewheel.health module — auto-generated documentation covering public functions, classes, and type signatures."
+description: "Health check utilities for claudewheel."
 generated: true
 nav_group: "API Reference"
 nav_order: 10

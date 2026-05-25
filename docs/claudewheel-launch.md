@@ -1,6 +1,6 @@
 ---
 title: claudewheel.launch
-description: "API reference for the claudewheel.launch module — auto-generated documentation covering public functions, classes, and type signatures."
+description: "Launch logic for resolving selections into a Claude Code invocation."
 generated: true
 nav_group: "API Reference"
 nav_order: 13

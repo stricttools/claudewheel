@@ -1,6 +1,6 @@
 ---
 title: claudewheel.app
-description: "API reference for the claudewheel.app module — auto-generated documentation covering public functions, classes, and type signatures."
+description: "App class -- TUI event loop for claudewheel."
 generated: true
 nav_group: "API Reference"
 nav_order: 3

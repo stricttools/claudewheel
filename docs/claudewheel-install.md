@@ -1,6 +1,6 @@
 ---
 title: claudewheel.install
-description: "API reference for the claudewheel.install module — auto-generated documentation covering public functions, classes, and type signatures."
+description: "Download and install Claude Code version binaries from GCS."
 generated: true
 nav_group: "API Reference"
 nav_order: 12

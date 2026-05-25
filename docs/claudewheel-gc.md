@@ -1,6 +1,6 @@
 ---
 title: claudewheel.gc
-description: "API reference for the claudewheel.gc module — auto-generated documentation covering public functions, classes, and type signatures."
+description: "Garbage collection for claudewheel shared infrastructure."
 generated: true
 nav_group: "API Reference"
 nav_order: 9

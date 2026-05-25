@@ -1,6 +1,6 @@
 ---
 title: claudewheel.terminal
-description: "API reference for the claudewheel.terminal module — auto-generated documentation covering public functions, classes, and type signatures."
+description: "Terminal class for raw-mode input handling and screen management."
 generated: true
 nav_group: "API Reference"
 nav_order: 21

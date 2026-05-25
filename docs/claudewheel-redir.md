@@ -1,6 +1,6 @@
 ---
 title: claudewheel.redir
-description: "API reference for the claudewheel.redir module — auto-generated documentation covering public functions, classes, and type signatures."
+description: "Redirect session data after a project directory rename."
 generated: true
 nav_group: "API Reference"
 nav_order: 17

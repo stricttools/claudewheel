@@ -1,6 +1,6 @@
 ---
 title: claudewheel.constants
-description: "API reference for the claudewheel.constants module — auto-generated documentation covering public functions, classes, and type signatures."
+description: "ANSI escape helpers and path constants for claudewheel."
 generated: true
 nav_group: "API Reference"
 nav_order: 6
