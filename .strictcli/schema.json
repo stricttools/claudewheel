@@ -1,73 +1,81 @@
 {
+  "defaults": {
+    "app": {
+      "env_prefix": null,
+      "config": false,
+      "global_flags": [],
+      "commands": {},
+      "groups": {},
+      "deprecated": {}
+    },
+    "flag": {
+      "short": null,
+      "default": null,
+      "env": null,
+      "choices": null,
+      "repeatable": false,
+      "negatable": null,
+      "hidden": false
+    },
+    "arg": {
+      "required": true,
+      "variadic": false
+    },
+    "command": {
+      "passthrough": false,
+      "flags": [],
+      "args": []
+    },
+    "group": {
+      "commands": {},
+      "groups": {},
+      "deprecated": {}
+    }
+  },
+  "project_id": "claudewheel",
   "name": "c",
-  "version": "0.4.3",
+  "version": "0.4.5",
   "help": "claudewheel - TUI launcher for Claude Code",
-  "env_prefix": null,
-  "config": false,
-  "global_flags": [],
   "commands": {
     "health": {
       "name": "health",
-      "help": "run health check and exit",
-      "flags": [],
-      "args": [],
-      "passthrough": false
+      "help": "run health check and exit"
     },
     "config": {
       "name": "config",
-      "help": "open config dir in editor",
-      "flags": [],
-      "args": [],
-      "passthrough": false
+      "help": "open config dir in editor"
     },
     "versions": {
       "name": "versions",
-      "help": "list available versions and exit",
-      "flags": [],
-      "args": [],
-      "passthrough": false
+      "help": "list available versions and exit"
     },
     "install": {
       "name": "install",
       "help": "download and install a specific Claude Code version",
-      "flags": [],
       "args": [
         {
           "name": "version",
-          "help": "version to install",
-          "required": true,
-          "variadic": false
+          "help": "version to install"
         }
-      ],
-      "passthrough": false
+      ]
     },
     "uninstall": {
       "name": "uninstall",
       "help": "delete an installed Claude Code version",
-      "flags": [],
       "args": [
         {
           "name": "version",
-          "help": "version to uninstall",
-          "required": true,
-          "variadic": false
+          "help": "version to uninstall"
         }
-      ],
-      "passthrough": false
+      ]
     },
     "reset-options": {
       "name": "reset-options",
-      "help": "delete options.json so it regenerates from defaults",
-      "flags": [],
-      "args": [],
-      "passthrough": false
+      "help": "delete options.json so it regenerates from defaults"
     },
     "new-profile": {
       "name": "new-profile",
-      "help": "run the profile creation wizard",
-      "flags": [],
-      "args": [],
-      "passthrough": false
+      "help": "run the profile creation wizard"
     },
     "delete-profile": {
       "name": "delete-profile",
@@ -77,57 +85,39 @@
           "name": "force",
           "type": "bool",
           "help": "force deletion even if sessions appear active",
-          "short": null,
           "default": false,
-          "env": null,
-          "choices": null,
-          "repeatable": false,
-          "negatable": true,
-          "hidden": false
+          "negatable": true
         }
       ],
       "args": [
         {
           "name": "name",
-          "help": "profile name to delete",
-          "required": true,
-          "variadic": false
+          "help": "profile name to delete"
         }
-      ],
-      "passthrough": false
+      ]
     },
     "show": {
       "name": "show",
-      "help": "print current selections and exit",
-      "flags": [],
-      "args": [],
-      "passthrough": false
+      "help": "print current selections and exit"
     },
     "migrate": {
       "name": "migrate",
       "help": "migrate sessions between profiles",
-      "flags": [],
       "args": [
         {
           "name": "src",
-          "help": "source profile",
-          "required": true,
-          "variadic": false
+          "help": "source profile"
         },
         {
           "name": "dst",
-          "help": "destination profile",
-          "required": true,
-          "variadic": false
+          "help": "destination profile"
         },
         {
           "name": "uuid",
           "help": "UUID substring filter",
-          "required": false,
-          "variadic": false
+          "required": false
         }
-      ],
-      "passthrough": false
+      ]
     },
     "gc": {
       "name": "gc",
@@ -137,17 +127,10 @@
           "name": "dry-run",
           "type": "bool",
           "help": "preview changes without writing",
-          "short": null,
           "default": false,
-          "env": null,
-          "choices": null,
-          "repeatable": false,
-          "negatable": true,
-          "hidden": false
+          "negatable": true
         }
-      ],
-      "args": [],
-      "passthrough": false
+      ]
     },
     "redir": {
       "name": "redir",
@@ -157,30 +140,20 @@
           "name": "dry-run",
           "type": "bool",
           "help": "preview changes without writing",
-          "short": null,
           "default": false,
-          "env": null,
-          "choices": null,
-          "repeatable": false,
-          "negatable": true,
-          "hidden": false
+          "negatable": true
         }
       ],
       "args": [
         {
           "name": "old",
-          "help": "old directory path",
-          "required": true,
-          "variadic": false
+          "help": "old directory path"
         },
         {
           "name": "new",
-          "help": "new directory path",
-          "required": true,
-          "variadic": false
+          "help": "new directory path"
         }
-      ],
-      "passthrough": false
+      ]
     },
     "launch": {
       "name": "launch",
@@ -192,125 +165,66 @@
           "help": "continue the most recent conversation",
           "short": "c",
           "default": false,
-          "env": null,
-          "choices": null,
-          "repeatable": false,
-          "negatable": true,
-          "hidden": false
+          "negatable": true
         },
         {
           "name": "resume",
           "type": "str",
           "help": "resume a session (ID, or empty for picker)",
           "short": "r",
-          "default": "\u0000__unset__",
-          "env": null,
-          "choices": null,
-          "repeatable": false,
-          "negatable": null,
-          "hidden": false
+          "default": "\u0000__unset__"
         },
         {
           "name": "print-prompt",
           "type": "str",
           "help": "run in non-interactive print mode with the given prompt",
           "short": "p",
-          "default": "\u0000__unset__",
-          "env": null,
-          "choices": null,
-          "repeatable": false,
-          "negatable": null,
-          "hidden": false
+          "default": "\u0000__unset__"
         },
         {
           "name": "profile",
           "type": "str",
           "help": "preset value for the Profile segment",
-          "short": null,
-          "default": "",
-          "env": null,
-          "choices": null,
-          "repeatable": false,
-          "negatable": null,
-          "hidden": false
+          "default": ""
         },
         {
           "name": "github",
           "type": "str",
           "help": "preset value for the GH segment",
-          "short": null,
-          "default": "",
-          "env": null,
-          "choices": null,
-          "repeatable": false,
-          "negatable": null,
-          "hidden": false
+          "default": ""
         },
         {
           "name": "model",
           "type": "str",
           "help": "preset value for the Model segment",
-          "short": null,
-          "default": "",
-          "env": null,
-          "choices": null,
-          "repeatable": false,
-          "negatable": null,
-          "hidden": false
+          "default": ""
         },
         {
           "name": "directory",
           "type": "str",
           "help": "preset value for the Dir segment",
-          "short": null,
-          "default": "",
-          "env": null,
-          "choices": null,
-          "repeatable": false,
-          "negatable": null,
-          "hidden": false
+          "default": ""
         },
         {
           "name": "mcp",
           "type": "str",
           "help": "preset value for the MCP segment",
-          "short": null,
-          "default": "",
-          "env": null,
-          "choices": null,
-          "repeatable": false,
-          "negatable": null,
-          "hidden": false
+          "default": ""
         },
         {
           "name": "permissions",
           "type": "str",
           "help": "preset value for the Perms segment",
-          "short": null,
-          "default": "",
-          "env": null,
-          "choices": null,
-          "repeatable": false,
-          "negatable": null,
-          "hidden": false
+          "default": ""
         },
         {
           "name": "set",
           "type": "str",
           "help": "set a segment value (e.g. -s version=2.1.119)",
           "short": "s",
-          "default": null,
-          "env": null,
-          "choices": null,
-          "repeatable": true,
-          "negatable": null,
-          "hidden": false
+          "repeatable": true
         }
-      ],
-      "args": [],
-      "passthrough": false
+      ]
     }
-  },
-  "groups": {},
-  "deprecated": {}
+  }
 }
