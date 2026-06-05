@@ -1,8 +1,12 @@
 {
   "targets": [
     "npm",
-    "pypi",
-    "docs"
+    "pypi"
   ],
-  "private": false
+  "private": false,
+  "pipelines": {
+    "npm": {"type": "npm", "local": false},
+    "pypi": {"type": "pypi", "local": false},
+    "docs-deploy": {"type": "cloudflare-pages", "local": true}
+  }
 }
