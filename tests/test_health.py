@@ -280,7 +280,7 @@ class CheckHooksWiredTests(_HomeDirTestCase):
         (pdir / "settings.json").write_text(json.dumps(settings))
 
     def _good_settings(self) -> dict:
-        """Return settings with both required hooks present."""
+        """Return settings with all required hooks present."""
         return {
             "hooks": {
                 "UserPromptSubmit": [
@@ -290,7 +290,15 @@ class CheckHooksWiredTests(_HomeDirTestCase):
                             {"command": "/usr/bin/hook-stamp-origin"},
                         ]
                     }
-                ]
+                ],
+                "PreToolUse": [
+                    {
+                        "matcher": "Agent",
+                        "hooks": [
+                            {"command": "/usr/bin/hook-block-worktree"},
+                        ]
+                    }
+                ],
             }
         }
 
