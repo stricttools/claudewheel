@@ -1,0 +1,155 @@
+---
+title: README.md
+---
+<p align="center">
+  <img src="assets/banner.png" alt="claudewheel" width="700">
+</p>
+
+TUI launcher for Claude Code with profile, GitHub account, version, model, directory, MCP, and permission switching.
+
+## Quick start
+
+```bash
+./c            # launch the TUI
+./c --help     # show all flags
+```
+
+The first run creates `~/.claudewheel/` populated with defaults (config, segments, options, themes).
+
+Requirements: Python 3.14+ on the `PATH`. No third-party packages.
+
+## The segment bar
+
+The TUI is a single horizontal "segment bar" rendered at the vertical centre of the terminal. Each segment is a labelled cell whose value can be cycled, searched, or freely edited. Above and below the focused segment, a vertical "fan-out" shows the other available options dimmed in the segment's accent colour. Pressing Enter on any segment launches Claude Code with the current selections.
+
+Keys:
+
+- Left / Right -- move focus between segments (also exits freeform edit mode)
+- Up / Down -- cycle the focused segment's value (blank state `---` is part of the ring)
+- Type characters -- start fuzzy search (on `searchable` segments) or freeform edit (on `freeform` segments)
+- Tab -- accept the current fuzzy match and advance to the next segment
+- Backspace -- delete a search/edit character (on a non-empty selected value, starts edit mode)
+- Esc -- cancel the in-progress search or edit
+- Enter -- launch
+- q or Ctrl-C -- quit without launching
+
+Search shows the matched characters in the search-match colour. The search buffer turns red when no option matches.
+
+## Narrow terminals
+
+When the segment bar is wider than the terminal, the renderer switches to a scrolling viewport:
+
+- The focused segment is centered horizontally
+- Edge arrows (`<2`, `3>`) show how many segments are off-screen in each direction
+- A minimap in the top-right corner shows all segments as small colored squares; the focused one has an opaque background highlight
+- Partially visible segments at the viewport edges are clipped rather than wrapped
+
+The viewport activates automatically and deactivates when the terminal is resized wider. All rendering is identical to the non-scrolling case when the bar fits.
+
+## Segment types
+
+| Key           | Label   | Controls                                                                       |
+|---------------|---------|--------------------------------------------------------------------------------|
+| `profile`     | Profile | Maps to `CLAUDE_CONFIG_DIR` (e.g. `~/.claude-personal`)                        |
+| `github`      | GH      | Selects the GitHub account; `gh auth token --user <acct>` exported as `GH_TOKEN` |
+| `version`     | Ver     | Picks the Claude Code binary in `~/.local/share/claude/versions/`              |
+| `model`       | Model   | Sets the model ID (`ANTHROPIC_MODEL`); `[1m]` suffix enables 1M-context        |
+| `directory`   | Dir     | Working directory to `cd` into before launch                                   |
+| `mcp`         | MCP     | MCP profile mode (`default`, `strict`)                                         |
+| `permissions` | Perms   | Permission mode passed to Claude Code (`bypass`, `default`, `plan`, `auto`)    |
+
+Profile, GitHub, and Model are *creatable*: their option lists end with a `+` sentinel that prompts for a new value and persists it to `options.json`. Directory is *freeform*: you can type any path. Version pulls a live npm listing merged with the locally installed binaries.
+
+## Commands
+
+:-: table-commands path="claudewheel/"
+
+### Segment overrides
+
+Every enabled segment gets its own `--<key>` flag. These pre-fill the TUI:
+
+```bash
+c --profile work --github mhxv
+c --directory ~/Projects/foo --model claude-opus-4-7
+```
+
+If the override set covers every *required* segment, the TUI is skipped entirely and Claude Code launches directly.
+
+### Session passthrough
+
+Mutually exclusive flags forwarded to Claude Code:
+
+```bash
+c -c                       # --continue: resume the most recent session
+c -r                       # --resume: open Claude Code's session picker
+c -r 0123abcd              # --resume <id>: jump to a specific session
+c -p "summarize this repo" # --print: non-interactive print mode
+```
+
+These compose with segment overrides: `c --profile personal -r` opens the picker against the personal profile.
+
+Print mode (`-p`) skips the TUI and launches Claude Code non-interactively. Extra flags after `--` are passed through:
+
+```bash
+c -p "explain auth.py" -- --output-format json --allowedTools "Read,Bash"
+```
+
+## Config directory
+
+`~/.claudewheel/` layout:
+
+| Path             | Purpose                                                     | Auto-written?     |
+|------------------|-------------------------------------------------------------|-------------------|
+| `config.json`    | Theme, enabled segments, default flags, health-check switch, minimap mode | No (user-edited)  |
+| `segments.json`  | Segment definitions (label, width, wrap, searchable, etc.) | No                |
+| `options.json`   | Values, metadata, and discovery configs per segment         | Only via `+` UX   |
+| `state.json`     | `last_config`, `recent_dirs`, `launch_count`, npm cache    | Yes, every launch |
+| `themes/*.json`  | Colour schemes (`dark.json`, `light.json` ship by default)  | No                |
+| `hooks/*`        | Executable scripts -- see below                             | No                |
+
+Defaults are regenerated on first run if any file is missing.
+
+On startup, missing keys from the current defaults are merged into existing files (config, segments, themes) without overwriting user values. Schema-versioned migrations handle value changes that must be applied once (e.g. correcting a default).
+
+## Hooks
+
+Drop an executable script into `~/.claudewheel/hooks/` whose name starts with `pre-launch` (e.g. `pre-launch-token-refresh`). It runs immediately before `exec`, with the chosen segment values exported as `CL_<KEY>` environment variables:
+
+```bash
+#!/usr/bin/env bash
+# ~/.claudewheel/hooks/pre-launch-warn-work
+if [[ "$CL_PROFILE" == "work" && "$CL_DIRECTORY" == "$HOME/Projects/personal-thing" ]]; then
+    echo "Refusing to use the work profile on a personal project." >&2
+    exit 1
+fi
+```
+
+A nonzero exit aborts the launch (and prevents `launch_count` from being incremented). Hooks have a 10-second timeout.
+
+## Adding new options
+
+- **Profile / GitHub / Model**: cycle the segment to its `+` sentinel, press Enter, type the new value. It is appended to `options.json` under the segment's `values` list and selected.
+- **Direct edit**: open `~/.claudewheel/options.json` and add to the relevant segment's `values` array. For profiles you also need a `metadata.<name>.config_dir` entry.
+- **Install a Claude Code version**: run `c --install <version>` or pick a not-yet-installed version in the TUI and confirm the install prompt. Binaries land in `~/.local/share/claude/versions/<version>`.
+
+## Themes
+
+Two themes ship with the launcher: `dark.json` and `light.json` in `~/.claudewheel/themes/`. Switch by setting `theme` in `config.json` to the file's basename. Themes define per-segment foreground / focus / option / unavailable colours and the search highlight palette. Add a new theme by writing another `themes/<name>.json` and pointing `config.json` at it.
+
+Themes also include an `overflow` section for viewport chrome:
+
+| Key                | Controls                                                     |
+|--------------------|--------------------------------------------------------------|
+| `arrow_fg`         | Colour of the `<N` / `N>` edge scroll indicators             |
+| `minimap_fg`       | Colour of unselected minimap squares                          |
+| `minimap_focused_bg` | Background highlight on the focused minimap square          |
+| `minimap_char`     | Character used for minimap squares (default `▪`)              |
+
+## Tests
+
+```bash
+cd /home/m/Projects/claudewheel
+python3 -m unittest discover tests/
+```
+
+240+ stdlib `unittest` tests covering segment cycling, fuzzy matching, requires-evaluation, install/manifest parsing, discovery merge logic, viewport scrolling, and config migration. Runs in under one second.
