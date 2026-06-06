@@ -418,5 +418,125 @@ class PrintModeTests(unittest.TestCase):
         self.assertEqual(extra_flags, ["--print", "test", "--output-format", "json"])
 
 
+class BuildAppTests(unittest.TestCase):
+    """Smoke test that _build_app() constructs successfully.
+
+    Regression guard: strictcli >=0.16.0 requires every repeatable=True Flag
+    to pass unique=True or unique=False explicitly. The `-s/--set` flag in
+    _build_app() must comply, otherwise the entire binary crashes at startup
+    with ValueError before main() can do anything useful.
+    """
+
+    def test_build_app_constructs_without_error(self) -> None:
+        from strictcli import App
+
+        app = cli._build_app()
+        self.assertIsInstance(app, App)
+
+
+class DuplicateSetKeyTests(unittest.TestCase):
+    """Regression guard for silent overwrite of segment overrides.
+
+    Today, _handle_launch builds segment_overrides[key] from individual flags
+    (--profile, --github, --model, --directory, --mcp, --permissions) and then
+    from -s key=value entries, with later assignments silently overwriting
+    earlier ones. The fix rejects any duplicate from ANY source -- both -s
+    vs -s and flag vs -s -- with a diagnostic error naming both conflicting
+    values and their sources.
+
+    Mirrors PrintModeTests._run_main rather than subclassing it: inheriting
+    from PrintModeTests would cause unittest to re-run every parent test
+    method under this class's name, polluting the failure count.
+    """
+
+    # Mirror PrintModeTests.SEGMENTS_DEF / ALL_ENABLED / FULL_LAST_CONFIG
+    # so _run_main below is a faithful copy of the parent helper.
+    SEGMENTS_DEF = PrintModeTests.SEGMENTS_DEF
+    ALL_ENABLED = PrintModeTests.ALL_ENABLED
+    FULL_LAST_CONFIG = PrintModeTests.FULL_LAST_CONFIG
+
+    def _make_cfg(self, last_config: dict | None = None) -> _FakeCfg:
+        return _FakeCfg(
+            config={
+                "theme": "dark",
+                "enabled_segments": list(self.ALL_ENABLED),
+                "default_flags": [],
+                "health_check_on_launch": False,
+            },
+            segments_def=list(self.SEGMENTS_DEF),
+            state={
+                "last_config": dict(last_config) if last_config is not None else {},
+                "recent_dirs": [],
+                "launch_count": 0,
+            },
+            options_def={},
+        )
+
+    def _run_main(self, argv: list[str], last_config: dict | None = None) -> mock.MagicMock:
+        fake_cfg = self._make_cfg(last_config)
+        launch_mock = mock.MagicMock()
+        with (
+            mock.patch("sys.argv", argv),
+            mock.patch("claudewheel.config.ConfigManager", return_value=fake_cfg),
+            mock.patch("claudewheel.cli._do_launch_sequence", launch_mock),
+            mock.patch("os.getcwd", return_value="/test/dir"),
+        ):
+            try:
+                cli.main()
+            except SystemExit:
+                pass
+        return launch_mock
+
+    def test_duplicate_s_key_conflicting_values_rejected(self) -> None:
+        """Two -s entries for the same key with different values must be rejected."""
+        err = io.StringIO()
+        with redirect_stderr(err):
+            launch_mock = self._run_main(
+                ["c", "-s", "profile=work", "-s", "profile=personal", "--print-prompt", "x"],
+                last_config=self.FULL_LAST_CONFIG,
+            )
+
+        msg = err.getvalue()
+        self.assertIn("Duplicate", msg)
+        self.assertIn("profile", msg)
+        self.assertIn("work", msg)
+        self.assertIn("personal", msg)
+        # Error must fire BEFORE launch.
+        launch_mock.assert_not_called()
+
+    def test_duplicate_s_key_identical_values_rejected(self) -> None:
+        """Two -s entries for the same key, even with identical values, must be rejected."""
+        err = io.StringIO()
+        with redirect_stderr(err):
+            launch_mock = self._run_main(
+                ["c", "-s", "profile=work", "-s", "profile=work", "--print-prompt", "x"],
+                last_config=self.FULL_LAST_CONFIG,
+            )
+
+        msg = err.getvalue()
+        self.assertIn("Duplicate", msg)
+        self.assertIn("profile", msg)
+        launch_mock.assert_not_called()
+
+    def test_flag_and_s_conflict_rejected(self) -> None:
+        """A --profile flag plus a conflicting -s profile= must be rejected, with both sources named."""
+        err = io.StringIO()
+        with redirect_stderr(err):
+            launch_mock = self._run_main(
+                ["c", "--profile", "work", "-s", "profile=personal", "--print-prompt", "x"],
+                last_config=self.FULL_LAST_CONFIG,
+            )
+
+        msg = err.getvalue()
+        self.assertIn("Duplicate", msg)
+        self.assertIn("profile", msg)
+        self.assertIn("work", msg)
+        self.assertIn("personal", msg)
+        # Both source markers must appear in the diagnostic.
+        self.assertIn("--profile", msg)
+        self.assertIn("-s", msg)
+        launch_mock.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()
