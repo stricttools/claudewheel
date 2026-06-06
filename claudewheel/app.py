@@ -281,9 +281,9 @@ class App:
     def _launch_profile_wizard(self, seg: Segment) -> str | None:
         """Exit TUI, run the profile wizard, create profile, return to TUI."""
         from .wizard import run_profile_wizard, create_profile
-        from .health import _discover_profiles
+        from .discovery import discover_profiles
         self.terminal.exit_raw()
-        existing = [name for name, _ in _discover_profiles()]
+        existing = [p.name for p in discover_profiles()]
         result = run_profile_wizard(existing)
         if not result.cancelled:
             create_profile(result, self.cfg)
