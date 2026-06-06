@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .constants import SHARED_DIR
+from .discovery import discover_profiles
 
 PREFIX = "[redir]"
 
@@ -32,17 +33,15 @@ def _encode_path(p: str) -> str:
 
 
 def _discover_profile_dirs() -> list[Path]:
-    """Find all ~/.claude-*/ directories plus ~/.claude-shared/ if it exists."""
-    home = Path.home()
-    dirs: list[Path] = []
-    for entry in sorted(home.glob(".claude-*")):
-        if entry.is_dir() and not entry.is_symlink():
-            dirs.append(entry)
-    # Ensure shared is included even if glob already caught it
-    shared = SHARED_DIR
-    if shared.is_dir() and shared not in dirs:
-        dirs.append(shared)
-    return dirs
+    """Find all profile directories plus ~/.claude-shared/ if it exists.
+
+    Uses the shared discovery module for profiles, then includes the
+    shared store directory (which holds the actual session data).
+    """
+    dirs: list[Path] = [p.path for p in discover_profiles()]
+    if SHARED_DIR.is_dir() and SHARED_DIR not in dirs:
+        dirs.append(SHARED_DIR)
+    return sorted(dirs)
 
 
 def _rewrite_jsonl_file(

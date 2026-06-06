@@ -10,6 +10,7 @@ from pathlib import Path
 
 from .constants import COMMON_DIR, OPTIONS_FILE, PROFILE_SHARED_DIRS, SHARED_DIR, TOKENS_FILE
 from .defaults import DISALLOWED_TOOLS
+from .discovery import discover_profiles
 
 
 @dataclass
@@ -56,41 +57,11 @@ def check_tmp_claude_size() -> HealthResult:
 
 
 def _discover_profiles() -> list[tuple[str, Path]]:
-    """Find Claude profile dirs (~/.claude-<name>/) via .credentials.json or tokens.json.
-
-    A profile is discovered if its directory exists AND either:
-      - contains .credentials.json, OR
-      - has a matching key in tokens.json
+    """Find Claude profile dirs via the shared discovery module.
 
     Returns a sorted list of (profile_name, profile_path) tuples.
     """
-    home = Path.home()
-    profiles: list[tuple[str, Path]] = []
-    found_names: set[str] = set()
-    for entry in sorted(home.iterdir()):
-        if (
-            entry.is_dir()
-            and entry.name.startswith(".claude-")
-            and (entry / ".credentials.json").exists()
-        ):
-            name = entry.name[len(".claude-"):]  # strip prefix
-            profiles.append((name, entry))
-            found_names.add(name)
-
-    # Also discover profiles that have a token but no .credentials.json
-    try:
-        tokens = json.loads(TOKENS_FILE.read_text())
-        for key in tokens:
-            if key not in found_names:
-                pdir = home / f".claude-{key}"
-                if pdir.is_dir():
-                    profiles.append((key, pdir))
-                    found_names.add(key)
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
-        pass
-
-    profiles.sort(key=lambda t: t[0])
-    return profiles
+    return [(p.name, p.path) for p in discover_profiles()]
 
 
 # -- Shared-store profile checks -------------------------------------------

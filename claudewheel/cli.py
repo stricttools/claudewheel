@@ -236,10 +236,10 @@ def _handle_reset_options() -> int:
 def _handle_new_profile() -> int:
     from .config import ConfigManager
     from .wizard import run_profile_wizard, create_profile
-    from .health import _discover_profiles
+    from .discovery import discover_profiles
 
     cfg = ConfigManager()
-    existing = [name for name, _ in _discover_profiles()]
+    existing = [p.name for p in discover_profiles()]
     result = run_profile_wizard(existing)
     if result.cancelled:
         print("Cancelled.")

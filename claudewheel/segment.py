@@ -11,6 +11,7 @@ from pathlib import Path
 
 from .config import ConfigManager
 from .constants import TOKENS_FILE
+from .discovery import discover_profiles
 from .fuzzy import fuzzy_rank
 
 NPM_CACHE_TTL = 3600  # 1 hour
@@ -233,45 +234,19 @@ def discover_options(options_def: dict, state: dict) -> dict[str, list[str]]:
                             merged.append(v)
                     values = merged
                 case "claude_config_scan":
-                    # Discover Claude profiles from ~/.claude and ~/.claude-* dirs
-                    base = Path(disc.get("base_dir", "~")).expanduser()
-                    profiles: list[str] = []
-                    # The default Claude config dir
-                    default_dir = base / ".claude"
-                    if default_dir.is_dir() and (default_dir / ".credentials.json").exists():
-                        profiles.append("default")
-                    # Scan for ~/.claude-* profile directories
-                    if base.is_dir():
-                        for entry in sorted(base.iterdir()):
-                            if entry.is_dir() and entry.name.startswith(".claude-"):
-                                if not (entry / ".credentials.json").exists():
-                                    continue
-                                profile_name = entry.name[len(".claude-"):]
-                                if profile_name:
-                                    profiles.append(profile_name)
-                    # Also discover profiles from tokens.json that have a dir but no .credentials.json
-                    try:
-                        tokens = json.loads(TOKENS_FILE.read_text())
-                        found = set(profiles)
-                        for tname in tokens:
-                            if tname not in found:
-                                pdir = base / f".claude-{tname}"
-                                if pdir.is_dir():
-                                    profiles.append(tname)
-                                    found.add(tname)
-                        profiles.sort()
-                    except (FileNotFoundError, json.JSONDecodeError, OSError):
-                        pass
+                    # Discover Claude profiles via shared discovery
+                    discovered = discover_profiles()
+                    profiles: list[str] = [p.name for p in discovered]
                     if profiles:
                         values = profiles
                     # Build metadata mapping profile names to config dirs
                     # so launch.py can set CLAUDE_CONFIG_DIR correctly
                     metadata: dict[str, dict[str, str]] = {}
-                    if "default" in profiles:
-                        metadata["default"] = {"config_dir": "~/.claude"}
-                    for p in profiles:
-                        if p != "default":
-                            metadata[p] = {"config_dir": f"~/.claude-{p}"}
+                    for p in discovered:
+                        if p.name == "default":
+                            metadata["default"] = {"config_dir": "~/.claude"}
+                        else:
+                            metadata[p.name] = {"config_dir": f"~/.claude-{p.name}"}
                     opt["metadata"] = metadata
                 case "gh_auth":
                     # Discover GitHub accounts from gh CLI auth status

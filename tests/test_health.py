@@ -101,7 +101,7 @@ class DiscoverProfilesTests(_HomeDirTestCase):
         tokens_dir.mkdir(parents=True, exist_ok=True)
         tokens_file = tokens_dir / "tokens.json"
         tokens_file.write_text(json.dumps({"work": "tok-abc"}))
-        with patch("claudewheel.health.TOKENS_FILE", tokens_file):
+        with patch("claudewheel.discovery.TOKENS_FILE", tokens_file):
             result = _discover_profiles()
         names = [name for name, _path in result]
         self.assertIn("work", names)
@@ -114,7 +114,7 @@ class DiscoverProfilesTests(_HomeDirTestCase):
         tokens_dir.mkdir(parents=True, exist_ok=True)
         tokens_file = tokens_dir / "tokens.json"
         tokens_file.write_text(json.dumps({"alpha": "tok-a"}))
-        with patch("claudewheel.health.TOKENS_FILE", tokens_file):
+        with patch("claudewheel.discovery.TOKENS_FILE", tokens_file):
             result = _discover_profiles()
         names = [name for name, _path in result]
         self.assertEqual(names, ["alpha", "beta"])
@@ -609,7 +609,7 @@ class CheckOrphanProfilesTests(_HomeDirTestCase):
         (tokens_dir / "tokens.json").write_text(json.dumps({"work": "tok-abc123"}))
         with patch("claudewheel.health.OPTIONS_FILE",
                     self.home / ".claudewheel" / "options.json"), \
-             patch("claudewheel.health.TOKENS_FILE",
+             patch("claudewheel.discovery.TOKENS_FILE",
                     self.home / ".claudewheel" / "tokens.json"):
             result = check_orphan_profiles()
         self.assertTrue(result.ok)
