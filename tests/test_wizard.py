@@ -11,7 +11,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from claudewheel.wizard import WizardResult, create_profile, _HOOKS_TEMPLATE
+from claudewheel.wizard import WizardResult, create_profile
 from claudewheel.constants import PROFILE_SHARED_DIRS
 from claudewheel import wizard as wizard_mod
 from claudewheel import config as config_mod
@@ -24,6 +24,7 @@ from claudewheel.defaults import (
     DEFAULT_THEME_DARK,
     DEFAULT_THEME_LIGHT,
     DISALLOWED_TOOLS,
+    build_canonical_shared_settings,
 )
 
 
@@ -94,6 +95,8 @@ class CreateProfileTestBase(unittest.TestCase):
         self.launcher_dir = self.fake_home / ".claudewheel"
         _init_launcher_dir(self.launcher_dir)
 
+        self._scripts_dir = self.launcher_dir / "scripts"
+        self._shared_settings_file = self.launcher_dir / "shared-settings.json"
         self._patches = [
             mock.patch.object(config_mod, "CONFIG_DIR", self.launcher_dir),
             mock.patch.object(config_mod, "CONFIG_FILE", self.launcher_dir / "config.json"),
@@ -102,11 +105,15 @@ class CreateProfileTestBase(unittest.TestCase):
             mock.patch.object(config_mod, "STATE_FILE", self.launcher_dir / "state.json"),
             mock.patch.object(config_mod, "THEMES_DIR", self.launcher_dir / "themes"),
             mock.patch.object(config_mod, "HOOKS_DIR", self.launcher_dir / "hooks"),
+            mock.patch.object(config_mod, "SCRIPTS_DIR", self._scripts_dir),
             mock.patch.object(config_mod, "SHARED_DIR", self.fake_home / ".claude-shared"),
+            mock.patch.object(config_mod, "SHARED_SETTINGS_FILE", self._shared_settings_file),
             mock.patch.object(config_mod, "COMMON_DIR", self.fake_home / ".claude-common"),
             # wizard.py imports CONFIG_DIR, PROFILES_DIR, SHARED_DIR, COMMON_DIR directly
             mock.patch.object(wizard_mod, "CONFIG_DIR", self.launcher_dir),
             mock.patch.object(wizard_mod, "PROFILES_DIR", self.launcher_dir / "profiles"),
+            mock.patch.object(wizard_mod, "SCRIPTS_DIR", self._scripts_dir),
+            mock.patch.object(wizard_mod, "SHARED_SETTINGS_FILE", self._shared_settings_file),
             mock.patch.object(wizard_mod, "SHARED_DIR", self.fake_home / ".claude-shared"),
             mock.patch.object(wizard_mod, "COMMON_DIR", self.fake_home / ".claude-common"),
         ]
@@ -127,6 +134,10 @@ class CreateProfileTestBase(unittest.TestCase):
 
     def _read_settings(self, name: str = "test") -> dict:
         return json.loads((self._profile_dir(name) / "settings.json").read_text())
+
+    def _expected_hooks(self) -> dict:
+        """Return the canonical hooks template using the test scripts dir."""
+        return build_canonical_shared_settings(self._scripts_dir)["hooks"]
 
 
 class DirectoryCreationTests(CreateProfileTestBase):
@@ -287,7 +298,7 @@ class HooksWiringTests(CreateProfileTestBase):
         create_profile(result, self.cfg)
         settings = self._read_settings()
         self.assertIn("hooks", settings)
-        self.assertEqual(settings["hooks"], _HOOKS_TEMPLATE)
+        self.assertEqual(settings["hooks"], self._expected_hooks())
 
     def test_no_hooks_when_disabled(self) -> None:
         result = _make_result(wire_hooks=False)
@@ -321,18 +332,20 @@ class HookMergeTests(CreateProfileTestBase):
         result = _make_result(name="merged", clone_from="src", wire_hooks=True)
         create_profile(result, self.cfg)
 
+        expected_hooks = self._expected_hooks()
         settings = self._read_settings("merged")
         hooks_list = settings["hooks"]["UserPromptSubmit"][0]["hooks"]
         cmds = [h["command"] for h in hooks_list]
         # Existing hook preserved
         self.assertIn("existing-hook-cmd", cmds)
         # Template hooks added
-        for wanted in _HOOKS_TEMPLATE["UserPromptSubmit"][0]["hooks"]:
+        for wanted in expected_hooks["UserPromptSubmit"][0]["hooks"]:
             self.assertIn(wanted["command"], cmds)
 
     def test_merge_does_not_duplicate_existing(self) -> None:
         """If the source already has one of the template hooks, it's not added again."""
-        template_cmd = _HOOKS_TEMPLATE["UserPromptSubmit"][0]["hooks"][0]["command"]
+        expected_hooks = self._expected_hooks()
+        template_cmd = expected_hooks["UserPromptSubmit"][0]["hooks"][0]["command"]
         existing_hooks = {
             "hooks": {
                 "UserPromptSubmit": [
@@ -368,7 +381,7 @@ class HookMergeTests(CreateProfileTestBase):
         create_profile(result, self.cfg)
 
         settings = self._read_settings("fresh")
-        self.assertEqual(settings["hooks"], _HOOKS_TEMPLATE)
+        self.assertEqual(settings["hooks"], self._expected_hooks())
         # Cloned key is preserved
         self.assertEqual(settings["someKey"], 1)
 
