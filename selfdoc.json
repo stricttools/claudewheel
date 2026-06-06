@@ -26,5 +26,32 @@
     "provider": "cloudflare-pages",
     "project": "claudewheel"
   },
-  "root_files": ["docs/_CLAUDE.md", "docs/_README.md"]
+  "root_files": ["docs/_CLAUDE.md", "docs/_README.md"],
+  "branding": {
+    "tagline": "Pick a profile. Pick a model. Launch.",
+    "cta_text": "Get Started",
+    "cta_link": "cli-launch/",
+    "features": [
+      {
+        "title": "Segment Bar Launcher",
+        "description": "Visual TUI with horizontal segments for profile, model, directory, MCP mode, and permissions. Navigate with arrow keys, confirm with Enter."
+      },
+      {
+        "title": "Multi-Profile Management",
+        "description": "Manage multiple Claude Code profiles with isolated settings, permissions, and MCP configurations. Create, delete, and migrate sessions between profiles."
+      },
+      {
+        "title": "Pre-Launch Health Checks",
+        "description": "Diagnostics that verify API tokens, hook scripts, file permissions, and symlink integrity before launching a session."
+      },
+      {
+        "title": "Viewport Scrolling",
+        "description": "Segment bar adapts to narrow terminals with automatic scrolling, edge arrows showing off-screen segments, and a colored minimap."
+      },
+      {
+        "title": "Customizable Themes",
+        "description": "Dark and light themes with hex color support, configurable per-segment colors, and theme-aware rendering throughout the TUI."
+      }
+    ]
+  }
 }
