@@ -1,9 +1,6 @@
 """All DEFAULT_* configuration dicts for claudewheel."""
 
 DISALLOWED_TOOLS = [
-    "CronCreate",
-    "CronDelete",
-    "CronList",
     "EnterPlanMode",
     "EnterWorktree",
     "ExitPlanMode",
@@ -12,7 +9,6 @@ DISALLOWED_TOOLS = [
     "NotebookEdit",
     "PushNotification",
     "RemoteTrigger",
-    "ScheduleWakeup",
     "Skill",
     "TaskCreate",
     "TaskGet",
