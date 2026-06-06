@@ -23,6 +23,11 @@
     }
   ],
   "description": "TUI launcher for Claude Code: pick a profile, model, directory, and permissions from a segment bar, then launch.",
+  "author": {
+    "name": "smm-h",
+    "type": "Person",
+    "url": "https://github.com/smm-h"
+  },
   "repo": "https://github.com/smm-h/claudewheel",
   "deploy": {
     "provider": "cloudflare-pages",
