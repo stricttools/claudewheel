@@ -11,7 +11,7 @@ from .constants import COMMON_DIR, SHARED_DIR, TOKENS_FILE
 
 @dataclass
 class ProfileInfo:
-    """Describes a discovered Claude Code profile."""
+    """A profile's name, path, and credential/token presence."""
 
     name: str
     path: Path
