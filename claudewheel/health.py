@@ -146,7 +146,12 @@ def check_hook_integrity() -> HealthResult:
 
 
 def check_hooks_wired() -> HealthResult:
-    """Verify each profile's settings.json has hook-timestamp and hook-stamp-origin hooks."""
+    """Verify each profile's settings.json has required hooks.
+
+    Checks:
+    - UserPromptSubmit: hook-timestamp and hook-stamp-origin
+    - PreToolUse: hook-block-worktree (matcher: Agent)
+    """
     profiles = _discover_profiles()
     if not profiles:
         return HealthResult(True, "hooks-wired", "no profiles found")
@@ -163,24 +168,43 @@ def check_hooks_wired() -> HealthResult:
             missing.append(f"{name}: unreadable settings.json")
             continue
 
-        # Navigate hooks.UserPromptSubmit[0].hooks
-        ups_list = settings.get("hooks", {}).get("UserPromptSubmit", [])
-        # Collect all command strings from all hook entries
-        commands: list[str] = []
+        hooks = settings.get("hooks", {})
+
+        # Check UserPromptSubmit hooks
+        ups_list = hooks.get("UserPromptSubmit", [])
+        ups_commands: list[str] = []
         if ups_list and isinstance(ups_list, list):
             first = ups_list[0]
             hooks_list = first.get("hooks", []) if isinstance(first, dict) else []
             for h in hooks_list:
                 cmd = h.get("command", "") if isinstance(h, dict) else ""
-                commands.append(cmd)
+                ups_commands.append(cmd)
 
-        combined = " ".join(commands)
-        has_timestamp = "hook-timestamp" in combined
-        has_origin = "hook-stamp-origin" in combined
-        if not has_timestamp:
+        combined = " ".join(ups_commands)
+        if "hook-timestamp" not in combined:
             missing.append(f"{name}: missing hook-timestamp")
-        if not has_origin:
+        if "hook-stamp-origin" not in combined:
             missing.append(f"{name}: missing hook-stamp-origin")
+
+        # Check PreToolUse Agent hook (block-worktree)
+        ptu_list = hooks.get("PreToolUse", [])
+        has_block_worktree = False
+        if ptu_list and isinstance(ptu_list, list):
+            for entry in ptu_list:
+                if not isinstance(entry, dict):
+                    continue
+                if entry.get("matcher") != "Agent":
+                    continue
+                entry_hooks = entry.get("hooks", [])
+                for h in entry_hooks:
+                    cmd = h.get("command", "") if isinstance(h, dict) else ""
+                    if "hook-block-worktree" in cmd:
+                        has_block_worktree = True
+                        break
+                if has_block_worktree:
+                    break
+        if not has_block_worktree:
+            missing.append(f"{name}: missing PreToolUse hook-block-worktree")
 
     if missing:
         return HealthResult(False, "hooks-wired", "; ".join(missing))
