@@ -8,7 +8,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from .constants import COMMON_DIR, OPTIONS_FILE, PROFILE_SHARED_DIRS, SCRIPTS_DIR, SHARED_DIR, TOKENS_FILE
+from .constants import COMMON_DIR, OPTIONS_FILE, PROFILES_DIR, PROFILE_SHARED_DIRS, SCRIPTS_DIR, SHARED_DIR, TOKENS_FILE
 from .defaults import DISALLOWED_TOOLS
 from .discovery import discover_profiles
 
@@ -296,11 +296,10 @@ def check_tokens() -> HealthResult:
 
 
 def check_orphan_profiles() -> HealthResult:
-    """Detect .claude-* dirs that are neither registered profiles nor in options.
+    """Detect profile dirs in ~/.claudewheel/profiles/ that are not registered.
 
     A directory is "orphan" if it:
-      - lives in ~/ and matches .claude-*
-      - is NOT in the known non-profile set (.claude-shared, .claude-common)
+      - lives in ~/.claudewheel/profiles/
       - is NOT discovered by _discover_profiles() (which checks .credentials.json
         and tokens.json)
       - is NOT listed in options.json's profile values
@@ -308,8 +307,8 @@ def check_orphan_profiles() -> HealthResult:
     For each orphan, we also flag if it contains broken symlinks (symlinks
     whose target does not exist).
     """
-    home = Path.home()
-    skip = {SHARED_DIR.name, COMMON_DIR.name}
+    if not PROFILES_DIR.is_dir():
+        return HealthResult(True, "orphan-profiles", "no profiles dir found")
 
     # Registered profiles (discovered via .credentials.json or tokens.json)
     registered = {name for name, _ in _discover_profiles()}
@@ -323,12 +322,10 @@ def check_orphan_profiles() -> HealthResult:
         pass
 
     orphans: list[str] = []
-    for entry in sorted(home.iterdir()):
-        if not entry.name.startswith(".claude-") or entry.name in skip:
-            continue
+    for entry in sorted(PROFILES_DIR.iterdir()):
         if not entry.is_dir():
             continue
-        name = entry.name[len(".claude-"):]
+        name = entry.name
         if name in registered or name in options_profiles:
             continue
 
