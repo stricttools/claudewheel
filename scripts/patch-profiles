@@ -60,8 +60,8 @@ def patch_profile(name: str, profile_dir: Path) -> bool:
 
 
 def patch_options_json() -> bool:
-    """Remove 'auto' from permissions values in ~/.claudelauncher/options.json."""
-    options_file = Path.home() / ".claudelauncher" / "options.json"
+    """Remove 'auto' from permissions values in ~/.claudewheel/options.json."""
+    options_file = Path.home() / ".claudewheel" / "options.json"
     if not options_file.exists():
         print("  options.json: not found, skipping")
         return False

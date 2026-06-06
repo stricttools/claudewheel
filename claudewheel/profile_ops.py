@@ -9,10 +9,10 @@ import shutil
 import sys
 from pathlib import Path
 
-from .constants import OPTIONS_FILE, TOKENS_FILE
+from .constants import COMMON_DIR, OPTIONS_FILE, SHARED_DIR, TOKENS_FILE
 
 XATTR_NAME = b"user.origin-profile"
-ORIGINS_FILE = Path.home() / ".claude-common" / "profile-origins.jsonl"
+ORIGINS_FILE = COMMON_DIR / "profile-origins.jsonl"
 
 
 def _is_profile_running(name: str) -> bool:
@@ -108,13 +108,12 @@ def _strip_xattrs(name: str) -> int:
     Scans all 5 shared dirs for files/dirs whose user.origin-profile xattr
     matches `name` and removes the xattr. Returns the count modified.
     """
-    shared = Path.home() / ".claude-shared"
-    if not shared.is_dir():
+    if not SHARED_DIR.is_dir():
         return 0
 
     stripped = 0
     for dirname in _SHARED_DIRS_TO_STRIP:
-        dirpath = shared / dirname
+        dirpath = SHARED_DIR / dirname
         if not dirpath.is_dir():
             continue
         for f in dirpath.rglob("*"):

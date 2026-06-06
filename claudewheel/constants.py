@@ -14,6 +14,9 @@ THEMES_DIR = LAUNCHER_DIR / "themes"
 HOOKS_DIR = LAUNCHER_DIR / "hooks"
 TOKENS_FILE = LAUNCHER_DIR / "tokens.json"
 
+COMMON_DIR = Path.home() / ".claude-common"
+SHARED_DIR = Path.home() / ".claude-shared"
+
 VERSIONS_DIR = Path.home() / ".local/share/claude/versions"
 CLAUDE_SYMLINK = Path.home() / ".local/bin/claude"
 

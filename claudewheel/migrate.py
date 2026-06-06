@@ -156,7 +156,8 @@ def migrate_sessions(
     """Migrate session artifacts from src_profile to dst_profile."""
     src = Path.home() / f".claude-{src_profile}"
     dst = Path.home() / f".claude-{dst_profile}"
-    index_path = Path.home() / ".claude-common" / "profile-origins.jsonl"
+    from .constants import COMMON_DIR
+    index_path = COMMON_DIR / "profile-origins.jsonl"
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     result = MigrateResult()
 

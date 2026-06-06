@@ -10,7 +10,7 @@ from pathlib import Path
 from .constants import (
     CLEAR_SCREEN, CLEAR_LINE, RESET, BOLD, DIM,
     ALT_SCREEN_ON, ALT_SCREEN_OFF, HIDE_CURSOR, SHOW_CURSOR,
-    LAUNCHER_DIR,
+    COMMON_DIR, LAUNCHER_DIR, SHARED_DIR,
     move_to, fg_rgb,
 )
 from .config import ConfigManager
@@ -250,8 +250,8 @@ _HOOKS_TEMPLATE = {
         {
             "matcher": "",
             "hooks": [
-                {"type": "command", "command": "~/.claude-common/scripts/hook-timestamp"},
-                {"type": "command", "command": "~/.claude-common/scripts/hook-stamp-origin"},
+                {"type": "command", "command": str(COMMON_DIR / "scripts" / "hook-timestamp")},
+                {"type": "command", "command": str(COMMON_DIR / "scripts" / "hook-stamp-origin")},
             ],
         }
     ]
@@ -323,17 +323,16 @@ def create_profile(result: WizardResult, cfg: ConfigManager) -> None:
 
     # Symlink shared dirs
     if result.symlink_shared:
-        shared_base = Path.home() / ".claude-shared"
         for dirname in _SHARED_DIRS:
             link = config_dir / dirname
-            target = shared_base / dirname
+            target = SHARED_DIR / dirname
             if link.exists() or link.is_symlink():
                 continue
             target.mkdir(parents=True, exist_ok=True)
             link.symlink_to(target)
         # Skills -> common (separate from shared store)
         skills_link = config_dir / "skills"
-        skills_target = Path.home() / ".claude-common" / "skills"
+        skills_target = COMMON_DIR / "skills"
         if skills_target.is_dir() and not skills_link.exists() and not skills_link.is_symlink():
             skills_link.symlink_to(skills_target)
 

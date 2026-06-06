@@ -8,7 +8,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from .constants import OPTIONS_FILE, TOKENS_FILE
+from .constants import COMMON_DIR, OPTIONS_FILE, SHARED_DIR, TOKENS_FILE
 from .defaults import DISALLOWED_TOOLS
 
 
@@ -98,7 +98,6 @@ def _discover_profiles() -> list[tuple[str, Path]]:
 
 def check_shared_symlinks() -> HealthResult:
     """Verify each profile's shared dirs are symlinks to ~/.claude-shared/."""
-    shared = Path.home() / ".claude-shared"
     expected_dirs = ["projects", "session-env", "file-history", "tasks", "todos"]
     profiles = _discover_profiles()
     if not profiles:
@@ -109,17 +108,17 @@ def check_shared_symlinks() -> HealthResult:
         # Standard dirs -> ~/.claude-shared/<dir>
         for d in expected_dirs:
             link = pdir / d
-            target = shared / d
+            target = SHARED_DIR / d
             if not link.is_symlink() or link.resolve() != target.resolve():
                 broken.append(f"{name}/{d}")
         # paste-cache -> ~/.claude-shared/paste-cache
         pc = pdir / "paste-cache"
-        pc_target = shared / "paste-cache"
+        pc_target = SHARED_DIR / "paste-cache"
         if not pc.is_symlink() or pc.resolve() != pc_target.resolve():
             broken.append(f"{name}/paste-cache")
         # skills -> ~/.claude-common/skills
         sk = pdir / "skills"
-        sk_target = Path.home() / ".claude-common" / "skills"
+        sk_target = COMMON_DIR / "skills"
         if sk_target.is_dir() and (not sk.is_symlink() or sk.resolve() != sk_target.resolve()):
             broken.append(f"{name}/skills")
 
@@ -130,7 +129,7 @@ def check_shared_symlinks() -> HealthResult:
 
 def check_xattr_coverage() -> HealthResult:
     """Sample .jsonl files in ~/.claude-shared/projects/ for origin-profile xattr."""
-    projects_dir = Path.home() / ".claude-shared" / "projects"
+    projects_dir = SHARED_DIR / "projects"
     if not projects_dir.exists():
         return HealthResult(True, "xattr-coverage", "projects dir not found")
 
@@ -161,7 +160,7 @@ def check_xattr_coverage() -> HealthResult:
 
 def check_hook_integrity() -> HealthResult:
     """Verify hook-stamp-origin contains sentinel and flock patterns."""
-    hook = Path.home() / ".claude-common" / "scripts" / "hook-stamp-origin"
+    hook = COMMON_DIR / "scripts" / "hook-stamp-origin"
     if not hook.exists():
         return HealthResult(False, "hook-integrity", "hook-stamp-origin missing")
     try:
@@ -345,7 +344,7 @@ def check_orphan_profiles() -> HealthResult:
     whose target does not exist).
     """
     home = Path.home()
-    skip = {".claude-shared", ".claude-common"}
+    skip = {SHARED_DIR.name, COMMON_DIR.name}
 
     # Registered profiles (discovered via .credentials.json or tokens.json)
     registered = {name for name, _ in _discover_profiles()}

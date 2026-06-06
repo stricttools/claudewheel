@@ -6,6 +6,8 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
+from .constants import SHARED_DIR
+
 PREFIX = "[redir]"
 
 
@@ -37,7 +39,7 @@ def _discover_profile_dirs() -> list[Path]:
         if entry.is_dir() and not entry.is_symlink():
             dirs.append(entry)
     # Ensure shared is included even if glob already caught it
-    shared = home / ".claude-shared"
+    shared = SHARED_DIR
     if shared.is_dir() and shared not in dirs:
         dirs.append(shared)
     return dirs
@@ -177,9 +179,8 @@ def run_redir(
                     result.lines_replaced += lines_fixed
 
     # 5. Update .claude.json in each profile dir (not shared)
-    shared = Path.home() / ".claude-shared"
     for pdir in profile_dirs:
-        if pdir == shared:
+        if pdir == SHARED_DIR:
             continue
         claude_json = pdir / ".claude.json"
         if claude_json.is_file():
