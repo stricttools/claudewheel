@@ -34,7 +34,7 @@ from .defaults import (
 
 
 def _migration_1_github_optional(
-    config: dict, segments_def: list[dict], theme: dict
+    config: dict, segments_def: list[dict], theme: dict, options_def: dict,
 ) -> None:
     """Make github segment optional (was incorrectly required)."""
     for seg in segments_def:
@@ -42,11 +42,31 @@ def _migration_1_github_optional(
             seg["required"] = False
 
 
+def _migration_2_profile_paths(
+    config: dict, segments_def: list[dict], theme: dict, options_def: dict,
+) -> None:
+    """Rewrite profile metadata config_dir from ~/.claude-<name> to ~/.claudewheel/profiles/<name>."""
+    import re
+    metadata = options_def.get("profile", {}).get("metadata", {})
+    for name, meta in metadata.items():
+        cd = meta.get("config_dir", "")
+        # Match old-style paths like ~/.claude-work but not ~/.claude (bare default)
+        # and not ~/.claudewheel/profiles/... (already migrated)
+        m = re.match(r"^~/\.claude-(.+)$", cd)
+        if m:
+            meta["config_dir"] = f"~/.claudewheel/profiles/{m.group(1)}"
+
+
 _MIGRATIONS: list[dict] = [
     {
         "version": 1,
         "description": "Make github segment optional",
         "apply": _migration_1_github_optional,
+    },
+    {
+        "version": 2,
+        "description": "Rewrite profile metadata paths to ~/.claudewheel/profiles/<name>/",
+        "apply": _migration_2_profile_paths,
     },
 ]
 
@@ -152,19 +172,23 @@ class ConfigManager:
         config_changed = False
         segments_changed = False
         theme_changed = False
+        options_changed = False
 
         for migration in _MIGRATIONS:
             if migration["version"] > current_version:
-                # Snapshot segments/theme to detect mutations
+                # Snapshot segments/theme/options to detect mutations
                 seg_before = json.dumps(self.segments_def, sort_keys=True)
                 theme_before = json.dumps(self.theme, sort_keys=True)
+                options_before = json.dumps(self.options_def, sort_keys=True)
 
-                migration["apply"](self.config, self.segments_def, self.theme)
+                migration["apply"](self.config, self.segments_def, self.theme, self.options_def)
 
                 if json.dumps(self.segments_def, sort_keys=True) != seg_before:
                     segments_changed = True
                 if json.dumps(self.theme, sort_keys=True) != theme_before:
                     theme_changed = True
+                if json.dumps(self.options_def, sort_keys=True) != options_before:
+                    options_changed = True
 
                 highest_applied = max(highest_applied, migration["version"])
 
@@ -178,6 +202,8 @@ class ConfigManager:
             self._save_json(SEGMENTS_FILE, self.segments_def)
         if theme_changed:
             self._save_json(theme_file, self.theme)
+        if options_changed:
+            self._save_json(OPTIONS_FILE, self.options_def)
 
     @staticmethod
     def _deep_merge_missing(target: dict, defaults: dict) -> bool:
