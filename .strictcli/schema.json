@@ -36,7 +36,7 @@
   },
   "project_id": "claudewheel",
   "name": "c",
-  "version": "0.4.5",
+  "version": "0.5.0",
   "help": "claudewheel - TUI launcher for Claude Code",
   "commands": {
     "health": {
@@ -154,6 +154,26 @@
         {
           "name": "new",
           "help": "new directory path"
+        }
+      ]
+    },
+    "deploy-hooks": {
+      "name": "deploy-hooks",
+      "help": "deploy hook scripts to ~/.claudewheel/scripts/",
+      "flags": [
+        {
+          "name": "all",
+          "type": "bool",
+          "help": "deploy all known hook scripts",
+          "default": false,
+          "negatable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "name",
+          "help": "script name to deploy",
+          "required": false
         }
       ]
     },
