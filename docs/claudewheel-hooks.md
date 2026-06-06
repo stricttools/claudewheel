@@ -9,4 +9,4 @@ nav_order: 11
 
 # claudewheel.hooks
 
-:-: ref path="claudewheel.hooks"
+:-: ref path="claudewheel.hooks" lang="python"

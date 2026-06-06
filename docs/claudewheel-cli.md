@@ -9,4 +9,4 @@ nav_order: 4
 
 # claudewheel.cli
 
-:-: ref path="claudewheel.cli"
+:-: ref path="claudewheel.cli" lang="python"

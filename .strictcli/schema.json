@@ -14,6 +14,8 @@
       "env": null,
       "choices": null,
       "repeatable": false,
+      "unique": false,
+      "env_separator": null,
       "negatable": null,
       "hidden": false
     },

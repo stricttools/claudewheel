@@ -9,4 +9,4 @@ nav_order: 17
 
 # claudewheel.redir
 
-:-: ref path="claudewheel.redir"
+:-: ref path="claudewheel.redir" lang="python"

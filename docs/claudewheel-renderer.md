@@ -9,4 +9,4 @@ nav_order: 18
 
 # claudewheel.renderer
 
-:-: ref path="claudewheel.renderer"
+:-: ref path="claudewheel.renderer" lang="python"

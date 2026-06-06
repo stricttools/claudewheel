@@ -14,11 +14,11 @@ delete a registered profile and all associated data
 ## Flags
 
 | Name | Short | Type | Default | Env | Description |
-|------|-------|------|---------|-----|-------------|
+| --- | --- | --- | --- | --- | --- |
 | `--force` |  | bool |  |  | force deletion even if sessions appear active |
 
 ## Arguments
 
 | Name | Required | Description |
-|------|----------|-------------|
+| --- | --- | --- |
 | `name` | yes | profile name to delete |

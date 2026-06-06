@@ -9,4 +9,4 @@ nav_order: 3
 
 # claudewheel.app
 
-:-: ref path="claudewheel.app"
+:-: ref path="claudewheel.app" lang="python"

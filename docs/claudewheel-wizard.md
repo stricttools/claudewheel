@@ -9,4 +9,4 @@ nav_order: 23
 
 # claudewheel.wizard
 
-:-: ref path="claudewheel.wizard"
+:-: ref path="claudewheel.wizard" lang="python"

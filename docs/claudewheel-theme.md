@@ -9,4 +9,4 @@ nav_order: 22
 
 # claudewheel.theme
 
-:-: ref path="claudewheel.theme"
+:-: ref path="claudewheel.theme" lang="python"

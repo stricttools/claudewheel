@@ -9,4 +9,4 @@ nav_order: 5
 
 # claudewheel.config
 
-:-: ref path="claudewheel.config"
+:-: ref path="claudewheel.config" lang="python"

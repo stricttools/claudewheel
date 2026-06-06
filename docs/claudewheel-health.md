@@ -9,4 +9,4 @@ nav_order: 10
 
 # claudewheel.health
 
-:-: ref path="claudewheel.health"
+:-: ref path="claudewheel.health" lang="python"

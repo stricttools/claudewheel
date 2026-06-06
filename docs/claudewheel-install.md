@@ -9,4 +9,4 @@ nav_order: 12
 
 # claudewheel.install
 
-:-: ref path="claudewheel.install"
+:-: ref path="claudewheel.install" lang="python"

@@ -12,7 +12,7 @@ order: 91
 
 claudewheel - TUI launcher for Claude Code
 
-Version: 0.4.3
+Version: 0.4.5
 
 ## Commands
 

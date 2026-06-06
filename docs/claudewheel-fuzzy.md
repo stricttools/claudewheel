@@ -9,4 +9,4 @@ nav_order: 8
 
 # claudewheel.fuzzy
 
-:-: ref path="claudewheel.fuzzy"
+:-: ref path="claudewheel.fuzzy" lang="python"

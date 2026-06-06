@@ -9,4 +9,4 @@ nav_order: 7
 
 # claudewheel.defaults
 
-:-: ref path="claudewheel.defaults"
+:-: ref path="claudewheel.defaults" lang="python"

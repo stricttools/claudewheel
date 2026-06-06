@@ -14,7 +14,7 @@ migrate sessions between profiles
 ## Arguments
 
 | Name | Required | Description |
-|------|----------|-------------|
+| --- | --- | --- |
 | `src` | yes | source profile |
 | `dst` | yes | destination profile |
 | `uuid` | no | UUID substring filter |

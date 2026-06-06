@@ -9,4 +9,4 @@ nav_order: 9
 
 # claudewheel.gc
 
-:-: ref path="claudewheel.gc"
+:-: ref path="claudewheel.gc" lang="python"

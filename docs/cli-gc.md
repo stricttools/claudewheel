@@ -14,5 +14,5 @@ garbage-collect stale sentinels, compact origins, report stats
 ## Flags
 
 | Name | Short | Type | Default | Env | Description |
-|------|-------|------|---------|-----|-------------|
+| --- | --- | --- | --- | --- | --- |
 | `--dry-run` |  | bool |  |  | preview changes without writing |

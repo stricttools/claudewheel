@@ -9,4 +9,4 @@ nav_order: 19
 
 # claudewheel.segment
 
-:-: ref path="claudewheel.segment"
+:-: ref path="claudewheel.segment" lang="python"

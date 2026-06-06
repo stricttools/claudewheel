@@ -14,5 +14,5 @@ download and install a specific Claude Code version
 ## Arguments
 
 | Name | Required | Description |
-|------|----------|-------------|
+| --- | --- | --- |
 | `version` | yes | version to install |

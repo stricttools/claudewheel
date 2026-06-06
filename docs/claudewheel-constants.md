@@ -9,4 +9,4 @@ nav_order: 6
 
 # claudewheel.constants
 
-:-: ref path="claudewheel.constants"
+:-: ref path="claudewheel.constants" lang="python"

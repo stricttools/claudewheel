@@ -9,4 +9,4 @@ nav_order: 15
 
 # claudewheel.profile
 
-:-: ref path="claudewheel.profile"
+:-: ref path="claudewheel.profile" lang="python"

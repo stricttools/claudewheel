@@ -9,4 +9,4 @@ nav_order: 14
 
 # claudewheel.migrate
 
-:-: ref path="claudewheel.migrate"
+:-: ref path="claudewheel.migrate" lang="python"

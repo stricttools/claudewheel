@@ -14,5 +14,5 @@ delete an installed Claude Code version
 ## Arguments
 
 | Name | Required | Description |
-|------|----------|-------------|
+| --- | --- | --- |
 | `version` | yes | version to uninstall |

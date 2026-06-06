@@ -14,12 +14,12 @@ redirect session data after a project directory rename
 ## Flags
 
 | Name | Short | Type | Default | Env | Description |
-|------|-------|------|---------|-----|-------------|
+| --- | --- | --- | --- | --- | --- |
 | `--dry-run` |  | bool |  |  | preview changes without writing |
 
 ## Arguments
 
 | Name | Required | Description |
-|------|----------|-------------|
+| --- | --- | --- |
 | `old` | yes | old directory path |
 | `new` | yes | new directory path |

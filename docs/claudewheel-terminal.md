@@ -9,4 +9,4 @@ nav_order: 21
 
 # claudewheel.terminal
 
-:-: ref path="claudewheel.terminal"
+:-: ref path="claudewheel.terminal" lang="python"
