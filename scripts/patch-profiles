@@ -7,6 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from claudewheel.defaults import DISALLOWED_TOOLS
+from claudewheel.discovery import discover_profiles
 
 
 def patch_profile(name: str, profile_dir: Path) -> bool:
@@ -85,31 +86,22 @@ def patch_options_json() -> bool:
 
 
 def main() -> None:
-    home = Path.home()
-    profiles = []
-    for entry in sorted(home.iterdir()):
-        if (
-            entry.is_dir()
-            and entry.name.startswith(".claude-")
-            and (entry / ".credentials.json").exists()
-        ):
-            name = entry.name[len(".claude-"):]
-            profiles.append((name, entry))
+    found = discover_profiles()
 
-    if not profiles:
+    if not found:
         print("No profiles found.")
         sys.exit(0)
 
-    print(f"Found {len(profiles)} profile(s):\n")
+    print(f"Found {len(found)} profile(s):\n")
     patched = 0
-    for name, pdir in profiles:
-        if patch_profile(name, pdir):
+    for info in found:
+        if patch_profile(info.name, info.path):
             patched += 1
 
     print(f"\nPatching options.json:\n")
     patch_options_json()
 
-    print(f"\nDone: {patched}/{len(profiles)} profile(s) patched.")
+    print(f"\nDone: {patched}/{len(found)} profile(s) patched.")
 
 
 if __name__ == "__main__":
