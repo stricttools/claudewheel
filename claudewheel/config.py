@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import json
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from .constants import (
@@ -14,6 +15,8 @@ from .constants import (
     STATE_FILE,
     THEMES_DIR,
     HOOKS_DIR,
+    SHARED_DIR,
+    COMMON_DIR,
 )
 from .defaults import (
     DEFAULT_CONFIG,
@@ -93,6 +96,30 @@ class ConfigManager:
         self.theme = self._load_json(theme_file, theme_default)
         self._migrate(theme_file, theme_default)
         self._run_versioned_migrations(theme_file)
+        self._warn_old_profile_dirs()
+
+    @staticmethod
+    def _warn_old_profile_dirs() -> None:
+        """Print a warning if old-style ~/.claude-<name>/ profile dirs exist."""
+        home = Path.home()
+        skip = {SHARED_DIR.name, COMMON_DIR.name, ".claude"}
+        old_dirs: list[str] = []
+        try:
+            for entry in sorted(home.iterdir()):
+                if not entry.is_dir() or not entry.name.startswith(".claude-"):
+                    continue
+                if entry.name in skip:
+                    continue
+                old_dirs.append(f"~/{entry.name}")
+        except OSError:
+            return
+        if old_dirs:
+            dirs_str = ", ".join(old_dirs)
+            print(
+                f"Warning: Found old-style profile directories: {dirs_str}. "
+                "Move them to ~/.claudewheel/profiles/<name>/ and delete the originals.",
+                file=sys.stderr,
+            )
 
     def _ensure_dir(self):
         """Create config directories and write default files on first run."""
