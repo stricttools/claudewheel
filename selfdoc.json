@@ -25,5 +25,6 @@
   "deploy": {
     "provider": "cloudflare-pages",
     "project": "claudewheel"
-  }
+  },
+  "root_files": ["docs/_CLAUDE.md", "docs/_README.md"]
 }
