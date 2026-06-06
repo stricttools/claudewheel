@@ -9,7 +9,7 @@ import strictcli
 from strictcli import App, Arg, Flag, Tag
 
 from . import __version__
-from .constants import LAUNCHER_DIR, OPTIONS_FILE, VERSIONS_DIR, CLAUDE_SYMLINK
+from .constants import CONFIG_DIR, OPTIONS_FILE, VERSIONS_DIR, CLAUDE_SYMLINK
 from .segment import version_sort_key
 
 # Passthrough args after "--" are stashed here by main() before strictcli sees argv.
@@ -167,7 +167,7 @@ def _handle_health() -> int:
 
 def _handle_config() -> int:
     editor = os.environ.get("EDITOR", os.environ.get("VISUAL", "vi"))
-    os.execlp(editor, editor, str(LAUNCHER_DIR))
+    os.execlp(editor, editor, str(CONFIG_DIR))
     return 0
 
 

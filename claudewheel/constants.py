@@ -5,14 +5,14 @@ from pathlib import Path
 
 # --- Path Constants ---
 
-LAUNCHER_DIR = Path.home() / ".claudewheel"
-CONFIG_FILE = LAUNCHER_DIR / "config.json"
-SEGMENTS_FILE = LAUNCHER_DIR / "segments.json"
-OPTIONS_FILE = LAUNCHER_DIR / "options.json"
-STATE_FILE = LAUNCHER_DIR / "state.json"
-THEMES_DIR = LAUNCHER_DIR / "themes"
-HOOKS_DIR = LAUNCHER_DIR / "hooks"
-TOKENS_FILE = LAUNCHER_DIR / "tokens.json"
+CONFIG_DIR = Path.home() / ".claudewheel"
+CONFIG_FILE = CONFIG_DIR / "config.json"
+SEGMENTS_FILE = CONFIG_DIR / "segments.json"
+OPTIONS_FILE = CONFIG_DIR / "options.json"
+STATE_FILE = CONFIG_DIR / "state.json"
+THEMES_DIR = CONFIG_DIR / "themes"
+HOOKS_DIR = CONFIG_DIR / "hooks"
+TOKENS_FILE = CONFIG_DIR / "tokens.json"
 
 COMMON_DIR = Path.home() / ".claude-common"
 SHARED_DIR = Path.home() / ".claude-shared"

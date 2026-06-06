@@ -7,7 +7,7 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from .constants import (
-    LAUNCHER_DIR,
+    CONFIG_DIR,
     CONFIG_FILE,
     SEGMENTS_FILE,
     OPTIONS_FILE,
@@ -76,7 +76,7 @@ class ConfigManager:
 
     def _ensure_dir(self):
         """Create config directories and write default files on first run."""
-        LAUNCHER_DIR.mkdir(exist_ok=True)
+        CONFIG_DIR.mkdir(exist_ok=True)
         THEMES_DIR.mkdir(exist_ok=True)
         HOOKS_DIR.mkdir(exist_ok=True)
         for path, default in [

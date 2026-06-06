@@ -94,15 +94,15 @@ class CreateProfileTestBase(unittest.TestCase):
         _init_launcher_dir(self.launcher_dir)
 
         self._patches = [
-            mock.patch.object(config_mod, "LAUNCHER_DIR", self.launcher_dir),
+            mock.patch.object(config_mod, "CONFIG_DIR", self.launcher_dir),
             mock.patch.object(config_mod, "CONFIG_FILE", self.launcher_dir / "config.json"),
             mock.patch.object(config_mod, "SEGMENTS_FILE", self.launcher_dir / "segments.json"),
             mock.patch.object(config_mod, "OPTIONS_FILE", self.launcher_dir / "options.json"),
             mock.patch.object(config_mod, "STATE_FILE", self.launcher_dir / "state.json"),
             mock.patch.object(config_mod, "THEMES_DIR", self.launcher_dir / "themes"),
             mock.patch.object(config_mod, "HOOKS_DIR", self.launcher_dir / "hooks"),
-            # wizard.py imports LAUNCHER_DIR directly for profile-defaults.json
-            mock.patch.object(wizard_mod, "LAUNCHER_DIR", self.launcher_dir),
+            # wizard.py imports CONFIG_DIR directly for profile-defaults.json
+            mock.patch.object(wizard_mod, "CONFIG_DIR", self.launcher_dir),
         ]
         for p in self._patches:
             p.start()

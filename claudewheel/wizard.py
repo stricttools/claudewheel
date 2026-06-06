@@ -10,7 +10,7 @@ from pathlib import Path
 from .constants import (
     CLEAR_SCREEN, CLEAR_LINE, RESET, BOLD, DIM,
     ALT_SCREEN_ON, ALT_SCREEN_OFF, HIDE_CURSOR, SHOW_CURSOR,
-    COMMON_DIR, LAUNCHER_DIR, PROFILE_SHARED_DIRS, SHARED_DIR,
+    COMMON_DIR, CONFIG_DIR, PROFILE_SHARED_DIRS, SHARED_DIR,
     move_to, fg_rgb,
 )
 from .config import ConfigManager
@@ -276,7 +276,7 @@ def create_profile(result: WizardResult, cfg: ConfigManager) -> None:
                 pass
     else:
         # Use defaults template if available, otherwise minimal
-        defaults_file = LAUNCHER_DIR / "profile-defaults.json"
+        defaults_file = CONFIG_DIR / "profile-defaults.json"
         if defaults_file.exists():
             try:
                 settings = json.loads(defaults_file.read_text())

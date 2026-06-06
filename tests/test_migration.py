@@ -125,7 +125,7 @@ def _setup_temp_config_dir(
     _write_json(theme_file, theme if theme is not None else DEFAULT_THEME_DARK)
 
     return {
-        "LAUNCHER_DIR": launcher_dir,
+        "CONFIG_DIR": launcher_dir,
         "CONFIG_FILE": config_file,
         "SEGMENTS_FILE": segments_file,
         "OPTIONS_FILE": options_file,
