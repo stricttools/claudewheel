@@ -4,6 +4,7 @@
     "pypi"
   ],
   "private": false,
+  "push_timeout": 120,
   "pipelines": {
     "npm": {"type": "npm", "local": false},
     "pypi": {"type": "pypi", "local": false},
