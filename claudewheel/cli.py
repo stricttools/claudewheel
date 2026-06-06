@@ -327,6 +327,7 @@ def _handle_launch(
     # Collect segment value overrides from individual flags.
     # Empty string means "not provided" (strictcli default for optional str flags).
     segment_overrides: dict[str, str] = {}
+    segment_sources: dict[str, str] = {}
     flag_values = {
         "profile": profile, "github": github, "model": model,
         "directory": directory, "mcp": mcp, "permissions": permissions,
@@ -335,8 +336,9 @@ def _handle_launch(
         val = flag_values.get(key)
         if val:
             segment_overrides[key] = val
+            segment_sources[key] = f"--{key}"
 
-    # Merge -s key=value overrides (these take precedence over individual flags)
+    # Merge -s key=value overrides; duplicates from ANY source are rejected.
     for item in set:
         if "=" not in item:
             print(f"Invalid -s format: {item!r} (expected KEY=VALUE)", file=sys.stderr)
@@ -345,7 +347,17 @@ def _handle_launch(
         if key not in segment_keys:
             print(f"Unknown segment: {key!r} (available: {', '.join(segment_keys)})", file=sys.stderr)
             sys.exit(1)
+        if key in segment_overrides:
+            prior_value = segment_overrides[key]
+            prior_source = segment_sources[key]
+            print(
+                f"Duplicate segment override for {key!r}: "
+                f"{prior_value!r} (from {prior_source}) and {value!r} (from -s)",
+                file=sys.stderr,
+            )
+            sys.exit(1)
         segment_overrides[key] = value
+        segment_sources[key] = "-s"
 
     # Default directory to cwd if not explicitly set
     if "directory" in segment_keys and "directory" not in segment_overrides:
@@ -500,7 +512,7 @@ def _build_app() -> App:
              help="preset value for the MCP segment"),
         Flag(name="permissions", type=str, default="",
              help="preset value for the Perms segment"),
-        Flag(name="set", short="s", type=str, repeatable=True,
+        Flag(name="set", short="s", type=str, repeatable=True, unique=False,
              help="set a segment value (e.g. -s version=2.1.119)"),
     ])
 
