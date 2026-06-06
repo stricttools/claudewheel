@@ -22,7 +22,7 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 - **claudewheel.__main__** (`claudewheel/__main__.py`): Entry point for `python -m claudewheel` invocation.
 - **claudewheel.app** (`claudewheel/app.py`): TUI event loop, keyboard dispatch, and segment interaction.
 - **claudewheel.cli** (`claudewheel/cli.py`): CLI argument parsing, subcommand routing, and launch orchestration.
-- **claudewheel.config** (`claudewheel/config.py`): Load, save, and migrate JSON config files from ~/.claudewheel/.
+- **claudewheel.config** (`claudewheel/config.py`): Config loading, saving, and schema migration system.
 - **claudewheel.constants** (`claudewheel/constants.py`): Filesystem paths, ANSI escape sequences, and terminal color helpers.
 - **claudewheel.defaults** (`claudewheel/defaults.py`): Default values for config, segments, options, state, and themes.
 - **claudewheel.discovery** (`claudewheel/discovery.py`): Scan the filesystem for Claude Code profiles and their credentials.
