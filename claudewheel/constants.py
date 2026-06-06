@@ -5,7 +5,7 @@ from pathlib import Path
 
 # --- Path Constants ---
 
-LAUNCHER_DIR = Path.home() / ".claudelauncher"
+LAUNCHER_DIR = Path.home() / ".claudewheel"
 CONFIG_FILE = LAUNCHER_DIR / "config.json"
 SEGMENTS_FILE = LAUNCHER_DIR / "segments.json"
 OPTIONS_FILE = LAUNCHER_DIR / "options.json"

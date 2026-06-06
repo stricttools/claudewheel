@@ -36,8 +36,8 @@ class _ProfileOpsTestCase(unittest.TestCase):
         self._patcher_home = patch.object(Path, "home", return_value=self.home)
         self._patcher_home.start()
 
-        # Set up .claudelauncher/ for options and tokens
-        self.launcher_dir = self.home / ".claudelauncher"
+        # Set up .claudewheel/ for options and tokens
+        self.launcher_dir = self.home / ".claudewheel"
         self.launcher_dir.mkdir()
         self.options_file = self.launcher_dir / "options.json"
         self.tokens_file = self.launcher_dir / "tokens.json"

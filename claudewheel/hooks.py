@@ -12,7 +12,7 @@ from .constants import HOOKS_DIR
 def run_hooks(stage: str, selections: dict[str, str | None]) -> bool:
     """Run hook scripts for a given stage. Returns True if all pass.
 
-    Scans ~/.claudelauncher/hooks/ for executable files whose names start
+    Scans ~/.claudewheel/hooks/ for executable files whose names start
     with the stage prefix (e.g. "pre-launch"). Passes current selections
     as CL_PROFILE, CL_GITHUB, etc. environment variables.
 

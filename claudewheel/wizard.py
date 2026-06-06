@@ -10,6 +10,7 @@ from pathlib import Path
 from .constants import (
     CLEAR_SCREEN, CLEAR_LINE, RESET, BOLD, DIM,
     ALT_SCREEN_ON, ALT_SCREEN_OFF, HIDE_CURSOR, SHOW_CURSOR,
+    LAUNCHER_DIR,
     move_to, fg_rgb,
 )
 from .config import ConfigManager
@@ -275,7 +276,7 @@ def create_profile(result: WizardResult, cfg: ConfigManager) -> None:
                 pass
     else:
         # Use defaults template if available, otherwise minimal
-        defaults_file = Path.home() / ".claudelauncher" / "profile-defaults.json"
+        defaults_file = LAUNCHER_DIR / "profile-defaults.json"
         if defaults_file.exists():
             try:
                 settings = json.loads(defaults_file.read_text())

@@ -90,7 +90,7 @@ class CreateProfileTestBase(unittest.TestCase):
         self.addCleanup(self._restore_home)
 
         # Patch the module-level path constants used by ConfigManager
-        self.launcher_dir = self.fake_home / ".claudelauncher"
+        self.launcher_dir = self.fake_home / ".claudewheel"
         _init_launcher_dir(self.launcher_dir)
 
         self._patches = [
@@ -101,6 +101,8 @@ class CreateProfileTestBase(unittest.TestCase):
             mock.patch.object(config_mod, "STATE_FILE", self.launcher_dir / "state.json"),
             mock.patch.object(config_mod, "THEMES_DIR", self.launcher_dir / "themes"),
             mock.patch.object(config_mod, "HOOKS_DIR", self.launcher_dir / "hooks"),
+            # wizard.py imports LAUNCHER_DIR directly for profile-defaults.json
+            mock.patch.object(wizard_mod, "LAUNCHER_DIR", self.launcher_dir),
         ]
         for p in self._patches:
             p.start()

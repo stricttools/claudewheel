@@ -267,7 +267,7 @@ def check_settings_defaults() -> HealthResult:
 
 def check_token_expiry() -> HealthResult:
     """Warn if any token is approaching 1-year expiry (setup-token TTL)."""
-    tokens_file = Path.home() / ".claudelauncher" / "tokens.json"
+    tokens_file = TOKENS_FILE
     if not tokens_file.exists():
         return HealthResult(True, "token-expiry", "no tokens.json")
     try:
@@ -304,8 +304,8 @@ def check_token_expiry() -> HealthResult:
 
 
 def check_tokens() -> HealthResult:
-    """Verify each profile has a matching entry in ~/.claudelauncher/tokens.json."""
-    tokens_file = Path.home() / ".claudelauncher" / "tokens.json"
+    """Verify each profile has a matching entry in ~/.claudewheel/tokens.json."""
+    tokens_file = TOKENS_FILE
     if not tokens_file.exists():
         return HealthResult(True, "tokens", "tokens.json not found")
 
@@ -397,7 +397,7 @@ def check_file_permissions() -> HealthResult:
             mode = oct(creds.stat().st_mode & 0o777)
             if mode != "0o600":
                 issues.append(f"{name}/.credentials.json is {mode}")
-    tokens_file = Path.home() / ".claudelauncher" / "tokens.json"
+    tokens_file = TOKENS_FILE
     if tokens_file.exists():
         mode = oct(tokens_file.stat().st_mode & 0o777)
         if mode != "0o600":

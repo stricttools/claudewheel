@@ -29,7 +29,7 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 
 ## Config system
 
-- Config files live in `~/.claudelauncher/` (config.json, segments.json, options.json, state.json, themes/)
+- Config files live in `~/.claudewheel/` (config.json, segments.json, options.json, state.json, themes/)
 - On startup, `_migrate()` adds missing keys from DEFAULT_* without overwriting user values
 - `_run_versioned_migrations()` applies one-time value fixes keyed by `_schema_version` in config.json
 - New migrations go in the `_MIGRATIONS` list in config.py with an incremented version number

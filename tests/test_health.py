@@ -97,7 +97,7 @@ class DiscoverProfilesTests(_HomeDirTestCase):
         # Dir exists but has no .credentials.json
         (self.home / ".claude-work").mkdir()
         # Write tokens.json with a key for "work"
-        tokens_dir = self.home / ".claudelauncher"
+        tokens_dir = self.home / ".claudewheel"
         tokens_dir.mkdir(parents=True, exist_ok=True)
         tokens_file = tokens_dir / "tokens.json"
         tokens_file.write_text(json.dumps({"work": "tok-abc"}))
@@ -110,7 +110,7 @@ class DiscoverProfilesTests(_HomeDirTestCase):
         """Token-backed profiles are merged with credential-based ones and sorted."""
         self._make_profile("beta")
         (self.home / ".claude-alpha").mkdir()
-        tokens_dir = self.home / ".claudelauncher"
+        tokens_dir = self.home / ".claudewheel"
         tokens_dir.mkdir(parents=True, exist_ok=True)
         tokens_file = tokens_dir / "tokens.json"
         tokens_file.write_text(json.dumps({"alpha": "tok-a"}))
@@ -450,11 +450,22 @@ class CheckSettingsDefaultsTests(_HomeDirTestCase):
 class CheckTokensTests(_HomeDirTestCase):
     """Tests for check_tokens()."""
 
+    def setUp(self) -> None:
+        super().setUp()
+        # check_tokens() uses the module-level TOKENS_FILE constant (computed at
+        # import time), so we redirect it at the temp home's .claudewheel/tokens.json.
+        self._tokens_file = self.home / ".claudewheel" / "tokens.json"
+        self._tokens_patcher = patch("claudewheel.health.TOKENS_FILE", self._tokens_file)
+        self._tokens_patcher.start()
+
+    def tearDown(self) -> None:
+        self._tokens_patcher.stop()
+        super().tearDown()
+
     def _write_tokens(self, tokens: dict) -> None:
-        """Write tokens.json in the temp home's .claudelauncher/ dir."""
-        tokens_dir = self.home / ".claudelauncher"
-        tokens_dir.mkdir(parents=True, exist_ok=True)
-        (tokens_dir / "tokens.json").write_text(json.dumps(tokens))
+        """Write tokens.json in the temp home's .claudewheel/ dir."""
+        self._tokens_file.parent.mkdir(parents=True, exist_ok=True)
+        self._tokens_file.write_text(json.dumps(tokens))
 
     def test_ok_when_all_profiles_have_tokens(self) -> None:
         """Returns OK when every profile has a matching token entry."""
@@ -518,7 +529,7 @@ class CheckOrphanProfilesTests(_HomeDirTestCase):
 
     def _write_options(self, profile_values: list[str]) -> None:
         """Write a minimal options.json with the given profile values."""
-        options_dir = self.home / ".claudelauncher"
+        options_dir = self.home / ".claudewheel"
         options_dir.mkdir(parents=True, exist_ok=True)
         options = {"profile": {"values": profile_values}}
         (options_dir / "options.json").write_text(json.dumps(options))
@@ -528,7 +539,7 @@ class CheckOrphanProfilesTests(_HomeDirTestCase):
         self._make_profile("alpha")
         self._write_options(["alpha"])
         with patch("claudewheel.health.OPTIONS_FILE",
-                    self.home / ".claudelauncher" / "options.json"):
+                    self.home / ".claudewheel" / "options.json"):
             result = check_orphan_profiles()
         self.assertTrue(result.ok)
         self.assertIn("no orphan", result.detail)
@@ -541,7 +552,7 @@ class CheckOrphanProfilesTests(_HomeDirTestCase):
         orphan.mkdir()
         self._write_options(["known"])
         with patch("claudewheel.health.OPTIONS_FILE",
-                    self.home / ".claudelauncher" / "options.json"):
+                    self.home / ".claudewheel" / "options.json"):
             result = check_orphan_profiles()
         self.assertFalse(result.ok)
         self.assertIn("stale", result.detail)
@@ -552,7 +563,7 @@ class CheckOrphanProfilesTests(_HomeDirTestCase):
         (self.home / ".claude-common").mkdir()
         self._write_options([])
         with patch("claudewheel.health.OPTIONS_FILE",
-                    self.home / ".claudelauncher" / "options.json"):
+                    self.home / ".claudewheel" / "options.json"):
             result = check_orphan_profiles()
         self.assertTrue(result.ok)
 
@@ -562,7 +573,7 @@ class CheckOrphanProfilesTests(_HomeDirTestCase):
         (self.home / ".claude-pending").mkdir()
         self._write_options(["pending"])
         with patch("claudewheel.health.OPTIONS_FILE",
-                    self.home / ".claudelauncher" / "options.json"):
+                    self.home / ".claudewheel" / "options.json"):
             result = check_orphan_profiles()
         self.assertTrue(result.ok)
 
@@ -574,7 +585,7 @@ class CheckOrphanProfilesTests(_HomeDirTestCase):
         (orphan / "projects").symlink_to(self.home / "nonexistent")
         self._write_options([])
         with patch("claudewheel.health.OPTIONS_FILE",
-                    self.home / ".claudelauncher" / "options.json"):
+                    self.home / ".claudewheel" / "options.json"):
             result = check_orphan_profiles()
         self.assertFalse(result.ok)
         self.assertIn("broken", result.detail.lower())
@@ -585,7 +596,7 @@ class CheckOrphanProfilesTests(_HomeDirTestCase):
         self._make_profile("real")
         self._write_options([])  # not in options, but has credentials
         with patch("claudewheel.health.OPTIONS_FILE",
-                    self.home / ".claudelauncher" / "options.json"):
+                    self.home / ".claudewheel" / "options.json"):
             result = check_orphan_profiles()
         self.assertTrue(result.ok)
 
@@ -593,13 +604,13 @@ class CheckOrphanProfilesTests(_HomeDirTestCase):
         """A .claude-* dir with an entry in tokens.json is not orphan."""
         (self.home / ".claude-work").mkdir()
         self._write_options([])
-        tokens_dir = self.home / ".claudelauncher"
+        tokens_dir = self.home / ".claudewheel"
         tokens_dir.mkdir(parents=True, exist_ok=True)
         (tokens_dir / "tokens.json").write_text(json.dumps({"work": "tok-abc123"}))
         with patch("claudewheel.health.OPTIONS_FILE",
-                    self.home / ".claudelauncher" / "options.json"), \
+                    self.home / ".claudewheel" / "options.json"), \
              patch("claudewheel.health.TOKENS_FILE",
-                    self.home / ".claudelauncher" / "tokens.json"):
+                    self.home / ".claudewheel" / "tokens.json"):
             result = check_orphan_profiles()
         self.assertTrue(result.ok)
 

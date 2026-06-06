@@ -11,7 +11,7 @@ TUI launcher for Claude Code with profile, GitHub account, version, model, direc
 ./c --help     # show all flags
 ```
 
-The first run creates `~/.claudelauncher/` populated with defaults (config, segments, options, themes).
+The first run creates `~/.claudewheel/` populated with defaults (config, segments, options, themes).
 
 Requirements: Python 3.14+ on the `PATH`. No third-party packages.
 
@@ -67,7 +67,7 @@ c --install 2.1.119        # download and install a Claude Code binary from GCS
 c --uninstall 2.1.104      # remove an installed binary (refuses if it is the current symlink target)
 c --reset-options          # delete options.json so defaults regenerate next run
 c --show                   # print last_config, theme, default flags, recent dirs
-c --config                 # open ~/.claudelauncher/ in $EDITOR
+c --config                 # open ~/.claudewheel/ in $EDITOR
 c --health                 # run pre-launch health checks and exit
 c --new-profile            # interactive wizard to create a new Claude Code profile
 c --migrate SRC DST        # migrate session artifacts between profiles
@@ -108,7 +108,7 @@ c -p "explain auth.py" -- --output-format json --allowedTools "Read,Bash"
 
 ## Config directory
 
-`~/.claudelauncher/` layout:
+`~/.claudewheel/` layout:
 
 | Path             | Purpose                                                     | Auto-written?     |
 |------------------|-------------------------------------------------------------|-------------------|
@@ -125,11 +125,11 @@ On startup, missing keys from the current defaults are merged into existing file
 
 ## Hooks
 
-Drop an executable script into `~/.claudelauncher/hooks/` whose name starts with `pre-launch` (e.g. `pre-launch-token-refresh`). It runs immediately before `exec`, with the chosen segment values exported as `CL_<KEY>` environment variables:
+Drop an executable script into `~/.claudewheel/hooks/` whose name starts with `pre-launch` (e.g. `pre-launch-token-refresh`). It runs immediately before `exec`, with the chosen segment values exported as `CL_<KEY>` environment variables:
 
 ```bash
 #!/usr/bin/env bash
-# ~/.claudelauncher/hooks/pre-launch-warn-work
+# ~/.claudewheel/hooks/pre-launch-warn-work
 if [[ "$CL_PROFILE" == "work" && "$CL_DIRECTORY" == "$HOME/Projects/personal-thing" ]]; then
     echo "Refusing to use the work profile on a personal project." >&2
     exit 1
@@ -141,12 +141,12 @@ A nonzero exit aborts the launch (and prevents `launch_count` from being increme
 ## Adding new options
 
 - **Profile / GitHub / Model**: cycle the segment to its `+` sentinel, press Enter, type the new value. It is appended to `options.json` under the segment's `values` list and selected.
-- **Direct edit**: open `~/.claudelauncher/options.json` and add to the relevant segment's `values` array. For profiles you also need a `metadata.<name>.config_dir` entry.
+- **Direct edit**: open `~/.claudewheel/options.json` and add to the relevant segment's `values` array. For profiles you also need a `metadata.<name>.config_dir` entry.
 - **Install a Claude Code version**: run `c --install <version>` or pick a not-yet-installed version in the TUI and confirm the install prompt. Binaries land in `~/.local/share/claude/versions/<version>`.
 
 ## Themes
 
-Two themes ship with the launcher: `dark.json` and `light.json` in `~/.claudelauncher/themes/`. Switch by setting `theme` in `config.json` to the file's basename. Themes define per-segment foreground / focus / option / unavailable colours and the search highlight palette. Add a new theme by writing another `themes/<name>.json` and pointing `config.json` at it.
+Two themes ship with the launcher: `dark.json` and `light.json` in `~/.claudewheel/themes/`. Switch by setting `theme` in `config.json` to the file's basename. Themes define per-segment foreground / focus / option / unavailable colours and the search highlight palette. Add a new theme by writing another `themes/<name>.json` and pointing `config.json` at it.
 
 Themes also include an `overflow` section for viewport chrome:
 

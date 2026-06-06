@@ -87,7 +87,7 @@ class DeepMergeTests(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Helper: set up a temp dir that mimics ~/.claudelauncher
+# Helper: set up a temp dir that mimics ~/.claudewheel
 # ---------------------------------------------------------------------------
 
 
@@ -105,7 +105,7 @@ def _setup_temp_config_dir(
     Any parameter left as None gets a sensible default that won't cause
     ConfigManager.__post_init__ to error.
     """
-    launcher_dir = tmp / "claudelauncher"
+    launcher_dir = tmp / "claudewheel"
     themes_dir = launcher_dir / "themes"
     hooks_dir = launcher_dir / "hooks"
     launcher_dir.mkdir(parents=True, exist_ok=True)
