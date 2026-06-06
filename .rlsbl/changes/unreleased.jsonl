@@ -4,3 +4,4 @@
 {"commits":["8a0270a64746310b7b913930210e5df0d9484457"],"user_facing":false}
 {"commits":["c4bdb205fe1ef48b0766fcf41a40fd11e653173a"],"user_facing":false}
 {"commits":["1db325de4f7f2b299488b5be1398db13b5ee5a78"],"user_facing":true,"description":"Config directory renamed from `~/.claudelauncher/` to `~/.claudewheel/`. Run `mv ~/.claudelauncher ~/.claudewheel` before upgrading or claudewheel will scaffold a fresh empty dir on next launch.","type":"breaking"}
+{"commits":["9b523f2cca9a75045881f5d3b59ed68d41bcb9bf"],"user_facing":true,"description":"Fix startup crash from strictcli guardrail; `-s` now errors on duplicate segment keys (including conflicts between an individual segment flag and `-s`) instead of silently dropping the earlier value.","type":"fix"}
