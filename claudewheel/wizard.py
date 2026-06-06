@@ -10,11 +10,12 @@ from pathlib import Path
 from .constants import (
     CLEAR_SCREEN, CLEAR_LINE, RESET, BOLD, DIM,
     ALT_SCREEN_ON, ALT_SCREEN_OFF, HIDE_CURSOR, SHOW_CURSOR,
-    COMMON_DIR, CONFIG_DIR, PROFILES_DIR, PROFILE_SHARED_DIRS, SCRIPTS_DIR, SHARED_DIR,
+    COMMON_DIR, CONFIG_DIR, PROFILES_DIR, PROFILE_SHARED_DIRS, SCRIPTS_DIR,
+    SHARED_DIR, SHARED_SETTINGS_FILE,
     move_to, fg_rgb,
 )
 from .config import ConfigManager
-from .defaults import DISALLOWED_TOOLS
+from .defaults import DISALLOWED_TOOLS, build_canonical_shared_settings
 from .terminal import Terminal
 
 # Color constants
@@ -243,17 +244,14 @@ def run_profile_wizard(existing_profiles: list[str]) -> WizardResult:
         term.exit_raw()
 
 
-_HOOKS_TEMPLATE = {
-    "UserPromptSubmit": [
-        {
-            "matcher": "",
-            "hooks": [
-                {"type": "command", "command": str(SCRIPTS_DIR / "hook-timestamp")},
-                {"type": "command", "command": str(SCRIPTS_DIR / "hook-stamp-origin")},
-            ],
-        }
-    ]
-}
+def _load_shared_settings() -> dict:
+    """Load shared-settings.json, falling back to canonical defaults if missing."""
+    if SHARED_SETTINGS_FILE.exists():
+        try:
+            return json.loads(SHARED_SETTINGS_FILE.read_text())
+        except (json.JSONDecodeError, OSError):
+            pass
+    return build_canonical_shared_settings(SCRIPTS_DIR)
 
 
 def create_profile(result: WizardResult, cfg: ConfigManager) -> None:
@@ -291,12 +289,16 @@ def create_profile(result: WizardResult, cfg: ConfigManager) -> None:
     if result.disable_attribution:
         settings["attribution"] = {"commit": "", "pr": ""}
 
+    # Load canonical shared settings
+    shared = _load_shared_settings()
+
     # Disable auto mode
     settings.setdefault("permissions", {})["disableAutoMode"] = "disable"
     # Record which tools claudewheel manages (enforcement is via --disallowedTools CLI flag in launch.py)
-    settings.setdefault("claudewheel", {})["disallowedTools"] = DISALLOWED_TOOLS[:]
+    settings.setdefault("claudewheel", {})["disallowedTools"] = shared.get("disallowedTools", DISALLOWED_TOOLS[:])
 
     # Wire hooks — merge into existing hooks if cloned
+    canonical_hooks = shared.get("hooks", {})
     if result.wire_hooks:
         existing_hooks = settings.get("hooks", {}).get("UserPromptSubmit", [])
         if existing_hooks:
@@ -306,14 +308,14 @@ def create_profile(result: WizardResult, cfg: ConfigManager) -> None:
                 for h in entry.get("hooks", []):
                     all_cmds.add(h.get("command", ""))
             # Append missing wanted hooks to the first entry's hook list
-            wanted = _HOOKS_TEMPLATE["UserPromptSubmit"][0]["hooks"]
+            wanted = canonical_hooks.get("UserPromptSubmit", [{}])[0].get("hooks", [])
             first_hooks = existing_hooks[0].setdefault("hooks", [])
             for h in wanted:
                 if h["command"] not in all_cmds:
                     first_hooks.append(h)
             settings.setdefault("hooks", {})["UserPromptSubmit"] = existing_hooks
         else:
-            settings["hooks"] = _HOOKS_TEMPLATE
+            settings["hooks"] = canonical_hooks
 
     # Write settings.json
     settings_path = config_dir / "settings.json"
