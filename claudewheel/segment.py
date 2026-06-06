@@ -246,7 +246,7 @@ def discover_options(options_def: dict, state: dict) -> dict[str, list[str]]:
                         if p.name == "default":
                             metadata["default"] = {"config_dir": "~/.claude"}
                         else:
-                            metadata[p.name] = {"config_dir": f"~/.claude-{p.name}"}
+                            metadata[p.name] = {"config_dir": f"~/.claudewheel/profiles/{p.name}"}
                     opt["metadata"] = metadata
                 case "gh_auth":
                     # Discover GitHub accounts from gh CLI auth status

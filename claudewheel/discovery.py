@@ -6,7 +6,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-from .constants import COMMON_DIR, SHARED_DIR, TOKENS_FILE
+from .constants import PROFILES_DIR, TOKENS_FILE
 
 
 @dataclass
@@ -22,15 +22,14 @@ class ProfileInfo:
 def discover_profiles() -> list[ProfileInfo]:
     """Discover all Claude Code profiles on this machine.
 
-    Scans ~/ for .claude-*/ directories, skipping .claude-shared and
-    .claude-common. Also checks bare ~/.claude/ as the "default" profile.
-    A directory qualifies as a profile if it has .credentials.json or has
-    a matching entry in tokens.json.
+    Scans ~/.claudewheel/profiles/ for subdirectories. Also checks bare
+    ~/.claude/ as the "default" profile (Claude Code's built-in default,
+    not a claudewheel profile). A directory qualifies as a profile if it
+    has .credentials.json or has a matching entry in tokens.json.
 
     Returns a sorted list of ProfileInfo.
     """
     home = Path.home()
-    skip_names = {SHARED_DIR.name, COMMON_DIR.name}
     profiles: list[ProfileInfo] = []
     found_names: set[str] = set()
 
@@ -43,22 +42,21 @@ def discover_profiles() -> list[ProfileInfo]:
         ))
         found_names.add("default")
 
-    # Scan ~/.claude-* directories
-    for entry in sorted(home.iterdir()):
-        if not entry.is_dir() or not entry.name.startswith(".claude-"):
-            continue
-        if entry.name in skip_names:
-            continue
-        name = entry.name[len(".claude-"):]
-        if not name:
-            continue
-        has_credentials = (entry / ".credentials.json").exists()
-        if has_credentials:
-            profiles.append(ProfileInfo(
-                name=name, path=entry,
-                has_credentials=True, has_token=False,
-            ))
-            found_names.add(name)
+    # Scan ~/.claudewheel/profiles/ subdirectories
+    if PROFILES_DIR.is_dir():
+        for entry in sorted(PROFILES_DIR.iterdir()):
+            if not entry.is_dir():
+                continue
+            name = entry.name
+            if not name:
+                continue
+            has_credentials = (entry / ".credentials.json").exists()
+            if has_credentials:
+                profiles.append(ProfileInfo(
+                    name=name, path=entry,
+                    has_credentials=True, has_token=False,
+                ))
+                found_names.add(name)
 
     # Check tokens.json for profiles with dirs but no .credentials.json
     try:
@@ -68,7 +66,7 @@ def discover_profiles() -> list[ProfileInfo]:
                 if key == "default":
                     pdir = home / ".claude"
                 else:
-                    pdir = home / f".claude-{key}"
+                    pdir = PROFILES_DIR / key
                 if pdir.is_dir():
                     profiles.append(ProfileInfo(
                         name=key, path=pdir,

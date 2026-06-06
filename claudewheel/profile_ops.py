@@ -9,7 +9,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from .constants import COMMON_DIR, OPTIONS_FILE, PROFILE_SHARED_DIRS, SHARED_DIR, TOKENS_FILE
+from .constants import COMMON_DIR, OPTIONS_FILE, PROFILES_DIR, PROFILE_SHARED_DIRS, SHARED_DIR, TOKENS_FILE
 
 XATTR_NAME = b"user.origin-profile"
 ORIGINS_FILE = COMMON_DIR / "profile-origins.jsonl"
@@ -17,7 +17,7 @@ ORIGINS_FILE = COMMON_DIR / "profile-origins.jsonl"
 
 def _is_profile_running(name: str) -> bool:
     """Check if a profile has active sessions by scanning its sessions/ dir for PID files."""
-    profile_dir = Path.home() / f".claude-{name}"
+    profile_dir = PROFILES_DIR / name
     sessions_dir = profile_dir / "sessions"
     if not sessions_dir.is_dir():
         return False
@@ -35,11 +35,11 @@ def _is_profile_running(name: str) -> bool:
 
 
 def _remove_profile_dir(name: str) -> tuple[int, int]:
-    """Remove ~/.claude-<name>/, handling symlinks safely.
+    """Remove ~/.claudewheel/profiles/<name>/, handling symlinks safely.
 
     Returns (removed_symlinks, removed_real) counts.
     """
-    profile_dir = Path.home() / f".claude-{name}"
+    profile_dir = PROFILES_DIR / name
     if not profile_dir.is_dir():
         return 0, 0
 

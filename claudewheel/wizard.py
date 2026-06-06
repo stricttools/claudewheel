@@ -10,7 +10,7 @@ from pathlib import Path
 from .constants import (
     CLEAR_SCREEN, CLEAR_LINE, RESET, BOLD, DIM,
     ALT_SCREEN_ON, ALT_SCREEN_OFF, HIDE_CURSOR, SHOW_CURSOR,
-    COMMON_DIR, CONFIG_DIR, PROFILE_SHARED_DIRS, SHARED_DIR,
+    COMMON_DIR, CONFIG_DIR, PROFILES_DIR, PROFILE_SHARED_DIRS, SHARED_DIR,
     move_to, fg_rgb,
 )
 from .config import ConfigManager
@@ -54,7 +54,7 @@ def _build_fields(existing_profiles: list[str]) -> list[WizardField]:
     radio_opts = ["Defaults template"] + existing_profiles
     return [
         WizardField("Name", "text", value=""),
-        WizardField("Config dir", "readonly", value="~/.claude-"),
+        WizardField("Config dir", "readonly", value="~/.claudewheel/profiles/"),
         WizardField("Settings source", "radio", value=radio_opts[0], options=radio_opts),
         WizardField("Wire common hooks", "checkbox", value=True),
         WizardField("Symlink to shared store", "checkbox", value=True),
@@ -187,12 +187,12 @@ def run_profile_wizard(existing_profiles: list[str]) -> WizardResult:
                         if not re.match(r'^[a-z0-9][a-z0-9-]*$', name):
                             _render(term, fields, focus, flash="Use lowercase letters, digits, hyphens only")
                             continue
-                        if name in ("shared", "common", "lost", "default"):
+                        if name == "default":
                             _render(term, fields, focus, flash=f"'{name}' is a reserved name")
                             continue
-                        config_dir = Path(f"~/.claude-{name}").expanduser()
+                        config_dir = (PROFILES_DIR / name).expanduser()
                         if config_dir.exists():
-                            _render(term, fields, focus, flash=f"~/.claude-{name} already exists")
+                            _render(term, fields, focus, flash=f"~/.claudewheel/profiles/{name} already exists")
                             continue
                         if name in existing_profiles:
                             _render(term, fields, focus, flash=f"Profile '{name}' already registered")
@@ -201,7 +201,7 @@ def run_profile_wizard(existing_profiles: list[str]) -> WizardResult:
                         clone = None if source == "Defaults template" else source
                         return WizardResult(
                             name=name,
-                            config_dir=f"~/.claude-{name}",
+                            config_dir=f"~/.claudewheel/profiles/{name}",
                             clone_from=clone,
                             wire_hooks=bool(fields[3].value),
                             symlink_shared=bool(fields[4].value),
@@ -230,12 +230,12 @@ def run_profile_wizard(existing_profiles: list[str]) -> WizardResult:
                 if f.field_type == "text" and isinstance(f.value, str):
                     f.value = f.value[:-1]
                     # Update computed config dir
-                    fields[1].value = f"~/.claude-{f.value}"
+                    fields[1].value = f"~/.claudewheel/profiles/{f.value}"
             else:
                 # Printable character on text field
                 if f.field_type == "text" and len(key) == 1 and key.isprintable():
                     f.value = (f.value or "") + key
-                    fields[1].value = f"~/.claude-{f.value}"
+                    fields[1].value = f"~/.claudewheel/profiles/{f.value}"
 
             _render(term, fields, focus)
     finally:
@@ -267,7 +267,7 @@ def create_profile(result: WizardResult, cfg: ConfigManager) -> None:
     settings: dict = {}
     if result.clone_from:
         # Copy from existing profile
-        source_dir = Path.home() / f".claude-{result.clone_from}"
+        source_dir = PROFILES_DIR / result.clone_from
         source_settings = source_dir / "settings.json"
         if source_settings.exists():
             try:

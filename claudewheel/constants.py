@@ -14,6 +14,8 @@ THEMES_DIR = CONFIG_DIR / "themes"
 HOOKS_DIR = CONFIG_DIR / "hooks"
 TOKENS_FILE = CONFIG_DIR / "tokens.json"
 
+PROFILES_DIR = CONFIG_DIR / "profiles"
+
 COMMON_DIR = Path.home() / ".claude-common"
 SHARED_DIR = Path.home() / ".claude-shared"
 
