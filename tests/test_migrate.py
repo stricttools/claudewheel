@@ -11,6 +11,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from claudewheel import migrate as migrate_mod
 from claudewheel.migrate import (
     XATTR_NAME,
     MigrateResult,
@@ -343,10 +344,10 @@ class MigrateSessionsTests(unittest.TestCase):
         self._stdout_trap = contextlib.redirect_stdout(io.StringIO())
         self._stdout_trap.__enter__()
         # Create profile dirs
-        self.src_dir = self.home / ".claude-alpha"
-        self.dst_dir = self.home / ".claude-beta"
-        self.src_dir.mkdir()
-        self.dst_dir.mkdir()
+        self.src_dir = self.home / ".claudewheel" / "profiles" / "alpha"
+        self.dst_dir = self.home / ".claudewheel" / "profiles" / "beta"
+        self.src_dir.mkdir(parents=True)
+        self.dst_dir.mkdir(parents=True)
         # Common dir for the index
         (self.home / ".claude-common").mkdir()
 
@@ -367,15 +368,27 @@ class MigrateSessionsTests(unittest.TestCase):
         todos.mkdir()
         (todos / f"{UUID_A}-agent-cleanup.json").write_text("{}")
 
-    @patch("claudewheel.migrate.Path.home")
-    def test_stamps_and_moves_non_shared(self, mock_home) -> None:
+    def _patch_migrate(self):
+        """Return a context manager that patches PROFILES_DIR and COMMON_DIR for migrate."""
+        profiles = self.home / ".claudewheel" / "profiles"
+        common = self.home / ".claude-common"
+        return contextlib.ExitStack()
+
+    def _run_migrate(self, *args, **kwargs):
+        """Run migrate_sessions with patched constants."""
+        profiles = self.home / ".claudewheel" / "profiles"
+        common = self.home / ".claude-common"
+        with patch.object(migrate_mod, "PROFILES_DIR", profiles), \
+             patch.object(migrate_mod, "COMMON_DIR", common):
+            return migrate_sessions(*args, **kwargs)
+
+    def test_stamps_and_moves_non_shared(self) -> None:
         """In non-shared mode, artifacts are stamped and moved."""
-        mock_home.return_value = self.home
         self._populate_src()
         # Also create required dirs in dst
         (self.dst_dir / "projects" / "myproj").mkdir(parents=True)
 
-        result = migrate_sessions("alpha", "beta")
+        result = self._run_migrate("alpha", "beta")
 
         self.assertEqual(result.uuids_found, 1)
         self.assertGreater(result.stamped, 0)
@@ -387,10 +400,8 @@ class MigrateSessionsTests(unittest.TestCase):
         orig_jsonl = self.src_dir / "projects" / "myproj" / f"{UUID_A}.jsonl"
         self.assertFalse(orig_jsonl.exists())
 
-    @patch("claudewheel.migrate.Path.home")
-    def test_stamps_but_skips_moves_shared_store(self, mock_home) -> None:
+    def test_stamps_but_skips_moves_shared_store(self) -> None:
         """When stores are shared, artifacts are stamped but not moved."""
-        mock_home.return_value = self.home
         # Create a shared target for projects/
         shared = self.home / "shared-projects"
         shared.mkdir()
@@ -400,7 +411,7 @@ class MigrateSessionsTests(unittest.TestCase):
         (self.src_dir / "projects").symlink_to(shared)
         (self.dst_dir / "projects").symlink_to(shared)
 
-        result = migrate_sessions("alpha", "beta")
+        result = self._run_migrate("alpha", "beta")
 
         self.assertEqual(result.uuids_found, 1)
         self.assertGreater(result.stamped, 0)
@@ -408,10 +419,8 @@ class MigrateSessionsTests(unittest.TestCase):
         # File is still in place (not moved)
         self.assertTrue((shared / "myproj" / f"{UUID_A}.jsonl").exists())
 
-    @patch("claudewheel.migrate.Path.home")
-    def test_uuid_filter_substring_match(self, mock_home) -> None:
+    def test_uuid_filter_substring_match(self) -> None:
         """uuid_filter keeps only UUIDs containing the given substring."""
-        mock_home.return_value = self.home
         # Create two UUIDs
         proj = self.src_dir / "projects" / "p"
         proj.mkdir(parents=True)
@@ -419,17 +428,15 @@ class MigrateSessionsTests(unittest.TestCase):
         (proj / f"{UUID_B}.jsonl").write_text("")
 
         # Filter for UUID_A's prefix ("aaaa")
-        result = migrate_sessions("alpha", "beta", uuid_filter="aaaa")
+        result = self._run_migrate("alpha", "beta", uuid_filter="aaaa")
 
         self.assertEqual(result.uuids_found, 1)
 
-    @patch("claudewheel.migrate.Path.home")
-    def test_dry_run_does_not_write(self, mock_home) -> None:
+    def test_dry_run_does_not_write(self) -> None:
         """Dry run reports counts but makes no filesystem changes."""
-        mock_home.return_value = self.home
         self._populate_src()
 
-        result = migrate_sessions("alpha", "beta", dry_run=True)
+        result = self._run_migrate("alpha", "beta", dry_run=True)
 
         self.assertEqual(result.uuids_found, 1)
         self.assertGreater(result.stamped, 0)

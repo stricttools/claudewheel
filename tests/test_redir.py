@@ -221,8 +221,8 @@ class RunRedirIntegrationTests(unittest.TestCase):
         self.new_encoded = self.new_resolved.replace("/", "-")
 
         # Profile dir with projects/ and .claude.json
-        self.profile = self.home / ".claude-personal"
-        self.profile.mkdir()
+        self.profile = self.home / ".claudewheel" / "profiles" / "personal"
+        self.profile.mkdir(parents=True)
         self.projects = self.profile / "projects"
         self.projects.mkdir()
 

@@ -51,12 +51,17 @@ class _ProfileOpsTestCase(unittest.TestCase):
         self._patcher_shared = patch.object(
             profile_ops, "SHARED_DIR", self.home / ".claude-shared",
         )
+        self._patcher_profiles = patch.object(
+            profile_ops, "PROFILES_DIR", self.home / ".claudewheel" / "profiles",
+        )
         self._patcher_opts.start()
         self._patcher_tokens.start()
         self._patcher_origins.start()
         self._patcher_shared.start()
+        self._patcher_profiles.start()
 
     def tearDown(self) -> None:
+        self._patcher_profiles.stop()
         self._patcher_shared.stop()
         self._patcher_origins.stop()
         self._patcher_tokens.stop()
@@ -75,7 +80,7 @@ class _ProfileOpsTestCase(unittest.TestCase):
         self.tokens_file.write_text(json.dumps(tokens, indent=2) + "\n")
 
     def _make_profile_dir(self, name: str) -> Path:
-        pdir = self.home / f".claude-{name}"
+        pdir = self.home / ".claudewheel" / "profiles" / name
         pdir.mkdir(parents=True, exist_ok=True)
         (pdir / ".credentials.json").write_text("{}")
         (pdir / "settings.json").write_text("{}")
@@ -328,7 +333,7 @@ class DoDeleteProfileIntegrationTests(_ProfileOpsTestCase):
         self.assertEqual(rc, 0)
 
         # Dir gone
-        self.assertFalse((self.home / ".claude-target").exists())
+        self.assertFalse((self.home / ".claudewheel" / "profiles" / "target").exists())
         # Options updated
         opts = json.loads(self.options_file.read_text())
         self.assertNotIn("target", opts["profile"]["values"])

@@ -46,11 +46,12 @@ class _HomeDirTestCase(unittest.TestCase):
         # Patch module-level path constants that were computed at import time
         self._shared_dir = self.home / ".claude-shared"
         self._common_dir = self.home / ".claude-common"
+        self._profiles_dir = self.home / ".claudewheel" / "profiles"
         self._dir_patches = [
             patch("claudewheel.health.SHARED_DIR", self._shared_dir),
             patch("claudewheel.health.COMMON_DIR", self._common_dir),
-            patch("claudewheel.discovery.SHARED_DIR", self._shared_dir),
-            patch("claudewheel.discovery.COMMON_DIR", self._common_dir),
+            patch("claudewheel.health.PROFILES_DIR", self._profiles_dir),
+            patch("claudewheel.discovery.PROFILES_DIR", self._profiles_dir),
         ]
         for p in self._dir_patches:
             p.start()
@@ -63,7 +64,7 @@ class _HomeDirTestCase(unittest.TestCase):
 
     def _make_profile(self, name: str) -> Path:
         """Create a profile dir with .credentials.json and return its path."""
-        pdir = self.home / f".claude-{name}"
+        pdir = self._profiles_dir / name
         pdir.mkdir(parents=True, exist_ok=True)
         (pdir / ".credentials.json").write_text("{}")
         return pdir
@@ -108,7 +109,7 @@ class DiscoverProfilesTests(_HomeDirTestCase):
     def test_finds_token_backed_profile_without_credentials(self) -> None:
         """A profile dir with a token entry but no .credentials.json is discovered."""
         # Dir exists but has no .credentials.json
-        (self.home / ".claude-work").mkdir()
+        (self._profiles_dir / "work").mkdir(parents=True, exist_ok=True)
         # Write tokens.json with a key for "work"
         tokens_dir = self.home / ".claudewheel"
         tokens_dir.mkdir(parents=True, exist_ok=True)
@@ -122,7 +123,7 @@ class DiscoverProfilesTests(_HomeDirTestCase):
     def test_token_profile_merged_and_sorted(self) -> None:
         """Token-backed profiles are merged with credential-based ones and sorted."""
         self._make_profile("beta")
-        (self.home / ".claude-alpha").mkdir()
+        (self._profiles_dir / "alpha").mkdir(parents=True, exist_ok=True)
         tokens_dir = self.home / ".claudewheel"
         tokens_dir.mkdir(parents=True, exist_ok=True)
         tokens_file = tokens_dir / "tokens.json"
@@ -548,7 +549,7 @@ class CheckOrphanProfilesTests(_HomeDirTestCase):
         (options_dir / "options.json").write_text(json.dumps(options))
 
     def test_ok_when_no_orphans(self) -> None:
-        """Returns OK when all .claude-* dirs are registered profiles."""
+        """Returns OK when all profile dirs are registered profiles."""
         self._make_profile("alpha")
         self._write_options(["alpha"])
         with patch("claudewheel.health.OPTIONS_FILE",
@@ -558,11 +559,11 @@ class CheckOrphanProfilesTests(_HomeDirTestCase):
         self.assertIn("no orphan", result.detail)
 
     def test_warns_on_orphan_dir(self) -> None:
-        """Returns WARN when a .claude-* dir is not registered anywhere."""
+        """Returns WARN when a profile dir is not registered anywhere."""
         self._make_profile("known")
         # Create an orphan dir (no .credentials.json, not in options)
-        orphan = self.home / ".claude-stale"
-        orphan.mkdir()
+        orphan = self._profiles_dir / "stale"
+        orphan.mkdir(parents=True, exist_ok=True)
         self._write_options(["known"])
         with patch("claudewheel.health.OPTIONS_FILE",
                     self.home / ".claudewheel" / "options.json"):
@@ -570,20 +571,10 @@ class CheckOrphanProfilesTests(_HomeDirTestCase):
         self.assertFalse(result.ok)
         self.assertIn("stale", result.detail)
 
-    def test_skips_shared_and_common(self) -> None:
-        """Known non-profile dirs .claude-shared and .claude-common are ignored."""
-        (self.home / ".claude-shared").mkdir()
-        (self.home / ".claude-common").mkdir()
-        self._write_options([])
-        with patch("claudewheel.health.OPTIONS_FILE",
-                    self.home / ".claudewheel" / "options.json"):
-            result = check_orphan_profiles()
-        self.assertTrue(result.ok)
-
     def test_dir_in_options_not_orphan(self) -> None:
-        """A .claude-* dir listed in options.json (without .credentials.json) is not orphan."""
+        """A profile dir listed in options.json (without .credentials.json) is not orphan."""
         # Dir exists but has no .credentials.json
-        (self.home / ".claude-pending").mkdir()
+        (self._profiles_dir / "pending").mkdir(parents=True, exist_ok=True)
         self._write_options(["pending"])
         with patch("claudewheel.health.OPTIONS_FILE",
                     self.home / ".claudewheel" / "options.json"):
@@ -592,8 +583,8 @@ class CheckOrphanProfilesTests(_HomeDirTestCase):
 
     def test_flags_broken_symlinks(self) -> None:
         """Orphan dirs with broken symlinks are flagged in the detail."""
-        orphan = self.home / ".claude-broken"
-        orphan.mkdir()
+        orphan = self._profiles_dir / "broken"
+        orphan.mkdir(parents=True, exist_ok=True)
         # Create a broken symlink inside
         (orphan / "projects").symlink_to(self.home / "nonexistent")
         self._write_options([])
@@ -614,8 +605,8 @@ class CheckOrphanProfilesTests(_HomeDirTestCase):
         self.assertTrue(result.ok)
 
     def test_dir_in_tokens_not_orphan(self) -> None:
-        """A .claude-* dir with an entry in tokens.json is not orphan."""
-        (self.home / ".claude-work").mkdir()
+        """A profile dir with an entry in tokens.json is not orphan."""
+        (self._profiles_dir / "work").mkdir(parents=True, exist_ok=True)
         self._write_options([])
         tokens_dir = self.home / ".claudewheel"
         tokens_dir.mkdir(parents=True, exist_ok=True)
@@ -626,6 +617,15 @@ class CheckOrphanProfilesTests(_HomeDirTestCase):
                     self.home / ".claudewheel" / "tokens.json"):
             result = check_orphan_profiles()
         self.assertTrue(result.ok)
+
+    def test_ok_when_no_profiles_dir(self) -> None:
+        """Returns OK when ~/.claudewheel/profiles/ does not exist."""
+        # Don't create profiles dir
+        with patch("claudewheel.health.PROFILES_DIR",
+                    self.home / ".claudewheel" / "profiles"):
+            result = check_orphan_profiles()
+        self.assertTrue(result.ok)
+        self.assertIn("no profiles dir", result.detail)
 
 
 if __name__ == "__main__":

@@ -11,7 +11,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from claudewheel.wizard import WizardResult, create_profile, _HOOKS_TEMPLATE, _SHARED_DIRS
+from claudewheel.wizard import WizardResult, create_profile, _HOOKS_TEMPLATE
+from claudewheel.constants import PROFILE_SHARED_DIRS
 from claudewheel import wizard as wizard_mod
 from claudewheel import config as config_mod
 from claudewheel.config import ConfigManager
@@ -39,7 +40,7 @@ def _make_result(
     """Build a WizardResult with sensible defaults for testing."""
     return WizardResult(
         name=name,
-        config_dir=f"~/.claude-{name}",
+        config_dir=f"~/.claudewheel/profiles/{name}",
         clone_from=clone_from,
         wire_hooks=wire_hooks,
         symlink_shared=symlink_shared,
@@ -101,8 +102,11 @@ class CreateProfileTestBase(unittest.TestCase):
             mock.patch.object(config_mod, "STATE_FILE", self.launcher_dir / "state.json"),
             mock.patch.object(config_mod, "THEMES_DIR", self.launcher_dir / "themes"),
             mock.patch.object(config_mod, "HOOKS_DIR", self.launcher_dir / "hooks"),
-            # wizard.py imports CONFIG_DIR, SHARED_DIR, COMMON_DIR directly
+            mock.patch.object(config_mod, "SHARED_DIR", self.fake_home / ".claude-shared"),
+            mock.patch.object(config_mod, "COMMON_DIR", self.fake_home / ".claude-common"),
+            # wizard.py imports CONFIG_DIR, PROFILES_DIR, SHARED_DIR, COMMON_DIR directly
             mock.patch.object(wizard_mod, "CONFIG_DIR", self.launcher_dir),
+            mock.patch.object(wizard_mod, "PROFILES_DIR", self.launcher_dir / "profiles"),
             mock.patch.object(wizard_mod, "SHARED_DIR", self.fake_home / ".claude-shared"),
             mock.patch.object(wizard_mod, "COMMON_DIR", self.fake_home / ".claude-common"),
         ]
@@ -119,7 +123,7 @@ class CreateProfileTestBase(unittest.TestCase):
             os.environ["HOME"] = self._orig_home
 
     def _profile_dir(self, name: str = "test") -> Path:
-        return self.fake_home / f".claude-{name}"
+        return self.fake_home / ".claudewheel" / "profiles" / name
 
     def _read_settings(self, name: str = "test") -> dict:
         return json.loads((self._profile_dir(name) / "settings.json").read_text())
@@ -190,8 +194,8 @@ class SettingsFromCloneTests(CreateProfileTestBase):
     """Test 3: copies source profile's settings.json when clone_from is set."""
 
     def test_clones_existing_profile_settings(self) -> None:
-        source_dir = self.fake_home / ".claude-source"
-        source_dir.mkdir()
+        source_dir = self.fake_home / ".claudewheel" / "profiles" / "source"
+        source_dir.mkdir(parents=True)
         source_settings = {"clonedKey": True, "model": "opus"}
         (source_dir / "settings.json").write_text(json.dumps(source_settings))
 
@@ -205,8 +209,8 @@ class SettingsFromCloneTests(CreateProfileTestBase):
     def test_missing_source_settings_gets_hardcoded_defaults(self) -> None:
         """If the source profile dir exists but has no settings.json, settings
         contain only the hardcoded disableAutoMode and claudewheel.disallowedTools."""
-        source_dir = self.fake_home / ".claude-source"
-        source_dir.mkdir()
+        source_dir = self.fake_home / ".claudewheel" / "profiles" / "source"
+        source_dir.mkdir(parents=True)
         # No settings.json written
 
         result = _make_result(name="cloned2", clone_from="source")
@@ -310,8 +314,8 @@ class HookMergeTests(CreateProfileTestBase):
                 ]
             }
         }
-        source_dir = self.fake_home / ".claude-src"
-        source_dir.mkdir()
+        source_dir = self.fake_home / ".claudewheel" / "profiles" / "src"
+        source_dir.mkdir(parents=True)
         (source_dir / "settings.json").write_text(json.dumps(existing_hooks))
 
         result = _make_result(name="merged", clone_from="src", wire_hooks=True)
@@ -341,8 +345,8 @@ class HookMergeTests(CreateProfileTestBase):
                 ]
             }
         }
-        source_dir = self.fake_home / ".claude-dup"
-        source_dir.mkdir()
+        source_dir = self.fake_home / ".claudewheel" / "profiles" / "dup"
+        source_dir.mkdir(parents=True)
         (source_dir / "settings.json").write_text(json.dumps(existing_hooks))
 
         result = _make_result(name="nodedup", clone_from="dup", wire_hooks=True)
@@ -356,8 +360,8 @@ class HookMergeTests(CreateProfileTestBase):
 
     def test_clone_without_hooks_gets_fresh_template(self) -> None:
         """Cloning a profile with no hooks section gets the full template."""
-        source_dir = self.fake_home / ".claude-nohooks"
-        source_dir.mkdir()
+        source_dir = self.fake_home / ".claudewheel" / "profiles" / "nohooks"
+        source_dir.mkdir(parents=True)
         (source_dir / "settings.json").write_text(json.dumps({"someKey": 1}))
 
         result = _make_result(name="fresh", clone_from="nohooks", wire_hooks=True)
@@ -378,7 +382,7 @@ class SymlinkCreationTests(CreateProfileTestBase):
 
         profile_dir = self._profile_dir()
         shared_base = self.fake_home / ".claude-shared"
-        for dirname in _SHARED_DIRS:
+        for dirname in PROFILE_SHARED_DIRS:
             link = profile_dir / dirname
             self.assertTrue(link.is_symlink(), f"{dirname} should be a symlink")
             target = shared_base / dirname
@@ -390,14 +394,14 @@ class SymlinkCreationTests(CreateProfileTestBase):
         create_profile(result, self.cfg)
 
         shared_base = self.fake_home / ".claude-shared"
-        for dirname in _SHARED_DIRS:
+        for dirname in PROFILE_SHARED_DIRS:
             self.assertTrue((shared_base / dirname).is_dir())
 
     def test_all_six_dirs_present(self) -> None:
         """Exactly 6 shared dirs are defined."""
-        self.assertEqual(len(_SHARED_DIRS), 6)
+        self.assertEqual(len(PROFILE_SHARED_DIRS), 6)
         expected = {"projects", "session-env", "file-history", "tasks", "todos", "paste-cache"}
-        self.assertEqual(set(_SHARED_DIRS), expected)
+        self.assertEqual(set(PROFILE_SHARED_DIRS), expected)
 
     def test_existing_symlink_not_overwritten(self) -> None:
         """If a symlink already exists at the target, it is not replaced."""
@@ -406,7 +410,7 @@ class SymlinkCreationTests(CreateProfileTestBase):
         # Pre-create a symlink pointing elsewhere
         other_target = self.fake_home / "other-target"
         other_target.mkdir()
-        existing_link = profile_dir / _SHARED_DIRS[0]
+        existing_link = profile_dir / PROFILE_SHARED_DIRS[0]
         existing_link.symlink_to(other_target)
 
         result = _make_result(symlink_shared=True)
@@ -424,7 +428,7 @@ class NoSymlinksTests(CreateProfileTestBase):
         create_profile(result, self.cfg)
 
         profile_dir = self._profile_dir()
-        for dirname in _SHARED_DIRS:
+        for dirname in PROFILE_SHARED_DIRS:
             link = profile_dir / dirname
             self.assertFalse(link.exists(), f"{dirname} should not exist")
             self.assertFalse(link.is_symlink(), f"{dirname} should not be a symlink")
@@ -456,7 +460,7 @@ class OptionsRegistrationTests(CreateProfileTestBase):
 
         options = json.loads((self.launcher_dir / "options.json").read_text())
         meta = options["profile"]["metadata"]["newprof"]
-        self.assertEqual(meta, {"config_dir": "~/.claude-newprof"})
+        self.assertEqual(meta, {"config_dir": "~/.claudewheel/profiles/newprof"})
 
     def test_add_option_with_mock(self) -> None:
         """Verify add_option and set_option_metadata are called with correct args."""
@@ -466,7 +470,7 @@ class OptionsRegistrationTests(CreateProfileTestBase):
             create_profile(result, self.cfg)
             mock_add.assert_called_once_with("profile", "mocked")
             mock_meta.assert_called_once_with(
-                "profile", "mocked", {"config_dir": "~/.claude-mocked"}
+                "profile", "mocked", {"config_dir": "~/.claudewheel/profiles/mocked"}
             )
 
 

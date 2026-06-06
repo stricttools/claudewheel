@@ -31,7 +31,7 @@ class ResolveProfileTests(unittest.TestCase):
     def test_valid_profile_with_token(self, mock_cm_cls: mock.MagicMock) -> None:
         """Returns both CLAUDE_CONFIG_DIR and CLAUDE_CODE_OAUTH_TOKEN."""
         mock_cm_cls.return_value = _fake_config_manager(
-            self._options_with_profile("work", "~/.claude-work")
+            self._options_with_profile("work", "~/.claudewheel/profiles/work")
         )
         tokens = {"work": "tok_abc123"}
         with mock.patch("claudewheel.profile.TOKENS_FILE") as mock_tf:
@@ -41,7 +41,7 @@ class ResolveProfileTests(unittest.TestCase):
 
         self.assertEqual(
             result["CLAUDE_CONFIG_DIR"],
-            str(Path("~/.claude-work").expanduser()),
+            str(Path("~/.claudewheel/profiles/work").expanduser()),
         )
         self.assertEqual(result["CLAUDE_CODE_OAUTH_TOKEN"], "tok_abc123")
 
@@ -49,7 +49,7 @@ class ResolveProfileTests(unittest.TestCase):
     def test_valid_profile_with_dict_token(self, mock_cm_cls: mock.MagicMock) -> None:
         """Handles {name: {token, created}} token format."""
         mock_cm_cls.return_value = _fake_config_manager(
-            self._options_with_profile("work", "~/.claude-work")
+            self._options_with_profile("work", "~/.claudewheel/profiles/work")
         )
         tokens = {"work": {"token": "tok_dict", "created": "2025-01-01"}}
         with mock.patch("claudewheel.profile.TOKENS_FILE") as mock_tf:
@@ -63,7 +63,7 @@ class ResolveProfileTests(unittest.TestCase):
     def test_valid_profile_without_token(self, mock_cm_cls: mock.MagicMock) -> None:
         """Returns only CLAUDE_CONFIG_DIR when no token exists."""
         mock_cm_cls.return_value = _fake_config_manager(
-            self._options_with_profile("personal", "~/.claude-personal")
+            self._options_with_profile("personal", "~/.claudewheel/profiles/personal")
         )
         with mock.patch("claudewheel.profile.TOKENS_FILE") as mock_tf:
             mock_tf.is_file.return_value = False
@@ -71,7 +71,7 @@ class ResolveProfileTests(unittest.TestCase):
 
         self.assertEqual(
             result["CLAUDE_CONFIG_DIR"],
-            str(Path("~/.claude-personal").expanduser()),
+            str(Path("~/.claudewheel/profiles/personal").expanduser()),
         )
         self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN", result)
 
@@ -79,7 +79,7 @@ class ResolveProfileTests(unittest.TestCase):
     def test_missing_profile_raises(self, mock_cm_cls: mock.MagicMock) -> None:
         """Raises ValueError with a helpful message for unknown profiles."""
         mock_cm_cls.return_value = _fake_config_manager(
-            self._options_with_profile("work", "~/.claude-work")
+            self._options_with_profile("work", "~/.claudewheel/profiles/work")
         )
         with self.assertRaises(ValueError) as ctx:
             resolve_profile("nonexistent")
@@ -105,7 +105,7 @@ class ResolveProfileTests(unittest.TestCase):
     def test_corrupt_tokens_file_ignored(self, mock_cm_cls: mock.MagicMock) -> None:
         """Corrupt tokens.json is silently ignored -- returns only CLAUDE_CONFIG_DIR."""
         mock_cm_cls.return_value = _fake_config_manager(
-            self._options_with_profile("work", "~/.claude-work")
+            self._options_with_profile("work", "~/.claudewheel/profiles/work")
         )
         with mock.patch("claudewheel.profile.TOKENS_FILE") as mock_tf:
             mock_tf.is_file.return_value = True

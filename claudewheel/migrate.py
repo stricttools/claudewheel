@@ -11,6 +11,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .constants import COMMON_DIR, PROFILES_DIR
+
 UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 XATTR_NAME = "user.origin-profile"
 # Dirs whose direct children are keyed by UUID
@@ -154,9 +156,8 @@ def migrate_sessions(
     dry_run: bool = False,
 ) -> MigrateResult:
     """Migrate session artifacts from src_profile to dst_profile."""
-    src = Path.home() / f".claude-{src_profile}"
-    dst = Path.home() / f".claude-{dst_profile}"
-    from .constants import COMMON_DIR
+    src = PROFILES_DIR / src_profile
+    dst = PROFILES_DIR / dst_profile
     index_path = COMMON_DIR / "profile-origins.jsonl"
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     result = MigrateResult()
