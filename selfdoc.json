@@ -1,5 +1,5 @@
 {
-  "version": "0.5.0",
+  "version": "0.6.0",
   "source": [
     {
       "path": "claudewheel/",
@@ -11,7 +11,7 @@
   "base_url": "https://claudewheel.smmh.dev",
   "versions": [
     {
-      "version": "0.5.0",
+      "version": "0.6.0",
       "indexed": true
     }
   ],
@@ -28,7 +28,10 @@
     "provider": "cloudflare-pages",
     "project": "claudewheel"
   },
-  "root_files": ["docs/_CLAUDE.md", "docs/_README.md"],
+  "root_files": [
+    "docs/_CLAUDE.md",
+    "docs/_README.md"
+  ],
   "branding": {
     "tagline": "Pick a profile. Pick a model. Launch.",
     "cta_text": "Get Started",

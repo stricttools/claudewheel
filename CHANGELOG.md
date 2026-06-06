@@ -2,18 +2,35 @@
 
 # Changelog
 
-## 0.5.0
+## 0.6.0
 
-Strictcli compatibility fix and config-directory rename to ~/.claudewheel/.
+Profile centralization, hook management, worktree isolation, docs website
 
 <details>
 <summary>Context</summary>
 
-The config directory has been renamed from ~/.claudelauncher/ to ~/.claudewheel/ to match the project name (the rename of the project itself happened a while ago, but the config-dir path was never updated). Existing users must `mv ~/.claudelauncher ~/.claudewheel` before upgrading or claudewheel will scaffold a fresh empty config directory on next launch.
-
-Strictcli v0.16.0 added a guardrail requiring `unique=True` or `unique=False` on every `repeatable=True` flag. claudewheel's `-s/--set` flag did not pass it and crashed at startup with `ValueError: Flag "set": repeatable requires explicit unique`. This release adds `unique=False` and, more importantly, surfaces the underlying intent the guardrail is meant to enforce: `_handle_launch` now rejects any duplicate segment override regardless of source. Previously, passing the same key twice (e.g. `--profile work -s profile=personal`, or `-s profile=work -s profile=personal`) silently dropped the earlier value. The new diagnostic names the conflicting key, both values, and both sources.
+Profiles moved from ~/.claude-<name>/ to ~/.claudewheel/profiles/<name>/ (breaking).
+New deploy-hooks command auto-creates hook scripts from built-in templates.
+Settings drift detection compares profiles against canonical shared-settings.json.
+PreToolUse hook blocks Agent tool worktree isolation to prevent multi-session conflicts.
+Cron tools (CronCreate, CronDelete, CronList, ScheduleWakeup) unblocked.
+Documentation website at claudewheel.smmh.dev with auto-generated API/CLI reference and branding.
 
 </details>
+
+### Breaking
+
+- **Profile directories moved.** Profiles now live at ~/.claudewheel/profiles/<name>/ instead of ~/.claude-<name>/. A startup warning appears if old-style directories are detected.
+
+### Features
+
+- **New command.** `deploy-hooks` auto-creates hook scripts at ~/.claudewheel/scripts/ from built-in templates.
+- **Settings drift detection.** Health check compares profiles against a canonical shared-settings.json and reports differences.
+- **Worktree isolation guard.** PreToolUse hook blocks the Agent tool from using worktree isolation, preventing multi-session conflicts.
+- **Cron tools enabled.** CronCreate, CronDelete, CronList, and ScheduleWakeup removed from disallowed tools.
+- **Documentation website.** Live docs site at claudewheel.smmh.dev with auto-generated API reference, CLI reference, and branding.
+
+## 0.5.0
 
 ### Breaking
 
