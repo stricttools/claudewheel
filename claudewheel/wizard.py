@@ -10,7 +10,7 @@ from pathlib import Path
 from .constants import (
     CLEAR_SCREEN, CLEAR_LINE, RESET, BOLD, DIM,
     ALT_SCREEN_ON, ALT_SCREEN_OFF, HIDE_CURSOR, SHOW_CURSOR,
-    COMMON_DIR, CONFIG_DIR, PROFILES_DIR, PROFILE_SHARED_DIRS, SHARED_DIR,
+    COMMON_DIR, CONFIG_DIR, PROFILES_DIR, PROFILE_SHARED_DIRS, SCRIPTS_DIR, SHARED_DIR,
     move_to, fg_rgb,
 )
 from .config import ConfigManager
@@ -243,15 +243,13 @@ def run_profile_wizard(existing_profiles: list[str]) -> WizardResult:
         term.exit_raw()
 
 
-_SHARED_DIRS = PROFILE_SHARED_DIRS
-
 _HOOKS_TEMPLATE = {
     "UserPromptSubmit": [
         {
             "matcher": "",
             "hooks": [
-                {"type": "command", "command": str(COMMON_DIR / "scripts" / "hook-timestamp")},
-                {"type": "command", "command": str(COMMON_DIR / "scripts" / "hook-stamp-origin")},
+                {"type": "command", "command": str(SCRIPTS_DIR / "hook-timestamp")},
+                {"type": "command", "command": str(SCRIPTS_DIR / "hook-stamp-origin")},
             ],
         }
     ]
@@ -323,7 +321,7 @@ def create_profile(result: WizardResult, cfg: ConfigManager) -> None:
 
     # Symlink shared dirs
     if result.symlink_shared:
-        for dirname in _SHARED_DIRS:
+        for dirname in PROFILE_SHARED_DIRS:
             link = config_dir / dirname
             target = SHARED_DIR / dirname
             if link.exists() or link.is_symlink():

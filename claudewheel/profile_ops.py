@@ -100,8 +100,6 @@ def _remove_from_options(name: str) -> bool:
     return found
 
 
-_SHARED_DIRS_TO_STRIP = PROFILE_SHARED_DIRS
-
 def _strip_xattrs(name: str) -> int:
     """Remove origin-profile xattr from shared files stamped with this profile.
 
@@ -112,7 +110,7 @@ def _strip_xattrs(name: str) -> int:
         return 0
 
     stripped = 0
-    for dirname in _SHARED_DIRS_TO_STRIP:
+    for dirname in PROFILE_SHARED_DIRS:
         dirpath = SHARED_DIR / dirname
         if not dirpath.is_dir():
             continue

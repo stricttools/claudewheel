@@ -8,7 +8,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from .constants import COMMON_DIR, OPTIONS_FILE, PROFILE_SHARED_DIRS, SHARED_DIR, TOKENS_FILE
+from .constants import COMMON_DIR, OPTIONS_FILE, PROFILE_SHARED_DIRS, SCRIPTS_DIR, SHARED_DIR, TOKENS_FILE
 from .defaults import DISALLOWED_TOOLS
 from .discovery import discover_profiles
 
@@ -125,7 +125,7 @@ def check_xattr_coverage() -> HealthResult:
 
 def check_hook_integrity() -> HealthResult:
     """Verify hook-stamp-origin contains sentinel and flock patterns."""
-    hook = COMMON_DIR / "scripts" / "hook-stamp-origin"
+    hook = SCRIPTS_DIR / "hook-stamp-origin"
     if not hook.exists():
         return HealthResult(False, "hook-integrity", "hook-stamp-origin missing")
     try:

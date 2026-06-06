@@ -16,6 +16,8 @@ TOKENS_FILE = CONFIG_DIR / "tokens.json"
 
 PROFILES_DIR = CONFIG_DIR / "profiles"
 
+SCRIPTS_DIR = CONFIG_DIR / "scripts"
+
 COMMON_DIR = Path.home() / ".claude-common"
 SHARED_DIR = Path.home() / ".claude-shared"
 
