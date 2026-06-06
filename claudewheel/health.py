@@ -8,8 +8,8 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from .constants import COMMON_DIR, OPTIONS_FILE, PROFILES_DIR, PROFILE_SHARED_DIRS, SCRIPTS_DIR, SHARED_DIR, TOKENS_FILE
-from .defaults import DISALLOWED_TOOLS
+from .constants import COMMON_DIR, OPTIONS_FILE, PROFILES_DIR, PROFILE_SHARED_DIRS, SCRIPTS_DIR, SHARED_DIR, SHARED_SETTINGS_FILE, TOKENS_FILE
+from .defaults import DISALLOWED_TOOLS, build_canonical_shared_settings
 from .discovery import discover_profiles
 
 
@@ -229,6 +229,77 @@ def check_settings_defaults() -> HealthResult:
     return HealthResult(True, "settings-defaults", f"all {len(profiles)} profiles OK")
 
 
+def _diff_json(label: str, canonical: object, actual: object) -> list[str]:
+    """Return human-readable lines describing differences between two JSON values."""
+    diffs: list[str] = []
+    if isinstance(canonical, dict) and isinstance(actual, dict):
+        for key in sorted(set(canonical) | set(actual)):
+            if key not in actual:
+                diffs.append(f"{label}.{key}: missing (expected {json.dumps(canonical[key])})")
+            elif key not in canonical:
+                diffs.append(f"{label}.{key}: extra (unexpected)")
+            elif canonical[key] != actual[key]:
+                diffs.extend(_diff_json(f"{label}.{key}", canonical[key], actual[key]))
+    elif isinstance(canonical, list) and isinstance(actual, list):
+        if set(canonical) != set(actual) if all(isinstance(x, str) for x in canonical + actual) else canonical != actual:
+            missing = [x for x in canonical if x not in actual]
+            extra = [x for x in actual if x not in canonical]
+            if missing:
+                diffs.append(f"{label}: missing {missing}")
+            if extra:
+                diffs.append(f"{label}: extra {extra}")
+    else:
+        diffs.append(f"{label}: expected {json.dumps(canonical)}, got {json.dumps(actual)}")
+    return diffs
+
+
+def check_shared_settings_drift() -> HealthResult:
+    """Compare each profile's hooks and disallowedTools against shared-settings.json."""
+    # Load shared settings
+    if not SHARED_SETTINGS_FILE.exists():
+        return HealthResult(True, "settings-drift", "shared-settings.json not found (will be created on next launch)")
+
+    try:
+        shared = json.loads(SHARED_SETTINGS_FILE.read_text())
+    except (json.JSONDecodeError, OSError) as e:
+        return HealthResult(False, "settings-drift", f"unreadable shared-settings.json: {e}")
+
+    canonical_hooks = shared.get("hooks", {})
+    canonical_disallowed = shared.get("disallowedTools", [])
+
+    profiles = _discover_profiles()
+    if not profiles:
+        return HealthResult(True, "settings-drift", "no profiles found")
+
+    all_diffs: list[str] = []
+    for name, pdir in profiles:
+        settings_file = pdir / "settings.json"
+        if not settings_file.exists():
+            all_diffs.append(f"{name}: no settings.json")
+            continue
+        try:
+            settings = json.loads(settings_file.read_text())
+        except (json.JSONDecodeError, OSError):
+            all_diffs.append(f"{name}: unreadable settings.json")
+            continue
+
+        # Compare hooks
+        profile_hooks = settings.get("hooks", {})
+        hook_diffs = _diff_json("hooks", canonical_hooks, profile_hooks)
+        for d in hook_diffs:
+            all_diffs.append(f"{name}: {d}")
+
+        # Compare disallowedTools
+        profile_disallowed = settings.get("claudewheel", {}).get("disallowedTools", [])
+        tool_diffs = _diff_json("disallowedTools", canonical_disallowed, profile_disallowed)
+        for d in tool_diffs:
+            all_diffs.append(f"{name}: {d}")
+
+    if all_diffs:
+        return HealthResult(False, "settings-drift", "; ".join(all_diffs))
+    return HealthResult(True, "settings-drift", f"all {len(profiles)} profiles in sync")
+
+
 def check_token_expiry() -> HealthResult:
     """Warn if any token is approaching 1-year expiry (setup-token TTL)."""
     tokens_file = TOKENS_FILE
@@ -377,6 +448,7 @@ def run_health_check() -> list[HealthResult]:
         check_xattr_coverage(),
         check_hooks_wired(),
         check_settings_defaults(),
+        check_shared_settings_drift(),
         check_tokens(),
         check_token_expiry(),
         check_orphan_profiles(),
