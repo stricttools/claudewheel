@@ -1,4 +1,4 @@
-"""Fuzzy search functions for matching user input against option lists."""
+"""Score, rank, and highlight fuzzy matches between queries and option lists."""
 
 
 def fuzzy_score(query: str, candidate: str) -> tuple[int, list[int]]:

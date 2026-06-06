@@ -1,4 +1,4 @@
-"""ANSI escape helpers and path constants for claudewheel."""
+"""Filesystem paths, ANSI escape sequences, and terminal color helpers."""
 
 from pathlib import Path
 

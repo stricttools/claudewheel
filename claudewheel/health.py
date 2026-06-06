@@ -1,4 +1,4 @@
-"""Health check utilities for claudewheel."""
+"""Pre-launch diagnostics: symlinks, tokens, hooks, permissions, and disk usage."""
 
 from __future__ import annotations
 

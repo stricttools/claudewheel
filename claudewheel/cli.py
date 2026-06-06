@@ -1,4 +1,4 @@
-"""main() function with strictcli for claudewheel CLI."""
+"""CLI argument parsing, subcommand routing, and launch orchestration."""
 
 from __future__ import annotations
 

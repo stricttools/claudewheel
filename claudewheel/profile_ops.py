@@ -1,4 +1,4 @@
-"""Profile lifecycle operations (delete, etc.) for claudewheel."""
+"""Delete profiles and clean up their dirs, tokens, options, and xattrs."""
 
 from __future__ import annotations
 

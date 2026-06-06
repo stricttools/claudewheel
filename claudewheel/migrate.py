@@ -1,4 +1,4 @@
-"""Migrate session-keyed artifacts between Claude Code profile dirs."""
+"""Move session artifacts between profiles, stamping origin xattrs for attribution."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""ThemeColors dataclass and parse_theme for claudewheel."""
+"""Parse hex color themes into pre-computed ANSI escape sequences."""
 
 from __future__ import annotations
 

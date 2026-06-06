@@ -1,4 +1,4 @@
-"""Launch logic for resolving selections into a Claude Code invocation."""
+"""Map TUI selections to binary path, env vars, flags, and exec."""
 
 from __future__ import annotations
 

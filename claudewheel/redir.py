@@ -1,4 +1,4 @@
-"""Redirect session data after a project directory rename."""
+"""Rewrite session paths and project keys after a directory rename."""
 
 from __future__ import annotations
 

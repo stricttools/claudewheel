@@ -1,4 +1,4 @@
-"""Standalone profile resolution for programmatic callers."""
+"""Resolve a profile name to CLAUDE_CONFIG_DIR and OAuth token env vars."""
 
 from __future__ import annotations
 

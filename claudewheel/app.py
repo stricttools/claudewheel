@@ -1,4 +1,4 @@
-"""App class -- TUI event loop for claudewheel."""
+"""TUI event loop, keyboard dispatch, and segment interaction."""
 
 from __future__ import annotations
 

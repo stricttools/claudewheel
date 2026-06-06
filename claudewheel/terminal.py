@@ -1,4 +1,4 @@
-"""Terminal class for raw-mode input handling and screen management."""
+"""Raw terminal I/O: cbreak mode, escape sequence decoding, and alt screen."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""claudewheel - TUI launcher for Claude Code."""
+"""Package version detection from installed metadata or package.json."""
 
 from importlib.metadata import PackageNotFoundError as _PackageNotFoundError
 from importlib.metadata import version as _version

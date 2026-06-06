@@ -1,4 +1,4 @@
-"""ConfigManager class for claudewheel."""
+"""Load, save, and migrate JSON config files from ~/.claudewheel/."""
 
 from __future__ import annotations
 

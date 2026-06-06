@@ -1,4 +1,4 @@
-"""Form-style TUI wizard for creating new Claude Code profiles."""
+"""Interactive form wizard for creating and configuring new profiles."""
 
 from __future__ import annotations
 

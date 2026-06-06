@@ -1,4 +1,4 @@
-"""Hook execution for claudewheel."""
+"""Run user-defined hook scripts at pre-launch and other lifecycle stages."""
 
 from __future__ import annotations
 

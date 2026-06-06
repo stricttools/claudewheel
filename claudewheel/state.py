@@ -1,4 +1,4 @@
-"""State persistence for claudewheel."""
+"""Save selections, launch count, and recent directories to state.json."""
 
 from __future__ import annotations
 

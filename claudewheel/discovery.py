@@ -1,4 +1,4 @@
-"""Shared profile discovery for claudewheel."""
+"""Scan the filesystem for Claude Code profiles and their credentials."""
 
 from __future__ import annotations
 

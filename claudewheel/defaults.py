@@ -1,4 +1,4 @@
-"""All DEFAULT_* configuration dicts for claudewheel."""
+"""Default values for config, segments, options, state, and themes."""
 
 DISALLOWED_TOOLS = [
     "EnterPlanMode",

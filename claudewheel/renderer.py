@@ -1,4 +1,4 @@
-"""Renderer class for drawing the segment bar TUI."""
+"""Draw the segment bar, fan-out options, minimap, and scroll arrows."""
 
 from __future__ import annotations
 

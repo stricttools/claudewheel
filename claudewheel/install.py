@@ -1,4 +1,4 @@
-"""Download and install Claude Code version binaries from GCS."""
+"""Download, verify, and install Claude Code binaries from Google Cloud Storage."""
 
 from __future__ import annotations
 

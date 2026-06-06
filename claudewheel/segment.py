@@ -1,4 +1,4 @@
-"""Segment model, SegmentBar, and option discovery logic."""
+"""Segment and SegmentBar dataclasses, option discovery, and cross-segment constraints."""
 
 from __future__ import annotations
 
