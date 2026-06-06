@@ -1,5 +1,10 @@
 """Default values for config, segments, options, state, and themes."""
 
+from __future__ import annotations
+
+from pathlib import Path
+
+
 DISALLOWED_TOOLS = [
     "EnterPlanMode",
     "EnterWorktree",
@@ -17,6 +22,28 @@ DISALLOWED_TOOLS = [
     "TaskStop",
     "TaskUpdate",
 ]
+
+def build_canonical_shared_settings(scripts_dir: Path) -> dict:
+    """Build the canonical shared-settings dict from current defaults.
+
+    The hooks section mirrors what _HOOKS_TEMPLATE used to define in wizard.py.
+    The disallowedTools section comes from DISALLOWED_TOOLS above.
+    """
+    return {
+        "hooks": {
+            "UserPromptSubmit": [
+                {
+                    "matcher": "",
+                    "hooks": [
+                        {"type": "command", "command": str(scripts_dir / "hook-timestamp")},
+                        {"type": "command", "command": str(scripts_dir / "hook-stamp-origin")},
+                    ],
+                }
+            ]
+        },
+        "disallowedTools": DISALLOWED_TOOLS[:],
+    }
+
 
 DEFAULT_CONFIG = {
     "theme": "dark",

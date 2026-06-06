@@ -15,7 +15,9 @@ from .constants import (
     STATE_FILE,
     THEMES_DIR,
     HOOKS_DIR,
+    SCRIPTS_DIR,
     SHARED_DIR,
+    SHARED_SETTINGS_FILE,
     COMMON_DIR,
 )
 from .defaults import (
@@ -25,6 +27,7 @@ from .defaults import (
     DEFAULT_STATE,
     DEFAULT_THEME_DARK,
     DEFAULT_THEME_LIGHT,
+    build_canonical_shared_settings,
 )
 
 
@@ -96,6 +99,7 @@ class ConfigManager:
         self.theme = self._load_json(theme_file, theme_default)
         self._migrate(theme_file, theme_default)
         self._run_versioned_migrations(theme_file)
+        self._ensure_shared_settings()
         self._warn_old_profile_dirs()
 
     @staticmethod
@@ -120,6 +124,12 @@ class ConfigManager:
                 "Move them to ~/.claudewheel/profiles/<name>/ and delete the originals.",
                 file=sys.stderr,
             )
+
+    def _ensure_shared_settings(self) -> None:
+        """Create shared-settings.json from canonical values if it doesn't exist."""
+        if not SHARED_SETTINGS_FILE.exists():
+            canonical = build_canonical_shared_settings(SCRIPTS_DIR)
+            self._save_json(SHARED_SETTINGS_FILE, canonical)
 
     def _ensure_dir(self):
         """Create config directories and write default files on first run."""
