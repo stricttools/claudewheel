@@ -127,7 +127,10 @@ def check_hook_integrity() -> HealthResult:
     """Verify hook-stamp-origin contains sentinel and flock patterns."""
     hook = SCRIPTS_DIR / "hook-stamp-origin"
     if not hook.exists():
-        return HealthResult(False, "hook-integrity", "hook-stamp-origin missing")
+        return HealthResult(
+            False, "hook-integrity",
+            "hook-stamp-origin missing. Run: claudewheel deploy-hooks hook-stamp-origin",
+        )
     try:
         content = hook.read_text()
     except OSError:
