@@ -29,6 +29,7 @@
     "url": "https://github.com/smm-h"
   },
   "repo": "https://github.com/smm-h/claudewheel",
+  "lint_ignore": ["SEO009"],
   "deploy": {
     "provider": "cloudflare-pages",
     "project": "claudewheel"
