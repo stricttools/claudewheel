@@ -43,8 +43,21 @@ class _HomeDirTestCase(unittest.TestCase):
         self.home = Path(self._tmp.name)
         self._patcher = patch.object(Path, "home", return_value=self.home)
         self._patcher.start()
+        # Patch module-level path constants that were computed at import time
+        self._shared_dir = self.home / ".claude-shared"
+        self._common_dir = self.home / ".claude-common"
+        self._dir_patches = [
+            patch("claudewheel.health.SHARED_DIR", self._shared_dir),
+            patch("claudewheel.health.COMMON_DIR", self._common_dir),
+            patch("claudewheel.discovery.SHARED_DIR", self._shared_dir),
+            patch("claudewheel.discovery.COMMON_DIR", self._common_dir),
+        ]
+        for p in self._dir_patches:
+            p.start()
 
     def tearDown(self) -> None:
+        for p in self._dir_patches:
+            p.stop()
         self._patcher.stop()
         self._tmp.cleanup()
 

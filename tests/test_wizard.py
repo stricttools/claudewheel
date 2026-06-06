@@ -101,8 +101,10 @@ class CreateProfileTestBase(unittest.TestCase):
             mock.patch.object(config_mod, "STATE_FILE", self.launcher_dir / "state.json"),
             mock.patch.object(config_mod, "THEMES_DIR", self.launcher_dir / "themes"),
             mock.patch.object(config_mod, "HOOKS_DIR", self.launcher_dir / "hooks"),
-            # wizard.py imports CONFIG_DIR directly for profile-defaults.json
+            # wizard.py imports CONFIG_DIR, SHARED_DIR, COMMON_DIR directly
             mock.patch.object(wizard_mod, "CONFIG_DIR", self.launcher_dir),
+            mock.patch.object(wizard_mod, "SHARED_DIR", self.fake_home / ".claude-shared"),
+            mock.patch.object(wizard_mod, "COMMON_DIR", self.fake_home / ".claude-common"),
         ]
         for p in self._patches:
             p.start()

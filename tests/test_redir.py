@@ -332,6 +332,7 @@ class RunRedirIntegrationTests(unittest.TestCase):
         shared_json.write_text(json.dumps({"projects": {self.old_resolved: {"x": 1}}}))
 
         with patch("claudewheel.redir.Path.home", return_value=self.home), \
+             patch("claudewheel.redir.SHARED_DIR", shared), \
              patch(
                  "claudewheel.redir._discover_profile_dirs",
                  return_value=[self.profile, shared],

@@ -48,11 +48,16 @@ class _ProfileOpsTestCase(unittest.TestCase):
             profile_ops, "ORIGINS_FILE",
             self.home / ".claude-common" / "profile-origins.jsonl",
         )
+        self._patcher_shared = patch.object(
+            profile_ops, "SHARED_DIR", self.home / ".claude-shared",
+        )
         self._patcher_opts.start()
         self._patcher_tokens.start()
         self._patcher_origins.start()
+        self._patcher_shared.start()
 
     def tearDown(self) -> None:
+        self._patcher_shared.stop()
         self._patcher_origins.stop()
         self._patcher_tokens.stop()
         self._patcher_opts.stop()
