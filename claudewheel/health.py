@@ -8,7 +8,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from .constants import COMMON_DIR, OPTIONS_FILE, SHARED_DIR, TOKENS_FILE
+from .constants import COMMON_DIR, OPTIONS_FILE, PROFILE_SHARED_DIRS, SHARED_DIR, TOKENS_FILE
 from .defaults import DISALLOWED_TOOLS
 
 
@@ -98,24 +98,18 @@ def _discover_profiles() -> list[tuple[str, Path]]:
 
 def check_shared_symlinks() -> HealthResult:
     """Verify each profile's shared dirs are symlinks to ~/.claude-shared/."""
-    expected_dirs = ["projects", "session-env", "file-history", "tasks", "todos"]
     profiles = _discover_profiles()
     if not profiles:
         return HealthResult(True, "shared-symlinks", "no profiles found")
 
     broken: list[str] = []
     for name, pdir in profiles:
-        # Standard dirs -> ~/.claude-shared/<dir>
-        for d in expected_dirs:
+        # Shared dirs -> ~/.claude-shared/<dir>
+        for d in PROFILE_SHARED_DIRS:
             link = pdir / d
             target = SHARED_DIR / d
             if not link.is_symlink() or link.resolve() != target.resolve():
                 broken.append(f"{name}/{d}")
-        # paste-cache -> ~/.claude-shared/paste-cache
-        pc = pdir / "paste-cache"
-        pc_target = SHARED_DIR / "paste-cache"
-        if not pc.is_symlink() or pc.resolve() != pc_target.resolve():
-            broken.append(f"{name}/paste-cache")
         # skills -> ~/.claude-common/skills
         sk = pdir / "skills"
         sk_target = COMMON_DIR / "skills"

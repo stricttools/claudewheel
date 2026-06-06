@@ -17,6 +17,9 @@ TOKENS_FILE = LAUNCHER_DIR / "tokens.json"
 COMMON_DIR = Path.home() / ".claude-common"
 SHARED_DIR = Path.home() / ".claude-shared"
 
+# Directories inside each profile that are symlinked to the shared store.
+PROFILE_SHARED_DIRS = ["projects", "session-env", "file-history", "tasks", "todos", "paste-cache"]
+
 VERSIONS_DIR = Path.home() / ".local/share/claude/versions"
 CLAUDE_SYMLINK = Path.home() / ".local/bin/claude"
 

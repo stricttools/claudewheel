@@ -9,7 +9,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from .constants import COMMON_DIR, OPTIONS_FILE, SHARED_DIR, TOKENS_FILE
+from .constants import COMMON_DIR, OPTIONS_FILE, PROFILE_SHARED_DIRS, SHARED_DIR, TOKENS_FILE
 
 XATTR_NAME = b"user.origin-profile"
 ORIGINS_FILE = COMMON_DIR / "profile-origins.jsonl"
@@ -100,7 +100,7 @@ def _remove_from_options(name: str) -> bool:
     return found
 
 
-_SHARED_DIRS_TO_STRIP = ["projects", "session-env", "file-history", "tasks", "todos"]
+_SHARED_DIRS_TO_STRIP = PROFILE_SHARED_DIRS
 
 def _strip_xattrs(name: str) -> int:
     """Remove origin-profile xattr from shared files stamped with this profile.

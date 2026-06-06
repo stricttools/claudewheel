@@ -10,7 +10,7 @@ from pathlib import Path
 from .constants import (
     CLEAR_SCREEN, CLEAR_LINE, RESET, BOLD, DIM,
     ALT_SCREEN_ON, ALT_SCREEN_OFF, HIDE_CURSOR, SHOW_CURSOR,
-    COMMON_DIR, LAUNCHER_DIR, SHARED_DIR,
+    COMMON_DIR, LAUNCHER_DIR, PROFILE_SHARED_DIRS, SHARED_DIR,
     move_to, fg_rgb,
 )
 from .config import ConfigManager
@@ -243,7 +243,7 @@ def run_profile_wizard(existing_profiles: list[str]) -> WizardResult:
         term.exit_raw()
 
 
-_SHARED_DIRS = ["projects", "session-env", "file-history", "tasks", "todos", "paste-cache"]
+_SHARED_DIRS = PROFILE_SHARED_DIRS
 
 _HOOKS_TEMPLATE = {
     "UserPromptSubmit": [
