@@ -75,6 +75,7 @@ Profile, GitHub, and Model are *creatable*: their option lists end with a `+` se
 | `migrate` | migrate sessions between profiles |
 | `gc` | garbage-collect stale sentinels, compact origins, report stats |
 | `redir` | redirect session data after a project directory rename |
+| `deploy-hooks` | deploy hook scripts to ~/.claudewheel/scripts/ |
 | `launch` | start the interactive TUI launcher |
 
 ### Segment overrides

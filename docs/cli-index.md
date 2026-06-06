@@ -28,4 +28,5 @@ Version: 0.5.0
 - [migrate](cli-migrate.html) -- migrate sessions between profiles
 - [gc](cli-gc.html) -- garbage-collect stale sentinels, compact origins, report stats
 - [redir](cli-redir.html) -- redirect session data after a project directory rename
+- [deploy-hooks](cli-deploy-hooks.html) -- deploy hook scripts to ~/.claudewheel/scripts/
 - [launch](cli-launch.html) -- start the interactive TUI launcher

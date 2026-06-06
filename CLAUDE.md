@@ -60,6 +60,7 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 | `migrate` | migrate sessions between profiles |
 | `gc` | garbage-collect stale sentinels, compact origins, report stats |
 | `redir` | redirect session data after a project directory rename |
+| `deploy-hooks` | deploy hook scripts to ~/.claudewheel/scripts/ |
 | `launch` | start the interactive TUI launcher |
 
 ## Config system

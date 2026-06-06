@@ -203,6 +203,10 @@
     "content": "f919104e8fa3f6ff2b31363bda2b5eda9bb5725b55fc42cf6ce616e561b8e143",
     "description": "a8fcdc4157d28ee42b105a6f08b1574f2acbe3ea7ed99d2be33cc35fcc5c34c8"
   },
+  "en/cli-deploy-hooks.md": {
+    "content": "5877ff11c59edb72ae76f62e0057211df2d3374743708b7e2487b9c43a0aadb6",
+    "description": "e268b8ee16d6c2925e4a1854dffa32bd98b32cd5d3624f984bd37df900bb95bc"
+  },
   "en/cli-gc.md": {
     "content": "a30b3204dbba72d9273f2adb8b4d304f5753020907a814284366138f6feefe01",
     "description": "32e0b99005e4e9eb4478529a2eb70d3b300280443f65619072b2e34ca1dc9704"
@@ -212,7 +216,7 @@
     "description": "bce660b2830d459ded0337e6af14bc0215f80ff3a85cd9ece389b405bb2a5c9b"
   },
   "en/cli-index.md": {
-    "content": "e4dfffd30b041ee6533607f2d1455b2eeea13cf80e37ed7a969acffff34b7dfe",
+    "content": "59400a4394d78517f8553575dfcbde7be758a25e9414b6478644eb40bbb51a90",
     "description": "6c93c0157d7601c07594d8cd1bb2df39f01cec2ddb6d36b3f83f80ebb63300d5"
   },
   "en/cli-install.md": {
