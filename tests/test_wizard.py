@@ -130,7 +130,7 @@ class CreateProfileTestBase(unittest.TestCase):
 
 
 class DirectoryCreationTests(CreateProfileTestBase):
-    """Test 1: create_profile creates ~/.claude-<name>/."""
+    """Test 1: create_profile creates ~/.claudewheel/profiles/<name>/."""
 
     def test_creates_config_dir(self) -> None:
         result = _make_result(name="myprofile")

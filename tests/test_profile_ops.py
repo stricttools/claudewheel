@@ -199,8 +199,8 @@ class RemoveFromOptionsTests(_ProfileOpsTestCase):
     def test_removes_value_and_metadata(self) -> None:
         self._write_options(
             ["alpha", "beta"],
-            metadata={"alpha": {"config_dir": "~/.claude-alpha"},
-                       "beta": {"config_dir": "~/.claude-beta"}},
+            metadata={"alpha": {"config_dir": "~/.claudewheel/profiles/alpha"},
+                       "beta": {"config_dir": "~/.claudewheel/profiles/beta"}},
         )
         result = profile_ops._remove_from_options("alpha")
         self.assertTrue(result)
@@ -318,7 +318,7 @@ class DoDeleteProfileIntegrationTests(_ProfileOpsTestCase):
         """Successful deletion removes dir, options, tokens, and origins."""
         self._write_options(
             ["target", "other"],
-            metadata={"target": {"config_dir": "~/.claude-target"}},
+            metadata={"target": {"config_dir": "~/.claudewheel/profiles/target"}},
         )
         self._write_tokens({"target": "tok-t", "other": "tok-o"})
         self._make_profile_dir("target")

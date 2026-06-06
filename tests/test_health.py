@@ -87,12 +87,12 @@ class DiscoverProfilesTests(_HomeDirTestCase):
         self.assertEqual(names, ["alpha", "beta"])
 
     def test_ignores_dirs_without_credentials(self) -> None:
-        """Dirs named .claude-* but missing .credentials.json are skipped."""
+        """Profile dirs without .credentials.json are skipped."""
         # Has credentials
         self._make_profile("real")
         # Missing credentials
-        fake = self.home / ".claude-fake"
-        fake.mkdir()
+        fake = self._profiles_dir / "fake"
+        fake.mkdir(parents=True, exist_ok=True)
         result = _discover_profiles()
         names = [name for name, _path in result]
         self.assertEqual(names, ["real"])
