@@ -6,3 +6,4 @@
 {"commits":["1db325de4f7f2b299488b5be1398db13b5ee5a78"],"user_facing":true,"description":"Config directory renamed from `~/.claudelauncher/` to `~/.claudewheel/`. Run `mv ~/.claudelauncher ~/.claudewheel` before upgrading or claudewheel will scaffold a fresh empty dir on next launch.","type":"breaking"}
 {"commits":["9b523f2cca9a75045881f5d3b59ed68d41bcb9bf"],"user_facing":true,"description":"Fix startup crash from strictcli guardrail; `-s` now errors on duplicate segment keys (including conflicts between an individual segment flag and `-s`) instead of silently dropping the earlier value.","type":"fix"}
 {"commits":["fd30ae71d2e23f5d1a4d3b070e2c54359ba89218"],"user_facing":false}
+{"commits":["e74b5aa0823e05cea562ce4775949dfd115fb148"],"user_facing":false}
