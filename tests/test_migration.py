@@ -292,6 +292,63 @@ class VersionedMigrationTests(unittest.TestCase):
         on_disk = _read_json(paths["CONFIG_FILE"])
         self.assertGreaterEqual(on_disk["_schema_version"], 1)
 
+    def test_migration_v2_rewrites_old_profile_paths(self) -> None:
+        """Migration v2 rewrites ~/.claude-<name> metadata paths to ~/.claudewheel/profiles/<name>."""
+        config = {**DEFAULT_CONFIG, "_schema_version": 1}
+        options = {
+            **DEFAULT_OPTIONS,
+            "profile": {
+                **DEFAULT_OPTIONS.get("profile", {}),
+                "metadata": {
+                    "work": {"config_dir": "~/.claude-work"},
+                    "personal": {"config_dir": "~/.claude-personal"},
+                },
+            },
+        }
+        paths = _setup_temp_config_dir(self.tmp, config=config, options=options)
+        cm = self._make_cm(paths)
+
+        metadata = cm.options_def["profile"]["metadata"]
+        self.assertEqual(metadata["work"]["config_dir"], "~/.claudewheel/profiles/work")
+        self.assertEqual(metadata["personal"]["config_dir"], "~/.claudewheel/profiles/personal")
+        self.assertGreaterEqual(cm.config["_schema_version"], 2)
+
+    def test_migration_v2_leaves_already_migrated_paths(self) -> None:
+        """Migration v2 does not alter paths already under ~/.claudewheel/profiles/."""
+        config = {**DEFAULT_CONFIG, "_schema_version": 1}
+        options = {
+            **DEFAULT_OPTIONS,
+            "profile": {
+                **DEFAULT_OPTIONS.get("profile", {}),
+                "metadata": {
+                    "work": {"config_dir": "~/.claudewheel/profiles/work"},
+                },
+            },
+        }
+        paths = _setup_temp_config_dir(self.tmp, config=config, options=options)
+        cm = self._make_cm(paths)
+
+        metadata = cm.options_def["profile"]["metadata"]
+        self.assertEqual(metadata["work"]["config_dir"], "~/.claudewheel/profiles/work")
+
+    def test_migration_v2_leaves_bare_default_path(self) -> None:
+        """Migration v2 does not alter the bare ~/.claude default profile path."""
+        config = {**DEFAULT_CONFIG, "_schema_version": 1}
+        options = {
+            **DEFAULT_OPTIONS,
+            "profile": {
+                **DEFAULT_OPTIONS.get("profile", {}),
+                "metadata": {
+                    "default": {"config_dir": "~/.claude"},
+                },
+            },
+        }
+        paths = _setup_temp_config_dir(self.tmp, config=config, options=options)
+        cm = self._make_cm(paths)
+
+        metadata = cm.options_def["profile"]["metadata"]
+        self.assertEqual(metadata["default"]["config_dir"], "~/.claude")
+
 
 if __name__ == "__main__":
     unittest.main()
