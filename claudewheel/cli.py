@@ -9,7 +9,7 @@ import strictcli
 from strictcli import App, Arg, Flag, Tag
 
 from . import __version__
-from .constants import CONFIG_DIR, OPTIONS_FILE, VERSIONS_DIR, CLAUDE_SYMLINK
+from .constants import CONFIG_DIR, OPTIONS_FILE, SCRIPTS_DIR, VERSIONS_DIR, CLAUDE_SYMLINK
 from .segment import version_sort_key
 
 # Passthrough args after "--" are stashed here by main() before strictcli sees argv.
@@ -295,6 +295,37 @@ def _handle_redir(old: str, new: str, dry_run: bool) -> int:
     return 0
 
 
+@strictcli.flag("all", type=bool, help="deploy all known hook scripts")
+def _handle_deploy_hooks(name: str, all: bool) -> int:
+    from .hook_scripts import HOOK_SCRIPTS
+
+    if not name and not all:
+        print("Error: provide a script name or --all", file=sys.stderr)
+        sys.exit(1)
+    if name and all:
+        print("Error: --all and a positional name are mutually exclusive", file=sys.stderr)
+        sys.exit(1)
+
+    if name and name not in HOOK_SCRIPTS:
+        known = ", ".join(sorted(HOOK_SCRIPTS))
+        print(f"Error: unknown hook script: {name!r} (known: {known})", file=sys.stderr)
+        sys.exit(1)
+
+    SCRIPTS_DIR.mkdir(parents=True, exist_ok=True)
+
+    targets = sorted(HOOK_SCRIPTS) if all else [name]
+    for script_name in targets:
+        dest = SCRIPTS_DIR / script_name
+        if dest.exists():
+            print(f"already exists: {dest}")
+            continue
+        dest.write_text(HOOK_SCRIPTS[script_name])
+        dest.chmod(0o755)
+        print(f"created: {dest}")
+
+    return 0
+
+
 # "continue" and "print" are Python keywords, so we use "cont" / "print-prompt"
 # as flag names. Short forms -c and -p remain the same for user convenience.
 def _handle_launch(
@@ -418,7 +449,7 @@ def _handle_launch(
 _SUBCOMMANDS = frozenset({
     "health", "config", "versions", "install", "uninstall",
     "reset-options", "new-profile", "delete-profile", "show",
-    "migrate", "gc", "redir", "launch",
+    "migrate", "gc", "redir", "deploy-hooks", "launch",
 })
 
 
@@ -486,6 +517,11 @@ def _build_app() -> App:
                     Arg(name="new", help="new directory path"),
                 ])(
         _handle_redir
+    )
+
+    app.command("deploy-hooks", help="deploy hook scripts to ~/.claudewheel/scripts/",
+                args=[Arg(name="name", help="script name to deploy", required=False, default="")])(
+        _handle_deploy_hooks
     )
 
     # -- Launch command (default when no subcommand given) --
