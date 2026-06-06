@@ -1,4 +1,4 @@
-"""Load, save, and migrate JSON config files from ~/.claudewheel/."""
+"""Config loading, saving, and schema migration system."""
 
 from __future__ import annotations
 
@@ -79,7 +79,7 @@ _MIGRATIONS: list[dict] = [
 
 @dataclass
 class ConfigManager:
-    """Loads, saves, and migrates JSON config files from ~/.claudewheel/."""
+    """Manages the four JSON config files (config, segments, options, state) and runs migrations on init."""
 
     config: dict = field(default_factory=dict)
     segments_def: list[dict] = field(default_factory=list)
