@@ -39,7 +39,15 @@ def build_canonical_shared_settings(scripts_dir: Path) -> dict:
                         {"type": "command", "command": str(scripts_dir / "hook-stamp-origin")},
                     ],
                 }
-            ]
+            ],
+            "PreToolUse": [
+                {
+                    "matcher": "Agent",
+                    "hooks": [
+                        {"type": "command", "command": str(scripts_dir / "hook-block-worktree")},
+                    ],
+                }
+            ],
         },
         "disallowedTools": DISALLOWED_TOOLS[:],
     }

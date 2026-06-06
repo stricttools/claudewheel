@@ -223,10 +223,11 @@ class BuildCanonicalSharedSettingsTests(unittest.TestCase):
     """Tests for build_canonical_shared_settings()."""
 
     def test_has_hooks_key(self) -> None:
-        """Result contains a hooks dict with UserPromptSubmit."""
+        """Result contains a hooks dict with UserPromptSubmit and PreToolUse."""
         result = build_canonical_shared_settings(Path("/scripts"))
         self.assertIn("hooks", result)
         self.assertIn("UserPromptSubmit", result["hooks"])
+        self.assertIn("PreToolUse", result["hooks"])
 
     def test_has_disallowed_tools(self) -> None:
         """Result contains the full DISALLOWED_TOOLS list."""
@@ -237,10 +238,14 @@ class BuildCanonicalSharedSettingsTests(unittest.TestCase):
         """Hook commands reference the provided scripts_dir."""
         scripts = Path("/my/scripts")
         result = build_canonical_shared_settings(scripts)
-        hooks = result["hooks"]["UserPromptSubmit"][0]["hooks"]
-        self.assertTrue(any("hook-timestamp" in h["command"] for h in hooks))
-        self.assertTrue(any("hook-stamp-origin" in h["command"] for h in hooks))
-        for h in hooks:
+        ups_hooks = result["hooks"]["UserPromptSubmit"][0]["hooks"]
+        self.assertTrue(any("hook-timestamp" in h["command"] for h in ups_hooks))
+        self.assertTrue(any("hook-stamp-origin" in h["command"] for h in ups_hooks))
+        for h in ups_hooks:
+            self.assertTrue(h["command"].startswith(str(scripts)))
+        ptu_hooks = result["hooks"]["PreToolUse"][0]["hooks"]
+        self.assertTrue(any("hook-block-worktree" in h["command"] for h in ptu_hooks))
+        for h in ptu_hooks:
             self.assertTrue(h["command"].startswith(str(scripts)))
 
     def test_disallowed_tools_is_copy(self) -> None:
