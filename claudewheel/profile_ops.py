@@ -1,17 +1,14 @@
-"""Delete profiles and clean up their dirs, tokens, options, and xattrs."""
+"""Delete profiles and clean up their dirs, tokens, and options."""
 
 from __future__ import annotations
 
-import fcntl
 import json
 import os
 import shutil
 import sys
 from pathlib import Path
 
-from .constants import OPTIONS_FILE, ORIGINS_FILE, PROFILES_DIR, PROFILE_SHARED_DIRS, SHARED_DIR, TOKENS_FILE
-
-XATTR_NAME = b"user.origin-profile"
+from .constants import OPTIONS_FILE, PROFILES_DIR, TOKENS_FILE
 
 
 def _is_profile_running(name: str) -> bool:
@@ -97,70 +94,6 @@ def _remove_from_options(name: str) -> bool:
         tmp.rename(OPTIONS_FILE)
 
     return found
-
-
-def _strip_xattrs(name: str) -> int:
-    """Remove origin-profile xattr from shared files stamped with this profile.
-
-    Scans all 5 shared dirs for files/dirs whose user.origin-profile xattr
-    matches `name` and removes the xattr. Returns the count modified.
-    """
-    if not SHARED_DIR.is_dir():
-        return 0
-
-    stripped = 0
-    for dirname in PROFILE_SHARED_DIRS:
-        dirpath = SHARED_DIR / dirname
-        if not dirpath.is_dir():
-            continue
-        for f in dirpath.rglob("*"):
-            try:
-                val = os.getxattr(str(f), XATTR_NAME)
-                if val.decode(errors="replace") == name:
-                    os.removexattr(str(f), XATTR_NAME)
-                    stripped += 1
-            except OSError:
-                pass
-    return stripped
-
-
-def _clean_origins_file(name: str) -> int:
-    """Remove lines from profile-origins.jsonl that match the deleted profile.
-
-    Returns the number of lines removed.
-    """
-    if not ORIGINS_FILE.is_file():
-        return 0
-
-    lock_path = str(ORIGINS_FILE) + ".lock"
-    with open(lock_path, "w") as lf:
-        fcntl.flock(lf, fcntl.LOCK_EX)
-        try:
-            lines = ORIGINS_FILE.read_text().splitlines()
-        except OSError:
-            return 0
-
-        kept: list[str] = []
-        removed = 0
-        for line in lines:
-            line_stripped = line.strip()
-            if not line_stripped:
-                continue
-            try:
-                entry = json.loads(line_stripped)
-                if entry.get("profile") == name:
-                    removed += 1
-                    continue
-            except (json.JSONDecodeError, TypeError):
-                pass
-            kept.append(line)
-
-        if removed > 0:
-            tmp = ORIGINS_FILE.with_suffix(".tmp")
-            tmp.write_text("\n".join(kept) + "\n" if kept else "")
-            tmp.rename(ORIGINS_FILE)
-
-    return removed
 
 
 def _remove_from_tokens(name: str) -> bool:
