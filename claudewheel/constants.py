@@ -20,11 +20,8 @@ SHARED_SETTINGS_FILE = CONFIG_DIR / "shared-settings.json"
 
 SCRIPTS_DIR = CONFIG_DIR / "scripts"
 
-ORIGINS_FILE = CONFIG_DIR / "profile-origins.jsonl"
-
 SHARED_DIR = CONFIG_DIR / "shared"
 SKILLS_DIR = CONFIG_DIR / "skills"
-SENTINELS_DIR = SHARED_DIR / "sentinels"
 
 # Directories inside each profile that are symlinked to the shared store.
 PROFILE_SHARED_DIRS = ["projects", "session-env", "file-history", "tasks", "todos", "paste-cache"]
