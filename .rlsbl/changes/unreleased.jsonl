@@ -1,7 +1,0 @@
-{"commits":["450a67d4189e2356ea81e187b71f59eed6ccece5","ba952592c4bacc3709f024d20e4739259c33a724","0d681f8caf961cb6e8087b9dda9de454f16284a6","6f12a2df850d85a65d99a0b743e941865bdc0fae","8c60d605dca42a9737ef7fff8fab02cd4674fda8"],"user_facing":true,"description":"**Shared data consolidated.** Session data, skills, and scripts moved from ~/.claude-shared/ and ~/.claude-common/ into ~/.claudewheel/. Both old directories eliminated.","type":"breaking"}
-{"commits":["c84232d317258089ff97e9151b54d89352079a8f"],"user_facing":true,"description":"**Fix.** Profile origins log now correctly read from ~/.claudewheel/ instead of stale ~/.claude-common/ path.","type":"fix"}
-{"commits":["ad42d8efc6627f2861adfc597d8a1a8b11a6336a"],"user_facing":false}
-{"commits":["c0f88562d213355324e8afac6ebce9e8647e9c27","e9c763a87f0c69c63fe77f319ae91772c92f809f","243e98eb8970daa7eaf53280ee76abe612f1db1a","f9da186156d6ebb569ee98f44235b8c09ed55b5e"],"user_facing":false}
-{"commits":["0ff6ab1ead9a881f0e6418f801a7fc4ed7af65f5","656811c2bb8e0da6a4bb84479c2f61f4cf48c65e"],"user_facing":false}
-{"commits":["5b4ac597da4dd0f95b4adf0212b7b86c46b21eb6","7a0be8cbaff38fea42e0f39a1346d044fb4a5e30","9a3f2158fa13ebe47404b24b0cbe4b17c844b9bf","76f77da1f11c5fd2b550a0585c7747a00d14f179","3ea2adbafc389e7d67c80aed921946a4c68c72a1"],"user_facing":false}
-{"commits":["e7c65be0c320f773225b0b04fb853486d2f2b01a","c7215ace72931b227e78d6ed60e65fcf60d59b7d","148460bbf9cbca9b51ed548fb78fed6b89ff3129","fae61d41bfdc434802107378741b61cacb499316"],"user_facing":false}
