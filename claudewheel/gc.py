@@ -5,9 +5,7 @@ import json
 import re
 import time
 from pathlib import Path
-from .constants import COMMON_DIR, OPTIONS_FILE, SHARED_DIR
-
-ORIGINS_FILE = COMMON_DIR / "profile-origins.jsonl"
+from .constants import OPTIONS_FILE, ORIGINS_FILE, SHARED_DIR
 STALE_THRESHOLD = 30 * 24 * 3600  # 30 days
 
 def _log(msg: str) -> None:
@@ -15,7 +13,7 @@ def _log(msg: str) -> None:
 
 
 def _known_profiles() -> set[str]:
-    known = {"personal", "work", "6_J5"}
+    known = {"personal", "work", "Enon"}
     try:
         opts = json.loads(OPTIONS_FILE.read_text())
         known.update(opts.get("profile", {}).get("values", []))

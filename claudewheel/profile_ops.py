@@ -9,10 +9,9 @@ import shutil
 import sys
 from pathlib import Path
 
-from .constants import COMMON_DIR, OPTIONS_FILE, PROFILES_DIR, PROFILE_SHARED_DIRS, SHARED_DIR, TOKENS_FILE
+from .constants import OPTIONS_FILE, ORIGINS_FILE, PROFILES_DIR, PROFILE_SHARED_DIRS, SHARED_DIR, TOKENS_FILE
 
 XATTR_NAME = b"user.origin-profile"
-ORIGINS_FILE = COMMON_DIR / "profile-origins.jsonl"
 
 
 def _is_profile_running(name: str) -> bool:
