@@ -5,7 +5,7 @@ import json
 import re
 import time
 from pathlib import Path
-from .constants import OPTIONS_FILE, ORIGINS_FILE, SHARED_DIR
+from .constants import OPTIONS_FILE, ORIGINS_FILE, SENTINELS_DIR, SHARED_DIR
 STALE_THRESHOLD = 30 * 24 * 3600  # 30 days
 
 def _log(msg: str) -> None:
@@ -13,7 +13,7 @@ def _log(msg: str) -> None:
 
 
 def _known_profiles() -> set[str]:
-    known = {"personal", "work", "Enon"}
+    known = {"personal", "work", "\15I"}
     try:
         opts = json.loads(OPTIONS_FILE.read_text())
         known.update(opts.get("profile", {}).get("values", []))
@@ -24,10 +24,10 @@ def _known_profiles() -> set[str]:
 
 def _clean_sentinels(dry_run: bool) -> int:
     """Remove .stamped-<uuid> sentinel files older than 30 days."""
-    if not SHARED_DIR.is_dir():
+    if not SENTINELS_DIR.is_dir():
         return 0
     now, removed = time.time(), 0
-    for entry in SHARED_DIR.iterdir():
+    for entry in SENTINELS_DIR.iterdir():
         if not entry.name.startswith(".stamped-"):
             continue
         try:
