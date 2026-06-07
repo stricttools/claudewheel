@@ -8,7 +8,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from .constants import OPTIONS_FILE, PROFILES_DIR, PROFILE_SHARED_DIRS, SCRIPTS_DIR, SHARED_DIR, SHARED_SETTINGS_FILE, SKILLS_DIR, TOKENS_FILE
+from .constants import OPTIONS_FILE, PROFILES_DIR, PROFILE_SHARED_DIRS, SHARED_DIR, SHARED_SETTINGS_FILE, SKILLS_DIR, TOKENS_FILE
 from .defaults import DISALLOWED_TOOLS, build_canonical_shared_settings
 from .discovery import discover_profiles
 
@@ -91,64 +91,11 @@ def check_shared_symlinks() -> HealthResult:
     return HealthResult(True, "shared-symlinks", f"all {len(profiles)} profiles OK")
 
 
-def check_xattr_coverage() -> HealthResult:
-    """Sample .jsonl files in ~/.claudewheel/shared/projects/ for origin-profile xattr."""
-    projects_dir = SHARED_DIR / "projects"
-    if not projects_dir.exists():
-        return HealthResult(True, "xattr-coverage", "projects dir not found")
-
-    # Collect up to 200 .jsonl files
-    files: list[Path] = []
-    for f in projects_dir.rglob("*.jsonl"):
-        files.append(f)
-        if len(files) >= 200:
-            break
-
-    if not files:
-        return HealthResult(True, "xattr-coverage", "no .jsonl files found")
-
-    tagged = 0
-    for f in files:
-        try:
-            os.getxattr(str(f), b"user.origin-profile")
-            tagged += 1
-        except OSError:
-            pass
-
-    pct = tagged * 100 / len(files)
-    detail = f"{pct:.0f}% of {len(files)} sampled files have xattr"
-    if pct >= 95:
-        return HealthResult(True, "xattr-coverage", detail)
-    return HealthResult(False, "xattr-coverage", detail)
-
-
-def check_hook_integrity() -> HealthResult:
-    """Verify hook-stamp-origin contains sentinel and flock patterns."""
-    hook = SCRIPTS_DIR / "hook-stamp-origin"
-    if not hook.exists():
-        return HealthResult(
-            False, "hook-integrity",
-            "hook-stamp-origin missing. Run: claudewheel deploy-hooks hook-stamp-origin",
-        )
-    try:
-        content = hook.read_text()
-    except OSError:
-        return HealthResult(False, "hook-integrity", "unreadable")
-    issues: list[str] = []
-    if ".stamped-" not in content:
-        issues.append("no sentinel check")
-    if "flock" not in content:
-        issues.append("no flock")
-    if issues:
-        return HealthResult(False, "hook-integrity", "; ".join(issues))
-    return HealthResult(True, "hook-integrity", "sentinel + flock present")
-
-
 def check_hooks_wired() -> HealthResult:
     """Verify each profile's settings.json has required hooks.
 
     Checks:
-    - UserPromptSubmit: hook-timestamp and hook-stamp-origin
+    - UserPromptSubmit: hook-timestamp
     - PreToolUse: hook-block-worktree (matcher: Agent)
     """
     profiles = _discover_profiles()
@@ -182,8 +129,6 @@ def check_hooks_wired() -> HealthResult:
         combined = " ".join(ups_commands)
         if "hook-timestamp" not in combined:
             missing.append(f"{name}: missing hook-timestamp")
-        if "hook-stamp-origin" not in combined:
-            missing.append(f"{name}: missing hook-stamp-origin")
 
         # Check PreToolUse Agent hook (block-worktree)
         ptu_list = hooks.get("PreToolUse", [])
@@ -471,7 +416,6 @@ def run_health_check() -> list[HealthResult]:
         check_tmpfs_quota(),
         check_tmp_claude_size(),
         check_shared_symlinks(),
-        check_xattr_coverage(),
         check_hooks_wired(),
         check_settings_defaults(),
         check_shared_settings_drift(),
@@ -479,7 +423,6 @@ def run_health_check() -> list[HealthResult]:
         check_token_expiry(),
         check_orphan_profiles(),
         check_file_permissions(),
-        check_hook_integrity(),
     ]
 
 
