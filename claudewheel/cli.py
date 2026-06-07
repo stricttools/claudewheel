@@ -296,7 +296,8 @@ def _handle_redir(old: str, new: str, dry_run: bool) -> int:
 
 
 @strictcli.flag("all", type=bool, help="deploy all known hook scripts")
-def _handle_deploy_hooks(name: str, all: bool) -> int:
+@strictcli.flag("force", type=bool, help="overwrite existing scripts instead of skipping")
+def _handle_deploy_hooks(name: str, all: bool, force: bool) -> int:
     from .hook_scripts import HOOK_SCRIPTS
 
     if not name and not all:
@@ -316,12 +317,13 @@ def _handle_deploy_hooks(name: str, all: bool) -> int:
     targets = sorted(HOOK_SCRIPTS) if all else [name]
     for script_name in targets:
         dest = SCRIPTS_DIR / script_name
-        if dest.exists():
+        if dest.exists() and not force:
             print(f"already exists: {dest}")
             continue
+        action = "overwritten" if dest.exists() else "created"
         dest.write_text(HOOK_SCRIPTS[script_name])
         dest.chmod(0o755)
-        print(f"created: {dest}")
+        print(f"{action}: {dest}")
 
     return 0
 

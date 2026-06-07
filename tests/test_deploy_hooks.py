@@ -132,6 +132,19 @@ class DeployHooksTests(unittest.TestCase):
         dest = self.scripts_dir / name
         self.assertEqual(dest.read_text(), HOOK_SCRIPTS[name])
 
+    def test_force_overwrites_existing(self) -> None:
+        """deploy-hooks --force overwrites an existing script."""
+        name = "hook-timestamp"
+        self.scripts_dir.mkdir(parents=True, exist_ok=True)
+        existing = self.scripts_dir / name
+        existing.write_text("old content")
+
+        stdout, _, _ = self._run_deploy(["c", "deploy-hooks", "--force", name])
+
+        self.assertIn(f"overwritten: {existing}", stdout)
+        # Content must be replaced with the registry template
+        self.assertEqual(existing.read_text(), HOOK_SCRIPTS[name])
+
 
 if __name__ == "__main__":
     unittest.main()
