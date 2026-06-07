@@ -26,7 +26,6 @@ class _HomeDirTestCase(unittest.TestCase):
         self._dir_patches = [
             patch("claudewheel.health.PROFILES_DIR", self._profiles_dir),
             patch("claudewheel.health.SHARED_SETTINGS_FILE", self._shared_settings),
-            patch("claudewheel.health.SCRIPTS_DIR", self._scripts_dir),
             patch("claudewheel.discovery.PROFILES_DIR", self._profiles_dir),
         ]
         for p in self._dir_patches:
