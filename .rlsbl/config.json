@@ -5,6 +5,7 @@
   ],
   "private": false,
   "push_timeout": 120,
+  "env_file": "~/Projects/.env",
   "pipelines": {
     "npm": {"type": "npm", "local": false},
     "pypi": {"type": "pypi", "local": false},
