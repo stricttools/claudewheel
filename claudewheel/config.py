@@ -18,7 +18,6 @@ from .constants import (
     SCRIPTS_DIR,
     SHARED_DIR,
     SHARED_SETTINGS_FILE,
-    COMMON_DIR,
 )
 from .defaults import (
     DEFAULT_CONFIG,
@@ -106,7 +105,7 @@ class ConfigManager:
     def _warn_old_profile_dirs() -> None:
         """Print a warning if old-style ~/.claude-<name>/ profile dirs exist."""
         home = Path.home()
-        skip = {SHARED_DIR.name, COMMON_DIR.name, ".claude"}
+        skip = {".claude-shared", ".claude-common", ".claude"}
         old_dirs: list[str] = []
         try:
             for entry in sorted(home.iterdir()):
