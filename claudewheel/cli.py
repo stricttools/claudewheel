@@ -278,9 +278,9 @@ def _handle_migrate(src: str, dst: str, uuid: str) -> int:
 
 
 @strictcli.flag("dry-run", type=bool, help="preview changes without writing")
-def _handle_gc(dry_run: bool) -> int:
-    from .gc import run_gc
-    run_gc(dry_run=dry_run)
+def _handle_stats(dry_run: bool) -> int:
+    from .stats import run_stats
+    run_stats(dry_run=dry_run)
     return 0
 
 
@@ -453,7 +453,7 @@ def _handle_launch(
 _SUBCOMMANDS = frozenset({
     "health", "config", "versions", "install", "uninstall",
     "reset-options", "new-profile", "delete-profile", "show",
-    "migrate", "gc", "redir", "deploy-hooks", "launch",
+    "migrate", "stats", "redir", "deploy-hooks", "launch",
 })
 
 
@@ -511,8 +511,8 @@ def _build_app() -> App:
         _handle_migrate
     )
 
-    app.command("gc", help="report shared-store stats and clean up legacy data")(
-        _handle_gc
+    app.command("stats", help="report shared-store stats and clean up legacy data")(
+        _handle_stats
     )
 
     app.command("redir", help="redirect session data after a project directory rename",

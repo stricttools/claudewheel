@@ -5,7 +5,7 @@ from .constants import SHARED_DIR
 
 
 def _log(msg: str) -> None:
-    print(f"[gc] {msg}")
+    print(f"[stats] {msg}")
 
 
 def _report_shared_stats() -> None:
@@ -28,8 +28,8 @@ def _report_shared_stats() -> None:
     _log(f"  {'TOTAL':<20s} {tf:>6d} files  {tb / 1024:>10.1f} KB")
 
 
-def run_gc(dry_run: bool = False) -> None:
-    """Run garbage collection across shared store and profile infrastructure."""
+def run_stats(dry_run: bool = False) -> None:
+    """Report shared-store stats and clean up legacy data."""
     if dry_run:
         _log("DRY RUN -- no changes will be made")
     sentinels_dir = SHARED_DIR / "sentinels"
