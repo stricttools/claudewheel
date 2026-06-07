@@ -1,0 +1,2 @@
+{"commits":["6eac35ca3f4ed3f558e3ac9ae498f4d39949cc7d"],"user_facing":true,"description":"**Renamed.** `gc` command renamed to `stats` to reflect its actual purpose (reporting shared-store statistics).","type":"breaking"}
+{"commits":["a3cb5ebede48a614d9ad460b63aeb5605acde965","48c18707c094b70ddf5112b76abf44cea8be3ce1"],"user_facing":false}
