@@ -2,16 +2,22 @@
 
 # Changelog
 
-## 0.7.0
+## 0.8.0
 
-Remove profile attribution system, add --picker flag, unify shared settings
+Rename gc command to stats
 
 <details>
 <summary>Context</summary>
 
-The profile attribution system (hook-stamp-origin, xattr stamping, sentinels, origins log) had unfixable race conditions and 30% of session files could never be attributed. Removed entirely rather than patching. Also adds --picker for argless session resume and unifies shared settings with drift detection.
+The gc command only reports shared-store statistics now (sentinel cleanup and origins compaction were removed in v0.7.0). Renamed to reflect its actual purpose.
 
 </details>
+
+### Breaking
+
+- **Renamed.** `gc` command renamed to `stats` to reflect its actual purpose (reporting shared-store statistics).
+
+## 0.7.0
 
 ### Breaking
 

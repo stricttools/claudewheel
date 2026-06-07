@@ -36,7 +36,7 @@
   },
   "project_id": "claudewheel",
   "name": "c",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "help": "claudewheel - TUI launcher for Claude Code",
   "commands": {
     "health": {
@@ -121,8 +121,8 @@
         }
       ]
     },
-    "gc": {
-      "name": "gc",
+    "stats": {
+      "name": "stats",
       "help": "report shared-store stats and clean up legacy data",
       "flags": [
         {

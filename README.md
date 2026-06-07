@@ -73,7 +73,7 @@ Profile, GitHub, and Model are *creatable*: their option lists end with a `+` se
 | `delete-profile` | delete a registered profile and all associated data |
 | `show` | print current selections and exit |
 | `migrate` | migrate sessions between profiles |
-| `gc` | report shared-store stats and clean up legacy data |
+| `stats` | report shared-store stats and clean up legacy data |
 | `redir` | redirect session data after a project directory rename |
 | `deploy-hooks` | deploy hook scripts to ~/.claudewheel/scripts/ |
 | `launch` | start the interactive TUI launcher |

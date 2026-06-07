@@ -27,7 +27,6 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 - **claudewheel.defaults** (`claudewheel/defaults.py`): Default values for config, segments, options, state, and themes.
 - **claudewheel.discovery** (`claudewheel/discovery.py`): Scan the filesystem for Claude Code profiles and their credentials.
 - **claudewheel.fuzzy** (`claudewheel/fuzzy.py`): Score, rank, and highlight fuzzy matches between queries and option lists.
-- **claudewheel.gc** (`claudewheel/gc.py`): Report shared-store statistics and clean up legacy data.
 - **claudewheel.health** (`claudewheel/health.py`): Pre-launch diagnostics: symlinks, tokens, hooks, permissions, and disk usage.
 - **claudewheel.hook_scripts** (`claudewheel/hook_scripts.py`): Registry of hook script templates for deploy-hooks command.
 - **claudewheel.hooks** (`claudewheel/hooks.py`): Run user-defined hook scripts at pre-launch and other lifecycle stages.
@@ -40,6 +39,7 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 - **claudewheel.renderer** (`claudewheel/renderer.py`): Draw the segment bar, fan-out options, minimap, and scroll arrows.
 - **claudewheel.segment** (`claudewheel/segment.py`): Segment and SegmentBar dataclasses, option discovery, and cross-segment constraints.
 - **claudewheel.state** (`claudewheel/state.py`): Save selections, launch count, and recent directories to state.json.
+- **claudewheel.stats** (`claudewheel/stats.py`): Report shared-store statistics and clean up legacy data.
 - **claudewheel.terminal** (`claudewheel/terminal.py`): Raw terminal I/O: cbreak mode, escape sequence decoding, and alt screen.
 - **claudewheel.theme** (`claudewheel/theme.py`): Parse hex color themes into pre-computed ANSI escape sequences.
 - **claudewheel.wizard** (`claudewheel/wizard.py`): Interactive form wizard for creating and configuring new profiles.
@@ -58,7 +58,7 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 | `delete-profile` | delete a registered profile and all associated data |
 | `show` | print current selections and exit |
 | `migrate` | migrate sessions between profiles |
-| `gc` | report shared-store stats and clean up legacy data |
+| `stats` | report shared-store stats and clean up legacy data |
 | `redir` | redirect session data after a project directory rename |
 | `deploy-hooks` | deploy hook scripts to ~/.claudewheel/scripts/ |
 | `launch` | start the interactive TUI launcher |
