@@ -15,7 +15,7 @@ requires-dist = [{ name = "strictcli", editable = "../strictcli/python" }]
 
 [[package]]
 name = "strictcli"
-version = "0.16.0"
+version = "0.16.1"
 source = { editable = "../strictcli/python" }
 
 [package.metadata]
