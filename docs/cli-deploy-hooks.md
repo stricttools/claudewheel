@@ -16,6 +16,7 @@ deploy hook scripts to ~/.claudewheel/scripts/
 | Name | Short | Type | Default | Env | Description |
 | --- | --- | --- | --- | --- | --- |
 | `--all` |  | bool |  |  | deploy all known hook scripts |
+| `--force` |  | bool |  |  | overwrite existing scripts instead of skipping |
 
 ## Arguments
 

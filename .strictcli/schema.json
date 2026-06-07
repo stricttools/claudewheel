@@ -36,7 +36,7 @@
   },
   "project_id": "claudewheel",
   "name": "c",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "help": "claudewheel - TUI launcher for Claude Code",
   "commands": {
     "health": {
@@ -123,7 +123,7 @@
     },
     "gc": {
       "name": "gc",
-      "help": "garbage-collect stale sentinels, compact origins, report stats",
+      "help": "report shared-store stats and clean up legacy data",
       "flags": [
         {
           "name": "dry-run",
@@ -167,6 +167,13 @@
           "help": "deploy all known hook scripts",
           "default": false,
           "negatable": true
+        },
+        {
+          "name": "force",
+          "type": "bool",
+          "help": "overwrite existing scripts instead of skipping",
+          "default": false,
+          "negatable": true
         }
       ],
       "args": [
@@ -202,6 +209,13 @@
           "help": "run in non-interactive print mode with the given prompt",
           "short": "p",
           "default": "\u0000__unset__"
+        },
+        {
+          "name": "picker",
+          "type": "bool",
+          "help": "open the session resume picker",
+          "default": false,
+          "negatable": true
         },
         {
           "name": "profile",

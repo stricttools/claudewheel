@@ -9,7 +9,7 @@ nav_order: 4
 
 # c gc
 
-garbage-collect stale sentinels, compact origins, report stats
+report shared-store stats and clean up legacy data
 
 ## Flags
 

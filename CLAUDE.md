@@ -27,13 +27,13 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 - **claudewheel.defaults** (`claudewheel/defaults.py`): Default values for config, segments, options, state, and themes.
 - **claudewheel.discovery** (`claudewheel/discovery.py`): Scan the filesystem for Claude Code profiles and their credentials.
 - **claudewheel.fuzzy** (`claudewheel/fuzzy.py`): Score, rank, and highlight fuzzy matches between queries and option lists.
-- **claudewheel.gc** (`claudewheel/gc.py`): Clean stale sentinels, compact origin logs, and report shared-store stats.
+- **claudewheel.gc** (`claudewheel/gc.py`): Report shared-store statistics and clean up legacy data.
 - **claudewheel.health** (`claudewheel/health.py`): Pre-launch diagnostics: symlinks, tokens, hooks, permissions, and disk usage.
 - **claudewheel.hook_scripts** (`claudewheel/hook_scripts.py`): Registry of hook script templates for deploy-hooks command.
 - **claudewheel.hooks** (`claudewheel/hooks.py`): Run user-defined hook scripts at pre-launch and other lifecycle stages.
 - **claudewheel.install** (`claudewheel/install.py`): Download, verify, and install Claude Code binaries from Google Cloud Storage.
 - **claudewheel.launch** (`claudewheel/launch.py`): Map TUI selections to binary path, env vars, flags, and exec.
-- **claudewheel.migrate** (`claudewheel/migrate.py`): Move session artifacts between profiles, stamping origin xattrs for attribution.
+- **claudewheel.migrate** (`claudewheel/migrate.py`): Move session artifacts between profiles.
 - **claudewheel.profile** (`claudewheel/profile.py`): Resolve a profile name to CLAUDE_CONFIG_DIR and OAuth token env vars.
 - **claudewheel.profile_ops** (`claudewheel/profile_ops.py`): Delete profiles and clean up their dirs, tokens, and options.
 - **claudewheel.redir** (`claudewheel/redir.py`): Rewrite session paths and project keys after a directory rename.
@@ -58,7 +58,7 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 | `delete-profile` | delete a registered profile and all associated data |
 | `show` | print current selections and exit |
 | `migrate` | migrate sessions between profiles |
-| `gc` | garbage-collect stale sentinels, compact origins, report stats |
+| `gc` | report shared-store stats and clean up legacy data |
 | `redir` | redirect session data after a project directory rename |
 | `deploy-hooks` | deploy hook scripts to ~/.claudewheel/scripts/ |
 | `launch` | start the interactive TUI launcher |

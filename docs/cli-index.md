@@ -12,7 +12,7 @@ order: 91
 
 claudewheel - TUI launcher for Claude Code
 
-Version: 0.6.0
+Version: 0.6.1
 
 ## Commands
 
@@ -26,7 +26,7 @@ Version: 0.6.0
 - [delete-profile](cli-delete-profile.html) -- delete a registered profile and all associated data
 - [show](cli-show.html) -- print current selections and exit
 - [migrate](cli-migrate.html) -- migrate sessions between profiles
-- [gc](cli-gc.html) -- garbage-collect stale sentinels, compact origins, report stats
+- [gc](cli-gc.html) -- report shared-store stats and clean up legacy data
 - [redir](cli-redir.html) -- redirect session data after a project directory rename
 - [deploy-hooks](cli-deploy-hooks.html) -- deploy hook scripts to ~/.claudewheel/scripts/
 - [launch](cli-launch.html) -- start the interactive TUI launcher

@@ -2,20 +2,32 @@
 
 # Changelog
 
-## 0.6.1
+## 0.7.0
 
-Consolidate shared data and eliminate ~/.claude-shared/ and ~/.claude-common/
+Remove profile attribution system, add --picker flag, unify shared settings
 
 <details>
 <summary>Context</summary>
 
-Shared session data (projects, session-env, file-history, tasks, todos, paste-cache) moved from
-~/.claude-shared/ to ~/.claudewheel/shared/. Skills, utility scripts, and profile origins moved
-from ~/.claude-common/ into ~/.claudewheel/. COMMON_DIR constant eliminated. Sentinel files
-moved to dedicated ~/.claudewheel/shared/sentinels/ subdirectory. Dead code (_strip_xattrs,
-_clean_origins_file) removed. Origins file dual-location bug fixed.
+The profile attribution system (hook-stamp-origin, xattr stamping, sentinels, origins log) had unfixable race conditions and 30% of session files could never be attributed. Removed entirely rather than patching. Also adds --picker for argless session resume and unifies shared settings with drift detection.
 
 </details>
+
+### Breaking
+
+- **Breaking.** Removed the profile attribution system (hook-stamp-origin, xattr stamping, sentinel files, origins log). The system had unfixable race conditions and 30% of files could never be attributed.
+
+### Features
+
+- **New flag.** `--picker` opens the Claude session resume picker without requiring a session ID argument.
+- **Unified shared settings.** Replaced per-profile profile-defaults.json with a single shared-settings.json and drift detection.
+- **deploy-hooks --force.** Added `--force` flag to overwrite existing hook scripts.
+
+### Fixes
+
+- **Health check.** Removed xattr-coverage and hook-integrity checks; streamlined hooks-wired to only verify hook-timestamp.
+
+## 0.6.1
 
 ### Breaking
 
