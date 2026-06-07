@@ -64,9 +64,10 @@ class _ProfileOpsTestCase(unittest.TestCase):
         (pdir / "settings.json").write_text("{}")
         return pdir
 
-    def _make_origins_file(self, lines: list[dict]) -> None:
-        origins = self.launcher_dir / "profile-origins.jsonl"
-        origins.write_text("\n".join(json.dumps(l) for l in lines) + "\n")
+    def _make_sibling_file(self, lines: list[dict]) -> None:
+        """Write a JSONL file next to profiles/ to verify deletion spares siblings."""
+        sibling = self.launcher_dir / "extra-data.jsonl"
+        sibling.write_text("\n".join(json.dumps(l) for l in lines) + "\n")
 
 
 # ---------------------------------------------------------------------------
@@ -228,16 +229,16 @@ class DoDeleteProfileIntegrationTests(_ProfileOpsTestCase):
     """End-to-end tests for do_delete_profile()."""
 
     def test_full_deletion(self) -> None:
-        """Successful deletion removes dir, options, tokens, and origins."""
+        """Successful deletion removes dir, options, and tokens."""
         self._write_options(
             ["target", "other"],
             metadata={"target": {"config_dir": "~/.claudewheel/profiles/target"}},
         )
         self._write_tokens({"target": "tok-t", "other": "tok-o"})
         self._make_profile_dir("target")
-        self._make_origins_file([
-            {"path": "/x", "profile": "target", "ts": "t1"},
-            {"path": "/y", "profile": "other", "ts": "t2"},
+        self._make_sibling_file([
+            {"key": "a", "value": 1},
+            {"key": "b", "value": 2},
         ])
 
         buf = io.StringIO()
@@ -254,13 +255,10 @@ class DoDeleteProfileIntegrationTests(_ProfileOpsTestCase):
         tokens = json.loads(self.tokens_file.read_text())
         self.assertNotIn("target", tokens)
         self.assertIn("other", tokens)
-        # Origins preserved (historical data kept for analytics)
-        origins_path = self.launcher_dir / "profile-origins.jsonl"
-        remaining = [json.loads(l) for l in origins_path.read_text().strip().splitlines()]
+        # Sibling file preserved (deletion only targets the profile dir)
+        sibling_path = self.launcher_dir / "extra-data.jsonl"
+        remaining = [json.loads(l) for l in sibling_path.read_text().strip().splitlines()]
         self.assertEqual(len(remaining), 2)
-        profiles = {e["profile"] for e in remaining}
-        self.assertIn("target", profiles)
-        self.assertIn("other", profiles)
 
     def test_deletion_when_dir_already_gone(self) -> None:
         """Succeeds even if profile dir does not exist (cleans up metadata only)."""
