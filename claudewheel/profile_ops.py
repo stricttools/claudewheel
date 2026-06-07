@@ -154,9 +154,6 @@ def do_delete_profile(name: str, force: bool = False) -> int:
     else:
         print("  Not found in options.json (already clean)")
 
-    # Session data preserved: xattrs and origins log entries are kept
-    # so a private project maintains correct historical attribution.
-
     # 5. Remove from tokens.json
     if _remove_from_tokens(name):
         print("  Removed from tokens.json")
