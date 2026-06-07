@@ -20,8 +20,10 @@ SHARED_SETTINGS_FILE = CONFIG_DIR / "shared-settings.json"
 
 SCRIPTS_DIR = CONFIG_DIR / "scripts"
 
+ORIGINS_FILE = CONFIG_DIR / "profile-origins.jsonl"
+
 COMMON_DIR = Path.home() / ".claude-common"
-SHARED_DIR = Path.home() / ".claude-shared"
+SHARED_DIR = CONFIG_DIR / "shared"
 
 # Directories inside each profile that are symlinked to the shared store.
 PROFILE_SHARED_DIRS = ["projects", "session-env", "file-history", "tasks", "todos", "paste-cache"]
