@@ -2,3 +2,4 @@
 {"commits":["c84232d317258089ff97e9151b54d89352079a8f"],"user_facing":true,"description":"**Fix.** Profile origins log now correctly read from ~/.claudewheel/ instead of stale ~/.claude-common/ path.","type":"fix"}
 {"commits":["ad42d8efc6627f2861adfc597d8a1a8b11a6336a"],"user_facing":false}
 {"commits":["c0f88562d213355324e8afac6ebce9e8647e9c27","e9c763a87f0c69c63fe77f319ae91772c92f809f","243e98eb8970daa7eaf53280ee76abe612f1db1a","f9da186156d6ebb569ee98f44235b8c09ed55b5e"],"user_facing":false}
+{"commits":["0ff6ab1ead9a881f0e6418f801a7fc4ed7af65f5","656811c2bb8e0da6a4bb84479c2f61f4cf48c65e"],"user_facing":false}
