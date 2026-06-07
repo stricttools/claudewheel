@@ -1,8 +1,0 @@
-# Version bump type: patch, minor, or major
-bump = "minor"
-# Short description of this release (required)
-description = "Rename gc command to stats"
-# Optional context explaining why these changes were made
-context = "The gc command only reports shared-store statistics now (sentinel cleanup and origins compaction were removed in v0.7.0). Renamed to reflect its actual purpose."
-include = ["npm", "pypi"]
-exclude = []
