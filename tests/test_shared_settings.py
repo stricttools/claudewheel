@@ -93,14 +93,13 @@ class CheckSharedSettingsDriftTests(_HomeDirTestCase):
         self._write_shared_settings(canonical)
 
         pdir = self._make_profile("drifted")
-        # Write hooks with only one of the two hook commands
+        # Write hooks with hook-timestamp removed from UserPromptSubmit
         hooks = {
             "UserPromptSubmit": [
                 {
                     "matcher": "",
                     "hooks": [
-                        canonical["hooks"]["UserPromptSubmit"][0]["hooks"][0],
-                        # Missing the second hook (hook-stamp-origin)
+                        # Missing hook-timestamp
                     ],
                 }
             ]
@@ -240,7 +239,6 @@ class BuildCanonicalSharedSettingsTests(unittest.TestCase):
         result = build_canonical_shared_settings(scripts)
         ups_hooks = result["hooks"]["UserPromptSubmit"][0]["hooks"]
         self.assertTrue(any("hook-timestamp" in h["command"] for h in ups_hooks))
-        self.assertTrue(any("hook-stamp-origin" in h["command"] for h in ups_hooks))
         for h in ups_hooks:
             self.assertTrue(h["command"].startswith(str(scripts)))
         ptu_hooks = result["hooks"]["PreToolUse"][0]["hooks"]

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -18,21 +17,7 @@ from claudewheel.health import (
     check_settings_defaults,
     check_shared_symlinks,
     check_tokens,
-    check_xattr_coverage,
 )
-
-
-def _xattr_supported() -> bool:
-    """Return True if user xattrs work in tempfile dirs."""
-    try:
-        with tempfile.NamedTemporaryFile() as f:
-            os.setxattr(f.name, "user.test", b"1")
-        return True
-    except OSError:
-        return False
-
-
-HAVE_XATTR = _xattr_supported()
 
 
 class _HomeDirTestCase(unittest.TestCase):
@@ -210,64 +195,6 @@ class CheckSharedSymlinksTests(_HomeDirTestCase):
 
 
 # ---------------------------------------------------------------------------
-# check_xattr_coverage
-# ---------------------------------------------------------------------------
-
-
-@unittest.skipUnless(HAVE_XATTR, "filesystem does not support user xattrs")
-class CheckXattrCoverageTests(_HomeDirTestCase):
-    """Tests for check_xattr_coverage() -- requires xattr support."""
-
-    def _setup_projects(self, count: int, tagged: int) -> None:
-        """Create .jsonl files in ~/.claudewheel/shared/projects/, tagging some with xattr."""
-        projects = self._shared_dir / "projects"
-        projects.mkdir(parents=True, exist_ok=True)
-        for i in range(count):
-            f = projects / f"file{i}.jsonl"
-            f.write_text("{}")
-            if i < tagged:
-                os.setxattr(str(f), b"user.origin-profile", b"test")
-
-    def test_ok_when_all_tagged(self) -> None:
-        """Returns OK when 100% of files have xattr."""
-        self._setup_projects(count=10, tagged=10)
-        result = check_xattr_coverage()
-        self.assertTrue(result.ok)
-        self.assertIn("100%", result.detail)
-
-    def test_ok_when_above_threshold(self) -> None:
-        """Returns OK when >= 95% of files have xattr."""
-        self._setup_projects(count=20, tagged=19)  # 95%
-        result = check_xattr_coverage()
-        self.assertTrue(result.ok)
-
-    def test_warn_when_below_threshold(self) -> None:
-        """Returns WARN when < 95% of files have xattr."""
-        self._setup_projects(count=20, tagged=18)  # 90%
-        result = check_xattr_coverage()
-        self.assertFalse(result.ok)
-        self.assertIn("90%", result.detail)
-
-    def test_ok_when_no_files(self) -> None:
-        """Returns OK when projects dir exists but has no .jsonl files."""
-        projects = self._shared_dir / "projects"
-        projects.mkdir(parents=True, exist_ok=True)
-        result = check_xattr_coverage()
-        self.assertTrue(result.ok)
-        self.assertIn("no .jsonl files", result.detail)
-
-
-class CheckXattrCoverageNoDirTests(_HomeDirTestCase):
-    """Tests for check_xattr_coverage() that don't need xattr support."""
-
-    def test_ok_when_projects_dir_missing(self) -> None:
-        """Returns OK when projects dir does not exist."""
-        result = check_xattr_coverage()
-        self.assertTrue(result.ok)
-        self.assertIn("not found", result.detail)
-
-
-# ---------------------------------------------------------------------------
 # check_hooks_wired
 # ---------------------------------------------------------------------------
 
@@ -287,7 +214,6 @@ class CheckHooksWiredTests(_HomeDirTestCase):
                     {
                         "hooks": [
                             {"command": "/usr/bin/hook-timestamp"},
-                            {"command": "/usr/bin/hook-stamp-origin"},
                         ]
                     }
                 ],
@@ -302,8 +228,8 @@ class CheckHooksWiredTests(_HomeDirTestCase):
             }
         }
 
-    def test_ok_when_both_hooks_present(self) -> None:
-        """Returns OK when both hook-timestamp and hook-stamp-origin are present."""
+    def test_ok_when_all_hooks_present(self) -> None:
+        """Returns OK when hook-timestamp and hook-block-worktree are present."""
         pdir = self._make_profile("hooked")
         self._write_settings(pdir, self._good_settings())
 
@@ -311,15 +237,15 @@ class CheckHooksWiredTests(_HomeDirTestCase):
         self.assertTrue(result.ok)
         self.assertIn("1 profiles OK", result.detail)
 
-    def test_warn_when_one_hook_missing(self) -> None:
-        """Returns WARN when only one of the two hooks is present."""
+    def test_warn_when_hook_timestamp_missing(self) -> None:
+        """Returns WARN when hook-timestamp is missing from UserPromptSubmit."""
         pdir = self._make_profile("partial")
         settings = {
             "hooks": {
                 "UserPromptSubmit": [
                     {
                         "hooks": [
-                            {"command": "/usr/bin/hook-timestamp"},
+                            {"command": "/usr/bin/some-other-hook"},
                         ]
                     }
                 ]
@@ -329,7 +255,7 @@ class CheckHooksWiredTests(_HomeDirTestCase):
 
         result = check_hooks_wired()
         self.assertFalse(result.ok)
-        self.assertIn("missing hook-stamp-origin", result.detail)
+        self.assertIn("missing hook-timestamp", result.detail)
 
     def test_warn_when_no_settings_json(self) -> None:
         """Returns WARN when settings.json does not exist."""
