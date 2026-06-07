@@ -179,6 +179,10 @@
     "content": "36fe6d1efb33aa2b73d7b48105ee2a6ccfd2357033c529fe9065083f49f9d7dd",
     "description": "239f013899e63575fd49ddeb2719dc6b7722b21b1ab5268846e81e562d39eece"
   },
+  "en/claudewheel-stats.md": {
+    "content": "835803da610727facb27fca519f1fee4193f07569012cd313623ba68ee6adb18",
+    "description": "a9f6eaee04f2e791702591ab6479bc794f8161ba7b25322fca5d45466e984969"
+  },
   "en/claudewheel-terminal.md": {
     "content": "cedec34f95a5b93483eeadc61635b47f977c1057e1f5aaf2cbab565865b82130",
     "description": "1f2e019617bdd8cb808ed5cd847c5a664b9ab86489893607a05b0ac0755f8a7c"
@@ -216,7 +220,7 @@
     "description": "bce660b2830d459ded0337e6af14bc0215f80ff3a85cd9ece389b405bb2a5c9b"
   },
   "en/cli-index.md": {
-    "content": "90b4875b694db7f4adc0f25494e12e504411ba5c4ce46b6272a3721a0d7e613a",
+    "content": "9838b37d4632924e6127f6bcfb28983a63be88839b5ebd372548d050f2b16ec7",
     "description": "6c93c0157d7601c07594d8cd1bb2df39f01cec2ddb6d36b3f83f80ebb63300d5"
   },
   "en/cli-install.md": {
@@ -247,6 +251,10 @@
     "content": "ff6fff84e4f6985013903d052c8ed33f993a0fffecde0fe931540c47e63e7676",
     "description": "104eb399c129d582429cb410639d162d042a98430b5c3a547cd5f788eaa0ee21"
   },
+  "en/cli-stats.md": {
+    "content": "acb7ea0617737d124690bca24f022efd0fae6240bc36770fa4a90adb64ab3a5d",
+    "description": "b59960c7b905c39c388b8d268dc2ec27bdd0d13a481a4c0caae94d3315662bb6"
+  },
   "en/cli-uninstall.md": {
     "content": "95dacf82c59d24cf80b962f5fc1684988f3aba9345c9a33b110a764ee9321fe2",
     "description": "030379bc7788bf3c986cdeb315529152c19d5a45afa6c8a4830786d96ca2c5ca"
@@ -256,7 +264,7 @@
     "description": "2220c5148e4708a74d0f36a96189559abcc971592131c21d4f0be26c16d396f5"
   },
   "en/gen-index.md": {
-    "content": "cf54af8b481d687ebd8ebd1f3cfcb51c8d8411f08bdef5539e71b5fef83ccca5",
+    "content": "8e0461785c0d313df44cafd7c95c1cf9ce346053abf62624af7a3efd6f1b3c5c",
     "description": "bb3cd9d34f014c0674a9285c25ee14b5b4abc5cf941f0d83594c301405e8f3b6"
   },
   "en/index.md": {
