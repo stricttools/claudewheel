@@ -2,21 +2,30 @@
 
 # Changelog
 
-## 0.6.0
+## 0.6.1
 
-Profile centralization, hook management, worktree isolation, docs website
+Consolidate shared data and eliminate ~/.claude-shared/ and ~/.claude-common/
 
 <details>
 <summary>Context</summary>
 
-Profiles moved from ~/.claude-<name>/ to ~/.claudewheel/profiles/<name>/ (breaking).
-New deploy-hooks command auto-creates hook scripts from built-in templates.
-Settings drift detection compares profiles against canonical shared-settings.json.
-PreToolUse hook blocks Agent tool worktree isolation to prevent multi-session conflicts.
-Cron tools (CronCreate, CronDelete, CronList, ScheduleWakeup) unblocked.
-Documentation website at claudewheel.smmh.dev with auto-generated API/CLI reference and branding.
+Shared session data (projects, session-env, file-history, tasks, todos, paste-cache) moved from
+~/.claude-shared/ to ~/.claudewheel/shared/. Skills, utility scripts, and profile origins moved
+from ~/.claude-common/ into ~/.claudewheel/. COMMON_DIR constant eliminated. Sentinel files
+moved to dedicated ~/.claudewheel/shared/sentinels/ subdirectory. Dead code (_strip_xattrs,
+_clean_origins_file) removed. Origins file dual-location bug fixed.
 
 </details>
+
+### Breaking
+
+- **Shared data consolidated.** Session data, skills, and scripts moved from ~/.claude-shared/ and ~/.claude-common/ into ~/.claudewheel/. Both old directories eliminated.
+
+### Fixes
+
+- **Fix.** Profile origins log now correctly read from ~/.claudewheel/ instead of stale ~/.claude-common/ path.
+
+## 0.6.0
 
 ### Breaking
 

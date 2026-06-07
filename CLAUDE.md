@@ -35,7 +35,7 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 - **claudewheel.launch** (`claudewheel/launch.py`): Map TUI selections to binary path, env vars, flags, and exec.
 - **claudewheel.migrate** (`claudewheel/migrate.py`): Move session artifacts between profiles, stamping origin xattrs for attribution.
 - **claudewheel.profile** (`claudewheel/profile.py`): Resolve a profile name to CLAUDE_CONFIG_DIR and OAuth token env vars.
-- **claudewheel.profile_ops** (`claudewheel/profile_ops.py`): Delete profiles and clean up their dirs, tokens, options, and xattrs.
+- **claudewheel.profile_ops** (`claudewheel/profile_ops.py`): Delete profiles and clean up their dirs, tokens, and options.
 - **claudewheel.redir** (`claudewheel/redir.py`): Rewrite session paths and project keys after a directory rename.
 - **claudewheel.renderer** (`claudewheel/renderer.py`): Draw the segment bar, fan-out options, minimap, and scroll arrows.
 - **claudewheel.segment** (`claudewheel/segment.py`): Segment and SegmentBar dataclasses, option discovery, and cross-segment constraints.

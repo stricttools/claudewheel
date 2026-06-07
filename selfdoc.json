@@ -1,5 +1,5 @@
 {
-  "version": "0.6.0",
+  "version": "0.6.1",
   "source": [
     {
       "path": "claudewheel/",
@@ -11,7 +11,7 @@
   "base_url": "https://claudewheel.smmh.dev",
   "versions": [
     {
-      "version": "0.6.0",
+      "version": "0.6.1",
       "indexed": true
     }
   ],
@@ -29,7 +29,9 @@
     "url": "https://github.com/smm-h"
   },
   "repo": "https://github.com/smm-h/claudewheel",
-  "lint_ignore": ["SEO009"],
+  "lint_ignore": [
+    "SEO009"
+  ],
   "deploy": {
     "provider": "cloudflare-pages",
     "project": "claudewheel"
