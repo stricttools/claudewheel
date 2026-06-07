@@ -48,8 +48,9 @@ else
 fi
 [[ -z "$profile" ]] && exit 0
 
-SHARED="$HOME/.claude-shared"
-SENTINEL="$SHARED/.stamped-$uuid"
+SHARED="$HOME/.claudewheel/shared"
+mkdir -p "$SHARED/sentinels"
+SENTINEL="$SHARED/sentinels/.stamped-$uuid"
 
 # Fast path: if this session was already stamped, skip all work
 [[ -e "$SENTINEL" ]] && exit 0
