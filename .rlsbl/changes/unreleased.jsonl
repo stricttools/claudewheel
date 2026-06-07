@@ -1,2 +1,3 @@
 {"commits":["450a67d4189e2356ea81e187b71f59eed6ccece5","ba952592c4bacc3709f024d20e4739259c33a724","0d681f8caf961cb6e8087b9dda9de454f16284a6","6f12a2df850d85a65d99a0b743e941865bdc0fae","8c60d605dca42a9737ef7fff8fab02cd4674fda8"],"user_facing":true,"description":"**Shared data consolidated.** Session data, skills, and scripts moved from ~/.claude-shared/ and ~/.claude-common/ into ~/.claudewheel/. Both old directories eliminated.","type":"breaking"}
 {"commits":["c84232d317258089ff97e9151b54d89352079a8f"],"user_facing":true,"description":"**Fix.** Profile origins log now correctly read from ~/.claudewheel/ instead of stale ~/.claude-common/ path.","type":"fix"}
+{"commits":["ad42d8efc6627f2861adfc597d8a1a8b11a6336a"],"user_facing":false}
