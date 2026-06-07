@@ -28,6 +28,8 @@ def build_canonical_shared_settings(scripts_dir: Path) -> dict:
 
     The hooks section mirrors what _HOOKS_TEMPLATE used to define in wizard.py.
     The disallowedTools section comes from DISALLOWED_TOOLS above.
+    The profileDefaults section contains default settings applied to new profiles
+    when no clone source is specified (previously lived in profile-defaults.json).
     """
     return {
         "hooks": {
@@ -50,6 +52,37 @@ def build_canonical_shared_settings(scripts_dir: Path) -> dict:
             ],
         },
         "disallowedTools": DISALLOWED_TOOLS[:],
+        "profileDefaults": {
+            "awaySummaryEnabled": False,
+            "cleanupPeriodDays": 3650,
+            "autoMemoryEnabled": False,
+            "includeGitInstructions": False,
+            "permissions": {
+                "deny": [
+                    "Bash(git add .)",
+                    "Bash(git add -A*)",
+                    "Bash(git add --all*)",
+                    "Bash(git add -u*)",
+                    "Bash(git reset *)",
+                    "Bash(git checkout -f*)",
+                    "Bash(git checkout --force*)",
+                    "Bash(git switch -f*)",
+                    "Bash(git switch --force*)",
+                    "Bash(git push origin --delete*)",
+                ],
+                "ask": [
+                    "Bash(rm:*)",
+                    "Bash(*&& rm:*)",
+                    "Bash(*; rm:*)",
+                    "Bash(*| rm:*)",
+                    "Bash(*| xargs rm:*)",
+                    "Bash(kill:*)",
+                    "Bash(pkill:*)",
+                    "Bash(sudo:*)",
+                ],
+                "defaultMode": "default",
+            },
+        },
     }
 
 

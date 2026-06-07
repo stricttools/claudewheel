@@ -108,8 +108,7 @@ class CreateProfileTestBase(unittest.TestCase):
             mock.patch.object(config_mod, "SCRIPTS_DIR", self._scripts_dir),
             mock.patch.object(config_mod, "SHARED_DIR", self.fake_home / ".claudewheel" / "shared"),
             mock.patch.object(config_mod, "SHARED_SETTINGS_FILE", self._shared_settings_file),
-            # wizard.py imports CONFIG_DIR, PROFILES_DIR, SHARED_DIR, SKILLS_DIR directly
-            mock.patch.object(wizard_mod, "CONFIG_DIR", self.launcher_dir),
+            # wizard.py imports PROFILES_DIR, SHARED_DIR, SKILLS_DIR directly
             mock.patch.object(wizard_mod, "PROFILES_DIR", self.launcher_dir / "profiles"),
             mock.patch.object(wizard_mod, "SCRIPTS_DIR", self._scripts_dir),
             mock.patch.object(wizard_mod, "SHARED_SETTINGS_FILE", self._shared_settings_file),
@@ -156,12 +155,12 @@ class DirectoryCreationTests(CreateProfileTestBase):
 
 
 class SettingsFromDefaultsTests(CreateProfileTestBase):
-    """Test 2: reads profile-defaults.json when clone_from is None."""
+    """Test 2: reads profileDefaults from shared-settings.json when clone_from is None."""
 
-    def test_reads_defaults_template(self) -> None:
-        defaults = {"someKey": "someValue", "nested": {"a": 1}}
-        defaults_file = self.launcher_dir / "profile-defaults.json"
-        defaults_file.write_text(json.dumps(defaults))
+    def test_reads_defaults_from_shared_settings(self) -> None:
+        shared = build_canonical_shared_settings(self._scripts_dir)
+        shared["profileDefaults"] = {"someKey": "someValue", "nested": {"a": 1}}
+        self._shared_settings_file.write_text(json.dumps(shared))
 
         result = _make_result(clone_from=None)
         create_profile(result, self.cfg)
@@ -170,34 +169,37 @@ class SettingsFromDefaultsTests(CreateProfileTestBase):
         self.assertEqual(settings["someKey"], "someValue")
         self.assertEqual(settings["nested"], {"a": 1})
 
-    def test_no_defaults_file_produces_hardcoded_defaults(self) -> None:
-        """When profile-defaults.json is missing, settings contain only the
-        hardcoded disableAutoMode and claudewheel.disallowedTools entries."""
+    def test_no_shared_settings_file_produces_hardcoded_defaults(self) -> None:
+        """When shared-settings.json is missing, profileDefaults from
+        build_canonical_shared_settings are used."""
         result = _make_result(clone_from=None)
         create_profile(result, self.cfg)
 
         settings = self._read_settings()
-        expected = {
-            "permissions": {"disableAutoMode": "disable"},
-            "claudewheel": {"disallowedTools": DISALLOWED_TOOLS[:]},
-        }
-        self.assertEqual(settings, expected)
+        # profileDefaults includes permissions with deny/ask rules
+        canonical = build_canonical_shared_settings(self._scripts_dir)
+        profile_defaults = canonical["profileDefaults"]
+        # permissions from profileDefaults get disableAutoMode merged in
+        expected_permissions = dict(profile_defaults["permissions"])
+        expected_permissions["disableAutoMode"] = "disable"
+        self.assertEqual(settings["permissions"], expected_permissions)
+        self.assertEqual(settings["claudewheel"], {"disallowedTools": DISALLOWED_TOOLS[:]})
+        self.assertFalse(settings["awaySummaryEnabled"])
+        self.assertEqual(settings["cleanupPeriodDays"], 3650)
 
-    def test_malformed_defaults_file_ignored(self) -> None:
-        """A corrupt profile-defaults.json is silently skipped; hardcoded
-        defaults are still applied."""
-        defaults_file = self.launcher_dir / "profile-defaults.json"
-        defaults_file.write_text("NOT VALID JSON{{{")
+    def test_malformed_shared_settings_uses_canonical_defaults(self) -> None:
+        """A corrupt shared-settings.json falls back to canonical defaults."""
+        self._shared_settings_file.write_text("NOT VALID JSON{{{")
 
         result = _make_result(clone_from=None)
         create_profile(result, self.cfg)
 
         settings = self._read_settings()
-        expected = {
-            "permissions": {"disableAutoMode": "disable"},
-            "claudewheel": {"disallowedTools": DISALLOWED_TOOLS[:]},
-        }
-        self.assertEqual(settings, expected)
+        # Should have profileDefaults from canonical
+        canonical = build_canonical_shared_settings(self._scripts_dir)
+        profile_defaults = canonical["profileDefaults"]
+        self.assertFalse(settings["awaySummaryEnabled"])
+        self.assertEqual(settings["cleanupPeriodDays"], profile_defaults["cleanupPeriodDays"])
 
 
 class SettingsFromCloneTests(CreateProfileTestBase):
@@ -262,22 +264,27 @@ class CheckboxOverridesTests(CreateProfileTestBase):
         self.assertEqual(settings["cleanupPeriodDays"], 3650)
         self.assertFalse(settings["autoMemoryEnabled"])
 
-    def test_no_overrides_leaves_settings_clean(self) -> None:
-        """When all checkboxes are off, none of the override keys appear."""
+    def test_no_overrides_preserves_profile_defaults(self) -> None:
+        """When all checkboxes are off, profileDefaults values are preserved
+        but not overridden by the wizard."""
         result = _make_result(
             disable_recap=False, cleanup_10y=False, disable_memory=False
         )
         create_profile(result, self.cfg)
         settings = self._read_settings()
-        self.assertNotIn("awaySummaryEnabled", settings)
-        self.assertNotIn("cleanupPeriodDays", settings)
-        self.assertNotIn("autoMemoryEnabled", settings)
+        # profileDefaults already set these; checkboxes being off means
+        # the wizard doesn't override them, so the profileDefaults values remain
+        canonical = build_canonical_shared_settings(self._scripts_dir)
+        profile_defaults = canonical["profileDefaults"]
+        self.assertEqual(settings["awaySummaryEnabled"], profile_defaults["awaySummaryEnabled"])
+        self.assertEqual(settings["cleanupPeriodDays"], profile_defaults["cleanupPeriodDays"])
+        self.assertEqual(settings["autoMemoryEnabled"], profile_defaults["autoMemoryEnabled"])
 
     def test_overrides_applied_on_top_of_defaults(self) -> None:
-        """Overrides merge with values from profile-defaults.json."""
-        defaults = {"awaySummaryEnabled": True, "otherKey": 42}
-        defaults_file = self.launcher_dir / "profile-defaults.json"
-        defaults_file.write_text(json.dumps(defaults))
+        """Overrides merge with values from shared-settings.json profileDefaults."""
+        shared = build_canonical_shared_settings(self._scripts_dir)
+        shared["profileDefaults"] = {"awaySummaryEnabled": True, "otherKey": 42}
+        self._shared_settings_file.write_text(json.dumps(shared))
 
         result = _make_result(disable_recap=True)
         create_profile(result, self.cfg)

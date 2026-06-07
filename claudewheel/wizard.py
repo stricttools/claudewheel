@@ -10,7 +10,7 @@ from pathlib import Path
 from .constants import (
     CLEAR_SCREEN, CLEAR_LINE, RESET, BOLD, DIM,
     ALT_SCREEN_ON, ALT_SCREEN_OFF, HIDE_CURSOR, SHOW_CURSOR,
-    CONFIG_DIR, PROFILES_DIR, PROFILE_SHARED_DIRS, SCRIPTS_DIR,
+    PROFILES_DIR, PROFILE_SHARED_DIRS, SCRIPTS_DIR,
     SHARED_DIR, SHARED_SETTINGS_FILE, SKILLS_DIR,
     move_to, fg_rgb,
 )
@@ -271,13 +271,11 @@ def create_profile(result: WizardResult, cfg: ConfigManager) -> None:
             except (json.JSONDecodeError, OSError):
                 pass
     else:
-        # Use defaults template if available, otherwise minimal
-        defaults_file = CONFIG_DIR / "profile-defaults.json"
-        if defaults_file.exists():
-            try:
-                settings = json.loads(defaults_file.read_text())
-            except (json.JSONDecodeError, OSError):
-                pass
+        # Use profileDefaults from shared-settings.json, otherwise minimal
+        shared = _load_shared_settings()
+        profile_defaults = shared.get("profileDefaults", {})
+        if profile_defaults:
+            settings = dict(profile_defaults)
 
     # Apply checkbox overrides on top
     if result.disable_recap:
