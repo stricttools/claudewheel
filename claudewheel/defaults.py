@@ -38,7 +38,6 @@ def build_canonical_shared_settings(scripts_dir: Path) -> dict:
                     "matcher": "",
                     "hooks": [
                         {"type": "command", "command": str(scripts_dir / "hook-timestamp")},
-                        {"type": "command", "command": str(scripts_dir / "hook-stamp-origin")},
                     ],
                 }
             ],
