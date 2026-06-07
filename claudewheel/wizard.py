@@ -10,8 +10,8 @@ from pathlib import Path
 from .constants import (
     CLEAR_SCREEN, CLEAR_LINE, RESET, BOLD, DIM,
     ALT_SCREEN_ON, ALT_SCREEN_OFF, HIDE_CURSOR, SHOW_CURSOR,
-    COMMON_DIR, CONFIG_DIR, PROFILES_DIR, PROFILE_SHARED_DIRS, SCRIPTS_DIR,
-    SHARED_DIR, SHARED_SETTINGS_FILE,
+    CONFIG_DIR, PROFILES_DIR, PROFILE_SHARED_DIRS, SCRIPTS_DIR,
+    SHARED_DIR, SHARED_SETTINGS_FILE, SKILLS_DIR,
     move_to, fg_rgb,
 )
 from .config import ConfigManager
@@ -330,11 +330,10 @@ def create_profile(result: WizardResult, cfg: ConfigManager) -> None:
                 continue
             target.mkdir(parents=True, exist_ok=True)
             link.symlink_to(target)
-        # Skills -> common (separate from shared store)
+        # Skills -> shared skills directory
         skills_link = config_dir / "skills"
-        skills_target = COMMON_DIR / "skills"
-        if skills_target.is_dir() and not skills_link.exists() and not skills_link.is_symlink():
-            skills_link.symlink_to(skills_target)
+        if SKILLS_DIR.is_dir() and not skills_link.exists() and not skills_link.is_symlink():
+            skills_link.symlink_to(SKILLS_DIR)
 
     # Register in options.json: add value and metadata
     cfg.add_option("profile", result.name)
