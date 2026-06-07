@@ -108,7 +108,6 @@ class CreateProfileTestBase(unittest.TestCase):
             mock.patch.object(config_mod, "SCRIPTS_DIR", self._scripts_dir),
             mock.patch.object(config_mod, "SHARED_DIR", self.fake_home / ".claude-shared"),
             mock.patch.object(config_mod, "SHARED_SETTINGS_FILE", self._shared_settings_file),
-            mock.patch.object(config_mod, "COMMON_DIR", self.fake_home / ".claude-common"),
             # wizard.py imports CONFIG_DIR, PROFILES_DIR, SHARED_DIR, COMMON_DIR directly
             mock.patch.object(wizard_mod, "CONFIG_DIR", self.launcher_dir),
             mock.patch.object(wizard_mod, "PROFILES_DIR", self.launcher_dir / "profiles"),

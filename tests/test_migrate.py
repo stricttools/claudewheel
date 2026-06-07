@@ -369,17 +369,17 @@ class MigrateSessionsTests(unittest.TestCase):
         (todos / f"{UUID_A}-agent-cleanup.json").write_text("{}")
 
     def _patch_migrate(self):
-        """Return a context manager that patches PROFILES_DIR and COMMON_DIR for migrate."""
+        """Return a context manager that patches PROFILES_DIR and ORIGINS_FILE for migrate."""
         profiles = self.home / ".claudewheel" / "profiles"
-        common = self.home / ".claude-common"
+        origins = self.home / ".claudewheel" / "profile-origins.jsonl"
         return contextlib.ExitStack()
 
     def _run_migrate(self, *args, **kwargs):
         """Run migrate_sessions with patched constants."""
         profiles = self.home / ".claudewheel" / "profiles"
-        common = self.home / ".claude-common"
+        origins = self.home / ".claudewheel" / "profile-origins.jsonl"
         with patch.object(migrate_mod, "PROFILES_DIR", profiles), \
-             patch.object(migrate_mod, "COMMON_DIR", common):
+             patch.object(migrate_mod, "ORIGINS_FILE", origins):
             return migrate_sessions(*args, **kwargs)
 
     def test_stamps_and_moves_non_shared(self) -> None:

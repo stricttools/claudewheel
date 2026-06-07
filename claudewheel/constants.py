@@ -22,6 +22,7 @@ SCRIPTS_DIR = CONFIG_DIR / "scripts"
 
 ORIGINS_FILE = CONFIG_DIR / "profile-origins.jsonl"
 
+COMMON_DIR = Path.home() / ".claude-common"
 SHARED_DIR = CONFIG_DIR / "shared"
 SKILLS_DIR = CONFIG_DIR / "skills"
 SENTINELS_DIR = SHARED_DIR / "sentinels"

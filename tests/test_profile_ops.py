@@ -44,26 +44,15 @@ class _ProfileOpsTestCase(unittest.TestCase):
 
         self._patcher_opts = patch.object(profile_ops, "OPTIONS_FILE", self.options_file)
         self._patcher_tokens = patch.object(profile_ops, "TOKENS_FILE", self.tokens_file)
-        self._patcher_origins = patch.object(
-            profile_ops, "ORIGINS_FILE",
-            self.home / ".claude-common" / "profile-origins.jsonl",
-        )
-        self._patcher_shared = patch.object(
-            profile_ops, "SHARED_DIR", self.home / ".claude-shared",
-        )
         self._patcher_profiles = patch.object(
             profile_ops, "PROFILES_DIR", self.home / ".claudewheel" / "profiles",
         )
         self._patcher_opts.start()
         self._patcher_tokens.start()
-        self._patcher_origins.start()
-        self._patcher_shared.start()
         self._patcher_profiles.start()
 
     def tearDown(self) -> None:
         self._patcher_profiles.stop()
-        self._patcher_shared.stop()
-        self._patcher_origins.stop()
         self._patcher_tokens.stop()
         self._patcher_opts.stop()
         self._patcher_home.stop()
@@ -221,6 +210,7 @@ class RemoveFromOptionsTests(_ProfileOpsTestCase):
 # ---------------------------------------------------------------------------
 
 
+@unittest.skip("_strip_xattrs was removed as dead code — session data is preserved on deletion")
 @unittest.skipUnless(HAVE_XATTR, "filesystem does not support user xattrs")
 class StripXattrsTests(_ProfileOpsTestCase):
     """Tests for _strip_xattrs()."""
@@ -257,6 +247,7 @@ class StripXattrsTests(_ProfileOpsTestCase):
 # ---------------------------------------------------------------------------
 
 
+@unittest.skip("_clean_origins_file was removed as dead code — session data is preserved on deletion")
 class CleanOriginsFileTests(_ProfileOpsTestCase):
     """Tests for _clean_origins_file()."""
 
