@@ -33,7 +33,7 @@ def _encode_path(p: str) -> str:
 
 
 def _discover_profile_dirs() -> list[Path]:
-    """Find all profile directories plus ~/.claude-shared/ if it exists.
+    """Find all profile directories plus ~/.claudewheel/shared/ if it exists.
 
     Uses the shared discovery module for profiles, then includes the
     shared store directory (which holds the actual session data).
