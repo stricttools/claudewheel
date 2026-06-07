@@ -8,3 +8,4 @@
 {"commits":["2e90769d037595a1d4b05a32ef8de832d6de2464"],"user_facing":true,"description":"**deploy-hooks --force.** Added `--force` flag to overwrite existing hook scripts.","type":"feature"}
 {"commits":["3d5fd2e5762ea0558a1963f4953599f0a69cd67c"],"user_facing":false}
 {"commits":["16e848050a3119e89abf5b3116d9815cc7e0f806"],"user_facing":false}
+{"commits":["81cd62a741025e869221f98424fdc03f57690351"],"user_facing":false}
