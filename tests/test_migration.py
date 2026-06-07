@@ -108,15 +108,18 @@ def _setup_temp_config_dir(
     launcher_dir = tmp / "claudewheel"
     themes_dir = launcher_dir / "themes"
     hooks_dir = launcher_dir / "hooks"
+    scripts_dir = launcher_dir / "scripts"
     launcher_dir.mkdir(parents=True, exist_ok=True)
     themes_dir.mkdir(exist_ok=True)
     hooks_dir.mkdir(exist_ok=True)
+    scripts_dir.mkdir(exist_ok=True)
 
     config_file = launcher_dir / "config.json"
     segments_file = launcher_dir / "segments.json"
     options_file = launcher_dir / "options.json"
     state_file = launcher_dir / "state.json"
     theme_file = themes_dir / "dark.json"
+    shared_settings_file = launcher_dir / "shared-settings.json"
 
     _write_json(config_file, config if config is not None else DEFAULT_CONFIG)
     _write_json(segments_file, segments if segments is not None else DEFAULT_SEGMENTS)
@@ -132,6 +135,8 @@ def _setup_temp_config_dir(
         "STATE_FILE": state_file,
         "THEMES_DIR": themes_dir,
         "HOOKS_DIR": hooks_dir,
+        "SCRIPTS_DIR": scripts_dir,
+        "SHARED_SETTINGS_FILE": shared_settings_file,
     }
 
 
