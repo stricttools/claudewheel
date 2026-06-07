@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .constants import OPTIONS_FILE, PROFILES_DIR, PROFILE_SHARED_DIRS, SHARED_DIR, SHARED_SETTINGS_FILE, SKILLS_DIR, TOKENS_FILE
-from .defaults import DISALLOWED_TOOLS, build_canonical_shared_settings
+from .defaults import DISALLOWED_TOOLS
 from .discovery import discover_profiles
 
 
