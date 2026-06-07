@@ -538,5 +538,142 @@ class DuplicateSetKeyTests(unittest.TestCase):
         launch_mock.assert_not_called()
 
 
+class PickerFlagTests(unittest.TestCase):
+    """Tests for the --picker flag in the launch subcommand.
+
+    --picker passes bare ``--resume`` (no session ID) to Claude Code,
+    opening the session resume picker.  It is mutually exclusive with
+    --cont, --resume, and --print-prompt.
+    """
+
+    SEGMENTS_DEF = PrintModeTests.SEGMENTS_DEF
+    ALL_ENABLED = PrintModeTests.ALL_ENABLED
+    FULL_LAST_CONFIG = PrintModeTests.FULL_LAST_CONFIG
+
+    def _make_cfg(self, last_config: dict | None = None) -> _FakeCfg:
+        return _FakeCfg(
+            config={
+                "theme": "dark",
+                "enabled_segments": list(self.ALL_ENABLED),
+                "default_flags": [],
+                "health_check_on_launch": False,
+            },
+            segments_def=list(self.SEGMENTS_DEF),
+            state={
+                "last_config": dict(last_config) if last_config is not None else {},
+                "recent_dirs": [],
+                "launch_count": 0,
+            },
+            options_def={},
+        )
+
+    def _run_main(self, argv: list[str], last_config: dict | None = None) -> mock.MagicMock:
+        fake_cfg = self._make_cfg(last_config)
+        launch_mock = mock.MagicMock()
+        with (
+            mock.patch("sys.argv", argv),
+            mock.patch("claudewheel.config.ConfigManager", return_value=fake_cfg),
+            mock.patch("claudewheel.cli._do_launch_sequence", launch_mock),
+            mock.patch("os.getcwd", return_value="/test/dir"),
+        ):
+            try:
+                cli.main()
+            except SystemExit:
+                pass
+        return launch_mock
+
+    # -- 1. Basic behavior: --picker adds bare --resume --
+
+    def test_picker_adds_bare_resume_flag(self) -> None:
+        """--picker should produce extra_flags containing only '--resume' (no session ID)."""
+        launch_mock = self._run_main(
+            [
+                "c", "--picker",
+                "--profile", "personal",
+                "--github", "ghuser",
+                "-s", "version=2.1.116",
+                "--directory", "/some/dir",
+            ],
+            last_config=self.FULL_LAST_CONFIG,
+        )
+        launch_mock.assert_called_once()
+        _, kwargs = launch_mock.call_args
+        extra_flags = kwargs["extra_flags"]
+        self.assertEqual(extra_flags, ["--resume"])
+
+    # -- 2. Mutual exclusivity with --resume --
+
+    def test_picker_and_resume_mutually_exclusive(self) -> None:
+        """Passing both --picker and --resume must error, naming all four flags."""
+        err = io.StringIO()
+        with redirect_stderr(err):
+            launch_mock = self._run_main(
+                ["c", "--picker", "--resume", "abc123"],
+                last_config=self.FULL_LAST_CONFIG,
+            )
+        msg = err.getvalue()
+        self.assertIn("--cont", msg)
+        self.assertIn("--resume", msg)
+        self.assertIn("--print-prompt", msg)
+        self.assertIn("--picker", msg)
+        self.assertIn("mutually exclusive", msg)
+        launch_mock.assert_not_called()
+
+    # -- 3. Mutual exclusivity with --cont --
+
+    def test_picker_and_cont_mutually_exclusive(self) -> None:
+        """Passing both --picker and --cont must error, naming all four flags."""
+        err = io.StringIO()
+        with redirect_stderr(err):
+            launch_mock = self._run_main(
+                ["c", "--picker", "--cont"],
+                last_config=self.FULL_LAST_CONFIG,
+            )
+        msg = err.getvalue()
+        self.assertIn("--cont", msg)
+        self.assertIn("--resume", msg)
+        self.assertIn("--print-prompt", msg)
+        self.assertIn("--picker", msg)
+        self.assertIn("mutually exclusive", msg)
+        launch_mock.assert_not_called()
+
+    # -- 4. Mutual exclusivity with --print-prompt --
+
+    def test_picker_and_print_prompt_mutually_exclusive(self) -> None:
+        """Passing both --picker and --print-prompt must error, naming all four flags."""
+        err = io.StringIO()
+        with redirect_stderr(err):
+            launch_mock = self._run_main(
+                ["c", "--picker", "--print-prompt", "hello"],
+                last_config=self.FULL_LAST_CONFIG,
+            )
+        msg = err.getvalue()
+        self.assertIn("--cont", msg)
+        self.assertIn("--resume", msg)
+        self.assertIn("--print-prompt", msg)
+        self.assertIn("--picker", msg)
+        self.assertIn("mutually exclusive", msg)
+        launch_mock.assert_not_called()
+
+    # -- 5. Picker not set: no --resume from picker path --
+
+    def test_no_picker_no_resume_in_extra_flags(self) -> None:
+        """When --picker is not passed and no session flag is set, extra_flags is empty."""
+        launch_mock = self._run_main(
+            [
+                "c",
+                "--profile", "personal",
+                "--github", "ghuser",
+                "-s", "version=2.1.116",
+                "--directory", "/some/dir",
+            ],
+            last_config=self.FULL_LAST_CONFIG,
+        )
+        launch_mock.assert_called_once()
+        _, kwargs = launch_mock.call_args
+        extra_flags = kwargs["extra_flags"]
+        self.assertEqual(extra_flags, [])
+
+
 if __name__ == "__main__":
     unittest.main()
