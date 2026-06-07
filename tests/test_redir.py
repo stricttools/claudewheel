@@ -326,7 +326,7 @@ class RunRedirIntegrationTests(unittest.TestCase):
 
     def test_skips_shared_dir_for_claude_json(self) -> None:
         """The shared dir is scanned for projects/ but not for .claude.json."""
-        shared = self.home / ".claude-shared"
+        shared = self.home / ".claudewheel" / "shared"
         shared.mkdir()
         shared_json = shared / ".claude.json"
         shared_json.write_text(json.dumps({"projects": {self.old_resolved: {"x": 1}}}))

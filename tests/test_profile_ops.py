@@ -76,9 +76,7 @@ class _ProfileOpsTestCase(unittest.TestCase):
         return pdir
 
     def _make_origins_file(self, lines: list[dict]) -> None:
-        common = self.home / ".claude-common"
-        common.mkdir(parents=True, exist_ok=True)
-        origins = common / "profile-origins.jsonl"
+        origins = self.launcher_dir / "profile-origins.jsonl"
         origins.write_text("\n".join(json.dumps(l) for l in lines) + "\n")
 
 
@@ -158,7 +156,7 @@ class RemoveProfileDirTests(_ProfileOpsTestCase):
     def test_unlinks_symlinks_without_following(self) -> None:
         """Symlinks are unlinked, not followed into."""
         pdir = self._make_profile_dir("linked")
-        shared = self.home / ".claude-shared" / "projects"
+        shared = self.home / ".claudewheel" / "shared" / "projects"
         shared.mkdir(parents=True)
         (shared / "important.jsonl").write_text("data")
         (pdir / "projects").symlink_to(shared)
@@ -216,7 +214,7 @@ class StripXattrsTests(_ProfileOpsTestCase):
     """Tests for _strip_xattrs()."""
 
     def test_strips_matching_xattrs(self) -> None:
-        projects = self.home / ".claude-shared" / "projects" / "myproject"
+        projects = self.home / ".claudewheel" / "shared" / "projects" / "myproject"
         projects.mkdir(parents=True)
         f1 = projects / "sess1.jsonl"
         f2 = projects / "sess2.jsonl"
@@ -333,7 +331,7 @@ class DoDeleteProfileIntegrationTests(_ProfileOpsTestCase):
         self.assertNotIn("target", tokens)
         self.assertIn("other", tokens)
         # Origins preserved (historical data kept for analytics)
-        origins_path = self.home / ".claude-common" / "profile-origins.jsonl"
+        origins_path = self.launcher_dir / "profile-origins.jsonl"
         remaining = [json.loads(l) for l in origins_path.read_text().strip().splitlines()]
         self.assertEqual(len(remaining), 2)
         profiles = {e["profile"] for e in remaining}

@@ -44,12 +44,12 @@ class _HomeDirTestCase(unittest.TestCase):
         self._patcher = patch.object(Path, "home", return_value=self.home)
         self._patcher.start()
         # Patch module-level path constants that were computed at import time
-        self._shared_dir = self.home / ".claude-shared"
-        self._common_dir = self.home / ".claude-common"
+        self._shared_dir = self.home / ".claudewheel" / "shared"
+        self._skills_dir = self.home / ".claudewheel" / "skills"
         self._profiles_dir = self.home / ".claudewheel" / "profiles"
         self._dir_patches = [
             patch("claudewheel.health.SHARED_DIR", self._shared_dir),
-            patch("claudewheel.health.COMMON_DIR", self._common_dir),
+            patch("claudewheel.health.SKILLS_DIR", self._skills_dir),
             patch("claudewheel.health.PROFILES_DIR", self._profiles_dir),
             patch("claudewheel.discovery.PROFILES_DIR", self._profiles_dir),
         ]
@@ -150,9 +150,9 @@ class CheckSharedSymlinksTests(_HomeDirTestCase):
     EXPECTED_DIRS = ["projects", "session-env", "file-history", "tasks", "todos", "paste-cache"]
 
     def _setup_shared(self) -> Path:
-        """Create ~/.claude-shared/ with all expected subdirs."""
-        shared = self.home / ".claude-shared"
-        shared.mkdir()
+        """Create ~/.claudewheel/shared/ with all expected subdirs."""
+        shared = self._shared_dir
+        shared.mkdir(parents=True, exist_ok=True)
         for d in self.EXPECTED_DIRS:
             (shared / d).mkdir()
         return shared
@@ -219,9 +219,9 @@ class CheckXattrCoverageTests(_HomeDirTestCase):
     """Tests for check_xattr_coverage() -- requires xattr support."""
 
     def _setup_projects(self, count: int, tagged: int) -> None:
-        """Create .jsonl files in ~/.claude-shared/projects/, tagging some with xattr."""
-        projects = self.home / ".claude-shared" / "projects"
-        projects.mkdir(parents=True)
+        """Create .jsonl files in ~/.claudewheel/shared/projects/, tagging some with xattr."""
+        projects = self._shared_dir / "projects"
+        projects.mkdir(parents=True, exist_ok=True)
         for i in range(count):
             f = projects / f"file{i}.jsonl"
             f.write_text("{}")
@@ -250,8 +250,8 @@ class CheckXattrCoverageTests(_HomeDirTestCase):
 
     def test_ok_when_no_files(self) -> None:
         """Returns OK when projects dir exists but has no .jsonl files."""
-        projects = self.home / ".claude-shared" / "projects"
-        projects.mkdir(parents=True)
+        projects = self._shared_dir / "projects"
+        projects.mkdir(parents=True, exist_ok=True)
         result = check_xattr_coverage()
         self.assertTrue(result.ok)
         self.assertIn("no .jsonl files", result.detail)

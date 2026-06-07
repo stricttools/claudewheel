@@ -348,8 +348,8 @@ class MigrateSessionsTests(unittest.TestCase):
         self.dst_dir = self.home / ".claudewheel" / "profiles" / "beta"
         self.src_dir.mkdir(parents=True)
         self.dst_dir.mkdir(parents=True)
-        # Common dir for the index
-        (self.home / ".claude-common").mkdir()
+        # Launcher dir for the index
+        (self.home / ".claudewheel").mkdir(parents=True, exist_ok=True)
 
     def tearDown(self) -> None:
         self._stdout_trap.__exit__(None, None, None)
@@ -448,7 +448,7 @@ class MigrateSessionsTests(unittest.TestCase):
         with self.assertRaises(OSError):
             os.getxattr(str(orig_jsonl), XATTR_NAME)
         # Index file not created
-        index = self.home / ".claude-common" / "profile-origins.jsonl"
+        index = self.home / ".claudewheel" / "profile-origins.jsonl"
         self.assertFalse(index.exists())
 
 

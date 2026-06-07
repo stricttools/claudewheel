@@ -37,6 +37,8 @@ class CleanSentinelsTests(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory()
         self.shared = Path(self._tmp.name) / "shared"
         self.shared.mkdir()
+        self.sentinels = self.shared / "sentinels"
+        self.sentinels.mkdir()
         self._stdout_trap = contextlib.redirect_stdout(io.StringIO())
         self._stdout_trap.__enter__()
 
@@ -44,53 +46,49 @@ class CleanSentinelsTests(unittest.TestCase):
         self._stdout_trap.__exit__(None, None, None)
         self._tmp.cleanup()
 
-    @patch.object(gc, "SHARED_DIR")
-    def test_removes_sentinels_older_than_30_days(self, mock_dir) -> None:
-        mock_dir.__class__ = Path
-        # Reassign to actual Path so .is_dir() / .iterdir() work
-        gc.SHARED_DIR = self.shared
-        old_sentinel = self.shared / ".stamped-old-file"
+    def test_removes_sentinels_older_than_30_days(self) -> None:
+        old_sentinel = self.sentinels / ".stamped-old-file"
         old_sentinel.write_text("")
         # Set mtime to 31 days ago
         old_time = time.time() - 31 * 24 * 3600
         os.utime(old_sentinel, (old_time, old_time))
 
-        with patch.object(gc, "SHARED_DIR", self.shared):
+        with patch.object(gc, "SENTINELS_DIR", self.sentinels):
             removed = _clean_sentinels(dry_run=False)
 
         self.assertEqual(removed, 1)
         self.assertFalse(old_sentinel.exists())
 
     def test_keeps_sentinels_newer_than_30_days(self) -> None:
-        new_sentinel = self.shared / ".stamped-recent"
+        new_sentinel = self.sentinels / ".stamped-recent"
         new_sentinel.write_text("")
         # mtime is "now" by default, well within 30 days
 
-        with patch.object(gc, "SHARED_DIR", self.shared):
+        with patch.object(gc, "SENTINELS_DIR", self.sentinels):
             removed = _clean_sentinels(dry_run=False)
 
         self.assertEqual(removed, 0)
         self.assertTrue(new_sentinel.exists())
 
     def test_ignores_non_sentinel_files(self) -> None:
-        other = self.shared / "some-other-file"
+        other = self.sentinels / "some-other-file"
         other.write_text("")
         old_time = time.time() - 60 * 24 * 3600
         os.utime(other, (old_time, old_time))
 
-        with patch.object(gc, "SHARED_DIR", self.shared):
+        with patch.object(gc, "SENTINELS_DIR", self.sentinels):
             removed = _clean_sentinels(dry_run=False)
 
         self.assertEqual(removed, 0)
         self.assertTrue(other.exists())
 
     def test_dry_run_counts_but_does_not_delete(self) -> None:
-        old_sentinel = self.shared / ".stamped-stale"
+        old_sentinel = self.sentinels / ".stamped-stale"
         old_sentinel.write_text("")
         old_time = time.time() - 31 * 24 * 3600
         os.utime(old_sentinel, (old_time, old_time))
 
-        with patch.object(gc, "SHARED_DIR", self.shared):
+        with patch.object(gc, "SENTINELS_DIR", self.sentinels):
             removed = _clean_sentinels(dry_run=True)
 
         self.assertEqual(removed, 1)
@@ -168,7 +166,7 @@ class CompactOriginsTests(unittest.TestCase):
         self.assertEqual(removed, 0)
 
     def test_handles_malformed_json_lines(self) -> None:
-        good = json.dumps({"profile": "g<>F", "path": f"/x/{UUID_A}"})
+        good = json.dumps({"profile": "%'.'", "path": f"/x/{UUID_A}"})
         bad = "this is not json {{"
         self.origins.write_text(good + "\n" + bad + "\n")
 
@@ -228,7 +226,7 @@ class KnownProfilesTests(unittest.TestCase):
 
         self.assertIn("personal", known)
         self.assertIn("work", known)
-        self.assertIn(",n"X", known)
+        self.assertIn("RX|.", known)
 
     def test_includes_profiles_from_options_json(self) -> None:
         self.options.write_text(json.dumps({
@@ -248,7 +246,7 @@ class KnownProfilesTests(unittest.TestCase):
         with patch.object(gc, "OPTIONS_FILE", self.tmp_path / "nonexistent.json"):
             known = _known_profiles()
 
-        self.assertEqual(known, {"personal", "work", "26n+"})
+        self.assertEqual(known, {"personal", "work", "bX^S"})
 
 
 # ---------------------------------------------------------------------------
@@ -264,6 +262,8 @@ class RunGcTests(unittest.TestCase):
         self.tmp_path = Path(self._tmp.name)
         self.shared = self.tmp_path / "shared"
         self.shared.mkdir()
+        self.sentinels = self.shared / "sentinels"
+        self.sentinels.mkdir()
         self.origins = self.tmp_path / "profile-origins.jsonl"
         self.options = self.tmp_path / "options.json"
         self._stdout_trap = contextlib.redirect_stdout(io.StringIO())
@@ -275,7 +275,7 @@ class RunGcTests(unittest.TestCase):
 
     def test_runs_all_steps_without_error(self) -> None:
         # Set up minimal data for each step
-        old_sentinel = self.shared / ".stamped-old"
+        old_sentinel = self.sentinels / ".stamped-old"
         old_sentinel.write_text("")
         old_time = time.time() - 31 * 24 * 3600
         os.utime(old_sentinel, (old_time, old_time))
@@ -285,6 +285,7 @@ class RunGcTests(unittest.TestCase):
         )
 
         with patch.object(gc, "SHARED_DIR", self.shared), \
+             patch.object(gc, "SENTINELS_DIR", self.sentinels), \
              patch.object(gc, "ORIGINS_FILE", self.origins), \
              patch.object(gc, "OPTIONS_FILE", self.options):
             # Should complete without raising
@@ -297,7 +298,7 @@ class RunGcTests(unittest.TestCase):
         self.assertEqual(len(remaining), 1)
 
     def test_dry_run_makes_no_changes(self) -> None:
-        old_sentinel = self.shared / ".stamped-old"
+        old_sentinel = self.sentinels / ".stamped-old"
         old_sentinel.write_text("")
         old_time = time.time() - 31 * 24 * 3600
         os.utime(old_sentinel, (old_time, old_time))
@@ -307,6 +308,7 @@ class RunGcTests(unittest.TestCase):
         original_content = self.origins.read_text()
 
         with patch.object(gc, "SHARED_DIR", self.shared), \
+             patch.object(gc, "SENTINELS_DIR", self.sentinels), \
              patch.object(gc, "ORIGINS_FILE", self.origins), \
              patch.object(gc, "OPTIONS_FILE", self.options):
             run_gc(dry_run=True)

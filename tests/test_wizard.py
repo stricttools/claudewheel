@@ -106,15 +106,15 @@ class CreateProfileTestBase(unittest.TestCase):
             mock.patch.object(config_mod, "THEMES_DIR", self.launcher_dir / "themes"),
             mock.patch.object(config_mod, "HOOKS_DIR", self.launcher_dir / "hooks"),
             mock.patch.object(config_mod, "SCRIPTS_DIR", self._scripts_dir),
-            mock.patch.object(config_mod, "SHARED_DIR", self.fake_home / ".claude-shared"),
+            mock.patch.object(config_mod, "SHARED_DIR", self.fake_home / ".claudewheel" / "shared"),
             mock.patch.object(config_mod, "SHARED_SETTINGS_FILE", self._shared_settings_file),
-            # wizard.py imports CONFIG_DIR, PROFILES_DIR, SHARED_DIR, COMMON_DIR directly
+            # wizard.py imports CONFIG_DIR, PROFILES_DIR, SHARED_DIR, SKILLS_DIR directly
             mock.patch.object(wizard_mod, "CONFIG_DIR", self.launcher_dir),
             mock.patch.object(wizard_mod, "PROFILES_DIR", self.launcher_dir / "profiles"),
             mock.patch.object(wizard_mod, "SCRIPTS_DIR", self._scripts_dir),
             mock.patch.object(wizard_mod, "SHARED_SETTINGS_FILE", self._shared_settings_file),
-            mock.patch.object(wizard_mod, "SHARED_DIR", self.fake_home / ".claude-shared"),
-            mock.patch.object(wizard_mod, "COMMON_DIR", self.fake_home / ".claude-common"),
+            mock.patch.object(wizard_mod, "SHARED_DIR", self.fake_home / ".claudewheel" / "shared"),
+            mock.patch.object(wizard_mod, "SKILLS_DIR", self.fake_home / ".claudewheel" / "skills"),
         ]
         for p in self._patches:
             p.start()
@@ -386,14 +386,14 @@ class HookMergeTests(CreateProfileTestBase):
 
 
 class SymlinkCreationTests(CreateProfileTestBase):
-    """Test 7: all 6 dirs symlinked to ~/.claude-shared/ when symlink_shared=True."""
+    """Test 7: all 6 dirs symlinked to ~/.claudewheel/shared/ when symlink_shared=True."""
 
     def test_symlinks_created(self) -> None:
         result = _make_result(symlink_shared=True)
         create_profile(result, self.cfg)
 
         profile_dir = self._profile_dir()
-        shared_base = self.fake_home / ".claude-shared"
+        shared_base = self.fake_home / ".claudewheel" / "shared"
         for dirname in PROFILE_SHARED_DIRS:
             link = profile_dir / dirname
             self.assertTrue(link.is_symlink(), f"{dirname} should be a symlink")
@@ -401,11 +401,11 @@ class SymlinkCreationTests(CreateProfileTestBase):
             self.assertEqual(link.resolve(), target.resolve())
 
     def test_shared_target_dirs_created(self) -> None:
-        """The target directories under ~/.claude-shared/ are created."""
+        """The target directories under ~/.claudewheel/shared/ are created."""
         result = _make_result(symlink_shared=True)
         create_profile(result, self.cfg)
 
-        shared_base = self.fake_home / ".claude-shared"
+        shared_base = self.fake_home / ".claudewheel" / "shared"
         for dirname in PROFILE_SHARED_DIRS:
             self.assertTrue((shared_base / dirname).is_dir())
 
@@ -446,10 +446,10 @@ class NoSymlinksTests(CreateProfileTestBase):
             self.assertFalse(link.is_symlink(), f"{dirname} should not be a symlink")
 
     def test_shared_base_not_created(self) -> None:
-        """~/.claude-shared/ itself should not be created."""
+        """~/.claudewheel/shared/ itself should not be created."""
         result = _make_result(symlink_shared=False)
         create_profile(result, self.cfg)
-        shared_base = self.fake_home / ".claude-shared"
+        shared_base = self.fake_home / ".claudewheel" / "shared"
         self.assertFalse(shared_base.exists())
 
 
