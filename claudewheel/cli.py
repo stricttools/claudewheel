@@ -332,7 +332,7 @@ def _handle_deploy_hooks(name: str, all: bool, force: bool) -> int:
 # as flag names. Short forms -c and -p remain the same for user convenience.
 def _handle_launch(
     # Session flags (via tag); mutually exclusive, all optional
-    cont: bool, resume: str, print_prompt: str,
+    cont: bool, resume: str, print_prompt: str, picker: bool,
     # Segment flags (via tag); empty string means "not provided"
     profile: str, github: str, model: str,
     directory: str, mcp: str, permissions: str,
@@ -344,9 +344,9 @@ def _handle_launch(
     resume_val: str | None = None if resume == _UNSET else resume
     print_prompt_val: str | None = None if print_prompt == _UNSET else print_prompt
 
-    provided = sum([cont, resume_val is not None, print_prompt_val is not None])
+    provided = sum([cont, resume_val is not None, print_prompt_val is not None, picker])
     if provided > 1:
-        print("Error: --cont, --resume, and --print-prompt are mutually exclusive",
+        print("Error: --cont, --resume, --print-prompt, and --picker are mutually exclusive",
               file=sys.stderr)
         sys.exit(1)
 
@@ -404,6 +404,8 @@ def _handle_launch(
         extra_flags.append("--resume")
         if resume_val:
             extra_flags.append(resume_val)
+    elif picker:
+        extra_flags.append("--resume")
     elif print_prompt_val is not None:
         extra_flags.extend(["--print", print_prompt_val])
 
@@ -535,6 +537,8 @@ def _build_app() -> App:
              help="resume a session (ID, or empty for picker)"),
         Flag(name="print-prompt", short="p", type=str, default=_UNSET,
              help="run in non-interactive print mode with the given prompt"),
+        Flag(name="picker", type=bool, default=False,
+             help="open the session resume picker"),
     ])
 
     _segment_tag = Tag(name="segments", flags=[
