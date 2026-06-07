@@ -11,20 +11,9 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
+
+
 from claudewheel import profile_ops
-
-
-def _xattr_supported() -> bool:
-    """Return True if user xattrs work in tempfile dirs."""
-    try:
-        with tempfile.NamedTemporaryFile() as f:
-            os.setxattr(f.name, "user.test", b"1")
-        return True
-    except OSError:
-        return False
-
-
-HAVE_XATTR = _xattr_supported()
 
 
 class _ProfileOpsTestCase(unittest.TestCase):
@@ -201,71 +190,6 @@ class RemoveFromOptionsTests(_ProfileOpsTestCase):
         self._write_options(["alpha"])
         result = profile_ops._remove_from_options("ghost")
         self.assertFalse(result)
-
-
-# ---------------------------------------------------------------------------
-# Xattr stripping
-# ---------------------------------------------------------------------------
-
-
-@unittest.skip("_strip_xattrs was removed as dead code — session data is preserved on deletion")
-@unittest.skipUnless(HAVE_XATTR, "filesystem does not support user xattrs")
-class StripXattrsTests(_ProfileOpsTestCase):
-    """Tests for _strip_xattrs()."""
-
-    def test_strips_matching_xattrs(self) -> None:
-        projects = self.home / ".claudewheel" / "shared" / "projects" / "myproject"
-        projects.mkdir(parents=True)
-        f1 = projects / "sess1.jsonl"
-        f2 = projects / "sess2.jsonl"
-        f3 = projects / "sess3.jsonl"
-        f1.write_text("{}")
-        f2.write_text("{}")
-        f3.write_text("{}")
-        os.setxattr(str(f1), b"user.origin-profile", b"doomed")
-        os.setxattr(str(f2), b"user.origin-profile", b"doomed")
-        os.setxattr(str(f3), b"user.origin-profile", b"keeper")
-
-        count = profile_ops._strip_xattrs("doomed")
-        self.assertEqual(count, 2)
-
-        # f1 and f2 should have no xattr; f3 should still have it
-        with self.assertRaises(OSError):
-            os.getxattr(str(f1), b"user.origin-profile")
-        val = os.getxattr(str(f3), b"user.origin-profile")
-        self.assertEqual(val, b"keeper")
-
-    def test_returns_zero_when_no_projects_dir(self) -> None:
-        count = profile_ops._strip_xattrs("any")
-        self.assertEqual(count, 0)
-
-
-# ---------------------------------------------------------------------------
-# Origins file cleanup
-# ---------------------------------------------------------------------------
-
-
-@unittest.skip("_clean_origins_file was removed as dead code — session data is preserved on deletion")
-class CleanOriginsFileTests(_ProfileOpsTestCase):
-    """Tests for _clean_origins_file()."""
-
-    def test_removes_matching_lines(self) -> None:
-        self._make_origins_file([
-            {"path": "/a", "profile": "doomed", "ts": "t1"},
-            {"path": "/b", "profile": "keeper", "ts": "t2"},
-            {"path": "/c", "profile": "doomed", "ts": "t3"},
-        ])
-        count = profile_ops._clean_origins_file("doomed")
-        self.assertEqual(count, 2)
-
-        origins = profile_ops.ORIGINS_FILE
-        remaining = [json.loads(l) for l in origins.read_text().strip().splitlines()]
-        self.assertEqual(len(remaining), 1)
-        self.assertEqual(remaining[0]["profile"], "keeper")
-
-    def test_returns_zero_when_no_file(self) -> None:
-        count = profile_ops._clean_origins_file("any")
-        self.assertEqual(count, 0)
 
 
 # ---------------------------------------------------------------------------
