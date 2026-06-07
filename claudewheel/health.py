@@ -8,7 +8,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from .constants import COMMON_DIR, OPTIONS_FILE, PROFILES_DIR, PROFILE_SHARED_DIRS, SCRIPTS_DIR, SHARED_DIR, SHARED_SETTINGS_FILE, TOKENS_FILE
+from .constants import OPTIONS_FILE, PROFILES_DIR, PROFILE_SHARED_DIRS, SCRIPTS_DIR, SHARED_DIR, SHARED_SETTINGS_FILE, SKILLS_DIR, TOKENS_FILE
 from .defaults import DISALLOWED_TOOLS, build_canonical_shared_settings
 from .discovery import discover_profiles
 
@@ -68,23 +68,22 @@ def _discover_profiles() -> list[tuple[str, Path]]:
 
 
 def check_shared_symlinks() -> HealthResult:
-    """Verify each profile's shared dirs are symlinks to ~/.claude-shared/."""
+    """Verify each profile's shared dirs are symlinks to ~/.claudewheel/shared/."""
     profiles = _discover_profiles()
     if not profiles:
         return HealthResult(True, "shared-symlinks", "no profiles found")
 
     broken: list[str] = []
     for name, pdir in profiles:
-        # Shared dirs -> ~/.claude-shared/<dir>
+        # Shared dirs -> ~/.claudewheel/shared/<dir>
         for d in PROFILE_SHARED_DIRS:
             link = pdir / d
             target = SHARED_DIR / d
             if not link.is_symlink() or link.resolve() != target.resolve():
                 broken.append(f"{name}/{d}")
-        # skills -> ~/.claude-common/skills
+        # skills -> ~/.claudewheel/skills
         sk = pdir / "skills"
-        sk_target = COMMON_DIR / "skills"
-        if sk_target.is_dir() and (not sk.is_symlink() or sk.resolve() != sk_target.resolve()):
+        if SKILLS_DIR.is_dir() and (not sk.is_symlink() or sk.resolve() != SKILLS_DIR.resolve()):
             broken.append(f"{name}/skills")
 
     if broken:
@@ -93,7 +92,7 @@ def check_shared_symlinks() -> HealthResult:
 
 
 def check_xattr_coverage() -> HealthResult:
-    """Sample .jsonl files in ~/.claude-shared/projects/ for origin-profile xattr."""
+    """Sample .jsonl files in ~/.claudewheel/shared/projects/ for origin-profile xattr."""
     projects_dir = SHARED_DIR / "projects"
     if not projects_dir.exists():
         return HealthResult(True, "xattr-coverage", "projects dir not found")
