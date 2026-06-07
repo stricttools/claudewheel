@@ -511,7 +511,7 @@ def _build_app() -> App:
         _handle_migrate
     )
 
-    app.command("gc", help="garbage-collect stale sentinels, compact origins, report stats")(
+    app.command("gc", help="report shared-store stats and clean up legacy data")(
         _handle_gc
     )
 
