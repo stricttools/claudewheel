@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import contextlib
 import io
-import json
-import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -13,12 +11,10 @@ from unittest.mock import patch
 
 from claudewheel import migrate as migrate_mod
 from claudewheel.migrate import (
-    XATTR_NAME,
     MigrateResult,
     _discover_uuids,
     _move_artifact,
     _shared_store,
-    _stamp_xattr,
     migrate_sessions,
 )
 
@@ -26,19 +22,6 @@ from claudewheel.migrate import (
 UUID_A = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
 UUID_B = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
 UUID_C = "cccccccc-cccc-cccc-cccc-cccccccccccc"
-
-
-def _xattr_supported() -> bool:
-    """Return True if user xattrs work in tempfile dirs."""
-    try:
-        with tempfile.NamedTemporaryFile() as f:
-            os.setxattr(f.name, "user.test", b"1")
-        return True
-    except OSError:
-        return False
-
-
-HAVE_XATTR = _xattr_supported()
 
 
 # ---------------------------------------------------------------------------
@@ -138,74 +121,6 @@ class DiscoverUuidsTests(unittest.TestCase):
 
         result = _discover_uuids(self.src)
         self.assertEqual(result, set())
-
-
-# ---------------------------------------------------------------------------
-# _stamp_xattr
-# ---------------------------------------------------------------------------
-
-
-@unittest.skipUnless(HAVE_XATTR, "filesystem does not support user xattrs")
-class StampXattrTests(unittest.TestCase):
-    """xattr stamping logic."""
-
-    def setUp(self) -> None:
-        self._tmp = tempfile.TemporaryDirectory()
-        self.root = Path(self._tmp.name)
-        self.index = self.root / "index.jsonl"
-        self._stdout_trap = contextlib.redirect_stdout(io.StringIO())
-        self._stdout_trap.__enter__()
-
-    def tearDown(self) -> None:
-        self._stdout_trap.__exit__(None, None, None)
-        self._tmp.cleanup()
-
-    def test_stamps_file_without_xattr(self) -> None:
-        """A file with no xattr gets stamped and an index entry is written."""
-        target = self.root / "file.txt"
-        target.write_text("data")
-        result = MigrateResult()
-
-        _stamp_xattr(target, "src-profile", self.index, "2025-01-01T00:00:00Z", result, dry_run=False)
-
-        self.assertEqual(result.stamped, 1)
-        self.assertEqual(result.already_stamped, 0)
-        val = os.getxattr(str(target), XATTR_NAME)
-        self.assertEqual(val, b"src-profile")
-        # Index entry written
-        entries = self.index.read_text().strip().splitlines()
-        self.assertEqual(len(entries), 1)
-        rec = json.loads(entries[0])
-        self.assertEqual(rec["profile"], "src-profile")
-
-    def test_skips_already_stamped(self) -> None:
-        """A file that already has the xattr is counted as already_stamped."""
-        target = self.root / "file.txt"
-        target.write_text("data")
-        os.setxattr(str(target), XATTR_NAME, b"old-profile")
-        result = MigrateResult()
-
-        _stamp_xattr(target, "src-profile", self.index, "2025-01-01T00:00:00Z", result, dry_run=False)
-
-        self.assertEqual(result.stamped, 0)
-        self.assertEqual(result.already_stamped, 1)
-        # xattr unchanged
-        self.assertEqual(os.getxattr(str(target), XATTR_NAME), b"old-profile")
-
-    def test_dry_run_increments_counter_but_does_not_stamp(self) -> None:
-        """Dry run bumps stamped count but leaves the file untouched."""
-        target = self.root / "file.txt"
-        target.write_text("data")
-        result = MigrateResult()
-
-        _stamp_xattr(target, "src-profile", self.index, "2025-01-01T00:00:00Z", result, dry_run=True)
-
-        self.assertEqual(result.stamped, 1)
-        # No xattr was actually set
-        with self.assertRaises(OSError):
-            os.getxattr(str(target), XATTR_NAME)
-        # No index file written
-        self.assertFalse(self.index.exists())
 
 
 # ---------------------------------------------------------------------------
@@ -333,7 +248,6 @@ class SharedStoreTests(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 
-@unittest.skipUnless(HAVE_XATTR, "filesystem does not support user xattrs")
 class MigrateSessionsTests(unittest.TestCase):
     """Full migrate_sessions() integration tests."""
 
@@ -348,8 +262,6 @@ class MigrateSessionsTests(unittest.TestCase):
         self.dst_dir = self.home / ".claudewheel" / "profiles" / "beta"
         self.src_dir.mkdir(parents=True)
         self.dst_dir.mkdir(parents=True)
-        # Launcher dir for the index
-        (self.home / ".claudewheel").mkdir(parents=True, exist_ok=True)
 
     def tearDown(self) -> None:
         self._stdout_trap.__exit__(None, None, None)
@@ -368,22 +280,14 @@ class MigrateSessionsTests(unittest.TestCase):
         todos.mkdir()
         (todos / f"{UUID_A}-agent-cleanup.json").write_text("{}")
 
-    def _patch_migrate(self):
-        """Return a context manager that patches PROFILES_DIR and ORIGINS_FILE for migrate."""
-        profiles = self.home / ".claudewheel" / "profiles"
-        origins = self.home / ".claudewheel" / "profile-origins.jsonl"
-        return contextlib.ExitStack()
-
     def _run_migrate(self, *args, **kwargs):
         """Run migrate_sessions with patched constants."""
         profiles = self.home / ".claudewheel" / "profiles"
-        origins = self.home / ".claudewheel" / "profile-origins.jsonl"
-        with patch.object(migrate_mod, "PROFILES_DIR", profiles), \
-             patch.object(migrate_mod, "ORIGINS_FILE", origins):
+        with patch.object(migrate_mod, "PROFILES_DIR", profiles):
             return migrate_sessions(*args, **kwargs)
 
-    def test_stamps_and_moves_non_shared(self) -> None:
-        """In non-shared mode, artifacts are stamped and moved."""
+    def test_moves_non_shared(self) -> None:
+        """In non-shared mode, artifacts are moved to the destination."""
         self._populate_src()
         # Also create required dirs in dst
         (self.dst_dir / "projects" / "myproj").mkdir(parents=True)
@@ -391,7 +295,6 @@ class MigrateSessionsTests(unittest.TestCase):
         result = self._run_migrate("alpha", "beta")
 
         self.assertEqual(result.uuids_found, 1)
-        self.assertGreater(result.stamped, 0)
         self.assertGreater(result.moved, 0)
         self.assertEqual(result.collisions, 0)
         # The jsonl should have been moved to dst
@@ -400,8 +303,8 @@ class MigrateSessionsTests(unittest.TestCase):
         orig_jsonl = self.src_dir / "projects" / "myproj" / f"{UUID_A}.jsonl"
         self.assertFalse(orig_jsonl.exists())
 
-    def test_stamps_but_skips_moves_shared_store(self) -> None:
-        """When stores are shared, artifacts are stamped but not moved."""
+    def test_skips_moves_shared_store(self) -> None:
+        """When stores are shared, artifacts are not moved."""
         # Create a shared target for projects/
         shared = self.home / "shared-projects"
         shared.mkdir()
@@ -414,7 +317,6 @@ class MigrateSessionsTests(unittest.TestCase):
         result = self._run_migrate("alpha", "beta")
 
         self.assertEqual(result.uuids_found, 1)
-        self.assertGreater(result.stamped, 0)
         self.assertEqual(result.moved, 0)
         # File is still in place (not moved)
         self.assertTrue((shared / "myproj" / f"{UUID_A}.jsonl").exists())
@@ -439,17 +341,10 @@ class MigrateSessionsTests(unittest.TestCase):
         result = self._run_migrate("alpha", "beta", dry_run=True)
 
         self.assertEqual(result.uuids_found, 1)
-        self.assertGreater(result.stamped, 0)
         self.assertGreater(result.moved, 0)
         # But nothing actually moved
         orig_jsonl = self.src_dir / "projects" / "myproj" / f"{UUID_A}.jsonl"
         self.assertTrue(orig_jsonl.exists())
-        # No xattr set
-        with self.assertRaises(OSError):
-            os.getxattr(str(orig_jsonl), XATTR_NAME)
-        # Index file not created
-        index = self.home / ".claudewheel" / "profile-origins.jsonl"
-        self.assertFalse(index.exists())
 
 
 if __name__ == "__main__":
