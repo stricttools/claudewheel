@@ -104,7 +104,7 @@
     "description": "255794f10d9b631b49d3645f2e479421bc9ed92c4037a88fdd1a8c4bab35b1cb"
   },
   "en/claudewheel-cli.md": {
-    "content": "181177be9a92ec092ee5c0e3f3578129c0e90155190144451266e5127a050aa9",
+    "content": "53bf25b5e6cb10b996aa0046d57a1b8e2678bf49acda8de5d4e583904241aba2",
     "description": "7bfd59181100ed69f049f846b365961d9070ea61e7ae48e94bf30864368c4336"
   },
   "en/claudewheel-config.md": {
@@ -112,7 +112,7 @@
     "description": "af5ddadf4796445eeae26d48344973a7cb317978ddbdb30dfea501c4aab8a9b1"
   },
   "en/claudewheel-constants.md": {
-    "content": "4fdf7e92dcb00702f7a15639cfcf9816b82ad9a9f7090b344fead4dd5eaec82c",
+    "content": "43503ee8c997f9e33338312425c7748898526a87705a6192e8216e8fcf46cb09",
     "description": "7d103023750d6d4cca692be8d49bfcec5ffc8c902336345a2254f66b16d55088"
   },
   "en/claudewheel-defaults.md": {
@@ -155,6 +155,10 @@
     "content": "1c6938d159dec5aadf156986e51ff5e59fdbf294a5d6bd8140b0ed6cd0d8fd90",
     "description": "6ccfe6ece2e0043144fac3bef340be8a2a536feedfc8a0c7f609cf8ce3a39a7c"
   },
+  "en/claudewheel-mv.md": {
+    "content": "0bc12805ceb28246a7bae6fc5c7a98579d3460a67cb7f4265843c97ad59e0c00",
+    "description": "7dae71bbe81fcb3b09bd9354e7fc50d60b867b93fbbe1fd18c72f1cdd4b35999"
+  },
   "en/claudewheel-profile.md": {
     "content": "21ff617688c31623a909ae733f487b9303a9e3363c6ddea96283cae725d371cd",
     "description": "542bb527d8ac6a6f89a6217fcf916c3b1c04043aedfe8fb14d6cd3d0b0fb3787"
@@ -174,6 +178,10 @@
   "en/claudewheel-segment.md": {
     "content": "88818322bf8043e8ac0b41579127b850c2c9e470482506ababbd5daddbc313cd",
     "description": "448c8892eb6d7a402e282ab8b408191b15a6d51c889e897ed3712bf48389b1fd"
+  },
+  "en/claudewheel-session.md": {
+    "content": "17b2ecf5a3446686a07372a3ea5d1d62c860c7e593ef362811ff11a2cebd3af4",
+    "description": "2b08ce2cb44ae42f935be1df46ccdf734ad62753410397b0188e4997c914b491"
   },
   "en/claudewheel-state.md": {
     "content": "36fe6d1efb33aa2b73d7b48105ee2a6ccfd2357033c529fe9065083f49f9d7dd",
@@ -264,7 +272,7 @@
     "description": "2220c5148e4708a74d0f36a96189559abcc971592131c21d4f0be26c16d396f5"
   },
   "en/gen-index.md": {
-    "content": "8e0461785c0d313df44cafd7c95c1cf9ce346053abf62624af7a3efd6f1b3c5c",
+    "content": "93c9b9de04b80b6405cbc82e2338a1eac54c49a51f6ee869d0c2559179c8ef16",
     "description": "bb3cd9d34f014c0674a9285c25ee14b5b4abc5cf941f0d83594c301405e8f3b6"
   },
   "en/index.md": {

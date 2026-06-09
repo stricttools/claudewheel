@@ -33,11 +33,12 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 - **claudewheel.install** (`claudewheel/install.py`): Download, verify, and install Claude Code binaries from Google Cloud Storage.
 - **claudewheel.launch** (`claudewheel/launch.py`): Map TUI selections to binary path, env vars, flags, and exec.
 - **claudewheel.migrate** (`claudewheel/migrate.py`): Move session artifacts between profiles.
+- **claudewheel.mv** (`claudewheel/mv.py`): Move session data after a project directory rename.
 - **claudewheel.profile** (`claudewheel/profile.py`): Resolve a profile name to CLAUDE_CONFIG_DIR and OAuth token env vars.
 - **claudewheel.profile_ops** (`claudewheel/profile_ops.py`): Delete profiles and clean up their dirs, tokens, and options.
-- **claudewheel.redir** (`claudewheel/redir.py`): Rewrite session paths and project keys after a directory rename.
 - **claudewheel.renderer** (`claudewheel/renderer.py`): Draw the segment bar, fan-out options, minimap, and scroll arrows.
 - **claudewheel.segment** (`claudewheel/segment.py`): Segment and SegmentBar dataclasses, option discovery, and cross-segment constraints.
+- **claudewheel.session** (`claudewheel/session.py`): Session lookup: locate session JSONL files and extract metadata.
 - **claudewheel.state** (`claudewheel/state.py`): Save selections, launch count, and recent directories to state.json.
 - **claudewheel.stats** (`claudewheel/stats.py`): Report shared-store statistics and clean up legacy data.
 - **claudewheel.terminal** (`claudewheel/terminal.py`): Raw terminal I/O: cbreak mode, escape sequence decoding, and alt screen.
