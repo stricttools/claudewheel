@@ -9,7 +9,7 @@ import strictcli
 from strictcli import App, Arg, Flag, Tag
 
 from . import __version__
-from .constants import CONFIG_DIR, OPTIONS_FILE, SCRIPTS_DIR, VERSIONS_DIR, CLAUDE_SYMLINK
+from .constants import CONFIG_DIR, OPTIONS_FILE, SCRIPTS_DIR, VERSIONS_DIR, CLAUDE_SYMLINK, SHARED_DIR, encode_path
 from .segment import version_sort_key
 
 # Passthrough args after "--" are stashed here by main() before strictcli sees argv.
@@ -328,6 +328,106 @@ def _handle_deploy_hooks(name: str, all: bool, force: bool) -> int:
     return 0
 
 
+def _check_resume_session(session_id: str, directory: str) -> None:
+    """Intercept --resume to detect and offer to fix directory renames.
+
+    When a session exists under an old encoded path (because the project
+    directory was renamed), this function detects the mismatch and offers
+    to move all sessions to the new path via ``run_mv``.
+
+    Returns normally when no interception is needed (session found under
+    current directory, or sessions successfully moved).  Calls ``sys.exit(1)``
+    when the session cannot be resumed from here.
+    """
+    from .session import find_session
+
+    # Step 1: Check if session exists under the current directory
+    encoded_cwd = encode_path(os.path.abspath(directory))
+    expected_path = SHARED_DIR / "projects" / encoded_cwd / f"{session_id}.jsonl"
+    if expected_path.exists():
+        return  # Claude Code will find it
+
+    # Step 2: Search the entire shared store
+    info = find_session(session_id)
+    if info is None:
+        print(
+            f"Session {session_id} not found in any project directory.\n"
+            "Try --picker to browse available sessions.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    # Step 3: Session found elsewhere -- check if it's a rename or wrong directory
+    old_cwd = info.cwd
+    if old_cwd is None:
+        # Can't extract cwd from JSONL; fall through to let Claude Code handle it
+        return
+
+    if os.path.isdir(old_cwd):
+        # Old directory still exists -- not a rename, user is in the wrong place
+        print(
+            f"Session {session_id} belongs to {old_cwd} which still exists.\n"
+            "Run from that directory instead.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    # Step 4: Confirmed rename -- old path gone, session found under old encoded dir
+    current_dir = os.path.abspath(directory)
+    old_project_dir = SHARED_DIR / "projects" / info.encoded_cwd
+    jsonl_files = list(old_project_dir.glob("*.jsonl")) if old_project_dir.is_dir() else []
+    n = len(jsonl_files)
+    size_bytes = sum(f.stat().st_size for f in jsonl_files)
+    size_mb = size_bytes / (1024 * 1024)
+
+    print(
+        f"Session {session_id} was created in {old_cwd}\n"
+        f"which no longer exists. You are now in {current_dir}.\n"
+        f"\n"
+        f"Found {n} sessions ({size_mb:.1f} MB) under the old path.\n"
+        f"Move all sessions from {old_cwd} to {current_dir}? [y/N] ",
+        end="",
+        flush=True,
+    )
+    try:
+        answer = input()
+    except (EOFError, KeyboardInterrupt):
+        print()
+        sys.exit(1)
+
+    if not answer.strip().lower().startswith("y"):
+        print("Aborted. Sessions remain under the old path.")
+        sys.exit(1)
+
+    # Step 5: Dry-run first
+    from .mv import run_mv
+
+    result = run_mv(old_cwd, current_dir, dry_run=True)
+    print(
+        f"\nDry run:\n"
+        f"  Directories to rename: {result.dirs_renamed}\n"
+        f"  Files to rewrite: {result.files_rewritten}\n"
+        f"  Lines to update: {result.lines_replaced}\n"
+        f"  Profile keys to update: {result.project_keys_updated}\n"
+        f"\nProceed? [y/N] ",
+        end="",
+        flush=True,
+    )
+    try:
+        answer = input()
+    except (EOFError, KeyboardInterrupt):
+        print()
+        sys.exit(1)
+
+    if not answer.strip().lower().startswith("y"):
+        print("Aborted.")
+        sys.exit(1)
+
+    # Step 6: Execute for real
+    result = run_mv(old_cwd, current_dir, dry_run=False)
+    print(f"Moved {result.files_rewritten} files. Resuming session...")
+
+
 # "continue" and "print" are Python keywords, so we use "cont" / "print-prompt"
 # as flag names. Short forms -c and -p remain the same for user convenience.
 def _handle_launch(
@@ -411,6 +511,11 @@ def _handle_launch(
 
     # Append passthrough args (everything after "--" in original argv)
     extra_flags.extend(_passthrough)
+
+    # Intercept --resume with a session ID to detect directory renames
+    if resume_val:
+        target_dir = segment_overrides.get("directory", os.getcwd())
+        _check_resume_session(resume_val, target_dir)
 
     # Skip TUI when args cover every required segment, or when print mode is active.
     required_keys = {s["key"] for s in cfg.segments_def
