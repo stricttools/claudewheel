@@ -285,10 +285,10 @@ def _handle_stats(dry_run: bool) -> int:
 
 
 @strictcli.flag("dry-run", type=bool, help="preview changes without writing")
-def _handle_redir(old: str, new: str, dry_run: bool) -> int:
-    from .redir import run_redir
+def _handle_mv(old: str, new: str, dry_run: bool) -> int:
+    from .mv import run_mv
     try:
-        run_redir(old, new, dry_run=dry_run)
+        run_mv(old, new, dry_run=dry_run)
     except (FileNotFoundError, FileExistsError, OSError) as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
@@ -453,7 +453,7 @@ def _handle_launch(
 _SUBCOMMANDS = frozenset({
     "health", "config", "versions", "install", "uninstall",
     "reset-options", "new-profile", "delete-profile", "show",
-    "migrate", "stats", "redir", "deploy-hooks", "launch",
+    "migrate", "stats", "mv", "deploy-hooks", "launch",
 })
 
 
@@ -515,12 +515,12 @@ def _build_app() -> App:
         _handle_stats
     )
 
-    app.command("redir", help="redirect session data after a project directory rename",
+    app.command("mv", help="move session data after a project directory rename",
                 args=[
                     Arg(name="old", help="old directory path"),
                     Arg(name="new", help="new directory path"),
                 ])(
-        _handle_redir
+        _handle_mv
     )
 
     app.command("deploy-hooks", help="deploy hook scripts to ~/.claudewheel/scripts/",
