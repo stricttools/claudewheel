@@ -10,9 +10,9 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from claudewheel.constants import encode_path
 from claudewheel.redir import (
     RedirResult,
-    _encode_path,
     _rewrite_jsonl_file,
     _update_claude_json,
     run_redir,
@@ -25,16 +25,22 @@ from claudewheel.redir import (
 
 
 class EncodePathTests(unittest.TestCase):
-    """Slash-to-dash encoding used by Claude Code for project directory names."""
+    """Slash-and-dot-to-dash encoding used by Claude Code for project directory names."""
 
     def test_replaces_slashes_with_dashes(self) -> None:
-        self.assertEqual(_encode_path("/home/m/Projects/Foo"), "-home-m-Projects-Foo")
+        self.assertEqual(encode_path("/home/m/Projects/Foo"), "-home-m-Projects-Foo")
+
+    def test_replaces_dots_with_dashes(self) -> None:
+        self.assertEqual(encode_path("/home/m/Projects/foo.bar"), "-home-m-Projects-foo-bar")
+
+    def test_replaces_both_slashes_and_dots(self) -> None:
+        self.assertEqual(encode_path("/home/m/.config/app"), "-home-m--config-app")
 
     def test_empty_string(self) -> None:
-        self.assertEqual(_encode_path(""), "")
+        self.assertEqual(encode_path(""), "")
 
-    def test_no_slashes(self) -> None:
-        self.assertEqual(_encode_path("plain"), "plain")
+    def test_no_slashes_or_dots(self) -> None:
+        self.assertEqual(encode_path("plain"), "plain")
 
 
 # ---------------------------------------------------------------------------
@@ -217,8 +223,8 @@ class RunRedirIntegrationTests(unittest.TestCase):
         self.new_resolved = str(self.new_dir)
 
         # Encoded directory names
-        self.old_encoded = self.old_resolved.replace("/", "-")
-        self.new_encoded = self.new_resolved.replace("/", "-")
+        self.old_encoded = encode_path(self.old_resolved)
+        self.new_encoded = encode_path(self.new_resolved)
 
         # Profile dir with projects/ and .claude.json
         self.profile = self.home / ".claudewheel" / "profiles" / "personal"

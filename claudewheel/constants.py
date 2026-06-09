@@ -64,3 +64,11 @@ ALT_SCREEN_ON = csi("?1049h")
 ALT_SCREEN_OFF = csi("?1049l")
 CLEAR_SCREEN = csi("2J")
 CLEAR_LINE = csi("2K")
+
+
+# --- Path encoding ---
+
+
+def encode_path(p: str) -> str:
+    """Encode an absolute path the way Claude Code does: replace / and . with -."""
+    return p.replace("/", "-").replace(".", "-")

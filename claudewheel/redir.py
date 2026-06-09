@@ -6,7 +6,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-from .constants import SHARED_DIR
+from .constants import SHARED_DIR, encode_path
 from .discovery import discover_profiles
 
 PREFIX = "[redir]"
@@ -25,11 +25,6 @@ class RedirResult:
     lines_replaced: int = 0
     project_keys_updated: int = 0
     profiles_scanned: int = 0
-
-
-def _encode_path(p: str) -> str:
-    """Encode an absolute path the way Claude Code does: replace / with -."""
-    return p.replace("/", "-")
 
 
 def _discover_profile_dirs() -> list[Path]:
@@ -133,8 +128,8 @@ def run_redir(
         _log("DRY RUN -- no changes will be made")
 
     # 2. Compute encoded directory names
-    old_encoded = _encode_path(old_resolved)
-    new_encoded = _encode_path(new_resolved)
+    old_encoded = encode_path(old_resolved)
+    new_encoded = encode_path(new_resolved)
     _log(f"encoded: {old_encoded} -> {new_encoded}")
 
     # 3. Discover profile dirs
