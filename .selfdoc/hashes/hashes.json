@@ -228,7 +228,7 @@
     "description": "bce660b2830d459ded0337e6af14bc0215f80ff3a85cd9ece389b405bb2a5c9b"
   },
   "en/cli-index.md": {
-    "content": "9838b37d4632924e6127f6bcfb28983a63be88839b5ebd372548d050f2b16ec7",
+    "content": "fc64f426c011d47cd4190b3fcad447e08c6c710c393babb67a9cc8db99a48747",
     "description": "6c93c0157d7601c07594d8cd1bb2df39f01cec2ddb6d36b3f83f80ebb63300d5"
   },
   "en/cli-install.md": {
@@ -242,6 +242,10 @@
   "en/cli-migrate.md": {
     "content": "d35399a8f096a2e8d83e0abe70f55a7f6728d80144e2390cc0cbd0f7c996be85",
     "description": "78134e3259a9e8294116b956a6a8ca5cc432c01e8da927081b0f2fa2d8013633"
+  },
+  "en/cli-mv.md": {
+    "content": "772b9b7a5203e2a92557702150556d60a70361f12d1f4cd6b7d726a33a0eee35",
+    "description": "acfe5c998f98a7bb38099c70f03b2559516fb27d6fa250c753175fc2a7d3571f"
   },
   "en/cli-new-profile.md": {
     "content": "a64235bb9ae30fd5c6ce1c1d774f9021a67798f76e06b482873aa0666fd3c05f",

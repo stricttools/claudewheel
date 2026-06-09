@@ -60,7 +60,7 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 | `show` | print current selections and exit |
 | `migrate` | migrate sessions between profiles |
 | `stats` | report shared-store stats and clean up legacy data |
-| `redir` | redirect session data after a project directory rename |
+| `mv` | move session data after a project directory rename |
 | `deploy-hooks` | deploy hook scripts to ~/.claudewheel/scripts/ |
 | `launch` | start the interactive TUI launcher |
 
