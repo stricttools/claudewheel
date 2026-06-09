@@ -675,5 +675,262 @@ class PickerFlagTests(unittest.TestCase):
         self.assertEqual(extra_flags, [])
 
 
+class CheckResumeSessionTests(unittest.TestCase):
+    """Tests for _check_resume_session: resume interception on directory renames."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.shared_dir = Path(self._tmp.name) / "shared"
+        self.shared_dir.mkdir()
+        (self.shared_dir / "projects").mkdir()
+
+        self._patch_shared = mock.patch.object(cli, "SHARED_DIR", self.shared_dir)
+        self._patch_shared.start()
+        self.addCleanup(self._patch_shared.stop)
+
+    # -- 5.1a: Session exists under current dir -> no interception --
+
+    def test_resume_session_in_current_dir_no_interception(self) -> None:
+        """When the session file exists under the current directory's encoded path,
+        the function returns immediately without calling find_session."""
+        from claudewheel.constants import encode_path
+
+        current_dir = "/home/user/my-project"
+        session_id = "abc-123-def"
+        encoded = encode_path(os.path.abspath(current_dir))
+
+        # Create the expected session file
+        project_dir = self.shared_dir / "projects" / encoded
+        project_dir.mkdir(parents=True)
+        (project_dir / f"{session_id}.jsonl").write_text('{"cwd":"/home/user/my-project"}\n')
+
+        with mock.patch("claudewheel.session.find_session") as mock_find:
+            cli._check_resume_session(session_id, current_dir)
+
+        mock_find.assert_not_called()
+
+    # -- 5.1b: Session found elsewhere, user confirms both prompts --
+
+    def test_resume_session_found_elsewhere_user_confirms(self) -> None:
+        """When session is found under a different dir whose old path is gone,
+        and user says 'y' twice, run_mv is called for dry-run then real."""
+        from claudewheel.session import SessionInfo
+
+        session_id = "abc-123-def"
+        current_dir = os.path.abspath("/home/user/new-project")
+        old_cwd = "/home/user/old-project"
+
+        info = SessionInfo(
+            session_id=session_id,
+            jsonl_path=Path("/fake/path/abc-123-def.jsonl"),
+            encoded_cwd="encoded-old",
+            cwd=old_cwd,
+        )
+
+        dry_result = mock.MagicMock()
+        dry_result.dirs_renamed = 1
+        dry_result.files_rewritten = 2
+        dry_result.lines_replaced = 5
+        dry_result.project_keys_updated = 1
+
+        real_result = mock.MagicMock()
+        real_result.files_rewritten = 2
+
+        with (
+            mock.patch("claudewheel.session.find_session", return_value=info),
+            mock.patch("claudewheel.mv.run_mv", side_effect=[dry_result, real_result]) as mock_mv,
+            mock.patch("builtins.input", side_effect=["y", "y"]),
+            mock.patch("os.path.isdir", return_value=False),
+            redirect_stdout(io.StringIO()),
+        ):
+            # Should return normally (no sys.exit)
+            cli._check_resume_session(session_id, current_dir)
+
+        self.assertEqual(mock_mv.call_count, 2)
+        # First call: dry_run=True
+        call1_args, call1_kwargs = mock_mv.call_args_list[0]
+        self.assertTrue(call1_kwargs.get("dry_run", True))
+        # Second call: dry_run=False
+        call2_args, call2_kwargs = mock_mv.call_args_list[1]
+        self.assertFalse(call2_kwargs.get("dry_run", False))
+
+    # -- 5.1c: User declines first prompt --
+
+    def test_resume_session_found_elsewhere_user_declines_first_prompt(self) -> None:
+        """When user says 'n' at the move confirmation, sys.exit(1) is called
+        and run_mv is never invoked."""
+        from claudewheel.session import SessionInfo
+
+        session_id = "abc-123-def"
+        current_dir = os.path.abspath("/home/user/new-project")
+        old_cwd = "/home/user/old-project"
+
+        info = SessionInfo(
+            session_id=session_id,
+            jsonl_path=Path("/fake/path/abc-123-def.jsonl"),
+            encoded_cwd="encoded-old",
+            cwd=old_cwd,
+        )
+
+        # Create old project dir in shared to satisfy glob counting
+        old_project_dir = self.shared_dir / "projects" / "encoded-old"
+        old_project_dir.mkdir(parents=True)
+        (old_project_dir / f"{session_id}.jsonl").write_text('{"cwd":"/home/user/old-project"}\n')
+
+        with (
+            mock.patch("claudewheel.session.find_session", return_value=info),
+            mock.patch("claudewheel.mv.run_mv") as mock_mv,
+            mock.patch("builtins.input", return_value="n"),
+            mock.patch("os.path.isdir", return_value=False),
+            redirect_stdout(io.StringIO()),
+        ):
+            with self.assertRaises(SystemExit) as ctx:
+                cli._check_resume_session(session_id, current_dir)
+            self.assertEqual(ctx.exception.code, 1)
+
+        mock_mv.assert_not_called()
+
+    # -- 5.1d: User confirms first prompt, declines second --
+
+    def test_resume_session_found_elsewhere_user_declines_second_prompt(self) -> None:
+        """When user says 'y' then 'n', run_mv is called once (dry_run=True only)."""
+        from claudewheel.session import SessionInfo
+
+        session_id = "abc-123-def"
+        current_dir = os.path.abspath("/home/user/new-project")
+        old_cwd = "/home/user/old-project"
+
+        info = SessionInfo(
+            session_id=session_id,
+            jsonl_path=Path("/fake/path/abc-123-def.jsonl"),
+            encoded_cwd="encoded-old",
+            cwd=old_cwd,
+        )
+
+        old_project_dir = self.shared_dir / "projects" / "encoded-old"
+        old_project_dir.mkdir(parents=True)
+        (old_project_dir / f"{session_id}.jsonl").write_text('{"cwd":"/home/user/old-project"}\n')
+
+        dry_result = mock.MagicMock()
+        dry_result.dirs_renamed = 1
+        dry_result.files_rewritten = 2
+        dry_result.lines_replaced = 5
+        dry_result.project_keys_updated = 1
+
+        with (
+            mock.patch("claudewheel.session.find_session", return_value=info),
+            mock.patch("claudewheel.mv.run_mv", return_value=dry_result) as mock_mv,
+            mock.patch("builtins.input", side_effect=["y", "n"]),
+            mock.patch("os.path.isdir", return_value=False),
+            redirect_stdout(io.StringIO()),
+        ):
+            with self.assertRaises(SystemExit) as ctx:
+                cli._check_resume_session(session_id, current_dir)
+            self.assertEqual(ctx.exception.code, 1)
+
+        # run_mv called once for dry-run only
+        mock_mv.assert_called_once()
+        _, kwargs = mock_mv.call_args
+        self.assertTrue(kwargs.get("dry_run", True))
+
+    # -- 5.1e: Session not found anywhere --
+
+    def test_resume_session_not_found_anywhere(self) -> None:
+        """When find_session returns None, sys.exit(1) is called and
+        the error message mentions the session ID."""
+        session_id = "nonexistent-session-id"
+        current_dir = os.path.abspath("/home/user/some-project")
+
+        err = io.StringIO()
+        with (
+            mock.patch("claudewheel.session.find_session", return_value=None),
+            redirect_stderr(err),
+        ):
+            with self.assertRaises(SystemExit) as ctx:
+                cli._check_resume_session(session_id, current_dir)
+            self.assertEqual(ctx.exception.code, 1)
+
+        self.assertIn(session_id, err.getvalue())
+
+    # -- 5.1f: Old path still exists on disk --
+
+    def test_resume_old_path_still_exists(self) -> None:
+        """When the old cwd still exists, sys.exit(1) is called and
+        the message tells the user to run from the old path."""
+        from claudewheel.session import SessionInfo
+
+        session_id = "abc-123-def"
+        current_dir = os.path.abspath("/home/user/new-project")
+        old_cwd = "/home/user/old-project"
+
+        info = SessionInfo(
+            session_id=session_id,
+            jsonl_path=Path("/fake/path/abc-123-def.jsonl"),
+            encoded_cwd="encoded-old",
+            cwd=old_cwd,
+        )
+
+        err = io.StringIO()
+        with (
+            mock.patch("claudewheel.session.find_session", return_value=info),
+            mock.patch("os.path.isdir", return_value=True),
+            redirect_stderr(err),
+        ):
+            with self.assertRaises(SystemExit) as ctx:
+                cli._check_resume_session(session_id, current_dir)
+            self.assertEqual(ctx.exception.code, 1)
+
+        msg = err.getvalue()
+        self.assertIn(old_cwd, msg)
+        self.assertIn("still exists", msg)
+
+    # -- 5.1g: Bare resume (empty string) does NOT call _check_resume_session --
+
+    def test_bare_resume_no_interception(self) -> None:
+        """When resume_val is empty string (bare --resume with no ID),
+        _check_resume_session is NOT called."""
+        # Use the _run_main pattern from other test classes
+        SEGMENTS_DEF = PrintModeTests.SEGMENTS_DEF
+        ALL_ENABLED = PrintModeTests.ALL_ENABLED
+        FULL_LAST_CONFIG = PrintModeTests.FULL_LAST_CONFIG
+
+        fake_cfg = _FakeCfg(
+            config={
+                "theme": "dark",
+                "enabled_segments": list(ALL_ENABLED),
+                "default_flags": [],
+                "health_check_on_launch": False,
+            },
+            segments_def=list(SEGMENTS_DEF),
+            state={
+                "last_config": dict(FULL_LAST_CONFIG),
+                "recent_dirs": [],
+                "launch_count": 0,
+            },
+            options_def={},
+        )
+
+        with (
+            mock.patch("sys.argv", [
+                "c", "--resume", "",
+                "--profile", "personal",
+                "--github", "ghuser",
+                "-s", "version=2.1.116",
+                "--directory", "/some/dir",
+            ]),
+            mock.patch("claudewheel.config.ConfigManager", return_value=fake_cfg),
+            mock.patch("claudewheel.cli._do_launch_sequence", mock.MagicMock()),
+            mock.patch("claudewheel.cli._check_resume_session") as mock_check,
+            mock.patch("os.getcwd", return_value="/test/dir"),
+        ):
+            try:
+                cli.main()
+            except SystemExit:
+                pass
+
+        mock_check.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()
