@@ -512,7 +512,10 @@ def _handle_launch(
     # Append passthrough args (everything after "--" in original argv)
     extra_flags.extend(_passthrough)
 
-    # Intercept --resume with a session ID to detect directory renames
+    # Intercept --resume with a session ID to detect directory renames.
+    # NOTE: --cont has the same directory-mismatch problem but cannot be
+    # intercepted because it doesn't carry a session ID. The user must
+    # use --resume with an explicit ID to trigger mismatch detection.
     if resume_val:
         target_dir = segment_overrides.get("directory", os.getcwd())
         _check_resume_session(resume_val, target_dir)
