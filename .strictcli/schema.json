@@ -36,7 +36,7 @@
   },
   "project_id": "claudewheel",
   "name": "c",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "help": "claudewheel - TUI launcher for Claude Code",
   "commands": {
     "health": {
@@ -134,9 +134,9 @@
         }
       ]
     },
-    "redir": {
-      "name": "redir",
-      "help": "redirect session data after a project directory rename",
+    "mv": {
+      "name": "mv",
+      "help": "move session data after a project directory rename",
       "flags": [
         {
           "name": "dry-run",
