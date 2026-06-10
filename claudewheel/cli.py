@@ -428,6 +428,106 @@ def _check_resume_session(session_id: str, directory: str) -> None:
     print(f"Moved {result.files_rewritten} files. Resuming session...")
 
 
+def _check_cont_session(directory: str) -> None:
+    """Intercept --cont to detect and offer to fix directory renames.
+
+    When the current directory has no sessions but an orphaned project
+    directory exists under the same parent (original cwd no longer on
+    disk), this function offers to move those sessions to the current
+    directory via ``run_mv``.
+    """
+    from .session import find_orphaned_project_dirs
+
+    current_dir = os.path.abspath(directory)
+    parent_dir = os.path.dirname(current_dir)
+
+    # Step 1: Check if sessions exist under the current directory
+    encoded_cwd = encode_path(current_dir)
+    project_dir = SHARED_DIR / "projects" / encoded_cwd
+    if project_dir.is_dir() and list(project_dir.glob("*.jsonl")):
+        return  # Claude Code will find sessions
+
+    # Step 2: Scan for orphaned project dirs with matching parent
+    candidates = find_orphaned_project_dirs(parent_dir)
+
+    # Step 3: No candidates
+    if not candidates:
+        return  # let Claude Code handle it
+
+    # Step 4/5: Present candidates and offer to move
+    if len(candidates) == 1:
+        orphan = candidates[0]
+        size_mb = orphan.total_size_bytes / (1024 * 1024)
+        print(
+            f"No sessions found under {current_dir}.\n"
+            f"Found {orphan.session_count} sessions ({size_mb:.1f} MB) "
+            f"under {orphan.cwd} which no longer exists.\n"
+            f"Move all sessions from {orphan.cwd} to {current_dir}? [y/N] ",
+            end="",
+            flush=True,
+        )
+        try:
+            answer = input()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return
+
+        if not answer.strip().lower().startswith("y"):
+            return
+
+        old_cwd = orphan.cwd
+    else:
+        # Multiple candidates
+        print(f"No sessions found under {current_dir}.")
+        print("Found sessions under multiple directories that no longer exist:")
+        for i, orphan in enumerate(candidates, 1):
+            size_mb = orphan.total_size_bytes / (1024 * 1024)
+            print(f"  {i}. {orphan.cwd} ({orphan.session_count} sessions, {size_mb:.1f} MB)")
+        print(f"Move sessions from which directory? [1-{len(candidates)}/n to skip] ", end="", flush=True)
+        try:
+            answer = input()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            return
+
+        answer = answer.strip().lower()
+        if answer == "n" or not answer:
+            return
+        try:
+            idx = int(answer) - 1
+            if idx < 0 or idx >= len(candidates):
+                return
+        except ValueError:
+            return
+        old_cwd = candidates[idx].cwd
+
+    # Two-prompt flow: dry run, then confirm and execute
+    from .mv import run_mv
+
+    result = run_mv(old_cwd, current_dir, dry_run=True)
+    print(
+        f"\nDry run:\n"
+        f"  Directories to rename: {result.dirs_renamed}\n"
+        f"  Files to rewrite: {result.files_rewritten}\n"
+        f"  Lines to update: {result.lines_replaced}\n"
+        f"  Profile keys to update: {result.project_keys_updated}\n"
+        f"\nProceed? [y/N] ",
+        end="",
+        flush=True,
+    )
+    try:
+        answer = input()
+    except (EOFError, KeyboardInterrupt):
+        print()
+        return
+
+    if not answer.strip().lower().startswith("y"):
+        return
+
+    result = run_mv(old_cwd, current_dir, dry_run=False)
+    print(f"Moved {result.files_rewritten} files. Resuming session...")
+
+
 # "continue" and "print" are Python keywords, so we use "cont" / "print-prompt"
 # as flag names. Short forms -c and -p remain the same for user convenience.
 def _handle_launch(
@@ -512,13 +612,13 @@ def _handle_launch(
     # Append passthrough args (everything after "--" in original argv)
     extra_flags.extend(_passthrough)
 
-    # Intercept --resume with a session ID to detect directory renames.
-    # NOTE: --cont has the same directory-mismatch problem but cannot be
-    # intercepted because it doesn't carry a session ID. The user must
-    # use --resume with an explicit ID to trigger mismatch detection.
+    # Intercept --resume/--cont to detect directory renames and offer to
+    # move sessions before Claude Code tries to find them.
     if resume_val:
         target_dir = segment_overrides.get("directory", os.getcwd())
         _check_resume_session(resume_val, target_dir)
+    if cont:
+        _check_cont_session(segment_overrides.get("directory", os.getcwd()))
 
     # Skip TUI when args cover every required segment, or when print mode is active.
     required_keys = {s["key"] for s in cfg.segments_def
