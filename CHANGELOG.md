@@ -2,20 +2,20 @@
 
 # Changelog
 
+## 0.9.1
+
+--cont interception, mv merge fix, cleaner dry-run UX
+
+### Features
+
+- **New feature.** `--cont` now detects directory renames the same way `--resume` does, scanning for orphaned sessions in sibling directories.
+- **Improvement.** Resume/cont interception shows the `claudewheel mv` command when the old path still exists, and uses a concise human-readable dry-run summary instead of per-file log spam.
+
+### Fixes
+
+- **Bug fix.** `mv` now merges sessions into an existing target directory instead of silently skipping the move.
+
 ## 0.9.0
-
-Rename redir to mv, add resume interception for directory renames, fix path encoding bug
-
-<details>
-<summary>Context</summary>
-
-The redir command is renamed to mv for better discoverability. When --resume can't find a
-session under the current directory, claudewheel now searches the shared store, detects that
-the project directory was renamed, and offers to move all sessions to the new path. The path
-encoding function is also fixed to replace dots (not just slashes) with hyphens, matching
-Claude Code's internal encoding -- this fixes mv operations on dotfile paths.
-
-</details>
 
 ### Breaking
 
