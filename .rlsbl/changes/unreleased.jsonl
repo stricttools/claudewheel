@@ -3,3 +3,4 @@
 {"commits":["1a60e0b844fca35ec536eba71f1115e2a8706379","575beadd832a8ff035cc65b6084092df53473968"],"user_facing":true,"description":"**New feature.** Resume interception: when `--resume` can't find a session under the current directory, claudewheel searches the shared store, detects directory renames, and offers to move sessions to the new path.","type":"feature"}
 {"commits":["110115b1bf9c84999bbc586a6e89d0fbe23035d4","f44a83234bf4cf1bf70826d762467446f3e7570d","4d28a13e423292b3425536e7cd0497850a0e9ce4"],"user_facing":false}
 {"commits":["4259d48b8303786d8980c1a6f01f8c909ccbe687","96994641b51df2719b78f9bbb8c69a58f7dfe44d"],"user_facing":false}
+{"commits":["74e6fbaa010e5dcc64108d3b839fac3a83231ce4"],"user_facing":false}
