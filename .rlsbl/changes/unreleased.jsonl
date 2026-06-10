@@ -1,1 +1,2 @@
 {"commits":["bb52f8c6f49673d6d73e04d2882ba0207c79e927"],"user_facing":true,"description":"**Breaking.** Renamed `redir` command to `mv`.","type":"breaking"}
+{"commits":["bb52f8c6f49673d6d73e04d2882ba0207c79e927"],"user_facing":true,"description":"**Bug fix.** Path encoding now replaces both `/` and `.` with `-`, matching Claude Code's internal encoding. Previously, dotfile paths (e.g. `~/.claude-common`) would encode incorrectly.","type":"fix"}
