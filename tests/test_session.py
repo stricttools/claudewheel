@@ -7,6 +7,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from claudewheel.session import (
     MAX_CWD_SCAN_LINES,
@@ -218,7 +219,16 @@ class FindOrphanedProjectDirsTests(unittest.TestCase):
             "/home/user/old-project",
             session_count=3,
         )
-        with unittest.mock.patch("os.path.isdir", return_value=False):
+        _real_isdir = os.path.isdir
+
+        def _fake_isdir(path: str) -> bool:
+            # The cwd extracted from JSONL should appear non-existent;
+            # all other paths (temp dirs) use the real check.
+            if path == "/home/user/old-project":
+                return False
+            return _real_isdir(path)
+
+        with mock.patch("os.path.isdir", side_effect=_fake_isdir):
             results = find_orphaned_project_dirs(
                 self.parent_dir, shared_projects_dir=self.projects_dir,
             )
@@ -234,7 +244,14 @@ class FindOrphanedProjectDirsTests(unittest.TestCase):
             "/home/other/project",
             session_count=1,
         )
-        with unittest.mock.patch("os.path.isdir", return_value=False):
+        _real_isdir = os.path.isdir
+
+        def _fake_isdir(path: str) -> bool:
+            if path == "/home/other/project":
+                return False
+            return _real_isdir(path)
+
+        with mock.patch("os.path.isdir", side_effect=_fake_isdir):
             results = find_orphaned_project_dirs(
                 self.parent_dir, shared_projects_dir=self.projects_dir,
             )
@@ -247,7 +264,7 @@ class FindOrphanedProjectDirsTests(unittest.TestCase):
             "/home/user/still-here",
             session_count=2,
         )
-        with unittest.mock.patch("os.path.isdir", return_value=True):
+        with mock.patch("os.path.isdir", return_value=True):
             results = find_orphaned_project_dirs(
                 self.parent_dir, shared_projects_dir=self.projects_dir,
             )
