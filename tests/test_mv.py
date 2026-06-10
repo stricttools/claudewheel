@@ -352,5 +352,185 @@ class RunMvIntegrationTests(unittest.TestCase):
         self.assertNotIn(self.new_resolved, shared_data["projects"])
 
 
+# ---------------------------------------------------------------------------
+# Merge when target directory already exists
+# ---------------------------------------------------------------------------
+
+
+class MergeDirsTests(unittest.TestCase):
+    """When both old and new project dirs exist, contents are merged."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.home = Path(self._tmp.name) / "home"
+        self.home.mkdir()
+
+        self._stdout_trap = contextlib.redirect_stdout(io.StringIO())
+        self._stdout_trap.__enter__()
+
+        # Simulated project directories
+        self.old_dir = self.home / "Projects" / "OldName"
+        self.new_dir = self.home / "Projects" / "NewName"
+        # Only new_dir exists on the real filesystem (rename already happened)
+        self.new_dir.mkdir(parents=True)
+
+        # Resolved path strings
+        self.old_resolved = str(self.old_dir)
+        self.new_resolved = str(self.new_dir)
+
+        # Encoded directory names
+        self.old_encoded = encode_path(self.old_resolved)
+        self.new_encoded = encode_path(self.new_resolved)
+
+        # Profile dir
+        self.profile = self.home / ".claudewheel" / "profiles" / "personal"
+        self.profile.mkdir(parents=True)
+        self.projects = self.profile / "projects"
+        self.projects.mkdir()
+
+        # Both old_project and new_project dirs exist in the profile store
+        self.old_project = self.projects / self.old_encoded
+        self.old_project.mkdir()
+        self.new_project = self.projects / self.new_encoded
+        self.new_project.mkdir()
+
+        # .claude.json (needed for run_mv to complete)
+        self.claude_json = self.profile / ".claude.json"
+        self.claude_json.write_text(json.dumps({
+            "projects": {self.old_resolved: {"lastSession": "old"}},
+        }))
+
+    def tearDown(self) -> None:
+        self._stdout_trap.__exit__(None, None, None)
+        self._tmp.cleanup()
+
+    def _run(self, dry_run: bool = False) -> MvResult:
+        with patch("claudewheel.mv.Path.home", return_value=self.home), \
+             patch(
+                 "claudewheel.mv._discover_profile_dirs",
+                 return_value=[self.profile],
+             ):
+            return run_mv(str(self.old_dir), str(self.new_dir), dry_run=dry_run)
+
+    def test_mv_merge_when_target_exists(self) -> None:
+        """Old sessions are merged into existing new_project; paths rewritten."""
+        # Old dir has 2 session files referencing old path
+        uuid1 = self.old_project / "uuid1.jsonl"
+        uuid1.write_text(
+            json.dumps({"cwd": self.old_resolved, "type": "init"}) + "\n"
+        )
+        uuid2 = self.old_project / "uuid2.jsonl"
+        uuid2.write_text(
+            json.dumps({"cwd": self.old_resolved, "type": "init"}) + "\n"
+        )
+        # New dir already has 1 session file (created after rename)
+        uuid3 = self.new_project / "uuid3.jsonl"
+        uuid3.write_text(
+            json.dumps({"cwd": self.new_resolved, "type": "init"}) + "\n"
+        )
+
+        result = self._run()
+
+        # All 3 files now live in new_project
+        new_files = sorted(f.name for f in self.new_project.iterdir())
+        self.assertEqual(new_files, ["uuid1.jsonl", "uuid2.jsonl", "uuid3.jsonl"])
+
+        # Old project dir is gone
+        self.assertFalse(self.old_project.exists())
+
+        # Merge counted as a rename
+        self.assertEqual(result.dirs_renamed, 1)
+
+        # Moved files had their paths rewritten
+        for name in ("uuid1.jsonl", "uuid2.jsonl"):
+            content = (self.new_project / name).read_text()
+            self.assertNotIn(self.old_resolved, content)
+            self.assertIn(self.new_resolved, content)
+
+        # The file that was already in new_project is untouched (no old path)
+        self.assertEqual(result.files_rewritten, 2)
+        self.assertEqual(result.lines_replaced, 2)
+
+    def test_mv_merge_dry_run(self) -> None:
+        """Dry run reports merge actions but leaves both dirs intact."""
+        uuid1 = self.old_project / "uuid1.jsonl"
+        uuid1.write_text(
+            json.dumps({"cwd": self.old_resolved, "type": "init"}) + "\n"
+        )
+        uuid2 = self.old_project / "uuid2.jsonl"
+        uuid2.write_text(
+            json.dumps({"cwd": self.old_resolved, "type": "init"}) + "\n"
+        )
+        uuid3 = self.new_project / "uuid3.jsonl"
+        uuid3.write_text(
+            json.dumps({"cwd": self.new_resolved, "type": "init"}) + "\n"
+        )
+
+        original_old_files = sorted(f.name for f in self.old_project.iterdir())
+        original_new_files = sorted(f.name for f in self.new_project.iterdir())
+        original_uuid1 = uuid1.read_text()
+
+        result = self._run(dry_run=True)
+
+        # Counts reflect intended work
+        self.assertEqual(result.dirs_renamed, 1)
+
+        # Both dirs still exist unchanged
+        self.assertTrue(self.old_project.is_dir())
+        self.assertTrue(self.new_project.is_dir())
+        self.assertEqual(
+            sorted(f.name for f in self.old_project.iterdir()),
+            original_old_files,
+        )
+        self.assertEqual(
+            sorted(f.name for f in self.new_project.iterdir()),
+            original_new_files,
+        )
+        # File content unchanged
+        self.assertEqual(uuid1.read_text(), original_uuid1)
+
+    def test_mv_merge_file_collision(self) -> None:
+        """A file with the same name in both dirs is skipped (kept in new)."""
+        collision_name = "same-uuid.jsonl"
+        old_file = self.old_project / collision_name
+        old_file.write_text(
+            json.dumps({"cwd": self.old_resolved, "src": "old"}) + "\n"
+        )
+        new_file = self.new_project / collision_name
+        new_file.write_text(
+            json.dumps({"cwd": self.new_resolved, "src": "new"}) + "\n"
+        )
+        # Also have a non-colliding file to verify it does get moved
+        other_file = self.old_project / "other.jsonl"
+        other_file.write_text(
+            json.dumps({"cwd": self.old_resolved, "type": "init"}) + "\n"
+        )
+
+        result = self._run()
+
+        # The collision file in new_project is the original new version
+        content = json.loads(new_file.read_text().strip())
+        self.assertEqual(content["src"], "new")
+
+        # The non-colliding file was moved and rewritten
+        moved = self.new_project / "other.jsonl"
+        self.assertTrue(moved.exists())
+        moved_content = moved.read_text()
+        self.assertNotIn(self.old_resolved, moved_content)
+        self.assertIn(self.new_resolved, moved_content)
+
+        # Old dir is gone (collision file was skipped but it stays in old;
+        # rmdir will fail because it's not empty -- old still has the collision file)
+        # Actually: the collision file stays in old_project, so rmdir won't remove it.
+        # The old_project dir may still exist with the skipped file.
+        if self.old_project.exists():
+            remaining = list(self.old_project.iterdir())
+            self.assertEqual(len(remaining), 1)
+            self.assertEqual(remaining[0].name, collision_name)
+
+        # Merge still counted
+        self.assertEqual(result.dirs_renamed, 1)
+
+
 if __name__ == "__main__":
     unittest.main()
