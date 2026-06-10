@@ -13,8 +13,12 @@ from .discovery import discover_profiles
 PREFIX = "[mv]"
 
 
+_quiet = False
+
+
 def _log(msg: str) -> None:
-    print(f"{PREFIX} {msg}")
+    if not _quiet:
+        print(f"{PREFIX} {msg}")
 
 
 @dataclass
@@ -104,13 +108,15 @@ def _update_claude_json(
 
 
 def run_mv(
-    old_path: str, new_path: str, dry_run: bool = False,
+    old_path: str, new_path: str, dry_run: bool = False, quiet: bool = False,
 ) -> MvResult:
     """Move Claude Code session data from old_path to new_path.
 
     Both paths refer to the same project directory -- old_path is the former
     location (must no longer exist) and new_path is the current one (must exist).
     """
+    global _quiet
+    _quiet = quiet
     result = MvResult()
 
     # 1. Resolve paths

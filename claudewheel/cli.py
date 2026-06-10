@@ -400,16 +400,14 @@ def _check_resume_session(session_id: str, directory: str) -> None:
         print("Aborted. Sessions remain under the old path.")
         sys.exit(1)
 
-    # Step 5: Dry-run first
+    # Step 5: Dry-run first (quiet -- no per-file log spam)
     from .mv import run_mv
 
-    result = run_mv(old_cwd, current_dir, dry_run=True)
+    result = run_mv(old_cwd, current_dir, dry_run=True, quiet=True)
     print(
-        f"\nDry run:\n"
-        f"  Directories to rename: {result.dirs_renamed}\n"
-        f"  Files to rewrite: {result.files_rewritten}\n"
-        f"  Lines to update: {result.lines_replaced}\n"
-        f"  Profile keys to update: {result.project_keys_updated}\n"
+        f"\nWill move {result.files_rewritten} session files, "
+        f"rewrite {result.lines_replaced} path references, "
+        f"update {result.project_keys_updated} profile keys."
         f"\nProceed? [y/N] ",
         end="",
         flush=True,
@@ -425,8 +423,8 @@ def _check_resume_session(session_id: str, directory: str) -> None:
         sys.exit(1)
 
     # Step 6: Execute for real
-    result = run_mv(old_cwd, current_dir, dry_run=False)
-    print(f"Moved {result.files_rewritten} files. Resuming session...")
+    result = run_mv(old_cwd, current_dir, dry_run=False, quiet=True)
+    print(f"Done. Resuming session...")
 
 
 def _check_cont_session(directory: str) -> None:
@@ -505,13 +503,11 @@ def _check_cont_session(directory: str) -> None:
     # Two-prompt flow: dry run, then confirm and execute
     from .mv import run_mv
 
-    result = run_mv(old_cwd, current_dir, dry_run=True)
+    result = run_mv(old_cwd, current_dir, dry_run=True, quiet=True)
     print(
-        f"\nDry run:\n"
-        f"  Directories to rename: {result.dirs_renamed}\n"
-        f"  Files to rewrite: {result.files_rewritten}\n"
-        f"  Lines to update: {result.lines_replaced}\n"
-        f"  Profile keys to update: {result.project_keys_updated}\n"
+        f"\nWill move {result.files_rewritten} session files, "
+        f"rewrite {result.lines_replaced} path references, "
+        f"update {result.project_keys_updated} profile keys."
         f"\nProceed? [y/N] ",
         end="",
         flush=True,
@@ -525,8 +521,8 @@ def _check_cont_session(directory: str) -> None:
     if not answer.strip().lower().startswith("y"):
         return
 
-    result = run_mv(old_cwd, current_dir, dry_run=False)
-    print(f"Moved {result.files_rewritten} files. Resuming session...")
+    result = run_mv(old_cwd, current_dir, dry_run=False, quiet=True)
+    print(f"Done. Resuming session...")
 
 
 # "continue" and "print" are Python keywords, so we use "cont" / "print-prompt"
