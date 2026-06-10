@@ -1,0 +1,6 @@
+{"commits":["b987ce398203d02548810963f551596faed29227","b5f6937740da9af8161d3fe2bb81faba2253747f"],"user_facing":true,"description":"**New feature.** `--cont` now detects directory renames the same way `--resume` does, scanning for orphaned sessions in sibling directories.","type":"feature"}
+{"commits":["2d9cea05c009a9181252e4d9647ecbebfaee8716"],"user_facing":true,"description":"**Bug fix.** `mv` now merges sessions into an existing target directory instead of silently skipping the move.","type":"fix"}
+{"commits":["55794bfa51f50ceb2b3525264fcf25276f45630d","4bf4b2ac0c73ad7fcdd3d02b0a75a2f8c098aec9"],"user_facing":true,"description":"**Improvement.** Resume/cont interception shows the `claudewheel mv` command when the old path still exists, and uses a concise human-readable dry-run summary instead of per-file log spam.","type":"feature"}
+{"commits":["6346cac7c8842b425d81fec6b81a321e001cbec7","f843faae6addd4b5c6f2b73abb50e81ca09f9200","c714d317748efba34054a28e6991334a975f3ead","5c8b810d21707a54a89435a5c5ababad4e83b636"],"user_facing":false}
+{"commits":["29f1ccee0d534fc123d47e765c358a2ad946e68e"],"user_facing":false}
+{"commits":["b7fffb02c00cfbc7cc6684884a228e2e39eb8c0d"],"user_facing":false}
