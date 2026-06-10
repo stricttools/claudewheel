@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
 
 from claudewheel.session import (
     MAX_CWD_SCAN_LINES,
+    OrphanedProject,
     SessionInfo,
+    find_orphaned_project_dirs,
     find_session,
     get_session_cwd,
 )
@@ -179,6 +182,76 @@ class FindSessionTests(unittest.TestCase):
         assert result is not None
         self.assertEqual(result.cwd, cwd_value)
         self.assertEqual(result.encoded_cwd, encoded)
+
+
+# ---------------------------------------------------------------------------
+# find_orphaned_project_dirs
+# ---------------------------------------------------------------------------
+
+
+class FindOrphanedProjectDirsTests(unittest.TestCase):
+    """Locate project dirs whose original cwd no longer exists on disk."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.projects_dir = Path(self._tmp.name) / "projects"
+        self.projects_dir.mkdir()
+        # The "parent" directory that we pretend the current dir lives under
+        self.parent_dir = os.path.abspath("/home/user")
+
+    def _create_project(
+        self, encoded_cwd: str, cwd: str, session_count: int = 1,
+    ) -> Path:
+        """Create a fake project dir with session files."""
+        project_dir = self.projects_dir / encoded_cwd
+        project_dir.mkdir(parents=True, exist_ok=True)
+        for i in range(session_count):
+            p = project_dir / f"session-{i}.jsonl"
+            p.write_text(json.dumps({"type": "user", "cwd": cwd, "message": "hi"}) + "\n")
+        return project_dir
+
+    def test_find_orphaned_one_match(self) -> None:
+        """One orphaned dir whose parent matches is returned."""
+        self._create_project(
+            "-home-user-old-project",
+            "/home/user/old-project",
+            session_count=3,
+        )
+        with unittest.mock.patch("os.path.isdir", return_value=False):
+            results = find_orphaned_project_dirs(
+                self.parent_dir, shared_projects_dir=self.projects_dir,
+            )
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].cwd, "/home/user/old-project")
+        self.assertEqual(results[0].session_count, 3)
+        self.assertGreater(results[0].total_size_bytes, 0)
+
+    def test_find_orphaned_no_match(self) -> None:
+        """No orphaned dirs when parent doesn't match."""
+        self._create_project(
+            "-home-other-project",
+            "/home/other/project",
+            session_count=1,
+        )
+        with unittest.mock.patch("os.path.isdir", return_value=False):
+            results = find_orphaned_project_dirs(
+                self.parent_dir, shared_projects_dir=self.projects_dir,
+            )
+        self.assertEqual(len(results), 0)
+
+    def test_find_orphaned_dir_still_exists(self) -> None:
+        """Dirs whose cwd still exists on disk are excluded."""
+        self._create_project(
+            "-home-user-still-here",
+            "/home/user/still-here",
+            session_count=2,
+        )
+        with unittest.mock.patch("os.path.isdir", return_value=True):
+            results = find_orphaned_project_dirs(
+                self.parent_dir, shared_projects_dir=self.projects_dir,
+            )
+        self.assertEqual(len(results), 0)
 
 
 if __name__ == "__main__":

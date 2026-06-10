@@ -932,5 +932,172 @@ class CheckResumeSessionTests(unittest.TestCase):
         mock_check.assert_not_called()
 
 
+class CheckContSessionTests(unittest.TestCase):
+    """Tests for _check_cont_session: --cont interception on directory renames."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.shared_dir = Path(self._tmp.name) / "shared"
+        self.shared_dir.mkdir()
+        (self.shared_dir / "projects").mkdir()
+
+        self._patch_shared = mock.patch.object(cli, "SHARED_DIR", self.shared_dir)
+        self._patch_shared.start()
+        self.addCleanup(self._patch_shared.stop)
+
+    def _create_project(self, encoded_cwd: str, session_count: int = 1,
+                        cwd: str = "/home/user/my-project") -> Path:
+        """Create a fake project dir with session JSONL files."""
+        project_dir = self.shared_dir / "projects" / encoded_cwd
+        project_dir.mkdir(parents=True, exist_ok=True)
+        for i in range(session_count):
+            p = project_dir / f"session-{i}.jsonl"
+            p.write_text(f'{{"type":"user","cwd":"{cwd}","message":"hi"}}\n')
+        return project_dir
+
+    # -- Sessions exist under current dir -> no interception --
+
+    def test_cont_sessions_exist_no_interception(self) -> None:
+        """When sessions exist under the current directory, return immediately."""
+        from claudewheel.constants import encode_path
+
+        current_dir = "/home/user/my-project"
+        encoded = encode_path(os.path.abspath(current_dir))
+        self._create_project(encoded, session_count=2, cwd=current_dir)
+
+        with mock.patch("claudewheel.session.find_orphaned_project_dirs") as mock_find:
+            cli._check_cont_session(current_dir)
+
+        mock_find.assert_not_called()
+
+    # -- No sessions, one candidate, user confirms --
+
+    def test_cont_no_sessions_one_candidate_user_confirms(self) -> None:
+        """One orphaned dir found, user says yes twice, move happens."""
+        from claudewheel.session import OrphanedProject
+
+        current_dir = os.path.abspath("/home/user/new-project")
+        old_cwd = "/home/user/old-project"
+        orphan = OrphanedProject(
+            encoded_cwd="-home-user-old-project",
+            cwd=old_cwd,
+            session_count=3,
+            total_size_bytes=1024 * 1024 * 2,  # 2 MB
+            projects_dir=self.shared_dir / "projects" / "-home-user-old-project",
+        )
+
+        dry_result = mock.MagicMock()
+        dry_result.dirs_renamed = 1
+        dry_result.files_rewritten = 3
+        dry_result.lines_replaced = 7
+        dry_result.project_keys_updated = 1
+
+        real_result = mock.MagicMock()
+        real_result.files_rewritten = 3
+
+        with (
+            mock.patch("claudewheel.session.find_orphaned_project_dirs", return_value=[orphan]),
+            mock.patch("claudewheel.mv.run_mv", side_effect=[dry_result, real_result]) as mock_mv,
+            mock.patch("builtins.input", side_effect=["y", "y"]),
+            redirect_stdout(io.StringIO()),
+        ):
+            cli._check_cont_session(current_dir)
+
+        self.assertEqual(mock_mv.call_count, 2)
+        # First call: dry_run=True
+        _, kwargs1 = mock_mv.call_args_list[0]
+        self.assertTrue(kwargs1.get("dry_run", True))
+        # Second call: dry_run=False
+        _, kwargs2 = mock_mv.call_args_list[1]
+        self.assertFalse(kwargs2.get("dry_run", False))
+
+    # -- No sessions, one candidate, user declines --
+
+    def test_cont_no_sessions_one_candidate_user_declines(self) -> None:
+        """User says no at first prompt, returns silently."""
+        from claudewheel.session import OrphanedProject
+
+        current_dir = os.path.abspath("/home/user/new-project")
+        orphan = OrphanedProject(
+            encoded_cwd="-home-user-old-project",
+            cwd="/home/user/old-project",
+            session_count=2,
+            total_size_bytes=512,
+            projects_dir=self.shared_dir / "projects" / "-home-user-old-project",
+        )
+
+        with (
+            mock.patch("claudewheel.session.find_orphaned_project_dirs", return_value=[orphan]),
+            mock.patch("claudewheel.mv.run_mv") as mock_mv,
+            mock.patch("builtins.input", return_value="n"),
+            redirect_stdout(io.StringIO()),
+        ):
+            # Should return normally (no sys.exit)
+            cli._check_cont_session(current_dir)
+
+        mock_mv.assert_not_called()
+
+    # -- No sessions, no candidates --
+
+    def test_cont_no_sessions_no_candidates(self) -> None:
+        """No orphans found, returns silently."""
+        current_dir = os.path.abspath("/home/user/new-project")
+
+        with (
+            mock.patch("claudewheel.session.find_orphaned_project_dirs", return_value=[]),
+            mock.patch("claudewheel.mv.run_mv") as mock_mv,
+            mock.patch("builtins.input") as mock_input,
+        ):
+            cli._check_cont_session(current_dir)
+
+        mock_mv.assert_not_called()
+        mock_input.assert_not_called()
+
+    # -- No sessions, multiple candidates, user picks one --
+
+    def test_cont_no_sessions_multiple_candidates(self) -> None:
+        """Two orphaned dirs, user picks #2, move happens."""
+        from claudewheel.session import OrphanedProject
+
+        current_dir = os.path.abspath("/home/user/new-project")
+        orphan1 = OrphanedProject(
+            encoded_cwd="-home-user-alpha",
+            cwd="/home/user/alpha",
+            session_count=1,
+            total_size_bytes=100,
+            projects_dir=self.shared_dir / "projects" / "-home-user-alpha",
+        )
+        orphan2 = OrphanedProject(
+            encoded_cwd="-home-user-beta",
+            cwd="/home/user/beta",
+            session_count=5,
+            total_size_bytes=1024 * 1024,
+            projects_dir=self.shared_dir / "projects" / "-home-user-beta",
+        )
+
+        dry_result = mock.MagicMock()
+        dry_result.dirs_renamed = 1
+        dry_result.files_rewritten = 5
+        dry_result.lines_replaced = 10
+        dry_result.project_keys_updated = 1
+
+        real_result = mock.MagicMock()
+        real_result.files_rewritten = 5
+
+        with (
+            mock.patch("claudewheel.session.find_orphaned_project_dirs", return_value=[orphan1, orphan2]),
+            mock.patch("claudewheel.mv.run_mv", side_effect=[dry_result, real_result]) as mock_mv,
+            mock.patch("builtins.input", side_effect=["2", "y"]),
+            redirect_stdout(io.StringIO()),
+        ):
+            cli._check_cont_session(current_dir)
+
+        self.assertEqual(mock_mv.call_count, 2)
+        # Verify the selected orphan (orphan2) was passed to run_mv
+        args1, _ = mock_mv.call_args_list[0]
+        self.assertEqual(args1[0], "/home/user/beta")
+
+
 if __name__ == "__main__":
     unittest.main()
