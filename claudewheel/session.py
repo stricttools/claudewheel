@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -19,6 +20,17 @@ class SessionInfo:
     jsonl_path: Path
     encoded_cwd: str
     cwd: str | None  # extracted from JSONL, None if unreadable
+
+
+@dataclass
+class OrphanedProject:
+    """A project directory in the shared store whose original cwd no longer exists."""
+
+    encoded_cwd: str
+    cwd: str
+    session_count: int
+    total_size_bytes: int
+    projects_dir: Path  # full path to the project dir in the shared store
 
 
 def get_session_cwd(
@@ -71,3 +83,55 @@ def find_session(
         encoded_cwd=encoded_cwd,
         cwd=cwd,
     )
+
+
+def find_orphaned_project_dirs(
+    parent_dir: str, shared_projects_dir: Path | None = None
+) -> list[OrphanedProject]:
+    """Find project dirs whose cwd shares *parent_dir* as parent and no longer exists on disk.
+
+    Scans subdirectories of *shared_projects_dir* (defaulting to
+    ``SHARED_DIR / "projects"``).  For each, reads the newest ``.jsonl``
+    file (by mtime) to extract the ``cwd``.  If the cwd's parent matches
+    *parent_dir* and the cwd itself no longer exists, the project is
+    included as an :class:`OrphanedProject`.
+    """
+    if shared_projects_dir is None:
+        shared_projects_dir = SHARED_DIR / "projects"
+
+    if not shared_projects_dir.is_dir():
+        return []
+
+    results: list[OrphanedProject] = []
+    for project_dir in shared_projects_dir.iterdir():
+        if not project_dir.is_dir():
+            continue
+
+        jsonl_files = sorted(
+            project_dir.glob("*.jsonl"),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,
+        )
+        if not jsonl_files:
+            continue
+
+        cwd = get_session_cwd(jsonl_files[0])
+        if cwd is None:
+            continue
+
+        if os.path.dirname(os.path.abspath(cwd)) != parent_dir:
+            continue
+
+        if os.path.isdir(cwd):
+            continue
+
+        total_size = sum(f.stat().st_size for f in jsonl_files)
+        results.append(OrphanedProject(
+            encoded_cwd=project_dir.name,
+            cwd=cwd,
+            session_count=len(jsonl_files),
+            total_size_bytes=total_size,
+            projects_dir=project_dir,
+        ))
+
+    return results
