@@ -1,0 +1,1 @@
+{"commits":["b987ce398203d02548810963f551596faed29227","b5f6937740da9af8161d3fe2bb81faba2253747f"],"user_facing":true,"description":"**New feature.** `--cont` now detects directory renames the same way `--resume` does, scanning for orphaned sessions in sibling directories.","type":"feature"}
