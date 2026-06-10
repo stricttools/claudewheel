@@ -364,10 +364,11 @@ def _check_resume_session(session_id: str, directory: str) -> None:
         return
 
     if os.path.isdir(old_cwd):
-        # Old directory still exists -- not a rename, user is in the wrong place
+        current_dir = os.path.abspath(directory)
         print(
             f"Session {session_id} belongs to {old_cwd} which still exists.\n"
-            "Run from that directory instead.",
+            f"Run from that directory, or move sessions manually:\n"
+            f"  claudewheel mv {old_cwd} {current_dir}",
             file=sys.stderr,
         )
         sys.exit(1)

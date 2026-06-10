@@ -884,6 +884,8 @@ class CheckResumeSessionTests(unittest.TestCase):
         msg = err.getvalue()
         self.assertIn(old_cwd, msg)
         self.assertIn("still exists", msg)
+        self.assertIn("claudewheel mv", msg)
+        self.assertIn(current_dir, msg)
 
     # -- 5.1g: Bare resume (empty string) does NOT call _check_resume_session --
 
