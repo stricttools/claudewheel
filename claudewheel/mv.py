@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -146,10 +147,33 @@ def run_mv(
         old_project = projects / old_encoded
         new_project = projects / new_encoded
 
-        # 4a. Rename the project directory
+        # 4a. Rename or merge the project directory
         if old_project.is_dir():
             if new_project.exists():
-                _log(f"  ERROR: target already exists: {new_project}, skipping rename")
+                # Target already exists -- merge contents from old into new
+                if dry_run:
+                    _log(f"  would merge {old_project} -> {new_project}")
+                    for item in sorted(old_project.iterdir()):
+                        dest = new_project / item.name
+                        if dest.exists():
+                            _log(f"    would skip (already exists): {item.name}")
+                        else:
+                            _log(f"    would move: {item.name}")
+                else:
+                    _log(f"  merging {old_project} -> {new_project}")
+                    for item in sorted(old_project.iterdir()):
+                        dest = new_project / item.name
+                        if dest.exists():
+                            _log(f"    skipping (already exists): {item.name}")
+                        else:
+                            shutil.move(str(item), str(dest))
+                            _log(f"    moved: {item.name}")
+                    # Remove the now-empty old directory
+                    try:
+                        old_project.rmdir()
+                    except OSError:
+                        _log(f"  WARNING: could not remove {old_project} (not empty after merge)")
+                result.dirs_renamed += 1
             elif dry_run:
                 _log(f"  would rename {old_project} -> {new_project}")
                 result.dirs_renamed += 1
