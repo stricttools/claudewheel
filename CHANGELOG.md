@@ -2,16 +2,34 @@
 
 # Changelog
 
-## 0.8.0
+## 0.9.0
 
-Rename gc command to stats
+Rename redir to mv, add resume interception for directory renames, fix path encoding bug
 
 <details>
 <summary>Context</summary>
 
-The gc command only reports shared-store statistics now (sentinel cleanup and origins compaction were removed in v0.7.0). Renamed to reflect its actual purpose.
+The redir command is renamed to mv for better discoverability. When --resume can't find a
+session under the current directory, claudewheel now searches the shared store, detects that
+the project directory was renamed, and offers to move all sessions to the new path. The path
+encoding function is also fixed to replace dots (not just slashes) with hyphens, matching
+Claude Code's internal encoding -- this fixes mv operations on dotfile paths.
 
 </details>
+
+### Breaking
+
+- **Breaking.** Renamed `redir` command to `mv`.
+
+### Features
+
+- **New feature.** Resume interception: when `--resume` can't find a session under the current directory, claudewheel searches the shared store, detects directory renames, and offers to move sessions to the new path.
+
+### Fixes
+
+- **Bug fix.** Path encoding now replaces both `/` and `.` with `-`, matching Claude Code's internal encoding. Previously, dotfile paths (e.g. `~/.claude-common`) would encode incorrectly.
+
+## 0.8.0
 
 ### Breaking
 
