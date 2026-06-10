@@ -472,8 +472,10 @@ class MergeDirsTests(unittest.TestCase):
 
         result = self._run(dry_run=True)
 
-        # Counts reflect intended work
+        # Counts reflect intended work (includes files in both dirs)
         self.assertEqual(result.dirs_renamed, 1)
+        self.assertEqual(result.files_rewritten, 2)
+        self.assertEqual(result.lines_replaced, 2)
 
         # Both dirs still exist unchanged
         self.assertTrue(self.old_project.is_dir())

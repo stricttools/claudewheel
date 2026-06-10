@@ -182,9 +182,17 @@ def run_mv(
                 _log(f"  renamed {old_project} -> {new_project}")
                 result.dirs_renamed += 1
 
-        # 4b. Rewrite JSONL files (scan new_project after rename, or old_project in dry-run)
-        scan_dir = new_project if new_project.is_dir() else old_project
-        if scan_dir.is_dir():
+        # 4b. Rewrite JSONL files
+        # After a real rename/merge, files live in new_project.
+        # In dry-run merge, files stay in both dirs -- scan both to get
+        # accurate counts. In dry-run simple rename, new_project doesn't
+        # exist, so only old_project is scanned.
+        scan_dirs: list[Path] = []
+        if new_project.is_dir():
+            scan_dirs.append(new_project)
+        if dry_run and old_project.is_dir():
+            scan_dirs.append(old_project)
+        for scan_dir in scan_dirs:
             for jsonl_path in scan_dir.rglob("*.jsonl"):
                 # Skip history.jsonl -- append-only, not critical for resume
                 if jsonl_path.name == "history.jsonl":
