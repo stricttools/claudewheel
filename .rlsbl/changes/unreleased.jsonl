@@ -1,2 +1,3 @@
 {"commits":["e4e0d3692668d717a4597bc2ebf65c07af6eba5c","b2065111867014ce7f9f728691376cbfc4a920b5"],"user_facing":true,"description":"**New command group.** `permission add`, `permission remove`, and `permission list` subcommands for managing profile permission rules from the CLI.","type":"feature"}
 {"commits":["db6903036e1ce160fa786afcfdd6b751d8b8572e"],"user_facing":false}
+{"commits":["2d2ea72f060cf52ac391f6cccf2c27d9a55c9547","ee6e312d8ae1c09e500ab7b6f815942be98cc981"],"user_facing":false}
