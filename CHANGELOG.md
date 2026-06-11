@@ -2,9 +2,15 @@
 
 # Changelog
 
-## 0.9.1
+## 0.10.0
 
---cont interception, mv merge fix, cleaner dry-run UX
+New permission command group for managing profile permission rules
+
+### Features
+
+- **New command group.** `permission add`, `permission remove`, and `permission list` subcommands for managing profile permission rules from the CLI.
+
+## 0.9.1
 
 ### Features
 
