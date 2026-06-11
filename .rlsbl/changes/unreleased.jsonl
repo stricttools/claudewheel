@@ -1,0 +1,1 @@
+{"commits":["e4e0d3692668d717a4597bc2ebf65c07af6eba5c","b2065111867014ce7f9f728691376cbfc4a920b5"],"user_facing":true,"description":"**New command group.** `permission add`, `permission remove`, and `permission list` subcommands for managing profile permission rules from the CLI.","type":"feature"}
