@@ -36,7 +36,7 @@
   },
   "project_id": "claudewheel",
   "name": "c",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "help": "claudewheel - TUI launcher for Claude Code",
   "commands": {
     "health": {
@@ -261,6 +261,104 @@
           "repeatable": true
         }
       ]
+    }
+  },
+  "groups": {
+    "permission": {
+      "name": "permission",
+      "help": "manage profile permissions",
+      "commands": {
+        "add": {
+          "name": "add",
+          "help": "add a permission rule",
+          "flags": [
+            {
+              "name": "profile",
+              "type": "str",
+              "help": "profile name"
+            },
+            {
+              "name": "all-profiles",
+              "type": "bool",
+              "help": "apply to all profiles",
+              "default": false,
+              "negatable": true
+            }
+          ],
+          "args": [
+            {
+              "name": "category",
+              "help": "permission category (allow, deny, ask)"
+            },
+            {
+              "name": "rule",
+              "help": "permission rule (e.g. Bash, Read(//home/**))"
+            }
+          ]
+        },
+        "remove": {
+          "name": "remove",
+          "help": "remove a permission rule",
+          "flags": [
+            {
+              "name": "profile",
+              "type": "str",
+              "help": "profile name"
+            },
+            {
+              "name": "all-profiles",
+              "type": "bool",
+              "help": "apply to all profiles",
+              "default": false,
+              "negatable": true
+            }
+          ],
+          "args": [
+            {
+              "name": "category",
+              "help": "permission category (allow, deny, ask)"
+            },
+            {
+              "name": "rule",
+              "help": "permission rule to remove"
+            }
+          ]
+        },
+        "list": {
+          "name": "list",
+          "help": "list permission rules",
+          "flags": [
+            {
+              "name": "format",
+              "type": "str",
+              "help": "output format",
+              "choices": [
+                "grouped",
+                "flat",
+                "json"
+              ]
+            },
+            {
+              "name": "category",
+              "type": "str",
+              "help": "filter to a single category (allow, deny, ask)",
+              "default": ""
+            },
+            {
+              "name": "profile",
+              "type": "str",
+              "help": "profile name"
+            },
+            {
+              "name": "all-profiles",
+              "type": "bool",
+              "help": "apply to all profiles",
+              "default": false,
+              "negatable": true
+            }
+          ]
+        }
+      }
     }
   }
 }
