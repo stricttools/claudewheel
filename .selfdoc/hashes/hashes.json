@@ -159,6 +159,10 @@
     "content": "b15d4e5c31b4d06ff89d99b66fa2d9c7bd39121b636484e31da8f7aab26561fe",
     "description": "7dae71bbe81fcb3b09bd9354e7fc50d60b867b93fbbe1fd18c72f1cdd4b35999"
   },
+  "en/claudewheel-permission.md": {
+    "content": "f9009fd130b464e76ebbefb10ea5e0b9fd0b7afd73004f44fcf8ab75204275c8",
+    "description": "d0c760be58f3455ca4fd73a3ab6041550a3d3fd858f701bdd43a5f8f67b87819"
+  },
   "en/claudewheel-profile.md": {
     "content": "21ff617688c31623a909ae733f487b9303a9e3363c6ddea96283cae725d371cd",
     "description": "542bb527d8ac6a6f89a6217fcf916c3b1c04043aedfe8fb14d6cd3d0b0fb3787"
@@ -228,7 +232,7 @@
     "description": "bce660b2830d459ded0337e6af14bc0215f80ff3a85cd9ece389b405bb2a5c9b"
   },
   "en/cli-index.md": {
-    "content": "af6ff0e6c14a0528d386513712a4bbc22aa5584aa7eba7edd3ca1a5d0a1ad0ac",
+    "content": "80fbf1ab65e16fb7bf2e0d5befabdc0a7835e1e411e7908d54b6ea9de745d6b3",
     "description": "6c93c0157d7601c07594d8cd1bb2df39f01cec2ddb6d36b3f83f80ebb63300d5"
   },
   "en/cli-install.md": {
@@ -250,6 +254,10 @@
   "en/cli-new-profile.md": {
     "content": "a64235bb9ae30fd5c6ce1c1d774f9021a67798f76e06b482873aa0666fd3c05f",
     "description": "f8c80137e14185a18e1da6b5e25ae0d9875010cc3e0d3af803f8284767f61d34"
+  },
+  "en/cli-permission.md": {
+    "content": "d0e74beb20fff89bc63157f2f21243f09ae9dd0ad79555e57837c703955b058c",
+    "description": "96f33d3b151540d78d242b54b7c282d5bf0c1b82d959677a381d87dcdb0b2792"
   },
   "en/cli-redir.md": {
     "content": "14f50aa9c9993d170cd43fbd6af731e8fa930e45b1dafd3ea146deaf18df2b8d",
@@ -276,7 +284,7 @@
     "description": "2220c5148e4708a74d0f36a96189559abcc971592131c21d4f0be26c16d396f5"
   },
   "en/gen-index.md": {
-    "content": "93c9b9de04b80b6405cbc82e2338a1eac54c49a51f6ee869d0c2559179c8ef16",
+    "content": "93ae4b1099f783893b3970f1296e3edd388073c2f32fd3413a177396e2d27b5b",
     "description": "bb3cd9d34f014c0674a9285c25ee14b5b4abc5cf941f0d83594c301405e8f3b6"
   },
   "en/index.md": {

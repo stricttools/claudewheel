@@ -77,6 +77,10 @@ Profile, GitHub, and Model are *creatable*: their option lists end with a `+` se
 | `mv` | move session data after a project directory rename |
 | `deploy-hooks` | deploy hook scripts to ~/.claudewheel/scripts/ |
 | `launch` | start the interactive TUI launcher |
+| **permission** | manage profile permissions |
+| `permission add` | add a permission rule |
+| `permission remove` | remove a permission rule |
+| `permission list` | list permission rules |
 
 ### Segment overrides
 

@@ -26,6 +26,7 @@ order: 90
 - [claudewheel.launch](claudewheel-launch.html)
 - [claudewheel.migrate](claudewheel-migrate.html)
 - [claudewheel.mv](claudewheel-mv.html)
+- [claudewheel.permission](claudewheel-permission.html)
 - [claudewheel.profile](claudewheel-profile.html)
 - [claudewheel.profile_ops](claudewheel-profile_ops.html)
 - [claudewheel.renderer](claudewheel-renderer.html)

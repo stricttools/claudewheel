@@ -12,7 +12,7 @@ order: 91
 
 claudewheel - TUI launcher for Claude Code
 
-Version: 0.9.0
+Version: 0.9.1
 
 ## Commands
 
@@ -30,3 +30,7 @@ Version: 0.9.0
 - [mv](cli-mv.html) -- move session data after a project directory rename
 - [deploy-hooks](cli-deploy-hooks.html) -- deploy hook scripts to ~/.claudewheel/scripts/
 - [launch](cli-launch.html) -- start the interactive TUI launcher
+
+## Command Groups
+
+- [permission](cli-permission.html) -- manage profile permissions

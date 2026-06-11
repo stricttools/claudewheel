@@ -34,6 +34,7 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 - **claudewheel.launch** (`claudewheel/launch.py`): Map TUI selections to binary path, env vars, flags, and exec.
 - **claudewheel.migrate** (`claudewheel/migrate.py`): Move session artifacts between profiles.
 - **claudewheel.mv** (`claudewheel/mv.py`): Move session data after a project directory rename.
+- **claudewheel.permission** (`claudewheel/permission.py`): Core logic for managing profile permission rules.
 - **claudewheel.profile** (`claudewheel/profile.py`): Resolve a profile name to CLAUDE_CONFIG_DIR and OAuth token env vars.
 - **claudewheel.profile_ops** (`claudewheel/profile_ops.py`): Delete profiles and clean up their dirs, tokens, and options.
 - **claudewheel.renderer** (`claudewheel/renderer.py`): Draw the segment bar, fan-out options, minimap, and scroll arrows.
@@ -63,6 +64,10 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 | `mv` | move session data after a project directory rename |
 | `deploy-hooks` | deploy hook scripts to ~/.claudewheel/scripts/ |
 | `launch` | start the interactive TUI launcher |
+| **permission** | manage profile permissions |
+| `permission add` | add a permission rule |
+| `permission remove` | remove a permission rule |
+| `permission list` | list permission rules |
 
 ## Config system
 
