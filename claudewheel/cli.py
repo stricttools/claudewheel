@@ -6,7 +6,7 @@ import os
 import sys
 
 import strictcli
-from strictcli import App, Arg, Flag, Tag
+from strictcli import App, Arg, Flag, MutexGroup, Tag
 
 from . import __version__
 from .constants import CONFIG_DIR, OPTIONS_FILE, SCRIPTS_DIR, VERSIONS_DIR, CLAUDE_SYMLINK, SHARED_DIR, encode_path
@@ -324,6 +324,110 @@ def _handle_deploy_hooks(name: str, all: bool, force: bool) -> int:
         dest.write_text(HOOK_SCRIPTS[script_name])
         dest.chmod(0o755)
         print(f"{action}: {dest}")
+
+    return 0
+
+
+def _handle_permission_add(category: str, rule: str,
+                           profile: str, all_profiles: bool) -> int:
+    from .permission import validate_rule, resolve_profiles, load_settings, add_rule, save_settings
+
+    valid_categories = ("allow", "deny", "ask")
+    if category not in valid_categories:
+        print(f"Error: category must be one of {', '.join(valid_categories)}, got {category!r}",
+              file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        validate_rule(rule)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    targets = resolve_profiles(profile if profile else None, all_profiles)
+    for name, settings_path in targets:
+        data = load_settings(settings_path)
+        result = add_rule(data, category, rule)
+        save_settings(settings_path, data)
+        if result == "added":
+            print(f"{name}: added {rule} to {category}")
+        else:
+            print(f"{name}: already in {category}")
+    return 0
+
+
+def _handle_permission_remove(category: str, rule: str,
+                              profile: str, all_profiles: bool) -> int:
+    from .permission import resolve_profiles, load_settings, remove_rule, save_settings
+
+    valid_categories = ("allow", "deny", "ask")
+    if category not in valid_categories:
+        print(f"Error: category must be one of {', '.join(valid_categories)}, got {category!r}",
+              file=sys.stderr)
+        sys.exit(1)
+
+    if not rule.strip():
+        print("Error: rule must not be empty", file=sys.stderr)
+        sys.exit(1)
+
+    targets = resolve_profiles(profile if profile else None, all_profiles)
+    for name, settings_path in targets:
+        data = load_settings(settings_path)
+        result = remove_rule(data, category, rule)
+        if result == "removed":
+            save_settings(settings_path, data)
+            print(f"{name}: removed {rule} from {category}")
+        else:
+            print(f"{name}: not found in {category}")
+    return 0
+
+
+@strictcli.flag("format", type=str, help="output format",
+                choices=["grouped", "flat", "json"])
+@strictcli.flag("category", type=str, help="filter to a single category (allow, deny, ask)",
+                default="")
+def _handle_permission_list(profile: str, all_profiles: bool,
+                            format: str, category: str) -> int:
+    import json as json_mod
+    from .permission import resolve_profiles, load_settings
+
+    valid_categories = ("allow", "deny", "ask")
+    if category and category not in valid_categories:
+        print(f"Error: category must be one of {', '.join(valid_categories)}, got {category!r}",
+              file=sys.stderr)
+        sys.exit(1)
+
+    targets = resolve_profiles(profile if profile else None, all_profiles)
+    multi = len(targets) > 1
+
+    for i, (name, settings_path) in enumerate(targets):
+        data = load_settings(settings_path)
+        perms = data.get("permissions", {})
+
+        if category:
+            subset = {category: perms.get(category, [])}
+        else:
+            subset = {c: perms.get(c, []) for c in ("allow", "deny", "ask")}
+
+        if multi:
+            if i > 0:
+                print()
+            print(f"[{name}]")
+
+        if format == "grouped":
+            for cat, rules in subset.items():
+                print(f"  {cat}:")
+                if rules:
+                    for r in rules:
+                        print(f"    {r}")
+                else:
+                    print("    (none)")
+        elif format == "flat":
+            for cat, rules in subset.items():
+                for r in rules:
+                    print(f"{cat}\t{r}")
+        elif format == "json":
+            print(json_mod.dumps(subset, indent=2))
 
     return 0
 
@@ -659,6 +763,7 @@ _SUBCOMMANDS = frozenset({
     "health", "config", "versions", "install", "uninstall",
     "reset-options", "new-profile", "delete-profile", "show",
     "migrate", "stats", "mv", "deploy-hooks", "launch",
+    "permission",
 })
 
 
@@ -731,6 +836,37 @@ def _build_app() -> App:
     app.command("deploy-hooks", help="deploy hook scripts to ~/.claudewheel/scripts/",
                 args=[Arg(name="name", help="script name to deploy", required=False, default="")])(
         _handle_deploy_hooks
+    )
+
+    # -- Permission group --
+    _profile_mutex = MutexGroup(flags=[
+        Flag(name="profile", type=str, help="profile name"),
+        Flag(name="all-profiles", type=bool, help="apply to all profiles"),
+    ])
+
+    perm_grp = app.group("permission", help="manage profile permissions")
+
+    perm_grp.command("add", help="add a permission rule",
+                     args=[
+                         Arg(name="category", help="permission category (allow, deny, ask)"),
+                         Arg(name="rule", help="permission rule (e.g. Bash, Read(//home/**))")
+                     ],
+                     mutex=[_profile_mutex])(
+        _handle_permission_add
+    )
+
+    perm_grp.command("remove", help="remove a permission rule",
+                     args=[
+                         Arg(name="category", help="permission category (allow, deny, ask)"),
+                         Arg(name="rule", help="permission rule to remove"),
+                     ],
+                     mutex=[_profile_mutex])(
+        _handle_permission_remove
+    )
+
+    perm_grp.command("list", help="list permission rules",
+                     mutex=[_profile_mutex])(
+        _handle_permission_list
     )
 
     # -- Launch command (default when no subcommand given) --
