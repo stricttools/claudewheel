@@ -2,16 +2,15 @@
 
 # Changelog
 
+## 0.11.0
+
+mv now renames directories by default, --post-hoc for session-only migration
+
+### Breaking
+
+- **Breaking.** `mv` now renames the directory on disk by default, then migrates sessions. Use `--post-hoc` for session-only migration (the old behavior).
+
 ## 0.10.1
-
-CI workflow improvements: idempotent publish steps for npm and PyPI
-
-<details>
-<summary>Context</summary>
-
-Scaffold update added skip-if-already-published checks to both npm and PyPI publish workflows, making CI re-runs safe. Also added separate CI check workflows.
-
-</details>
 
 ### Fixes
 

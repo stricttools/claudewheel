@@ -9,13 +9,14 @@ nav_order: 8
 
 # c mv
 
-move session data after a project directory rename
+rename a project directory and migrate session data
 
 ## Flags
 
 | Name | Short | Type | Default | Env | Description |
 | --- | --- | --- | --- | --- | --- |
 | `--dry-run` |  | bool |  |  | preview changes without writing |
+| `--post-hoc` |  | bool |  |  | skip filesystem rename, migrate sessions only (directory already renamed) |
 
 ## Arguments
 

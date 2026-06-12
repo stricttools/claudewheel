@@ -12,7 +12,7 @@ order: 91
 
 claudewheel - TUI launcher for Claude Code
 
-Version: 0.10.0
+Version: 0.10.1
 
 ## Commands
 
@@ -27,7 +27,7 @@ Version: 0.10.0
 - [show](cli-show.html) -- print current selections and exit
 - [migrate](cli-migrate.html) -- migrate sessions between profiles
 - [stats](cli-stats.html) -- report shared-store stats and clean up legacy data
-- [mv](cli-mv.html) -- move session data after a project directory rename
+- [mv](cli-mv.html) -- rename a project directory and migrate session data
 - [deploy-hooks](cli-deploy-hooks.html) -- deploy hook scripts to ~/.claudewheel/scripts/
 - [launch](cli-launch.html) -- start the interactive TUI launcher
 
