@@ -845,7 +845,13 @@ def _build_app() -> App:
 
     perm_grp = app.group("permission", help="manage profile permissions")
 
-    perm_grp.command("add", help="add a permission rule",
+    perm_grp.command("add", help=(
+                         "Add a permission rule to a profile's settings.json. Takes a category"
+                         " (allow, deny, or ask) and a rule string such as Bash or Read(//home/**)."
+                         " Writes the rule into the specified category array. Use --profile to target"
+                         " a single profile or --all-profiles to apply the rule across every registered"
+                         " profile. Skips duplicates if the rule already exists in the category."
+                     ),
                      args=[
                          Arg(name="category", help="permission category (allow, deny, ask)"),
                          Arg(name="rule", help="permission rule (e.g. Bash, Read(//home/**))")
@@ -854,7 +860,13 @@ def _build_app() -> App:
         _handle_permission_add
     )
 
-    perm_grp.command("remove", help="remove a permission rule",
+    perm_grp.command("remove", help=(
+                         "Remove a permission rule from a profile's settings.json. Takes a category"
+                         " (allow, deny, or ask) and the exact rule string to delete. The rule is"
+                         " removed from the specified category array and the file is saved. Use"
+                         " --profile to target a single profile or --all-profiles to remove the rule"
+                         " from every registered profile. Reports whether the rule was found."
+                     ),
                      args=[
                          Arg(name="category", help="permission category (allow, deny, ask)"),
                          Arg(name="rule", help="permission rule to remove"),
@@ -863,7 +875,13 @@ def _build_app() -> App:
         _handle_permission_remove
     )
 
-    perm_grp.command("list", help="list permission rules",
+    perm_grp.command("list", help=(
+                         "List permission rules from a profile's settings.json. Displays rules in"
+                         " grouped, flat, or JSON format controlled by --format. Use --category to"
+                         " filter output to a single category (allow, deny, or ask). Use --profile"
+                         " to inspect a single profile or --all-profiles to show rules from every"
+                         " registered profile, with each profile's rules displayed under a header."
+                     ),
                      mutex=[_profile_mutex])(
         _handle_permission_list
     )
