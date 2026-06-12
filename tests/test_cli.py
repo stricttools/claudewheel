@@ -326,17 +326,28 @@ class PrintModeTests(unittest.TestCase):
 
     def test_non_print_skip_tui_sets_interactive_true(self) -> None:
         """When all required segments are provided via flags (no -p), interactive defaults to True."""
-        launch_mock = self._run_main(
-            [
+        fake_cfg = self._make_cfg(last_config={})
+        launch_mock = mock.MagicMock()
+
+        with (
+            mock.patch("sys.argv", [
                 "c",
                 "--cont",
                 "--profile", "personal",
                 "--github", "ghuser",
                 "-s", "version=2.1.116",
                 "--directory", "/some/dir",
-            ],
-            last_config={},
-        )
+            ]),
+            mock.patch("claudewheel.config.ConfigManager", return_value=fake_cfg),
+            mock.patch("claudewheel.cli._do_launch_sequence", launch_mock),
+            mock.patch("claudewheel.cli._check_cont_session"),
+            mock.patch("os.getcwd", return_value="/test/dir"),
+        ):
+            try:
+                cli.main()
+            except SystemExit:
+                pass
+
         launch_mock.assert_called_once()
         _, kwargs = launch_mock.call_args
         self.assertTrue(kwargs["interactive"])

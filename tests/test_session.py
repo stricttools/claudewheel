@@ -198,8 +198,6 @@ class FindOrphanedProjectDirsTests(unittest.TestCase):
         self.addCleanup(self._tmp.cleanup)
         self.projects_dir = Path(self._tmp.name) / "projects"
         self.projects_dir.mkdir()
-        # The "parent" directory that we pretend the current dir lives under
-        self.parent_dir = os.path.abspath("/home/user")
 
     def _create_project(
         self, encoded_cwd: str, cwd: str, session_count: int = 1,
@@ -213,7 +211,7 @@ class FindOrphanedProjectDirsTests(unittest.TestCase):
         return project_dir
 
     def test_find_orphaned_one_match(self) -> None:
-        """One orphaned dir whose parent matches is returned."""
+        """One orphaned dir is returned."""
         self._create_project(
             "-home-user-old-project",
             "/home/user/old-project",
@@ -230,7 +228,7 @@ class FindOrphanedProjectDirsTests(unittest.TestCase):
 
         with mock.patch("os.path.isdir", side_effect=_fake_isdir):
             results = find_orphaned_project_dirs(
-                self.parent_dir, shared_projects_dir=self.projects_dir,
+                shared_projects_dir=self.projects_dir,
             )
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0].cwd, "/home/user/old-project")
@@ -238,22 +236,15 @@ class FindOrphanedProjectDirsTests(unittest.TestCase):
         self.assertGreater(results[0].total_size_bytes, 0)
 
     def test_find_orphaned_no_match(self) -> None:
-        """No orphaned dirs when parent doesn't match."""
+        """No orphaned dirs when all cwds still exist on disk."""
         self._create_project(
             "-home-other-project",
             "/home/other/project",
             session_count=1,
         )
-        _real_isdir = os.path.isdir
-
-        def _fake_isdir(path: str) -> bool:
-            if path == "/home/other/project":
-                return False
-            return _real_isdir(path)
-
-        with mock.patch("os.path.isdir", side_effect=_fake_isdir):
+        with mock.patch("os.path.isdir", return_value=True):
             results = find_orphaned_project_dirs(
-                self.parent_dir, shared_projects_dir=self.projects_dir,
+                shared_projects_dir=self.projects_dir,
             )
         self.assertEqual(len(results), 0)
 
@@ -266,9 +257,34 @@ class FindOrphanedProjectDirsTests(unittest.TestCase):
         )
         with mock.patch("os.path.isdir", return_value=True):
             results = find_orphaned_project_dirs(
-                self.parent_dir, shared_projects_dir=self.projects_dir,
+                shared_projects_dir=self.projects_dir,
             )
         self.assertEqual(len(results), 0)
+
+    def test_find_orphaned_cross_parent(self) -> None:
+        """Orphan with a different parent dir than the 'current' dir is still found."""
+        # Simulate: current dir is /home/user/Work/foo but orphan cwd
+        # is /home/user/Projects/foo (different parent). The full-scan
+        # approach should still find it.
+        self._create_project(
+            "-home-user-Projects-foo",
+            "/home/user/Projects/foo",
+            session_count=2,
+        )
+        _real_isdir = os.path.isdir
+
+        def _fake_isdir(path: str) -> bool:
+            if path == "/home/user/Projects/foo":
+                return False
+            return _real_isdir(path)
+
+        with mock.patch("os.path.isdir", side_effect=_fake_isdir):
+            results = find_orphaned_project_dirs(
+                shared_projects_dir=self.projects_dir,
+            )
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].cwd, "/home/user/Projects/foo")
+        self.assertEqual(results[0].session_count, 2)
 
 
 if __name__ == "__main__":
