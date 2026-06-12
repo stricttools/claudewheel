@@ -1,4 +1,0 @@
-{"commits":["c05b4c5a5a83fb815aa05cbf0ec6a3dc4c74ede0"],"user_facing":true,"description":"**New feature.** Model list now auto-syncs from defaults on startup. New models added to claudewheel are automatically available without resetting options.","type":"feature"}
-{"commits":["07fa99fc8c6f7e8dbca8b1fb296ae6c76dd102a2"],"user_facing":true,"description":"**New feature.** Added Fable 5 (`claude-fable-5` and `claude-fable-5[1m]`) to the default model list.","type":"feature"}
-{"commits":["03ca1ca93f956d5cc9d40fe47c4703a5fb5d869a"],"user_facing":true,"description":"**Improvement.** `--cont` now scans all orphaned session directories, not just same-parent. Cross-parent directory renames are now detected.","type":"feature"}
-{"commits":["e9f26ed62f9cca9fe5ca7ff0ddc710fbbd0c4dc4","c624bcbed023e778539e7e9e62fbd8c6a5c38d8c","ae262b979ef70f55fee72b9882e9109db4b6c03a"],"user_facing":false}
