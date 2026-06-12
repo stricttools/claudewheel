@@ -541,7 +541,6 @@ def _check_cont_session(directory: str) -> None:
     from .session import find_orphaned_project_dirs
 
     current_dir = os.path.abspath(directory)
-    parent_dir = os.path.dirname(current_dir)
 
     # Step 1: Check if sessions exist under the current directory
     encoded_cwd = encode_path(current_dir)
@@ -549,8 +548,8 @@ def _check_cont_session(directory: str) -> None:
     if project_dir.is_dir() and list(project_dir.glob("*.jsonl")):
         return  # Claude Code will find sessions
 
-    # Step 2: Scan for orphaned project dirs with matching parent
-    candidates = find_orphaned_project_dirs(parent_dir)
+    # Step 2: Scan all project dirs for orphans (cwd no longer on disk)
+    candidates = find_orphaned_project_dirs()
 
     # Step 3: No candidates
     if not candidates:

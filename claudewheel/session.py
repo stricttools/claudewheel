@@ -86,15 +86,15 @@ def find_session(
 
 
 def find_orphaned_project_dirs(
-    parent_dir: str, shared_projects_dir: Path | None = None
+    shared_projects_dir: Path | None = None,
 ) -> list[OrphanedProject]:
-    """Find project dirs whose cwd shares *parent_dir* as parent and no longer exists on disk.
+    """Find all project dirs whose original cwd no longer exists on disk.
 
-    Scans subdirectories of *shared_projects_dir* (defaulting to
+    Scans every subdirectory of *shared_projects_dir* (defaulting to
     ``SHARED_DIR / "projects"``).  For each, reads the newest ``.jsonl``
-    file (by mtime) to extract the ``cwd``.  If the cwd's parent matches
-    *parent_dir* and the cwd itself no longer exists, the project is
-    included as an :class:`OrphanedProject`.
+    file (by mtime) to extract the ``cwd``.  If the cwd is not ``None``
+    and no longer exists on disk, the project is included as an
+    :class:`OrphanedProject`.
     """
     if shared_projects_dir is None:
         shared_projects_dir = SHARED_DIR / "projects"
@@ -117,9 +117,6 @@ def find_orphaned_project_dirs(
 
         cwd = get_session_cwd(jsonl_files[0])
         if cwd is None:
-            continue
-
-        if os.path.dirname(os.path.abspath(cwd)) != parent_dir:
             continue
 
         if os.path.isdir(cwd):
