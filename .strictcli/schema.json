@@ -36,7 +36,7 @@
   },
   "project_id": "claudewheel",
   "name": "c",
-  "version": "0.10.0",
+  "version": "0.9.1",
   "help": "claudewheel - TUI launcher for Claude Code",
   "commands": {
     "health": {
@@ -136,12 +136,19 @@
     },
     "mv": {
       "name": "mv",
-      "help": "move session data after a project directory rename",
+      "help": "rename a project directory and migrate session data",
       "flags": [
         {
           "name": "dry-run",
           "type": "bool",
           "help": "preview changes without writing",
+          "default": false,
+          "negatable": true
+        },
+        {
+          "name": "post-hoc",
+          "type": "bool",
+          "help": "skip filesystem rename, migrate sessions only (directory already renamed)",
           "default": false,
           "negatable": true
         }
