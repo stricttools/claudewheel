@@ -2,6 +2,14 @@
 
 # Changelog
 
+## 0.13.0
+
+Proactive directory rename detection via inode tracking
+
+### Features
+
+- **New feature.** Proactive directory rename detection via inode tracking. On every launch, claudewheel records the project directory's inode. The health check detects when a recorded path was renamed and suggests `claudewheel mv --post-hoc` to fix it.
+
 ## 0.12.0
 
 Fable 5 model support, model auto-sync, full orphan scan for --cont
@@ -14,11 +22,22 @@ Fable 5 model support, model auto-sync, full orphan scan for --cont
 
 ## 0.11.0
 
+mv now renames directories by default, --post-hoc for session-only migration
+
 ### Breaking
 
 - **Breaking.** `mv` now renames the directory on disk by default, then migrates sessions. Use `--post-hoc` for session-only migration (the old behavior).
 
 ## 0.10.1
+
+CI workflow improvements: idempotent publish steps for npm and PyPI
+
+<details>
+<summary>Context</summary>
+
+Scaffold update added skip-if-already-published checks to both npm and PyPI publish workflows, making CI re-runs safe. Also added separate CI check workflows.
+
+</details>
 
 ### Fixes
 
@@ -26,11 +45,15 @@ Fable 5 model support, model auto-sync, full orphan scan for --cont
 
 ## 0.10.0
 
+New permission command group for managing profile permission rules
+
 ### Features
 
 - **New command group.** `permission add`, `permission remove`, and `permission list` subcommands for managing profile permission rules from the CLI.
 
 ## 0.9.1
+
+--cont interception, mv merge fix, cleaner dry-run UX
 
 ### Features
 
@@ -42,6 +65,19 @@ Fable 5 model support, model auto-sync, full orphan scan for --cont
 - **Bug fix.** `mv` now merges sessions into an existing target directory instead of silently skipping the move.
 
 ## 0.9.0
+
+Rename redir to mv, add resume interception for directory renames, fix path encoding bug
+
+<details>
+<summary>Context</summary>
+
+The redir command is renamed to mv for better discoverability. When --resume can't find a
+session under the current directory, claudewheel now searches the shared store, detects that
+the project directory was renamed, and offers to move all sessions to the new path. The path
+encoding function is also fixed to replace dots (not just slashes) with hyphens, matching
+Claude Code's internal encoding -- this fixes mv operations on dotfile paths.
+
+</details>
 
 ### Breaking
 
@@ -57,11 +93,29 @@ Fable 5 model support, model auto-sync, full orphan scan for --cont
 
 ## 0.8.0
 
+Rename gc command to stats
+
+<details>
+<summary>Context</summary>
+
+The gc command only reports shared-store statistics now (sentinel cleanup and origins compaction were removed in v0.7.0). Renamed to reflect its actual purpose.
+
+</details>
+
 ### Breaking
 
 - **Renamed.** `gc` command renamed to `stats` to reflect its actual purpose (reporting shared-store statistics).
 
 ## 0.7.0
+
+Remove profile attribution system, add --picker flag, unify shared settings
+
+<details>
+<summary>Context</summary>
+
+The profile attribution system (hook-stamp-origin, xattr stamping, sentinels, origins log) had unfixable race conditions and 30% of session files could never be attributed. Removed entirely rather than patching. Also adds --picker for argless session resume and unifies shared settings with drift detection.
+
+</details>
 
 ### Breaking
 
@@ -79,6 +133,19 @@ Fable 5 model support, model auto-sync, full orphan scan for --cont
 
 ## 0.6.1
 
+Consolidate shared data and eliminate ~/.claude-shared/ and ~/.claude-common/
+
+<details>
+<summary>Context</summary>
+
+Shared session data (projects, session-env, file-history, tasks, todos, paste-cache) moved from
+~/.claude-shared/ to ~/.claudewheel/shared/. Skills, utility scripts, and profile origins moved
+from ~/.claude-common/ into ~/.claudewheel/. COMMON_DIR constant eliminated. Sentinel files
+moved to dedicated ~/.claudewheel/shared/sentinels/ subdirectory. Dead code (_strip_xattrs,
+_clean_origins_file) removed. Origins file dual-location bug fixed.
+
+</details>
+
 ### Breaking
 
 - **Shared data consolidated.** Session data, skills, and scripts moved from ~/.claude-shared/ and ~/.claude-common/ into ~/.claudewheel/. Both old directories eliminated.
@@ -88,6 +155,20 @@ Fable 5 model support, model auto-sync, full orphan scan for --cont
 - **Fix.** Profile origins log now correctly read from ~/.claudewheel/ instead of stale ~/.claude-common/ path.
 
 ## 0.6.0
+
+Profile centralization, hook management, worktree isolation, docs website
+
+<details>
+<summary>Context</summary>
+
+Profiles moved from ~/.claude-<name>/ to ~/.claudewheel/profiles/<name>/ (breaking).
+New deploy-hooks command auto-creates hook scripts from built-in templates.
+Settings drift detection compares profiles against canonical shared-settings.json.
+PreToolUse hook blocks Agent tool worktree isolation to prevent multi-session conflicts.
+Cron tools (CronCreate, CronDelete, CronList, ScheduleWakeup) unblocked.
+Documentation website at claudewheel.smmh.dev with auto-generated API/CLI reference and branding.
+
+</details>
 
 ### Breaking
 
@@ -102,6 +183,17 @@ Fable 5 model support, model auto-sync, full orphan scan for --cont
 - **Documentation website.** Live docs site at claudewheel.smmh.dev with auto-generated API reference, CLI reference, and branding.
 
 ## 0.5.0
+
+Strictcli compatibility fix and config-directory rename to ~/.claudewheel/.
+
+<details>
+<summary>Context</summary>
+
+The config directory has been renamed from ~/.claudelauncher/ to ~/.claudewheel/ to match the project name (the rename of the project itself happened a while ago, but the config-dir path was never updated). Existing users must `mv ~/.claudelauncher ~/.claudewheel` before upgrading or claudewheel will scaffold a fresh empty config directory on next launch.
+
+Strictcli v0.16.0 added a guardrail requiring `unique=True` or `unique=False` on every `repeatable=True` flag. claudewheel's `-s/--set` flag did not pass it and crashed at startup with `ValueError: Flag "set": repeatable requires explicit unique`. This release adds `unique=False` and, more importantly, surfaces the underlying intent the guardrail is meant to enforce: `_handle_launch` now rejects any duplicate segment override regardless of source. Previously, passing the same key twice (e.g. `--profile work -s profile=personal`, or `-s profile=work -s profile=personal`) silently dropped the earlier value. The new diagnostic names the conflicting key, both values, and both sources.
+
+</details>
 
 ### Breaking
 
