@@ -1,1 +1,2 @@
 {"commits":["5e36dff5e498744ae48ca8457e87d3199de064e1","8f5ab11101d519314f95c1f37971a03589ca94a9"],"user_facing":true,"description":"**Breaking.** `mv` now renames the directory on disk by default, then migrates sessions. Use `--post-hoc` for session-only migration (the old behavior).","type":"breaking"}
+{"commits":["4b689a3698041159680375f3f49bc947eb2a9584","4dfe9c5176911bf9e862a4318112722c014c0147"],"user_facing":false}
