@@ -3,3 +3,4 @@
 {"commits":["31333cf4a4c4b7800b7a7a23ec04776f4af8b984"],"user_facing":false}
 {"commits":["f520be34f35608e6638f860b3b5a8914b65990df"],"user_facing":false}
 {"commits":["cbeafb7f8dc40f06e2b736284cb887456918dc0d"],"user_facing":false}
+{"commits":["f520be34f35608e6638f860b3b5a8914b65990df"],"user_facing":true,"description":"**Fix.** CI publish workflows are now idempotent -- re-running a partially failed publish no longer fails on already-published packages.","type":"fix"}
