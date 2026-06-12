@@ -225,9 +225,11 @@ DEFAULT_OPTIONS = {
     },
     "model": {
         # The [1m] suffix enables the 1M token context window for models that
-        # support it (Opus 4.6, Opus 4.7, Sonnet 4.6). Claude Code strips the
-        # suffix before sending to the API.
+        # support it (Fable 5, Opus 4.6, Opus 4.7, Sonnet 4.6). Claude Code
+        # strips the suffix before sending to the API.
         "values": [
+            "claude-fable-5",
+            "claude-fable-5[1m]",
             "claude-opus-4-7",
             "claude-opus-4-7[1m]",
             "claude-opus-4-6",

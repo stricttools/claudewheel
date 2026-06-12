@@ -197,6 +197,14 @@ class ConfigManager:
         if changed:
             self._save_json(theme_file, self.theme)
 
+        # 4. options.json -- sync default model values into user's list
+        default_models = DEFAULT_OPTIONS.get("model", {}).get("values", [])
+        user_models = self.options_def.get("model", {}).get("values", [])
+        new_models = [m for m in default_models if m not in user_models]
+        if new_models:
+            user_models.extend(new_models)
+            self._save_json(OPTIONS_FILE, self.options_def)
+
     def _run_versioned_migrations(self, theme_file: Path) -> None:
         """Run schema-versioned migrations that change existing values.
 
