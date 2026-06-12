@@ -2,9 +2,17 @@
 
 # Changelog
 
-## 0.11.0
+## 0.12.0
 
-mv now renames directories by default, --post-hoc for session-only migration
+Fable 5 model support, model auto-sync, full orphan scan for --cont
+
+### Features
+
+- **New feature.** Model list now auto-syncs from defaults on startup. New models added to claudewheel are automatically available without resetting options.
+- **New feature.** Added Fable 5 (`claude-fable-5` and `claude-fable-5[1m]`) to the default model list.
+- **Improvement.** `--cont` now scans all orphaned session directories, not just same-parent. Cross-parent directory renames are now detected.
+
+## 0.11.0
 
 ### Breaking
 
