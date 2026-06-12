@@ -1,0 +1,8 @@
+# Version bump type: patch, minor, or major
+bump = "patch"
+# Short description of this release (required)
+description = "CI workflow improvements: idempotent publish steps for npm and PyPI"
+# Optional context explaining why these changes were made
+context = "Scaffold update added skip-if-already-published checks to both npm and PyPI publish workflows, making CI re-runs safe. Also added separate CI check workflows."
+include = ["npm", "pypi"]
+exclude = []
