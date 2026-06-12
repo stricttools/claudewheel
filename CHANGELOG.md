@@ -2,9 +2,22 @@
 
 # Changelog
 
-## 0.10.0
+## 0.10.1
 
-New permission command group for managing profile permission rules
+CI workflow improvements: idempotent publish steps for npm and PyPI
+
+<details>
+<summary>Context</summary>
+
+Scaffold update added skip-if-already-published checks to both npm and PyPI publish workflows, making CI re-runs safe. Also added separate CI check workflows.
+
+</details>
+
+### Fixes
+
+- **Fix.** CI publish workflows are now idempotent -- re-running a partially failed publish no longer fails on already-published packages.
+
+## 0.10.0
 
 ### Features
 
