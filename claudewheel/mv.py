@@ -109,11 +109,13 @@ def _update_claude_json(
 
 def run_mv(
     old_path: str, new_path: str, dry_run: bool = False, quiet: bool = False,
+    post_hoc: bool = False,
 ) -> MvResult:
-    """Move Claude Code session data from old_path to new_path.
+    """Rename a project directory and migrate Claude Code session data.
 
-    Both paths refer to the same project directory -- old_path is the former
-    location (must no longer exist) and new_path is the current one (must exist).
+    In default mode, renames old_path to new_path on the filesystem and then
+    migrates all session data.  With post_hoc=True, skips the filesystem rename
+    (the directory was already renamed externally) and only migrates sessions.
     """
     global _quiet
     _quiet = quiet
@@ -123,12 +125,30 @@ def run_mv(
     old_resolved = str(Path(old_path).expanduser().resolve())
     new_resolved = str(Path(new_path).expanduser().resolve())
 
-    if not Path(new_resolved).is_dir():
-        raise FileNotFoundError(f"new path does not exist as a directory: {new_resolved}")
-    if Path(old_resolved).exists():
-        raise FileExistsError(
-            f"old path still exists: {old_resolved} -- rename the directory first"
-        )
+    if old_resolved == new_resolved:
+        raise ValueError(f"source and target are the same: {old_resolved}")
+
+    if post_hoc:
+        # Session-only migration: directory already renamed externally
+        if not Path(new_resolved).is_dir():
+            raise FileNotFoundError(f"target does not exist as a directory: {new_resolved}")
+        if Path(old_resolved).exists():
+            raise FileExistsError(f"source still exists: {old_resolved} -- use 'mv' without --post-hoc to rename it")
+    else:
+        # Rename mode: rename directory then migrate sessions
+        if not Path(old_resolved).is_dir():
+            raise FileNotFoundError(f"source does not exist as a directory: {old_resolved}")
+        if Path(new_resolved).exists():
+            raise FileExistsError(f"target already exists: {new_resolved}")
+
+        # Rename the directory before session migration
+        if dry_run:
+            _log(f"would rename directory {old_resolved} -> {new_resolved}")
+        else:
+            try:
+                Path(old_resolved).rename(new_resolved)
+            except OSError as e:
+                raise OSError(f"failed to rename directory {old_resolved} -> {new_resolved}: {e}") from e
 
     _log(f"moving {old_resolved} -> {new_resolved}")
     if dry_run:

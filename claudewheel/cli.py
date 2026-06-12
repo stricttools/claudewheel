@@ -285,11 +285,12 @@ def _handle_stats(dry_run: bool) -> int:
 
 
 @strictcli.flag("dry-run", type=bool, help="preview changes without writing")
-def _handle_mv(old: str, new: str, dry_run: bool) -> int:
+@strictcli.flag("post-hoc", type=bool, help="skip filesystem rename, migrate sessions only (directory already renamed)")
+def _handle_mv(old: str, new: str, dry_run: bool, post_hoc: bool) -> int:
     from .mv import run_mv
     try:
-        run_mv(old, new, dry_run=dry_run)
-    except (FileNotFoundError, FileExistsError, OSError) as e:
+        run_mv(old, new, dry_run=dry_run, post_hoc=post_hoc)
+    except (ValueError, FileNotFoundError, FileExistsError, OSError) as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
     return 0
@@ -468,11 +469,9 @@ def _check_resume_session(session_id: str, directory: str) -> None:
         return
 
     if os.path.isdir(old_cwd):
-        current_dir = os.path.abspath(directory)
         print(
             f"Session {session_id} belongs to {old_cwd} which still exists.\n"
-            f"Run from that directory, or move sessions manually:\n"
-            f"  claudewheel mv {old_cwd} {current_dir}",
+            f"Run from that directory instead.",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -507,7 +506,7 @@ def _check_resume_session(session_id: str, directory: str) -> None:
     # Step 5: Dry-run first (quiet -- no per-file log spam)
     from .mv import run_mv
 
-    result = run_mv(old_cwd, current_dir, dry_run=True, quiet=True)
+    result = run_mv(old_cwd, current_dir, dry_run=True, quiet=True, post_hoc=True)
     print(
         f"\nWill move {result.files_rewritten} session files, "
         f"rewrite {result.lines_replaced} path references, "
@@ -527,7 +526,7 @@ def _check_resume_session(session_id: str, directory: str) -> None:
         sys.exit(1)
 
     # Step 6: Execute for real
-    result = run_mv(old_cwd, current_dir, dry_run=False, quiet=True)
+    result = run_mv(old_cwd, current_dir, dry_run=False, quiet=True, post_hoc=True)
     print(f"Done. Resuming session...")
 
 
@@ -607,7 +606,7 @@ def _check_cont_session(directory: str) -> None:
     # Two-prompt flow: dry run, then confirm and execute
     from .mv import run_mv
 
-    result = run_mv(old_cwd, current_dir, dry_run=True, quiet=True)
+    result = run_mv(old_cwd, current_dir, dry_run=True, quiet=True, post_hoc=True)
     print(
         f"\nWill move {result.files_rewritten} session files, "
         f"rewrite {result.lines_replaced} path references, "
@@ -625,7 +624,7 @@ def _check_cont_session(directory: str) -> None:
     if not answer.strip().lower().startswith("y"):
         return
 
-    result = run_mv(old_cwd, current_dir, dry_run=False, quiet=True)
+    result = run_mv(old_cwd, current_dir, dry_run=False, quiet=True, post_hoc=True)
     print(f"Done. Resuming session...")
 
 
@@ -825,7 +824,7 @@ def _build_app() -> App:
         _handle_stats
     )
 
-    app.command("mv", help="move session data after a project directory rename",
+    app.command("mv", help="rename a project directory and migrate session data",
                 args=[
                     Arg(name="old", help="old directory path"),
                     Arg(name="new", help="new directory path"),
