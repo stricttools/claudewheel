@@ -884,8 +884,7 @@ class CheckResumeSessionTests(unittest.TestCase):
         msg = err.getvalue()
         self.assertIn(old_cwd, msg)
         self.assertIn("still exists", msg)
-        self.assertIn("claudewheel mv", msg)
-        self.assertIn(current_dir, msg)
+        self.assertIn("Run from that directory instead", msg)
 
     # -- 5.1g: Bare resume (empty string) does NOT call _check_resume_session --
 
@@ -1099,6 +1098,40 @@ class CheckContSessionTests(unittest.TestCase):
         # Verify the selected orphan (orphan2) was passed to run_mv
         args1, _ = mock_mv.call_args_list[0]
         self.assertEqual(args1[0], "/home/user/beta")
+
+
+class MvPostHocFlagTests(unittest.TestCase):
+    """Verify --post-hoc flag is passed through to run_mv."""
+
+    def test_post_hoc_flag_passed_to_run_mv(self) -> None:
+        """When --post-hoc is given, run_mv is called with post_hoc=True."""
+        with (
+            mock.patch("sys.argv", ["c", "mv", "/old/path", "/new/path", "--post-hoc"]),
+            mock.patch("claudewheel.mv.run_mv") as mock_run_mv,
+        ):
+            try:
+                cli.main()
+            except SystemExit:
+                pass
+
+        mock_run_mv.assert_called_once()
+        _, kwargs = mock_run_mv.call_args
+        self.assertTrue(kwargs.get("post_hoc", False))
+
+    def test_no_post_hoc_flag_defaults_false(self) -> None:
+        """When --post-hoc is not given, run_mv is called with post_hoc=False."""
+        with (
+            mock.patch("sys.argv", ["c", "mv", "/old/path", "/new/path"]),
+            mock.patch("claudewheel.mv.run_mv") as mock_run_mv,
+        ):
+            try:
+                cli.main()
+            except SystemExit:
+                pass
+
+        mock_run_mv.assert_called_once()
+        _, kwargs = mock_run_mv.call_args
+        self.assertFalse(kwargs.get("post_hoc", True))
 
 
 if __name__ == "__main__":
