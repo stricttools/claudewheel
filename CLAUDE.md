@@ -65,9 +65,9 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 | `deploy-hooks` | deploy hook scripts to ~/.claudewheel/scripts/ |
 | `launch` | start the interactive TUI launcher |
 | **permission** | manage profile permissions |
-| `permission add` | add a permission rule |
-| `permission remove` | remove a permission rule |
-| `permission list` | list permission rules |
+| `permission add` | Add a permission rule to a profile's settings.json. Takes a category (allow, deny, or ask) and a rule string such as Bash or Read(//home/**). Writes the rule into the specified category array. Use --profile to target a single profile or --all-profiles to apply the rule across every registered profile. Skips duplicates if the rule already exists in the category. |
+| `permission remove` | Remove a permission rule from a profile's settings.json. Takes a category (allow, deny, or ask) and the exact rule string to delete. The rule is removed from the specified category array and the file is saved. Use --profile to target a single profile or --all-profiles to remove the rule from every registered profile. Reports whether the rule was found. |
+| `permission list` | List permission rules from a profile's settings.json. Displays rules in grouped, flat, or JSON format controlled by --format. Use --category to filter output to a single category (allow, deny, or ask). Use --profile to inspect a single profile or --all-profiles to show rules from every registered profile, with each profile's rules displayed under a header. |
 
 ## Config system
 
