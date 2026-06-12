@@ -36,7 +36,7 @@
   },
   "project_id": "claudewheel",
   "name": "c",
-  "version": "0.12.0",
+  "version": "0.9.1",
   "help": "claudewheel - TUI launcher for Claude Code",
   "commands": {
     "health": {
@@ -277,7 +277,7 @@
       "commands": {
         "add": {
           "name": "add",
-          "help": "add a permission rule",
+          "help": "Add a permission rule to a profile's settings.json. Takes a category (allow, deny, or ask) and a rule string such as Bash or Read(//home/**). Writes the rule into the specified category array. Use --profile to target a single profile or --all-profiles to apply the rule across every registered profile. Skips duplicates if the rule already exists in the category.",
           "flags": [
             {
               "name": "profile",
@@ -305,7 +305,7 @@
         },
         "remove": {
           "name": "remove",
-          "help": "remove a permission rule",
+          "help": "Remove a permission rule from a profile's settings.json. Takes a category (allow, deny, or ask) and the exact rule string to delete. The rule is removed from the specified category array and the file is saved. Use --profile to target a single profile or --all-profiles to remove the rule from every registered profile. Reports whether the rule was found.",
           "flags": [
             {
               "name": "profile",
@@ -333,7 +333,7 @@
         },
         "list": {
           "name": "list",
-          "help": "list permission rules",
+          "help": "List permission rules from a profile's settings.json. Displays rules in grouped, flat, or JSON format controlled by --format. Use --category to filter output to a single category (allow, deny, or ask). Use --profile to inspect a single profile or --all-profiles to show rules from every registered profile, with each profile's rules displayed under a header.",
           "flags": [
             {
               "name": "format",
