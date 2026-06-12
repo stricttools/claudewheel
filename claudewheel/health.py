@@ -8,7 +8,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from .constants import OPTIONS_FILE, PROFILES_DIR, PROFILE_SHARED_DIRS, SHARED_DIR, SHARED_SETTINGS_FILE, SKILLS_DIR, TOKENS_FILE
+from .constants import INODES_FILE, OPTIONS_FILE, PROFILES_DIR, PROFILE_SHARED_DIRS, SHARED_DIR, SHARED_SETTINGS_FILE, SKILLS_DIR, TOKENS_FILE
 from .defaults import DISALLOWED_TOOLS
 from .discovery import discover_profiles
 
@@ -410,6 +410,59 @@ def check_file_permissions() -> HealthResult:
     return HealthResult(True, "file-perms", "all sensitive files 0600")
 
 
+def check_inode_renames() -> HealthResult:
+    """Detect directory renames by comparing inode records against the filesystem."""
+    if not INODES_FILE.exists():
+        return HealthResult(True, "inode-renames", "no inode data yet")
+
+    try:
+        data = json.loads(INODES_FILE.read_text())
+    except (json.JSONDecodeError, OSError):
+        return HealthResult(False, "inode-renames", "unreadable inodes.json")
+
+    # Build reverse map: inode -> [paths]
+    by_inode: dict[int, list[str]] = {}
+    for path, inode in data.items():
+        by_inode.setdefault(inode, []).append(path)
+
+    renames: list[str] = []
+    stale: list[str] = []
+    for inode, paths in by_inode.items():
+        if len(paths) < 2:
+            # Single entry: check if path still exists
+            if not os.path.exists(paths[0]):
+                stale.append(paths[0])
+            continue
+        # Multiple paths with same inode: find which exist
+        existing = [p for p in paths if os.path.exists(p)]
+        missing = [p for p in paths if not os.path.exists(p)]
+        if existing and missing:
+            new = existing[0]
+            for old in missing:
+                renames.append(
+                    f"{old} -> {new}. "
+                    f"Run: claudewheel mv --post-hoc {old} {new}"
+                )
+
+    # Clean up stale entries (deleted dirs with no matching inode elsewhere)
+    if stale:
+        for s in stale:
+            del data[s]
+        try:
+            INODES_FILE.parent.mkdir(parents=True, exist_ok=True)
+            tmp = INODES_FILE.with_suffix(".tmp")
+            tmp.write_text(json.dumps(data, indent=2) + "\n")
+            tmp.rename(INODES_FILE)
+        except OSError:
+            pass
+
+    if renames:
+        return HealthResult(False, "inode-renames", "; ".join(renames))
+    if stale:
+        return HealthResult(True, "inode-renames", f"cleaned {len(stale)} stale entries")
+    return HealthResult(True, "inode-renames", "no renames detected")
+
+
 def run_health_check() -> list[HealthResult]:
     """Run all health checks and return results."""
     return [
@@ -423,6 +476,7 @@ def run_health_check() -> list[HealthResult]:
         check_token_expiry(),
         check_orphan_profiles(),
         check_file_permissions(),
+        check_inode_renames(),
     ]
 
 
