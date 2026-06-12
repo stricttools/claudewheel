@@ -6,7 +6,7 @@ import os
 import sys
 
 import strictcli
-from strictcli import App, Arg, Flag, MutexGroup, Tag
+from strictcli import App, Arg, Flag, FlagSet, MutexGroup
 
 from . import __version__
 from .constants import CONFIG_DIR, OPTIONS_FILE, SCRIPTS_DIR, VERSIONS_DIR, CLAUDE_SYMLINK, SHARED_DIR, encode_path
@@ -871,7 +871,7 @@ def _build_app() -> App:
 
     # -- Launch command (default when no subcommand given) --
     _UNSET = "\x00__unset__"  # sentinel to distinguish "not passed" from ""
-    _session_tag = Tag(name="session", flags=[
+    _session_flag_set = FlagSet(name="session", flags=[
         Flag(name="cont", short="c", type=bool,
              help="continue the most recent conversation"),
         Flag(name="resume", short="r", type=str, default=_UNSET,
@@ -882,7 +882,7 @@ def _build_app() -> App:
              help="open the session resume picker"),
     ])
 
-    _segment_tag = Tag(name="segments", flags=[
+    _segment_flag_set = FlagSet(name="segments", flags=[
         Flag(name="profile", type=str, default="",
              help="preset value for the Profile segment"),
         Flag(name="github", type=str, default="",
@@ -900,7 +900,7 @@ def _build_app() -> App:
     ])
 
     app.command("launch", help="start the interactive TUI launcher",
-                tags=[_session_tag, _segment_tag])(
+                flag_sets=[_session_flag_set, _segment_flag_set])(
         _handle_launch
     )
 
