@@ -115,7 +115,7 @@ def _do_launch_sequence(
     from .health import run_health_check, print_health_report
     from .hooks import run_hooks
     from .launch import resolve_launch_config, do_launch
-    from .state import save_launch_state
+    from .state import record_inode, save_launch_state
 
     if interactive and cfg.config.get("health_check_on_launch", True):
         results = run_health_check()
@@ -138,6 +138,7 @@ def _do_launch_sequence(
     # Save state only after hooks succeed, so launch_count isn't inflated by aborts
     if interactive:
         save_launch_state(cfg, selections)
+        record_inode(selections.get("directory", os.getcwd()))
     try:
         cwd, argv, env = resolve_launch_config(
             selections, cfg.options_def, cfg.config.get("default_flags", []),

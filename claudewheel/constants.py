@@ -21,6 +21,7 @@ SHARED_SETTINGS_FILE = CONFIG_DIR / "shared-settings.json"
 SCRIPTS_DIR = CONFIG_DIR / "scripts"
 
 SHARED_DIR = CONFIG_DIR / "shared"
+INODES_FILE = SHARED_DIR / "inodes.json"
 SKILLS_DIR = CONFIG_DIR / "skills"
 
 # Directories inside each profile that are symlinked to the shared store.
