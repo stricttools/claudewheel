@@ -1,0 +1,1 @@
+{"commits":["c05b4c5a5a83fb815aa05cbf0ec6a3dc4c74ede0"],"user_facing":true,"description":"**New feature.** Model list now auto-syncs from defaults on startup. New models added to claudewheel are automatically available without resetting options.","type":"feature"}
