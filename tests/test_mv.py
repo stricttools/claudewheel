@@ -171,7 +171,7 @@ class UpdateClaudeJsonTests(unittest.TestCase):
 
 
 class RunMvValidationTests(unittest.TestCase):
-    """Precondition checks: new_path must exist, old_path must not."""
+    """Precondition checks for default and post-hoc modes."""
 
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
@@ -183,7 +183,19 @@ class RunMvValidationTests(unittest.TestCase):
         self._stdout_trap.__exit__(None, None, None)
         self._tmp.cleanup()
 
-    def test_raises_when_new_path_does_not_exist(self) -> None:
+    # -- Default mode (rename + migrate) --
+
+    def test_default_old_exists_new_not_exists(self) -> None:
+        """Default mode succeeds when old exists and new does not."""
+        old = self.tmp_path / "old"
+        new = self.tmp_path / "new"
+        old.mkdir()
+
+        with patch("claudewheel.mv._discover_profile_dirs", return_value=[]):
+            run_mv(str(old), str(new))  # should not raise
+
+    def test_default_old_not_exists(self) -> None:
+        """Default mode raises FileNotFoundError when old does not exist."""
         old = self.tmp_path / "old"
         new = self.tmp_path / "new"
         # Neither exists
@@ -191,7 +203,8 @@ class RunMvValidationTests(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             run_mv(str(old), str(new))
 
-    def test_raises_when_old_path_still_exists(self) -> None:
+    def test_default_new_already_exists(self) -> None:
+        """Default mode raises FileExistsError when new already exists."""
         old = self.tmp_path / "old"
         new = self.tmp_path / "new"
         old.mkdir()
@@ -199,6 +212,46 @@ class RunMvValidationTests(unittest.TestCase):
 
         with self.assertRaises(FileExistsError):
             run_mv(str(old), str(new))
+
+    # -- Post-hoc mode (session-only migration) --
+
+    def test_post_hoc_new_exists_old_not_exists(self) -> None:
+        """Post-hoc mode succeeds when new exists and old does not."""
+        old = self.tmp_path / "old"
+        new = self.tmp_path / "new"
+        new.mkdir()
+
+        with patch("claudewheel.mv._discover_profile_dirs", return_value=[]):
+            run_mv(str(old), str(new), post_hoc=True)  # should not raise
+
+    def test_post_hoc_old_still_exists(self) -> None:
+        """Post-hoc mode raises FileExistsError when old still exists."""
+        old = self.tmp_path / "old"
+        new = self.tmp_path / "new"
+        old.mkdir()
+        new.mkdir()
+
+        with self.assertRaises(FileExistsError):
+            run_mv(str(old), str(new), post_hoc=True)
+
+    def test_post_hoc_new_not_exists(self) -> None:
+        """Post-hoc mode raises FileNotFoundError when new does not exist."""
+        old = self.tmp_path / "old"
+        new = self.tmp_path / "new"
+        # Neither exists
+
+        with self.assertRaises(FileNotFoundError):
+            run_mv(str(old), str(new), post_hoc=True)
+
+    # -- Same path --
+
+    def test_same_path_raises(self) -> None:
+        """Both modes raise ValueError when old and new resolve to the same path."""
+        old = self.tmp_path / "same"
+        old.mkdir()
+
+        with self.assertRaises(ValueError):
+            run_mv(str(old), str(old))
 
 
 class RunMvIntegrationTests(unittest.TestCase):
@@ -256,13 +309,16 @@ class RunMvIntegrationTests(unittest.TestCase):
         self._tmp.cleanup()
 
     def _run(self, dry_run: bool = False) -> MvResult:
-        """Run mv with patched home and profile discovery."""
+        """Run mv with patched home and profile discovery (post-hoc mode)."""
         with patch("claudewheel.mv.Path.home", return_value=self.home), \
              patch(
                  "claudewheel.mv._discover_profile_dirs",
                  return_value=[self.profile],
              ):
-            return run_mv(str(self.old_dir), str(self.new_dir), dry_run=dry_run)
+            return run_mv(
+                str(self.old_dir), str(self.new_dir),
+                dry_run=dry_run, post_hoc=True,
+            )
 
     def test_full_mv(self) -> None:
         """Dir renamed, JSONL rewritten, .claude.json key updated, counters correct."""
@@ -343,7 +399,7 @@ class RunMvIntegrationTests(unittest.TestCase):
                  "claudewheel.mv._discover_profile_dirs",
                  return_value=[self.profile, shared],
              ):
-            result = run_mv(str(self.old_dir), str(self.new_dir))
+            result = run_mv(str(self.old_dir), str(self.new_dir), post_hoc=True)
 
         # Only the profile's .claude.json was updated, not shared's
         self.assertEqual(result.project_keys_updated, 1)
@@ -410,7 +466,10 @@ class MergeDirsTests(unittest.TestCase):
                  "claudewheel.mv._discover_profile_dirs",
                  return_value=[self.profile],
              ):
-            return run_mv(str(self.old_dir), str(self.new_dir), dry_run=dry_run)
+            return run_mv(
+                str(self.old_dir), str(self.new_dir),
+                dry_run=dry_run, post_hoc=True,
+            )
 
     def test_mv_merge_when_target_exists(self) -> None:
         """Old sessions are merged into existing new_project; paths rewritten."""
@@ -532,6 +591,111 @@ class MergeDirsTests(unittest.TestCase):
 
         # Merge still counted
         self.assertEqual(result.dirs_renamed, 1)
+
+
+# ---------------------------------------------------------------------------
+# Default (rename) mode
+# ---------------------------------------------------------------------------
+
+
+class RenameModeTests(unittest.TestCase):
+    """Default mode: rename directory on disk, then migrate sessions."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp_path = Path(self._tmp.name)
+        self._stdout_trap = contextlib.redirect_stdout(io.StringIO())
+        self._stdout_trap.__enter__()
+
+    def tearDown(self) -> None:
+        self._stdout_trap.__exit__(None, None, None)
+        self._tmp.cleanup()
+
+    def test_renames_directory_on_disk(self) -> None:
+        """Default mode renames old_dir to new_dir on the filesystem."""
+        old = self.tmp_path / "old_proj"
+        new = self.tmp_path / "new_proj"
+        old.mkdir()
+        (old / "file.txt").write_text("content")
+
+        with patch("claudewheel.mv._discover_profile_dirs", return_value=[]):
+            run_mv(str(old), str(new))
+
+        self.assertFalse(old.exists())
+        self.assertTrue(new.is_dir())
+        self.assertEqual((new / "file.txt").read_text(), "content")
+
+    def test_rename_and_migrate_sessions(self) -> None:
+        """Default mode renames directory AND migrates session data."""
+        old = self.tmp_path / "old_proj"
+        new = self.tmp_path / "new_proj"
+        old.mkdir()
+        (old / "marker.txt").write_text("hello")
+
+        old_resolved = str(old.resolve())
+        new_resolved = str(new.resolve())
+        old_encoded = encode_path(old_resolved)
+        new_encoded = encode_path(new_resolved)
+
+        # Create a fake profile with session data under old_encoded
+        profile = self.tmp_path / "profile"
+        profile.mkdir()
+        projects = profile / "projects"
+        projects.mkdir()
+        old_project = projects / old_encoded
+        old_project.mkdir()
+        session = old_project / "session.jsonl"
+        session.write_text(
+            json.dumps({"cwd": old_resolved, "type": "init"}) + "\n"
+        )
+
+        with patch("claudewheel.mv._discover_profile_dirs", return_value=[profile]):
+            result = run_mv(str(old), str(new))
+
+        # Directory renamed
+        self.assertFalse(old.exists())
+        self.assertTrue(new.is_dir())
+        self.assertEqual((new / "marker.txt").read_text(), "hello")
+
+        # Sessions migrated
+        self.assertEqual(result.dirs_renamed, 1)
+        self.assertEqual(result.files_rewritten, 1)
+        new_project = projects / new_encoded
+        self.assertTrue(new_project.is_dir())
+        self.assertFalse(old_project.exists())
+        content = (new_project / "session.jsonl").read_text()
+        self.assertNotIn(old_resolved, content)
+        self.assertIn(new_resolved, content)
+
+    def test_dry_run_no_rename(self) -> None:
+        """Dry run does not rename directory on disk."""
+        old = self.tmp_path / "old_proj"
+        new = self.tmp_path / "new_proj"
+        old.mkdir()
+        (old / "file.txt").write_text("content")
+
+        with patch("claudewheel.mv._discover_profile_dirs", return_value=[]):
+            run_mv(str(old), str(new), dry_run=True)
+
+        self.assertTrue(old.is_dir())
+        self.assertFalse(new.exists())
+
+    def test_cross_device_error(self) -> None:
+        """Cross-device rename raises OSError with a clear message."""
+        import errno
+
+        old = self.tmp_path / "old_proj"
+        new = self.tmp_path / "new_proj"
+        old.mkdir()
+
+        with patch.object(
+            Path, "rename",
+            side_effect=OSError(errno.EXDEV, "Invalid cross-device link"),
+        ):
+            with self.assertRaises(OSError) as ctx:
+                run_mv(str(old), str(new))
+
+        self.assertIn("failed to rename directory", str(ctx.exception))
 
 
 if __name__ == "__main__":
