@@ -355,5 +355,86 @@ class VersionedMigrationTests(unittest.TestCase):
         self.assertEqual(metadata["default"]["config_dir"], "~/.claude")
 
 
+# ---------------------------------------------------------------------------
+# 4. ModelSyncTests
+# ---------------------------------------------------------------------------
+
+
+class ModelSyncTests(unittest.TestCase):
+    """Test _migrate() step 4: syncing default model values into options.json."""
+
+    def setUp(self) -> None:
+        self._tmp_obj = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._tmp_obj.name)
+
+    def tearDown(self) -> None:
+        self._tmp_obj.cleanup()
+
+    def _make_cm(self, paths: dict[str, Path]) -> ConfigManager:
+        patches = _patch_constants(paths)
+        for p in patches:
+            p.start()
+            self.addCleanup(p.stop)
+        return ConfigManager()
+
+    def test_migrate_adds_new_model_to_existing_options(self) -> None:
+        """New default models (e.g. fable) are appended to the user's model list."""
+        old_models = [
+            "claude-opus-4-7",
+            "claude-opus-4-7[1m]",
+            "claude-opus-4-6",
+            "claude-opus-4-6[1m]",
+            "claude-sonnet-4-6",
+            "claude-sonnet-4-6[1m]",
+            "claude-haiku-4-5-20251001",
+            "claude-sonnet-4-5-20241022",
+        ]
+        options = {**DEFAULT_OPTIONS, "model": {"values": old_models[:]}}
+        paths = _setup_temp_config_dir(self.tmp, options=options)
+        cm = self._make_cm(paths)
+
+        user_models = cm.options_def["model"]["values"]
+        self.assertIn("claude-fable-5", user_models)
+        self.assertIn("claude-fable-5[1m]", user_models)
+        # Verify on disk too
+        on_disk = _read_json(paths["OPTIONS_FILE"])
+        self.assertIn("claude-fable-5", on_disk["model"]["values"])
+        self.assertIn("claude-fable-5[1m]", on_disk["model"]["values"])
+
+    def test_migrate_does_not_duplicate_existing_models(self) -> None:
+        """Models already in the user's list are not added again."""
+        from claudewheel.defaults import DEFAULT_OPTIONS as DO
+        options = {**DEFAULT_OPTIONS, "model": {"values": DO["model"]["values"][:]}}
+        paths = _setup_temp_config_dir(self.tmp, options=options)
+        cm = self._make_cm(paths)
+
+        user_models = cm.options_def["model"]["values"]
+        # Count occurrences -- each should appear exactly once
+        for model in DO["model"]["values"]:
+            count = user_models.count(model)
+            self.assertEqual(count, 1, f"{model} appears {count} times, expected 1")
+
+    def test_migrate_preserves_custom_models(self) -> None:
+        """Custom models added by the user are preserved after migration."""
+        custom_models = [
+            "my-custom-model",
+            "claude-opus-4-7",
+            "claude-opus-4-7[1m]",
+        ]
+        options = {**DEFAULT_OPTIONS, "model": {"values": custom_models[:]}}
+        paths = _setup_temp_config_dir(self.tmp, options=options)
+        cm = self._make_cm(paths)
+
+        user_models = cm.options_def["model"]["values"]
+        # Custom model is preserved
+        self.assertIn("my-custom-model", user_models)
+        # Default models that were missing are added
+        self.assertIn("claude-fable-5", user_models)
+        self.assertIn("claude-fable-5[1m]", user_models)
+        # Original models still there
+        self.assertIn("claude-opus-4-7", user_models)
+        self.assertIn("claude-opus-4-7[1m]", user_models)
+
+
 if __name__ == "__main__":
     unittest.main()
