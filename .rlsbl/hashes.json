@@ -14,5 +14,5 @@
   ".github/workflows/ci-npm.yml": "e627a27fd73a988ac9fab0710bcaddd29d93d5651630129a4252d7d141644f0a",
   ".github/workflows/ci-pypi.yml": "f820e0f5d86740772bc4af78ed45ecd48884123cdcac2113ce186d6a6226dd7e",
   ".npmignore": "1aaec672b9f03f3ac51ec023e2b272d238f6fc7956c4e3bae36f017492b9dbc4",
-  "CHANGELOG.md": "ef36424794cc3f192efde0612f32bbf2daa7f36aa8130532f11a7fb7aafda014"
+  "CHANGELOG.md": "ab4ccd89cba48f330b8a08be249ac4f3e684a06f4cdf2c37650fd0b08bc709f7"
 }
