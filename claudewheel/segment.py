@@ -150,10 +150,10 @@ def fetch_npm_versions(state: dict, count: int = 15) -> list[str]:
                 "versions": all_versions,
             }
             return all_versions[-count:]
-    except Exception:
+    except (Exception, KeyboardInterrupt):
         pass
 
-    # On failure, use cache even if stale
+    # On failure (or Ctrl-C), use cache even if stale
     if cached_versions:
         return cached_versions[-count:]
     return []
