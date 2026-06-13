@@ -1,5 +1,0 @@
-{"commits":["e71070f982d38665125bb52ec936960745e0beca"],"user_facing":false}
-{"commits":["ce8957cf0518698c27956b6ccc6c8e004f74f137","3b003f18e9264ed00bca07e4dee76f5b60737ad3"],"user_facing":false}
-{"commits":["03bbb796e78f45548e27c56b79b3a02451fe5427","d8af820921844d5b1faed6abe275d7bc40212baf"],"user_facing":true,"description":"**Improvement.** TUI launches instantly. Slow discovery calls (GitHub auth, npm versions) now run in a background thread instead of blocking startup.","type":"feature"}
-{"commits":["32cb559019ae0972cea0f491eeecdb3d8274f86d"],"user_facing":true,"description":"**Fix.** Ctrl-C during npm version fetch no longer produces a traceback.","type":"fix"}
-{"commits":["235443a00fa2f38452622d4ec929123a58de8288"],"user_facing":false}
