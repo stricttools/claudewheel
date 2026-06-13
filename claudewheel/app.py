@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import signal
 import sys
+import threading
 
 from .config import ConfigManager
-from .segment import Segment, build_segment_bar, evaluate_requires
+from .segment import Segment, build_segment_bar, evaluate_requires, run_slow_discovery
 from .terminal import Terminal
 from .theme import parse_theme
 from .renderer import Renderer
@@ -17,7 +18,7 @@ class App:
 
     def __init__(self, cfg: ConfigManager | None = None, overrides: dict[str, str] | None = None):
         self.cfg = cfg if cfg is not None else ConfigManager()
-        self.bar = build_segment_bar(self.cfg)
+        self.bar = build_segment_bar(self.cfg, skip_slow=True)
         # Apply CLI arg overrides (after last_config pre-fill, before TUI)
         if overrides:
             for seg in self.bar.segments:
@@ -27,6 +28,13 @@ class App:
                         # Freeform segment: add the value if not already in options
                         seg.options.append(val)
                         seg.select_value(val)
+        # Start slow discovery in background thread
+        self._slow_results: dict[str, list[str]] | None = None
+        self._slow_thread = threading.Thread(
+            target=self._run_slow_discovery_thread,
+            daemon=True,
+        )
+        self._slow_thread.start()
         self.terminal = Terminal()
         self.theme = parse_theme(self.cfg.theme)
         self.renderer = Renderer(
@@ -69,11 +77,50 @@ class App:
                     return self.bar.get_selections()
                 elif action == "quit":
                     return None
+                # Check if background discovery finished
+                if self._slow_results is not None and not self._slow_thread.is_alive():
+                    self._apply_slow_discovery()
                 evaluate_requires(self.bar)
                 self.renderer.render(self.bar, self._flash)
                 self._flash = ""  # Clear flash after one render cycle
         finally:
             self.terminal.exit_raw()
+
+    def _run_slow_discovery_thread(self) -> None:
+        """Background thread: run slow discovery and store results."""
+        self._slow_results = run_slow_discovery(self.cfg.options_def, self.cfg.state)
+
+    def _apply_slow_discovery(self) -> None:
+        """Merge slow discovery results into the live segment bar."""
+        results = self._slow_results
+        if results is None:
+            return
+        self._slow_results = None  # Consume results once
+
+        for seg in self.bar.segments:
+            if seg.key not in results:
+                continue
+            new_options = results[seg.key]
+            # Remember current selection
+            current_value = seg.value
+            # Update options
+            seg.options = new_options
+            # Attach installed set if discovery produced one
+            installed_key = f"_installed_{seg.key}"
+            if installed_key in results:
+                seg.installed = results[installed_key]
+            # Re-append "+" sentinel for creatable segments
+            if seg.creatable and "+" not in seg.options:
+                seg.options.append("+")
+            # Restore selection
+            if current_value is not None:
+                seg.select_value(current_value)
+            elif seg.key in self.cfg.state.get("last_config", {}):
+                # If user hasn't made a selection yet, try last_config
+                seg.select_value(self.cfg.state["last_config"][seg.key])
+
+        # Persist npm cache that the background thread may have updated
+        self.cfg.save_state()
 
     def _handle_key(self, key: str) -> str | None:
         """Process a keypress and return an action string or None to continue."""
