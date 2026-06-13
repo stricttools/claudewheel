@@ -2,6 +2,18 @@
 
 # Changelog
 
+## 0.13.1
+
+Instant TUI startup via async discovery, KeyboardInterrupt fix, SEO improvements
+
+### Features
+
+- **Improvement.** TUI launches instantly. Slow discovery calls (GitHub auth, npm versions) now run in a background thread instead of blocking startup.
+
+### Fixes
+
+- **Fix.** Ctrl-C during npm version fetch no longer produces a traceback.
+
 ## 0.13.0
 
 Proactive directory rename detection via inode tracking

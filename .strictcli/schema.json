@@ -26,17 +26,19 @@
     "command": {
       "passthrough": false,
       "flags": [],
-      "args": []
+      "args": [],
+      "tags": []
     },
     "group": {
       "commands": {},
       "groups": {},
-      "deprecated": {}
+      "deprecated": {},
+      "tags": []
     }
   },
   "project_id": "claudewheel",
   "name": "c",
-  "version": "0.9.1",
+  "version": "0.13.0",
   "help": "claudewheel - TUI launcher for Claude Code",
   "commands": {
     "health": {
