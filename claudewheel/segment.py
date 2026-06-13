@@ -159,7 +159,7 @@ def fetch_npm_versions(state: dict, count: int = 15) -> list[str]:
     return []
 
 
-def discover_options(options_def: dict, state: dict) -> dict[str, list[str]]:
+def discover_options(options_def: dict, state: dict, *, skip_slow: bool = False) -> dict[str, list[str]]:
     """Resolve option lists, running discovery (directory listing, state merge) as needed."""
     resolved = {}
     for key, opt in options_def.items():
@@ -197,7 +197,18 @@ def discover_options(options_def: dict, state: dict) -> dict[str, list[str]]:
                     if local_path.is_dir():
                         installed = {e.name for e in local_path.iterdir() if e.is_file()}
                     # Get available versions from npm
-                    npm_versions = fetch_npm_versions(state, disc.get("count", 15))
+                    if skip_slow:
+                        # Use cached npm versions if warm, otherwise skip
+                        cache = state.get("npm_versions_cache", {})
+                        cached_at = cache.get("fetched_at", 0)
+                        cached_versions = cache.get("versions", [])
+                        count = disc.get("count", 15)
+                        if time.time() - cached_at < NPM_CACHE_TTL and cached_versions:
+                            npm_versions = cached_versions[-count:]
+                        else:
+                            npm_versions = []
+                    else:
+                        npm_versions = fetch_npm_versions(state, disc.get("count", 15))
                     # Merge: all npm versions (last N), plus any local-only ones
                     all_versions = list(npm_versions)
                     for v in installed:
@@ -249,25 +260,26 @@ def discover_options(options_def: dict, state: dict) -> dict[str, list[str]]:
                             metadata[p.name] = {"config_dir": f"~/.claudewheel/profiles/{p.name}"}
                     opt["metadata"] = metadata
                 case "gh_auth":
-                    # Discover GitHub accounts from gh CLI auth status
-                    try:
-                        result = subprocess.run(
-                            ["gh", "auth", "status"],
-                            capture_output=True, text=True, timeout=5,
-                        )
-                        output = result.stdout + result.stderr
-                        accounts = re.findall(
-                            r"Logged in to github\.com account (\S+)", output,
-                        )
-                        if accounts:
-                            # Deduplicate while preserving order
-                            seen_accts: set[str] = set()
-                            for acct in accounts:
-                                if acct not in seen_accts:
-                                    seen_accts.add(acct)
-                                    values.append(acct)
-                    except (FileNotFoundError, subprocess.TimeoutExpired):
-                        pass
+                    if not skip_slow:
+                        # Discover GitHub accounts from gh CLI auth status
+                        try:
+                            result = subprocess.run(
+                                ["gh", "auth", "status"],
+                                capture_output=True, text=True, timeout=5,
+                            )
+                            output = result.stdout + result.stderr
+                            accounts = re.findall(
+                                r"Logged in to github\.com account (\S+)", output,
+                            )
+                            if accounts:
+                                # Deduplicate while preserving order
+                                seen_accts: set[str] = set()
+                                for acct in accounts:
+                                    if acct not in seen_accts:
+                                        seen_accts.add(acct)
+                                        values.append(acct)
+                        except (FileNotFoundError, subprocess.TimeoutExpired):
+                            pass
                 case "state_field":
                     # Merge state-tracked values with static defaults, preserving order
                     state_values = state.get(disc["field"], [])
@@ -282,10 +294,60 @@ def discover_options(options_def: dict, state: dict) -> dict[str, list[str]]:
     return resolved
 
 
-def build_segment_bar(cfg: ConfigManager) -> SegmentBar:
+def run_slow_discovery(options_def: dict, state: dict) -> dict[str, list[str]]:
+    """Run only the slow discovery types (gh_auth, npm_and_local). Thread-safe: reads only."""
+    result: dict[str, list[str]] = {}
+    for key, opt in options_def.items():
+        disc = opt.get("discovery")
+        if not disc:
+            continue
+        match disc["type"]:
+            case "gh_auth":
+                raw_values = list(opt.get("values", []))
+                values = []
+                for v in raw_values:
+                    if isinstance(v, dict):
+                        values.append(v["value"])
+                    else:
+                        values.append(v)
+                try:
+                    proc = subprocess.run(
+                        ["gh", "auth", "status"],
+                        capture_output=True, text=True, timeout=5,
+                    )
+                    output = proc.stdout + proc.stderr
+                    accounts = re.findall(
+                        r"Logged in to github\.com account (\S+)", output,
+                    )
+                    if accounts:
+                        seen_accts: set[str] = set()
+                        for acct in accounts:
+                            if acct not in seen_accts:
+                                seen_accts.add(acct)
+                                values.append(acct)
+                except (FileNotFoundError, subprocess.TimeoutExpired):
+                    pass
+                result[key] = values
+            case "npm_and_local":
+                local_path = Path(disc["path"]).expanduser()
+                installed = set()
+                if local_path.is_dir():
+                    installed = {e.name for e in local_path.iterdir() if e.is_file()}
+                npm_versions = fetch_npm_versions(state, disc.get("count", 15))
+                all_versions = list(npm_versions)
+                for v in installed:
+                    if v not in all_versions:
+                        all_versions.append(v)
+                all_versions.sort(key=version_sort_key, reverse=True)
+                result[key] = all_versions
+                result[f"_installed_{key}"] = installed
+    return result
+
+
+def build_segment_bar(cfg: ConfigManager, *, skip_slow: bool = False) -> SegmentBar:
     """Construct the segment bar from config, applying discovery and last-state restore."""
     enabled = cfg.config.get("enabled_segments", [])
-    resolved = discover_options(cfg.options_def, cfg.state)
+    resolved = discover_options(cfg.options_def, cfg.state, skip_slow=skip_slow)
     # Persist npm cache to state.json so it survives even if the user quits without launching
     cfg.save_state()
     segments: list[Segment] = []
