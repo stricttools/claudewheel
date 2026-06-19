@@ -1063,5 +1063,403 @@ class ImportResultTests(unittest.TestCase):
         self.assertEqual(r2.collisions, [])
 
 
+# ---------------------------------------------------------------------------
+# Reid through companion directories
+# ---------------------------------------------------------------------------
+
+
+class ReidCompanionDirTests(unittest.TestCase):
+    """Reid copies companion dirs under the new UUID and rewrites agent JSONL inside."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        self._stdout_trap = contextlib.redirect_stdout(io.StringIO())
+        self._stdout_trap.__enter__()
+
+        # Source
+        self.source = self.root / "source"
+        self.source_proj = self.source / "projects" / "proj"
+        self.source_proj.mkdir(parents=True)
+
+        # Main session JSONL
+        (self.source_proj / f"{UUID_A}.jsonl").write_text(
+            _make_session_jsonl("/test", UUID_A)
+        )
+
+        # Companion directory with subagents/ containing an agent JSONL
+        companion = self.source_proj / UUID_A
+        subagents = companion / "subagents"
+        subagents.mkdir(parents=True)
+        (subagents / "agent.jsonl").write_text(
+            _make_jsonl_line(cwd="/test", sessionId=UUID_A, type="assistant") + "\n"
+        )
+
+        # Shared store with pre-existing collision
+        self.shared = self.root / "shared"
+        (self.shared / "projects").mkdir(parents=True)
+        target_dir = self.shared / "projects" / encode_path("/local/test")
+        target_dir.mkdir(parents=True)
+        (target_dir / f"{UUID_A}.jsonl").write_text("{}\n")
+
+    def tearDown(self) -> None:
+        self._stdout_trap.__exit__(None, None, None)
+        self._tmp.cleanup()
+
+    def test_companion_dir_copied_under_new_uuid(self) -> None:
+        """Companion dir uses the new UUID, not the old one."""
+        with patch("claudewheel.import_.SHARED_DIR", self.shared), \
+             patch("claudewheel.import_.get_session_cwd", return_value="/test"):
+            result = run_import(
+                str(self.source),
+                mappings=[("/test", "/local/test")],
+                reid=True,
+            )
+
+        self.assertEqual(result.sessions_imported, 1)
+        self.assertEqual(result.sessions_reided, 1)
+
+        target_dir = self.shared / "projects" / encode_path("/local/test")
+        # The old collision file should still exist
+        self.assertTrue((target_dir / f"{UUID_A}.jsonl").exists())
+        # Find the new UUID -- should be a JSONL file that is NOT UUID_A
+        new_jsonl_files = [
+            f for f in target_dir.glob("*.jsonl")
+            if f.stem != UUID_A
+        ]
+        self.assertEqual(len(new_jsonl_files), 1)
+        new_uuid = new_jsonl_files[0].stem
+
+        # Companion dir should be under the new UUID, not the old one
+        new_companion = target_dir / new_uuid
+        self.assertTrue(new_companion.is_dir())
+        # Old UUID companion should NOT have been created by the import
+        # (there is no source companion for UUID_A pre-existing in target)
+
+    def test_agent_jsonl_session_id_rewritten(self) -> None:
+        """Agent JSONL inside the companion dir has the new sessionId."""
+        with patch("claudewheel.import_.SHARED_DIR", self.shared), \
+             patch("claudewheel.import_.get_session_cwd", return_value="/test"):
+            result = run_import(
+                str(self.source),
+                mappings=[("/test", "/local/test")],
+                reid=True,
+            )
+
+        target_dir = self.shared / "projects" / encode_path("/local/test")
+        new_jsonl_files = [
+            f for f in target_dir.glob("*.jsonl")
+            if f.stem != UUID_A
+        ]
+        new_uuid = new_jsonl_files[0].stem
+
+        agent_jsonl = target_dir / new_uuid / "subagents" / "agent.jsonl"
+        self.assertTrue(agent_jsonl.exists())
+        parsed = json.loads(agent_jsonl.read_text().strip())
+        self.assertEqual(parsed["sessionId"], new_uuid)
+        self.assertNotEqual(parsed["sessionId"], UUID_A)
+
+    def test_main_jsonl_has_new_uuid_filename_and_session_id(self) -> None:
+        """The session JSONL file has the new UUID as filename and updated sessionId."""
+        with patch("claudewheel.import_.SHARED_DIR", self.shared), \
+             patch("claudewheel.import_.get_session_cwd", return_value="/test"):
+            run_import(
+                str(self.source),
+                mappings=[("/test", "/local/test")],
+                reid=True,
+            )
+
+        target_dir = self.shared / "projects" / encode_path("/local/test")
+        new_jsonl_files = [
+            f for f in target_dir.glob("*.jsonl")
+            if f.stem != UUID_A
+        ]
+        self.assertEqual(len(new_jsonl_files), 1)
+        new_uuid = new_jsonl_files[0].stem
+
+        # Verify every sessionId in the file is the new UUID
+        for raw_line in new_jsonl_files[0].read_text().splitlines():
+            parsed = json.loads(raw_line)
+            if "sessionId" in parsed:
+                self.assertEqual(parsed["sessionId"], new_uuid)
+
+
+# ---------------------------------------------------------------------------
+# Reid renaming simple artifacts
+# ---------------------------------------------------------------------------
+
+
+class ReidSimpleArtifactsTests(unittest.TestCase):
+    """Reid renames todos files and session-env directories to the new UUID."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        self._stdout_trap = contextlib.redirect_stdout(io.StringIO())
+        self._stdout_trap.__enter__()
+
+        # Source
+        self.source = self.root / "source"
+        proj = self.source / "projects" / "proj"
+        proj.mkdir(parents=True)
+        (proj / f"{UUID_A}.jsonl").write_text(
+            _make_session_jsonl("/test", UUID_A)
+        )
+
+        # Todos file: <uuid>-agent-<uuid>.json (both positions use the same UUID)
+        todos = self.source / "todos"
+        todos.mkdir()
+        (todos / f"{UUID_A}-agent-{UUID_A}.json").write_text('{"task":"clean"}')
+
+        # Session-env directory named after the UUID
+        session_env = self.source / "session-env" / UUID_A
+        session_env.mkdir(parents=True)
+        (session_env / "env.txt").write_text("FOO=bar")
+
+        # Shared store with collision
+        self.shared = self.root / "shared"
+        (self.shared / "projects").mkdir(parents=True)
+        target_dir = self.shared / "projects" / encode_path("/local/test")
+        target_dir.mkdir(parents=True)
+        (target_dir / f"{UUID_A}.jsonl").write_text("{}\n")
+
+    def tearDown(self) -> None:
+        self._stdout_trap.__exit__(None, None, None)
+        self._tmp.cleanup()
+
+    def test_todos_file_renamed_with_new_uuid(self) -> None:
+        """Todos file has both UUID positions replaced with the new UUID."""
+        with patch("claudewheel.import_.SHARED_DIR", self.shared), \
+             patch("claudewheel.import_.get_session_cwd", return_value="/test"):
+            result = run_import(
+                str(self.source),
+                mappings=[("/test", "/local/test")],
+                reid=True,
+            )
+
+        self.assertEqual(result.sessions_reided, 1)
+
+        # Find the new UUID from the imported JSONL
+        target_dir = self.shared / "projects" / encode_path("/local/test")
+        new_uuid = [
+            f.stem for f in target_dir.glob("*.jsonl")
+            if f.stem != UUID_A
+        ][0]
+
+        # The todos file should use the new UUID in both positions
+        expected_name = f"{new_uuid}-agent-{new_uuid}.json"
+        todos_dst = self.shared / "todos" / expected_name
+        self.assertTrue(
+            todos_dst.exists(),
+            f"expected {expected_name} in {self.shared / 'todos'}, "
+            f"found: {list((self.shared / 'todos').iterdir()) if (self.shared / 'todos').exists() else 'dir missing'}",
+        )
+
+    def test_session_env_dir_renamed_to_new_uuid(self) -> None:
+        """Session-env directory is renamed to the new UUID."""
+        with patch("claudewheel.import_.SHARED_DIR", self.shared), \
+             patch("claudewheel.import_.get_session_cwd", return_value="/test"):
+            result = run_import(
+                str(self.source),
+                mappings=[("/test", "/local/test")],
+                reid=True,
+            )
+
+        target_dir = self.shared / "projects" / encode_path("/local/test")
+        new_uuid = [
+            f.stem for f in target_dir.glob("*.jsonl")
+            if f.stem != UUID_A
+        ][0]
+
+        # The session-env dir should use the new UUID
+        env_dst = self.shared / "session-env" / new_uuid
+        self.assertTrue(
+            env_dst.exists(),
+            f"expected session-env/{new_uuid}, "
+            f"found: {list((self.shared / 'session-env').iterdir()) if (self.shared / 'session-env').exists() else 'dir missing'}",
+        )
+        # Old UUID should NOT exist (it was renamed)
+        old_env = self.shared / "session-env" / UUID_A
+        self.assertFalse(old_env.exists())
+
+
+# ---------------------------------------------------------------------------
+# Paste-cache dedup
+# ---------------------------------------------------------------------------
+
+
+class PasteCacheDedupTests(unittest.TestCase):
+    """Paste-cache import skips pre-existing files and counts only new ones."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        self._stdout_trap = contextlib.redirect_stdout(io.StringIO())
+        self._stdout_trap.__enter__()
+
+        # Source with two paste-cache files
+        self.source = self.root / "source"
+        proj = self.source / "projects" / "proj"
+        proj.mkdir(parents=True)
+        (proj / f"{UUID_C}.jsonl").write_text(
+            _make_session_jsonl("/test", UUID_C)
+        )
+        paste_src = self.source / "paste-cache"
+        paste_src.mkdir()
+        (paste_src / "abcdef123456.txt").write_text("duplicate content")
+        (paste_src / "newfile789abc.txt").write_text("new content")
+
+        # Shared store with pre-existing paste-cache file
+        self.shared = self.root / "shared"
+        (self.shared / "projects").mkdir(parents=True)
+        paste_dst = self.shared / "paste-cache"
+        paste_dst.mkdir(parents=True)
+        (paste_dst / "abcdef123456.txt").write_text("original content")
+
+    def tearDown(self) -> None:
+        self._stdout_trap.__exit__(None, None, None)
+        self._tmp.cleanup()
+
+    def test_paste_files_copied_counts_only_new(self) -> None:
+        """paste_files_copied reflects only newly copied files."""
+        with patch("claudewheel.import_.SHARED_DIR", self.shared), \
+             patch("claudewheel.import_.get_session_cwd", return_value="/test"):
+            result = run_import(
+                str(self.source),
+                mappings=[("/test", "/local/test")],
+            )
+
+        # Only the new file should be counted
+        self.assertEqual(result.paste_files_copied, 1)
+
+    def test_preexisting_paste_file_not_overwritten(self) -> None:
+        """The pre-existing paste-cache file retains its original content."""
+        with patch("claudewheel.import_.SHARED_DIR", self.shared), \
+             patch("claudewheel.import_.get_session_cwd", return_value="/test"):
+            run_import(
+                str(self.source),
+                mappings=[("/test", "/local/test")],
+            )
+
+        existing = self.shared / "paste-cache" / "abcdef123456.txt"
+        self.assertEqual(existing.read_text(), "original content")
+
+
+# ---------------------------------------------------------------------------
+# Empty JSONL skip
+# ---------------------------------------------------------------------------
+
+
+class EmptyJsonlSkipTests(unittest.TestCase):
+    """Zero-byte JSONL files are skipped by _scan_source without error."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        self.projects = self.root / "projects"
+        self.projects.mkdir()
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def test_empty_jsonl_skipped(self) -> None:
+        """A 0-byte JSONL file is not included in the bundles."""
+        enc = self.projects / "proj"
+        enc.mkdir()
+        # Create a 0-byte file with a valid UUID name
+        (enc / f"{UUID_A}.jsonl").write_text("")
+        # Create a non-empty file for comparison
+        (enc / f"{UUID_B}.jsonl").write_text(
+            _make_jsonl_line(cwd="/test") + "\n"
+        )
+
+        with patch("claudewheel.import_.get_session_cwd", return_value="/test"):
+            bundles = _scan_source(self.root)
+
+        # Only the non-empty file should produce a bundle
+        self.assertEqual(len(bundles), 1)
+        self.assertEqual(bundles[0].uuid, UUID_B)
+
+    def test_all_empty_returns_no_bundles(self) -> None:
+        """If every JSONL file is 0-byte, no bundles are returned."""
+        enc = self.projects / "proj"
+        enc.mkdir()
+        (enc / f"{UUID_A}.jsonl").write_text("")
+        (enc / f"{UUID_B}.jsonl").write_text("")
+
+        with patch("claudewheel.import_.get_session_cwd"):
+            bundles = _scan_source(self.root)
+
+        self.assertEqual(len(bundles), 0)
+
+
+# ---------------------------------------------------------------------------
+# Non-JSONL relative path rewrite during reid
+# ---------------------------------------------------------------------------
+
+
+class ReidNonJsonlPathTests(unittest.TestCase):
+    """Non-JSONL files with UUID in their relative path are copied under the new UUID."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        self._stdout_trap = contextlib.redirect_stdout(io.StringIO())
+        self._stdout_trap.__enter__()
+
+        # Source
+        self.source = self.root / "source"
+        proj = self.source / "projects" / "proj"
+        proj.mkdir(parents=True)
+        (proj / f"{UUID_A}.jsonl").write_text(
+            _make_session_jsonl("/test", UUID_A)
+        )
+
+        # Companion dir with nested non-JSONL file containing UUID in path
+        # e.g. <uuid>/tool-results/<uuid>/output.txt
+        companion = proj / UUID_A
+        nested = companion / "tool-results" / UUID_A
+        nested.mkdir(parents=True)
+        (nested / "output.txt").write_text("some tool output")
+
+        # Shared store with collision
+        self.shared = self.root / "shared"
+        (self.shared / "projects").mkdir(parents=True)
+        target_dir = self.shared / "projects" / encode_path("/local/test")
+        target_dir.mkdir(parents=True)
+        (target_dir / f"{UUID_A}.jsonl").write_text("{}\n")
+
+    def tearDown(self) -> None:
+        self._stdout_trap.__exit__(None, None, None)
+        self._tmp.cleanup()
+
+    def test_non_jsonl_copied_under_new_uuid_path(self) -> None:
+        """Non-JSONL file with UUID in relative path gets the UUID replaced."""
+        with patch("claudewheel.import_.SHARED_DIR", self.shared), \
+             patch("claudewheel.import_.get_session_cwd", return_value="/test"):
+            result = run_import(
+                str(self.source),
+                mappings=[("/test", "/local/test")],
+                reid=True,
+            )
+
+        self.assertEqual(result.sessions_reided, 1)
+
+        target_dir = self.shared / "projects" / encode_path("/local/test")
+        new_uuid = [
+            f.stem for f in target_dir.glob("*.jsonl")
+            if f.stem != UUID_A
+        ][0]
+
+        # The file should be under new_uuid/tool-results/new_uuid/output.txt
+        expected = target_dir / new_uuid / "tool-results" / new_uuid / "output.txt"
+        self.assertTrue(
+            expected.exists(),
+            f"expected {expected.relative_to(target_dir)}, "
+            f"found: {list(target_dir.rglob('output.txt'))}",
+        )
+        self.assertEqual(expected.read_text(), "some tool output")
+
+
 if __name__ == "__main__":
     unittest.main()
