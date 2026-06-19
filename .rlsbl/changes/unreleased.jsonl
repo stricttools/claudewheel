@@ -1,0 +1,1 @@
+{"commits":["ad7286fd9178cb5d13a5aa7cc4344d058b297a26","78b4ad90902fc8fdbaf2d534f709f08955687c11"],"user_facing":true,"description":"**New command.** `claudewheel import` imports Claude Code session data from external directories (e.g., Windows backups) into the shared store, with cross-OS path rewriting, collision detection, reid support, and dry-run mode.","type":"feature"}
