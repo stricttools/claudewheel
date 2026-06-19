@@ -83,7 +83,9 @@ def _build_rewriters(
             letter = parts_bs[0][0]
             escaped_bs = f"[{letter.lower()}{letter.upper()}]" + escaped_bs[1:]
         # Allow optional deeper segments: \\segment continuations.
-        pattern_bs = escaped_bs + r'((?:\\\\[^\\"]+)*)'
+        # Negative lookahead rejects JSON unicode escapes (\\uXXXX).
+        # Segments must not contain [, ], or space (ANSI escapes, prose).
+        pattern_bs = escaped_bs + r'((?:\\\\(?!u[0-9a-fA-F]{4})[^\\"\[\] ]+)*)'
         rewriters.append((re.compile(pattern_bs), to_path))
 
         # --- Pattern B: Forward-slash variant ---
@@ -94,7 +96,7 @@ def _build_rewriters(
         if len(parts_fs) > 0 and len(parts_fs[0]) == 2 and parts_fs[0][1] == ":":
             letter = parts_fs[0][0]
             escaped_fs = f"[{letter.lower()}{letter.upper()}]" + escaped_fs[1:]
-        pattern_fs = escaped_fs + r'((?:/[^/"]+)*)'
+        pattern_fs = escaped_fs + r'((?:/[^/\\"\[\] ]+)*)'
         rewriters.append((re.compile(pattern_fs), to_path))
 
     return rewriters
