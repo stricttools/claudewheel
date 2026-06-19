@@ -77,7 +77,7 @@ def _build_rewriters(
         # In the regex string, each literal ``\`` needs to be escaped once
         # more, so a single JSON ``\\`` becomes ``\\\\`` in the regex.
         parts_bs = re.split(r"[\\/]", from_path)
-        escaped_bs = "\\\\".join(re.escape(p) for p in parts_bs if p)
+        escaped_bs = r"\\\\".join(re.escape(p) for p in parts_bs if p)
         # Drive letter: make the first char case-insensitive.
         if len(parts_bs) > 0 and len(parts_bs[0]) == 2 and parts_bs[0][1] == ":":
             letter = parts_bs[0][0]
@@ -89,6 +89,8 @@ def _build_rewriters(
         # --- Pattern B: Forward-slash variant ---
         parts_fs = re.split(r"[\\/]", from_path)
         escaped_fs = "/".join(re.escape(p) for p in parts_fs if p)
+        if from_path.startswith("/"):
+            escaped_fs = "/" + escaped_fs
         if len(parts_fs) > 0 and len(parts_fs[0]) == 2 and parts_fs[0][1] == ":":
             letter = parts_fs[0][0]
             escaped_fs = f"[{letter.lower()}{letter.upper()}]" + escaped_fs[1:]
