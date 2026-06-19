@@ -22,6 +22,7 @@ order: 90
 - [claudewheel.health](claudewheel-health.html)
 - [claudewheel.hook_scripts](claudewheel-hook_scripts.html)
 - [claudewheel.hooks](claudewheel-hooks.html)
+- [claudewheel.import_](claudewheel-import_.html)
 - [claudewheel.install](claudewheel-install.html)
 - [claudewheel.launch](claudewheel-launch.html)
 - [claudewheel.migrate](claudewheel-migrate.html)

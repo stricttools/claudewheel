@@ -30,6 +30,7 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 - **claudewheel.health** (`claudewheel/health.py`): Pre-launch diagnostics: symlinks, tokens, hooks, permissions, and disk usage.
 - **claudewheel.hook_scripts** (`claudewheel/hook_scripts.py`): Registry of hook script templates for deploy-hooks command.
 - **claudewheel.hooks** (`claudewheel/hooks.py`): Run user-defined hook scripts at pre-launch and other lifecycle stages.
+- **claudewheel.import_** (`claudewheel/import_.py`): Import Claude Code session data from an external directory into the shared store.
 - **claudewheel.install** (`claudewheel/install.py`): Download, verify, and install Claude Code binaries from Google Cloud Storage.
 - **claudewheel.launch** (`claudewheel/launch.py`): Map TUI selections to binary path, env vars, flags, and exec.
 - **claudewheel.migrate** (`claudewheel/migrate.py`): Move session artifacts between profiles.
@@ -48,26 +49,7 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 
 ## Commands
 
-| Command | Description |
-| --- | --- |
-| `health` | run health check and exit |
-| `config` | open config dir in editor |
-| `versions` | list available versions and exit |
-| `install` | download and install a specific Claude Code version |
-| `uninstall` | delete an installed Claude Code version |
-| `reset-options` | delete options.json so it regenerates from defaults |
-| `new-profile` | run the profile creation wizard |
-| `delete-profile` | delete a registered profile and all associated data |
-| `show` | print current selections and exit |
-| `migrate` | migrate sessions between profiles |
-| `stats` | report shared-store stats and clean up legacy data |
-| `mv` | rename a project directory and migrate session data |
-| `deploy-hooks` | deploy hook scripts to ~/.claudewheel/scripts/ |
-| `launch` | start the interactive TUI launcher |
-| **permission** | manage profile permissions |
-| `permission add` | Add a permission rule to a profile's settings.json. Takes a category (allow, deny, or ask) and a rule string such as Bash or Read(//home/**). Writes the rule into the specified category array. Use --profile to target a single profile or --all-profiles to apply the rule across every registered profile. Skips duplicates if the rule already exists in the category. |
-| `permission remove` | Remove a permission rule from a profile's settings.json. Takes a category (allow, deny, or ask) and the exact rule string to delete. The rule is removed from the specified category array and the file is saved. Use --profile to target a single profile or --all-profiles to remove the rule from every registered profile. Reports whether the rule was found. |
-| `permission list` | List permission rules from a profile's settings.json. Displays rules in grouped, flat, or JSON format controlled by --format. Use --category to filter output to a single category (allow, deny, or ask). Use --profile to inspect a single profile or --all-profiles to show rules from every registered profile, with each profile's rules displayed under a header. |
+> *[selfdoc: no strictcli app found in 'claudewheel/']*
 
 ## Config system
 

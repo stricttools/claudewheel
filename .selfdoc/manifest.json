@@ -1,0 +1,248 @@
+{
+  "schema_version": 1,
+  "name": "claudewheel",
+  "slug": "claudewheel",
+  "version": "0.13.1",
+  "description": "TUI launcher for Claude Code: pick a profile, model, directory, and permissions from a segment bar, then launch.",
+  "language": "python",
+  "base_url": "https://claudewheel.smmh.dev",
+  "pages": [
+    {
+      "path": "claudewheel-__main__.md",
+      "title": "claudewheel.__main__",
+      "type": "doc"
+    },
+    {
+      "path": "claudewheel-app.md",
+      "title": "claudewheel.app",
+      "type": "doc"
+    },
+    {
+      "path": "claudewheel-cli.md",
+      "title": "claudewheel.cli",
+      "type": "doc"
+    },
+    {
+      "path": "claudewheel-config.md",
+      "title": "claudewheel.config",
+      "type": "doc"
+    },
+    {
+      "path": "claudewheel-constants.md",
+      "title": "claudewheel.constants",
+      "type": "doc"
+    },
+    {
+      "path": "claudewheel-defaults.md",
+      "title": "claudewheel.defaults",
+      "type": "doc"
+    },
+    {
+      "path": "claudewheel-discovery.md",
+      "title": "claudewheel.discovery",
+      "type": "doc"
+    },
+    {
+      "path": "claudewheel-fuzzy.md",
+      "title": "claudewheel.fuzzy",
+      "type": "doc"
+    },
+    {
+      "path": "claudewheel-health.md",
+      "title": "claudewheel.health",
+      "type": "doc"
+    },
+    {
+      "path": "claudewheel-hook_scripts.md",
+      "title": "claudewheel.hook_scripts",
+      "type": "doc"
+    },
+    {
+      "path": "claudewheel-hooks.md",
+      "title": "claudewheel.hooks",
+      "type": "doc"
+    },
+    {
+      "path": "claudewheel-import_.md",
+      "title": "claudewheel.import_",
+      "type": "doc"
+    },
+    {
+      "path": "claudewheel-install.md",
+      "title": "claudewheel.install",
+      "type": "doc"
+    },
+    {
+      "path": "claudewheel-launch.md",
+      "title": "claudewheel.launch",
+      "type": "doc"
+    },
+    {
+      "path": "claudewheel-migrate.md",
+      "title": "claudewheel.migrate",
+      "type": "doc"
+    },
+    {
+      "path": "claudewheel-mv.md",
+      "title": "claudewheel.mv",
+      "type": "doc"
+    },
+    {
+      "path": "claudewheel-permission.md",
+      "title": "claudewheel.permission",
+      "type": "doc"
+    },
+    {
+      "path": "claudewheel-profile.md",
+      "title": "claudewheel.profile",
+      "type": "doc"
+    },
+    {
+      "path": "claudewheel-profile_ops.md",
+      "title": "claudewheel.profile_ops",
+      "type": "doc"
+    },
+    {
+      "path": "claudewheel-renderer.md",
+      "title": "claudewheel.renderer",
+      "type": "doc"
+    },
+    {
+      "path": "claudewheel-segment.md",
+      "title": "claudewheel.segment",
+      "type": "doc"
+    },
+    {
+      "path": "claudewheel-session.md",
+      "title": "claudewheel.session",
+      "type": "doc"
+    },
+    {
+      "path": "claudewheel-state.md",
+      "title": "claudewheel.state",
+      "type": "doc"
+    },
+    {
+      "path": "claudewheel-stats.md",
+      "title": "claudewheel.stats",
+      "type": "doc"
+    },
+    {
+      "path": "claudewheel-terminal.md",
+      "title": "claudewheel.terminal",
+      "type": "doc"
+    },
+    {
+      "path": "claudewheel-theme.md",
+      "title": "claudewheel.theme",
+      "type": "doc"
+    },
+    {
+      "path": "claudewheel-wizard.md",
+      "title": "claudewheel.wizard",
+      "type": "doc"
+    },
+    {
+      "path": "claudewheel.md",
+      "title": "claudewheel",
+      "type": "doc"
+    },
+    {
+      "path": "cli-config.md",
+      "title": "c config",
+      "type": "doc"
+    },
+    {
+      "path": "cli-delete-profile.md",
+      "title": "c delete-profile",
+      "type": "doc"
+    },
+    {
+      "path": "cli-deploy-hooks.md",
+      "title": "c deploy-hooks",
+      "type": "doc"
+    },
+    {
+      "path": "cli-health.md",
+      "title": "c health",
+      "type": "doc"
+    },
+    {
+      "path": "cli-import.md",
+      "title": "c import",
+      "type": "doc"
+    },
+    {
+      "path": "cli-index.md",
+      "title": "c CLI Reference",
+      "type": "doc"
+    },
+    {
+      "path": "cli-install.md",
+      "title": "c install",
+      "type": "doc"
+    },
+    {
+      "path": "cli-launch.md",
+      "title": "c launch",
+      "type": "doc"
+    },
+    {
+      "path": "cli-migrate.md",
+      "title": "c migrate",
+      "type": "doc"
+    },
+    {
+      "path": "cli-mv.md",
+      "title": "c mv",
+      "type": "doc"
+    },
+    {
+      "path": "cli-new-profile.md",
+      "title": "c new-profile",
+      "type": "doc"
+    },
+    {
+      "path": "cli-permission.md",
+      "title": "c permission",
+      "type": "doc"
+    },
+    {
+      "path": "cli-reset-options.md",
+      "title": "c reset-options",
+      "type": "doc"
+    },
+    {
+      "path": "cli-show.md",
+      "title": "c show",
+      "type": "doc"
+    },
+    {
+      "path": "cli-stats.md",
+      "title": "c stats",
+      "type": "doc"
+    },
+    {
+      "path": "cli-uninstall.md",
+      "title": "c uninstall",
+      "type": "doc"
+    },
+    {
+      "path": "cli-versions.md",
+      "title": "c versions",
+      "type": "doc"
+    },
+    {
+      "path": "gen-index.md",
+      "title": "API Reference",
+      "type": "doc"
+    },
+    {
+      "path": "index.md",
+      "title": "claudewheel",
+      "type": "doc"
+    }
+  ],
+  "posts": [],
+  "last_gen": "2026-06-19T07:35:00.970643+00:00"
+}

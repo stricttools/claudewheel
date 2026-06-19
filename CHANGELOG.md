@@ -2,6 +2,21 @@
 
 # Changelog
 
+## 0.14.0
+
+Add import command for importing session data from external Claude Code directories
+
+<details>
+<summary>Context</summary>
+
+The new `claudewheel import` command enables importing Claude Code session data from external directories (e.g., Windows backups onto a Linux machine). It handles cross-OS path rewriting (Windows backslashes to Unix forward slashes), collision detection for sessions that already exist in the store, optional session re-identification (reid), and a dry-run mode for previewing what would be imported.
+
+</details>
+
+### Features
+
+- **New command.** `claudewheel import` imports Claude Code session data from external directories (e.g., Windows backups) into the shared store, with cross-OS path rewriting, collision detection, reid support, and dry-run mode.
+
 ## 0.13.1
 
 Instant TUI startup via async discovery, KeyboardInterrupt fix, SEO improvements

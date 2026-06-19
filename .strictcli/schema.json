@@ -38,7 +38,7 @@
   },
   "project_id": "claudewheel",
   "name": "c",
-  "version": "0.13.0",
+  "version": "0.13.1",
   "help": "claudewheel - TUI launcher for Claude Code",
   "commands": {
     "health": {
@@ -163,6 +163,44 @@
         {
           "name": "new",
           "help": "new directory path"
+        }
+      ]
+    },
+    "import": {
+      "name": "import",
+      "help": "import session data from an external Claude Code directory",
+      "flags": [
+        {
+          "name": "dry-run",
+          "type": "bool",
+          "help": "preview changes without writing",
+          "default": false,
+          "negatable": true
+        },
+        {
+          "name": "reid",
+          "type": "bool",
+          "help": "assign new UUIDs to colliding sessions",
+          "default": false,
+          "negatable": true
+        },
+        {
+          "name": "from",
+          "type": "str",
+          "help": "source path as it appears in session data",
+          "repeatable": true
+        },
+        {
+          "name": "to",
+          "type": "str",
+          "help": "target path on this machine",
+          "repeatable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "source",
+          "help": "path to the source directory (e.g., /path/to/backup/.claude)"
         }
       ]
     },
