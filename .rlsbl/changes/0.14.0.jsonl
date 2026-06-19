@@ -1,0 +1,6 @@
+{"commits":["ad7286fd9178cb5d13a5aa7cc4344d058b297a26","78b4ad90902fc8fdbaf2d534f709f08955687c11"],"user_facing":true,"description":"**New command.** `claudewheel import` imports Claude Code session data from external directories (e.g., Windows backups) into the shared store, with cross-OS path rewriting, collision detection, reid support, and dry-run mode.","type":"feature"}
+{"commits":["5275d0ba9c006225546fb1fe6d7ef4597507ae4b","ac9fd6bb9f78e82ac653ee3930afb92c040f958b","d467c12c67e53f97a8cb46622701d5a12d15577a","af3c96679c758bb11898b5e122b25e168b688730","69b1c6a1b63eeda8a926137085702644c76ac74c"],"user_facing":false}
+{"commits":["4223c045a3a961a6079de5caddd997f13d7e867b","cfa6484ad0c02ac7d8924fb7366800774e9197e1"],"user_facing":false}
+{"commits":["271da4c7622831508397d3f077583c1f278c03f6","d2072d2184a9aa160a976592e390b34f9ffd1adc","bdb446de050e8bbdf01dfe0466bf27ad898b091d"],"user_facing":false}
+{"commits":["cb3a6cfe03ef24accf880b9e91d9deba3e2761a8"],"user_facing":false}
+{"commits":["e9ef92c5cb4c22a61050e1ed7d428f5f4ce621a1"],"user_facing":false}
