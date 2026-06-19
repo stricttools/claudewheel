@@ -202,6 +202,8 @@ def _scan_source(source: Path) -> list[_SessionBundle]:
             stem = name[:-6]
             if not _is_uuid(stem):
                 continue
+            if entry.stat().st_size == 0:
+                continue
             cwd = get_session_cwd(entry)
             if cwd is None:
                 raise ValueError(
