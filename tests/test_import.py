@@ -237,12 +237,13 @@ class BuildRewritersTests(unittest.TestCase):
         rewriters = _build_rewriters([("/old/path", "/new/path")])
         self.assertEqual(len(rewriters), 2)
 
-    def test_backslash_pattern_matches_single_backslash_text(self) -> None:
-        """The backslash regex pattern matches single-backslash text."""
+    def test_backslash_pattern_matches_json_escaped_text(self) -> None:
+        """The backslash regex pattern matches JSON-escaped double-backslash text."""
         rewriters = _build_rewriters([("c:\\Users\\m", "/home/m")])
         bs_pattern = rewriters[0][0]
-        # Single backslashes in the text (as the regex is designed to match)
-        self.assertIsNotNone(bs_pattern.search("c:\\Users\\m"))
+        # In JSON, c:\Users\m is stored as c:\\Users\\m (double backslashes).
+        # The regex must match this JSON-escaped form.
+        self.assertIsNotNone(bs_pattern.search("c:\\\\Users\\\\m"))
 
 
 # ---------------------------------------------------------------------------
@@ -285,18 +286,32 @@ class ApplyRewritesTests(unittest.TestCase):
         parsed = json.loads(result)
         self.assertEqual(parsed["file_path"], "/home/m/test/src/app.js")
 
-    def test_backslash_pattern_rewrites_single_backslash_text(self) -> None:
-        r"""The backslash regex matches c:\Users\m in raw text (single backslash chars)."""
-        # Raw text with single backslashes (not valid JSON, but matches the
-        # backslash pattern produced by _build_rewriters).
-        line = r'{"cwd": "c:\Users\m\test"}'
+    def test_backslash_pattern_rewrites_json_escaped_text(self) -> None:
+        r"""The backslash regex matches JSON-escaped c:\\Users\\m (double backslashes)."""
+        # json.dumps produces double backslashes for Windows paths:
+        # {"cwd": "c:\\Users\\m\\test"} in the JSON text.
+        line = json.dumps({"cwd": "c:\\Users\\m\\test"})
 
         result, changed = self._rewrite(
             line, [("c:\\Users\\m\\test", "/home/m/test")],
         )
 
         self.assertTrue(changed)
-        self.assertIn("/home/m/test", result)
+        parsed = json.loads(result)
+        self.assertEqual(parsed["cwd"], "/home/m/test")
+
+    def test_backslash_pattern_rewrites_deeper_path(self) -> None:
+        r"""Backslash pattern rewrites deeper paths with suffix preserved."""
+        # c:\Users\m\test\src\app.js in JSON becomes c:\\Users\\m\\test\\src\\app.js
+        line = json.dumps({"file_path": "c:\\Users\\m\\test\\src\\app.js"})
+
+        result, changed = self._rewrite(
+            line, [("c:\\Users\\m\\test", "/home/m/test")],
+        )
+
+        self.assertTrue(changed)
+        parsed = json.loads(result)
+        self.assertEqual(parsed["file_path"], "/home/m/test/src/app.js")
 
     def test_case_insensitive_drive_letter(self) -> None:
         """Both C:/ and c:/ are rewritten via the forward-slash pattern."""
@@ -383,11 +398,8 @@ class ApplyRewritesTests(unittest.TestCase):
         )
 
         self.assertTrue(changed)
-        # The forward-slash pattern strips the leading "/" from from_path
-        # (re.split drops empty first element), so the leading "/" in the
-        # original text survives and the replacement adds another.
         parsed = json.loads(result)
-        self.assertEqual(parsed["cwd"], "//new/path/subdir")
+        self.assertEqual(parsed["cwd"], "/new/path/subdir")
 
 
 # ---------------------------------------------------------------------------
@@ -896,12 +908,10 @@ class IntegrationTests(unittest.TestCase):
         target_dir = self.shared / "projects" / encode_path("/new/project")
         target_jsonl = target_dir / f"{UUID_A}.jsonl"
         self.assertTrue(target_jsonl.exists())
-        # Note: Linux-to-Linux forward-slash rewrite produces a leading
-        # double slash (see test_linux_to_linux_rewrite for explanation).
         for raw_line in target_jsonl.read_text().splitlines():
             parsed = json.loads(raw_line)
             if "cwd" in parsed:
-                self.assertEqual(parsed["cwd"], "//new/project")
+                self.assertEqual(parsed["cwd"], "/new/project")
 
     def test_empty_source_returns_zero(self) -> None:
         """An empty projects/ dir results in 0 sessions imported."""
