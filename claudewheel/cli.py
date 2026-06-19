@@ -6,7 +6,7 @@ import os
 import sys
 
 import strictcli
-from strictcli import App, Arg, Flag, FlagSet, MutexGroup
+from strictcli import App, Arg, CoRequired, Flag, FlagSet, MutexGroup
 
 from . import __version__
 from .constants import CONFIG_DIR, OPTIONS_FILE, SCRIPTS_DIR, VERSIONS_DIR, CLAUDE_SYMLINK, SHARED_DIR, encode_path
@@ -294,6 +294,43 @@ def _handle_mv(old: str, new: str, dry_run: bool, post_hoc: bool) -> int:
     except (ValueError, FileNotFoundError, FileExistsError, OSError) as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
+    return 0
+
+
+@strictcli.flag("dry-run", type=bool, help="preview changes without writing")
+@strictcli.flag("reid", type=bool, help="assign new UUIDs to colliding sessions")
+def _handle_import(source: str, from_: list[str], to: list[str], dry_run: bool, reid: bool) -> int:
+    from pathlib import Path
+    from .import_ import run_import
+
+    if len(from_) != len(to):
+        print(
+            f"Error: --from and --to must appear the same number of times "
+            f"(got {len(from_)} --from and {len(to)} --to)",
+            file=sys.stderr,
+        )
+        return 1
+
+    mappings: list[tuple[str, str]] = []
+    for f, t in zip(from_, to):
+        resolved = Path(t).expanduser().resolve()
+        if not resolved.is_dir():
+            print(f"Error: --to path does not exist or is not a directory: {t}", file=sys.stderr)
+            return 1
+        mappings.append((f, str(resolved)))
+
+    try:
+        result = run_import(source, mappings, reid=reid, dry_run=dry_run)
+    except (ValueError, FileNotFoundError, OSError) as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+
+    if result.collisions and not reid:
+        print("Collisions detected (use --reid to assign new UUIDs):")
+        for c in result.collisions:
+            print(f"  {c}")
+        return 1
+
     return 0
 
 
@@ -761,7 +798,7 @@ def _handle_launch(
 _SUBCOMMANDS = frozenset({
     "health", "config", "versions", "install", "uninstall",
     "reset-options", "new-profile", "delete-profile", "show",
-    "migrate", "stats", "mv", "deploy-hooks", "launch",
+    "migrate", "stats", "mv", "import", "deploy-hooks", "launch",
     "permission",
 })
 
@@ -830,6 +867,24 @@ def _build_app() -> App:
                     Arg(name="new", help="new directory path"),
                 ])(
         _handle_mv
+    )
+
+    app.command("import", help="import session data from an external Claude Code directory",
+                args=[
+                    Arg(name="source", help="path to the source directory (e.g., /path/to/backup/.claude)"),
+                ],
+                flag_sets=[
+                    FlagSet(name="mapping", flags=[
+                        Flag(name="from", type=str, repeatable=True, unique=False,
+                             help="source path as it appears in session data"),
+                        Flag(name="to", type=str, repeatable=True, unique=False,
+                             help="target path on this machine"),
+                    ]),
+                ],
+                dependencies=[
+                    CoRequired(flags=["from", "to"]),
+                ])(
+        _handle_import
     )
 
     app.command("deploy-hooks", help="deploy hook scripts to ~/.claudewheel/scripts/",
