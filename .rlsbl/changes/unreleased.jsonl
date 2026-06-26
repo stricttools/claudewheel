@@ -19,3 +19,4 @@
 {"commits":["d8911af6da408f4b5b8f829bcef6a568d9ef08c0","2a00ec5d52093554f99e5bb05b2a2850fba17e5d"],"user_facing":false}
 {"commits":["c801da75646919266ba2da15396cbb05214f1a89"],"user_facing":false}
 {"commits":["80184d5b7bee96d353e89639808b8ce7ae8fc891"],"user_facing":true,"description":"**Virtual '+' button.** The '+' creation sentinel is now a virtual UI element, no longer stored in segment state collections. Freeform values are promoted from ephemeral to pinned on launch.","type":"feature"}
+{"commits":["ffbbe4507fc28a25297e03783742ad6d487dfb50"],"user_facing":true,"description":"**Deferred discovery apply.** Slow discovery results for the focused segment are now buffered and applied on defocus, preventing option list disruption while the user is interacting. A pending indicator (*) appears in the segment label when results are waiting.","type":"feature"}
