@@ -2,3 +2,4 @@
 {"commits":["f26873b1ccb2036d4eba086d4d96659d4f8f2686"],"user_facing":true,"description":"**Fix.** Background discovery thread no longer shares mutable state dict with the main thread; uses a deep copy to prevent race conditions on npm version cache writes.","type":"fix"}
 {"commits":["26f333e1afcbfa6fe75c5606fb5115821182cc91","12c810a9865a9b8dfa004fd7ea27708e2024b1d2"],"user_facing":false}
 {"commits":["65e9dbbd058087bbaadb4c100832d14aaad9805d"],"user_facing":false}
+{"commits":["9f82e79f9259691b1e09be6b653fe7a8be0623d4","7ad025a5398485bdd06c52d4ce16e26de051154b"],"user_facing":true,"description":"**Wizard UX overhaul.** Collapsible Advanced toggle hides 6 checkboxes by default, Enter from Name field submits, persistent error display, context-sensitive keyboard hints, Shift-Tab backward navigation, improved visual clarity (bracketed text input, bold radio selections).","type":"feature"}
