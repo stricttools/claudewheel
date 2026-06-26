@@ -408,6 +408,36 @@ def build_segment_bar(cfg: ConfigManager, *, skip_slow: bool = False) -> Segment
     return SegmentBar(segments=segments)
 
 
+def merge_slow_results(bar: SegmentBar, results: dict[str, list[str]], state: dict) -> None:
+    """Merge background discovery results into the live segment bar.
+
+    For each segment with new options in *results*, replace its option list,
+    update the installed set, re-append the "+" sentinel for creatable segments,
+    and restore the previous selection (falling back to last_config from *state*).
+    """
+    for seg in bar.segments:
+        if seg.key not in results:
+            continue
+        new_options = results[seg.key]
+        # Remember current selection
+        current_value = seg.value
+        # Update options
+        seg.options = new_options
+        # Attach installed set if discovery produced one
+        installed_key = f"_installed_{seg.key}"
+        if installed_key in results:
+            seg.installed = results[installed_key]
+        # Re-append "+" sentinel for creatable segments
+        if seg.creatable and "+" not in seg.options:
+            seg.options.append("+")
+        # Restore selection
+        if current_value is not None:
+            seg.select_value(current_value)
+        elif seg.key in state.get("last_config", {}):
+            # If user hasn't made a selection yet, try last_config
+            seg.select_value(state["last_config"][seg.key])
+
+
 def evaluate_requires(bar: SegmentBar) -> None:
     """Recompute unavailable sets based on cross-segment requirements."""
     selections = bar.get_selections()

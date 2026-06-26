@@ -7,7 +7,7 @@ import sys
 import threading
 
 from .config import ConfigManager
-from .segment import Segment, build_segment_bar, evaluate_requires, run_slow_discovery
+from .segment import Segment, build_segment_bar, evaluate_requires, merge_slow_results, run_slow_discovery
 from .terminal import Terminal
 from .theme import parse_theme
 from .renderer import Renderer
@@ -96,29 +96,7 @@ class App:
         if results is None:
             return
         self._slow_results = None  # Consume results once
-
-        for seg in self.bar.segments:
-            if seg.key not in results:
-                continue
-            new_options = results[seg.key]
-            # Remember current selection
-            current_value = seg.value
-            # Update options
-            seg.options = new_options
-            # Attach installed set if discovery produced one
-            installed_key = f"_installed_{seg.key}"
-            if installed_key in results:
-                seg.installed = results[installed_key]
-            # Re-append "+" sentinel for creatable segments
-            if seg.creatable and "+" not in seg.options:
-                seg.options.append("+")
-            # Restore selection
-            if current_value is not None:
-                seg.select_value(current_value)
-            elif seg.key in self.cfg.state.get("last_config", {}):
-                # If user hasn't made a selection yet, try last_config
-                seg.select_value(self.cfg.state["last_config"][seg.key])
-
+        merge_slow_results(self.bar, results, self.cfg.state)
         # Persist npm cache that the background thread may have updated
         self.cfg.save_state()
 
