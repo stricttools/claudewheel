@@ -8,7 +8,6 @@ import os
 import select
 import shutil
 import struct
-import sys
 import termios
 import tty
 

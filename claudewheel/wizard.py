@@ -4,12 +4,11 @@ from __future__ import annotations
 
 import json
 import signal
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
 from .constants import (
     CLEAR_SCREEN, CLEAR_LINE, RESET, BOLD, DIM,
-    ALT_SCREEN_ON, ALT_SCREEN_OFF, HIDE_CURSOR, SHOW_CURSOR,
     PROFILES_DIR, PROFILE_SHARED_DIRS, SCRIPTS_DIR,
     SHARED_DIR, SHARED_SETTINGS_FILE, SKILLS_DIR,
     move_to, fg_rgb,
@@ -348,5 +347,5 @@ def create_profile(result: WizardResult, cfg: ConfigManager) -> None:
     print(f"  Auto-memory:    {not result.disable_memory}")
     print(f"  Attribution:    {not result.disable_attribution}")
     print()
-    print(f"  To set up long-lived auth, run:")
+    print("  To set up long-lived auth, run:")
     print(f"    CLAUDE_CONFIG_DIR={result.config_dir} claude setup-token")
