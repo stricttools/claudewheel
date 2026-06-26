@@ -9,4 +9,4 @@ nav_order: 13
 
 # c show
 
-print current selections and exit
+print a summary of current segment selections, theme, and recent directories

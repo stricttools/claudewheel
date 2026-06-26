@@ -10,28 +10,28 @@ order: 91
 
 # c CLI Reference
 
-claudewheel - TUI launcher for Claude Code
+claudewheel - TUI launcher for Claude Code with profile, model, and directory selection
 
-Version: 0.14.0
+Version: 0.15.0
 
 ## Commands
 
-- [health](cli-health.html) -- run health check and exit
-- [config](cli-config.html) -- open config dir in editor
-- [versions](cli-versions.html) -- list available versions and exit
+- [health](cli-health.html) -- run diagnostic health checks on profiles, tokens, and hooks, then exit
+- [config](cli-config.html) -- open the ~/.claudewheel/ config directory in your $EDITOR
+- [versions](cli-versions.html) -- list all installed Claude Code versions, marking the current symlink target
 - [install](cli-install.html) -- download and install a specific Claude Code version
-- [uninstall](cli-uninstall.html) -- delete an installed Claude Code version
+- [uninstall](cli-uninstall.html) -- delete an installed Claude Code version binary from the versions directory
 - [reset-options](cli-reset-options.html) -- delete options.json so it regenerates from defaults
-- [new-profile](cli-new-profile.html) -- run the profile creation wizard
+- [new-profile](cli-new-profile.html) -- run the interactive wizard to create and configure a new Claude profile
 - [delete-profile](cli-delete-profile.html) -- delete a registered profile and all associated data
-- [show](cli-show.html) -- print current selections and exit
-- [migrate](cli-migrate.html) -- migrate sessions between profiles
+- [show](cli-show.html) -- print a summary of current segment selections, theme, and recent directories
+- [migrate](cli-migrate.html) -- move session data files from one profile to another, optionally filtered by UUID
 - [stats](cli-stats.html) -- report shared-store stats and clean up legacy data
 - [mv](cli-mv.html) -- rename a project directory and migrate session data
 - [import](cli-import.html) -- import session data from an external Claude Code directory
-- [deploy-hooks](cli-deploy-hooks.html) -- deploy hook scripts to ~/.claudewheel/scripts/
-- [launch](cli-launch.html) -- start the interactive TUI launcher
+- [deploy-hooks](cli-deploy-hooks.html) -- deploy built-in hook scripts to the ~/.claudewheel/scripts/ directory
+- [launch](cli-launch.html) -- start the interactive TUI launcher to select a profile, model, and directory
 
 ## Command Groups
 
-- [permission](cli-permission.html) -- manage profile permissions
+- [permission](cli-permission.html) -- add, remove, and list permission rules across Claude profiles

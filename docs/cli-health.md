@@ -9,4 +9,4 @@ nav_order: 4
 
 # c health
 
-run health check and exit
+run diagnostic health checks on profiles, tokens, and hooks, then exit

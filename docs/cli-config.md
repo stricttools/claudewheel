@@ -9,4 +9,4 @@ nav_order: 1
 
 # c config
 
-open config dir in editor
+open the ~/.claudewheel/ config directory in your $EDITOR

@@ -15,10 +15,10 @@ delete a registered profile and all associated data
 
 | Name | Short | Type | Default | Env | Description |
 | --- | --- | --- | --- | --- | --- |
-| `--force` |  | bool |  |  | force deletion even if sessions appear active |
+| `--force` |  | bool |  |  | force deletion even if sessions appear active; skips the safety check |
 
 ## Arguments
 
 | Name | Required | Description |
 | --- | --- | --- |
-| `name` | yes | profile name to delete |
+| `name` | yes | name of the profile to delete (e.g. work, personal, lisa) |

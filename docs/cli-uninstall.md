@@ -9,10 +9,10 @@ nav_order: 15
 
 # c uninstall
 
-delete an installed Claude Code version
+delete an installed Claude Code version binary from the versions directory
 
 ## Arguments
 
 | Name | Required | Description |
 | --- | --- | --- |
-| `version` | yes | version to uninstall |
+| `version` | yes | semver version string to remove (refuses if it is the current symlink target) |

@@ -9,4 +9,4 @@ nav_order: 16
 
 # c versions
 
-list available versions and exit
+list all installed Claude Code versions, marking the current symlink target

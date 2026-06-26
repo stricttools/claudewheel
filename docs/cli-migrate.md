@@ -9,12 +9,12 @@ nav_order: 8
 
 # c migrate
 
-migrate sessions between profiles
+move session data files from one profile to another, optionally filtered by UUID
 
 ## Arguments
 
 | Name | Required | Description |
 | --- | --- | --- |
-| `src` | yes | source profile |
-| `dst` | yes | destination profile |
-| `uuid` | no | UUID substring filter |
+| `src` | yes | source profile name whose sessions will be moved (e.g. work) |
+| `dst` | yes | destination profile name to receive the migrated sessions (e.g. personal) |
+| `uuid` | no | optional UUID substring to migrate only matching sessions |

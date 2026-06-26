@@ -9,4 +9,4 @@ nav_order: 10
 
 # c new-profile
 
-run the profile creation wizard
+run the interactive wizard to create and configure a new Claude profile

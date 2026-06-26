@@ -9,7 +9,7 @@ nav_order: 11
 
 # c permission
 
-manage profile permissions
+add, remove, and list permission rules across Claude profiles
 
 ## permission add
 
@@ -19,15 +19,15 @@ Add a permission rule to a profile's settings.json. Takes a category (allow, den
 
 | Name | Short | Type | Default | Env | Description |
 | --- | --- | --- | --- | --- | --- |
-| `--profile` |  | str |  |  | profile name |
-| `--all-profiles` |  | bool |  |  | apply to all profiles |
+| `--profile` |  | str |  |  | target a specific profile by name (mutually exclusive with --all-profiles) |
+| `--all-profiles` |  | bool |  |  | apply the operation to every registered profile at once |
 
 ### Arguments
 
 | Name | Required | Description |
 | --- | --- | --- |
-| `category` | yes | permission category (allow, deny, ask) |
-| `rule` | yes | permission rule (e.g. Bash, Read(//home/**)) |
+| `category` | yes | permission category to add the rule to: allow, deny, or ask |
+| `rule` | yes | permission rule string to add (e.g. Bash, Read(//home/**), Edit) |
 
 ## permission remove
 
@@ -37,15 +37,15 @@ Remove a permission rule from a profile's settings.json. Takes a category (allow
 
 | Name | Short | Type | Default | Env | Description |
 | --- | --- | --- | --- | --- | --- |
-| `--profile` |  | str |  |  | profile name |
-| `--all-profiles` |  | bool |  |  | apply to all profiles |
+| `--profile` |  | str |  |  | target a specific profile by name (mutually exclusive with --all-profiles) |
+| `--all-profiles` |  | bool |  |  | apply the operation to every registered profile at once |
 
 ### Arguments
 
 | Name | Required | Description |
 | --- | --- | --- |
-| `category` | yes | permission category (allow, deny, ask) |
-| `rule` | yes | permission rule to remove |
+| `category` | yes | permission category to remove the rule from: allow, deny, or ask |
+| `rule` | yes | exact permission rule string to remove (must match an existing entry) |
 
 ## permission list
 
@@ -55,7 +55,7 @@ List permission rules from a profile's settings.json. Displays rules in grouped,
 
 | Name | Short | Type | Default | Env | Description |
 | --- | --- | --- | --- | --- | --- |
-| `--format` |  | str |  |  | output format |
-| `--category` |  | str |  |  | filter to a single category (allow, deny, ask) |
-| `--profile` |  | str |  |  | profile name |
-| `--all-profiles` |  | bool |  |  | apply to all profiles |
+| `--format` |  | str |  |  | output format: grouped (indented tree), flat (tsv), or json |
+| `--category` |  | str |  |  | restrict output to a single permission category (allow, deny, or ask) |
+| `--profile` |  | str |  |  | target a specific profile by name (mutually exclusive with --all-profiles) |
+| `--all-profiles` |  | bool |  |  | apply the operation to every registered profile at once |

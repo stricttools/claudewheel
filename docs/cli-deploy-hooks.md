@@ -9,17 +9,17 @@ nav_order: 3
 
 # c deploy-hooks
 
-deploy hook scripts to ~/.claudewheel/scripts/
+deploy built-in hook scripts to the ~/.claudewheel/scripts/ directory
 
 ## Flags
 
 | Name | Short | Type | Default | Env | Description |
 | --- | --- | --- | --- | --- | --- |
-| `--all` |  | bool |  |  | deploy all known hook scripts |
-| `--force` |  | bool |  |  | overwrite existing scripts instead of skipping |
+| `--all` |  | bool |  |  | deploy every known hook script from the built-in registry at once |
+| `--force` |  | bool |  |  | overwrite existing hook scripts on disk instead of skipping them |
 
 ## Arguments
 
 | Name | Required | Description |
 | --- | --- | --- |
-| `name` | no | script name to deploy |
+| `name` | no | name of the specific hook script to deploy (omit to use --all) |

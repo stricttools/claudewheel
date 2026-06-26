@@ -15,4 +15,4 @@ report shared-store stats and clean up legacy data
 
 | Name | Short | Type | Default | Env | Description |
 | --- | --- | --- | --- | --- | --- |
-| `--dry-run` |  | bool |  |  | preview changes without writing |
+| `--dry-run` |  | bool |  |  | preview cleanup changes without writing anything to disk |
