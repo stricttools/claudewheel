@@ -107,6 +107,10 @@ class App:
 
         Results for the focused segment are deferred to avoid disrupting the
         user's current interaction.  Unfocused segments are updated immediately.
+
+        Known limitation: while results are buffered, evaluate_requires() uses
+        the focused segment's pre-discovery options for cross-segment constraint
+        checks. Constraint-based dimming may be briefly stale until defocus.
         """
         results = self._slow_results
         if results is None:
