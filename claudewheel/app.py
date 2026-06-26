@@ -184,7 +184,7 @@ class App:
             return self._handle_install_key(key)
 
         match key:
-            case "LEFT":
+            case "LEFT" | "SHIFT_TAB":
                 self._defocus()
                 self.bar.move_focus(-1)
             case "RIGHT":

@@ -72,6 +72,8 @@ class Terminal:
                             return "HOME"
                         case "F":
                             return "END"
+                        case "Z":
+                            return "SHIFT_TAB"
                         case _:
                             return f"ESC[{ch3}"
                 return "ESC"
@@ -96,3 +98,8 @@ class Terminal:
 
     def flush(self) -> None:
         self._tty_file.flush()
+
+    def close(self) -> None:
+        """Close the /dev/tty file handle."""
+        if self._tty_file is not None and not self._tty_file.closed:
+            self._tty_file.close()
