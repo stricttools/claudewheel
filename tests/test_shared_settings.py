@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from claudewheel.defaults import DISALLOWED_TOOLS, build_canonical_shared_settings
-from claudewheel.health import HealthResult, check_shared_settings_drift
+from claudewheel.health import check_shared_settings_drift
 
 
 class _HomeDirTestCase(unittest.TestCase):

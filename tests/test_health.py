@@ -10,7 +10,6 @@ from unittest.mock import patch
 
 from claudewheel.defaults import DISALLOWED_TOOLS
 from claudewheel.health import (
-    HealthResult,
     _discover_profiles,
     check_hooks_wired,
     check_orphan_profiles,

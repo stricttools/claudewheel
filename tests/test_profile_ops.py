@@ -67,7 +67,7 @@ class _ProfileOpsTestCase(unittest.TestCase):
     def _make_sibling_file(self, lines: list[dict]) -> None:
         """Write a JSONL file next to profiles/ to verify deletion spares siblings."""
         sibling = self.launcher_dir / "extra-data.jsonl"
-        sibling.write_text("\n".join(json.dumps(l) for l in lines) + "\n")
+        sibling.write_text("\n".join(json.dumps(line) for line in lines) + "\n")
 
 
 # ---------------------------------------------------------------------------
@@ -257,7 +257,7 @@ class DoDeleteProfileIntegrationTests(_ProfileOpsTestCase):
         self.assertIn("other", tokens)
         # Sibling file preserved (deletion only targets the profile dir)
         sibling_path = self.launcher_dir / "extra-data.jsonl"
-        remaining = [json.loads(l) for l in sibling_path.read_text().strip().splitlines()]
+        remaining = [json.loads(line) for line in sibling_path.read_text().strip().splitlines()]
         self.assertEqual(len(remaining), 2)
 
     def test_deletion_when_dir_already_gone(self) -> None:

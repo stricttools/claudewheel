@@ -122,7 +122,7 @@ class CacheInvalidationTests(unittest.TestCase):
     def test_add_pinned_invalidates(self) -> None:
         st = SegmentState()
         st.set_defaults(["a"])
-        first = st.options
+        _ = st.options  # prime the cache
         st.add_pinned("p")
         second = st.options
         self.assertEqual(second, ["p", "a"])

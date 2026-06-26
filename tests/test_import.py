@@ -1140,7 +1140,7 @@ class ReidCompanionDirTests(unittest.TestCase):
         """Agent JSONL inside the companion dir has the new sessionId."""
         with patch("claudewheel.import_.SHARED_DIR", self.shared), \
              patch("claudewheel.import_.get_session_cwd", return_value="/test"):
-            result = run_import(
+            run_import(
                 str(self.source),
                 mappings=[("/test", "/local/test")],
                 reid=True,
@@ -1259,7 +1259,7 @@ class ReidSimpleArtifactsTests(unittest.TestCase):
         """Session-env directory is renamed to the new UUID."""
         with patch("claudewheel.import_.SHARED_DIR", self.shared), \
              patch("claudewheel.import_.get_session_cwd", return_value="/test"):
-            result = run_import(
+            run_import(
                 str(self.source),
                 mappings=[("/test", "/local/test")],
                 reid=True,

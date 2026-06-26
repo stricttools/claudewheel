@@ -11,8 +11,6 @@ from unittest import mock
 
 from claudewheel.session import (
     MAX_CWD_SCAN_LINES,
-    OrphanedProject,
-    SessionInfo,
     find_orphaned_project_dirs,
     find_session,
     get_session_cwd,

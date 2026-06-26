@@ -10,7 +10,7 @@ from __future__ import annotations
 import unittest
 
 from claudewheel.segment import (
-    DiscoveryResult, Segment, SegmentBar, SegmentState, merge_slow_results,
+    DiscoveryResult, Segment, SegmentBar, merge_slow_results,
 )
 
 

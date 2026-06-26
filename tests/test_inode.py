@@ -73,7 +73,7 @@ class RecordInodeTests(InodeTestCase):
         d.rename(new)
         record_inode(str(new))
         data = json.loads(self._inodes_file.read_text())
-        old_abs = str(d.resolve()) if d.exists() else os.path.abspath(str(d))
+        _ = str(d.resolve()) if d.exists() else os.path.abspath(str(d))  # verify no crash
         new_abs = str(new.resolve())
         # Both entries should exist with the same inode
         self.assertEqual(data[new_abs], inode)
