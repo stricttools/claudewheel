@@ -55,13 +55,15 @@ class Renderer:
             is_focused = i == bar.focus_idx
             label_str = seg.label + ": "
 
-            # Determine what to display as the value (mirrors rendering logic)
+            # Determine what to display as the value (mirrors rendering logic).
+            # Use selected_value (not value) so virtual entries like "+"
+            # still render their text instead of the empty placeholder.
             if is_focused and seg.creating:
                 raw_value = seg.create_buffer
             elif is_focused and seg.searchable and seg.search_buffer:
                 raw_value = seg.search_buffer
-            elif seg.value is not None:
-                raw_value = seg.value
+            elif seg.selected_value is not None:
+                raw_value = seg.selected_value
             else:
                 raw_value = th.empty_value_text
             display_value = self._fit_value(raw_value, seg.min_width, seg.max_width)
@@ -226,13 +228,13 @@ class Renderer:
                 buf.append(th.label_fg)
                 buf.append(label_str)
                 buf.append(RESET)
-                if seg.value is None:
-                    buf.append(th.empty_value_fg)
+                if seg.selected_value == "+":
+                    # Virtual "+" sentinel rendered dim when not focused
+                    buf.append(DIM)
                     buf.append(display_value)
                     buf.append(RESET)
-                elif seg.value == "+":
-                    # "+" sentinel rendered dim when not focused
-                    buf.append(DIM)
+                elif seg.value is None:
+                    buf.append(th.empty_value_fg)
                     buf.append(display_value)
                     buf.append(RESET)
                 elif seg.state._installed and seg.value not in seg.state._installed:
@@ -306,7 +308,7 @@ class Renderer:
     ) -> None:
         """Render non-selected options vertically above/below the focused segment."""
         seg = bar.focused
-        if not seg.show_options or len(seg.options) <= 1:
+        if not seg.show_options or len(seg.display_options) <= 1:
             return
         if seg.key not in self._segment_positions:
             return
@@ -326,7 +328,7 @@ class Renderer:
             above: list[str] = []
             below: list[str] = opts
         else:
-            opts = seg.options
+            opts = seg.display_options
             if seg.selected_idx < 0:
                 # Nothing selected: all options fan out below
                 above = []

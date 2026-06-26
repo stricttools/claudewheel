@@ -202,6 +202,111 @@ class SegmentValueBasedSelectionTests(unittest.TestCase):
         self.assertEqual(seg.selected_idx, -1)
 
 
+class DisplayOptionsTests(unittest.TestCase):
+    """Tests for the display_options property (Phase 7: virtual '+')."""
+
+    def test_creatable_appends_plus(self) -> None:
+        """Creatable segments have '+' appended to display_options."""
+        seg = Segment(key="k", label="K", options=["a", "b"], creatable=True)
+        self.assertEqual(seg.display_options, ["a", "b", "+"])
+        # Real options do not contain "+"
+        self.assertNotIn("+", seg.options)
+
+    def test_non_creatable_no_plus(self) -> None:
+        """Non-creatable segments have display_options == options."""
+        seg = Segment(key="k", label="K", options=["a", "b"], creatable=False)
+        self.assertEqual(seg.display_options, ["a", "b"])
+
+    def test_creatable_empty_options(self) -> None:
+        """Creatable segment with no options has display_options == ['+']."""
+        seg = Segment(key="k", label="K", options=[], creatable=True)
+        self.assertEqual(seg.display_options, ["+"])
+
+    def test_cycling_visits_plus_and_blank(self) -> None:
+        """Cycling on a creatable segment visits all options + '+' + blank."""
+        seg = Segment(key="k", label="K", options=["a", "b"], creatable=True, wrap=True)
+        # display_options = ["a", "b", "+"], ring size = 4 (None, a, b, +)
+        # Starting from blank: +1 -> a, +1 -> b, +1 -> +, +1 -> blank
+        expected_values = ["a", "b", "+", None]
+        for i, want in enumerate(expected_values):
+            with self.subTest(step=i, want=want):
+                seg.cycle(+1)
+                self.assertEqual(seg.selected_value, want)
+
+    def test_selected_idx_maps_into_display_options(self) -> None:
+        """selected_idx is the index in display_options, not options."""
+        seg = Segment(key="k", label="K", options=["a", "b"], creatable=True)
+        seg.selected_value = "+"
+        # "+" is at index 2 in display_options ["a", "b", "+"]
+        self.assertEqual(seg.selected_idx, 2)
+
+    def test_selected_idx_for_regular_option(self) -> None:
+        """selected_idx for a regular option still works correctly."""
+        seg = Segment(key="k", label="K", options=["a", "b"], creatable=True)
+        seg.selected_value = "a"
+        self.assertEqual(seg.selected_idx, 0)
+        seg.selected_value = "b"
+        self.assertEqual(seg.selected_idx, 1)
+
+    def test_is_on_plus_true(self) -> None:
+        """is_on_plus returns True when selected_value is '+'."""
+        seg = Segment(key="k", label="K", options=["a"], creatable=True)
+        seg.selected_value = "+"
+        self.assertTrue(seg.is_on_plus)
+
+    def test_is_on_plus_false_not_creatable(self) -> None:
+        """is_on_plus returns False for non-creatable segments."""
+        seg = Segment(key="k", label="K", options=["a"])
+        seg.selected_value = "+"
+        self.assertFalse(seg.is_on_plus)
+
+    def test_value_none_on_plus(self) -> None:
+        """seg.value returns None when selected_value is '+'."""
+        seg = Segment(key="k", label="K", options=["a", "b"], creatable=True)
+        seg.selected_value = "+"
+        self.assertIsNone(seg.value)
+
+    def test_value_returns_real_option(self) -> None:
+        """seg.value returns the real option when not on '+'."""
+        seg = Segment(key="k", label="K", options=["a", "b"], creatable=True)
+        seg.selected_value = "a"
+        self.assertEqual(seg.value, "a")
+
+    def test_plus_not_in_filtered_options(self) -> None:
+        """'+' is excluded from filtered_options during search."""
+        seg = Segment(key="k", label="K", options=["alpha", "beta"], creatable=True)
+        seg.search_buffer = "al"
+        # Only real options are searched
+        filtered = seg.filtered_options
+        self.assertNotIn("+", filtered)
+
+    def test_plus_not_in_filtered_options_empty_buffer(self) -> None:
+        """With empty search buffer, filtered_options returns options (no '+')."""
+        seg = Segment(key="k", label="K", options=["a", "b"], creatable=True)
+        # filtered_options without search returns self.options (no "+")
+        self.assertEqual(seg.filtered_options, ["a", "b"])
+        self.assertNotIn("+", seg.filtered_options)
+
+    def test_cycle_backward_visits_plus(self) -> None:
+        """Cycling backward from blank visits '+' first on creatable."""
+        seg = Segment(key="k", label="K", options=["a", "b"], creatable=True, wrap=True)
+        # From blank, -1 should go to last display option: "+"
+        seg.cycle(-1)
+        self.assertEqual(seg.selected_value, "+")
+        # Then -1 goes to "b"
+        seg.cycle(-1)
+        self.assertEqual(seg.selected_value, "b")
+
+    def test_non_creatable_cycle_unchanged(self) -> None:
+        """Non-creatable segments cycle through options normally (regression check)."""
+        seg = Segment(key="k", label="K", options=["a", "b", "c"], wrap=True)
+        expected = [0, 1, 2, -1, 0]
+        for step, want in enumerate(expected):
+            with self.subTest(step=step):
+                seg.cycle(+1)
+                self.assertEqual(seg.selected_idx, want)
+
+
 class VersionSortKeyTests(unittest.TestCase):
     def test_numeric_ordering_not_alphabetical(self) -> None:
         """2.1.10 must sort *higher* than 2.1.9 (the alphabetical order is the opposite)."""

@@ -192,41 +192,57 @@ class Segment:
         return self.state.options
 
     @property
+    def display_options(self) -> list[str]:
+        """Options visible in the UI: real options + virtual "+" for creatable segments."""
+        if self.creatable:
+            return self.options + ["+"]
+        return self.options
+
+    @property
     def selected_idx(self) -> int:
-        """Computed index of selected_value in options, or -1 if unselected."""
+        """Computed index of selected_value in display_options, or -1 if unselected."""
         if self.selected_value is None:
             return -1
         try:
-            return self.options.index(self.selected_value)
+            return self.display_options.index(self.selected_value)
         except ValueError:
             return -1
 
     @property
     def value(self) -> str | None:
-        if self.selected_value is None or self.selected_value not in self.options:
+        if self.selected_value is None:
+            return None
+        if self.selected_value == "+":
+            return None
+        if self.selected_value not in self.options:
             return None
         return self.selected_value
 
     @property
     def filtered_options(self) -> list[str]:
-        """Return options filtered by search_buffer using fuzzy matching."""
+        """Return options filtered by search_buffer using fuzzy matching.
+
+        Filters against self.options (not display_options), so "+" is
+        excluded from fuzzy search. This is intentional.
+        """
         if not self.search_buffer:
             return self.options
         return fuzzy_rank(self.search_buffer, self.options)
 
     def cycle(self, direction: int) -> None:
-        """Move selection up (+1) or down (-1) through options.
+        """Move selection up (+1) or down (-1) through display_options.
 
         The ring has n+1 positions: [None, 0, 1, ..., n-1] where None is the
-        blank/unselected state. With wrap=True, cycling continuously rotates
-        through all positions including blank. With wrap=False, blank is
-        reachable from EITHER end of the option list (UP from first OR
-        DOWN from last), but going past blank in either direction stays at
-        blank rather than continuing to the other end.
+        blank/unselected state and n = len(display_options). With wrap=True,
+        cycling continuously rotates through all positions including blank.
+        With wrap=False, blank is reachable from EITHER end of the option list
+        (UP from first OR DOWN from last), but going past blank in either
+        direction stays at blank rather than continuing to the other end.
         """
-        if not self.options:
+        opts = self.display_options
+        if not opts:
             return
-        n = len(self.options)
+        n = len(opts)
         # Resolve current position via computed property
         idx = self.selected_idx
         # Ring of size n+1: positions are -1, 0, 1, ..., n-1
@@ -243,12 +259,12 @@ class Segment:
         if ring_pos == 0:
             self.selected_value = None
         else:
-            self.selected_value = self.options[ring_pos - 1]
+            self.selected_value = opts[ring_pos - 1]
 
     @property
     def is_on_plus(self) -> bool:
         """True if the current selection is the '+' creation sentinel."""
-        return self.creatable and self.value == "+"
+        return self.creatable and self.selected_value == "+"
 
     def select_value(self, val: str) -> bool:
         """Select an option by its string value. Returns True if found."""
@@ -658,9 +674,8 @@ def build_segment_bar(cfg: ConfigManager, *, skip_slow: bool = False) -> Segment
         # Run discovery via registry
         populate_segment_state(seg, opt, cfg.state, skip_slow=skip_slow)
 
-        # "+" sentinel for creatable segments (bridge until Phase 7)
-        if seg.creatable:
-            seg.state.add_ephemeral("+")
+        # Phase 7: "+" is a virtual UI element via display_options,
+        # no longer stored in any SegmentState collection.
 
         # Pre-select from last session's config if available
         if key in last:
@@ -720,8 +735,8 @@ def merge_slow_results(
                 entry = DISCOVERY_REGISTRY.get(disc["type"])
                 if entry and entry.verify:
                     verify_fn = lambda val, _e=entry, _c=opt: _e.verify(val, _c)
-        # Remember current selection
-        current_value = seg.value
+        # Remember current selection (use selected_value so virtual "+" is preserved)
+        current_value = seg.selected_value
         # Update discovered options via state (cache auto-invalidates)
         seg.state.set_discovered(dr.values, verify_fn=verify_fn)
         # Attach installed set if discovery produced one
@@ -730,7 +745,7 @@ def merge_slow_results(
         # Update metadata if discovery produced any
         if dr.metadata:
             seg.state.update_metadata(dr.metadata)
-        # "+" is already in ephemeral from build time, no need to re-append
+        # "+" is a virtual UI element via display_options, not in any collection
         # Restore selection: try current value first, fall back to last_config
         restored = False
         if current_value is not None:

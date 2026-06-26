@@ -75,6 +75,7 @@ class App:
                     return None
                 action = self._handle_key(key)
                 if action == "launch":
+                    self._promote_ephemeral()
                     return self.bar.get_selections()
                 elif action == "quit":
                     return None
@@ -86,6 +87,14 @@ class App:
                 self._flash = ""  # Clear flash after one render cycle
         finally:
             self.terminal.exit_raw()
+
+    def _promote_ephemeral(self) -> None:
+        """Promote ephemeral selections to pinned on disk before launch."""
+        for seg in self.bar.segments:
+            val = seg.selected_value
+            if val is not None and seg.state.source_of(val) == "ephemeral":
+                self.cfg.add_option(seg.key, val)
+                seg.state.add_pinned(val)
 
     def _run_slow_discovery_thread(self) -> None:
         """Background thread: run slow discovery and store results."""
@@ -350,7 +359,7 @@ class App:
         if not name or name == "+" or name in seg.options:
             return  # invalid or duplicate
 
-        # Add as pinned (appears before "+" since "+" is ephemeral)
+        # Add as pinned (appears before virtual "+" in display_options)
         seg.state.add_pinned(name)
         seg.select_value(name)
 
