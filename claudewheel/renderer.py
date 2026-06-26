@@ -53,7 +53,9 @@ class Renderer:
 
         for i, seg in enumerate(bar.segments):
             is_focused = i == bar.focus_idx
-            label_str = seg.label + ": "
+            # Append a pending indicator when discovery results are buffered
+            pending_marker = "*" if seg.has_pending else ""
+            label_str = seg.label + pending_marker + ": "
 
             # Determine what to display as the value (mirrors rendering logic).
             # Use selected_value (not value) so virtual entries like "+"

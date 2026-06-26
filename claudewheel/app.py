@@ -7,7 +7,7 @@ import sys
 import threading
 
 from .config import ConfigManager
-from .segment import Segment, build_segment_bar, evaluate_requires, merge_slow_results, run_slow_discovery_via_registry
+from .segment import DiscoveryResult, Segment, build_segment_bar, evaluate_requires, merge_slow_results, run_slow_discovery_via_registry
 from .terminal import Terminal
 from .theme import parse_theme
 from .renderer import Renderer
@@ -29,8 +29,9 @@ class App:
                         seg.state.add_ephemeral(val)
                         seg.select_value(val)
         # Start slow discovery in background thread
-        from .segment import DiscoveryResult
         self._slow_results: dict[str, DiscoveryResult] | None = None
+        # Deferred discovery results for the focused segment (Phase 8)
+        self._pending_discovery: dict[str, DiscoveryResult] = {}
         self._slow_thread = threading.Thread(
             target=self._run_slow_discovery_thread,
             daemon=True,
@@ -101,14 +102,57 @@ class App:
         self._slow_results = run_slow_discovery_via_registry(self.cfg.options_def, self.cfg.state)
 
     def _apply_slow_discovery(self) -> None:
-        """Merge slow discovery results into the live segment bar."""
+        """Merge slow discovery results into the live segment bar.
+
+        Results for the focused segment are deferred to avoid disrupting the
+        user's current interaction.  Unfocused segments are updated immediately.
+        """
         results = self._slow_results
         if results is None:
             return
         self._slow_results = None  # Consume results once
-        merge_slow_results(self.bar, results, self.cfg.state, options_def=self.cfg.options_def)
+
+        focused_key = self.bar.focused.key
+
+        # Split results: immediate for unfocused, deferred for focused
+        immediate: dict[str, DiscoveryResult] = {}
+        for key, dr in results.items():
+            if key == focused_key:
+                self._pending_discovery[key] = dr
+                # Mark the segment so the renderer can show an indicator
+                for seg in self.bar.segments:
+                    if seg.key == key:
+                        seg.has_pending = True
+                        break
+            else:
+                immediate[key] = dr
+
+        if immediate:
+            merge_slow_results(self.bar, immediate, self.cfg.state, options_def=self.cfg.options_def)
+
         # Persist npm cache that the background thread may have updated
         self.cfg.save_state()
+
+    def _apply_pending_for_segment(self, seg: Segment) -> None:
+        """Apply any deferred discovery results for *seg* and clear pending state."""
+        if seg.key not in self._pending_discovery:
+            return
+        dr = self._pending_discovery.pop(seg.key)
+        merge_slow_results(
+            self.bar,
+            {seg.key: dr},
+            self.cfg.state,
+            options_def=self.cfg.options_def,
+        )
+        seg.has_pending = False
+
+    def _defocus(self) -> None:
+        """Run deferred-apply housekeeping on the segment about to lose focus."""
+        focused = self.bar.focused
+        self._apply_pending_for_segment(focused)
+        # Clear freeform editing state
+        focused.search_buffer = ""
+        focused._freeform_editing = False
 
     def _handle_key(self, key: str) -> str | None:
         """Process a keypress and return an action string or None to continue."""
@@ -129,12 +173,10 @@ class App:
 
         match key:
             case "LEFT":
-                focused.search_buffer = ""
-                focused._freeform_editing = False
+                self._defocus()
                 self.bar.move_focus(-1)
             case "RIGHT":
-                focused.search_buffer = ""
-                focused._freeform_editing = False
+                self._defocus()
                 self.bar.move_focus(1)
             case "UP":
                 if focused.search_buffer:
@@ -192,8 +234,10 @@ class App:
                         focused.select_value(matches[0])
                     focused.search_buffer = ""
                     if focused.tab_advances:
+                        self._apply_pending_for_segment(focused)
                         self.bar.move_focus(1)
                 elif focused.tab_advances:
+                    self._apply_pending_for_segment(focused)
                     self.bar.move_focus(1)
             case "BACKSPACE":
                 if focused.freeform and not focused._freeform_editing and focused.value:
@@ -234,6 +278,7 @@ class App:
                 seg.search_buffer = ""
                 seg._freeform_editing = False
                 if seg.tab_advances:
+                    self._apply_pending_for_segment(seg)
                     self.bar.move_focus(1)
                 return None
             case "TAB":
@@ -244,6 +289,7 @@ class App:
                 seg.search_buffer = ""
                 seg._freeform_editing = False
                 if seg.tab_advances:
+                    self._apply_pending_for_segment(seg)
                     self.bar.move_focus(1)
                 return None
             case "BACKSPACE":
@@ -254,11 +300,13 @@ class App:
             case "LEFT":
                 seg.search_buffer = ""
                 seg._freeform_editing = False
+                self._apply_pending_for_segment(seg)
                 self.bar.move_focus(-1)
                 return None
             case "RIGHT":
                 seg.search_buffer = ""
                 seg._freeform_editing = False
+                self._apply_pending_for_segment(seg)
                 self.bar.move_focus(1)
                 return None
             case "ESC":

@@ -178,6 +178,7 @@ class Segment:
     _freeform_editing: bool = False  # True while actively editing a freeform buffer
     creating: bool = False   # True when in creation-mode text input
     create_buffer: str = ""  # text being typed for the new option
+    has_pending: bool = False  # True when deferred discovery results are buffered
     # Bridge field: seeds state._defaults when passed at construction.
     # Callers can pass options= (translated to _init_options by __init__ wrapper).
     _init_options: list[str] | None = field(default=None, repr=False)
