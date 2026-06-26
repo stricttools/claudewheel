@@ -4,3 +4,4 @@
 {"commits":["65e9dbbd058087bbaadb4c100832d14aaad9805d"],"user_facing":false}
 {"commits":["9f82e79f9259691b1e09be6b653fe7a8be0623d4","7ad025a5398485bdd06c52d4ce16e26de051154b"],"user_facing":true,"description":"**Wizard UX overhaul.** Collapsible Advanced toggle hides 6 checkboxes by default, Enter from Name field submits, persistent error display, context-sensitive keyboard hints, Shift-Tab backward navigation, improved visual clarity (bracketed text input, bold radio selections).","type":"feature"}
 {"commits":["886d56b30e395f8b13d811c3789cbe2822a3b539"],"user_facing":false}
+{"commits":["fc22ad0c21b049683e904f7e8221581abc2cfba0"],"user_facing":false}
