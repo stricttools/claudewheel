@@ -100,15 +100,15 @@
     "description": "73ddbcf4460b6621f8ea63f6c9ee3347bae99829d0b735d81d2c48d43348d683"
   },
   "en/claudewheel-app.md": {
-    "content": "45f429585ecbeb8b24b0d1932dc422d33f2b922b064b2f8587f8b61e625200f4",
+    "content": "b4bb41c680705d28d1182d41767a3ab80fab3965a717de7c00c842b825df9621",
     "description": "255794f10d9b631b49d3645f2e479421bc9ed92c4037a88fdd1a8c4bab35b1cb"
   },
   "en/claudewheel-cli.md": {
-    "content": "dc72f2c6d533de74dccf844ddf9584cfba891bbf7728d56a8937257d3882e1da",
+    "content": "037393042445df101e632e0491756f902b53659ccd6a0b89f8dd80d8aeeff391",
     "description": "7bfd59181100ed69f049f846b365961d9070ea61e7ae48e94bf30864368c4336"
   },
   "en/claudewheel-config.md": {
-    "content": "498e0b4fc2a488825b8cb7180089570f303ac18f70cf68262d28c7d987729796",
+    "content": "c5bce53eaf6b6ca5a9bb3cd8f3ca4dbd0be396954a0b22e79e05f5b56e0a9767",
     "description": "af5ddadf4796445eeae26d48344973a7cb317978ddbdb30dfea501c4aab8a9b1"
   },
   "en/claudewheel-constants.md": {
@@ -152,7 +152,7 @@
     "description": "a601e30cbc843c5710a250f9fb11f02f8d054a8bcc42ce1d38a89c9a49801f96"
   },
   "en/claudewheel-launch.md": {
-    "content": "60c117f24cb8a217f0ff95214c0b464ef2df471741fac1e6d7a2f65d2c7510c4",
+    "content": "8482aa50a8745256dd3479a9a5dd3e37f066c2005522777c740168d6bbc21f2f",
     "description": "e86ee61b4b17818b564c9d270c16e63a9b24ee5110a4084295356acd47bcc266"
   },
   "en/claudewheel-migrate.md": {
@@ -180,11 +180,11 @@
     "description": "e9b7942b5b1501faa163a9932a3c0cd8d42d54b20bb1d0adbbbe25af51d03d7d"
   },
   "en/claudewheel-renderer.md": {
-    "content": "eb39a846730c37611c9c0d5a27b03bb98fc294defc34feed1728cefbe8b1438a",
+    "content": "c34ddcb95d0d7501303c8fbdb7097700f5f4d5cfbd9e26ff4530d07779455815",
     "description": "a93485650012e103fb8fc3aec2fbaeae37254a3da1c28d22670f7ffde5b8832c"
   },
   "en/claudewheel-segment.md": {
-    "content": "b5489e0c296e17e0b5d6d8fba53e2873272d6f460572e49f38dd32012505f0f4",
+    "content": "6e9bb5713ee26011078dc8fa6b9c4928cf44d04ea9738a0b8418edac7ceda3f9",
     "description": "448c8892eb6d7a402e282ab8b408191b15a6d51c889e897ed3712bf48389b1fd"
   },
   "en/claudewheel-session.md": {
