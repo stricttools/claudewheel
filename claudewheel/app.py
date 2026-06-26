@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import signal
 import sys
 import threading
@@ -30,6 +31,7 @@ class App:
                         seg.select_value(val)
         # Start slow discovery in background thread
         self._slow_results: dict[str, DiscoveryResult] | None = None
+        self._slow_state_copy: dict | None = None  # isolated copy for bg thread
         # Deferred discovery results for the focused segment (Phase 8)
         self._pending_discovery: dict[str, DiscoveryResult] = {}
         self._slow_thread = threading.Thread(
@@ -100,7 +102,9 @@ class App:
 
     def _run_slow_discovery_thread(self) -> None:
         """Background thread: run slow discovery and store results."""
-        self._slow_results = run_slow_discovery_via_registry(self.cfg.options_def, self.cfg.state)
+        state_copy = copy.deepcopy(self.cfg.state)
+        self._slow_state_copy = state_copy
+        self._slow_results = run_slow_discovery_via_registry(self.cfg.options_def, state_copy)
 
     def _apply_slow_discovery(self) -> None:
         """Merge slow discovery results into the live segment bar.
@@ -135,7 +139,10 @@ class App:
         if immediate:
             merge_slow_results(self.bar, immediate, self.cfg.state, options_def=self.cfg.options_def)
 
-        # Persist npm cache that the background thread may have updated
+        # Copy npm cache from the isolated state copy back to the live state
+        if self._slow_state_copy:
+            self.cfg.state["npm_versions_cache"] = self._slow_state_copy.get("npm_versions_cache", {})
+            self._slow_state_copy = None
         self.cfg.save_state()
 
     def _apply_pending_for_segment(self, seg: Segment) -> None:
@@ -213,7 +220,7 @@ class App:
                     return None
                 # Check for non-installed version -- offer to install
                 for s in self.bar.segments:
-                    if s.value and s.state._installed and not s.state.is_installed(s.value):
+                    if s.value and s.state.has_installed and not s.state.is_installed(s.value):
                         self._pending_install = s.value
                         self._pending_install_seg = s
                         self._flash = f"{s.value} not on disk. Enter=install, Esc=cancel"
@@ -356,7 +363,7 @@ class App:
         try:
             install_version(version, progress_callback=on_progress)
             print(f"\nInstalled {version} successfully. Press Enter to continue...")
-            seg.state.set_installed(seg.state._installed | {version})
+            seg.state.mark_installed(version)
         except OSError as e:
             print(f"\nInstallation failed: {e}")
             print("Press Enter to continue...")

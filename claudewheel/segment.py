@@ -129,8 +129,17 @@ class SegmentState:
             self._ephemeral.append(val)
             self._options = None
 
+    # Cache invalidation is intentionally omitted from set_installed and
+    # mark_installed: installed status affects rendering, not option list ordering.
     def set_installed(self, vals: set[str]) -> None:
         self._installed = vals
+
+    @property
+    def has_installed(self) -> bool:
+        return bool(self._installed)
+
+    def mark_installed(self, val: str) -> None:
+        self._installed.add(val)
 
     def set_metadata(self, meta: dict[str, dict]) -> None:
         self.metadata = meta
@@ -554,7 +563,12 @@ DISCOVERY_REGISTRY: dict[str, DiscoveryEntry] = {
 def run_slow_discovery_via_registry(
     options_def: dict, state: dict,
 ) -> dict[str, DiscoveryResult]:
-    """Run only slow discovery types via the registry. Thread-safe: reads only."""
+    """Run only slow discovery types via the registry.
+
+    Mutates *state* (e.g. fetch_npm_versions writes npm_versions_cache).
+    Callers running this in a background thread should pass a deep copy of
+    the shared state dict and merge results back on the main thread.
+    """
     results: dict[str, DiscoveryResult] = {}
     for key, opt in options_def.items():
         disc = opt.get("discovery")

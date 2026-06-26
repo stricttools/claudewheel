@@ -32,6 +32,7 @@ class ApplySlowDiscoveryDeferralTests(unittest.TestCase):
         app = MagicMock(spec=App)
         app.bar = bar
         app._pending_discovery = {}
+        app._slow_state_copy = None
         app.cfg = MagicMock()
         app.cfg.state = {}
         app.cfg.options_def = {}
