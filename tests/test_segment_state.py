@@ -174,6 +174,27 @@ class InstalledTests(unittest.TestCase):
         st = SegmentState()
         self.assertFalse(st.is_installed("anything"))
 
+    def test_has_installed_false_on_empty(self) -> None:
+        st = SegmentState()
+        self.assertFalse(st.has_installed)
+
+    def test_has_installed_true_after_set(self) -> None:
+        st = SegmentState()
+        st.set_installed({"1.0"})
+        self.assertTrue(st.has_installed)
+
+    def test_mark_installed_adds_value(self) -> None:
+        st = SegmentState()
+        st.mark_installed("3.0")
+        self.assertTrue(st.is_installed("3.0"))
+        self.assertTrue(st.has_installed)
+
+    def test_mark_installed_idempotent(self) -> None:
+        st = SegmentState()
+        st.mark_installed("3.0")
+        st.mark_installed("3.0")
+        self.assertTrue(st.is_installed("3.0"))
+
 
 class PinnedMutationTests(unittest.TestCase):
     def test_add_pinned_dedup(self) -> None:
