@@ -162,7 +162,7 @@ class Segment:
     key: str
     label: str
     state: SegmentState = field(default_factory=SegmentState)
-    selected_idx: int = -1  # -1 means nothing selected
+    selected_value: str | None = None  # None means nothing selected
     search_buffer: str = ""
     show_options: bool = True
     wrap: bool = True
@@ -192,10 +192,20 @@ class Segment:
         return self.state.options
 
     @property
+    def selected_idx(self) -> int:
+        """Computed index of selected_value in options, or -1 if unselected."""
+        if self.selected_value is None:
+            return -1
+        try:
+            return self.options.index(self.selected_value)
+        except ValueError:
+            return -1
+
+    @property
     def value(self) -> str | None:
-        if self.selected_idx < 0 or not self.options:
+        if self.selected_value is None or self.selected_value not in self.options:
             return None
-        return self.options[self.selected_idx]
+        return self.selected_value
 
     @property
     def filtered_options(self) -> list[str]:
@@ -207,7 +217,7 @@ class Segment:
     def cycle(self, direction: int) -> None:
         """Move selection up (+1) or down (-1) through options.
 
-        The ring has n+1 positions: [-1, 0, 1, ..., n-1] where -1 is the
+        The ring has n+1 positions: [None, 0, 1, ..., n-1] where None is the
         blank/unselected state. With wrap=True, cycling continuously rotates
         through all positions including blank. With wrap=False, blank is
         reachable from EITHER end of the option list (UP from first OR
@@ -217,9 +227,11 @@ class Segment:
         if not self.options:
             return
         n = len(self.options)
+        # Resolve current position via computed property
+        idx = self.selected_idx
         # Ring of size n+1: positions are -1, 0, 1, ..., n-1
         # Map -1 -> 0, 0 -> 1, ..., n-1 -> n for ring arithmetic
-        ring_pos = self.selected_idx + 1  # now in [0, n]
+        ring_pos = idx + 1  # now in [0, n]
         ring_pos += direction
         if self.wrap:
             ring_pos %= (n + 1)
@@ -227,7 +239,11 @@ class Segment:
             # Off either end -> blank (ring_pos 0). Stay at blank otherwise.
             if ring_pos < 0 or ring_pos > n:
                 ring_pos = 0
-        self.selected_idx = ring_pos - 1  # back to [-1, n-1]
+        # Convert back to value
+        if ring_pos == 0:
+            self.selected_value = None
+        else:
+            self.selected_value = self.options[ring_pos - 1]
 
     @property
     def is_on_plus(self) -> bool:
@@ -236,11 +252,10 @@ class Segment:
 
     def select_value(self, val: str) -> bool:
         """Select an option by its string value. Returns True if found."""
-        try:
-            self.selected_idx = self.options.index(val)
+        if val in self.options:
+            self.selected_value = val
             return True
-        except ValueError:
-            return False
+        return False
 
 
 # Wrap __init__ so callers can pass options= (backward compat bridge).
@@ -378,7 +393,13 @@ def _discover_npm_and_local_cached(config: dict, state: dict) -> DiscoveryResult
 
 
 def _discover_directory_scan(config: dict, state: dict) -> DiscoveryResult:
-    """Discover directories by scanning parent directories."""
+    """Discover directories by scanning parent directories.
+
+    Recent dirs from state are used as hints: validated (must exist on disk),
+    emitted first in the result, and pruned back to state (stale entries removed).
+    Static values from options.json are NOT included -- they are handled by
+    SegmentState.defaults via the defaults collection.
+    """
     disc = config["discovery"]
     parents = disc.get("parents", [])
     found: list[str] = []
@@ -393,13 +414,19 @@ def _discover_directory_scan(config: dict, state: dict) -> DiscoveryResult:
                         found.append("~/" + str(rel))
                     except ValueError:
                         found.append(str(entry))
-    # Merge with recent_dirs from state (recent first, then discovered)
+    # Validate recent_dirs from state as hints (filter to existing dirs)
     state_field = disc.get("state_field")
-    recent = state.get(state_field, []) if state_field else []
-    static_values = _parse_static_values(config)
+    recent: list[str] = state.get(state_field, []) if state_field else []
+    validated_recent: list[str] = [
+        p for p in recent if Path(p).expanduser().is_dir()
+    ]
+    # Prune stale entries from state
+    if state_field and state_field in state:
+        state[state_field] = validated_recent
+    # Merge: validated recent first, then parent-scan results (deduped)
     seen: set[str] = set()
     merged: list[str] = []
-    for v in recent + found + static_values:
+    for v in validated_recent + found:
         if v not in seen:
             seen.add(v)
             merged.append(v)

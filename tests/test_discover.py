@@ -8,6 +8,9 @@ from pathlib import Path
 
 from claudewheel.segment import (
     DiscoveryResult,
+    Segment,
+    SegmentBar,
+    merge_slow_results,
     _discover_directory_listing,
     _discover_directory_scan,
     _discover_gh_accounts,
@@ -99,38 +102,81 @@ class DirectoryScanDiscoveryTests(unittest.TestCase):
         self.assertEqual(names, ["proj-a", "proj-b"])
         self.assertNotIn(".hidden", names)
 
-    def test_merge_order_recent_then_discovered_then_static(self) -> None:
-        """Order is: state recent_dirs, then discovered dirs, then static values."""
+    def test_validated_recent_dirs_first_then_scanned(self) -> None:
+        """Validated recent dirs appear first, then parent-scan results."""
         parent = self.tmp / "projects"
         parent.mkdir()
         (parent / "alpha").mkdir()
+        # Create a real directory for the recent dir to validate against
+        recent_dir = self.tmp / "recent-project"
+        recent_dir.mkdir()
 
         config = {
-            "values": ["/static/path"],
+            "values": ["/static/path"],  # static values are ignored (handled by defaults)
             "discovery": {
                 "type": "directory_scan",
                 "parents": [str(parent)],
                 "state_field": "recent_dirs",
             },
         }
-        state = {"recent_dirs": ["/recent/one"]}
+        state = {"recent_dirs": [str(recent_dir)]}
         result = _discover_directory_scan(config, state)
         # recent first
-        self.assertEqual(result.values[0], "/recent/one")
-        # static last
-        self.assertEqual(result.values[-1], "/static/path")
-        # discovered in the middle
-        self.assertEqual(len(result.values), 3)
+        self.assertEqual(result.values[0], str(recent_dir))
+        # static values are NOT in the result (handled by SegmentState.defaults)
+        self.assertNotIn("/static/path", result.values)
+        # Only recent + scanned
+        self.assertEqual(len(result.values), 2)
 
-    def test_dedup_across_all_three_sources(self) -> None:
-        """Duplicate entries across recent, discovered, and static are collapsed."""
+    def test_invalid_recent_dirs_filtered_out(self) -> None:
+        """Non-existent recent dirs are excluded from the result."""
+        parent = self.tmp / "projects"
+        parent.mkdir()
+        (parent / "alpha").mkdir()
+        # Create one real and one fake recent dir
+        real_dir = self.tmp / "real-project"
+        real_dir.mkdir()
+
+        config = {
+            "values": [],
+            "discovery": {
+                "type": "directory_scan",
+                "parents": [str(parent)],
+                "state_field": "recent_dirs",
+            },
+        }
+        state = {"recent_dirs": [str(real_dir), "/nonexistent/path/abc123"]}
+        result = _discover_directory_scan(config, state)
+        self.assertIn(str(real_dir), result.values)
+        self.assertNotIn("/nonexistent/path/abc123", result.values)
+
+    def test_stale_recent_dirs_pruned_from_state(self) -> None:
+        """Stale (non-existent) recent dirs are removed from the state dict."""
+        real_dir = self.tmp / "real-project"
+        real_dir.mkdir()
+
+        config = {
+            "values": [],
+            "discovery": {
+                "type": "directory_scan",
+                "parents": [],
+                "state_field": "recent_dirs",
+            },
+        }
+        state = {"recent_dirs": [str(real_dir), "/stale/gone/path"]}
+        _discover_directory_scan(config, state)
+        # State should be pruned to only the valid dir
+        self.assertEqual(state["recent_dirs"], [str(real_dir)])
+
+    def test_dedup_between_recent_and_scanned(self) -> None:
+        """Duplicate entries across recent and scanned are collapsed."""
         parent = self.tmp / "projects"
         parent.mkdir()
         (parent / "dup").mkdir()
         discovered_path = str(parent / "dup")
 
         config = {
-            "values": [discovered_path],
+            "values": [],
             "discovery": {
                 "type": "directory_scan",
                 "parents": [str(parent)],
@@ -148,7 +194,7 @@ class DirectoryScanDiscoveryTests(unittest.TestCase):
         (parent / "proj").mkdir()
 
         config = {
-            "values": ["/static"],
+            "values": [],
             "discovery": {
                 "type": "directory_scan",
                 "parents": [str(parent)],
@@ -159,12 +205,13 @@ class DirectoryScanDiscoveryTests(unittest.TestCase):
             config, state={"recent_dirs": ["/should-not-appear"]},
         )
         self.assertNotIn("/should-not-appear", result.values)
-        self.assertEqual(result.values[-1], "/static")
+        # Only scanned dirs
+        self.assertEqual(len(result.values), 1)
 
-    def test_empty_parents_uses_static_values(self) -> None:
-        """If parents list is empty, discovered is empty, but static values survive."""
+    def test_empty_parents_and_no_recent_yields_empty(self) -> None:
+        """If parents list is empty and no recent dirs, result is empty."""
         config = {
-            "values": ["/fallback"],
+            "values": ["/fallback"],  # static values are ignored
             "discovery": {
                 "type": "directory_scan",
                 "parents": [],
@@ -172,7 +219,26 @@ class DirectoryScanDiscoveryTests(unittest.TestCase):
             },
         }
         result = _discover_directory_scan(config, state={})
-        self.assertEqual(result.values, ["/fallback"])
+        # Static values no longer appear in discovery result
+        self.assertEqual(result.values, [])
+
+    def test_static_values_not_included_in_result(self) -> None:
+        """Static values from config are not in discovery result (handled by defaults)."""
+        parent = self.tmp / "projects"
+        parent.mkdir()
+        (parent / "alpha").mkdir()
+
+        config = {
+            "values": ["/my/static/dir", "/another/static"],
+            "discovery": {
+                "type": "directory_scan",
+                "parents": [str(parent)],
+                "state_field": "recent_dirs",
+            },
+        }
+        result = _discover_directory_scan(config, state={})
+        self.assertNotIn("/my/static/dir", result.values)
+        self.assertNotIn("/another/static", result.values)
 
 
 class StateFieldDiscoveryTests(unittest.TestCase):
@@ -546,6 +612,46 @@ class DiscoveryResultTests(unittest.TestCase):
         self.assertEqual(dr.installed, {"a"})
         self.assertEqual(dr.requires, {"b": {"ver": ">=1"}})
         self.assertEqual(dr.metadata, {"a": {"key": "val"}})
+
+
+class LastConfigSelectionOnlyTests(unittest.TestCase):
+    """Verify last_config is selection-only: it never injects values into options."""
+
+    def test_build_segment_bar_last_config_nonexistent_value(self) -> None:
+        """select_value with a non-existent value does not inject it into options."""
+        seg = Segment(key="directory", label="Dir")
+        seg.state.set_discovered(["/existing/a", "/existing/b"])
+        # Simulate last_config with a value that doesn't exist in options
+        found = seg.select_value("/gone/deleted/path")
+        self.assertFalse(found)
+        # Value should NOT be injected
+        self.assertNotIn("/gone/deleted/path", seg.options)
+        self.assertEqual(seg.options, ["/existing/a", "/existing/b"])
+        # Selection should remain unselected
+        self.assertEqual(seg.selected_idx, -1)
+        self.assertIsNone(seg.value)
+
+    def test_merge_slow_results_last_config_nonexistent_value(self) -> None:
+        """merge_slow_results with last_config pointing to absent value does not inject."""
+        seg = Segment(key="directory", label="Dir")
+        seg.state.set_discovered(["/old/path"])
+        bar = SegmentBar(segments=[seg])
+        # Slow results replace discovered, and last_config references a non-existent path
+        results = {"directory": DiscoveryResult(values=["/new/a", "/new/b"])}
+        state = {"last_config": {"directory": "/gone/stale/path"}}
+        merge_slow_results(bar, results, state)
+        self.assertNotIn("/gone/stale/path", seg.options)
+        self.assertEqual(seg.options, ["/new/a", "/new/b"])
+
+    def test_merge_slow_results_last_config_existing_value_selects(self) -> None:
+        """merge_slow_results with last_config pointing to existing value selects it."""
+        seg = Segment(key="directory", label="Dir")
+        seg.state.set_discovered(["/old/path"])
+        bar = SegmentBar(segments=[seg])
+        results = {"directory": DiscoveryResult(values=["/new/a", "/new/b"])}
+        state = {"last_config": {"directory": "/new/b"}}
+        merge_slow_results(bar, results, state)
+        self.assertEqual(seg.value, "/new/b")
 
 
 if __name__ == "__main__":
