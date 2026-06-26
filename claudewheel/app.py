@@ -97,7 +97,7 @@ class App:
         if results is None:
             return
         self._slow_results = None  # Consume results once
-        merge_slow_results(self.bar, results, self.cfg.state)
+        merge_slow_results(self.bar, results, self.cfg.state, options_def=self.cfg.options_def)
         # Persist npm cache that the background thread may have updated
         self.cfg.save_state()
 

@@ -95,8 +95,17 @@ class SegmentState:
 
     # -- Mutation methods (each invalidates cache) --
 
-    def set_discovered(self, vals: list[str]) -> None:
-        self._discovered = vals
+    def set_discovered(self, vals: list[str], *, verify_fn: Callable | None = None) -> None:
+        if verify_fn is not None:
+            # VERIFY policy: values removed from new list are checked before dropping
+            new_set = set(vals)
+            old_only = [v for v in self._discovered if v not in new_set]
+            kept = [v for v in old_only if verify_fn(v)]
+            # New values first, then verified survivors (preserves new list order)
+            self._discovered = vals + kept
+        else:
+            # IMMEDIATE policy: new list fully replaces old
+            self._discovered = vals
         self._options = None
 
     def add_pinned(self, val: str) -> None:
@@ -475,12 +484,22 @@ def _parse_requires(config: dict) -> dict[str, dict[str, str]]:
 # ---------------------------------------------------------------------------
 
 DISCOVERY_REGISTRY: dict[str, DiscoveryEntry] = {
-    "directory_listing": DiscoveryEntry(func=_discover_directory_listing),
-    "npm_and_local": DiscoveryEntry(func=_discover_npm_and_local, is_slow=True),
-    "directory_scan": DiscoveryEntry(func=_discover_directory_scan),
-    "claude_config_scan": DiscoveryEntry(func=_discover_profiles),
-    "gh_auth": DiscoveryEntry(func=_discover_gh_accounts, is_slow=True),
-    "state_field": DiscoveryEntry(func=_discover_state_field),
+    "directory_listing": DiscoveryEntry(
+        func=_discover_directory_listing,
+        verify=lambda val, config: Path(config.get("discovery", {}).get("path", "")).expanduser().joinpath(val).is_file(),
+    ),
+    "npm_and_local": DiscoveryEntry(
+        func=_discover_npm_and_local,
+        is_slow=True,
+        verify=lambda val, config: Path(config.get("discovery", {}).get("path", "")).expanduser().joinpath(val).is_dir(),
+    ),
+    "directory_scan": DiscoveryEntry(
+        func=_discover_directory_scan,
+        verify=lambda val, config: Path(val).expanduser().is_dir(),
+    ),
+    "claude_config_scan": DiscoveryEntry(func=_discover_profiles),  # IMMEDIATE
+    "gh_auth": DiscoveryEntry(func=_discover_gh_accounts, is_slow=True),  # IMMEDIATE
+    "state_field": DiscoveryEntry(func=_discover_state_field),  # no staleness check
 }
 
 
@@ -529,18 +548,23 @@ def populate_segment_state(
     if not entry:
         return
 
+    # Build verify_fn closure if the entry has a verify callback
+    verify_fn = None
+    if entry.verify:
+        verify_fn = lambda val, _e=entry, _c=options_def_entry: _e.verify(val, _c)
+
     if entry.is_slow and skip_slow:
         # For npm_and_local, use the cached fast-path
         if dtype == "npm_and_local":
             result = _discover_npm_and_local_cached(options_def_entry, state)
-            seg.state.set_discovered(result.values)
+            seg.state.set_discovered(result.values, verify_fn=verify_fn)
             if result.installed:
                 seg.state.set_installed(result.installed)
         # Other slow types (gh_auth) produce nothing at startup
         return
 
     result = entry.func(options_def_entry, state)
-    seg.state.set_discovered(result.values)
+    seg.state.set_discovered(result.values, verify_fn=verify_fn)
     if result.installed:
         seg.state.set_installed(result.installed)
     if result.metadata:
@@ -640,21 +664,39 @@ def build_segment_bar(cfg: ConfigManager, *, skip_slow: bool = False) -> Segment
     return SegmentBar(segments=segments)
 
 
-def merge_slow_results(bar: SegmentBar, results: dict[str, DiscoveryResult], state: dict) -> None:
+def merge_slow_results(
+    bar: SegmentBar,
+    results: dict[str, DiscoveryResult],
+    state: dict,
+    options_def: dict | None = None,
+) -> None:
     """Merge background discovery results into the live segment bar.
 
     For each segment with new options in *results*, update its discovered list
     via SegmentState, update the installed set, and restore the previous
     selection (falling back to last_config from *state*).
+
+    When *options_def* is provided, staleness verify callbacks from the
+    discovery registry are wired through so values that still exist on disk
+    are not prematurely dropped.
     """
     for seg in bar.segments:
         if seg.key not in results:
             continue
         dr = results[seg.key]
+        # Build verify_fn from registry if options_def available
+        verify_fn = None
+        if options_def is not None:
+            opt = options_def.get(seg.key, {})
+            disc = opt.get("discovery")
+            if disc:
+                entry = DISCOVERY_REGISTRY.get(disc["type"])
+                if entry and entry.verify:
+                    verify_fn = lambda val, _e=entry, _c=opt: _e.verify(val, _c)
         # Remember current selection
         current_value = seg.value
         # Update discovered options via state (cache auto-invalidates)
-        seg.state.set_discovered(dr.values)
+        seg.state.set_discovered(dr.values, verify_fn=verify_fn)
         # Attach installed set if discovery produced one
         if dr.installed:
             seg.state.set_installed(dr.installed)

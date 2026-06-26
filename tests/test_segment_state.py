@@ -337,5 +337,71 @@ class SemverSortTests(unittest.TestCase):
         self.assertEqual(st.options, ["2.0.0", "1.0.0"])
 
 
+class StalenessVerifyTests(unittest.TestCase):
+    """Tests for set_discovered staleness policy (verify_fn parameter)."""
+
+    def test_immediate_policy_removes_old_values(self) -> None:
+        """Without verify_fn, old values not in the new list are dropped."""
+        st = SegmentState()
+        st.set_discovered(["a", "b", "c"])
+        st.set_discovered(["b", "d"])
+        self.assertEqual(st._discovered, ["b", "d"])
+
+    def test_verify_policy_keeps_passing_values(self) -> None:
+        """Old values that pass verify_fn are kept even if absent from new list."""
+        st = SegmentState()
+        st.set_discovered(["a", "b", "c"])
+        # "a" and "c" are removed from new list; verify keeps "a" but not "c"
+        st.set_discovered(["b"], verify_fn=lambda v: v == "a")
+        self.assertIn("a", st._discovered)
+        self.assertIn("b", st._discovered)
+        self.assertNotIn("c", st._discovered)
+
+    def test_verify_policy_removes_failing_values(self) -> None:
+        """Old values that fail verify_fn are removed."""
+        st = SegmentState()
+        st.set_discovered(["a", "b"])
+        st.set_discovered(["b"], verify_fn=lambda v: False)
+        self.assertEqual(st._discovered, ["b"])
+
+    def test_new_values_always_added(self) -> None:
+        """New values are always included regardless of verify policy."""
+        st = SegmentState()
+        st.set_discovered(["a"])
+        # verify_fn only applies to OLD values not in new list
+        st.set_discovered(["b", "c"], verify_fn=lambda v: False)
+        self.assertIn("b", st._discovered)
+        self.assertIn("c", st._discovered)
+        # "a" was old and failed verify, so removed
+        self.assertNotIn("a", st._discovered)
+
+    def test_verify_policy_new_values_first(self) -> None:
+        """New list values appear before verified survivors."""
+        st = SegmentState()
+        st.set_discovered(["old1", "old2"])
+        st.set_discovered(["new1"], verify_fn=lambda v: True)
+        # new1 first, then old1 and old2 (both pass verify)
+        self.assertEqual(st._discovered, ["new1", "old1", "old2"])
+
+    def test_verify_policy_invalidates_cache(self) -> None:
+        """set_discovered with verify_fn still invalidates the options cache."""
+        st = SegmentState()
+        st.set_discovered(["a"])
+        _ = st.options  # populate cache
+        st.set_discovered(["b"], verify_fn=lambda v: True)
+        # Cache must be invalidated -- options should reflect new state
+        self.assertEqual(st.options, ["b", "a"])
+
+    def test_verify_policy_values_in_both_old_and_new(self) -> None:
+        """Values present in both old and new lists are not double-verified or duplicated."""
+        st = SegmentState()
+        st.set_discovered(["a", "b", "c"])
+        # "b" is in both old and new -- should appear once, "a" passes verify
+        st.set_discovered(["b", "d"], verify_fn=lambda v: v == "a")
+        self.assertEqual(st._discovered, ["b", "d", "a"])
+        # No duplicates
+        self.assertEqual(len(st._discovered), len(set(st._discovered)))
+
+
 if __name__ == "__main__":
     unittest.main()
