@@ -226,5 +226,116 @@ class MetadataTests(unittest.TestCase):
         self.assertEqual(st.metadata["a"], {"new": True})
 
 
+class CollectionOrderTests(unittest.TestCase):
+    """Test custom collection_order on SegmentState."""
+
+    def test_discovered_only(self) -> None:
+        """collection_order=["discovered"] ignores pinned and defaults."""
+        st = SegmentState(collection_order=["discovered"])
+        st.add_pinned("pin")
+        st.set_discovered(["disc"])
+        st.set_defaults(["def"])
+        self.assertEqual(st.options, ["disc"])
+
+    def test_pinned_and_defaults_only(self) -> None:
+        """collection_order=["pinned", "defaults"] ignores discovered."""
+        st = SegmentState(collection_order=["pinned", "defaults"])
+        st.add_pinned("pin")
+        st.set_discovered(["disc"])
+        st.set_defaults(["def"])
+        self.assertEqual(st.options, ["pin", "def"])
+
+    def test_pinned_and_discovered(self) -> None:
+        """collection_order=["pinned", "discovered"] includes both, no defaults."""
+        st = SegmentState(collection_order=["pinned", "discovered"])
+        st.add_pinned("pin")
+        st.set_discovered(["disc"])
+        st.set_defaults(["def"])
+        self.assertEqual(st.options, ["pin", "disc"])
+
+    def test_ephemeral_always_at_end(self) -> None:
+        """Ephemeral values are always appended after the ordered collections."""
+        st = SegmentState(collection_order=["discovered"])
+        st.set_discovered(["disc"])
+        st.add_ephemeral("+")
+        self.assertEqual(st.options, ["disc", "+"])
+
+    def test_reversed_order(self) -> None:
+        """collection_order=["defaults", "discovered", "pinned"] reverses priority."""
+        st = SegmentState(collection_order=["defaults", "discovered", "pinned"])
+        st.add_pinned("pin")
+        st.set_discovered(["disc"])
+        st.set_defaults(["def"])
+        self.assertEqual(st.options, ["def", "disc", "pin"])
+
+    def test_empty_collection_order(self) -> None:
+        """collection_order=[] yields only ephemeral values."""
+        st = SegmentState(collection_order=[])
+        st.add_pinned("pin")
+        st.set_discovered(["disc"])
+        st.set_defaults(["def"])
+        st.add_ephemeral("eph")
+        self.assertEqual(st.options, ["eph"])
+
+    def test_default_order_unchanged(self) -> None:
+        """Default collection_order preserves original behavior."""
+        st = SegmentState()
+        st.add_pinned("pin")
+        st.set_discovered(["disc"])
+        st.set_defaults(["def"])
+        st.add_ephemeral("eph")
+        self.assertEqual(st.options, ["pin", "disc", "def", "eph"])
+
+
+class SemverSortTests(unittest.TestCase):
+    """Test sort="semver_desc" on SegmentState."""
+
+    def test_semver_desc_sorts_versions(self) -> None:
+        """sort="semver_desc" sorts version strings newest-first."""
+        st = SegmentState(sort="semver_desc")
+        st.set_discovered(["1.0.0", "1.0.10", "1.0.2"])
+        self.assertEqual(st.options, ["1.0.10", "1.0.2", "1.0.0"])
+
+    def test_semver_desc_across_collections(self) -> None:
+        """Versions from multiple collections are merged then sorted."""
+        st = SegmentState(sort="semver_desc")
+        st.add_pinned("2.0.0")
+        st.set_discovered(["1.0.0", "3.0.0"])
+        st.set_defaults(["1.5.0"])
+        # All four values sorted descending, then ephemeral at end
+        self.assertEqual(st.options, ["3.0.0", "2.0.0", "1.5.0", "1.0.0"])
+
+    def test_semver_desc_with_ephemeral_at_end(self) -> None:
+        """Ephemeral values go after the sorted versions."""
+        st = SegmentState(sort="semver_desc")
+        st.set_discovered(["2.0.0", "1.0.0"])
+        st.add_ephemeral("+")
+        self.assertEqual(st.options, ["2.0.0", "1.0.0", "+"])
+
+    def test_no_sort_preserves_insertion_order(self) -> None:
+        """Without sort, values appear in collection_order insertion order."""
+        st = SegmentState()  # sort=None
+        st.set_discovered(["1.0.0", "1.0.10", "1.0.2"])
+        self.assertEqual(st.options, ["1.0.0", "1.0.10", "1.0.2"])
+
+    def test_semver_desc_invalidates_cache(self) -> None:
+        """Changing discovered values recalculates with sort applied."""
+        st = SegmentState(sort="semver_desc")
+        st.set_discovered(["1.0.0", "2.0.0"])
+        first = st.options
+        self.assertEqual(first, ["2.0.0", "1.0.0"])
+        st.set_discovered(["3.0.0", "1.0.0"])
+        second = st.options
+        self.assertEqual(second, ["3.0.0", "1.0.0"])
+
+    def test_semver_desc_deduplicates(self) -> None:
+        """Deduplication still works with sorting enabled."""
+        st = SegmentState(sort="semver_desc")
+        st.add_pinned("2.0.0")
+        st.set_discovered(["2.0.0", "1.0.0"])
+        # "2.0.0" appears in both but should be deduplicated
+        self.assertEqual(st.options, ["2.0.0", "1.0.0"])
+
+
 if __name__ == "__main__":
     unittest.main()

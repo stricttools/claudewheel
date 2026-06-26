@@ -30,22 +30,29 @@ def resolve_launch_config(
     options_def: dict,
     default_flags: list[str],
     extra_flags: list[str] | None = None,
+    metadata: dict[str, dict[str, dict]] | None = None,
 ) -> tuple[str, list[str], dict[str, str]]:
     """Build (cwd, argv, env) for os.execvpe from TUI selections.
 
     Maps segment values to their concrete effects:
-    - profile -> CLAUDE_CONFIG_DIR env var (from options.json metadata)
+    - profile -> CLAUDE_CONFIG_DIR env var (from metadata or options.json)
     - github -> GH_TOKEN env var (fetched live via gh CLI)
     - version -> binary path (under ~/.local/share/claude/versions/)
     - directory -> os.chdir target
     - mcp -> --strict-mcp-config flag (if "strict")
     - permissions -> --dangerously-skip-permissions or --permission-mode=X
+
+    When *metadata* is provided (TUI path), use it for profile/model lookups.
+    When None (skip-TUI path), fall back to reading from *options_def*.
     """
     # 1. Profile -> config dir
     profile = selections.get("profile")
     config_dir = str(Path("~/.claude").expanduser())
     if profile:
-        meta = options_def.get("profile", {}).get("metadata", {})
+        if metadata and "profile" in metadata:
+            meta = metadata["profile"]
+        else:
+            meta = options_def.get("profile", {}).get("metadata", {})
         profile_meta = meta.get(profile, {})
         if "config_dir" in profile_meta:
             config_dir = str(Path(profile_meta["config_dir"]).expanduser())
@@ -83,7 +90,10 @@ def resolve_launch_config(
     model_name = selections.get("model")
     model_flags: list[str] = []
     if model_name:
-        model_meta = options_def.get("model", {}).get("metadata", {})
+        if metadata and "model" in metadata:
+            model_meta = metadata["model"]
+        else:
+            model_meta = options_def.get("model", {}).get("metadata", {})
         model_id = model_meta.get(model_name, {}).get("model_id", model_name)
         model_flags = ["--model", model_id]
 

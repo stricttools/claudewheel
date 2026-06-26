@@ -12,13 +12,12 @@ def resolve_profile(name: str) -> dict[str, str]:
     """Return env vars (CLAUDE_CONFIG_DIR, CLAUDE_CODE_OAUTH_TOKEN) for a profile."""
     mgr = ConfigManager()
 
-    # Discovery populates metadata in-memory (e.g. claude_config_scan builds
-    # the profile->config_dir mapping).  Run it so callers outside the TUI
-    # get the same resolution.
-    from .segment import discover_options
-    discover_options(mgr.options_def, mgr.state)
-
-    meta = mgr.options_def.get("profile", {}).get("metadata", {})
+    # Run profile discovery directly to build the profile->config_dir mapping.
+    from .segment import _discover_profiles
+    result = _discover_profiles(mgr.options_def.get("profile", {}), mgr.state)
+    # Merge discovered metadata with any persisted metadata from options.json
+    meta = dict(mgr.options_def.get("profile", {}).get("metadata", {}))
+    meta.update(result.metadata)
     if name not in meta:
         available = sorted(meta.keys())
         raise ValueError(

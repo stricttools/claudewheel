@@ -110,6 +110,7 @@ def _do_show(cfg: object) -> int:
 def _do_launch_sequence(
     cfg: object, selections: dict, extra_flags: list[str] | None = None,
     interactive: bool = True,
+    metadata: dict[str, dict[str, dict]] | None = None,
 ) -> None:
     """Run health check, hooks, save state, resolve, and exec. Does not return on success."""
     from .health import run_health_check, print_health_report
@@ -143,6 +144,7 @@ def _do_launch_sequence(
         cwd, argv, env = resolve_launch_config(
             selections, cfg.options_def, cfg.config.get("default_flags", []),
             extra_flags=extra_flags,
+            metadata=metadata,
         )
         do_launch(cwd, argv, env)
     except OSError as e:
@@ -788,7 +790,16 @@ def _handle_launch(
     if selections is None:
         return 0
 
-    _do_launch_sequence(app.cfg, selections, extra_flags=extra_flags)
+    # Extract per-segment metadata from the bar for resolve_launch_config
+    bar_metadata: dict[str, dict[str, dict]] = {}
+    for seg in app.bar.segments:
+        if seg.state.metadata:
+            bar_metadata[seg.key] = seg.state.metadata
+
+    _do_launch_sequence(
+        app.cfg, selections, extra_flags=extra_flags,
+        metadata=bar_metadata or None,
+    )
     return 0
 
 

@@ -6,15 +6,38 @@ import json
 import re
 import subprocess
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from .config import ConfigManager
-from .constants import TOKENS_FILE
 from .discovery import discover_profiles
 from .fuzzy import fuzzy_rank
 
 NPM_CACHE_TTL = 3600  # 1 hour
+
+
+# ---------------------------------------------------------------------------
+# Discovery dataclasses and registry
+# ---------------------------------------------------------------------------
+
+@dataclass
+class DiscoveryResult:
+    """Structured result from a discovery function."""
+
+    values: list[str] = field(default_factory=list)
+    installed: set[str] = field(default_factory=set)
+    requires: dict[str, dict[str, str]] = field(default_factory=dict)
+    metadata: dict[str, dict] = field(default_factory=dict)
+
+
+@dataclass
+class DiscoveryEntry:
+    """Registry entry mapping a discovery type to its function."""
+
+    func: Callable  # (config: dict, state: dict) -> DiscoveryResult
+    is_slow: bool = False
+    verify: Callable | None = None  # for staleness checks (Phase 4)
 
 
 def _deduplicate(items: list[str]) -> list[str]:
@@ -28,6 +51,15 @@ def _deduplicate(items: list[str]) -> list[str]:
     return result
 
 
+_COLLECTION_MAP = {
+    "pinned": "_pinned",
+    "discovered": "_discovered",
+    "defaults": "_defaults",
+}
+
+_DEFAULT_COLLECTION_ORDER = ["pinned", "discovered", "defaults"]
+
+
 @dataclass
 class SegmentState:
     """Manages option collections with cache-invalidating mutation methods."""
@@ -38,14 +70,27 @@ class SegmentState:
     _ephemeral: list[str] = field(default_factory=list)
     _installed: set[str] = field(default_factory=set)
     metadata: dict[str, dict] = field(default_factory=dict)
+    collection_order: list[str] = field(default_factory=lambda: list(_DEFAULT_COLLECTION_ORDER))
+    sort: str | None = None
     _options: list[str] | None = field(default=None, repr=False)
 
     @property
     def options(self) -> list[str]:
         if self._options is None:
-            self._options = _deduplicate(
-                self._pinned + self._discovered + self._defaults + self._ephemeral
-            )
+            # Build ordered list from collection_order
+            ordered: list[str] = []
+            for name in self.collection_order:
+                attr = _COLLECTION_MAP.get(name)
+                if attr:
+                    ordered.extend(getattr(self, attr))
+            # Deduplicate (preserving first occurrence)
+            deduped = _deduplicate(ordered)
+            # Apply sort if configured
+            if self.sort == "semver_desc":
+                deduped.sort(key=version_sort_key, reverse=True)
+            # Ephemeral always appended at the end (after sort)
+            deduped = _deduplicate(deduped + self._ephemeral)
+            self._options = deduped
         return self._options
 
     # -- Mutation methods (each invalidates cache) --
@@ -266,197 +311,257 @@ def fetch_npm_versions(state: dict, count: int = 15) -> list[str]:
     return []
 
 
-def discover_options(options_def: dict, state: dict, *, skip_slow: bool = False) -> dict[str, list[str]]:
-    """Resolve option lists, running discovery (directory listing, state merge) as needed."""
-    resolved = {}
-    for key, opt in options_def.items():
-        raw_values = list(opt.get("values", []))
-        # Normalize: separate plain string values from objects with requirements
-        values = []
-        requires: dict[str, dict[str, str]] = {}
-        for v in raw_values:
-            if isinstance(v, dict):
-                values.append(v["value"])
-                if "requires" in v:
-                    requires[v["value"]] = v["requires"]
-            else:
-                values.append(v)
-        # Store requirements for build_segment_bar to pick up
-        if requires:
-            resolved[f"_requires_{key}"] = requires
-        disc = opt.get("discovery")
-        if disc:
-            match disc["type"]:
-                case "directory_listing":
-                    path = Path(disc["path"]).expanduser()
-                    if path.is_dir():
-                        # Discover versions from filesystem, sorted newest-first
-                        entries = sorted(
-                            [e.name for e in path.iterdir() if e.is_file()],
-                            key=version_sort_key,
-                            reverse=True,
-                        )
-                        values = entries
-                case "npm_and_local":
-                    local_path = Path(disc["path"]).expanduser()
-                    # Get locally installed versions
-                    installed = set()
-                    if local_path.is_dir():
-                        installed = {e.name for e in local_path.iterdir() if e.is_file()}
-                    # Get available versions from npm
-                    if skip_slow:
-                        # Use cached npm versions if warm, otherwise skip
-                        cache = state.get("npm_versions_cache", {})
-                        cached_at = cache.get("fetched_at", 0)
-                        cached_versions = cache.get("versions", [])
-                        count = disc.get("count", 15)
-                        if time.time() - cached_at < NPM_CACHE_TTL and cached_versions:
-                            npm_versions = cached_versions[-count:]
-                        else:
-                            npm_versions = []
-                    else:
-                        npm_versions = fetch_npm_versions(state, disc.get("count", 15))
-                    # Merge: all npm versions (last N), plus any local-only ones
-                    all_versions = list(npm_versions)
-                    for v in installed:
-                        if v not in all_versions:
-                            all_versions.append(v)
-                    all_versions.sort(key=version_sort_key, reverse=True)
-                    values = all_versions
-                    # Store installed set for build_segment_bar to pick up
-                    resolved[f"_installed_{key}"] = installed
-                case "directory_scan":
-                    # Scan parent directories for subdirectories
-                    parents = disc.get("parents", [])
-                    found: list[str] = []
-                    home = Path.home()
-                    for parent in parents:
-                        parent_path = Path(parent).expanduser()
-                        if parent_path.is_dir():
-                            for entry in sorted(parent_path.iterdir()):
-                                if entry.is_dir() and not entry.name.startswith("."):
-                                    # Convert to ~/... format
-                                    try:
-                                        rel = entry.relative_to(home)
-                                        found.append("~/" + str(rel))
-                                    except ValueError:
-                                        found.append(str(entry))
-                    # Merge with recent_dirs from state (recent first, then discovered)
-                    state_field = disc.get("state_field")
-                    recent = state.get(state_field, []) if state_field else []
-                    seen: set[str] = set()
-                    merged: list[str] = []
-                    for v in recent + found + values:
-                        if v not in seen:
-                            seen.add(v)
-                            merged.append(v)
-                    values = merged
-                case "claude_config_scan":
-                    # Discover Claude profiles via shared discovery
-                    discovered = discover_profiles()
-                    profiles: list[str] = [p.name for p in discovered]
-                    if profiles:
-                        values = profiles
-                    # Build metadata mapping profile names to config dirs
-                    # so launch.py can set CLAUDE_CONFIG_DIR correctly
-                    metadata: dict[str, dict[str, str]] = {}
-                    for p in discovered:
-                        if p.name == "default":
-                            metadata["default"] = {"config_dir": "~/.claude"}
-                        else:
-                            metadata[p.name] = {"config_dir": f"~/.claudewheel/profiles/{p.name}"}
-                    opt["metadata"] = metadata
-                case "gh_auth":
-                    if not skip_slow:
-                        # Discover GitHub accounts from gh CLI auth status
-                        try:
-                            result = subprocess.run(
-                                ["gh", "auth", "status"],
-                                capture_output=True, text=True, timeout=5,
-                            )
-                            output = result.stdout + result.stderr
-                            accounts = re.findall(
-                                r"Logged in to github\.com account (\S+)", output,
-                            )
-                            if accounts:
-                                # Deduplicate while preserving order
-                                seen_accts: set[str] = set()
-                                for acct in accounts:
-                                    if acct not in seen_accts:
-                                        seen_accts.add(acct)
-                                        values.append(acct)
-                        except (FileNotFoundError, subprocess.TimeoutExpired):
-                            pass
-                case "state_field":
-                    # Merge state-tracked values with static defaults, preserving order
-                    state_values = state.get(disc["field"], [])
-                    seen: set[str] = set()
-                    merged: list[str] = []
-                    for v in state_values + values:
-                        if v not in seen:
-                            seen.add(v)
-                            merged.append(v)
-                    values = merged
-        resolved[key] = values
-    return resolved
+# ---------------------------------------------------------------------------
+# Individual discovery functions -- extracted from discover_options match/case
+# ---------------------------------------------------------------------------
+
+def _discover_directory_listing(config: dict, state: dict) -> DiscoveryResult:
+    """Discover options from a directory of files (e.g., installed versions)."""
+    disc = config["discovery"]
+    path = Path(disc["path"]).expanduser()
+    if path.is_dir():
+        entries = sorted(
+            [e.name for e in path.iterdir() if e.is_file()],
+            key=version_sort_key,
+            reverse=True,
+        )
+        return DiscoveryResult(values=entries)
+    return DiscoveryResult()
 
 
-def run_slow_discovery(options_def: dict, state: dict) -> dict[str, list[str]]:
-    """Run only the slow discovery types (gh_auth, npm_and_local). Thread-safe: reads only."""
-    result: dict[str, list[str]] = {}
+def _discover_npm_and_local(config: dict, state: dict) -> DiscoveryResult:
+    """Discover versions from npm registry + locally installed files."""
+    disc = config["discovery"]
+    local_path = Path(disc["path"]).expanduser()
+    installed = set()
+    if local_path.is_dir():
+        installed = {e.name for e in local_path.iterdir() if e.is_file()}
+    npm_versions = fetch_npm_versions(state, disc.get("count", 15))
+    all_versions = list(npm_versions)
+    for v in installed:
+        if v not in all_versions:
+            all_versions.append(v)
+    all_versions.sort(key=version_sort_key, reverse=True)
+    return DiscoveryResult(values=all_versions, installed=installed)
+
+
+def _discover_npm_and_local_cached(config: dict, state: dict) -> DiscoveryResult:
+    """Fast path for npm_and_local: use cached npm versions only if warm."""
+    disc = config["discovery"]
+    local_path = Path(disc["path"]).expanduser()
+    installed = set()
+    if local_path.is_dir():
+        installed = {e.name for e in local_path.iterdir() if e.is_file()}
+    cache = state.get("npm_versions_cache", {})
+    cached_at = cache.get("fetched_at", 0)
+    cached_versions = cache.get("versions", [])
+    count = disc.get("count", 15)
+    if time.time() - cached_at < NPM_CACHE_TTL and cached_versions:
+        npm_versions = cached_versions[-count:]
+    else:
+        npm_versions = []
+    all_versions = list(npm_versions)
+    for v in installed:
+        if v not in all_versions:
+            all_versions.append(v)
+    all_versions.sort(key=version_sort_key, reverse=True)
+    return DiscoveryResult(values=all_versions, installed=installed)
+
+
+def _discover_directory_scan(config: dict, state: dict) -> DiscoveryResult:
+    """Discover directories by scanning parent directories."""
+    disc = config["discovery"]
+    parents = disc.get("parents", [])
+    found: list[str] = []
+    home = Path.home()
+    for parent in parents:
+        parent_path = Path(parent).expanduser()
+        if parent_path.is_dir():
+            for entry in sorted(parent_path.iterdir()):
+                if entry.is_dir() and not entry.name.startswith("."):
+                    try:
+                        rel = entry.relative_to(home)
+                        found.append("~/" + str(rel))
+                    except ValueError:
+                        found.append(str(entry))
+    # Merge with recent_dirs from state (recent first, then discovered)
+    state_field = disc.get("state_field")
+    recent = state.get(state_field, []) if state_field else []
+    static_values = _parse_static_values(config)
+    seen: set[str] = set()
+    merged: list[str] = []
+    for v in recent + found + static_values:
+        if v not in seen:
+            seen.add(v)
+            merged.append(v)
+    return DiscoveryResult(values=merged)
+
+
+def _discover_profiles(config: dict, state: dict) -> DiscoveryResult:
+    """Discover Claude Code profiles via filesystem scan."""
+    discovered = discover_profiles()
+    profiles: list[str] = [p.name for p in discovered]
+    metadata: dict[str, dict] = {}
+    for p in discovered:
+        if p.name == "default":
+            metadata["default"] = {"config_dir": "~/.claude"}
+        else:
+            metadata[p.name] = {"config_dir": f"~/.claudewheel/profiles/{p.name}"}
+    return DiscoveryResult(values=profiles, metadata=metadata)
+
+
+def _discover_gh_accounts(config: dict, state: dict) -> DiscoveryResult:
+    """Discover GitHub accounts from gh CLI auth status."""
+    static_values = _parse_static_values(config)
+    values = list(static_values)
+    try:
+        result = subprocess.run(
+            ["gh", "auth", "status"],
+            capture_output=True, text=True, timeout=5,
+        )
+        output = result.stdout + result.stderr
+        accounts = re.findall(
+            r"Logged in to github\.com account (\S+)", output,
+        )
+        if accounts:
+            seen_accts: set[str] = set(values)
+            for acct in accounts:
+                if acct not in seen_accts:
+                    seen_accts.add(acct)
+                    values.append(acct)
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+    return DiscoveryResult(values=values)
+
+
+def _discover_state_field(config: dict, state: dict) -> DiscoveryResult:
+    """Discover options by merging state-tracked values with static defaults."""
+    disc = config["discovery"]
+    static_values = _parse_static_values(config)
+    state_values = state.get(disc["field"], [])
+    seen: set[str] = set()
+    merged: list[str] = []
+    for v in state_values + static_values:
+        if v not in seen:
+            seen.add(v)
+            merged.append(v)
+    return DiscoveryResult(values=merged)
+
+
+def _parse_static_values(config: dict) -> list[str]:
+    """Extract plain string values from an options_def entry, stripping requires dicts."""
+    raw = config.get("values", [])
+    values: list[str] = []
+    for v in raw:
+        if isinstance(v, dict):
+            values.append(v["value"])
+        else:
+            values.append(v)
+    return values
+
+
+def _parse_requires(config: dict) -> dict[str, dict[str, str]]:
+    """Extract requires constraints from dict-style values in an options_def entry."""
+    raw = config.get("values", [])
+    requires: dict[str, dict[str, str]] = {}
+    for v in raw:
+        if isinstance(v, dict) and "requires" in v:
+            requires[v["value"]] = v["requires"]
+    return requires
+
+
+# ---------------------------------------------------------------------------
+# Discovery registry
+# ---------------------------------------------------------------------------
+
+DISCOVERY_REGISTRY: dict[str, DiscoveryEntry] = {
+    "directory_listing": DiscoveryEntry(func=_discover_directory_listing),
+    "npm_and_local": DiscoveryEntry(func=_discover_npm_and_local, is_slow=True),
+    "directory_scan": DiscoveryEntry(func=_discover_directory_scan),
+    "claude_config_scan": DiscoveryEntry(func=_discover_profiles),
+    "gh_auth": DiscoveryEntry(func=_discover_gh_accounts, is_slow=True),
+    "state_field": DiscoveryEntry(func=_discover_state_field),
+}
+
+
+# ---------------------------------------------------------------------------
+# Registry-based discovery dispatch
+# ---------------------------------------------------------------------------
+
+def run_slow_discovery_via_registry(
+    options_def: dict, state: dict,
+) -> dict[str, DiscoveryResult]:
+    """Run only slow discovery types via the registry. Thread-safe: reads only."""
+    results: dict[str, DiscoveryResult] = {}
     for key, opt in options_def.items():
         disc = opt.get("discovery")
         if not disc:
             continue
-        match disc["type"]:
-            case "gh_auth":
-                raw_values = list(opt.get("values", []))
-                values = []
-                for v in raw_values:
-                    if isinstance(v, dict):
-                        values.append(v["value"])
-                    else:
-                        values.append(v)
-                try:
-                    proc = subprocess.run(
-                        ["gh", "auth", "status"],
-                        capture_output=True, text=True, timeout=5,
-                    )
-                    output = proc.stdout + proc.stderr
-                    accounts = re.findall(
-                        r"Logged in to github\.com account (\S+)", output,
-                    )
-                    if accounts:
-                        seen_accts: set[str] = set()
-                        for acct in accounts:
-                            if acct not in seen_accts:
-                                seen_accts.add(acct)
-                                values.append(acct)
-                except (FileNotFoundError, subprocess.TimeoutExpired):
-                    pass
-                result[key] = values
-            case "npm_and_local":
-                local_path = Path(disc["path"]).expanduser()
-                installed = set()
-                if local_path.is_dir():
-                    installed = {e.name for e in local_path.iterdir() if e.is_file()}
-                npm_versions = fetch_npm_versions(state, disc.get("count", 15))
-                all_versions = list(npm_versions)
-                for v in installed:
-                    if v not in all_versions:
-                        all_versions.append(v)
-                all_versions.sort(key=version_sort_key, reverse=True)
-                result[key] = all_versions
-                result[f"_installed_{key}"] = installed
-    return result
+        dtype = disc["type"]
+        entry = DISCOVERY_REGISTRY.get(dtype)
+        if entry and entry.is_slow:
+            results[key] = entry.func(opt, state)
+    return results
+
+
+def populate_segment_state(
+    seg: "Segment",
+    options_def_entry: dict,
+    state: dict,
+    *,
+    skip_slow: bool = True,
+) -> None:
+    """Populate a segment's state from discovery and static config.
+
+    Looks up the discovery config, calls the registry function (unless slow
+    and skip_slow is True), and writes results to seg.state.
+    """
+    disc = options_def_entry.get("discovery")
+    requires = _parse_requires(options_def_entry)
+    if requires:
+        seg.option_requires = requires
+
+    if not disc:
+        return
+
+    dtype = disc["type"]
+    entry = DISCOVERY_REGISTRY.get(dtype)
+    if not entry:
+        return
+
+    if entry.is_slow and skip_slow:
+        # For npm_and_local, use the cached fast-path
+        if dtype == "npm_and_local":
+            result = _discover_npm_and_local_cached(options_def_entry, state)
+            seg.state.set_discovered(result.values)
+            if result.installed:
+                seg.state.set_installed(result.installed)
+        # Other slow types (gh_auth) produce nothing at startup
+        return
+
+    result = entry.func(options_def_entry, state)
+    seg.state.set_discovered(result.values)
+    if result.installed:
+        seg.state.set_installed(result.installed)
+    if result.metadata:
+        seg.state.update_metadata(result.metadata)
+
+
+# Per-segment merge specs: collection_order and sort overrides
+_SEGMENT_MERGE_SPECS: dict[str, dict] = {
+    "version": {"sort": "semver_desc"},
+    "profile": {"collection_order": ["discovered"]},
+    "model": {"collection_order": ["pinned", "defaults"]},
+    "mcp": {"collection_order": ["pinned", "defaults"]},
+    "permissions": {"collection_order": ["pinned", "defaults"]},
+    "github": {"collection_order": ["pinned", "discovered"]},
+    # directory uses default: ["pinned", "discovered", "defaults"]
+}
 
 
 def build_segment_bar(cfg: ConfigManager, *, skip_slow: bool = False) -> SegmentBar:
     """Construct the segment bar from config, applying discovery and last-state restore."""
     enabled = cfg.config.get("enabled_segments", [])
-    resolved = discover_options(cfg.options_def, cfg.state, skip_slow=skip_slow)
-    # Persist npm cache to state.json so it survives even if the user quits without launching
-    cfg.save_state()
     segments: list[Segment] = []
 
     from .defaults import DEFAULT_OPTIONS
@@ -467,6 +572,10 @@ def build_segment_bar(cfg: ConfigManager, *, skip_slow: bool = False) -> Segment
         if key not in enabled:
             continue
         opt = cfg.options_def.get(key, {})
+
+        # Apply per-segment merge spec
+        merge_spec = _SEGMENT_MERGE_SPECS.get(key, {})
+
         seg = Segment(
             key=key,
             label=sdef["label"],
@@ -480,28 +589,35 @@ def build_segment_bar(cfg: ConfigManager, *, skip_slow: bool = False) -> Segment
             creatable=sdef.get("creatable", False),
             freeform=sdef.get("freeform", False),
         )
-        # Populate state collections
+
+        # Configure merge spec on state
+        if "collection_order" in merge_spec:
+            seg.state.collection_order = list(merge_spec["collection_order"])
+        if "sort" in merge_spec:
+            seg.state.sort = merge_spec["sort"]
+
+        # Populate defaults and pinned from config
         seg.state.set_defaults(DEFAULT_OPTIONS.get(key, {}).get("values", []))
         for pinned_val in opt.get("pinned", []):
             seg.state.add_pinned(pinned_val)
-        seg.state.set_discovered(resolved.get(key, []))
-        # Seed metadata from persisted options (includes discovery metadata
-        # written back to opt by claude_config_scan and similar discovery types)
+
+        # Seed metadata from persisted options
         seg.state.set_metadata(dict(opt.get("metadata", {})))
-        # Installed set and option requirements
-        installed_key = f"_installed_{key}"
-        if installed_key in resolved:
-            seg.state.set_installed(resolved[installed_key])
-        requires_key = f"_requires_{key}"
-        if requires_key in resolved:
-            seg.option_requires = resolved[requires_key]
+
+        # Run discovery via registry
+        populate_segment_state(seg, opt, cfg.state, skip_slow=skip_slow)
+
         # "+" sentinel for creatable segments (bridge until Phase 7)
         if seg.creatable:
             seg.state.add_ephemeral("+")
+
         # Pre-select from last session's config if available
         if key in last:
             seg.select_value(last[key])
         segments.append(seg)
+
+    # Persist npm cache to state.json so it survives even if the user quits without launching
+    cfg.save_state()
 
     # Auto-detect cwd for the directory segment if nothing was restored
     try:
@@ -524,7 +640,7 @@ def build_segment_bar(cfg: ConfigManager, *, skip_slow: bool = False) -> Segment
     return SegmentBar(segments=segments)
 
 
-def merge_slow_results(bar: SegmentBar, results: dict[str, list[str]], state: dict) -> None:
+def merge_slow_results(bar: SegmentBar, results: dict[str, DiscoveryResult], state: dict) -> None:
     """Merge background discovery results into the live segment bar.
 
     For each segment with new options in *results*, update its discovered list
@@ -534,14 +650,17 @@ def merge_slow_results(bar: SegmentBar, results: dict[str, list[str]], state: di
     for seg in bar.segments:
         if seg.key not in results:
             continue
+        dr = results[seg.key]
         # Remember current selection
         current_value = seg.value
         # Update discovered options via state (cache auto-invalidates)
-        seg.state.set_discovered(results[seg.key])
+        seg.state.set_discovered(dr.values)
         # Attach installed set if discovery produced one
-        installed_key = f"_installed_{seg.key}"
-        if installed_key in results:
-            seg.state.set_installed(results[installed_key])
+        if dr.installed:
+            seg.state.set_installed(dr.installed)
+        # Update metadata if discovery produced any
+        if dr.metadata:
+            seg.state.update_metadata(dr.metadata)
         # "+" is already in ephemeral from build time, no need to re-append
         # Restore selection
         if current_value is not None:

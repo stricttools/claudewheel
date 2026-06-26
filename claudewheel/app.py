@@ -7,7 +7,7 @@ import sys
 import threading
 
 from .config import ConfigManager
-from .segment import Segment, build_segment_bar, evaluate_requires, merge_slow_results, run_slow_discovery
+from .segment import Segment, build_segment_bar, evaluate_requires, merge_slow_results, run_slow_discovery_via_registry
 from .terminal import Terminal
 from .theme import parse_theme
 from .renderer import Renderer
@@ -29,7 +29,8 @@ class App:
                         seg.state.add_ephemeral(val)
                         seg.select_value(val)
         # Start slow discovery in background thread
-        self._slow_results: dict[str, list[str]] | None = None
+        from .segment import DiscoveryResult
+        self._slow_results: dict[str, DiscoveryResult] | None = None
         self._slow_thread = threading.Thread(
             target=self._run_slow_discovery_thread,
             daemon=True,
@@ -88,7 +89,7 @@ class App:
 
     def _run_slow_discovery_thread(self) -> None:
         """Background thread: run slow discovery and store results."""
-        self._slow_results = run_slow_discovery(self.cfg.options_def, self.cfg.state)
+        self._slow_results = run_slow_discovery_via_registry(self.cfg.options_def, self.cfg.state)
 
     def _apply_slow_discovery(self) -> None:
         """Merge slow discovery results into the live segment bar."""
