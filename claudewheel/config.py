@@ -88,6 +88,51 @@ def _migration_2_profile_paths(
             meta["config_dir"] = f"~/.claudewheel/profiles/{m.group(1)}"
 
 
+def _migration_3_classify_pinned(
+    config: dict, segments_def: list[dict], theme: dict, options_def: dict,
+) -> None:
+    """Classify existing 'values' into 'pinned' vs discard.
+
+    Discovery-backed segments: values with metadata -> pinned (wizard-created),
+    values without metadata -> discard (from discovery, will be re-discovered).
+
+    Static segments (no discovery): values in HISTORICAL_DEFAULTS that are
+    still in DEFAULT_OPTIONS -> discard (they come from defaults now). Values
+    in HISTORICAL_DEFAULTS but NOT in current defaults -> pinned (conservative).
+    Values not in any defaults -> pinned (user-added).
+    """
+    for key, seg_entry in options_def.items():
+        if "values" not in seg_entry:
+            continue
+        seg_entry.setdefault("pinned", [])
+        has_discovery = "discovery" in seg_entry
+        values = seg_entry["values"]
+        metadata = seg_entry.get("metadata", {})
+
+        if has_discovery:
+            # Discovery-backed segment: values with metadata are wizard-created
+            for val in values:
+                if val in metadata and val not in seg_entry["pinned"]:
+                    seg_entry["pinned"].append(val)
+        else:
+            # Static segment: classify against historical and current defaults
+            historical = HISTORICAL_DEFAULTS.get(key, set())
+            current_defaults = set(DEFAULT_OPTIONS.get(key, {}).get("values", []))
+            for val in values:
+                if val in historical and val in current_defaults:
+                    # Still a current default -- discard (defaults handle it)
+                    continue
+                if val in historical and val not in current_defaults:
+                    # Was a default, removed from current -- keep as pinned (conservative)
+                    if val not in seg_entry["pinned"]:
+                        seg_entry["pinned"].append(val)
+                else:
+                    # Not in any historical defaults -- user-added, keep as pinned
+                    if val not in seg_entry["pinned"]:
+                        seg_entry["pinned"].append(val)
+        # Keep "values" as-is for backward compat with code that still reads it
+
+
 _MIGRATIONS: list[dict] = [
     {
         "version": 1,
@@ -98,6 +143,11 @@ _MIGRATIONS: list[dict] = [
         "version": 2,
         "description": "Rewrite profile metadata paths to ~/.claudewheel/profiles/<name>/",
         "apply": _migration_2_profile_paths,
+    },
+    {
+        "version": 3,
+        "description": "Classify option values into pinned vs defaults",
+        "apply": _migration_3_classify_pinned,
     },
 ]
 
@@ -292,14 +342,13 @@ class ConfigManager:
         return changed
 
     def add_option(self, segment_key: str, value: str) -> None:
-        """Add a new option value to options.json for the given segment."""
+        """Add a new option value to the pinned list in options.json for the given segment."""
         options = self._load_json(OPTIONS_FILE, self.options_def)
         if segment_key not in options:
-            options[segment_key] = {"values": []}
-        values = options[segment_key].get("values", [])
-        if value not in values:
-            values.append(value)
-            options[segment_key]["values"] = values
+            options[segment_key] = {"values": [], "pinned": []}
+        pinned = options[segment_key].setdefault("pinned", [])
+        if value not in pinned:
+            pinned.append(value)
             self._save_json(OPTIONS_FILE, options)
             # Also update in-memory copy
             self.options_def = options

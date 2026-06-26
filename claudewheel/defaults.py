@@ -196,6 +196,7 @@ DEFAULT_SEGMENTS = [
 DEFAULT_OPTIONS = {
     "profile": {
         "values": [],
+        "pinned": [],
         "discovery": {
             "type": "claude_config_scan",
             "base_dir": "~",
@@ -203,12 +204,14 @@ DEFAULT_OPTIONS = {
     },
     "github": {
         "values": [],
+        "pinned": [],
         "discovery": {
             "type": "gh_auth",
         },
     },
     "version": {
         "values": [],
+        "pinned": [],
         "discovery": {
             "type": "npm_and_local",
             "path": "~/.local/share/claude/versions",
@@ -217,6 +220,7 @@ DEFAULT_OPTIONS = {
     },
     "directory": {
         "values": [],
+        "pinned": [],
         "discovery": {
             "type": "directory_scan",
             "parents": ["~/Projects", "~/repos", "~/src", "~/code", "~/dev", "~/Work", "~/work"],
@@ -239,14 +243,16 @@ DEFAULT_OPTIONS = {
             "claude-haiku-4-5-20251001",
             "claude-sonnet-4-5-20241022",
         ],
+        "pinned": [],
     },
-    "mcp": {"values": ["default", "strict"]},
+    "mcp": {"values": ["default", "strict"], "pinned": []},
     "permissions": {
         "values": [
             "bypass",
             "default",
             "plan",
         ],
+        "pinned": [],
     },
 }
 
