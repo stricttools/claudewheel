@@ -1,0 +1,20 @@
+# Version bump type: patch, minor, major, or hotfix
+bump = "patch"
+# Short description of this release (required)
+description = "Thread safety fix for background discovery and wizard UX overhaul"
+# Optional context explaining why these changes were made
+context = """
+The background discovery thread shared a mutable state dict with the main thread,
+creating a race condition on npm_versions_cache writes. Fixed by passing a deep copy
+and copying results back on the main thread after completion.
+
+The profile creation wizard was overhauled: 6 checkbox fields are now hidden behind
+a collapsible Advanced toggle (defaulting to sensible values), Enter from the Name
+field submits immediately, errors persist until the user takes a meaningful action,
+context-sensitive keyboard hints appear at the bottom, Shift-Tab navigates backward,
+and the text input has visible brackets. The Cancel button was removed (ESC suffices).
+"""
+# Set to true to generate a blog post for this release
+# blog = false
+include = ["npm", "pypi"]
+exclude = []
