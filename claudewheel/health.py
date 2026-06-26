@@ -280,7 +280,7 @@ def check_token_expiry() -> HealthResult:
         tokens = json.loads(tokens_file.read_text())
     except (json.JSONDecodeError, OSError):
         return HealthResult(False, "token-expiry", "unreadable tokens.json")
-    from datetime import date, timedelta
+    from datetime import date
     today = date.today()
     expiring: list[str] = []
     min_remaining = 365

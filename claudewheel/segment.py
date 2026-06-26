@@ -595,7 +595,8 @@ def populate_segment_state(
     # Build verify_fn closure if the entry has a verify callback
     verify_fn = None
     if entry.verify:
-        verify_fn = lambda val, _e=entry, _c=options_def_entry: _e.verify(val, _c)
+        def verify_fn(val, _e=entry, _c=options_def_entry):
+            return _e.verify(val, _c)
 
     if entry.is_slow and skip_slow:
         # For npm_and_local, use the cached fast-path
@@ -735,7 +736,8 @@ def merge_slow_results(
             if disc:
                 entry = DISCOVERY_REGISTRY.get(disc["type"])
                 if entry and entry.verify:
-                    verify_fn = lambda val, _e=entry, _c=opt: _e.verify(val, _c)
+                    def verify_fn(val, _e=entry, _c=opt):
+                        return _e.verify(val, _c)
         # Remember current selection (use selected_value so virtual "+" is preserved)
         current_value = seg.selected_value
         # Update discovered options via state (cache auto-invalidates)

@@ -16,7 +16,7 @@ from .constants import (
     THEMES_DIR,
     HOOKS_DIR,
     SCRIPTS_DIR,
-    SHARED_DIR,
+    SHARED_DIR,  # noqa: F401 -- re-exported; tests patch claudewheel.config.SHARED_DIR
     SHARED_SETTINGS_FILE,
 )
 from .defaults import (

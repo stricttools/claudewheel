@@ -6,7 +6,6 @@ import json
 import os
 import shutil
 import sys
-from pathlib import Path
 
 from .constants import OPTIONS_FILE, PROFILES_DIR, TOKENS_FILE
 

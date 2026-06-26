@@ -567,7 +567,7 @@ def _check_resume_session(session_id: str, directory: str) -> None:
 
     # Step 6: Execute for real
     result = run_mv(old_cwd, current_dir, dry_run=False, quiet=True, post_hoc=True)
-    print(f"Done. Resuming session...")
+    print("Done. Resuming session...")
 
 
 def _check_cont_session(directory: str) -> None:
@@ -664,7 +664,7 @@ def _check_cont_session(directory: str) -> None:
         return
 
     result = run_mv(old_cwd, current_dir, dry_run=False, quiet=True, post_hoc=True)
-    print(f"Done. Resuming session...")
+    print("Done. Resuming session...")
 
 
 # "continue" and "print" are Python keywords, so we use "cont" / "print-prompt"
