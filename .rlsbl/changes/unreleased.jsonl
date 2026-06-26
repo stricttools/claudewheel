@@ -24,3 +24,4 @@
 {"commits":["9981a623e2d7bef1cfe2f161303fbbcdce8e5eb0"],"user_facing":false}
 {"commits":["38f309dcff2a7769f7b47754874f7572401ce5b5","c304110271b00eff327a0e8fee5cd45b645a6738"],"user_facing":true,"description":"**Docs.** Added installation instructions (pipx/uv) and deprecation notice for the old Node/npm package.","type":"feature"}
 {"commits":["086618c7f5a4139afa161feafc7828ae84910832"],"user_facing":false}
+{"commits":["117aaa65c0fbef60632c15a0daa59bee2e7703a5"],"user_facing":false}
