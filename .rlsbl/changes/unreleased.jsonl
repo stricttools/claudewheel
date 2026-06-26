@@ -1,1 +1,2 @@
 {"commits":["e02652cc022fe74bb503dbbaddf80ef929cbe949"],"user_facing":false}
+{"commits":["f26873b1ccb2036d4eba086d4d96659d4f8f2686"],"user_facing":true,"description":"**Fix.** Background discovery thread no longer shares mutable state dict with the main thread; uses a deep copy to prevent race conditions on npm version cache writes.","type":"fix"}
