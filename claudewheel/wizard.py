@@ -49,6 +49,14 @@ class WizardResult:
     cancelled: bool = False
 
 
+def _get_field(fields: list[WizardField], label: str) -> WizardField:
+    """Look up a wizard field by its label."""
+    for f in fields:
+        if f.label == label:
+            return f
+    raise KeyError(f"No field with label {label!r}")
+
+
 def _build_fields(existing_profiles: list[str]) -> list[WizardField]:
     """Build the ordered list of wizard fields."""
     radio_opts = ["Defaults template"] + existing_profiles
@@ -179,7 +187,7 @@ def run_profile_wizard(existing_profiles: list[str]) -> WizardResult:
                         return WizardResult("", "", None, False, False, False, False,
                                             False, cancelled=True)
                     if f.label == "Create":
-                        name = fields[0].value.strip()
+                        name = _get_field(fields, "Name").value.strip()
                         if not name:
                             _render(term, fields, focus, flash="Name cannot be empty")
                             continue
@@ -197,18 +205,18 @@ def run_profile_wizard(existing_profiles: list[str]) -> WizardResult:
                         if name in existing_profiles:
                             _render(term, fields, focus, flash=f"Profile '{name}' already registered")
                             continue
-                        source = fields[2].value
+                        source = _get_field(fields, "Settings source").value
                         clone = None if source == "Defaults template" else source
                         return WizardResult(
                             name=name,
                             config_dir=f"~/.claudewheel/profiles/{name}",
                             clone_from=clone,
-                            wire_hooks=bool(fields[3].value),
-                            symlink_shared=bool(fields[4].value),
-                            disable_recap=bool(fields[5].value),
-                            cleanup_10y=bool(fields[6].value),
-                            disable_memory=bool(fields[7].value),
-                            disable_attribution=bool(fields[8].value),
+                            wire_hooks=bool(_get_field(fields, "Wire common hooks").value),
+                            symlink_shared=bool(_get_field(fields, "Symlink to shared store").value),
+                            disable_recap=bool(_get_field(fields, "Disable recap").value),
+                            cleanup_10y=bool(_get_field(fields, "10-year cleanup period").value),
+                            disable_memory=bool(_get_field(fields, "Disable auto-memory").value),
+                            disable_attribution=bool(_get_field(fields, "Disable Co-Authored-By").value),
                         )
             elif key == " ":
                 if f.field_type == "checkbox":
@@ -230,12 +238,12 @@ def run_profile_wizard(existing_profiles: list[str]) -> WizardResult:
                 if f.field_type == "text" and isinstance(f.value, str):
                     f.value = f.value[:-1]
                     # Update computed config dir
-                    fields[1].value = f"~/.claudewheel/profiles/{f.value}"
+                    _get_field(fields, "Config dir").value = f"~/.claudewheel/profiles/{f.value}"
             else:
                 # Printable character on text field
                 if f.field_type == "text" and len(key) == 1 and key.isprintable():
                     f.value = (f.value or "") + key
-                    fields[1].value = f"~/.claudewheel/profiles/{f.value}"
+                    _get_field(fields, "Config dir").value = f"~/.claudewheel/profiles/{f.value}"
 
             _render(term, fields, focus)
     finally:
