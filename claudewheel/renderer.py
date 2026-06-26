@@ -249,7 +249,7 @@ class Renderer:
                     buf.append(th.empty_value_fg)
                     buf.append(display_value)
                     buf.append(RESET)
-                elif seg.state._installed and seg.value not in seg.state._installed:
+                elif seg.state.has_installed and not seg.state.is_installed(seg.value):
                     # Uninstalled option: render dimly with unavailable color
                     unavail = sc.get("unavailable_fg", "") or DIM
                     buf.append(unavail)
@@ -439,7 +439,7 @@ class Renderer:
             buf.append(provenance_prefix)
             buf.append(RESET)
 
-        if seg.state._installed and not seg.state.is_installed(opt_text):
+        if seg.state.has_installed and not seg.state.is_installed(opt_text):
             buf.append(unavail_fg)
             buf.append(display)
             buf.append(RESET)

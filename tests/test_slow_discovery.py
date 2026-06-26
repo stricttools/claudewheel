@@ -105,7 +105,8 @@ class MergeSlowResultsTests(unittest.TestCase):
             ),
         }
         merge_slow_results(bar, results, {})
-        self.assertEqual(seg.state._installed, {"1.0", "2.0"})
+        self.assertTrue(seg.state.is_installed("1.0"))
+        self.assertTrue(seg.state.is_installed("2.0"))
 
     def test_segment_without_results_untouched(self) -> None:
         """Segments not present in results keep their original options and selection."""
