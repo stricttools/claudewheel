@@ -1,0 +1,29 @@
+
+{"commits":["d68d3e9b35a21177dfa1ec0cb8f9ed902b04768c","22c4d6fb2a1cdf48d3c08047fc2ecc36363d885a","6793f14e9bd3235829d9c5a720707e1c571c5c50","e2f98bc157dd7c3fcaf247e0e5eadd15de9e270d"],"user_facing":false}
+{"commits":["af1640e064b5d5b711b2de6bfc5a5b7f76c4e36b"],"user_facing":false}
+{"commits":["f13d2023a216a54ab562d2249402ad0ae1f32a6a","fe4a58418712c5cfae727edbeed9f602fb2d06ca"],"user_facing":false}
+{"commits":["dd58d41659ab9d269d449865ec05c067db730403","2cb5890c60583d57fbfdb56e9bb02b3fece29861"],"user_facing":false}
+{"commits":["667dc96e3987e197ce9cfba75329c7f54c65e86a","56c5c12ff4eeb7e9cebcf5c9398b850bfd3c7028"],"user_facing":false}
+{"commits":["1e9df567c19eb3073111bfef96fd7719fa5bc717","8824f0680edbd10a7c89c89f179fc2a5f29a781b"],"user_facing":false}
+{"commits":["3fa16a533615894f9a166453a1c9384c78dc49b8"],"user_facing":false}
+{"commits":["a90d8a2033deac86299ed42a102f2aa7c39818e6"],"user_facing":false}
+{"commits":["a41469082f3dcd5119d98f47dfd46224449529c5","b67d9d0ccee7be9d82a890053c5d838683a41628"],"user_facing":false}
+{"commits":["80f56ed46e19c43443ebdd275cf7c3af24f32bcf"],"user_facing":false}
+{"commits":["c567f0f2628f0035c42c080b521234cdf441fdd1"],"user_facing":false}
+{"commits":["a55814fb9d6d75e02abe9f2234a5b3c8edddff87"],"user_facing":false}
+{"commits":["a93633b2944fb64d7acc15d7a1019a570ccadb80"],"user_facing":false}
+{"commits":["89f10d63a12984d5d1b3ac5608d262a9dbe7a2ea"],"user_facing":false}
+{"commits":["7e7169bb14f65b205943c6ec79a767bbf76be1c7"],"user_facing":false}
+{"commits":["46f896224d1a2d9f3c5c65a9874ee9344e1ae7bc"],"user_facing":true,"description":"**Staleness policy.** Discovery registry entries now carry verify callbacks; set_discovered uses them to retain values that still exist on disk when a re-scan omits them.","type":"feature"}
+{"commits":["d8911af6da408f4b5b8f829bcef6a568d9ef08c0"],"user_facing":true,"description":"**Directory discovery.** Recent dirs are now validated (must exist on disk) and stale entries are pruned from state. Static values no longer mixed into discovery results.","type":"feature"}
+{"commits":["d8911af6da408f4b5b8f829bcef6a568d9ef08c0","2a00ec5d52093554f99e5bb05b2a2850fba17e5d"],"user_facing":false}
+{"commits":["c801da75646919266ba2da15396cbb05214f1a89"],"user_facing":false}
+{"commits":["80184d5b7bee96d353e89639808b8ce7ae8fc891"],"user_facing":true,"description":"**Virtual '+' button.** The '+' creation sentinel is now a virtual UI element, no longer stored in segment state collections. Freeform values are promoted from ephemeral to pinned on launch.","type":"feature"}
+{"commits":["ffbbe4507fc28a25297e03783742ad6d487dfb50"],"user_facing":true,"description":"**Deferred discovery apply.** Slow discovery results for the focused segment are now buffered and applied on defocus, preventing option list disruption while the user is interacting. A pending indicator (*) appears in the segment label when results are waiting.","type":"feature"}
+{"commits":["2a0dde4c9ec4ff0fc6c5018e2683617c193e9ea2"],"user_facing":true,"description":"**Provenance overlay.** Press `?` to toggle a source overlay on fan-out options: `*` discovered, `^` pinned, `.` default, `~` ephemeral. The status bar shows a legend while active.","type":"feature"}
+{"commits":["9981a623e2d7bef1cfe2f161303fbbcdce8e5eb0"],"user_facing":false}
+{"commits":["38f309dcff2a7769f7b47754874f7572401ce5b5","c304110271b00eff327a0e8fee5cd45b645a6738"],"user_facing":true,"description":"**Docs.** Added installation instructions (pipx/uv) and deprecation notice for the old Node/npm package.","type":"feature"}
+{"commits":["086618c7f5a4139afa161feafc7828ae84910832"],"user_facing":false}
+{"commits":["117aaa65c0fbef60632c15a0daa59bee2e7703a5"],"user_facing":false}
+{"commits":["e824e5d3551569c03608c4395fe68f9fee623fdf"],"user_facing":false}
+{"commits":["91b78a68dea811a2d58ca51c58f7209f8fac2dae"],"user_facing":false}
