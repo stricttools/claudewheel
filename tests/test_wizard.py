@@ -1,4 +1,4 @@
-"""Tests for create_profile() in claudewheel.wizard."""
+"""Tests for create_profile() and run_profile_wizard() in claudewheel.wizard."""
 
 from __future__ import annotations
 
@@ -6,12 +6,13 @@ import contextlib
 import io
 import json
 import os
+import signal
 import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
-from claudewheel.wizard import WizardResult, create_profile
+from claudewheel.wizard import WizardResult, create_profile, run_profile_wizard
 from claudewheel.constants import PROFILE_SHARED_DIRS
 from claudewheel import wizard as wizard_mod
 from claudewheel import config as config_mod
@@ -491,6 +492,480 @@ class OptionsRegistrationTests(CreateProfileTestBase):
             mock_meta.assert_called_once_with(
                 "profile", "mocked", {"config_dir": "~/.claudewheel/profiles/mocked"}
             )
+
+
+class FakeTerminal:
+    """A mock Terminal that feeds pre-recorded keystrokes and captures output."""
+
+    def __init__(self, keys: list[str]):
+        self._keys = list(keys)
+        self._index = 0
+        self.rows = 40
+        self.cols = 120
+        self.output: list[str] = []
+
+    def enter_raw(self) -> None:
+        pass
+
+    def exit_raw(self) -> None:
+        pass
+
+    def close(self) -> None:
+        pass
+
+    def get_size(self) -> tuple[int, int]:
+        return self.rows, self.cols
+
+    def read_key(self) -> str:
+        if self._index >= len(self._keys):
+            # Safety net: if keys are exhausted, cancel the wizard
+            return "ESC"
+        key = self._keys[self._index]
+        self._index += 1
+        return key
+
+    def write(self, text: str) -> None:
+        self.output.append(text)
+
+    def flush(self) -> None:
+        pass
+
+
+class WizardTUITestBase(unittest.TestCase):
+    """Base class for wizard TUI tests.
+
+    Patches Terminal, signal.signal, and PROFILES_DIR so run_profile_wizard
+    can execute without a real terminal or filesystem side effects.
+    """
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.fake_profiles_dir = Path(self._tmp.name) / "profiles"
+        self.fake_profiles_dir.mkdir(parents=True)
+
+        # Patch PROFILES_DIR so _validate_name checks our temp dir
+        self._profiles_patch = mock.patch.object(
+            wizard_mod, "PROFILES_DIR", self.fake_profiles_dir
+        )
+        self._profiles_patch.start()
+        self.addCleanup(self._profiles_patch.stop)
+
+        # Patch signal.signal to avoid SIGWINCH issues in test
+        self._signal_patch = mock.patch(
+            "claudewheel.wizard.signal.signal",
+            return_value=signal.SIG_DFL,
+        )
+        self._signal_patch.start()
+        self.addCleanup(self._signal_patch.stop)
+
+    def _run_wizard(
+        self, keys: list[str], existing_profiles: list[str] | None = None,
+    ) -> WizardResult:
+        """Run the wizard with fake keystrokes and return the result."""
+        if existing_profiles is None:
+            existing_profiles = []
+        fake_term = FakeTerminal(keys)
+        with mock.patch("claudewheel.wizard.Terminal", return_value=fake_term):
+            return run_profile_wizard(existing_profiles)
+
+
+class EnterFromNameSubmitsTests(WizardTUITestBase):
+    """Test that pressing Enter while focused on the Name field submits the form."""
+
+    def test_type_name_and_enter_submits(self) -> None:
+        """Type 'myprofile' then ENTER. Should return a result with that name."""
+        keys = list("myprofile") + ["ENTER"]
+        result = self._run_wizard(keys)
+        self.assertFalse(result.cancelled)
+        self.assertEqual(result.name, "myprofile")
+
+    def test_type_hyphenated_name_and_enter_submits(self) -> None:
+        """Type 'my-test' then ENTER. Should return result with that name."""
+        keys = list("my-test") + ["ENTER"]
+        result = self._run_wizard(keys)
+        self.assertFalse(result.cancelled)
+        self.assertEqual(result.name, "my-test")
+
+    def test_defaults_all_checkboxes_true(self) -> None:
+        """When submitting from Name, all checkbox defaults should be True."""
+        keys = list("basic") + ["ENTER"]
+        result = self._run_wizard(keys)
+        self.assertFalse(result.cancelled)
+        self.assertTrue(result.wire_hooks)
+        self.assertTrue(result.symlink_shared)
+        self.assertTrue(result.disable_recap)
+        self.assertTrue(result.cleanup_10y)
+        self.assertTrue(result.disable_memory)
+        self.assertTrue(result.disable_attribution)
+
+    def test_default_clone_from_is_none(self) -> None:
+        """Settings source defaults to 'Defaults template', so clone_from is None."""
+        keys = list("quick") + ["ENTER"]
+        result = self._run_wizard(keys)
+        self.assertIsNone(result.clone_from)
+
+    def test_config_dir_matches_name(self) -> None:
+        """Config dir should reflect the typed name."""
+        keys = list("myname") + ["ENTER"]
+        result = self._run_wizard(keys)
+        self.assertEqual(result.config_dir, "~/.claudewheel/profiles/myname")
+
+
+class EnterOnEmptyNameTests(WizardTUITestBase):
+    """Test that Enter on empty Name field shows an error instead of submitting."""
+
+    def test_enter_on_empty_rejected_then_valid_name_accepted(self) -> None:
+        """First ENTER is rejected (empty name), then type 'valid' + ENTER works."""
+        keys = ["ENTER"] + list("valid") + ["ENTER"]
+        result = self._run_wizard(keys)
+        self.assertFalse(result.cancelled)
+        self.assertEqual(result.name, "valid")
+
+    def test_enter_on_whitespace_only_rejected(self) -> None:
+        """Spaces followed by ENTER should be rejected (name is stripped)."""
+        keys = [" ", " ", "ENTER"] + ["BACKSPACE", "BACKSPACE"] + list("ok") + ["ENTER"]
+        result = self._run_wizard(keys)
+        self.assertFalse(result.cancelled)
+        self.assertEqual(result.name, "ok")
+
+
+class EscCancelsTests(WizardTUITestBase):
+    """Test that ESC cancels the wizard."""
+
+    def test_esc_cancels_immediately(self) -> None:
+        """Pressing ESC should return a cancelled result."""
+        keys = ["ESC"]
+        result = self._run_wizard(keys)
+        self.assertTrue(result.cancelled)
+        self.assertEqual(result.name, "")
+
+    def test_ctrl_c_cancels(self) -> None:
+        """CTRL_C should also cancel."""
+        keys = ["CTRL_C"]
+        result = self._run_wizard(keys)
+        self.assertTrue(result.cancelled)
+
+    def test_esc_after_typing_cancels(self) -> None:
+        """ESC after typing some characters should cancel without submitting."""
+        keys = list("half") + ["ESC"]
+        result = self._run_wizard(keys)
+        self.assertTrue(result.cancelled)
+
+
+class NameValidationTests(WizardTUITestBase):
+    """Test that invalid names are rejected and the wizard continues."""
+
+    def test_uppercase_rejected(self) -> None:
+        """Uppercase chars in name should be rejected by validation."""
+        # Type "UPPER" + ENTER (rejected), then clear and type valid name
+        keys = list("UPPER") + ["ENTER"]
+        # The characters 'U', 'P', 'E', 'R' are uppercase and won't match
+        # the regex [a-z0-9][a-z0-9-]*. But they ARE printable, so they get
+        # appended to the text field. The validation happens on ENTER.
+        keys += ["BACKSPACE"] * 5 + list("valid") + ["ENTER"]
+        result = self._run_wizard(keys)
+        self.assertFalse(result.cancelled)
+        self.assertEqual(result.name, "valid")
+
+    def test_reserved_name_rejected(self) -> None:
+        """'default' is a reserved name and should be rejected."""
+        keys = list("default") + ["ENTER"]
+        keys += ["BACKSPACE"] * 7 + list("ok") + ["ENTER"]
+        result = self._run_wizard(keys)
+        self.assertFalse(result.cancelled)
+        self.assertEqual(result.name, "ok")
+
+    def test_existing_profile_name_rejected(self) -> None:
+        """A name that already exists in existing_profiles should be rejected."""
+        keys = list("taken") + ["ENTER"]
+        keys += ["BACKSPACE"] * 5 + list("fresh") + ["ENTER"]
+        result = self._run_wizard(keys, existing_profiles=["taken"])
+        self.assertFalse(result.cancelled)
+        self.assertEqual(result.name, "fresh")
+
+    def test_existing_dir_rejected(self) -> None:
+        """A name whose profile directory already exists should be rejected."""
+        (self.fake_profiles_dir / "exists").mkdir()
+        keys = list("exists") + ["ENTER"]
+        keys += ["BACKSPACE"] * 6 + list("new") + ["ENTER"]
+        result = self._run_wizard(keys)
+        self.assertFalse(result.cancelled)
+        self.assertEqual(result.name, "new")
+
+
+class TabNavigationTests(WizardTUITestBase):
+    """Test Tab/Shift-Tab navigation through focusable fields."""
+
+    def test_tab_skips_readonly_config_dir(self) -> None:
+        """TAB from Name should skip Config dir (readonly) and land on Settings source.
+
+        From Settings source, pressing ENTER does nothing (it's a radio), so
+        we TAB again to Advanced, TAB again to Create, then ENTER.
+        But first we need a name. Type it, TAB to next fields, then navigate
+        back to enter via Create button.
+        """
+        # Type name, TAB to Settings source, TAB to Advanced, TAB to Create, ENTER
+        keys = list("nav-test") + ["TAB", "TAB", "TAB", "ENTER"]
+        result = self._run_wizard(keys)
+        self.assertFalse(result.cancelled)
+        self.assertEqual(result.name, "nav-test")
+
+    def test_shift_tab_goes_backward(self) -> None:
+        """SHIFT_TAB from Settings source should go back to Name."""
+        keys = (
+            list("test")
+            + ["TAB"]        # Name -> Settings source
+            + ["SHIFT_TAB"]  # Settings source -> Name
+            # Now we're back on Name; clear and retype, then ENTER
+            + ["BACKSPACE"] * 4
+            + list("back")
+            + ["ENTER"]
+        )
+        result = self._run_wizard(keys)
+        self.assertFalse(result.cancelled)
+        self.assertEqual(result.name, "back")
+
+    def test_tab_wraps_around(self) -> None:
+        """TAB from the last focusable field should wrap to the first (Name)."""
+        # With Advanced collapsed, focusable: Name(0), Settings source(2),
+        # Advanced(3), Create(10). So 4 TABs wraps back to Name.
+        keys = (
+            list("wrap")
+            + ["TAB", "TAB", "TAB", "TAB"]  # Name -> SS -> Adv -> Create -> Name
+            # Now back on Name, clear and retype
+            + ["BACKSPACE"] * 4
+            + list("wrapped")
+            + ["ENTER"]
+        )
+        result = self._run_wizard(keys)
+        self.assertFalse(result.cancelled)
+        self.assertEqual(result.name, "wrapped")
+
+    def test_shift_tab_wraps_backward(self) -> None:
+        """SHIFT_TAB from Name should wrap to the last focusable (Create)."""
+        keys = (
+            list("myprof")
+            + ["SHIFT_TAB"]  # Name -> Create (wraps backward)
+            + ["ENTER"]      # ENTER on Create button
+        )
+        result = self._run_wizard(keys)
+        self.assertFalse(result.cancelled)
+        self.assertEqual(result.name, "myprof")
+
+
+class AdvancedToggleTests(WizardTUITestBase):
+    """Test expanding the Advanced section and toggling checkboxes."""
+
+    def test_expand_advanced_and_toggle_checkbox(self) -> None:
+        """Expand Advanced, navigate to first checkbox, toggle it off, then submit."""
+        keys = (
+            list("adv-test")
+            + ["TAB"]        # Name -> Settings source
+            + ["TAB"]        # Settings source -> Advanced
+            + ["RIGHT"]      # "Hide advanced" -> "Show advanced" (expand)
+            + ["TAB"]        # Advanced -> Wire common hooks (first checkbox)
+            + [" "]          # Toggle Wire hooks off (True -> False)
+            # Navigate back to Name to submit via ENTER
+            # Focusable with Advanced expanded: Name(0), SS(2), Adv(3),
+            # Wire(4), Symlink(5), Recap(6), 10y(7), Memory(8), CoAuth(9), Create(10)
+            # Currently at Wire(4), index 3 in focusable list.
+            # We need to get back to Name. Shift-Tab 4 times:
+            # Wire -> Advanced -> SS -> Name
+            + ["SHIFT_TAB"] * 4
+            + ["ENTER"]
+        )
+        result = self._run_wizard(keys)
+        self.assertFalse(result.cancelled)
+        self.assertEqual(result.name, "adv-test")
+        # Wire hooks was toggled off
+        self.assertFalse(result.wire_hooks)
+        # All others should still be True (default)
+        self.assertTrue(result.symlink_shared)
+        self.assertTrue(result.disable_recap)
+        self.assertTrue(result.cleanup_10y)
+        self.assertTrue(result.disable_memory)
+        self.assertTrue(result.disable_attribution)
+
+    def test_toggle_multiple_checkboxes(self) -> None:
+        """Toggle two checkboxes off, verify both are reflected."""
+        keys = (
+            list("multi")
+            + ["TAB", "TAB"]         # Name -> SS -> Advanced
+            + ["RIGHT"]              # Expand Advanced
+            + ["TAB"]                # Advanced -> Wire hooks
+            + [" "]                  # Toggle Wire hooks off
+            + ["TAB"]                # Wire hooks -> Symlink shared
+            + [" "]                  # Toggle Symlink off
+            + ["SHIFT_TAB"] * 5     # Back to Name: Sym -> Wire -> Adv -> SS -> Name
+            + ["ENTER"]
+        )
+        result = self._run_wizard(keys)
+        self.assertFalse(result.cancelled)
+        self.assertFalse(result.wire_hooks)
+        self.assertFalse(result.symlink_shared)
+        self.assertTrue(result.disable_recap)
+
+    def test_collapse_advanced_hides_checkboxes(self) -> None:
+        """Expanding then collapsing Advanced should return to default behavior."""
+        keys = (
+            list("collapse")
+            + ["TAB", "TAB"]         # Name -> SS -> Advanced
+            + ["RIGHT"]              # Expand
+            + ["LEFT"]               # Collapse back
+            + ["TAB"]                # Advanced -> Create (checkboxes hidden)
+            + ["ENTER"]              # Submit from Create button
+        )
+        result = self._run_wizard(keys)
+        self.assertFalse(result.cancelled)
+        self.assertEqual(result.name, "collapse")
+        # All defaults should be True since we never toggled anything
+        self.assertTrue(result.wire_hooks)
+        self.assertTrue(result.symlink_shared)
+
+    def test_space_cycles_advanced_radio(self) -> None:
+        """Space on Advanced field should cycle it (same as RIGHT)."""
+        keys = (
+            list("space-adv")
+            + ["TAB", "TAB"]   # Name -> SS -> Advanced
+            + [" "]            # Expand via Space
+            + ["TAB"]          # Advanced -> Wire hooks (first checkbox, visible)
+            + [" "]            # Toggle Wire hooks off
+            + ["SHIFT_TAB"] * 4  # Back to Name
+            + ["ENTER"]
+        )
+        result = self._run_wizard(keys)
+        self.assertFalse(result.cancelled)
+        self.assertFalse(result.wire_hooks)
+
+
+class SettingsSourceTests(WizardTUITestBase):
+    """Test changing the Settings source radio field."""
+
+    def test_clone_from_existing_profile(self) -> None:
+        """Cycle Settings source to an existing profile name."""
+        keys = (
+            list("clonetest")
+            + ["TAB"]        # Name -> Settings source
+            + ["RIGHT"]      # "Defaults template" -> "existing" (next option)
+            + ["SHIFT_TAB"]  # Back to Name
+            + ["ENTER"]
+        )
+        result = self._run_wizard(keys, existing_profiles=["existing"])
+        self.assertFalse(result.cancelled)
+        self.assertEqual(result.name, "clonetest")
+        self.assertEqual(result.clone_from, "existing")
+
+    def test_cycle_back_to_defaults(self) -> None:
+        """Cycle forward past all profiles and back to Defaults template."""
+        keys = (
+            list("cycle")
+            + ["TAB"]             # Name -> Settings source
+            + ["RIGHT"]           # Defaults -> alpha
+            + ["RIGHT"]           # alpha -> beta
+            + ["RIGHT"]           # beta -> Defaults (wraps)
+            + ["SHIFT_TAB"]       # Back to Name
+            + ["ENTER"]
+        )
+        result = self._run_wizard(keys, existing_profiles=["alpha", "beta"])
+        self.assertFalse(result.cancelled)
+        self.assertIsNone(result.clone_from)
+
+    def test_left_cycles_backward(self) -> None:
+        """LEFT on Settings source should cycle backward (wrapping)."""
+        keys = (
+            list("leftcycle")
+            + ["TAB"]        # Name -> Settings source
+            + ["LEFT"]       # Defaults -> last profile (wraps backward)
+            + ["SHIFT_TAB"]  # Back to Name
+            + ["ENTER"]
+        )
+        result = self._run_wizard(keys, existing_profiles=["alpha", "beta"])
+        self.assertFalse(result.cancelled)
+        self.assertEqual(result.clone_from, "beta")
+
+
+class CreateButtonTests(WizardTUITestBase):
+    """Test submitting via the Create button."""
+
+    def test_submit_from_create_button(self) -> None:
+        """Navigate to Create button and press ENTER."""
+        # With Advanced collapsed: Name(0), SS(2), Adv(3), Create(10)
+        keys = list("btntest") + ["TAB", "TAB", "TAB", "ENTER"]
+        result = self._run_wizard(keys)
+        self.assertFalse(result.cancelled)
+        self.assertEqual(result.name, "btntest")
+
+    def test_create_button_validates_name(self) -> None:
+        """Create button should validate the name, not blindly submit."""
+        # Navigate to Create with empty name -> rejected, then type and submit
+        keys = (
+            ["TAB", "TAB", "TAB"]  # Name(empty) -> SS -> Adv -> Create
+            + ["ENTER"]             # Rejected: empty name
+            + ["SHIFT_TAB"] * 3    # Create -> Adv -> SS -> Name
+            + list("fixed")
+            + ["ENTER"]             # Submit from Name
+        )
+        result = self._run_wizard(keys)
+        self.assertFalse(result.cancelled)
+        self.assertEqual(result.name, "fixed")
+
+
+class BackspaceTests(WizardTUITestBase):
+    """Test backspace editing in the Name field."""
+
+    def test_backspace_deletes_characters(self) -> None:
+        """Backspace should delete the last character from the name."""
+        keys = list("hello") + ["BACKSPACE", "BACKSPACE"] + list("p") + ["ENTER"]
+        result = self._run_wizard(keys)
+        self.assertFalse(result.cancelled)
+        # "hello" minus 2 chars = "hel" + "p" = "help"
+        self.assertEqual(result.name, "help")
+
+    def test_backspace_on_empty_name_is_safe(self) -> None:
+        """Backspace on an empty name should not crash."""
+        keys = ["BACKSPACE", "BACKSPACE"] + list("safe") + ["ENTER"]
+        result = self._run_wizard(keys)
+        self.assertFalse(result.cancelled)
+        self.assertEqual(result.name, "safe")
+
+
+class ErrorClearingTests(WizardTUITestBase):
+    """Test that errors are cleared when the user interacts after an error."""
+
+    def test_typing_clears_error(self) -> None:
+        """After an error from ENTER on empty, typing should clear it.
+
+        We can't directly observe the error string, but we verify the wizard
+        continues to accept input (doesn't get stuck).
+        """
+        keys = ["ENTER"] + list("works") + ["ENTER"]
+        result = self._run_wizard(keys)
+        self.assertFalse(result.cancelled)
+        self.assertEqual(result.name, "works")
+
+    def test_tab_clears_error(self) -> None:
+        """After an error, TAB should clear it and move focus."""
+        keys = (
+            ["ENTER"]               # Error: empty name
+            + ["TAB"]               # Clear error, move to Settings source
+            + ["SHIFT_TAB"]         # Back to Name
+            + list("tabclear")
+            + ["ENTER"]
+        )
+        result = self._run_wizard(keys)
+        self.assertFalse(result.cancelled)
+        self.assertEqual(result.name, "tabclear")
+
+
+class KeyExhaustionSafetyTests(WizardTUITestBase):
+    """Test that the FakeTerminal safety net works when keys are exhausted."""
+
+    def test_exhausted_keys_cancel(self) -> None:
+        """If the key list runs out, the FakeTerminal returns ESC to cancel."""
+        keys = list("some")  # No ENTER or ESC -- keys will run out
+        result = self._run_wizard(keys)
+        self.assertTrue(result.cancelled)
 
 
 if __name__ == "__main__":
