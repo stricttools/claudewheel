@@ -518,7 +518,7 @@ DISCOVERY_REGISTRY: dict[str, DiscoveryEntry] = {
     "npm_and_local": DiscoveryEntry(
         func=_discover_npm_and_local,
         is_slow=True,
-        verify=lambda val, config: Path(config.get("discovery", {}).get("path", "")).expanduser().joinpath(val).is_dir(),
+        verify=lambda val, config: Path(config.get("discovery", {}).get("path", "")).expanduser().joinpath(val).is_file(),
     ),
     "directory_scan": DiscoveryEntry(
         func=_discover_directory_scan,
