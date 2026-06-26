@@ -1,12 +1,15 @@
 {
+  "schema_version": 1,
   "defaults": {
+    "schema_version": 1,
     "app": {
       "env_prefix": null,
       "config": false,
       "global_flags": [],
       "commands": {},
       "groups": {},
-      "deprecated": {}
+      "deprecated": {},
+      "tag_contracts": {}
     },
     "flag": {
       "short": null,
@@ -20,25 +23,32 @@
       "hidden": false
     },
     "arg": {
+      "type": "str",
       "required": true,
-      "variadic": false
+      "default": null,
+      "variadic": false,
+      "choices": null
     },
     "command": {
       "passthrough": false,
       "flags": [],
       "args": [],
-      "tags": []
+      "tags": [],
+      "constraints": [],
+      "hidden": false,
+      "interactive": false
     },
     "group": {
       "commands": {},
       "groups": {},
       "deprecated": {},
-      "tags": []
+      "tags": [],
+      "hidden": false
     }
   },
   "project_id": "claudewheel",
   "name": "c",
-  "version": "0.13.1",
+  "version": "0.14.0",
   "help": "claudewheel - TUI launcher for Claude Code",
   "commands": {
     "health": {
@@ -119,7 +129,8 @@
         {
           "name": "uuid",
           "help": "UUID substring filter",
-          "required": false
+          "required": false,
+          "default": ""
         }
       ]
     },
@@ -188,12 +199,14 @@
           "name": "from",
           "type": "str",
           "help": "source path as it appears in session data",
+          "default": [],
           "repeatable": true
         },
         {
           "name": "to",
           "type": "str",
           "help": "target path on this machine",
+          "default": [],
           "repeatable": true
         }
       ],
@@ -201,6 +214,15 @@
         {
           "name": "source",
           "help": "path to the source directory (e.g., /path/to/backup/.claude)"
+        }
+      ],
+      "constraints": [
+        {
+          "type": "co_required",
+          "flags": [
+            "from",
+            "to"
+          ]
         }
       ]
     },
@@ -227,7 +249,8 @@
         {
           "name": "name",
           "help": "script name to deploy",
-          "required": false
+          "required": false,
+          "default": ""
         }
       ]
     },
@@ -305,6 +328,7 @@
           "type": "str",
           "help": "set a segment value (e.g. -s version=2.1.119)",
           "short": "s",
+          "default": [],
           "repeatable": true
         }
       ]
@@ -341,6 +365,15 @@
               "name": "rule",
               "help": "permission rule (e.g. Bash, Read(//home/**))"
             }
+          ],
+          "constraints": [
+            {
+              "type": "mutex",
+              "flags": [
+                "profile",
+                "all-profiles"
+              ]
+            }
           ]
         },
         "remove": {
@@ -368,6 +401,15 @@
             {
               "name": "rule",
               "help": "permission rule to remove"
+            }
+          ],
+          "constraints": [
+            {
+              "type": "mutex",
+              "flags": [
+                "profile",
+                "all-profiles"
+              ]
             }
           ]
         },
@@ -402,6 +444,15 @@
               "help": "apply to all profiles",
               "default": false,
               "negatable": true
+            }
+          ],
+          "constraints": [
+            {
+              "type": "mutex",
+              "flags": [
+                "profile",
+                "all-profiles"
+              ]
             }
           ]
         }
