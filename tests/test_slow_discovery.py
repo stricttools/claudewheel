@@ -1,21 +1,35 @@
-"""Regression tests for merge_slow_results."""
+"""Regression tests for merge_slow_results.
+
+Tests construct segments with initial discovered values (not defaults) to
+match the real build_segment_bar flow where discovered values get replaced
+by slow discovery.
+"""
 
 from __future__ import annotations
 
 import unittest
 
-from claudewheel.segment import Segment, SegmentBar, merge_slow_results
+from claudewheel.segment import Segment, SegmentBar, SegmentState, merge_slow_results
 
 
-def _make_segment(key: str, options: list[str], selected_idx: int = -1,
+def _make_segment(key: str, discovered: list[str], selected_idx: int = -1,
                   creatable: bool = False) -> Segment:
-    return Segment(
+    """Build a segment with values seeded as discovered (not defaults).
+
+    This mirrors the real flow: build_segment_bar calls set_discovered()
+    with fast-discovery results, then merge_slow_results replaces them.
+    Creatable segments also get "+" in ephemeral.
+    """
+    seg = Segment(
         key=key,
         label=key.title(),
-        options=list(options),
         selected_idx=selected_idx,
         creatable=creatable,
     )
+    seg.state.set_discovered(list(discovered))
+    if creatable:
+        seg.state.add_ephemeral("+")
+    return seg
 
 
 class MergeSlowResultsTests(unittest.TestCase):
@@ -44,23 +58,17 @@ class MergeSlowResultsTests(unittest.TestCase):
         bar = SegmentBar(segments=[seg])
         results = {"version": ["1.0", "3.0"]}
         merge_slow_results(bar, results, {})
-        # select_value("2.0") fails, and there is no last_config, so idx stays
-        # at whatever select_value left it (unchanged from before since select_value
-        # returns False without modifying). But actually current_value was "2.0"
-        # and select_value("2.0") fails -> selected_idx unchanged from the pre-merge
-        # state. After options replacement, idx=1 now points to "3.0". Let's verify
-        # the actual behavior: current_value is captured before options replace,
-        # then select_value is called on new options. If "2.0" is not in new options,
-        # select_value returns False and selected_idx stays at 1 (pointing to "3.0").
-        # This is the existing behavior.
+        # current_value "2.0" is no longer in discovered (and there are no
+        # defaults), so select_value("2.0") fails. selected_idx stays at 1,
+        # which now points to "3.0" in the new discovered list.
         self.assertEqual(seg.selected_idx, 1)
         self.assertEqual(seg.value, "3.0")
 
-    def test_plus_appended_for_creatable_segment(self) -> None:
-        """Creatable segments get '+' re-appended after merge."""
-        seg = _make_segment("profile", ["default", "+"], selected_idx=0, creatable=True)
+    def test_plus_present_for_creatable_segment(self) -> None:
+        """Creatable segments keep '+' from ephemeral after merge."""
+        seg = _make_segment("profile", ["default"], selected_idx=0, creatable=True)
         bar = SegmentBar(segments=[seg])
-        # Results do not include "+"; merge_slow_results should re-add it
+        # Results replace discovered; "+" stays in ephemeral from build time
         results = {"profile": ["default", "work"]}
         merge_slow_results(bar, results, {})
         self.assertIn("+", seg.options)
@@ -75,9 +83,10 @@ class MergeSlowResultsTests(unittest.TestCase):
         self.assertNotIn("+", seg.options)
 
     def test_plus_not_duplicated(self) -> None:
-        """If results already contain '+', it is not appended again."""
-        seg = _make_segment("profile", ["default", "+"], selected_idx=0, creatable=True)
+        """Even if results contain '+', it only appears once (ephemeral dedup)."""
+        seg = _make_segment("profile", ["default"], selected_idx=0, creatable=True)
         bar = SegmentBar(segments=[seg])
+        # Discovery returns "+" in the list, but ephemeral already has it
         results = {"profile": ["default", "work", "+"]}
         merge_slow_results(bar, results, {})
         self.assertEqual(seg.options.count("+"), 1)
@@ -91,7 +100,7 @@ class MergeSlowResultsTests(unittest.TestCase):
             "_installed_version": {"1.0", "2.0"},
         }
         merge_slow_results(bar, results, {})
-        self.assertEqual(seg.installed, {"1.0", "2.0"})
+        self.assertEqual(seg.state._installed, {"1.0", "2.0"})
 
     def test_segment_without_results_untouched(self) -> None:
         """Segments not present in results keep their original options and selection."""

@@ -26,7 +26,7 @@ class App:
                     val = overrides[seg.key]
                     if not seg.select_value(val) and seg.freeform:
                         # Freeform segment: add the value if not already in options
-                        seg.options.append(val)
+                        seg.state.add_ephemeral(val)
                         seg.select_value(val)
         # Start slow discovery in background thread
         self._slow_results: dict[str, list[str]] | None = None
@@ -156,7 +156,7 @@ class App:
                     return None
                 # Check for non-installed version -- offer to install
                 for s in self.bar.segments:
-                    if s.value and s.installed and s.value not in s.installed:
+                    if s.value and s.state._installed and not s.state.is_installed(s.value):
                         self._pending_install = s.value
                         self._pending_install_seg = s
                         self._flash = f"{s.value} not on disk. Enter=install, Esc=cancel"
@@ -219,8 +219,7 @@ class App:
                 # Submit the typed text as the value
                 text = seg.search_buffer.strip()
                 if text:
-                    if text not in seg.options:
-                        seg.options.append(text)
+                    seg.state.add_ephemeral(text)
                     seg.select_value(text)
                 seg.search_buffer = ""
                 seg._freeform_editing = False
@@ -291,7 +290,7 @@ class App:
         try:
             install_version(version, progress_callback=on_progress)
             print(f"\nInstalled {version} successfully. Press Enter to continue...")
-            seg.installed.add(version)
+            seg.state.set_installed(seg.state._installed | {version})
         except OSError as e:
             print(f"\nInstallation failed: {e}")
             print("Press Enter to continue...")
@@ -312,9 +311,8 @@ class App:
         result = run_profile_wizard(existing)
         if not result.cancelled:
             create_profile(result, self.cfg)
-            # Add the new profile to the segment's live options
-            plus_idx = seg.options.index("+")
-            seg.options.insert(plus_idx, result.name)
+            # Add the new profile to the segment's live options (pinned)
+            seg.state.add_pinned(result.name)
             seg.select_value(result.name)
         self.terminal.enter_raw()
         return None
@@ -351,9 +349,8 @@ class App:
         if not name or name == "+" or name in seg.options:
             return  # invalid or duplicate
 
-        # Insert before the "+" sentinel
-        plus_idx = seg.options.index("+")
-        seg.options.insert(plus_idx, name)
+        # Add as pinned (appears before "+" since "+" is ephemeral)
+        seg.state.add_pinned(name)
         seg.select_value(name)
 
         # Persist to options.json

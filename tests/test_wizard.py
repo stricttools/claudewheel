@@ -470,7 +470,7 @@ class OptionsRegistrationTests(CreateProfileTestBase):
 
         # Reload options from disk to verify persistence
         options = json.loads((self.launcher_dir / "options.json").read_text())
-        self.assertIn("newprof", options["profile"]["values"])
+        self.assertIn("newprof", options["profile"]["pinned"])
 
     def test_metadata_set(self) -> None:
         """Metadata with config_dir is set for the new profile."""
