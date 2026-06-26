@@ -17,13 +17,97 @@ from .fuzzy import fuzzy_rank
 NPM_CACHE_TTL = 3600  # 1 hour
 
 
+def _deduplicate(items: list[str]) -> list[str]:
+    """Remove duplicates preserving first occurrence order."""
+    seen: set[str] = set()
+    result: list[str] = []
+    for item in items:
+        if item not in seen:
+            seen.add(item)
+            result.append(item)
+    return result
+
+
+@dataclass
+class SegmentState:
+    """Manages option collections with cache-invalidating mutation methods."""
+
+    _discovered: list[str] = field(default_factory=list)
+    _pinned: list[str] = field(default_factory=list)
+    _defaults: list[str] = field(default_factory=list)
+    _ephemeral: list[str] = field(default_factory=list)
+    _installed: set[str] = field(default_factory=set)
+    metadata: dict[str, dict] = field(default_factory=dict)
+    _options: list[str] | None = field(default=None, repr=False)
+
+    @property
+    def options(self) -> list[str]:
+        if self._options is None:
+            self._options = _deduplicate(
+                self._pinned + self._discovered + self._defaults + self._ephemeral
+            )
+        return self._options
+
+    # -- Mutation methods (each invalidates cache) --
+
+    def set_discovered(self, vals: list[str]) -> None:
+        self._discovered = vals
+        self._options = None
+
+    def add_pinned(self, val: str) -> None:
+        if val not in self._pinned:
+            self._pinned.append(val)
+            self._options = None
+
+    def remove_pinned(self, val: str) -> None:
+        try:
+            self._pinned.remove(val)
+            self._options = None
+        except ValueError:
+            pass
+
+    def set_defaults(self, vals: list[str]) -> None:
+        self._defaults = vals
+        self._options = None
+
+    def add_ephemeral(self, val: str) -> None:
+        if val not in self._ephemeral:
+            self._ephemeral.append(val)
+            self._options = None
+
+    def set_installed(self, vals: set[str]) -> None:
+        self._installed = vals
+
+    def set_metadata(self, meta: dict[str, dict]) -> None:
+        self.metadata = meta
+
+    def update_metadata(self, partial: dict[str, dict]) -> None:
+        self.metadata.update(partial)
+
+    # -- Query methods --
+
+    def source_of(self, val: str) -> str | None:
+        if val in self._pinned:
+            return "pinned"
+        if val in self._discovered:
+            return "discovered"
+        if val in self._defaults:
+            return "defaults"
+        if val in self._ephemeral:
+            return "ephemeral"
+        return None
+
+    def is_installed(self, val: str) -> bool:
+        return val in self._installed
+
+
 @dataclass
 class Segment:
     """A single segment in the TUI bar with options, selection state, and search."""
 
     key: str
     label: str
-    options: list[str] = field(default_factory=list)
+    state: SegmentState = field(default_factory=SegmentState)
     selected_idx: int = -1  # -1 means nothing selected
     search_buffer: str = ""
     show_options: bool = True
@@ -33,7 +117,6 @@ class Segment:
     required: bool = False
     searchable: bool = False
     tab_advances: bool = True
-    installed: set[str] = field(default_factory=set)  # tracks locally installed options
     option_requires: dict[str, dict[str, str]] = field(default_factory=dict)  # value -> {segment_key: constraint}
     unavailable: set[str] = field(default_factory=set)  # dynamically computed per render cycle
     creatable: bool = False  # whether this segment supports inline "+" creation
@@ -41,6 +124,18 @@ class Segment:
     _freeform_editing: bool = False  # True while actively editing a freeform buffer
     creating: bool = False   # True when in creation-mode text input
     create_buffer: str = ""  # text being typed for the new option
+    # Bridge field: seeds state._defaults when passed at construction.
+    # Callers can pass options= (translated to _init_options by __init__ wrapper).
+    _init_options: list[str] | None = field(default=None, repr=False)
+
+    def __post_init__(self) -> None:
+        if self._init_options is not None:
+            self.state.set_defaults(list(self._init_options))
+            self._init_options = None
+
+    @property
+    def options(self) -> list[str]:
+        return self.state.options
 
     @property
     def value(self) -> str | None:
@@ -92,6 +187,18 @@ class Segment:
             return True
         except ValueError:
             return False
+
+
+# Wrap __init__ so callers can pass options= (backward compat bridge).
+# Translates options= to _init_options= which seeds state._defaults.
+_Segment_orig_init = Segment.__init__
+
+def _Segment_init_wrapper(self, *args, options=None, **kwargs):
+    if options is not None:
+        kwargs["_init_options"] = options
+    _Segment_orig_init(self, *args, **kwargs)
+
+Segment.__init__ = _Segment_init_wrapper
 
 
 @dataclass
@@ -352,14 +459,17 @@ def build_segment_bar(cfg: ConfigManager, *, skip_slow: bool = False) -> Segment
     cfg.save_state()
     segments: list[Segment] = []
 
+    from .defaults import DEFAULT_OPTIONS
+    last = cfg.state.get("last_config", {})
+
     for sdef in cfg.segments_def:
-        if sdef["key"] not in enabled:
+        key = sdef["key"]
+        if key not in enabled:
             continue
-        opts = resolved.get(sdef["key"], [])
+        opt = cfg.options_def.get(key, {})
         seg = Segment(
-            key=sdef["key"],
+            key=key,
             label=sdef["label"],
-            options=opts,
             show_options=sdef.get("show_options", True),
             wrap=sdef.get("wrap", True),
             min_width=sdef.get("min_width", 6),
@@ -370,21 +480,27 @@ def build_segment_bar(cfg: ConfigManager, *, skip_slow: bool = False) -> Segment
             creatable=sdef.get("creatable", False),
             freeform=sdef.get("freeform", False),
         )
-        # Attach installed set if discovery produced one (e.g. npm_and_local)
-        installed_key = f"_installed_{sdef['key']}"
+        # Populate state collections
+        seg.state.set_defaults(DEFAULT_OPTIONS.get(key, {}).get("values", []))
+        for pinned_val in opt.get("pinned", []):
+            seg.state.add_pinned(pinned_val)
+        seg.state.set_discovered(resolved.get(key, []))
+        # Seed metadata from persisted options (includes discovery metadata
+        # written back to opt by claude_config_scan and similar discovery types)
+        seg.state.set_metadata(dict(opt.get("metadata", {})))
+        # Installed set and option requirements
+        installed_key = f"_installed_{key}"
         if installed_key in resolved:
-            seg.installed = resolved[installed_key]
-        # Attach option requirements if any were parsed
-        requires_key = f"_requires_{sdef['key']}"
+            seg.state.set_installed(resolved[installed_key])
+        requires_key = f"_requires_{key}"
         if requires_key in resolved:
             seg.option_requires = resolved[requires_key]
-        # Append "+" creation sentinel for creatable segments
+        # "+" sentinel for creatable segments (bridge until Phase 7)
         if seg.creatable:
-            seg.options.append("+")
+            seg.state.add_ephemeral("+")
         # Pre-select from last session's config if available
-        last = cfg.state.get("last_config", {})
-        if sdef["key"] in last:
-            seg.select_value(last[sdef["key"]])
+        if key in last:
+            seg.select_value(last[key])
         segments.append(seg)
 
     # Auto-detect cwd for the directory segment if nothing was restored
@@ -411,25 +527,22 @@ def build_segment_bar(cfg: ConfigManager, *, skip_slow: bool = False) -> Segment
 def merge_slow_results(bar: SegmentBar, results: dict[str, list[str]], state: dict) -> None:
     """Merge background discovery results into the live segment bar.
 
-    For each segment with new options in *results*, replace its option list,
-    update the installed set, re-append the "+" sentinel for creatable segments,
-    and restore the previous selection (falling back to last_config from *state*).
+    For each segment with new options in *results*, update its discovered list
+    via SegmentState, update the installed set, and restore the previous
+    selection (falling back to last_config from *state*).
     """
     for seg in bar.segments:
         if seg.key not in results:
             continue
-        new_options = results[seg.key]
         # Remember current selection
         current_value = seg.value
-        # Update options
-        seg.options = new_options
+        # Update discovered options via state (cache auto-invalidates)
+        seg.state.set_discovered(results[seg.key])
         # Attach installed set if discovery produced one
         installed_key = f"_installed_{seg.key}"
         if installed_key in results:
-            seg.installed = results[installed_key]
-        # Re-append "+" sentinel for creatable segments
-        if seg.creatable and "+" not in seg.options:
-            seg.options.append("+")
+            seg.state.set_installed(results[installed_key])
+        # "+" is already in ephemeral from build time, no need to re-append
         # Restore selection
         if current_value is not None:
             seg.select_value(current_value)
