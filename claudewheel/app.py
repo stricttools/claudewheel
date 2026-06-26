@@ -47,6 +47,7 @@ class App:
         self._flash: str = ""  # Temporary message shown for one render cycle
         self._pending_install: str | None = None  # version awaiting install confirmation
         self._pending_install_seg: Segment | None = None
+        self._show_provenance: bool = False  # Phase 9: provenance overlay toggle
 
     def run_tui(self) -> dict[str, str | None] | None:
         """Enter the TUI loop. Returns selections on launch, None on quit."""
@@ -68,7 +69,7 @@ class App:
 
         try:
             evaluate_requires(self.bar)
-            self.renderer.render(self.bar)
+            self.renderer.render(self.bar, show_provenance=self._show_provenance)
             while self.running:
                 try:
                     key = self.terminal.read_key()
@@ -84,7 +85,7 @@ class App:
                 if self._slow_results is not None and not self._slow_thread.is_alive():
                     self._apply_slow_discovery()
                 evaluate_requires(self.bar)
-                self.renderer.render(self.bar, self._flash)
+                self.renderer.render(self.bar, self._flash, show_provenance=self._show_provenance)
                 self._flash = ""  # Clear flash after one render cycle
         finally:
             self.terminal.exit_raw()
@@ -256,7 +257,10 @@ class App:
             case _:
                 # Single printable characters
                 if len(key) == 1 and key.isprintable():
-                    if focused.freeform and not focused._freeform_editing and focused.value:
+                    # Provenance overlay toggle (only when not actively searching)
+                    if key == "?" and not focused.search_buffer:
+                        self._show_provenance = not self._show_provenance
+                    elif focused.freeform and not focused._freeform_editing and focused.value:
                         # First keypress on a freeform segment: seed buffer from current value
                         focused.search_buffer = focused.value + key
                         focused._freeform_editing = True

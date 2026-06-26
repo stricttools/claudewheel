@@ -11,6 +11,14 @@ from .theme import ThemeColors
 # Chars reserved on each side for scroll arrows (e.g. "<99 " or " 99>")
 ARROW_MARGIN = 4
 
+# Provenance overlay: source -> single-character glyph
+PROVENANCE_GLYPHS: dict[str, str] = {
+    "discovered": "*",
+    "pinned": "^",
+    "defaults": ".",
+    "ephemeral": "~",
+}
+
 
 class Renderer:
     """Renders the segment bar centered, with fan-out options and themed colors."""
@@ -19,10 +27,12 @@ class Renderer:
         self.term = terminal
         self.theme = theme
         self.minimap_mode = minimap_mode
+        self._show_provenance: bool = False
         # Tracks where each segment's value is drawn, for fan-out alignment
         self._segment_positions: dict[str, tuple[int, int]] = {}
 
-    def render(self, bar: SegmentBar, flash: str = "") -> None:
+    def render(self, bar: SegmentBar, flash: str = "", *, show_provenance: bool = False) -> None:
+        self._show_provenance = show_provenance
         buf: list[str] = [CLEAR_SCREEN]
         center_row = self.term.rows // 2
         self._render_center_line(buf, bar, center_row)
@@ -398,7 +408,19 @@ class Renderer:
         when a search buffer is active and the option is a normal (non-special)
         entry. Special entries ("+" sentinel, empty placeholder, unavailable,
         uninstalled) keep their dedicated color and are not highlighted.
+
+        When the provenance overlay is active, a dim single-character glyph
+        is prepended to indicate the option's source collection.
         """
+        # Provenance prefix: dim glyph + space when overlay is active
+        provenance_prefix = ""
+        if self._show_provenance and opt_text not in (self.theme.empty_value_text, "+"):
+            source = seg.state.source_of(opt_text)
+            glyph = PROVENANCE_GLYPHS.get(source or "", " ")
+            provenance_prefix = glyph + " "
+            # Shorten display to compensate for the 2-char prefix
+            display = display[:max(0, len(display) - 2)]
+
         # Special entries: own color, no match highlighting
         if opt_text == self.theme.empty_value_text:
             buf.append(self.theme.empty_value_fg)
@@ -410,6 +432,13 @@ class Renderer:
             buf.append(display)
             buf.append(RESET)
             return
+
+        # Emit provenance prefix (dim) before the option content
+        if provenance_prefix:
+            buf.append(DIM)
+            buf.append(provenance_prefix)
+            buf.append(RESET)
+
         if seg.state._installed and not seg.state.is_installed(opt_text):
             buf.append(unavail_fg)
             buf.append(display)
@@ -514,6 +543,13 @@ class Renderer:
             buf.append(flash[: self.term.cols - 4])
             buf.append(RESET)
             return
+        # Provenance legend replaces normal hints when overlay is active
+        if self._show_provenance:
+            legend = "* discovered  ^ pinned  . default  ~ ephemeral   ?: hide"
+            buf.append(DIM)
+            buf.append(legend[: self.term.cols - 4])
+            buf.append(RESET)
+            return
         seg = bar.focused
         if seg.creating:
             hints = "type: name   enter: confirm   esc: cancel"
@@ -525,9 +561,9 @@ class Renderer:
             if seg.search_buffer:
                 hints = "type: search   tab: accept   esc: clear   backspace: delete   enter: launch"
             else:
-                hints = "type: search   tab: accept   esc: clear   q: quit"
+                hints = "type: search   tab: accept   esc: clear   ?: sources   q: quit"
         else:
-            hints = "arrows: navigate   enter: launch   q: quit"
+            hints = "arrows: navigate   enter: launch   ?: sources   q: quit"
         buf.append(DIM)
         buf.append(hints[: self.term.cols - 4])
         buf.append(RESET)
