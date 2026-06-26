@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import json
+import re
 import signal
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from .constants import (
@@ -21,6 +22,16 @@ from .terminal import Terminal
 _ACCENT = (107, 138, 255)  # #6B8AFF
 _DIM_CLR = (136, 136, 136)  # #888888
 
+# Checkbox labels -- used to identify the 6 advanced fields
+_CHECKBOX_LABELS = [
+    "Wire common hooks",
+    "Symlink to shared store",
+    "Disable recap",
+    "10-year cleanup period",
+    "Disable auto-memory",
+    "Disable Co-Authored-By",
+]
+
 
 @dataclass
 class WizardField:
@@ -30,7 +41,6 @@ class WizardField:
     field_type: str  # "text", "radio", "checkbox", "readonly", "button"
     value: str | bool | None = None
     options: list[str] | None = None  # for radio
-    enabled: bool = True
 
 
 @dataclass
@@ -57,6 +67,23 @@ def _get_field(fields: list[WizardField], label: str) -> WizardField:
     raise KeyError(f"No field with label {label!r}")
 
 
+def _validate_name(name: str, existing_profiles: list[str]) -> str | None:
+    """Return error message, or None if valid."""
+    name = name.strip()
+    if not name:
+        return "Name cannot be empty"
+    if not re.match(r'^[a-z0-9][a-z0-9-]*$', name):
+        return "Use lowercase letters, digits, hyphens only"
+    if name == "default":
+        return f"'{name}' is a reserved name"
+    config_dir = (PROFILES_DIR / name).expanduser()
+    if config_dir.exists():
+        return f"~/.claudewheel/profiles/{name} already exists"
+    if name in existing_profiles:
+        return f"Profile '{name}' already registered"
+    return None
+
+
 def _build_fields(existing_profiles: list[str]) -> list[WizardField]:
     """Build the ordered list of wizard fields."""
     radio_opts = ["Defaults template"] + existing_profiles
@@ -64,6 +91,8 @@ def _build_fields(existing_profiles: list[str]) -> list[WizardField]:
         WizardField("Name", "text", value=""),
         WizardField("Config dir", "readonly", value="~/.claudewheel/profiles/"),
         WizardField("Settings source", "radio", value=radio_opts[0], options=radio_opts),
+        WizardField("Advanced", "radio", value="Hide advanced",
+                     options=["Hide advanced", "Show advanced"]),
         WizardField("Wire common hooks", "checkbox", value=True),
         WizardField("Symlink to shared store", "checkbox", value=True),
         WizardField("Disable recap", "checkbox", value=True),
@@ -71,17 +100,68 @@ def _build_fields(existing_profiles: list[str]) -> list[WizardField]:
         WizardField("Disable auto-memory", "checkbox", value=True),
         WizardField("Disable Co-Authored-By", "checkbox", value=True),
         WizardField("Create", "button"),
-        WizardField("Cancel", "button"),
     ]
 
 
+def _is_advanced_expanded(fields: list[WizardField]) -> bool:
+    """Return True when the Advanced toggle is set to show checkboxes."""
+    return _get_field(fields, "Advanced").value == "Show advanced"
+
+
+def _visible_fields(fields: list[WizardField]) -> list[WizardField]:
+    """Return fields that should be rendered based on current Advanced toggle."""
+    expanded = _is_advanced_expanded(fields)
+    return [f for f in fields
+            if expanded or f.label not in _CHECKBOX_LABELS]
+
+
+def _focusable_indices(fields: list[WizardField]) -> list[int]:
+    """Return indices into `fields` that are visible and interactive."""
+    visible = _visible_fields(fields)
+    visible_labels = {f.label for f in visible}
+    return [i for i, f in enumerate(fields)
+            if f.label in visible_labels and f.field_type != "readonly"]
+
+
+def _build_result(fields: list[WizardField]) -> WizardResult:
+    """Construct a WizardResult from current field values."""
+    name = _get_field(fields, "Name").value.strip()
+    source = _get_field(fields, "Settings source").value
+    clone = None if source == "Defaults template" else source
+    return WizardResult(
+        name=name,
+        config_dir=f"~/.claudewheel/profiles/{name}",
+        clone_from=clone,
+        wire_hooks=bool(_get_field(fields, "Wire common hooks").value),
+        symlink_shared=bool(_get_field(fields, "Symlink to shared store").value),
+        disable_recap=bool(_get_field(fields, "Disable recap").value),
+        cleanup_10y=bool(_get_field(fields, "10-year cleanup period").value),
+        disable_memory=bool(_get_field(fields, "Disable auto-memory").value),
+        disable_attribution=bool(_get_field(fields, "Disable Co-Authored-By").value),
+    )
+
+
+def _hints_for_field(f: WizardField) -> str:
+    """Return context-sensitive keyboard hint text for the given field."""
+    if f.field_type == "text":
+        return "Tab: next  Enter: create  Esc: cancel"
+    if f.field_type == "radio":
+        return "Left/Right: cycle  Tab: next  Esc: cancel"
+    if f.field_type == "checkbox":
+        return "Space: toggle  Tab: next  Esc: cancel"
+    if f.field_type == "button":
+        return "Enter: select  Tab: next  Esc: cancel"
+    return "Esc: cancel"
+
+
 def _render(term: Terminal, fields: list[WizardField], focus: int,
-            flash: str = "") -> None:
+            error: str = "") -> None:
     """Render the full wizard form centered in the terminal."""
     rows, cols = term.get_size()
-    # Total lines: 1 title + 1 blank + len(fields) + 1 blank line before buttons
-    # Buttons are last 2 fields, rendered on the same line
-    form_lines = len(fields) - 1  # -1 because two buttons share a line
+    visible = _visible_fields(fields)
+
+    # Total lines: 1 title + 1 blank + visible fields + 1 blank (hints) + 1 error + 1 hints
+    form_lines = len(visible)
     total_height = 1 + 1 + form_lines
     start_row = max(1, (rows - total_height) // 2)
     buf: list[str] = [CLEAR_SCREEN]
@@ -92,26 +172,18 @@ def _render(term: Terminal, fields: list[WizardField], focus: int,
     buf.append(move_to(start_row, title_col) + BOLD + fg_rgb(*_ACCENT) + title + RESET)
 
     row = start_row + 2  # skip blank line after title
+    visible_set = {f.label for f in visible}
     for i, f in enumerate(fields):
-        # Buttons (Create + Cancel) share one line
-        if f.field_type == "button" and f.label == "Cancel":
-            continue  # rendered alongside Create
+        if f.label not in visible_set:
+            continue
 
         focused = (i == focus)
         color = fg_rgb(*_ACCENT) if focused else fg_rgb(*_DIM_CLR)
         style = BOLD + color if focused else color
 
-        if f.field_type == "button" and f.label == "Create":
-            # Render both buttons on one line
-            cancel_idx = i + 1
-            cancel_focused = (focus == cancel_idx)
-            create_style = BOLD + fg_rgb(*_ACCENT) if focused else fg_rgb(*_DIM_CLR)
-            cancel_style = (BOLD + fg_rgb(*_ACCENT) if cancel_focused
-                            else fg_rgb(*_DIM_CLR))
-            line = (f"{create_style}[ Create ]{RESET}"
-                    f"    "
-                    f"{cancel_style}[ Cancel ]{RESET}")
-            col = max(1, (cols - 23) // 2)  # 23 = len("[ Create ]    [ Cancel ]")
+        if f.field_type == "button":
+            line = f"{style}[ {f.label} ]{RESET}"
+            col = max(1, (cols - len(f.label) - 4) // 2)
             buf.append(move_to(row, col) + CLEAR_LINE + line)
             row += 1
             continue
@@ -119,15 +191,19 @@ def _render(term: Terminal, fields: list[WizardField], focus: int,
         # Label + value
         if f.field_type == "text":
             cursor = "_" if focused else ""
-            val = f"{f.value}{cursor}"
+            val = f"[{f.value}{cursor}]"
             line = f"{style}{f.label}: {RESET}{val}"
         elif f.field_type == "readonly":
             line = f"{style}{f.label}: {RESET}{DIM}{f.value}{RESET}"
         elif f.field_type == "radio":
             parts: list[str] = []
             for opt in (f.options or []):
-                marker = "(*)" if opt == f.value else "( )"
-                parts.append(f"{marker} {opt}")
+                if opt == f.value:
+                    marker = "(*)"
+                    parts.append(f"{BOLD}{marker} {opt}{RESET}")
+                else:
+                    marker = "( )"
+                    parts.append(f"{marker} {opt}")
             opts_str = "  ".join(parts)
             line = f"{style}{f.label}: {RESET}{opts_str}"
         elif f.field_type == "checkbox":
@@ -140,93 +216,101 @@ def _render(term: Terminal, fields: list[WizardField], focus: int,
         buf.append(move_to(row, col) + CLEAR_LINE + line)
         row += 1
 
-    # Flash message below form
-    if flash:
-        flash_col = max(1, (cols - len(flash)) // 2)
-        buf.append(move_to(row + 1, flash_col) + CLEAR_LINE
-                   + BOLD + fg_rgb(255, 100, 100) + flash + RESET)
+    # Error message on the row above hints (bottom - 1)
+    error_row = rows - 1
+    if error:
+        error_col = max(1, (cols - len(error)) // 2)
+        buf.append(move_to(error_row, error_col) + CLEAR_LINE
+                   + BOLD + fg_rgb(255, 100, 100) + error + RESET)
+    else:
+        buf.append(move_to(error_row, 1) + CLEAR_LINE)
+
+    # Keyboard hints at the very bottom row
+    hints_row = rows
+    focused_field = fields[focus]
+    hints = _hints_for_field(focused_field)
+    hints_col = max(1, (cols - len(hints)) // 2)
+    buf.append(move_to(hints_row, hints_col) + CLEAR_LINE
+               + DIM + fg_rgb(*_DIM_CLR) + hints + RESET)
 
     term.write("".join(buf))
+
+
+def _cancelled_result() -> WizardResult:
+    """Return a cancelled WizardResult with zero-value fields."""
+    return WizardResult("", "", None, False, False, False, False, False,
+                        False, cancelled=True)
 
 
 def run_profile_wizard(existing_profiles: list[str]) -> WizardResult:
     """Run the form TUI and return the user's choices."""
     term = Terminal()
     fields = _build_fields(existing_profiles)
-    focus = 0  # start on Name field
+    focusable = _focusable_indices(fields)
+    focus_pos = 0  # index into focusable list
+    focus = focusable[focus_pos]
+    error = ""  # persistent error string
 
     term.enter_raw()
 
     def on_resize(signum, frame):
         term.rows, term.cols = term.get_size()
-        _render(term, fields, focus)
+        _render(term, fields, focus, error)
 
     prev_handler = signal.signal(signal.SIGWINCH, on_resize)
 
     try:
-        _render(term, fields, focus)
+        _render(term, fields, focus, error)
         while True:
             try:
                 key = term.read_key()
             except KeyboardInterrupt:
-                return WizardResult("", "", None, False, False, False, False, False,
-                                    False, cancelled=True)
+                return _cancelled_result()
 
             f = fields[focus]
 
             if key == "ESC" or key == "CTRL_C":
-                return WizardResult("", "", None, False, False, False, False, False,
-                                    False, cancelled=True)
+                return _cancelled_result()
 
-            if key in ("UP", "DOWN", "TAB"):
-                step = -1 if key == "UP" else 1
-                focus = (focus + step) % len(fields)
+            if key in ("TAB", "DOWN"):
+                error = ""  # clear error on focus change
+                focus_pos = (focus_pos + 1) % len(focusable)
+                focus = focusable[focus_pos]
+            elif key in ("SHIFT_TAB", "UP"):
+                error = ""  # clear error on focus change
+                focus_pos = (focus_pos - 1) % len(focusable)
+                focus = focusable[focus_pos]
             elif key == "ENTER":
-                if f.field_type == "button":
-                    if f.label == "Cancel":
-                        return WizardResult("", "", None, False, False, False, False,
-                                            False, cancelled=True)
+                if f.field_type == "text":
+                    # Enter from Name field submits
+                    err = _validate_name(f.value.strip(), existing_profiles)
+                    if err:
+                        error = err
+                    else:
+                        return _build_result(fields)
+                elif f.field_type == "button":
                     if f.label == "Create":
                         name = _get_field(fields, "Name").value.strip()
-                        if not name:
-                            _render(term, fields, focus, flash="Name cannot be empty")
-                            continue
-                        import re
-                        if not re.match(r'^[a-z0-9][a-z0-9-]*$', name):
-                            _render(term, fields, focus, flash="Use lowercase letters, digits, hyphens only")
-                            continue
-                        if name == "default":
-                            _render(term, fields, focus, flash=f"'{name}' is a reserved name")
-                            continue
-                        config_dir = (PROFILES_DIR / name).expanduser()
-                        if config_dir.exists():
-                            _render(term, fields, focus, flash=f"~/.claudewheel/profiles/{name} already exists")
-                            continue
-                        if name in existing_profiles:
-                            _render(term, fields, focus, flash=f"Profile '{name}' already registered")
-                            continue
-                        source = _get_field(fields, "Settings source").value
-                        clone = None if source == "Defaults template" else source
-                        return WizardResult(
-                            name=name,
-                            config_dir=f"~/.claudewheel/profiles/{name}",
-                            clone_from=clone,
-                            wire_hooks=bool(_get_field(fields, "Wire common hooks").value),
-                            symlink_shared=bool(_get_field(fields, "Symlink to shared store").value),
-                            disable_recap=bool(_get_field(fields, "Disable recap").value),
-                            cleanup_10y=bool(_get_field(fields, "10-year cleanup period").value),
-                            disable_memory=bool(_get_field(fields, "Disable auto-memory").value),
-                            disable_attribution=bool(_get_field(fields, "Disable Co-Authored-By").value),
-                        )
+                        err = _validate_name(name, existing_profiles)
+                        if err:
+                            error = err
+                        else:
+                            return _build_result(fields)
             elif key == " ":
                 if f.field_type == "checkbox":
                     f.value = not f.value
+                    error = ""  # clear error on toggle
                 elif f.field_type == "radio":
                     # Space cycles forward through radio options
                     opts = f.options or []
                     if opts:
                         idx = opts.index(f.value) if f.value in opts else -1
                         f.value = opts[(idx + 1) % len(opts)]
+                        error = ""  # clear error on cycle
+                    if f.label == "Advanced":
+                        focusable = _focusable_indices(fields)
+                        # Keep focus on Advanced
+                        focus_pos = focusable.index(focus)
             elif key in ("LEFT", "RIGHT"):
                 if f.field_type == "radio":
                     opts = f.options or []
@@ -234,21 +318,29 @@ def run_profile_wizard(existing_profiles: list[str]) -> WizardResult:
                         idx = opts.index(f.value) if f.value in opts else 0
                         step = 1 if key == "RIGHT" else -1
                         f.value = opts[(idx + step) % len(opts)]
+                        error = ""  # clear error on cycle
+                    if f.label == "Advanced":
+                        focusable = _focusable_indices(fields)
+                        # Keep focus on Advanced
+                        focus_pos = focusable.index(focus)
             elif key == "BACKSPACE":
                 if f.field_type == "text" and isinstance(f.value, str):
                     f.value = f.value[:-1]
+                    error = ""  # clear error on edit
                     # Update computed config dir
                     _get_field(fields, "Config dir").value = f"~/.claudewheel/profiles/{f.value}"
             else:
                 # Printable character on text field
                 if f.field_type == "text" and len(key) == 1 and key.isprintable():
                     f.value = (f.value or "") + key
+                    error = ""  # clear error on typing
                     _get_field(fields, "Config dir").value = f"~/.claudewheel/profiles/{f.value}"
 
-            _render(term, fields, focus)
+            _render(term, fields, focus, error)
     finally:
         signal.signal(signal.SIGWINCH, prev_handler or signal.SIG_DFL)
         term.exit_raw()
+        term.close()
 
 
 def _load_shared_settings() -> dict:
@@ -266,6 +358,9 @@ def create_profile(result: WizardResult, cfg: ConfigManager) -> None:
     config_dir = Path(result.config_dir).expanduser()
     config_dir.mkdir(parents=True, exist_ok=True)
 
+    # Load shared settings once -- used for profileDefaults and hooks/disallowedTools
+    shared = _load_shared_settings()
+
     # Build settings.json content
     settings: dict = {}
     if result.clone_from:
@@ -279,7 +374,6 @@ def create_profile(result: WizardResult, cfg: ConfigManager) -> None:
                 pass
     else:
         # Use profileDefaults from shared-settings.json, otherwise minimal
-        shared = _load_shared_settings()
         profile_defaults = shared.get("profileDefaults", {})
         if profile_defaults:
             settings = dict(profile_defaults)
@@ -294,15 +388,12 @@ def create_profile(result: WizardResult, cfg: ConfigManager) -> None:
     if result.disable_attribution:
         settings["attribution"] = {"commit": "", "pr": ""}
 
-    # Load canonical shared settings
-    shared = _load_shared_settings()
-
     # Disable auto mode
     settings.setdefault("permissions", {})["disableAutoMode"] = "disable"
     # Record which tools claudewheel manages (enforcement is via --disallowedTools CLI flag in launch.py)
     settings.setdefault("claudewheel", {})["disallowedTools"] = shared.get("disallowedTools", DISALLOWED_TOOLS[:])
 
-    # Wire hooks — merge into existing hooks if cloned
+    # Wire hooks -- merge into existing hooks if cloned
     canonical_hooks = shared.get("hooks", {})
     if result.wire_hooks:
         existing_hooks = settings.get("hooks", {}).get("UserPromptSubmit", [])
