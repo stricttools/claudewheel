@@ -69,7 +69,7 @@ Profile, GitHub, and Model are *creatable*: their option lists end with a `+` se
 Every enabled segment gets its own `--<key>` flag. These pre-fill the TUI:
 
 ```bash
-c --profile work --github mhxv
+c --profile myprofile --github myhandle
 c --directory ~/Projects/foo --model claude-opus-4-7
 ```
 
