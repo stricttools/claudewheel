@@ -48,7 +48,7 @@ def _make_segment(key: str, label: str, **kwargs) -> Segment:
     """Shorthand for constructing a Segment with common defaults."""
     defaults = dict(
         options=["val1"],
-        selected_idx=0,
+        selected_value="val1",
         min_width=4,
         max_width=10,
     )
@@ -171,7 +171,7 @@ class ViewportMathTests(unittest.TestCase):
             segs.append(_make_segment(
                 key, label,
                 options=[f"longvalue{i}"],
-                selected_idx=0,
+                selected_value=f"longvalue{i}",
                 min_width=10,
                 max_width=20,
             ))

@@ -12,23 +12,26 @@ from claudewheel.segment import (
 )
 
 
-def _make_bar(version_idx: int) -> SegmentBar:
+_VERSION_OPTIONS = ["2.1.108", "2.1.110", "2.1.115"]
+
+
+def _make_bar(version_value: str | None) -> SegmentBar:
     """Build a two-segment bar: a version segment and a permissions segment.
 
-    ``version_idx`` selects the option in the version segment; -1 means blank.
+    ``version_value`` selects the option in the version segment; None means blank.
     ``auto`` requires version >= 2.1.110.
     """
     version = Segment(
         key="version",
         label="Version",
-        options=["2.1.108", "2.1.110", "2.1.115"],
-        selected_idx=version_idx,
+        options=_VERSION_OPTIONS,
+        selected_value=version_value,
     )
     permissions = Segment(
         key="permissions",
         label="Permissions",
         options=["bypass", "auto"],
-        selected_idx=0,
+        selected_value="bypass",
         option_requires={"auto": {"version": ">=2.1.110"}},
     )
     return SegmentBar(segments=[version, permissions])
@@ -37,47 +40,47 @@ def _make_bar(version_idx: int) -> SegmentBar:
 class EvaluateRequiresTests(unittest.TestCase):
     def test_old_version_marks_auto_unavailable(self) -> None:
         """version=2.1.108 < 2.1.110, so 'auto' is unavailable."""
-        bar = _make_bar(version_idx=0)  # 2.1.108
+        bar = _make_bar(version_value="2.1.108")
         evaluate_requires(bar)
         permissions = bar.segments[1]
         self.assertIn("auto", permissions.unavailable)
 
     def test_exact_version_satisfies_constraint(self) -> None:
         """version=2.1.110 satisfies '>=2.1.110', so 'auto' is available."""
-        bar = _make_bar(version_idx=1)  # 2.1.110
+        bar = _make_bar(version_value="2.1.110")
         evaluate_requires(bar)
         permissions = bar.segments[1]
         self.assertNotIn("auto", permissions.unavailable)
 
     def test_newer_version_satisfies_constraint(self) -> None:
         """version=2.1.115 > 2.1.110 satisfies '>=2.1.110', so 'auto' is available."""
-        bar = _make_bar(version_idx=2)  # 2.1.115
+        bar = _make_bar(version_value="2.1.115")
         evaluate_requires(bar)
         permissions = bar.segments[1]
         self.assertNotIn("auto", permissions.unavailable)
 
     def test_blank_version_marks_auto_unavailable(self) -> None:
-        """No version selected (idx=-1, value=None) cannot satisfy any constraint."""
-        bar = _make_bar(version_idx=-1)
+        """No version selected (value=None) cannot satisfy any constraint."""
+        bar = _make_bar(version_value=None)
         evaluate_requires(bar)
         permissions = bar.segments[1]
         self.assertIn("auto", permissions.unavailable)
 
     def test_unconstrained_option_never_unavailable(self) -> None:
         """'bypass' has no requirement, so it is never in unavailable regardless of state."""
-        for idx in (-1, 0, 1, 2):
-            with self.subTest(version_idx=idx):
-                bar = _make_bar(version_idx=idx)
+        for ver in (None, "2.1.108", "2.1.110", "2.1.115"):
+            with self.subTest(version_value=ver):
+                bar = _make_bar(version_value=ver)
                 evaluate_requires(bar)
                 self.assertNotIn("bypass", bar.segments[1].unavailable)
 
     def test_unavailable_set_is_recomputed_each_call(self) -> None:
         """Calling evaluate_requires again after raising the version clears 'auto'."""
-        bar = _make_bar(version_idx=0)  # 2.1.108
+        bar = _make_bar(version_value="2.1.108")
         evaluate_requires(bar)
         self.assertIn("auto", bar.segments[1].unavailable)
         # Now bump the version to one that satisfies the constraint
-        bar.segments[0].selected_idx = 2  # 2.1.115
+        bar.segments[0].select_value("2.1.115")
         evaluate_requires(bar)
         self.assertNotIn("auto", bar.segments[1].unavailable)
 

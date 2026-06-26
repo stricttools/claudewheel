@@ -731,11 +731,11 @@ def merge_slow_results(
         if dr.metadata:
             seg.state.update_metadata(dr.metadata)
         # "+" is already in ephemeral from build time, no need to re-append
-        # Restore selection
+        # Restore selection: try current value first, fall back to last_config
+        restored = False
         if current_value is not None:
-            seg.select_value(current_value)
-        elif seg.key in state.get("last_config", {}):
-            # If user hasn't made a selection yet, try last_config
+            restored = seg.select_value(current_value)
+        if not restored and seg.key in state.get("last_config", {}):
             seg.select_value(state["last_config"][seg.key])
 
 

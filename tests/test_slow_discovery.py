@@ -14,7 +14,7 @@ from claudewheel.segment import (
 )
 
 
-def _make_segment(key: str, discovered: list[str], selected_idx: int = -1,
+def _make_segment(key: str, discovered: list[str], selected_value: str | None = None,
                   creatable: bool = False) -> Segment:
     """Build a segment with values seeded as discovered (not defaults).
 
@@ -25,7 +25,7 @@ def _make_segment(key: str, discovered: list[str], selected_idx: int = -1,
     seg = Segment(
         key=key,
         label=key.title(),
-        selected_idx=selected_idx,
+        selected_value=selected_value,
         creatable=creatable,
     )
     seg.state.set_discovered(list(discovered))
@@ -37,7 +37,7 @@ def _make_segment(key: str, discovered: list[str], selected_idx: int = -1,
 class MergeSlowResultsTests(unittest.TestCase):
     def test_selection_preserved_when_value_exists(self) -> None:
         """If the currently selected value appears in new results, it stays selected."""
-        seg = _make_segment("version", ["1.0", "2.0"], selected_idx=1)  # "2.0"
+        seg = _make_segment("version", ["1.0", "2.0"], selected_value="2.0")
         bar = SegmentBar(segments=[seg])
         results = {"version": DiscoveryResult(values=["1.0", "2.0", "3.0"])}
         merge_slow_results(bar, results, {})
@@ -46,7 +46,7 @@ class MergeSlowResultsTests(unittest.TestCase):
 
     def test_selection_falls_back_to_last_config(self) -> None:
         """When the selected value disappears, fall back to last_config from state."""
-        seg = _make_segment("version", ["1.0", "2.0"], selected_idx=1)  # "2.0"
+        seg = _make_segment("version", ["1.0", "2.0"], selected_value="2.0")
         bar = SegmentBar(segments=[seg])
         # New results do not contain "2.0"
         results = {"version": DiscoveryResult(values=["1.0", "3.0"])}
@@ -56,19 +56,20 @@ class MergeSlowResultsTests(unittest.TestCase):
 
     def test_selection_lost_when_no_fallback(self) -> None:
         """When the selected value disappears and no last_config, selection is lost."""
-        seg = _make_segment("version", ["1.0", "2.0"], selected_idx=1)  # "2.0"
+        seg = _make_segment("version", ["1.0", "2.0"], selected_value="2.0")
         bar = SegmentBar(segments=[seg])
         results = {"version": DiscoveryResult(values=["1.0", "3.0"])}
         merge_slow_results(bar, results, {})
         # current_value "2.0" is no longer in discovered (and there are no
-        # defaults), so select_value("2.0") fails. selected_idx stays at 1,
-        # which now points to "3.0" in the new discovered list.
-        self.assertEqual(seg.selected_idx, 1)
-        self.assertEqual(seg.value, "3.0")
+        # defaults), so select_value("2.0") fails. With value-based selection,
+        # selected_value remains "2.0" but value returns None since "2.0" is
+        # not in the new options. merge_slow_results tries select_value("2.0")
+        # which fails, leaving us with a stale selected_value.
+        self.assertIsNone(seg.value)
 
     def test_plus_present_for_creatable_segment(self) -> None:
         """Creatable segments keep '+' from ephemeral after merge."""
-        seg = _make_segment("profile", ["default"], selected_idx=0, creatable=True)
+        seg = _make_segment("profile", ["default"], selected_value="default", creatable=True)
         bar = SegmentBar(segments=[seg])
         # Results replace discovered; "+" stays in ephemeral from build time
         results = {"profile": DiscoveryResult(values=["default", "work"])}
@@ -78,7 +79,7 @@ class MergeSlowResultsTests(unittest.TestCase):
 
     def test_plus_not_appended_for_non_creatable(self) -> None:
         """Non-creatable segments do NOT get '+' appended."""
-        seg = _make_segment("version", ["1.0"], selected_idx=0)
+        seg = _make_segment("version", ["1.0"], selected_value="1.0")
         bar = SegmentBar(segments=[seg])
         results = {"version": DiscoveryResult(values=["1.0", "2.0"])}
         merge_slow_results(bar, results, {})
@@ -86,7 +87,7 @@ class MergeSlowResultsTests(unittest.TestCase):
 
     def test_plus_not_duplicated(self) -> None:
         """Even if results contain '+', it only appears once (ephemeral dedup)."""
-        seg = _make_segment("profile", ["default"], selected_idx=0, creatable=True)
+        seg = _make_segment("profile", ["default"], selected_value="default", creatable=True)
         bar = SegmentBar(segments=[seg])
         # Discovery returns "+" in the list, but ephemeral already has it
         results = {"profile": DiscoveryResult(values=["default", "work", "+"])}
@@ -95,7 +96,7 @@ class MergeSlowResultsTests(unittest.TestCase):
 
     def test_installed_set_updated(self) -> None:
         """The installed set from DiscoveryResult updates the segment's installed set."""
-        seg = _make_segment("version", ["1.0"], selected_idx=0)
+        seg = _make_segment("version", ["1.0"], selected_value="1.0")
         bar = SegmentBar(segments=[seg])
         results = {
             "version": DiscoveryResult(
@@ -108,8 +109,8 @@ class MergeSlowResultsTests(unittest.TestCase):
 
     def test_segment_without_results_untouched(self) -> None:
         """Segments not present in results keep their original options and selection."""
-        seg_a = _make_segment("version", ["1.0", "2.0"], selected_idx=1)
-        seg_b = _make_segment("profile", ["default"], selected_idx=0)
+        seg_a = _make_segment("version", ["1.0", "2.0"], selected_value="2.0")
+        seg_b = _make_segment("profile", ["default"], selected_value="default")
         bar = SegmentBar(segments=[seg_a, seg_b])
         # Only version has results
         results = {"version": DiscoveryResult(values=["3.0", "4.0"])}
@@ -121,7 +122,7 @@ class MergeSlowResultsTests(unittest.TestCase):
 
     def test_no_selection_falls_back_to_last_config(self) -> None:
         """When no value was selected (idx=-1), last_config is used as fallback."""
-        seg = _make_segment("version", ["old"], selected_idx=-1)
+        seg = _make_segment("version", ["old"])
         bar = SegmentBar(segments=[seg])
         results = {"version": DiscoveryResult(values=["1.0", "2.0"])}
         state = {"last_config": {"version": "2.0"}}
@@ -130,7 +131,7 @@ class MergeSlowResultsTests(unittest.TestCase):
 
     def test_last_config_not_used_when_current_value_exists(self) -> None:
         """Even if last_config differs, the current selection takes precedence."""
-        seg = _make_segment("version", ["1.0", "2.0"], selected_idx=0)  # "1.0"
+        seg = _make_segment("version", ["1.0", "2.0"], selected_value="1.0")
         bar = SegmentBar(segments=[seg])
         results = {"version": DiscoveryResult(values=["1.0", "2.0", "3.0"])}
         state = {"last_config": {"version": "3.0"}}
