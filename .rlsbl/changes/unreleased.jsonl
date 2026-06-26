@@ -17,3 +17,4 @@
 {"commits":["46f896224d1a2d9f3c5c65a9874ee9344e1ae7bc"],"user_facing":true,"description":"**Staleness policy.** Discovery registry entries now carry verify callbacks; set_discovered uses them to retain values that still exist on disk when a re-scan omits them.","type":"feature"}
 {"commits":["d8911af6da408f4b5b8f829bcef6a568d9ef08c0"],"user_facing":true,"description":"**Directory discovery.** Recent dirs are now validated (must exist on disk) and stale entries are pruned from state. Static values no longer mixed into discovery results.","type":"feature"}
 {"commits":["d8911af6da408f4b5b8f829bcef6a568d9ef08c0","2a00ec5d52093554f99e5bb05b2a2850fba17e5d"],"user_facing":false}
+{"commits":["c801da75646919266ba2da15396cbb05214f1a89"],"user_facing":false}
