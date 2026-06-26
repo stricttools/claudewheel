@@ -7,16 +7,41 @@ title: README.md
 
 TUI launcher for Claude Code with profile, GitHub account, version, model, directory, MCP, and permission switching.
 
+## Installation
+
+Install from PyPI:
+
+```bash
+pipx install claudewheel
+```
+
+Or with `uv`:
+
+```bash
+uv tool install claudewheel
+```
+
+Requires Python 3.11+.
+
+### Upgrading from the Node package
+
+Early versions of claudewheel were distributed as an npm package (`npm install -g claudewheel`). The Node wrapper is deprecated -- it only exists as a thin shim that calls `python3 -m claudewheel`. Install the Python package directly instead:
+
+```bash
+npm uninstall -g claudewheel    # remove the old Node wrapper
+pipx install claudewheel        # install the Python package
+```
+
+If you have the old Node binary at `/opt/homebrew/bin/claudewheel` or a similar npm global path, removing the npm package will clean it up.
+
 ## Quick start
 
 ```bash
-./c            # launch the TUI
-./c --help     # show all flags
+claudewheel         # launch the TUI
+claudewheel --help  # show all flags
 ```
 
 The first run creates `~/.claudewheel/` populated with defaults (config, segments, options, themes).
-
-Requirements: Python 3.14+ on the `PATH`. No third-party packages.
 
 ## The segment bar
 
