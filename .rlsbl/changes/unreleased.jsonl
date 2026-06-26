@@ -14,3 +14,4 @@
 {"commits":["a93633b2944fb64d7acc15d7a1019a570ccadb80"],"user_facing":false}
 {"commits":["89f10d63a12984d5d1b3ac5608d262a9dbe7a2ea"],"user_facing":false}
 {"commits":["7e7169bb14f65b205943c6ec79a767bbf76be1c7"],"user_facing":false}
+{"commits":["46f896224d1a2d9f3c5c65a9874ee9344e1ae7bc"],"user_facing":true,"description":"**Staleness policy.** Discovery registry entries now carry verify callbacks; set_discovered uses them to retain values that still exist on disk when a re-scan omits them.","type":"feature"}
