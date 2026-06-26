@@ -31,6 +31,39 @@ from .defaults import (
 
 
 # ---------------------------------------------------------------------------
+# Historical defaults -- every value that ever appeared in DEFAULT_OPTIONS
+# ---------------------------------------------------------------------------
+# Built by auditing every commit that touched defaults.py. Used by migration 3
+# to clean up stale hardcoded values from user options.json files.
+
+HISTORICAL_DEFAULTS: dict[str, set[str]] = {
+    "profile": {"personal", "work", "the-third"},
+    "github": {"O;O--", ")|8W"},
+    "version": set(),
+    "directory": {"~/Projects/ProductEngine", "~/Projects/ClaudeLauncher"},
+    "model": {
+        # Generic family names (0eaec65..6596e8f)
+        "opus",
+        "sonnet",
+        "haiku",
+        # Full model IDs (a791dda+)
+        "claude-opus-4-6",
+        "claude-opus-4-6[1m]",
+        "claude-opus-4-7",
+        "claude-opus-4-7[1m]",
+        "claude-sonnet-4-6",
+        "claude-sonnet-4-6[1m]",
+        "claude-haiku-4-5-20251001",
+        "claude-sonnet-4-5-20241022",
+        # Fable models (c05b4c5+)
+        "claude-fable-5",
+        "claude-fable-5[1m]",
+    },
+    "mcp": {"default", "strict"},
+    "permissions": {"bypass", "default", "plan", "auto"},
+}
+
+# ---------------------------------------------------------------------------
 # Versioned migrations
 # ---------------------------------------------------------------------------
 # Each migration targets a schema version. It runs exactly once: when the
