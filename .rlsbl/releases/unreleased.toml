@@ -1,9 +1,30 @@
 # Version bump type: patch, minor, or major
-bump = "patch"
+bump = "minor"
 # Short description of this release (required)
-description = "Add missing test coverage for the import command"
+description = "Option provenance architecture: SegmentState separates discovered, pinned, and default options with staleness policies, value-based selection, deferred discovery apply, and a provenance overlay"
 # Optional context explaining why these changes were made
-context = ""
+context = """
+A pre-registry build (0.1.0) accidentally shipped with the maintainer's personal
+data hardcoded in DEFAULT_OPTIONS (GitHub handles, profile names). This seeded into
+users' ~/.claudewheel/options.json on first run. Even after the fix (making defaults
+empty + adding discovery), stale data persisted because gh_auth appended (never
+replaced) and claude_config_scan fell back to stale values when discovery returned
+empty.
+
+This release introduces SegmentState -- a new data model that cleanly separates
+discovered (runtime), pinned (user-added), and default (shipped) option collections.
+Discovery always replaces the discovered collection; pinned values are never touched
+by discovery. A staleness policy (IMMEDIATE for credentials, VERIFY for filesystem
+objects) controls what happens when previously-discovered values disappear. The
+entire discovery system was refactored from a monolithic match/case dispatch into
+a typed registry of individual functions returning DiscoveryResult dataclasses.
+
+Selection tracking switched from index-based (fragile when options change) to
+value-based. The "+" creation sentinel moved from a real option to a virtual UI
+element via display_options. Slow discovery results are now deferred for the focused
+segment and applied on defocus, preventing option list disruption during interaction.
+A provenance overlay (toggle with ?) shows where each option came from.
+"""
 # Set to true to generate a blog post for this release
 # blog = false
 include = ["npm", "pypi"]
