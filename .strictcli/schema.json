@@ -48,20 +48,20 @@
   },
   "project_id": "claudewheel",
   "name": "c",
-  "version": "0.14.0",
-  "help": "claudewheel - TUI launcher for Claude Code",
+  "version": "0.15.0",
+  "help": "claudewheel - TUI launcher for Claude Code with profile, model, and directory selection",
   "commands": {
     "health": {
       "name": "health",
-      "help": "run health check and exit"
+      "help": "run diagnostic health checks on profiles, tokens, and hooks, then exit"
     },
     "config": {
       "name": "config",
-      "help": "open config dir in editor"
+      "help": "open the ~/.claudewheel/ config directory in your $EDITOR"
     },
     "versions": {
       "name": "versions",
-      "help": "list available versions and exit"
+      "help": "list all installed Claude Code versions, marking the current symlink target"
     },
     "install": {
       "name": "install",
@@ -69,17 +69,17 @@
       "args": [
         {
           "name": "version",
-          "help": "version to install"
+          "help": "semver version string to download and install (e.g. 2.1.119)"
         }
       ]
     },
     "uninstall": {
       "name": "uninstall",
-      "help": "delete an installed Claude Code version",
+      "help": "delete an installed Claude Code version binary from the versions directory",
       "args": [
         {
           "name": "version",
-          "help": "version to uninstall"
+          "help": "semver version string to remove (refuses if it is the current symlink target)"
         }
       ]
     },
@@ -89,7 +89,7 @@
     },
     "new-profile": {
       "name": "new-profile",
-      "help": "run the profile creation wizard"
+      "help": "run the interactive wizard to create and configure a new Claude profile"
     },
     "delete-profile": {
       "name": "delete-profile",
@@ -98,7 +98,7 @@
         {
           "name": "force",
           "type": "bool",
-          "help": "force deletion even if sessions appear active",
+          "help": "force deletion even if sessions appear active; skips the safety check",
           "default": false,
           "negatable": true
         }
@@ -106,29 +106,29 @@
       "args": [
         {
           "name": "name",
-          "help": "profile name to delete"
+          "help": "name of the profile to delete (e.g. work, personal, lisa)"
         }
       ]
     },
     "show": {
       "name": "show",
-      "help": "print current selections and exit"
+      "help": "print a summary of current segment selections, theme, and recent directories"
     },
     "migrate": {
       "name": "migrate",
-      "help": "migrate sessions between profiles",
+      "help": "move session data files from one profile to another, optionally filtered by UUID",
       "args": [
         {
           "name": "src",
-          "help": "source profile"
+          "help": "source profile name whose sessions will be moved (e.g. work)"
         },
         {
           "name": "dst",
-          "help": "destination profile"
+          "help": "destination profile name to receive the migrated sessions (e.g. personal)"
         },
         {
           "name": "uuid",
-          "help": "UUID substring filter",
+          "help": "optional UUID substring to migrate only matching sessions",
           "required": false,
           "default": ""
         }
@@ -141,7 +141,7 @@
         {
           "name": "dry-run",
           "type": "bool",
-          "help": "preview changes without writing",
+          "help": "preview cleanup changes without writing anything to disk",
           "default": false,
           "negatable": true
         }
@@ -154,7 +154,7 @@
         {
           "name": "dry-run",
           "type": "bool",
-          "help": "preview changes without writing",
+          "help": "preview the rename and session migration without writing anything to disk",
           "default": false,
           "negatable": true
         },
@@ -169,11 +169,11 @@
       "args": [
         {
           "name": "old",
-          "help": "old directory path"
+          "help": "current path of the project directory to rename (absolute or relative)"
         },
         {
           "name": "new",
-          "help": "new directory path"
+          "help": "target path for the renamed project directory (absolute or relative)"
         }
       ]
     },
@@ -184,28 +184,28 @@
         {
           "name": "dry-run",
           "type": "bool",
-          "help": "preview changes without writing",
+          "help": "preview the import operation without writing any session data to disk",
           "default": false,
           "negatable": true
         },
         {
           "name": "reid",
           "type": "bool",
-          "help": "assign new UUIDs to colliding sessions",
+          "help": "assign new UUIDs to sessions that collide with existing local sessions",
           "default": false,
           "negatable": true
         },
         {
           "name": "from",
           "type": "str",
-          "help": "source path as it appears in session data",
+          "help": "original project path as recorded in the source session data (repeatable)",
           "default": [],
           "repeatable": true
         },
         {
           "name": "to",
           "type": "str",
-          "help": "target path on this machine",
+          "help": "local directory path that corresponds to the --from path on this machine (repeatable)",
           "default": [],
           "repeatable": true
         }
@@ -228,19 +228,19 @@
     },
     "deploy-hooks": {
       "name": "deploy-hooks",
-      "help": "deploy hook scripts to ~/.claudewheel/scripts/",
+      "help": "deploy built-in hook scripts to the ~/.claudewheel/scripts/ directory",
       "flags": [
         {
           "name": "all",
           "type": "bool",
-          "help": "deploy all known hook scripts",
+          "help": "deploy every known hook script from the built-in registry at once",
           "default": false,
           "negatable": true
         },
         {
           "name": "force",
           "type": "bool",
-          "help": "overwrite existing scripts instead of skipping",
+          "help": "overwrite existing hook scripts on disk instead of skipping them",
           "default": false,
           "negatable": true
         }
@@ -248,7 +248,7 @@
       "args": [
         {
           "name": "name",
-          "help": "script name to deploy",
+          "help": "name of the specific hook script to deploy (omit to use --all)",
           "required": false,
           "default": ""
         }
@@ -256,12 +256,12 @@
     },
     "launch": {
       "name": "launch",
-      "help": "start the interactive TUI launcher",
+      "help": "start the interactive TUI launcher to select a profile, model, and directory",
       "flags": [
         {
           "name": "cont",
           "type": "bool",
-          "help": "continue the most recent conversation",
+          "help": "continue the most recent conversation in the current directory",
           "short": "c",
           "default": false,
           "negatable": true
@@ -269,7 +269,7 @@
         {
           "name": "resume",
           "type": "str",
-          "help": "resume a session (ID, or empty for picker)",
+          "help": "resume a specific session by its UUID, or pass empty string to open the picker",
           "short": "r",
           "default": "\u0000__unset__"
         },
@@ -283,50 +283,50 @@
         {
           "name": "picker",
           "type": "bool",
-          "help": "open the session resume picker",
+          "help": "open the interactive session resume picker to browse and select a session",
           "default": false,
           "negatable": true
         },
         {
           "name": "profile",
           "type": "str",
-          "help": "preset value for the Profile segment",
+          "help": "preset the Profile segment to this value, skipping TUI selection for it",
           "default": ""
         },
         {
           "name": "github",
           "type": "str",
-          "help": "preset value for the GH segment",
+          "help": "preset the GitHub account segment to this value, skipping TUI selection for it",
           "default": ""
         },
         {
           "name": "model",
           "type": "str",
-          "help": "preset value for the Model segment",
+          "help": "preset the Model segment to this value (e.g. opus, sonnet), skipping TUI selection",
           "default": ""
         },
         {
           "name": "directory",
           "type": "str",
-          "help": "preset value for the Dir segment",
+          "help": "preset the Directory segment to this path, skipping TUI selection for it",
           "default": ""
         },
         {
           "name": "mcp",
           "type": "str",
-          "help": "preset value for the MCP segment",
+          "help": "preset the MCP mode segment to this value, skipping TUI selection for it",
           "default": ""
         },
         {
           "name": "permissions",
           "type": "str",
-          "help": "preset value for the Perms segment",
+          "help": "preset the Permissions segment to this value, skipping TUI selection for it",
           "default": ""
         },
         {
           "name": "set",
           "type": "str",
-          "help": "set a segment value (e.g. -s version=2.1.119)",
+          "help": "set any segment value as KEY=VALUE (e.g. -s version=2.1.119); repeatable",
           "short": "s",
           "default": [],
           "repeatable": true
@@ -337,7 +337,7 @@
   "groups": {
     "permission": {
       "name": "permission",
-      "help": "manage profile permissions",
+      "help": "add, remove, and list permission rules across Claude profiles",
       "commands": {
         "add": {
           "name": "add",
@@ -346,12 +346,12 @@
             {
               "name": "profile",
               "type": "str",
-              "help": "profile name"
+              "help": "target a specific profile by name (mutually exclusive with --all-profiles)"
             },
             {
               "name": "all-profiles",
               "type": "bool",
-              "help": "apply to all profiles",
+              "help": "apply the operation to every registered profile at once",
               "default": false,
               "negatable": true
             }
@@ -359,11 +359,11 @@
           "args": [
             {
               "name": "category",
-              "help": "permission category (allow, deny, ask)"
+              "help": "permission category to add the rule to: allow, deny, or ask"
             },
             {
               "name": "rule",
-              "help": "permission rule (e.g. Bash, Read(//home/**))"
+              "help": "permission rule string to add (e.g. Bash, Read(//home/**), Edit)"
             }
           ],
           "constraints": [
@@ -383,12 +383,12 @@
             {
               "name": "profile",
               "type": "str",
-              "help": "profile name"
+              "help": "target a specific profile by name (mutually exclusive with --all-profiles)"
             },
             {
               "name": "all-profiles",
               "type": "bool",
-              "help": "apply to all profiles",
+              "help": "apply the operation to every registered profile at once",
               "default": false,
               "negatable": true
             }
@@ -396,11 +396,11 @@
           "args": [
             {
               "name": "category",
-              "help": "permission category (allow, deny, ask)"
+              "help": "permission category to remove the rule from: allow, deny, or ask"
             },
             {
               "name": "rule",
-              "help": "permission rule to remove"
+              "help": "exact permission rule string to remove (must match an existing entry)"
             }
           ],
           "constraints": [
@@ -420,7 +420,7 @@
             {
               "name": "format",
               "type": "str",
-              "help": "output format",
+              "help": "output format: grouped (indented tree), flat (tsv), or json",
               "choices": [
                 "grouped",
                 "flat",
@@ -430,18 +430,18 @@
             {
               "name": "category",
               "type": "str",
-              "help": "filter to a single category (allow, deny, ask)",
+              "help": "restrict output to a single permission category (allow, deny, or ask)",
               "default": ""
             },
             {
               "name": "profile",
               "type": "str",
-              "help": "profile name"
+              "help": "target a specific profile by name (mutually exclusive with --all-profiles)"
             },
             {
               "name": "all-profiles",
               "type": "bool",
-              "help": "apply to all profiles",
+              "help": "apply the operation to every registered profile at once",
               "default": false,
               "negatable": true
             }
