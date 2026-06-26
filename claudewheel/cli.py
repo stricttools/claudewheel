@@ -251,7 +251,7 @@ def _handle_new_profile() -> int:
     return 0
 
 
-@strictcli.flag("force", type=bool, help="force deletion even if sessions appear active")
+@strictcli.flag("force", type=bool, help="force deletion even if sessions appear active; skips the safety check")
 def _handle_delete_profile(name: str, force: bool) -> int:
     from .profile_ops import do_delete_profile
     rc = do_delete_profile(name, force=force)
@@ -280,14 +280,14 @@ def _handle_migrate(src: str, dst: str, uuid: str) -> int:
     return 0
 
 
-@strictcli.flag("dry-run", type=bool, help="preview changes without writing")
+@strictcli.flag("dry-run", type=bool, help="preview cleanup changes without writing anything to disk")
 def _handle_stats(dry_run: bool) -> int:
     from .stats import run_stats
     run_stats(dry_run=dry_run)
     return 0
 
 
-@strictcli.flag("dry-run", type=bool, help="preview changes without writing")
+@strictcli.flag("dry-run", type=bool, help="preview the rename and session migration without writing anything to disk")
 @strictcli.flag("post-hoc", type=bool, help="skip filesystem rename, migrate sessions only (directory already renamed)")
 def _handle_mv(old: str, new: str, dry_run: bool, post_hoc: bool) -> int:
     from .mv import run_mv
@@ -299,8 +299,8 @@ def _handle_mv(old: str, new: str, dry_run: bool, post_hoc: bool) -> int:
     return 0
 
 
-@strictcli.flag("dry-run", type=bool, help="preview changes without writing")
-@strictcli.flag("reid", type=bool, help="assign new UUIDs to colliding sessions")
+@strictcli.flag("dry-run", type=bool, help="preview the import operation without writing any session data to disk")
+@strictcli.flag("reid", type=bool, help="assign new UUIDs to sessions that collide with existing local sessions")
 def _handle_import(source: str, from_: list[str], to: list[str], dry_run: bool, reid: bool) -> int:
     from pathlib import Path
     from .import_ import run_import
@@ -336,8 +336,8 @@ def _handle_import(source: str, from_: list[str], to: list[str], dry_run: bool, 
     return 0
 
 
-@strictcli.flag("all", type=bool, help="deploy all known hook scripts")
-@strictcli.flag("force", type=bool, help="overwrite existing scripts instead of skipping")
+@strictcli.flag("all", type=bool, help="deploy every known hook script from the built-in registry at once")
+@strictcli.flag("force", type=bool, help="overwrite existing hook scripts on disk instead of skipping them")
 def _handle_deploy_hooks(name: str, all: bool, force: bool) -> int:
     from .hook_scripts import HOOK_SCRIPTS
 
@@ -423,9 +423,9 @@ def _handle_permission_remove(category: str, rule: str,
     return 0
 
 
-@strictcli.flag("format", type=str, help="output format",
+@strictcli.flag("format", type=str, help="output format: grouped (indented tree), flat (tsv), or json",
                 choices=["grouped", "flat", "json"])
-@strictcli.flag("category", type=str, help="filter to a single category (allow, deny, ask)",
+@strictcli.flag("category", type=str, help="restrict output to a single permission category (allow, deny, or ask)",
                 default="")
 def _handle_permission_list(profile: str, all_profiles: bool,
                             format: str, category: str) -> int:
@@ -816,29 +816,29 @@ _SUBCOMMANDS = frozenset({
 
 def _build_app() -> App:
     """Build the strictcli App with all subcommands registered."""
-    app = App(name="c", version=__version__, help="claudewheel - TUI launcher for Claude Code")
+    app = App(name="c", version=__version__, help="claudewheel - TUI launcher for Claude Code with profile, model, and directory selection")
 
     # -- One-shot commands --
 
-    app.command("health", help="run health check and exit")(
+    app.command("health", help="run diagnostic health checks on profiles, tokens, and hooks, then exit")(
         _handle_health
     )
 
-    app.command("config", help="open config dir in editor")(
+    app.command("config", help="open the ~/.claudewheel/ config directory in your $EDITOR")(
         _handle_config
     )
 
-    app.command("versions", help="list available versions and exit")(
+    app.command("versions", help="list all installed Claude Code versions, marking the current symlink target")(
         _handle_versions
     )
 
     app.command("install", help="download and install a specific Claude Code version",
-                args=[Arg(name="version", help="version to install")])(
+                args=[Arg(name="version", help="semver version string to download and install (e.g. 2.1.119)")])(
         _handle_install
     )
 
-    app.command("uninstall", help="delete an installed Claude Code version",
-                args=[Arg(name="version", help="version to uninstall")])(
+    app.command("uninstall", help="delete an installed Claude Code version binary from the versions directory",
+                args=[Arg(name="version", help="semver version string to remove (refuses if it is the current symlink target)")])(
         _handle_uninstall
     )
 
@@ -846,24 +846,24 @@ def _build_app() -> App:
         _handle_reset_options
     )
 
-    app.command("new-profile", help="run the profile creation wizard")(
+    app.command("new-profile", help="run the interactive wizard to create and configure a new Claude profile")(
         _handle_new_profile
     )
 
     app.command("delete-profile", help="delete a registered profile and all associated data",
-                args=[Arg(name="name", help="profile name to delete")])(
+                args=[Arg(name="name", help="name of the profile to delete (e.g. work, personal, lisa)")])(
         _handle_delete_profile
     )
 
-    app.command("show", help="print current selections and exit")(
+    app.command("show", help="print a summary of current segment selections, theme, and recent directories")(
         _handle_show
     )
 
-    app.command("migrate", help="migrate sessions between profiles",
+    app.command("migrate", help="move session data files from one profile to another, optionally filtered by UUID",
                 args=[
-                    Arg(name="src", help="source profile"),
-                    Arg(name="dst", help="destination profile"),
-                    Arg(name="uuid", help="UUID substring filter", required=False, default=""),
+                    Arg(name="src", help="source profile name whose sessions will be moved (e.g. work)"),
+                    Arg(name="dst", help="destination profile name to receive the migrated sessions (e.g. personal)"),
+                    Arg(name="uuid", help="optional UUID substring to migrate only matching sessions", required=False, default=""),
                 ])(
         _handle_migrate
     )
@@ -874,8 +874,8 @@ def _build_app() -> App:
 
     app.command("mv", help="rename a project directory and migrate session data",
                 args=[
-                    Arg(name="old", help="old directory path"),
-                    Arg(name="new", help="new directory path"),
+                    Arg(name="old", help="current path of the project directory to rename (absolute or relative)"),
+                    Arg(name="new", help="target path for the renamed project directory (absolute or relative)"),
                 ])(
         _handle_mv
     )
@@ -887,9 +887,9 @@ def _build_app() -> App:
                 flag_sets=[
                     FlagSet(name="mapping", flags=[
                         Flag(name="from", type=str, repeatable=True, unique=False,
-                             help="source path as it appears in session data"),
+                             help="original project path as recorded in the source session data (repeatable)"),
                         Flag(name="to", type=str, repeatable=True, unique=False,
-                             help="target path on this machine"),
+                             help="local directory path that corresponds to the --from path on this machine (repeatable)"),
                     ]),
                 ],
                 dependencies=[
@@ -898,18 +898,18 @@ def _build_app() -> App:
         _handle_import
     )
 
-    app.command("deploy-hooks", help="deploy hook scripts to ~/.claudewheel/scripts/",
-                args=[Arg(name="name", help="script name to deploy", required=False, default="")])(
+    app.command("deploy-hooks", help="deploy built-in hook scripts to the ~/.claudewheel/scripts/ directory",
+                args=[Arg(name="name", help="name of the specific hook script to deploy (omit to use --all)", required=False, default="")])(
         _handle_deploy_hooks
     )
 
     # -- Permission group --
     _profile_mutex = MutexGroup(flags=[
-        Flag(name="profile", type=str, help="profile name"),
-        Flag(name="all-profiles", type=bool, help="apply to all profiles"),
+        Flag(name="profile", type=str, help="target a specific profile by name (mutually exclusive with --all-profiles)"),
+        Flag(name="all-profiles", type=bool, help="apply the operation to every registered profile at once"),
     ])
 
-    perm_grp = app.group("permission", help="manage profile permissions")
+    perm_grp = app.group("permission", help="add, remove, and list permission rules across Claude profiles")
 
     perm_grp.command("add", help=(
                          "Add a permission rule to a profile's settings.json. Takes a category"
@@ -919,8 +919,8 @@ def _build_app() -> App:
                          " profile. Skips duplicates if the rule already exists in the category."
                      ),
                      args=[
-                         Arg(name="category", help="permission category (allow, deny, ask)"),
-                         Arg(name="rule", help="permission rule (e.g. Bash, Read(//home/**))")
+                         Arg(name="category", help="permission category to add the rule to: allow, deny, or ask"),
+                         Arg(name="rule", help="permission rule string to add (e.g. Bash, Read(//home/**), Edit)")
                      ],
                      mutex=[_profile_mutex])(
         _handle_permission_add
@@ -934,8 +934,8 @@ def _build_app() -> App:
                          " from every registered profile. Reports whether the rule was found."
                      ),
                      args=[
-                         Arg(name="category", help="permission category (allow, deny, ask)"),
-                         Arg(name="rule", help="permission rule to remove"),
+                         Arg(name="category", help="permission category to remove the rule from: allow, deny, or ask"),
+                         Arg(name="rule", help="exact permission rule string to remove (must match an existing entry)"),
                      ],
                      mutex=[_profile_mutex])(
         _handle_permission_remove
@@ -956,33 +956,33 @@ def _build_app() -> App:
     _UNSET = "\x00__unset__"  # sentinel to distinguish "not passed" from ""
     _session_flag_set = FlagSet(name="session", flags=[
         Flag(name="cont", short="c", type=bool,
-             help="continue the most recent conversation"),
+             help="continue the most recent conversation in the current directory"),
         Flag(name="resume", short="r", type=str, default=_UNSET,
-             help="resume a session (ID, or empty for picker)"),
+             help="resume a specific session by its UUID, or pass empty string to open the picker"),
         Flag(name="print-prompt", short="p", type=str, default=_UNSET,
              help="run in non-interactive print mode with the given prompt"),
         Flag(name="picker", type=bool, default=False,
-             help="open the session resume picker"),
+             help="open the interactive session resume picker to browse and select a session"),
     ])
 
     _segment_flag_set = FlagSet(name="segments", flags=[
         Flag(name="profile", type=str, default="",
-             help="preset value for the Profile segment"),
+             help="preset the Profile segment to this value, skipping TUI selection for it"),
         Flag(name="github", type=str, default="",
-             help="preset value for the GH segment"),
+             help="preset the GitHub account segment to this value, skipping TUI selection for it"),
         Flag(name="model", type=str, default="",
-             help="preset value for the Model segment"),
+             help="preset the Model segment to this value (e.g. opus, sonnet), skipping TUI selection"),
         Flag(name="directory", type=str, default="",
-             help="preset value for the Dir segment"),
+             help="preset the Directory segment to this path, skipping TUI selection for it"),
         Flag(name="mcp", type=str, default="",
-             help="preset value for the MCP segment"),
+             help="preset the MCP mode segment to this value, skipping TUI selection for it"),
         Flag(name="permissions", type=str, default="",
-             help="preset value for the Perms segment"),
+             help="preset the Permissions segment to this value, skipping TUI selection for it"),
         Flag(name="set", short="s", type=str, repeatable=True, unique=False,
-             help="set a segment value (e.g. -s version=2.1.119)"),
+             help="set any segment value as KEY=VALUE (e.g. -s version=2.1.119); repeatable"),
     ])
 
-    app.command("launch", help="start the interactive TUI launcher",
+    app.command("launch", help="start the interactive TUI launcher to select a profile, model, and directory",
                 flag_sets=[_session_flag_set, _segment_flag_set])(
         _handle_launch
     )
