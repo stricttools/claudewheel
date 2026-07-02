@@ -136,7 +136,7 @@ def do_delete_profile(name: str, force: bool = False) -> int:
     if _is_profile_running(name) and not force:
         print(
             f"Profile '{name}' appears to have active sessions. "
-            "Use --force to delete anyway.",
+            "Use --force-delete to delete anyway.",
             file=sys.stderr,
         )
         return 1

@@ -251,10 +251,10 @@ def _handle_new_profile() -> int:
     return 0
 
 
-@strictcli.flag("force", type=bool, help="force deletion even if sessions appear active; skips the safety check")
-def _handle_delete_profile(name: str, force: bool) -> int:
+@strictcli.flag("force-delete", type=bool, help="force deletion even if sessions appear active; skips the safety check")
+def _handle_delete_profile(name: str, force_delete: bool) -> int:
     from .profile_ops import do_delete_profile
-    rc = do_delete_profile(name, force=force)
+    rc = do_delete_profile(name, force=force_delete)
     if rc != 0:
         sys.exit(rc)
     return 0
@@ -280,15 +280,15 @@ def _handle_migrate(src: str, dst: str, uuid: str) -> int:
     return 0
 
 
-@strictcli.flag("dry-run", type=bool, help="preview cleanup changes without writing anything to disk")
+@strictcli.flag("dry-run", type=bool, default=False, help="preview cleanup changes without writing anything to disk")
 def _handle_stats(dry_run: bool) -> int:
     from .stats import run_stats
     run_stats(dry_run=dry_run)
     return 0
 
 
-@strictcli.flag("dry-run", type=bool, help="preview the rename and session migration without writing anything to disk")
-@strictcli.flag("post-hoc", type=bool, help="skip filesystem rename, migrate sessions only (directory already renamed)")
+@strictcli.flag("dry-run", type=bool, default=False, help="preview the rename and session migration without writing anything to disk")
+@strictcli.flag("post-hoc", type=bool, default=False, help="skip filesystem rename, migrate sessions only (directory already renamed)")
 def _handle_mv(old: str, new: str, dry_run: bool, post_hoc: bool) -> int:
     from .mv import run_mv
     try:
@@ -299,8 +299,8 @@ def _handle_mv(old: str, new: str, dry_run: bool, post_hoc: bool) -> int:
     return 0
 
 
-@strictcli.flag("dry-run", type=bool, help="preview the import operation without writing any session data to disk")
-@strictcli.flag("reid", type=bool, help="assign new UUIDs to sessions that collide with existing local sessions")
+@strictcli.flag("dry-run", type=bool, default=False, help="preview the import operation without writing any session data to disk")
+@strictcli.flag("reid", type=bool, default=False, help="assign new UUIDs to sessions that collide with existing local sessions")
 def _handle_import(source: str, from_: list[str], to: list[str], dry_run: bool, reid: bool) -> int:
     from pathlib import Path
     from .import_ import run_import
@@ -336,9 +336,9 @@ def _handle_import(source: str, from_: list[str], to: list[str], dry_run: bool, 
     return 0
 
 
-@strictcli.flag("all", type=bool, help="deploy every known hook script from the built-in registry at once")
-@strictcli.flag("force", type=bool, help="overwrite existing hook scripts on disk instead of skipping them")
-def _handle_deploy_hooks(name: str, all: bool, force: bool) -> int:
+@strictcli.flag("all", type=bool, default=False, help="deploy every known hook script from the built-in registry at once")
+@strictcli.flag("force-overwrite", type=bool, default=False, help="overwrite existing hook scripts on disk instead of skipping them")
+def _handle_deploy_hooks(name: str, all: bool, force_overwrite: bool) -> int:
     from .hook_scripts import HOOK_SCRIPTS
 
     if not name and not all:
@@ -358,7 +358,7 @@ def _handle_deploy_hooks(name: str, all: bool, force: bool) -> int:
     targets = sorted(HOOK_SCRIPTS) if all else [name]
     for script_name in targets:
         dest = SCRIPTS_DIR / script_name
-        if dest.exists() and not force:
+        if dest.exists() and not force_overwrite:
             print(f"already exists: {dest}")
             continue
         action = "overwritten" if dest.exists() else "created"
@@ -906,7 +906,7 @@ def _build_app() -> App:
     # -- Permission group --
     _profile_mutex = MutexGroup(flags=[
         Flag(name="profile", type=str, help="target a specific profile by name (mutually exclusive with --all-profiles)"),
-        Flag(name="all-profiles", type=bool, help="apply the operation to every registered profile at once"),
+        Flag(name="all-profiles", type=bool, default=False, help="apply the operation to every registered profile at once"),
     ])
 
     perm_grp = app.group("permission", help="add, remove, and list permission rules across Claude profiles")
@@ -955,7 +955,7 @@ def _build_app() -> App:
     # -- Launch command (default when no subcommand given) --
     _UNSET = "\x00__unset__"  # sentinel to distinguish "not passed" from ""
     _session_flag_set = FlagSet(name="session", flags=[
-        Flag(name="cont", short="c", type=bool,
+        Flag(name="cont", short="c", type=bool, default=False,
              help="continue the most recent conversation in the current directory"),
         Flag(name="resume", short="r", type=str, default=_UNSET,
              help="resume a specific session by its UUID, or pass empty string to open the picker"),
