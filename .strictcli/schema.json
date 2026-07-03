@@ -48,7 +48,7 @@
   },
   "project_id": "claudewheel",
   "name": "c",
-  "version": "0.16.1",
+  "version": "0.17.0",
   "help": "claudewheel - TUI launcher for Claude Code with profile, model, and directory selection",
   "commands": {
     "health": {
@@ -100,12 +100,28 @@
           "type": "bool",
           "help": "force deletion even if sessions appear active; skips the safety check",
           "negatable": true
+        },
+        {
+          "name": "force-delete-data",
+          "type": "bool",
+          "help": "delete even when shared-dir names hold REAL data instead of symlinks; this DESTROYS that data (e.g. conversation history)",
+          "negatable": true
         }
       ],
       "args": [
         {
           "name": "name",
           "help": "name of the profile to delete (e.g. work, personal, lisa)"
+        }
+      ]
+    },
+    "show-profile": {
+      "name": "show-profile",
+      "help": "print a detailed inspection report for one profile (auth, symlinks, settings, sessions, disk)",
+      "args": [
+        {
+          "name": "name",
+          "help": "name of the profile to inspect (e.g. work, personal, default)"
         }
       ]
     },
