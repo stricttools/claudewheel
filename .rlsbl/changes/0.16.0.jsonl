@@ -1,0 +1,15 @@
+{"commits":["f785537f669210c5c7037b8a801ce3b007e772b5","e6bcf5f4ba7e59656a150e3ddf4e3c93da82cc53"],"user_facing":false}
+{"commits":["882f9517087c10f246fb554f69ebfa8ba5ae8ff1"],"user_facing":false}
+{"commits":["4f02bb882f6cce58081b51d79dcc8f2316062143"],"user_facing":true,"description":"Dependency installation no longer requires a machine-local checkout: `uv.lock` previously carried a local path for `strictcli`, breaking installs and CI outside the author's machine. It now resolves from PyPI (strictcli 0.24.0).","type":"fix"}
+{"commits":["87dfd514abe5d3c263ec981c77307f17a96b5a5f"],"user_facing":false}
+{"commits":["8b38a4327b5f204e52f2b28bad03eff103de53e4"],"user_facing":true,"description":"**Breaking.** Renamed `--force` to `--force-delete` (delete-profile) and `--force-overwrite` (deploy-hooks). Boolean flags now require explicit `--flag`/`--no-flag` where no default is set.","type":"breaking"}
+{"commits":["85db92206330c24a85b49e94d7cfcefaa47e95cb"],"user_facing":false}
+{"commits":["92ce5ca440d0c4adb0a1d8b617eda1904e4efd50"],"user_facing":false}
+{"commits":["9f5d790a8c49a00e6fe25c364ca4ea441e15ea30","b2d9b929fd5854088246aca1c466fd53cb109743","ed3d358d9e0bf3a84fd50c5c46d14b2910b9069e"],"user_facing":false}
+{"commits":["841b104487815db36ab53ba188cf5ecb332d1734"],"user_facing":false}
+{"commits":["0172aac3d9e570bd1e548e38cb2699d1c97ccaea","4a1388e72c40db7cb86aa4159c2fbad597e48f7a","e440f2315b99e952f455c7ec15e6948270d431a6"],"user_facing":false}
+{"commits":["bfd87b44cf6bd9744a0f950d746899ecc4f13e8f","cf2fcd341ba9bd9aedcbd4d45bcb2de564872def"],"user_facing":true,"description":"Profile discovery now accepts profiles with only `settings.json`, so newly created profiles appear immediately without requiring auth setup first.","type":"feature"}
+{"commits":["606b67fc5a83d72463c6565af14a757215cbcb70","6e9192867a07420b7fa163a7a58ad0e14b2e5743"],"user_facing":true,"description":"Newly created profiles now appear in the segment bar immediately after the wizard completes, without requiring a restart.","type":"fix"}
+{"commits":["4c8ea563a7e63461ac2e96f24e4b60639d4657b0"],"user_facing":true,"description":"Unauthenticated profiles are visually dimmed in the segment bar, indicating they need auth setup.","type":"feature"}
+{"commits":["b93fabd9d8052455d1fa55a8df13fbb85db5a98d"],"user_facing":true,"description":"Profile wizard now offers inline auth setup (session login, long-lived token, or skip) immediately after profile creation.","type":"feature"}
+{"commits":["4f99ce7d66136045fed11cf8945588360404b3b3"],"user_facing":false}
