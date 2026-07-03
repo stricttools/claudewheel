@@ -2,6 +2,28 @@
 
 # Changelog
 
+## 0.17.0
+
+Auth flow UX overhaul: wizard-style prompts, browser choice with copy-URL option, remembered browser, and return-to-TUI after auth.
+
+<details>
+<summary>Context</summary>
+
+The v0.16.x auth flow worked but was rough: a bare numbered input() prompt, forced browser auto-open with no control over which browser, whitespace-fragile token pasting, and being dropped straight into Claude Code after authenticating. This release rebuilds the flow on a reusable raw-mode selection form (new ui.py module), adds browser detection across native/flatpak/snap installs with a copy-URL fallback (via the BROWSER env var, which Claude Code honors directly), remembers the browser choice in state.json, and returns to the segment bar after auth so the user confirms the launch themselves.
+
+</details>
+
+### Features
+
+- The auth setup prompt is now an arrow-key selection form matching the wizard's style. Esc safely cancels instead of skipping auth.
+- Auth setup now lets you choose which browser to open (auto-detected from native, flatpak, and snap installs) or copy the login URL instead of opening any browser.
+- After authenticating a profile from the launch intercept, you return to the segment bar (with a status flash) instead of being dropped straight into Claude Code. Only the explicit "Launch without auth" option launches directly.
+- Your browser choice for auth is remembered and pre-focused on the next auth flow.
+
+### Fixes
+
+- Long-lived token paste now strips all whitespace and linebreaks automatically, so tokens copied from the terminal with wrapping artifacts work correctly.
+
 ## 0.16.1
 
 Launching an unauthenticated profile now prompts for auth setup before starting Claude Code.

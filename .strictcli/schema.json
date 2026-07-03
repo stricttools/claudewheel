@@ -48,7 +48,7 @@
   },
   "project_id": "claudewheel",
   "name": "c",
-  "version": "0.16.0",
+  "version": "0.16.1",
   "help": "claudewheel - TUI launcher for Claude Code with profile, model, and directory selection",
   "commands": {
     "health": {
