@@ -414,6 +414,7 @@ class App:
         print(f"Profile '{profile_name}' has no authentication configured.")
 
         outcome = run_auth_flow(config_dir, profile_name,
+                                self.theme, self.terminal,
                                 skip_label="Launch without auth")
 
         if outcome in ("authenticated", "failed"):
@@ -440,6 +441,7 @@ class App:
         if not result.cancelled:
             create_profile(result, self.cfg)
             run_auth_flow(result.config_dir, result.name,
+                          self.theme, self.terminal,
                           skip_label="Skip for now")
             # Add the new profile to the segment's live options (pinned)
             seg.state.add_pinned(result.name)

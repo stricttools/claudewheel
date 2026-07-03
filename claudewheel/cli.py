@@ -238,17 +238,25 @@ def _handle_reset_options() -> int:
 
 def _handle_new_profile() -> int:
     from .config import ConfigManager
+    from .terminal import Terminal
+    from .theme import parse_theme
     from .wizard import run_profile_wizard, create_profile, run_auth_flow
     from .discovery import discover_profiles
 
     cfg = ConfigManager()
+    theme = parse_theme(cfg.theme)
+    # Requires a real TTY; a headless environment fails here, loudly.
+    terminal = Terminal()
     existing = [p.name for p in discover_profiles()]
-    result = run_profile_wizard(existing)
-    if result.cancelled:
-        print("Cancelled.")
-        return 0
-    create_profile(result, cfg)
-    outcome = run_auth_flow(result.config_dir, result.name)
+    try:
+        result = run_profile_wizard(existing)
+        if result.cancelled:
+            print("Cancelled.")
+            return 0
+        create_profile(result, cfg)
+        outcome = run_auth_flow(result.config_dir, result.name, theme, terminal)
+    finally:
+        terminal.close()
     if outcome == "authenticated":
         print("Profile authenticated.")
     elif outcome == "cancel":

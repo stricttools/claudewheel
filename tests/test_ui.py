@@ -62,7 +62,7 @@ OPTIONS = [("alpha", "Alpha option"), ("beta", "Beta option"), ("gamma", "Gamma 
 
 
 class RunSelectionTestBase(unittest.TestCase):
-    """Patches Terminal and signal.signal so run_selection needs no real TTY."""
+    """Patches signal.signal so run_selection needs no real signal handling."""
 
     def setUp(self) -> None:
         self._signal_patch = mock.patch(
@@ -76,8 +76,7 @@ class RunSelectionTestBase(unittest.TestCase):
         if options is None:
             options = OPTIONS
         self.term = FakeTerminal(keys)
-        with mock.patch("claudewheel.ui.Terminal", return_value=self.term):
-            return run_selection("Pick one", options, **kwargs)
+        return run_selection("Pick one", options, THEME, self.term, **kwargs)
 
     def _output(self) -> str:
         return "".join(self.term.output)
@@ -110,13 +109,11 @@ class CancelTests(RunSelectionTestBase):
     def test_keyboard_interrupt_returns_none(self) -> None:
         term = FakeTerminal([])
         term.read_key = mock.Mock(side_effect=KeyboardInterrupt)
-        with mock.patch("claudewheel.ui.Terminal", return_value=term):
-            self.assertIsNone(run_selection("Pick one", OPTIONS))
+        self.assertIsNone(run_selection("Pick one", OPTIONS, THEME, term))
 
     def test_empty_options_returns_none(self) -> None:
         term = FakeTerminal([])
-        with mock.patch("claudewheel.ui.Terminal", return_value=term):
-            self.assertIsNone(run_selection("Pick one", []))
+        self.assertIsNone(run_selection("Pick one", [], THEME, term))
         # No terminal work should happen for an empty list
         self.assertEqual(term.enter_raw_calls, [])
 
@@ -188,17 +185,21 @@ class AltScreenModeTests(RunSelectionTestBase):
 
 
 class CleanupTests(RunSelectionTestBase):
-    """The finally block restores terminal state and the SIGWINCH handler."""
+    """The finally block restores terminal state and the SIGWINCH handler.
 
-    def test_exit_raw_and_close_called(self) -> None:
+    The caller owns the terminal now: run_selection exits raw mode when it
+    entered it, but never closes a terminal it didn't create.
+    """
+
+    def test_exit_raw_called_but_terminal_not_closed(self) -> None:
         self._run(["ENTER"])
         self.assertTrue(self.term.exit_raw_called)
-        self.assertTrue(self.term.closed)
+        self.assertFalse(self.term.closed)
 
-    def test_exit_raw_and_close_called_on_cancel(self) -> None:
+    def test_exit_raw_called_on_cancel(self) -> None:
         self._run(["ESC"])
         self.assertTrue(self.term.exit_raw_called)
-        self.assertTrue(self.term.closed)
+        self.assertFalse(self.term.closed)
 
     def test_sigwinch_installed_before_enter_raw_and_restored(self) -> None:
         self._run(["ENTER"])

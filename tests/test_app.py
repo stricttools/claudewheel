@@ -41,7 +41,7 @@ def _wizard_mocks(wizard_result, fresh_result=None):
     patches = [
         mock.patch("claudewheel.wizard.run_profile_wizard", return_value=wizard_result),
         mock.patch("claudewheel.wizard.create_profile"),
-        mock.patch("claudewheel.wizard.run_auth_flow", return_value="skip"),
+        mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"),
         mock.patch("claudewheel.discovery.discover_profiles", return_value=[]),
     ]
     if fresh_result is not None:
@@ -56,12 +56,13 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
         """Run _launch_profile_wizard with all necessary mocks."""
         app = object.__new__(app_mod.App)
         app.terminal = mock.MagicMock()
+        app.theme = mock.MagicMock()
         app.cfg = mock.MagicMock()
 
         patches = [
             mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result),
             mock.patch("claudewheel.wizard.create_profile"),
-            mock.patch("claudewheel.wizard.run_auth_flow", return_value="skip"),
+            mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"),
             mock.patch("claudewheel.discovery.discover_profiles", return_value=[]),
         ]
         if mock_auth:
@@ -101,12 +102,13 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
 
         app = object.__new__(app_mod.App)
         app.terminal = mock.MagicMock()
+        app.theme = mock.MagicMock()
         app.cfg = mock.MagicMock()
 
         with mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result) as mock_disc, \
              mock.patch.object(app_mod, "_update_auth_from_metadata") as mock_auth, \
              mock.patch("claudewheel.wizard.create_profile"), \
-             mock.patch("claudewheel.wizard.run_auth_flow", return_value="skip"), \
+             mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
              mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
              mock.patch("claudewheel.wizard.run_profile_wizard", return_value=wizard_result):
             app._launch_profile_wizard(seg)
@@ -134,12 +136,13 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
 
         app = object.__new__(app_mod.App)
         app.terminal = mock.MagicMock()
+        app.theme = mock.MagicMock()
         app.cfg = mock.MagicMock()
 
         with mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result), \
              mock.patch.object(app_mod, "_update_auth_from_metadata"), \
              mock.patch("claudewheel.wizard.create_profile"), \
-             mock.patch("claudewheel.wizard.run_auth_flow", return_value="skip"), \
+             mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
              mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
              mock.patch("claudewheel.wizard.run_profile_wizard", return_value=wizard_result):
             app._launch_profile_wizard(seg)
@@ -168,12 +171,13 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
 
         app = object.__new__(app_mod.App)
         app.terminal = mock.MagicMock()
+        app.theme = mock.MagicMock()
         app.cfg = mock.MagicMock()
 
         with mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result), \
              mock.patch.object(app_mod, "_update_auth_from_metadata"), \
              mock.patch("claudewheel.wizard.create_profile"), \
-             mock.patch("claudewheel.wizard.run_auth_flow", return_value="skip"), \
+             mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
              mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
              mock.patch("claudewheel.wizard.run_profile_wizard", return_value=wizard_result):
             app._launch_profile_wizard(seg)
@@ -204,12 +208,13 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
 
         app = object.__new__(app_mod.App)
         app.terminal = mock.MagicMock()
+        app.theme = mock.MagicMock()
         app.cfg = mock.MagicMock()
 
         with mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result), \
              mock.patch.object(app_mod, "_update_auth_from_metadata"), \
              mock.patch("claudewheel.wizard.create_profile"), \
-             mock.patch("claudewheel.wizard.run_auth_flow", return_value="skip"), \
+             mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
              mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
              mock.patch("claudewheel.wizard.run_profile_wizard", return_value=wizard_result):
             app._launch_profile_wizard(seg)
@@ -240,12 +245,13 @@ class WizardRefreshAuthTests(unittest.TestCase):
 
         app = object.__new__(app_mod.App)
         app.terminal = mock.MagicMock()
+        app.theme = mock.MagicMock()
         app.cfg = mock.MagicMock()
 
         # Use real _update_auth_from_metadata (not mocked) to verify it works
         with mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result), \
              mock.patch("claudewheel.wizard.create_profile"), \
-             mock.patch("claudewheel.wizard.run_auth_flow", return_value="skip"), \
+             mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
              mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
              mock.patch("claudewheel.wizard.run_profile_wizard", return_value=wizard_result):
             app._launch_profile_wizard(seg)
@@ -275,11 +281,12 @@ class WizardRefreshAuthTests(unittest.TestCase):
 
         app = object.__new__(app_mod.App)
         app.terminal = mock.MagicMock()
+        app.theme = mock.MagicMock()
         app.cfg = mock.MagicMock()
 
         with mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result), \
              mock.patch("claudewheel.wizard.create_profile"), \
-             mock.patch("claudewheel.wizard.run_auth_flow", return_value="skip"), \
+             mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
              mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
              mock.patch("claudewheel.wizard.run_profile_wizard", return_value=wizard_result):
             app._launch_profile_wizard(seg)
@@ -301,12 +308,13 @@ class WizardCancelledTests(unittest.TestCase):
 
         app = object.__new__(app_mod.App)
         app.terminal = mock.MagicMock()
+        app.theme = mock.MagicMock()
         app.cfg = mock.MagicMock()
 
         with mock.patch.object(app_mod, "_discover_profiles") as mock_disc, \
              mock.patch.object(app_mod, "_update_auth_from_metadata") as mock_auth, \
              mock.patch("claudewheel.wizard.create_profile"), \
-             mock.patch("claudewheel.wizard.run_auth_flow", return_value="skip"), \
+             mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
              mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
              mock.patch("claudewheel.wizard.run_profile_wizard", return_value=wizard_result):
             app._launch_profile_wizard(seg)
@@ -342,6 +350,7 @@ class AuthInterceptTests(unittest.TestCase):
 
         app = object.__new__(app_mod.App)
         app.terminal = mock.MagicMock()
+        app.theme = mock.MagicMock()
         app.cfg = mock.MagicMock()
         app.bar = mock.MagicMock()
         app.bar.segments = [seg]
@@ -393,7 +402,7 @@ class AuthInterceptTests(unittest.TestCase):
             },
         )
 
-        with mock.patch("claudewheel.wizard.run_auth_flow", return_value="authenticated") as mock_flow, \
+        with mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="authenticated") as mock_flow, \
              mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result) as mock_disc, \
              mock.patch.object(app_mod, "_update_auth_from_metadata") as mock_auth_update:
             outcome = app._intercept_unauth(seg)
@@ -401,6 +410,7 @@ class AuthInterceptTests(unittest.TestCase):
         self.assertEqual(outcome, "authenticated")
         mock_flow.assert_called_once_with(
             "~/.claudewheel/profiles/noauth", "noauth",
+            app.theme, app.terminal,
             skip_label="Launch without auth")
         mock_disc.assert_called_once_with({}, {})
         mock_auth_update.assert_called_once_with(seg)
@@ -423,7 +433,7 @@ class AuthInterceptTests(unittest.TestCase):
             },
         )
 
-        with mock.patch("claudewheel.wizard.run_auth_flow", return_value="failed"), \
+        with mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="failed"), \
              mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result) as mock_disc, \
              mock.patch.object(app_mod, "_update_auth_from_metadata") as mock_auth_update:
             outcome = app._intercept_unauth(seg)
@@ -436,7 +446,7 @@ class AuthInterceptTests(unittest.TestCase):
         """When auth is skipped, discovery is not re-run."""
         app, seg = self._make_app_with_profile("noauth", authenticated=False)
 
-        with mock.patch("claudewheel.wizard.run_auth_flow", return_value="skip"), \
+        with mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
              mock.patch.object(app_mod, "_discover_profiles") as mock_disc, \
              mock.patch.object(app_mod, "_update_auth_from_metadata") as mock_auth_update:
             outcome = app._intercept_unauth(seg)
@@ -452,7 +462,7 @@ class AuthInterceptTests(unittest.TestCase):
         """When the auth form is cancelled, discovery is not re-run."""
         app, seg = self._make_app_with_profile("noauth", authenticated=False)
 
-        with mock.patch("claudewheel.wizard.run_auth_flow", return_value="cancel"), \
+        with mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="cancel"), \
              mock.patch.object(app_mod, "_discover_profiles") as mock_disc, \
              mock.patch.object(app_mod, "_update_auth_from_metadata") as mock_auth_update:
             outcome = app._intercept_unauth(seg)
@@ -465,7 +475,7 @@ class AuthInterceptTests(unittest.TestCase):
         """Even when auth is skipped, _handle_key returns 'launch'."""
         app, seg = self._make_app_with_profile("noauth", authenticated=False)
 
-        with mock.patch("claudewheel.wizard.run_auth_flow", return_value="skip"):
+        with mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"):
             result = app._handle_key("ENTER")
 
         self.assertEqual(result, "launch")
@@ -537,7 +547,7 @@ class AuthInterceptTests(unittest.TestCase):
         )
 
         # Use real _update_auth_from_metadata to verify the full flow
-        with mock.patch("claudewheel.wizard.run_auth_flow", return_value="authenticated"), \
+        with mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="authenticated"), \
              mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result):
             app._intercept_unauth(seg)
 
@@ -552,6 +562,7 @@ class AuthInterceptTests(unittest.TestCase):
 
         app = object.__new__(app_mod.App)
         app.terminal = mock.MagicMock()
+        app.theme = mock.MagicMock()
         app.cfg = mock.MagicMock()
         app.bar = mock.MagicMock()
         app.bar.segments = [seg]

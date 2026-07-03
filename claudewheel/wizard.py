@@ -461,7 +461,7 @@ def _find_claude_binary() -> str | None:
     return found
 
 
-def run_auth_flow(config_dir: str, profile_name: str,
+def run_auth_flow(config_dir: str, profile_name: str, theme, terminal,
                   skip_label: str = "Skip for now") -> str:
     """Prompt the user to set up authentication for a newly created profile.
 
@@ -478,7 +478,9 @@ def run_auth_flow(config_dir: str, profile_name: str,
     - ``"failed"`` -- auth was attempted but did not complete
 
     This function is safe to call after create_profile() -- auth failure
-    never prevents profile creation.
+    never prevents profile creation. The forms render on *terminal* with
+    *theme* colors; a terminal that is already raw is borrowed (the forms
+    render as pages in the existing screen).
     """
     choice = run_selection(
         f"Authenticate profile '{profile_name}'",
@@ -487,6 +489,7 @@ def run_auth_flow(config_dir: str, profile_name: str,
             ("token", "Long-lived token"),
             ("skip", skip_label),
         ],
+        theme, terminal,
         use_alt_screen=False,
     )
 
@@ -505,6 +508,7 @@ def run_auth_flow(config_dir: str, profile_name: str,
     browser = run_selection(
         "Choose browser",
         detect_browsers() + [("copy", "Copy URL instead")],
+        theme, terminal,
         use_alt_screen=False,
         initial_key=remembered,
     )
