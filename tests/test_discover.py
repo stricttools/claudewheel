@@ -721,5 +721,119 @@ class ProfileDiscoverySettingsOnlyTests(unittest.TestCase):
         self.assertEqual(count, 1)
 
 
+class DetectBrowsersTests(unittest.TestCase):
+    """Tests for detect_browsers() in claudewheel.discovery."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.tmp = Path(self._tmp.name)
+        # Empty flatpak/snap dirs by default; individual tests populate them.
+        self.flatpak_dir = self.tmp / "flatpak-exports"
+        self.flatpak_dir.mkdir()
+        self.snap_dir = self.tmp / "snap-bin"
+        self.snap_dir.mkdir()
+        self._patches = [
+            patch(
+                "claudewheel.discovery._FLATPAK_EXPORT_DIRS",
+                [self.flatpak_dir],
+            ),
+            patch("claudewheel.discovery._SNAP_BIN_DIR", self.snap_dir),
+        ]
+        for p in self._patches:
+            p.start()
+            self.addCleanup(p.stop)
+
+    def test_native_browser_found_via_which(self) -> None:
+        """A native binary on PATH is detected with its display name."""
+        from claudewheel.discovery import detect_browsers
+
+        def fake_which(binary: str) -> str | None:
+            return "/usr/bin/firefox" if binary == "firefox" else None
+
+        with patch("claudewheel.discovery.shutil.which", side_effect=fake_which):
+            result = detect_browsers()
+        self.assertEqual(result, [("/usr/bin/firefox", "Firefox")])
+
+    def test_flatpak_browser_found_in_export_dir(self) -> None:
+        """A flatpak export symlink is detected with the full path."""
+        from claudewheel.discovery import detect_browsers
+
+        (self.flatpak_dir / "com.brave.Browser").write_text("")
+
+        with patch("claudewheel.discovery.shutil.which", return_value=None):
+            result = detect_browsers()
+        self.assertEqual(
+            result, [(str(self.flatpak_dir / "com.brave.Browser"), "Brave")],
+        )
+
+    def test_snap_browser_found_in_snap_dir(self) -> None:
+        """A snap binary is detected with the full path."""
+        from claudewheel.discovery import detect_browsers
+
+        (self.snap_dir / "chromium").write_text("")
+
+        with patch("claudewheel.discovery.shutil.which", return_value=None):
+            result = detect_browsers()
+        self.assertEqual(result, [(str(self.snap_dir / "chromium"), "Chromium")])
+
+    def test_native_wins_over_flatpak_dedup(self) -> None:
+        """A browser found natively is not duplicated from flatpak or snap."""
+        from claudewheel.discovery import detect_browsers
+
+        (self.flatpak_dir / "org.mozilla.firefox").write_text("")
+        (self.snap_dir / "firefox").write_text("")
+
+        def fake_which(binary: str) -> str | None:
+            return "/usr/bin/firefox" if binary == "firefox" else None
+
+        with patch("claudewheel.discovery.shutil.which", side_effect=fake_which):
+            result = detect_browsers()
+        self.assertEqual(result, [("/usr/bin/firefox", "Firefox")])
+
+    def test_tuple_order_is_path_then_name(self) -> None:
+        """Each result tuple is (binary_path, display_name)."""
+        from claudewheel.discovery import detect_browsers
+
+        def fake_which(binary: str) -> str | None:
+            return "/usr/bin/qutebrowser" if binary == "qutebrowser" else None
+
+        with patch("claudewheel.discovery.shutil.which", side_effect=fake_which):
+            result = detect_browsers()
+        self.assertEqual(len(result), 1)
+        path, name = result[0]
+        self.assertTrue(path.startswith("/"))
+        self.assertEqual(name, "Qutebrowser")
+
+    def test_empty_system_yields_empty_list(self) -> None:
+        """No native, flatpak, or snap browsers -> empty list."""
+        from claudewheel.discovery import detect_browsers
+
+        with patch("claudewheel.discovery.shutil.which", return_value=None):
+            result = detect_browsers()
+        self.assertEqual(result, [])
+
+    def test_source_ordering_native_then_flatpak_then_snap(self) -> None:
+        """Results are ordered native first, then flatpak, then snap."""
+        from claudewheel.discovery import detect_browsers
+
+        (self.flatpak_dir / "com.vivaldi.Vivaldi").write_text("")
+        (self.snap_dir / "opera").write_text("")
+
+        def fake_which(binary: str) -> str | None:
+            return "/usr/bin/firefox" if binary == "firefox" else None
+
+        with patch("claudewheel.discovery.shutil.which", side_effect=fake_which):
+            result = detect_browsers()
+        self.assertEqual(
+            result,
+            [
+                ("/usr/bin/firefox", "Firefox"),
+                (str(self.flatpak_dir / "com.vivaldi.Vivaldi"), "Vivaldi"),
+                (str(self.snap_dir / "opera"), "Opera"),
+            ],
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
