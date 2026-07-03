@@ -400,14 +400,17 @@ class App:
         success = run_auth_flow(config_dir, profile_name)
 
         if success:
-            # Re-run discovery and update auth status (same as wizard refresh)
-            fresh = _discover_profiles({}, {})
-            seg.state.set_discovered(fresh.values)
-            if fresh.metadata:
-                seg.state.update_metadata(fresh.metadata)
-            _update_auth_from_metadata(seg)
+            self._refresh_profile_segment(seg)
 
         self.terminal.enter_raw()
+
+    def _refresh_profile_segment(self, seg: Segment) -> None:
+        """Re-run profile discovery and update the segment's auth status."""
+        fresh = _discover_profiles({}, {})
+        seg.state.set_discovered(fresh.values)
+        if fresh.metadata:
+            seg.state.update_metadata(fresh.metadata)
+        _update_auth_from_metadata(seg)
 
     def _launch_profile_wizard(self, seg: Segment) -> str | None:
         """Exit TUI, run the profile wizard, create profile, return to TUI."""
@@ -422,12 +425,7 @@ class App:
             # Add the new profile to the segment's live options (pinned)
             seg.state.add_pinned(result.name)
             # Re-run discovery to pick up the newly created profile
-            fresh = _discover_profiles({}, {})
-            seg.state.set_discovered(fresh.values)
-            if fresh.metadata:
-                seg.state.update_metadata(fresh.metadata)
-            # Recompute auth status from the fresh metadata
-            _update_auth_from_metadata(seg)
+            self._refresh_profile_segment(seg)
             seg.select_value(result.name)
         self.terminal.enter_raw()
         return None
