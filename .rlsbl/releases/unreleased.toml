@@ -1,9 +1,15 @@
 # Version bump type: patch, minor, major, hotfix, or prerelease
-bump = ""
+bump = "minor"
 # Short description of this release (required)
-description = ""
+description = "Themed form system, zero-paste token capture with API validation, profile inspect and delete in the TUI, and six new internal modules."
 # Optional context explaining why these changes were made
-context = ""
+context = """
+The profile creation and auth flows are rebuilt on a themed widget layer (new forms theme section, focus-bg idiom matching the segment bar) running in one continuous fullscreen session. Token capture uses a PTY proxy to scrape setup-token's output automatically -- no more copy-paste. Every token is validated against the Anthropic API before saving (hard 401 rejection; the warn-and-save path is gone). Profiles can be inspected (i key / show-profile CLI) and deleted (Ctrl-D/Delete key / delete-profile CLI) from the TUI, with a data-destruction hard-block for profiles whose shared dirs are real directories.
+
+Infrastructure: fsutil.py consolidates all atomic JSON writes (the permission-loss bug class is structurally eliminated), tokens.py consolidates token I/O, the CSI decoder handles Delete/PgUp/PgDn/Insert/parametric Shift-Tab without leaking bytes, and Terminal.cooked() replaces hand-rolled raw-mode transitions.
+
+Breaking: delete-profile now requires --force-delete-data (in addition to --force-delete) to remove profiles with real shared directories.
+"""
 # Pre-release identifier: alpha, beta, rc, or stable
 # preid = ""
 # Set to true to generate a blog post for this release
