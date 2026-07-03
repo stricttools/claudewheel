@@ -22,7 +22,7 @@ from .config import ConfigManager
 from .defaults import DISALLOWED_TOOLS, build_canonical_shared_settings
 from .profile_ops import add_token
 from .terminal import Terminal
-from .ui import ACCENT, DIM_CLR
+from .ui import ACCENT, DIM_CLR, run_selection
 
 # Checkbox labels -- used to identify the 6 advanced fields
 _CHECKBOX_LABELS = [
@@ -459,34 +459,40 @@ def _find_claude_binary() -> str | None:
     return found
 
 
-def run_auth_flow(config_dir: str, profile_name: str) -> bool:
+def run_auth_flow(config_dir: str, profile_name: str,
+                  skip_label: str = "Skip for now") -> str:
     """Prompt the user to set up authentication for a newly created profile.
 
-    Offers three choices: session login (browser-based), long-lived token,
-    or skip. Returns True if auth was set up successfully, False otherwise.
+    Presents a selection form with three choices: session login
+    (browser-based), long-lived token, or skip. Returns one of:
+
+    - ``"authenticated"`` -- auth was set up successfully
+    - ``"skip"`` -- the user explicitly chose to skip
+    - ``"cancel"`` -- the user cancelled the form (Esc/Ctrl-C)
+    - ``"failed"`` -- auth was attempted but did not complete
 
     This function is safe to call after create_profile() -- auth failure
     never prevents profile creation.
     """
-    print()
-    print("Set up authentication:")
-    print("  [1] Session login (opens browser -- recommended)")
-    print("  [2] Long-lived token")
-    print("  [3] Skip")
-    print()
+    choice = run_selection(
+        f"Authenticate profile '{profile_name}'",
+        [
+            ("session", "Session login (recommended)"),
+            ("token", "Long-lived token"),
+            ("skip", skip_label),
+        ],
+        use_alt_screen=False,
+    )
 
-    try:
-        choice = input("Choice [1/2/3]: ").strip()
-    except (EOFError, KeyboardInterrupt):
-        print()
-        return False
-
-    if choice == "1":
-        return _auth_session_login(config_dir)
-    elif choice == "2":
-        return _auth_long_lived_token(config_dir, profile_name)
-    else:
-        return False
+    if choice == "session":
+        return "authenticated" if _auth_session_login(config_dir) else "failed"
+    if choice == "token":
+        return ("authenticated"
+                if _auth_long_lived_token(config_dir, profile_name)
+                else "failed")
+    if choice == "skip":
+        return "skip"
+    return "cancel"
 
 
 def _auth_session_login(config_dir: str) -> bool:

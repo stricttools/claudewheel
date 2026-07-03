@@ -970,7 +970,13 @@ class KeyExhaustionSafetyTests(WizardTUITestBase):
 
 
 class AuthFlowTests(unittest.TestCase):
-    """Tests for run_auth_flow() post-wizard auth setup."""
+    """Tests for run_auth_flow() post-wizard auth setup.
+
+    run_auth_flow presents its menu via ui.run_selection (mocked here) and
+    returns one of four outcome strings: "authenticated", "skip", "cancel",
+    "failed". Assertions use exact string comparison -- all four outcome
+    strings are truthy, so truthiness checks would be meaningless.
+    """
 
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
@@ -986,229 +992,226 @@ class AuthFlowTests(unittest.TestCase):
     def _profile_dir(self, name: str = "test") -> Path:
         return self.fake_home / ".claudewheel" / "profiles" / name
 
-    def test_skip_choice_returns_false(self) -> None:
-        """Choosing '3' (skip) returns False."""
-        from claudewheel.wizard import run_auth_flow
-        with mock.patch("builtins.input", return_value="3"):
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test")
-        self.assertFalse(result)
+    def _make_fake_binary(self) -> Path:
+        fake_binary = self.fake_home / "fake-claude"
+        fake_binary.touch()
+        fake_binary.chmod(0o755)
+        return fake_binary
 
-    def test_invalid_choice_returns_false(self) -> None:
-        """An unrecognized choice returns False (treated as skip)."""
+    def test_skip_choice_returns_skip(self) -> None:
+        """Choosing the skip option returns 'skip'."""
         from claudewheel.wizard import run_auth_flow
-        with mock.patch("builtins.input", return_value="x"):
+        with mock.patch("claudewheel.wizard.run_selection", return_value="skip"):
             result = run_auth_flow("~/.claudewheel/profiles/test", "test")
-        self.assertFalse(result)
+        self.assertEqual(result, "skip")
 
-    def test_eof_on_choice_returns_false(self) -> None:
-        """EOFError during choice input returns False."""
+    def test_form_cancel_returns_cancel(self) -> None:
+        """Esc/Ctrl-C on the selection form (None) returns 'cancel', not 'skip'."""
         from claudewheel.wizard import run_auth_flow
-        with mock.patch("builtins.input", side_effect=EOFError):
+        with mock.patch("claudewheel.wizard.run_selection", return_value=None):
             result = run_auth_flow("~/.claudewheel/profiles/test", "test")
-        self.assertFalse(result)
+        self.assertEqual(result, "cancel")
 
-    def test_keyboard_interrupt_on_choice_returns_false(self) -> None:
-        """KeyboardInterrupt during choice input returns False."""
+    def test_selection_options_and_flags(self) -> None:
+        """The form gets three (key, label) options, inline (no alt screen)."""
         from claudewheel.wizard import run_auth_flow
-        with mock.patch("builtins.input", side_effect=KeyboardInterrupt):
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test")
-        self.assertFalse(result)
+        with mock.patch("claudewheel.wizard.run_selection",
+                        return_value=None) as mock_sel:
+            run_auth_flow("~/.claudewheel/profiles/test", "test")
+        mock_sel.assert_called_once()
+        args, kwargs = mock_sel.call_args
+        self.assertEqual(args[0], "Authenticate profile 'test'")
+        self.assertEqual([key for key, _label in args[1]],
+                         ["session", "token", "skip"])
+        self.assertFalse(kwargs.get("use_alt_screen", True))
+
+    def test_custom_skip_label(self) -> None:
+        """skip_label customizes the third option's label; key stays 'skip'."""
+        from claudewheel.wizard import run_auth_flow
+        with mock.patch("claudewheel.wizard.run_selection",
+                        return_value="skip") as mock_sel:
+            result = run_auth_flow("~/.claudewheel/profiles/test", "test",
+                                   skip_label="Launch without auth")
+        self.assertEqual(result, "skip")
+        args, _kwargs = mock_sel.call_args
+        self.assertEqual(args[1][2], ("skip", "Launch without auth"))
 
     def test_session_login_binary_not_found(self) -> None:
-        """Session login returns False when Claude binary is missing."""
+        """Session login returns 'failed' when Claude binary is missing."""
         from claudewheel.wizard import run_auth_flow
-        with mock.patch("builtins.input", return_value="1"), \
+        with mock.patch("claudewheel.wizard.run_selection", return_value="session"), \
              mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", Path("/nonexistent/claude")), \
              mock.patch("claudewheel.wizard.shutil.which", return_value=None):
             result = run_auth_flow("~/.claudewheel/profiles/test", "test")
-        self.assertFalse(result)
+        self.assertEqual(result, "failed")
         self.assertIn("not found", self._stdout_buf.getvalue())
 
     def test_session_login_success(self) -> None:
-        """Session login returns True when subprocess succeeds and credentials exist."""
+        """Session login returns 'authenticated' when subprocess succeeds and credentials exist."""
         from claudewheel.wizard import run_auth_flow
 
         config_dir = self._profile_dir("authtest")
         config_dir.mkdir(parents=True, exist_ok=True)
         config_dir_str = str(config_dir)
 
-        # Create a fake binary
-        fake_binary = self.fake_home / "fake-claude"
-        fake_binary.touch()
-        fake_binary.chmod(0o755)
+        fake_binary = self._make_fake_binary()
 
         def fake_run(cmd, env=None):
             # Simulate claude auth login creating credentials
             (Path(env["CLAUDE_CONFIG_DIR"]) / ".credentials.json").write_text("{}")
             return subprocess.CompletedProcess(cmd, 0)
 
-        with mock.patch("builtins.input", return_value="1"), \
+        with mock.patch("claudewheel.wizard.run_selection", return_value="session"), \
              mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
              mock.patch("claudewheel.wizard.subprocess.run", side_effect=fake_run):
             result = run_auth_flow(config_dir_str, "authtest")
-        self.assertTrue(result)
+        self.assertEqual(result, "authenticated")
         self.assertIn("successful", self._stdout_buf.getvalue())
 
     def test_session_login_no_credentials(self) -> None:
-        """Session login returns False when subprocess succeeds but no credentials."""
+        """Session login returns 'failed' when subprocess succeeds but no credentials."""
         from claudewheel.wizard import run_auth_flow
 
         config_dir = self._profile_dir("nocred")
         config_dir.mkdir(parents=True, exist_ok=True)
         config_dir_str = str(config_dir)
 
-        fake_binary = self.fake_home / "fake-claude"
-        fake_binary.touch()
-        fake_binary.chmod(0o755)
+        fake_binary = self._make_fake_binary()
 
-        with mock.patch("builtins.input", return_value="1"), \
+        with mock.patch("claudewheel.wizard.run_selection", return_value="session"), \
              mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
              mock.patch("claudewheel.wizard.subprocess.run",
                         return_value=subprocess.CompletedProcess([], 0)):
             result = run_auth_flow(config_dir_str, "nocred")
-        self.assertFalse(result)
+        self.assertEqual(result, "failed")
         self.assertIn("not complete", self._stdout_buf.getvalue())
 
     def test_session_login_subprocess_error(self) -> None:
-        """Session login returns False when subprocess returns non-zero."""
+        """Session login returns 'failed' when subprocess returns non-zero."""
         from claudewheel.wizard import run_auth_flow
 
-        fake_binary = self.fake_home / "fake-claude"
-        fake_binary.touch()
-        fake_binary.chmod(0o755)
+        fake_binary = self._make_fake_binary()
 
-        with mock.patch("builtins.input", return_value="1"), \
+        with mock.patch("claudewheel.wizard.run_selection", return_value="session"), \
              mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
              mock.patch("claudewheel.wizard.subprocess.run",
                         return_value=subprocess.CompletedProcess([], 1)):
             result = run_auth_flow("~/.claudewheel/profiles/test", "test")
-        self.assertFalse(result)
+        self.assertEqual(result, "failed")
 
     def test_long_lived_token_success(self) -> None:
-        """Long-lived token path saves token via add_token."""
+        """Long-lived token path saves token via add_token and returns 'authenticated'."""
         from claudewheel.wizard import run_auth_flow
 
-        fake_binary = self.fake_home / "fake-claude"
-        fake_binary.touch()
-        fake_binary.chmod(0o755)
+        fake_binary = self._make_fake_binary()
 
-        call_count = 0
-
-        def fake_input(prompt=""):
-            nonlocal call_count
-            call_count += 1
-            if call_count == 1:
-                return "2"  # choice
-            return "sk-ant-fake-token-12345"  # token
-
-        with mock.patch("builtins.input", side_effect=fake_input), \
+        with mock.patch("claudewheel.wizard.run_selection", return_value="token"), \
+             mock.patch("builtins.input", return_value="sk-ant-fake-token-12345"), \
              mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
              mock.patch("claudewheel.wizard.subprocess.run",
                         return_value=subprocess.CompletedProcess([], 0)), \
              mock.patch("claudewheel.wizard.add_token") as mock_add:
             result = run_auth_flow("~/.claudewheel/profiles/test", "test")
-        self.assertTrue(result)
+        self.assertEqual(result, "authenticated")
         mock_add.assert_called_once_with("test", "sk-ant-fake-token-12345")
 
     def test_long_lived_token_binary_not_found(self) -> None:
-        """Long-lived token returns False when Claude binary is missing."""
+        """Long-lived token returns 'failed' when Claude binary is missing."""
         from claudewheel.wizard import run_auth_flow
-        with mock.patch("builtins.input", return_value="2"), \
+        with mock.patch("claudewheel.wizard.run_selection", return_value="token"), \
              mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", Path("/nonexistent/claude")), \
              mock.patch("claudewheel.wizard.shutil.which", return_value=None):
             result = run_auth_flow("~/.claudewheel/profiles/test", "test")
-        self.assertFalse(result)
+        self.assertEqual(result, "failed")
 
-    def test_long_lived_token_empty_token(self) -> None:
-        """Empty token input returns False."""
+    def test_long_lived_token_subprocess_error(self) -> None:
+        """Long-lived token returns 'failed' when setup-token exits non-zero."""
         from claudewheel.wizard import run_auth_flow
 
-        fake_binary = self.fake_home / "fake-claude"
-        fake_binary.touch()
-        fake_binary.chmod(0o755)
+        fake_binary = self._make_fake_binary()
 
-        call_count = 0
+        with mock.patch("claudewheel.wizard.run_selection", return_value="token"), \
+             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard.subprocess.run",
+                        return_value=subprocess.CompletedProcess([], 1)):
+            result = run_auth_flow("~/.claudewheel/profiles/test", "test")
+        self.assertEqual(result, "failed")
 
-        def fake_input(prompt=""):
-            nonlocal call_count
-            call_count += 1
-            if call_count == 1:
-                return "2"
-            return ""  # empty token
+    def test_long_lived_token_empty_token(self) -> None:
+        """Empty token input returns 'failed'."""
+        from claudewheel.wizard import run_auth_flow
 
-        with mock.patch("builtins.input", side_effect=fake_input), \
+        fake_binary = self._make_fake_binary()
+
+        with mock.patch("claudewheel.wizard.run_selection", return_value="token"), \
+             mock.patch("builtins.input", return_value=""), \
              mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
              mock.patch("claudewheel.wizard.subprocess.run",
                         return_value=subprocess.CompletedProcess([], 0)):
             result = run_auth_flow("~/.claudewheel/profiles/test", "test")
-        self.assertFalse(result)
+        self.assertEqual(result, "failed")
         self.assertIn("No token", self._stdout_buf.getvalue())
 
     def test_long_lived_token_non_standard_prefix_warns(self) -> None:
         """Token without sk-ant- prefix prints a warning but still saves."""
         from claudewheel.wizard import run_auth_flow
 
-        fake_binary = self.fake_home / "fake-claude"
-        fake_binary.touch()
-        fake_binary.chmod(0o755)
+        fake_binary = self._make_fake_binary()
 
-        call_count = 0
-
-        def fake_input(prompt=""):
-            nonlocal call_count
-            call_count += 1
-            if call_count == 1:
-                return "2"
-            return "some-other-token"
-
-        with mock.patch("builtins.input", side_effect=fake_input), \
+        with mock.patch("claudewheel.wizard.run_selection", return_value="token"), \
+             mock.patch("builtins.input", return_value="some-other-token"), \
              mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
              mock.patch("claudewheel.wizard.subprocess.run",
                         return_value=subprocess.CompletedProcess([], 0)), \
              mock.patch("claudewheel.wizard.add_token") as mock_add:
             result = run_auth_flow("~/.claudewheel/profiles/test", "test")
-        self.assertTrue(result)
+        self.assertEqual(result, "authenticated")
         self.assertIn("Warning", self._stdout_buf.getvalue())
         mock_add.assert_called_once_with("test", "some-other-token")
 
     def test_long_lived_token_keyboard_interrupt_on_paste(self) -> None:
-        """KeyboardInterrupt while pasting token returns False."""
+        """KeyboardInterrupt while pasting token returns 'failed'."""
         from claudewheel.wizard import run_auth_flow
 
-        fake_binary = self.fake_home / "fake-claude"
-        fake_binary.touch()
-        fake_binary.chmod(0o755)
+        fake_binary = self._make_fake_binary()
 
-        call_count = 0
-
-        def fake_input(prompt=""):
-            nonlocal call_count
-            call_count += 1
-            if call_count == 1:
-                return "2"
-            raise KeyboardInterrupt
-
-        with mock.patch("builtins.input", side_effect=fake_input), \
+        with mock.patch("claudewheel.wizard.run_selection", return_value="token"), \
+             mock.patch("builtins.input", side_effect=KeyboardInterrupt), \
              mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
              mock.patch("claudewheel.wizard.subprocess.run",
                         return_value=subprocess.CompletedProcess([], 0)):
             result = run_auth_flow("~/.claudewheel/profiles/test", "test")
-        self.assertFalse(result)
+        self.assertEqual(result, "failed")
 
-    def test_session_login_subprocess_os_error(self) -> None:
-        """Session login returns False when subprocess raises OSError."""
+    def test_long_lived_token_save_error(self) -> None:
+        """OSError from add_token returns 'failed'."""
         from claudewheel.wizard import run_auth_flow
 
-        fake_binary = self.fake_home / "fake-claude"
-        fake_binary.touch()
-        fake_binary.chmod(0o755)
+        fake_binary = self._make_fake_binary()
 
-        with mock.patch("builtins.input", return_value="1"), \
+        with mock.patch("claudewheel.wizard.run_selection", return_value="token"), \
+             mock.patch("builtins.input", return_value="sk-ant-fake-token-12345"), \
+             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard.subprocess.run",
+                        return_value=subprocess.CompletedProcess([], 0)), \
+             mock.patch("claudewheel.wizard.add_token",
+                        side_effect=OSError("disk full")):
+            result = run_auth_flow("~/.claudewheel/profiles/test", "test")
+        self.assertEqual(result, "failed")
+        self.assertIn("Error saving token", self._stdout_buf.getvalue())
+
+    def test_session_login_subprocess_os_error(self) -> None:
+        """Session login returns 'failed' when subprocess raises OSError."""
+        from claudewheel.wizard import run_auth_flow
+
+        fake_binary = self._make_fake_binary()
+
+        with mock.patch("claudewheel.wizard.run_selection", return_value="session"), \
              mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
              mock.patch("claudewheel.wizard.subprocess.run",
                         side_effect=OSError("exec failed")):
             result = run_auth_flow("~/.claudewheel/profiles/test", "test")
-        self.assertFalse(result)
+        self.assertEqual(result, "failed")
         self.assertIn("Error running", self._stdout_buf.getvalue())
 
     def test_find_claude_binary_falls_back_to_which(self) -> None:
