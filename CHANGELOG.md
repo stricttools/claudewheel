@@ -2,6 +2,14 @@
 
 # Changelog
 
+## 0.16.1
+
+Launching an unauthenticated profile now prompts for auth setup before starting Claude Code.
+
+### Features
+
+- Launching an unauthenticated profile now prompts for auth setup (session login, long-lived token, or skip) before starting Claude Code.
+
 ## 0.16.0
 
 Profile wizard overhaul: new profiles appear instantly, inline auth setup, and visual indicators for unauthenticated profiles.
