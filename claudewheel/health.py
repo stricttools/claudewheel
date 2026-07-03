@@ -11,6 +11,7 @@ from pathlib import Path
 from .constants import INODES_FILE, OPTIONS_FILE, PROFILES_DIR, PROFILE_SHARED_DIRS, SHARED_SETTINGS_FILE, SKILLS_DIR, TOKENS_FILE
 from .defaults import DISALLOWED_TOOLS
 from .discovery import ProfileInfo, classify_shared_dirs, discover_profiles
+from .fsutil import write_json_atomic
 from .tokens import TOKEN_TTL_DAYS, compute_expiry, parse_entry
 
 
@@ -438,9 +439,7 @@ def check_inode_renames() -> HealthResult:
             del data[s]
         try:
             INODES_FILE.parent.mkdir(parents=True, exist_ok=True)
-            tmp = INODES_FILE.with_suffix(".tmp")
-            tmp.write_text(json.dumps(data, indent=2) + "\n")
-            tmp.rename(INODES_FILE)
+            write_json_atomic(INODES_FILE, data)
         except OSError:
             pass
 

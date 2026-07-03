@@ -9,6 +9,7 @@ from pathlib import Path
 
 from .constants import SHARED_DIR, encode_path
 from .discovery import discover_profiles
+from .fsutil import write_json_atomic, write_text_atomic
 
 PREFIX = "[mv]"
 
@@ -70,9 +71,7 @@ def _rewrite_jsonl_file(
         if dry_run:
             _log(f"  would rewrite {path} ({replaced} lines)")
         else:
-            tmp = path.with_suffix(".tmp")
-            tmp.write_text("".join(new_lines))
-            tmp.rename(path)
+            write_text_atomic(path, "".join(new_lines))
             _log(f"  rewrote {path} ({replaced} lines)")
 
     return replaced
@@ -100,9 +99,7 @@ def _update_claude_json(
         return True
 
     projects[new_path] = projects.pop(old_path)
-    tmp = path.with_suffix(".tmp")
-    tmp.write_text(json.dumps(data, indent=2) + "\n")
-    tmp.rename(path)
+    write_json_atomic(path, data)
     _log(f"  renamed key {old_path!r} -> {new_path!r} in {path}")
     return True
 

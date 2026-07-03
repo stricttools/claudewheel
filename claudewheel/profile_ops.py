@@ -8,6 +8,7 @@ import shutil
 import sys
 
 from .constants import OPTIONS_FILE, PROFILES_DIR, TOKENS_FILE
+from .fsutil import write_json_atomic, write_json_atomic_secret
 
 
 def _is_profile_running(name: str) -> bool:
@@ -91,18 +92,7 @@ def _remove_from_options(name: str) -> bool:
         found = True
 
     if found:
-        # Atomic write via tmp-file rename (matches ConfigManager._save_json)
-        tmp = OPTIONS_FILE.with_suffix(".tmp")
-        with open(tmp, "w") as f:
-            json.dump(options, f, indent=2)
-            f.write("\n")
-        # The rename replaces the target inode, so carry over the existing
-        # file's mode -- otherwise the swap silently resets perms to umask.
-        try:
-            tmp.chmod(OPTIONS_FILE.stat().st_mode & 0o777)
-        except FileNotFoundError:
-            pass  # target vanished: fresh file keeps umask default
-        tmp.rename(OPTIONS_FILE)
+        write_json_atomic(OPTIONS_FILE, options)
 
     return found
 
@@ -118,14 +108,7 @@ def _remove_from_tokens(name: str) -> bool:
         return False
 
     del tokens[name]
-    tmp = TOKENS_FILE.with_suffix(".tmp")
-    with open(tmp, "w") as f:
-        json.dump(tokens, f, indent=2)
-        f.write("\n")
-    # tokens.json holds secrets: chmod the tmp file BEFORE the rename so the
-    # swapped-in inode is 0600 (the rename replaces the target's perms).
-    tmp.chmod(0o600)
-    tmp.rename(TOKENS_FILE)
+    write_json_atomic_secret(TOKENS_FILE, tokens)
     return True
 
 

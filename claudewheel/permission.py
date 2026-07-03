@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import json
-import os
 import re
 import sys
 from pathlib import Path
 
 from .discovery import discover_profiles
+from .fsutil import write_json_atomic
 
 _VALID_CATEGORIES = ("allow", "deny", "ask")
 _TOOL_NAME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_-]*$")
@@ -60,12 +60,10 @@ def load_settings(settings_path: Path) -> dict:
 def save_settings(settings_path: Path, data: dict) -> None:
     """Atomic-write *data* as JSON to *settings_path*.
 
-    Writes to a temporary sibling file first, then renames over
-    the original to avoid partial writes.
+    Writes to a temporary sibling file first, then renames over the
+    original to avoid partial writes, preserving the file's mode.
     """
-    tmp_path = settings_path.with_suffix(".tmp")
-    tmp_path.write_text(json.dumps(data, indent=2) + "\n")
-    os.rename(tmp_path, settings_path)
+    write_json_atomic(settings_path, data)
 
 
 def add_rule(data: dict, category: str, rule: str) -> str:

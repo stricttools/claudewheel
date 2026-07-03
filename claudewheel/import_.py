@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .constants import SHARED_DIR, encode_path
+from .fsutil import write_text_atomic
 from .session import get_session_cwd
 
 UUID_RE = re.compile(
@@ -166,9 +167,7 @@ def _rewrite_jsonl(
 
     if not dry_run:
         dst_path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = dst_path.with_suffix(".tmp")
-        tmp.write_text("".join(new_lines))
-        tmp.rename(dst_path)
+        write_text_atomic(dst_path, "".join(new_lines))
 
     return rewritten_count
 

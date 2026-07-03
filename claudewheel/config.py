@@ -28,6 +28,7 @@ from .defaults import (
     DEFAULT_THEME_LIGHT,
     build_canonical_shared_settings,
 )
+from .fsutil import write_json_atomic
 
 
 # ---------------------------------------------------------------------------
@@ -204,7 +205,7 @@ class ConfigManager:
         """Create shared-settings.json from canonical values if it doesn't exist."""
         if not SHARED_SETTINGS_FILE.exists():
             canonical = build_canonical_shared_settings(SCRIPTS_DIR)
-            self._save_json(SHARED_SETTINGS_FILE, canonical)
+            write_json_atomic(SHARED_SETTINGS_FILE, canonical)
 
     def _ensure_dir(self):
         """Create config directories and write default files on first run."""
@@ -220,7 +221,7 @@ class ConfigManager:
             (THEMES_DIR / "light.json", DEFAULT_THEME_LIGHT),
         ]:
             if not path.exists():
-                self._save_json(path, default)
+                write_json_atomic(path, default)
 
     def _load_json(self, path: Path, default: dict | list) -> dict | list:
         try:
@@ -228,14 +229,6 @@ class ConfigManager:
                 return json.load(f)
         except (FileNotFoundError, json.JSONDecodeError):
             return default
-
-    def _save_json(self, path: Path, data: dict | list) -> None:
-        """Atomic write via tmp-file rename."""
-        tmp = path.with_suffix(".tmp")
-        with open(tmp, "w") as f:
-            json.dump(data, f, indent=2)
-            f.write("\n")
-        tmp.rename(path)
 
     def _migrate(self, theme_file: Path, theme_default: dict) -> None:
         """Add missing default keys to existing config files on startup.
@@ -251,7 +244,7 @@ class ConfigManager:
                 self.config[key] = value
                 changed = True
         if changed:
-            self._save_json(CONFIG_FILE, self.config)
+            write_json_atomic(CONFIG_FILE, self.config)
 
         # 2. segments.json — list of dicts matched by "key" field
         seg_by_key = {s["key"]: s for s in self.segments_def if "key" in s}
@@ -266,12 +259,12 @@ class ConfigManager:
                     user_seg[attr] = value
                     changed = True
         if changed:
-            self._save_json(SEGMENTS_FILE, self.segments_def)
+            write_json_atomic(SEGMENTS_FILE, self.segments_def)
 
         # 3. theme file — nested dict, recursively merge missing keys
         changed = self._deep_merge_missing(self.theme, theme_default)
         if changed:
-            self._save_json(theme_file, self.theme)
+            write_json_atomic(theme_file, self.theme)
 
         # 4. options.json -- sync default model values into user's list
         default_models = DEFAULT_OPTIONS.get("model", {}).get("values", [])
@@ -279,7 +272,7 @@ class ConfigManager:
         new_models = [m for m in default_models if m not in user_models]
         if new_models:
             user_models.extend(new_models)
-            self._save_json(OPTIONS_FILE, self.options_def)
+            write_json_atomic(OPTIONS_FILE, self.options_def)
 
     def _run_versioned_migrations(self, theme_file: Path) -> None:
         """Run schema-versioned migrations that change existing values.
@@ -317,13 +310,13 @@ class ConfigManager:
             config_changed = True
 
         if config_changed:
-            self._save_json(CONFIG_FILE, self.config)
+            write_json_atomic(CONFIG_FILE, self.config)
         if segments_changed:
-            self._save_json(SEGMENTS_FILE, self.segments_def)
+            write_json_atomic(SEGMENTS_FILE, self.segments_def)
         if theme_changed:
-            self._save_json(theme_file, self.theme)
+            write_json_atomic(theme_file, self.theme)
         if options_changed:
-            self._save_json(OPTIONS_FILE, self.options_def)
+            write_json_atomic(OPTIONS_FILE, self.options_def)
 
     @staticmethod
     def _deep_merge_missing(target: dict, defaults: dict) -> bool:
@@ -349,7 +342,7 @@ class ConfigManager:
         pinned = options[segment_key].setdefault("pinned", [])
         if value not in pinned:
             pinned.append(value)
-            self._save_json(OPTIONS_FILE, options)
+            write_json_atomic(OPTIONS_FILE, options)
             # Also update in-memory copy
             self.options_def = options
 
@@ -358,8 +351,8 @@ class ConfigManager:
         options = self._load_json(OPTIONS_FILE, self.options_def)
         seg = options.setdefault(segment_key, {"values": []})
         seg.setdefault("metadata", {})[value] = meta
-        self._save_json(OPTIONS_FILE, options)
+        write_json_atomic(OPTIONS_FILE, options)
         self.options_def = options
 
     def save_state(self):
-        self._save_json(STATE_FILE, self.state)
+        write_json_atomic(STATE_FILE, self.state)

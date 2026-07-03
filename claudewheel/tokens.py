@@ -8,6 +8,7 @@ from datetime import date, timedelta
 from typing import NamedTuple
 
 from .constants import TOKENS_FILE
+from .fsutil import write_json_atomic_secret
 
 # Claude Code setup-token TTL. Single source of truth for token lifetime.
 TOKEN_TTL_DAYS = 365
@@ -104,12 +105,4 @@ def add_token(name: str, token: str) -> None:
         "expires_at": (created + timedelta(days=TOKEN_TTL_DAYS)).isoformat(),
     }
 
-    tmp = TOKENS_FILE.with_suffix(".tmp")
-    with open(tmp, "w") as f:
-        json.dump(tokens, f, indent=2)
-        f.write("\n")
-    # The rename replaces the target inode, so the tmp file's perms become
-    # the target's. Chmod BEFORE the rename: keeps updates 0600 and avoids a
-    # window where the secret is world-readable at umask-default perms.
-    tmp.chmod(0o600)
-    tmp.rename(TOKENS_FILE)
+    write_json_atomic_secret(TOKENS_FILE, tokens)
