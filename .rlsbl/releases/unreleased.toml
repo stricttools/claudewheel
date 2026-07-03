@@ -1,9 +1,13 @@
 # Version bump type: patch, minor, major, hotfix, or prerelease
-bump = ""
+bump = "minor"
 # Short description of this release (required)
-description = ""
+description = "Profile wizard overhaul: new profiles appear instantly, inline auth setup, and visual indicators for unauthenticated profiles."
 # Optional context explaining why these changes were made
-context = ""
+context = """
+Previously, profiles created via the wizard were invisible in the segment bar because discovery required `.credentials.json` or a `tokens.json` entry, neither of which the wizard created. This release fixes the root cause (broadened discovery to accept `settings.json`, added `pinned` to collection order) and adds a post-wizard auth flow so users can authenticate immediately instead of manually running CLI commands. Unauthenticated profiles now appear dimmed in the UI.
+
+Also includes a breaking rename of `--force` to `--force-delete`/`--force-overwrite` and a fix for machine-local path dependencies in `uv.lock`.
+"""
 # Pre-release identifier: alpha, beta, rc, or stable
 # preid = ""
 # Set to true to generate a blog post for this release
