@@ -22,10 +22,7 @@ from .config import ConfigManager
 from .defaults import DISALLOWED_TOOLS, build_canonical_shared_settings
 from .profile_ops import add_token
 from .terminal import Terminal
-
-# Color constants
-_ACCENT = (107, 138, 255)  # #6B8AFF
-_DIM_CLR = (136, 136, 136)  # #888888
+from .ui import ACCENT, DIM_CLR
 
 # Checkbox labels -- used to identify the 6 advanced fields
 _CHECKBOX_LABELS = [
@@ -174,7 +171,7 @@ def _render(term: Terminal, fields: list[WizardField], focus: int,
     # Title
     title = "New Profile"
     title_col = max(1, (cols - len(title)) // 2)
-    buf.append(move_to(start_row, title_col) + BOLD + fg_rgb(*_ACCENT) + title + RESET)
+    buf.append(move_to(start_row, title_col) + BOLD + fg_rgb(*ACCENT) + title + RESET)
 
     row = start_row + 2  # skip blank line after title
     visible_set = {f.label for f in visible}
@@ -183,7 +180,7 @@ def _render(term: Terminal, fields: list[WizardField], focus: int,
             continue
 
         focused = (i == focus)
-        color = fg_rgb(*_ACCENT) if focused else fg_rgb(*_DIM_CLR)
+        color = fg_rgb(*ACCENT) if focused else fg_rgb(*DIM_CLR)
         style = BOLD + color if focused else color
 
         if f.field_type == "button":
@@ -236,7 +233,7 @@ def _render(term: Terminal, fields: list[WizardField], focus: int,
     hints = _hints_for_field(focused_field)
     hints_col = max(1, (cols - len(hints)) // 2)
     buf.append(move_to(hints_row, hints_col) + CLEAR_LINE
-               + DIM + fg_rgb(*_DIM_CLR) + hints + RESET)
+               + DIM + fg_rgb(*DIM_CLR) + hints + RESET)
 
     term.write("".join(buf))
 
