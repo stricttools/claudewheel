@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import json
+import tempfile
 import unittest
+from pathlib import Path
 from unittest import mock
 
-from claudewheel.segment import DiscoveryResult, Segment
+from claudewheel.segment import DiscoveryResult, Segment, SegmentBar
+from claudewheel.state import AUTH_BROWSER_KEY, save_state_value
 from claudewheel import app as app_mod
 
 
@@ -563,6 +567,63 @@ class AuthInterceptTests(unittest.TestCase):
 
         mock_intercept.assert_not_called()
         self.assertEqual(result, "launch")
+
+
+class ApplySlowDiscoverySaveStateTests(unittest.TestCase):
+    """Regression: _apply_slow_discovery ends with a wholesale cfg.save_state().
+
+    If the auth wizard wrote auth_browser straight to state.json after the
+    app loaded its in-memory state, that wholesale save must not clobber the
+    freshly-written key (same mitigation as state.save_launch_state).
+    """
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.state_file = Path(self._tmp.name) / "state.json"
+        patcher = mock.patch("claudewheel.state.STATE_FILE", self.state_file)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def _make_app(self) -> app_mod.App:
+        """Build a minimal App poised to run _apply_slow_discovery's save path."""
+        app = object.__new__(app_mod.App)
+        state_file = self.state_file
+
+        class _StubCfg:
+            """ConfigManager stand-in: wholesale save_state like the real one."""
+
+            def __init__(self) -> None:
+                # In-memory state loaded at startup -- no auth_browser yet.
+                self.state: dict = {"launch_count": 1}
+                self.options_def: dict = {}
+
+            def save_state(self) -> None:
+                state_file.write_text(json.dumps(self.state, indent=2) + "\n")
+
+        app.cfg = _StubCfg()
+        app.bar = SegmentBar(segments=[_make_profile_segment(discovered=["default"])])
+        app._slow_results = {}  # non-None so the save path runs
+        app._slow_state_copy = None
+        app._pending_discovery = {}
+        return app
+
+    def test_auth_browser_written_out_of_band_survives(self) -> None:
+        app = self._make_app()
+        # Auth wizard persists the browser choice to disk mid-session, after
+        # the app's in-memory state was loaded.
+        save_state_value(AUTH_BROWSER_KEY, "/usr/bin/ff")
+
+        app._apply_slow_discovery()
+
+        on_disk = json.loads(self.state_file.read_text())
+        self.assertEqual(on_disk.get(AUTH_BROWSER_KEY), "/usr/bin/ff")
+
+    def test_no_auth_browser_key_invented_when_absent(self) -> None:
+        app = self._make_app()
+        app._apply_slow_discovery()
+        on_disk = json.loads(self.state_file.read_text())
+        self.assertNotIn(AUTH_BROWSER_KEY, on_disk)
 
 
 if __name__ == "__main__":

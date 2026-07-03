@@ -9,6 +9,7 @@ import threading
 
 from .config import ConfigManager
 from .segment import DiscoveryResult, Segment, build_segment_bar, evaluate_requires, merge_slow_results, run_slow_discovery_via_registry, _discover_profiles, _update_auth_from_metadata
+from .state import merge_out_of_band_keys
 from .terminal import Terminal
 from .theme import parse_theme
 from .renderer import Renderer
@@ -143,6 +144,9 @@ class App:
         if self._slow_state_copy:
             self.cfg.state["npm_versions_cache"] = self._slow_state_copy.get("npm_versions_cache", {})
             self._slow_state_copy = None
+        # The auth wizard may have written auth_browser to disk since our
+        # in-memory state was loaded; merge it so this save doesn't clobber it.
+        merge_out_of_band_keys(self.cfg.state)
         self.cfg.save_state()
 
     def _apply_pending_for_segment(self, seg: Segment) -> None:

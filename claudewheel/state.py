@@ -53,6 +53,19 @@ def save_state_value(key: str, value) -> None:
     tmp.rename(STATE_FILE)
 
 
+def merge_out_of_band_keys(state: dict) -> None:
+    """Re-read keys written straight to state.json by out-of-band writers.
+
+    The auth wizard writes AUTH_BROWSER_KEY directly to disk while the TUI
+    holds its own in-memory state (loaded at startup). Any wholesale
+    ConfigManager.save_state() must call this first so it doesn't clobber
+    those fresh on-disk values with stale in-memory ones.
+    """
+    browser = load_state_value(AUTH_BROWSER_KEY)
+    if browser is not None:
+        state[AUTH_BROWSER_KEY] = browser
+
+
 def save_launch_state(cfg: ConfigManager, selections: dict[str, str | None]) -> None:
     """Save current selections to state.json before launch."""
     # Save last_config (only non-None values)
@@ -68,13 +81,7 @@ def save_launch_state(cfg: ConfigManager, selections: dict[str, str | None]) -> 
         recent.insert(0, directory)
         cfg.state["recent_dirs"] = recent[:20]
 
-    # The auth wizard writes AUTH_BROWSER_KEY straight to state.json while
-    # the TUI holds its own in-memory state (loaded at startup); re-read the
-    # key from disk so this wholesale save doesn't clobber the wizard's write.
-    browser = load_state_value(AUTH_BROWSER_KEY)
-    if browser is not None:
-        cfg.state[AUTH_BROWSER_KEY] = browser
-
+    merge_out_of_band_keys(cfg.state)
     cfg.save_state()
 
 
