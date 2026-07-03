@@ -373,10 +373,6 @@ class App:
 
         from .install import install_version
 
-        # Exit alt screen so the user sees download progress
-        self.terminal.exit_raw()
-        print(f"Downloading Claude Code {version}...")
-
         def on_progress(downloaded: int, total: int) -> None:
             if total > 0:
                 mb_done = downloaded / (1024 * 1024)
@@ -384,19 +380,21 @@ class App:
                 pct = downloaded * 100 // total
                 print(f"\r  {mb_done:.0f}/{mb_total:.0f} MB ({pct}%)", end="", flush=True)
 
-        try:
-            install_version(version, progress_callback=on_progress)
-            print(f"\nInstalled {version} successfully. Press Enter to continue...")
-            seg.state.mark_installed(version)
-        except OSError as e:
-            print(f"\nInstallation failed: {e}")
-            print("Press Enter to continue...")
-        try:
-            input()
-        except KeyboardInterrupt:
-            pass
-        # Re-enter alt screen
-        self.terminal.enter_raw()
+        # Cooked window: leaves the alt screen so the user sees download
+        # progress; raw mode is restored on exit even if the body raises.
+        with self.terminal.cooked():
+            print(f"Downloading Claude Code {version}...")
+            try:
+                install_version(version, progress_callback=on_progress)
+                print(f"\nInstalled {version} successfully. Press Enter to continue...")
+                seg.state.mark_installed(version)
+            except OSError as e:
+                print(f"\nInstallation failed: {e}")
+                print("Press Enter to continue...")
+            try:
+                input()
+            except KeyboardInterrupt:
+                pass
         return None
 
     def _intercept_unauth(self, seg: Segment) -> str:
