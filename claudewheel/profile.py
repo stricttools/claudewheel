@@ -6,6 +6,7 @@ import json
 
 from .config import ConfigManager
 from .constants import TOKENS_FILE
+from .tokens import parse_entry
 
 
 def resolve_profile(name: str) -> dict[str, str]:
@@ -41,11 +42,9 @@ def resolve_profile(name: str) -> dict[str, str]:
     if TOKENS_FILE.is_file():
         try:
             tokens = json.loads(TOKENS_FILE.read_text())
-            entry = tokens.get(name)
-            if isinstance(entry, str):
-                env["CLAUDE_CODE_OAUTH_TOKEN"] = entry
-            elif isinstance(entry, dict) and entry.get("token"):
-                env["CLAUDE_CODE_OAUTH_TOKEN"] = entry["token"]
+            token = parse_entry(tokens.get(name))
+            if token:
+                env["CLAUDE_CODE_OAUTH_TOKEN"] = token
         except (json.JSONDecodeError, OSError):
             pass
 

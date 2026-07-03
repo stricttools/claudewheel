@@ -9,6 +9,7 @@ from pathlib import Path
 
 from .constants import VERSIONS_DIR, CLAUDE_SYMLINK, TOKENS_FILE
 from .defaults import DISALLOWED_TOOLS
+from .tokens import parse_entry
 
 
 def fetch_gh_token(account: str) -> str | None:
@@ -118,11 +119,9 @@ def resolve_launch_config(
     if profile and TOKENS_FILE.is_file():
         try:
             tokens = json.loads(TOKENS_FILE.read_text())
-            entry = tokens.get(profile)
-            if isinstance(entry, str):
-                env["CLAUDE_CODE_OAUTH_TOKEN"] = entry
-            elif isinstance(entry, dict) and entry.get("token"):
-                env["CLAUDE_CODE_OAUTH_TOKEN"] = entry["token"]
+            token = parse_entry(tokens.get(profile))
+            if token:
+                env["CLAUDE_CODE_OAUTH_TOKEN"] = token
         except (json.JSONDecodeError, OSError):
             pass
 

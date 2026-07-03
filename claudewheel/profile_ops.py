@@ -6,7 +6,6 @@ import json
 import os
 import shutil
 import sys
-from datetime import date
 
 from .constants import OPTIONS_FILE, PROFILES_DIR, TOKENS_FILE
 
@@ -100,29 +99,6 @@ def _remove_from_options(name: str) -> bool:
         tmp.rename(OPTIONS_FILE)
 
     return found
-
-
-def add_token(name: str, token: str) -> None:
-    """Add or update a profile's OAuth token in tokens.json.
-
-    Creates the file with 0600 permissions if it does not exist.
-    Writes atomically via tmp-file rename.
-    """
-    try:
-        tokens = json.loads(TOKENS_FILE.read_text())
-    except FileNotFoundError:
-        tokens = {}
-
-    tokens[name] = {"token": token, "created": date.today().isoformat()}
-
-    creating = not TOKENS_FILE.exists()
-    tmp = TOKENS_FILE.with_suffix(".tmp")
-    with open(tmp, "w") as f:
-        json.dump(tokens, f, indent=2)
-        f.write("\n")
-    tmp.rename(TOKENS_FILE)
-    if creating:
-        TOKENS_FILE.chmod(0o600)
 
 
 def _remove_from_tokens(name: str) -> bool:

@@ -21,8 +21,8 @@ from .constants import (
 from .config import ConfigManager
 from .defaults import DISALLOWED_TOOLS, build_canonical_shared_settings
 from .discovery import detect_browsers
-from .profile_ops import add_token
 from .state import AUTH_BROWSER_KEY, load_state_value, save_state_value
+from .tokens import add_token
 from .terminal import Terminal
 from .ui import ACCENT, DIM_CLR, run_selection
 

@@ -220,51 +220,7 @@ class RemoveFromTokensTests(_ProfileOpsTestCase):
         self.assertFalse(result)
 
 
-# ---------------------------------------------------------------------------
-# Token writing (add_token)
-# ---------------------------------------------------------------------------
-
-
-class AddTokenTests(_ProfileOpsTestCase):
-    """Tests for add_token()."""
-
-    def test_creates_fresh_file(self) -> None:
-        """When tokens.json doesn't exist, creates it with the entry."""
-        self.assertFalse(self.tokens_file.exists())
-        profile_ops.add_token("newprof", "tok-123")
-
-        tokens = json.loads(self.tokens_file.read_text())
-        self.assertIn("newprof", tokens)
-        self.assertEqual(tokens["newprof"]["token"], "tok-123")
-        self.assertIn("created", tokens["newprof"])
-
-    def test_adds_to_existing_file(self) -> None:
-        """When tokens.json exists, adds the entry without clobbering others."""
-        self._write_tokens({"existing": {"token": "tok-old", "created": "2025-01-01"}})
-        profile_ops.add_token("newprof", "tok-456")
-
-        tokens = json.loads(self.tokens_file.read_text())
-        self.assertIn("existing", tokens)
-        self.assertIn("newprof", tokens)
-        self.assertEqual(tokens["newprof"]["token"], "tok-456")
-
-    def test_updates_existing_token(self) -> None:
-        """Overwrites a profile's token entry when it already exists."""
-        self._write_tokens({"myprof": {"token": "old-tok", "created": "2024-01-01"}})
-        profile_ops.add_token("myprof", "new-tok")
-
-        tokens = json.loads(self.tokens_file.read_text())
-        self.assertEqual(tokens["myprof"]["token"], "new-tok")
-        # Created date should be updated too
-        self.assertNotEqual(tokens["myprof"]["created"], "2024-01-01")
-
-    def test_file_permissions_on_fresh_creation(self) -> None:
-        """Fresh file gets 0600 permissions."""
-        self.assertFalse(self.tokens_file.exists())
-        profile_ops.add_token("secured", "tok-sec")
-
-        mode = self.tokens_file.stat().st_mode & 0o777
-        self.assertEqual(mode, 0o600)
+# AddTokenTests moved to tests/test_tokens.py when add_token moved to tokens.py.
 
 
 # ---------------------------------------------------------------------------

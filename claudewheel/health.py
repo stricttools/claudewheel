@@ -11,6 +11,7 @@ from pathlib import Path
 from .constants import INODES_FILE, OPTIONS_FILE, PROFILES_DIR, PROFILE_SHARED_DIRS, SHARED_DIR, SHARED_SETTINGS_FILE, SKILLS_DIR, TOKENS_FILE
 from .defaults import DISALLOWED_TOOLS
 from .discovery import ProfileInfo, discover_profiles
+from .tokens import TOKEN_TTL_DAYS, compute_expiry, parse_entry
 
 
 @dataclass
@@ -279,24 +280,11 @@ def check_token_expiry() -> HealthResult:
         return HealthResult(False, "token-expiry", "unreadable tokens.json")
     from datetime import date
     today = date.today()
+    mtime = tokens_file.stat().st_mtime
     expiring: list[str] = []
-    min_remaining = 365
+    min_remaining: float = TOKEN_TTL_DAYS
     for name, entry in tokens.items():
-        remaining = 365
-        if isinstance(entry, dict):
-            if entry.get("expires_at"):
-                try:
-                    remaining = (date.fromisoformat(entry["expires_at"]) - today).days
-                except (ValueError, TypeError):
-                    pass
-            elif entry.get("created"):
-                try:
-                    remaining = 365 - (today - date.fromisoformat(entry["created"])).days
-                except (ValueError, TypeError):
-                    pass
-        else:
-            import time
-            remaining = 365 - (time.time() - tokens_file.stat().st_mtime) / 86400
+        remaining = compute_expiry(entry, mtime, today=today).remaining_days
         min_remaining = min(min_remaining, remaining)
         if remaining < 30:
             expiring.append(f"{name} (~{max(0, int(remaining))}d)")
@@ -327,10 +315,7 @@ def check_tokens() -> HealthResult:
         # profiles that haven't set up auth yet -- don't warn about them.
         if not p.has_credentials and not p.has_token:
             continue
-        entry = tokens.get(p.name)
-        has_token = (isinstance(entry, str) and bool(entry)) or \
-                    (isinstance(entry, dict) and bool(entry.get("token")))
-        if not has_token:
+        if parse_entry(tokens.get(p.name)) is None:
             missing.append(p.name)
 
     if missing:
