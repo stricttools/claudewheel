@@ -5,3 +5,4 @@
 {"commits":["8b38a4327b5f204e52f2b28bad03eff103de53e4"],"user_facing":true,"description":"**Breaking.** Renamed `--force` to `--force-delete` (delete-profile) and `--force-overwrite` (deploy-hooks). Boolean flags now require explicit `--flag`/`--no-flag` where no default is set.","type":"breaking"}
 {"commits":["85db92206330c24a85b49e94d7cfcefaa47e95cb"],"user_facing":false}
 {"commits":["92ce5ca440d0c4adb0a1d8b617eda1904e4efd50"],"user_facing":false}
+{"commits":["9f5d790a8c49a00e6fe25c364ca4ea441e15ea30","b2d9b929fd5854088246aca1c466fd53cb109743","ed3d358d9e0bf3a84fd50c5c46d14b2910b9069e"],"user_facing":false}
