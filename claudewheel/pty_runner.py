@@ -98,7 +98,12 @@ def run_under_pty(
             winch_installed = True
 
         if input_bytes:
-            os.write(master_fd, input_bytes)
+            # os.write may write fewer bytes than given (PTY buffer full);
+            # loop so large payloads are never silently truncated.
+            view = memoryview(input_bytes)
+            while view:
+                written = os.write(master_fd, view)
+                view = view[written:]
 
         read_fds = [master_fd] if tty_fd is None else [master_fd, tty_fd]
         while True:
@@ -132,6 +137,11 @@ def run_under_pty(
         if tty_file is not None:
             tty_file.close()
         os.close(master_fd)
+        # Reap inside the finally so an exception escaping the proxy loop
+        # (e.g. the real tty vanishing mid-session) never leaves a zombie.
+        # Closing master_fd first hangs up the child's controlling terminal,
+        # so this wait terminates even on the error path. This is the only
+        # reap point, so a double-reap ChildProcessError cannot occur.
+        _, status = os.waitpid(pid, 0)
 
-    _, status = os.waitpid(pid, 0)
     return os.waitstatus_to_exitcode(status), bytes(captured)

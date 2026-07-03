@@ -84,6 +84,62 @@ class HeadlessCaptureTests(unittest.TestCase):
         self.assertIn(b"oops", captured)
 
 
+class RobustnessTests(unittest.TestCase):
+    """Failure-path guarantees: no zombies on proxy-loop errors, no
+    truncation on partial PTY writes."""
+
+    def test_child_is_reaped_when_proxy_loop_raises(self) -> None:
+        # Inject a failure into the proxy loop (stands in for the real tty
+        # disappearing mid-session) and verify the child is still reaped.
+        with mock.patch(
+            "claudewheel.pty_runner.select.select",
+            side_effect=RuntimeError("simulated tty loss"),
+        ):
+            with self.assertRaises(RuntimeError):
+                run_under_pty(
+                    [sys.executable, "-c", "pass"],
+                    dict(os.environ),
+                    proxy_terminal=False,
+                )
+        # If run_under_pty reaped the child, this process has no children
+        # left and waitpid(-1) raises ChildProcessError. A zombie instead
+        # makes waitpid return its pid -- failing this assertion.
+        with self.assertRaises(ChildProcessError):
+            os.waitpid(-1, 0)
+
+    def test_input_bytes_survive_partial_writes(self) -> None:
+        # Simulate a kernel partial write: each os.write only accepts a
+        # chunk of what it was given. The runner must loop until all of
+        # input_bytes has been written, or the child sees a short read.
+        payload = b"x" * 300 + b"\n"
+        real_write = os.write
+
+        def chunked_write(fd: int, data) -> int:
+            data = bytes(data)
+            chunk = data[: max(1, len(data) // 2)]
+            return real_write(fd, chunk)
+
+        child_src = (
+            "import os, sys, signal\n"
+            "signal.alarm(5)\n"  # bail out instead of hanging on short input
+            "data = b''\n"
+            "while len(data) < 301:\n"
+            "    c = os.read(0, 65536)\n"
+            "    if not c: break\n"
+            "    data += c\n"
+            "print('LEN:%d' % len(data))\n"
+        )
+        with mock.patch("claudewheel.pty_runner.os.write", chunked_write):
+            code, captured = run_under_pty(
+                [sys.executable, "-c", child_src],
+                dict(os.environ),
+                input_bytes=payload,
+                proxy_terminal=False,
+            )
+        self.assertEqual(code, 0)
+        self.assertIn(b"LEN:301", captured)
+
+
 class DevTtyErrorTests(unittest.TestCase):
     def test_raises_clear_error_when_dev_tty_unavailable(self) -> None:
         with mock.patch("builtins.open", side_effect=OSError("no tty")):
