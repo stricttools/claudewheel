@@ -1,0 +1,1 @@
+{"commits":["62aceab773fd903bacf779487a343b20bcbeb8bf"],"user_facing":true,"description":"Launching an unauthenticated profile now prompts for auth setup (session login, long-lived token, or skip) before starting Claude Code.","type":"feature"}
