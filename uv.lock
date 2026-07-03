@@ -11,18 +11,13 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "strictcli", editable = "../strictcli/python" }]
+requires-dist = [{ name = "strictcli" }]
 
 [[package]]
 name = "strictcli"
-version = "0.21.0"
-source = { editable = "../strictcli/python" }
-
-[package.metadata]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "allpairspy" },
-    { name = "jsonschema" },
-    { name = "pytest" },
+version = "0.24.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/a3/bd/2dff26267a6d5272af6797d98872b72d1a8c94dc42ad1c44674e3e191912/strictcli-0.24.0.tar.gz", hash = "sha256:af47fde2a569ad9cd7201834f7f5f17542e58242131f855137d483d531ae488f", size = 154371, upload-time = "2026-07-02T23:49:16.909Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/15/fe/c4fd949194867767b345bbce5d14524032cf6875c336d9026ffe6e266d39/strictcli-0.24.0-py3-none-any.whl", hash = "sha256:1a9ce79d11644d406ff18e78921a0446f87fb13921f471b30fae50bf90a23e57", size = 51462, upload-time = "2026-07-02T23:49:15.353Z" },
 ]

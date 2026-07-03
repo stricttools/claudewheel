@@ -36,6 +36,3 @@ Repository = "https://github.com/smm-h/claudewheel"
 
 [tool.hatch.build.targets.wheel]
 packages = ["claudewheel"]
-
-[tool.uv.sources]
-strictcli = { path = "/home/m/Projects/strictcli/python", editable = true }
