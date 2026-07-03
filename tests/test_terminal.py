@@ -135,5 +135,80 @@ class FlagResetBetweenCyclesTests(TerminalRawModeTestBase):
         self.assertEqual(self._output(), "")
 
 
+class CookedContextManagerTests(TerminalRawModeTestBase):
+    """Terminal.cooked() temporarily leaves raw mode and restores it."""
+
+    def test_cooked_from_raw_alt_screen_true(self) -> None:
+        self.term.enter_raw(alt_screen=True)
+        self._reset_output()
+
+        with self.term.cooked():
+            # Body runs in cooked mode: alt screen was turned off.
+            self.assertFalse(self.term._in_raw)
+            self.assertIn(ALT_SCREEN_OFF, self._output())
+
+        # Re-entered raw with the SAME alt_screen flag (True).
+        self.assertTrue(self.term._in_raw)
+        self.assertTrue(self.term._alt_screen)
+        out = self._output()
+        self.assertIn(ALT_SCREEN_ON, out)
+        self.assertIn(CLEAR_SCREEN, out)
+
+    def test_cooked_from_raw_alt_screen_false(self) -> None:
+        self.term.enter_raw(alt_screen=False)
+        self._reset_output()
+
+        with self.term.cooked():
+            self.assertFalse(self.term._in_raw)
+
+        # Re-entered raw with the SAME alt_screen flag (False):
+        # no alt-screen codes anywhere in the cycle.
+        self.assertTrue(self.term._in_raw)
+        self.assertFalse(self.term._alt_screen)
+        out = self._output()
+        self.assertNotIn(ALT_SCREEN_ON, out)
+        self.assertNotIn(ALT_SCREEN_OFF, out)
+        self.assertIn(SHOW_CURSOR, out)
+        self.assertIn(HIDE_CURSOR, out)
+
+    def test_cooked_from_cooked_state_is_noop(self) -> None:
+        # Never entered raw: cooked() must emit nothing and change nothing.
+        with self.term.cooked():
+            self.assertFalse(self.term._in_raw)
+        self.assertFalse(self.term._in_raw)
+        self.assertEqual(self._output(), "")
+
+    def test_exception_in_body_still_restores_raw(self) -> None:
+        self.term.enter_raw(alt_screen=True)
+        self._reset_output()
+
+        with self.assertRaises(ValueError):
+            with self.term.cooked():
+                raise ValueError("boom")
+
+        self.assertTrue(self.term._in_raw)
+        self.assertTrue(self.term._alt_screen)
+        self.assertIn(ALT_SCREEN_ON, self._output())
+
+    def test_nested_cooked_inner_is_noop(self) -> None:
+        self.term.enter_raw(alt_screen=True)
+        self._reset_output()
+
+        with self.term.cooked():
+            after_outer = self._output()
+            self._reset_output()
+            with self.term.cooked():
+                # Inner is a no-op: nothing emitted, still cooked.
+                self.assertFalse(self.term._in_raw)
+                self.assertEqual(self._output(), "")
+            # Inner exit must NOT re-enter raw -- outer owns the restore.
+            self.assertFalse(self.term._in_raw)
+            self.assertEqual(self._output(), "")
+            self.assertIn(ALT_SCREEN_OFF, after_outer)
+
+        self.assertTrue(self.term._in_raw)
+        self.assertIn(ALT_SCREEN_ON, self._output())
+
+
 if __name__ == "__main__":
     unittest.main()

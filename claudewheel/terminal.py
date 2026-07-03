@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import atexit
+import contextlib
 import fcntl
 import os
 import select
@@ -56,6 +57,25 @@ class Terminal:
             else:
                 self._write_tty(SHOW_CURSOR)
             self._in_raw = False
+
+    @contextlib.contextmanager
+    def cooked(self):
+        """Temporarily leave raw mode for the duration of the with-block.
+
+        If the terminal is currently raw, exits raw mode on entry and
+        re-enters it on exit with the same alt_screen flag it had before.
+        If already cooked, this is a no-op passthrough (so nesting is safe).
+        Raw mode is restored even if the body raises.
+        """
+        was_raw = self._in_raw
+        alt_screen = self._alt_screen
+        if was_raw:
+            self.exit_raw()
+        try:
+            yield self
+        finally:
+            if was_raw:
+                self.enter_raw(alt_screen=alt_screen)
 
     def read_key(self) -> str:
         """Read a single keypress, decoding escape sequences for arrow keys etc."""
