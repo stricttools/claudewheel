@@ -21,11 +21,13 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 - **claudewheel** (`claudewheel/__init__.py`): Package version detection from installed metadata or package.json.
 - **claudewheel.__main__** (`claudewheel/__main__.py`): Entry point for `python -m claudewheel` invocation.
 - **claudewheel.app** (`claudewheel/app.py`): TUI event loop, keyboard dispatch, and segment interaction.
+- **claudewheel.auth** (`claudewheel/auth.py`): Validate OAuth tokens against the Anthropic API and extract them from captured output.
 - **claudewheel.cli** (`claudewheel/cli.py`): CLI argument parsing, subcommand routing, and launch orchestration.
 - **claudewheel.config** (`claudewheel/config.py`): Config loading, saving, and schema migration system.
 - **claudewheel.constants** (`claudewheel/constants.py`): Filesystem paths, ANSI escape sequences, and terminal color helpers.
 - **claudewheel.defaults** (`claudewheel/defaults.py`): Default values for config, segments, options, state, and themes.
 - **claudewheel.discovery** (`claudewheel/discovery.py`): Scan the filesystem for Claude Code profiles and their credentials.
+- **claudewheel.fsutil** (`claudewheel/fsutil.py`): Atomic file writes that preserve or enforce target permissions.
 - **claudewheel.fuzzy** (`claudewheel/fuzzy.py`): Score, rank, and highlight fuzzy matches between queries and option lists.
 - **claudewheel.health** (`claudewheel/health.py`): Pre-launch diagnostics: symlinks, tokens, hooks, permissions, and disk usage.
 - **claudewheel.hook_scripts** (`claudewheel/hook_scripts.py`): Registry of hook script templates for deploy-hooks command.
@@ -37,7 +39,9 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 - **claudewheel.mv** (`claudewheel/mv.py`): Move session data after a project directory rename.
 - **claudewheel.permission** (`claudewheel/permission.py`): Core logic for managing profile permission rules.
 - **claudewheel.profile** (`claudewheel/profile.py`): Resolve a profile name to CLAUDE_CONFIG_DIR and OAuth token env vars.
+- **claudewheel.profile_info** (`claudewheel/profile_info.py`): Gather and format a detailed inspection report for a single profile.
 - **claudewheel.profile_ops** (`claudewheel/profile_ops.py`): Delete profiles and clean up their dirs, tokens, and options.
+- **claudewheel.pty_runner** (`claudewheel/pty_runner.py`): Run a child process under a PTY, proxying the real terminal and capturing its output.
 - **claudewheel.renderer** (`claudewheel/renderer.py`): Draw the segment bar, fan-out options, minimap, and scroll arrows.
 - **claudewheel.segment** (`claudewheel/segment.py`): Segment and SegmentBar dataclasses, option discovery, and cross-segment constraints.
 - **claudewheel.session** (`claudewheel/session.py`): Session lookup: locate session JSONL files and extract metadata.
@@ -45,7 +49,8 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 - **claudewheel.stats** (`claudewheel/stats.py`): Report shared-store statistics and clean up legacy data.
 - **claudewheel.terminal** (`claudewheel/terminal.py`): Raw terminal I/O: cbreak mode, escape sequence decoding, and alt screen.
 - **claudewheel.theme** (`claudewheel/theme.py`): Parse hex color themes into pre-computed ANSI escape sequences.
-- **claudewheel.ui** (`claudewheel/ui.py`): Reusable raw-mode selection form: a vertical list navigated with arrow keys.
+- **claudewheel.tokens** (`claudewheel/tokens.py`): Parse, expire, and write OAuth token entries in ~/.claudewheel/tokens.json.
+- **claudewheel.ui** (`claudewheel/ui.py`): Themed widget layer: form fields, a form runner, and fullscreen pages.
 - **claudewheel.wizard** (`claudewheel/wizard.py`): Interactive form wizard for creating and configuring new profiles.
 
 ## Commands

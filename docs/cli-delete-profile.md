@@ -16,6 +16,7 @@ delete a registered profile and all associated data
 | Name | Short | Type | Default | Env | Description |
 | --- | --- | --- | --- | --- | --- |
 | `--force-delete` |  | bool |  |  | force deletion even if sessions appear active; skips the safety check |
+| `--force-delete-data` |  | bool |  |  | delete even when shared-dir names hold REAL data instead of symlinks; this DESTROYS that data (e.g. conversation history) |
 
 ## Arguments
 

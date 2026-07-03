@@ -12,7 +12,7 @@ order: 91
 
 claudewheel - TUI launcher for Claude Code with profile, model, and directory selection
 
-Version: 0.16.1
+Version: 0.17.0
 
 ## Commands
 
@@ -24,6 +24,7 @@ Version: 0.16.1
 - [reset-options](cli-reset-options.html) -- delete options.json so it regenerates from defaults
 - [new-profile](cli-new-profile.html) -- run the interactive wizard to create and configure a new Claude profile
 - [delete-profile](cli-delete-profile.html) -- delete a registered profile and all associated data
+- [show-profile](cli-show-profile.html) -- print a detailed inspection report for one profile (auth, symlinks, settings, sessions, disk)
 - [show](cli-show.html) -- print a summary of current segment selections, theme, and recent directories
 - [migrate](cli-migrate.html) -- move session data files from one profile to another, optionally filtered by UUID
 - [stats](cli-stats.html) -- report shared-store stats and clean up legacy data
