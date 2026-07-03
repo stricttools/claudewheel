@@ -283,6 +283,8 @@ def _handle_new_profile() -> int:
         print(line)
     if outcome == "authenticated":
         print("Profile authenticated.")
+    elif outcome == "unverified":
+        print("Token saved without validation (API unreachable).")
     elif outcome == "cancel":
         print("Auth setup cancelled -- you can authenticate later by launching the profile.")
     elif outcome == "failed":

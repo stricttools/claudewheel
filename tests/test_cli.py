@@ -1244,6 +1244,11 @@ class NewProfileFlowTests(unittest.TestCase):
         _rc, out = self._run()
         self.assertIn("Auth setup failed", out)
 
+    def test_auth_unverified_outcome_printed(self) -> None:
+        self.mocks["auth"].return_value = "unverified"
+        _rc, out = self._run()
+        self.assertIn("Token saved without validation (API unreachable).", out)
+
     def test_terminal_closed_even_when_wizard_raises(self) -> None:
         self.mocks["wizard"].side_effect = RuntimeError("boom")
         with self.assertRaises(RuntimeError):
