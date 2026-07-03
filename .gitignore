@@ -21,3 +21,5 @@ dist/
 # selfdoc / Cloudflare
 docs/_build/
 .wrangler/
+
+.rlsbl-monorepo/lock

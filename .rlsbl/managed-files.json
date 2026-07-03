@@ -1,15 +1,12 @@
 {
   "version": 1,
   "files": {
-    ".github/workflows/ci-pypi.yml": "f820e0f5d86740772bc4af78ed45ecd48884123cdcac2113ce186d6a6226dd7e",
+    ".github/workflows/ci-pypi.yml": "4c51a14867c6f29a4787bb16a6942a0f05c4e23056f57d3a76797b302202be63",
     ".npmignore": "1aaec672b9f03f3ac51ec023e2b272d238f6fc7956c4e3bae36f017492b9dbc4",
-    ".github/workflows/publish.yml": "6ec2583ede889b11babc9514eff3769e7d9d00f5f3a6be9ebbf82c38a3c98b8a",
-    "CHANGELOG.md": "ab4ccd89cba48f330b8a08be249ac4f3e684a06f4cdf2c37650fd0b08bc709f7",
-    ".gitignore": "a8aa5546e2922e40c088eeca45708cbf083e143f0348cdacd4129033fc0ca69b",
-    ".rlsbl/hooks/pre-checks.sh": "60c57d4563263124530e6f33aca77550ea2161ad3b33b3ba6ad1c03fea9eb6e2",
-    ".rlsbl/hooks/pre-release.sh": "799fe9a8ed742f5b4f7bc32856df8487b05ab28a37aaa0e9ecf854ea289c5305",
-    ".rlsbl/hooks/post-release.sh": "3cb1c50aa92f111f5ff840a5e5d16c4514db89162846bd1baa0f0afc9e5efa64",
-    ".rlsbl/changes/unreleased.jsonl": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".github/workflows/publish.yml": "d64cc1f19f60a2a3ec95d87c110f96387e2468372a2fc98f297e7a4909dd76b1",
+    "CHANGELOG.md": "ec98762149c03be2670e2509e6db645194c0bf1e61d5af42fd35d09dd1f55b8b",
+    ".gitignore": "0bbd051346d0c34c0523abf7321d6781526a520921b1a6d16cb97393e88ebea9",
+    ".rlsbl/changes/unreleased.jsonl": "34a5272f4324f477721a130b5135a61c770d590d55039d52c0d94243b1e02670",
     ".rlsbl/lint/python.toml": "9cfbcef2e010d5fad243437bf2fd8df54a1fae70ee0762f9d11da70fe207501c",
     ".rlsbl/lint/npm.toml": "baa36014e65923d8cc5c8b83c77fa651da79351627570476402da66840027645"
   }
