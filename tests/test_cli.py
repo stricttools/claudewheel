@@ -1325,5 +1325,33 @@ class ShowProfileCommandTests(unittest.TestCase):
         self.assertIn("Profile: work", buf.getvalue())
 
 
+class DeleteProfileHandlerTests(unittest.TestCase):
+    """_handle_delete_profile wires both force flags to do_delete_profile."""
+
+    def test_flags_wire_through(self) -> None:
+        with mock.patch("claudewheel.profile_ops.do_delete_profile",
+                        return_value=0) as mock_del:
+            rc = cli._handle_delete_profile(
+                "work", force_delete=True, force_delete_data=True)
+        self.assertEqual(rc, 0)
+        mock_del.assert_called_once_with("work", force=True, force_data=True)
+
+    def test_default_flags_off(self) -> None:
+        with mock.patch("claudewheel.profile_ops.do_delete_profile",
+                        return_value=0) as mock_del:
+            rc = cli._handle_delete_profile(
+                "work", force_delete=False, force_delete_data=False)
+        self.assertEqual(rc, 0)
+        mock_del.assert_called_once_with("work", force=False, force_data=False)
+
+    def test_nonzero_rc_exits(self) -> None:
+        with mock.patch("claudewheel.profile_ops.do_delete_profile",
+                        return_value=1):
+            with self.assertRaises(SystemExit) as ctx:
+                cli._handle_delete_profile(
+                    "work", force_delete=False, force_delete_data=False)
+        self.assertEqual(ctx.exception.code, 1)
+
+
 if __name__ == "__main__":
     unittest.main()

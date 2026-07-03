@@ -293,9 +293,10 @@ def _handle_new_profile() -> int:
 
 
 @strictcli.flag("force-delete", type=bool, help="force deletion even if sessions appear active; skips the safety check")
-def _handle_delete_profile(name: str, force_delete: bool) -> int:
+@strictcli.flag("force-delete-data", type=bool, help="delete even when shared-dir names hold REAL data instead of symlinks; this DESTROYS that data (e.g. conversation history)")
+def _handle_delete_profile(name: str, force_delete: bool, force_delete_data: bool) -> int:
     from .profile_ops import do_delete_profile
-    rc = do_delete_profile(name, force=force_delete)
+    rc = do_delete_profile(name, force=force_delete, force_data=force_delete_data)
     if rc != 0:
         sys.exit(rc)
     return 0
