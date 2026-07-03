@@ -237,9 +237,17 @@ def _handle_reset_options() -> int:
 
 
 def _handle_new_profile() -> int:
+    """Run the create-profile flow as one continuous alt-screen session.
+
+    Mirrors the TUI path: wizard form, auth forms, and summary page all
+    render borrowed in a single alt-screen raw session on a CLI-owned
+    terminal. After the session ends, the summary and auth outcome are
+    printed to stdout as a persistent record.
+    """
     from .config import ConfigManager
     from .terminal import Terminal
     from .theme import parse_theme
+    from .ui import show_page
     from .wizard import run_profile_wizard, create_profile, run_auth_flow
     from .discovery import discover_profiles
 
@@ -248,17 +256,31 @@ def _handle_new_profile() -> int:
     # Requires a real TTY; a headless environment fails here, loudly.
     terminal = Terminal()
     existing = [p.name for p in discover_profiles()]
+
+    cancelled = False
+    summary: list[str] = []
+    outcome = ""
     try:
-        result = run_profile_wizard(existing, theme, terminal)
-        if result.cancelled:
-            print("Cancelled.")
-            return 0
-        summary = create_profile(result, cfg)
-        for line in summary:
-            print(line)
-        outcome = run_auth_flow(result.config_dir, result.name, theme, terminal)
+        terminal.enter_raw(alt_screen=True)
+        try:
+            result = run_profile_wizard(existing, theme, terminal)
+            if result.cancelled:
+                cancelled = True
+            else:
+                summary = create_profile(result, cfg)
+                outcome = run_auth_flow(result.config_dir, result.name,
+                                        theme, terminal)
+                show_page("Profile created", summary, theme, terminal)
+        finally:
+            terminal.exit_raw()
     finally:
         terminal.close()
+
+    if cancelled:
+        print("Cancelled.")
+        return 0
+    for line in summary:
+        print(line)
     if outcome == "authenticated":
         print("Profile authenticated.")
     elif outcome == "cancel":

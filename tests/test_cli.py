@@ -1145,5 +1145,119 @@ class MvPostHocFlagTests(unittest.TestCase):
         self.assertFalse(kwargs.get("post_hoc", True))
 
 
+class NewProfileFlowTests(unittest.TestCase):
+    """_handle_new_profile runs the continuous alt-screen create-profile flow
+    on a CLI-owned terminal, then prints the summary and outcome."""
+
+    def setUp(self) -> None:
+        from claudewheel.defaults import DEFAULT_THEME_DARK
+
+        self.terminal = mock.MagicMock()
+        self.terminal._in_raw = False
+
+        self._patches = {
+            "terminal_cls": mock.patch(
+                "claudewheel.terminal.Terminal", return_value=self.terminal),
+            "config": mock.patch("claudewheel.config.ConfigManager"),
+            "discover": mock.patch(
+                "claudewheel.discovery.discover_profiles", return_value=[]),
+            "wizard": mock.patch(
+                "claudewheel.wizard.run_profile_wizard", autospec=True),
+            "create": mock.patch(
+                "claudewheel.wizard.create_profile",
+                return_value=["Created profile 'p':", "  Config dir: /x"]),
+            "auth": mock.patch(
+                "claudewheel.wizard.run_auth_flow", autospec=True,
+                return_value="authenticated"),
+            "page": mock.patch("claudewheel.ui.show_page"),
+        }
+        self.mocks = {}
+        for name, p in self._patches.items():
+            self.mocks[name] = p.start()
+            self.addCleanup(p.stop)
+
+        # parse_theme runs for real on the mocked ConfigManager's theme dict
+        self.mocks["config"].return_value.theme = DEFAULT_THEME_DARK
+
+        wizard_result = mock.MagicMock()
+        wizard_result.cancelled = False
+        wizard_result.name = "p"
+        wizard_result.config_dir = "~/.claudewheel/profiles/p"
+        self.wizard_result = wizard_result
+        self.mocks["wizard"].return_value = wizard_result
+
+    def _run(self) -> tuple[int, str]:
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            rc = cli._handle_new_profile()
+        return rc, buf.getvalue()
+
+    def test_terminal_enters_alt_screen_raw_session(self) -> None:
+        self._run()
+        self.terminal.enter_raw.assert_called_once_with(alt_screen=True)
+        self.terminal.exit_raw.assert_called_once()
+        self.terminal.close.assert_called_once()
+
+    def test_wizard_gets_theme_and_cli_terminal(self) -> None:
+        self._run()
+        args = self.mocks["wizard"].call_args.args
+        self.assertEqual(args[0], [])
+        self.assertIs(args[2], self.terminal)
+
+    def test_summary_page_shown_then_summary_printed(self) -> None:
+        rc, out = self._run()
+        self.assertEqual(rc, 0)
+        self.mocks["page"].assert_called_once()
+        page_args = self.mocks["page"].call_args.args
+        self.assertEqual(page_args[0], "Profile created")
+        self.assertEqual(page_args[1], ["Created profile 'p':", "  Config dir: /x"])
+        self.assertIn("Created profile 'p':", out)
+        self.assertIn("Profile authenticated.", out)
+
+    def test_auth_runs_before_summary_page(self) -> None:
+        manager = mock.MagicMock()
+        manager.attach_mock(self.mocks["auth"], "run_auth_flow")
+        manager.attach_mock(self.mocks["page"], "show_page")
+        self._run()
+        call_names = [c[0] for c in manager.mock_calls]
+        self.assertLess(call_names.index("run_auth_flow"),
+                        call_names.index("show_page"))
+
+    def test_cancelled_wizard_prints_cancelled(self) -> None:
+        self.wizard_result.cancelled = True
+        rc, out = self._run()
+        self.assertEqual(rc, 0)
+        self.assertIn("Cancelled.", out)
+        self.mocks["create"].assert_not_called()
+        self.mocks["page"].assert_not_called()
+        # Session is still torn down cleanly
+        self.terminal.exit_raw.assert_called_once()
+        self.terminal.close.assert_called_once()
+
+    def test_auth_cancel_outcome_printed(self) -> None:
+        self.mocks["auth"].return_value = "cancel"
+        _rc, out = self._run()
+        self.assertIn("Auth setup cancelled", out)
+
+    def test_auth_failed_outcome_printed(self) -> None:
+        self.mocks["auth"].return_value = "failed"
+        _rc, out = self._run()
+        self.assertIn("Auth setup failed", out)
+
+    def test_terminal_closed_even_when_wizard_raises(self) -> None:
+        self.mocks["wizard"].side_effect = RuntimeError("boom")
+        with self.assertRaises(RuntimeError):
+            self._run()
+        self.terminal.exit_raw.assert_called_once()
+        self.terminal.close.assert_called_once()
+
+    def test_headless_terminal_error_propagates(self) -> None:
+        """No degraded mode: a missing TTY fails loudly before any form runs."""
+        self.mocks["terminal_cls"].side_effect = OSError("no /dev/tty")
+        with self.assertRaises(OSError):
+            self._run()
+        self.mocks["wizard"].assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()
