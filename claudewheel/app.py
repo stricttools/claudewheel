@@ -234,7 +234,17 @@ class App:
                 for s in self.bar.segments:
                     if s.key == "profile" and s.value:
                         if s.state.has_auth_status and not s.state.is_authenticated(s.value):
-                            self._intercept_unauth(s)
+                            outcome = self._intercept_unauth(s)
+                            if outcome == "authenticated":
+                                self._flash = "Authenticated"
+                                return None
+                            if outcome == "cancel":
+                                self._flash = "Auth cancelled"
+                                return None
+                            if outcome == "failed":
+                                self._flash = "Auth failed"
+                                return None
+                            # "skip" falls through to launch
                         break
                 return "launch"
             case "TAB":

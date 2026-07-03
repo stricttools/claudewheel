@@ -356,7 +356,7 @@ class AuthInterceptTests(unittest.TestCase):
         self.assertTrue(seg.state.has_auth_status)
         self.assertFalse(seg.state.is_authenticated("noauth"))
 
-        with mock.patch.object(app, "_intercept_unauth") as mock_intercept:
+        with mock.patch.object(app, "_intercept_unauth", return_value="skip") as mock_intercept:
             result = app._handle_key("ENTER")
 
         mock_intercept.assert_called_once_with(seg)
@@ -465,6 +465,57 @@ class AuthInterceptTests(unittest.TestCase):
             result = app._handle_key("ENTER")
 
         self.assertEqual(result, "launch")
+
+    def test_enter_outcome_skip_launches(self):
+        """Outcome 'skip' from the intercept falls through to launch, no flash."""
+        app, seg = self._make_app_with_profile("noauth", authenticated=False)
+
+        with mock.patch.object(app, "_intercept_unauth", return_value="skip"):
+            result = app._handle_key("ENTER")
+
+        self.assertEqual(result, "launch")
+        self.assertEqual(app._flash, "")
+
+    def test_enter_outcome_authenticated_suppresses_launch(self):
+        """Outcome 'authenticated' suppresses launch and flashes 'Authenticated'."""
+        app, seg = self._make_app_with_profile("noauth", authenticated=False)
+
+        with mock.patch.object(app, "_intercept_unauth", return_value="authenticated"):
+            result = app._handle_key("ENTER")
+
+        self.assertIsNone(result)
+        self.assertEqual(app._flash, "Authenticated")
+
+    def test_enter_outcome_cancel_suppresses_launch(self):
+        """Outcome 'cancel' suppresses launch and flashes 'Auth cancelled'."""
+        app, seg = self._make_app_with_profile("noauth", authenticated=False)
+
+        with mock.patch.object(app, "_intercept_unauth", return_value="cancel"):
+            result = app._handle_key("ENTER")
+
+        self.assertIsNone(result)
+        self.assertEqual(app._flash, "Auth cancelled")
+
+    def test_enter_outcome_failed_suppresses_launch(self):
+        """Outcome 'failed' suppresses launch and flashes 'Auth failed'."""
+        app, seg = self._make_app_with_profile("noauth", authenticated=False)
+
+        with mock.patch.object(app, "_intercept_unauth", return_value="failed"):
+            result = app._handle_key("ENTER")
+
+        self.assertIsNone(result)
+        self.assertEqual(app._flash, "Auth failed")
+
+    def test_authenticated_profile_launches_without_intercept_or_flash(self):
+        """An authenticated profile launches directly: no intercept, no flash."""
+        app, seg = self._make_app_with_profile("authed", authenticated=True)
+
+        with mock.patch.object(app, "_intercept_unauth") as mock_intercept:
+            result = app._handle_key("ENTER")
+
+        mock_intercept.assert_not_called()
+        self.assertEqual(result, "launch")
+        self.assertEqual(app._flash, "")
 
     def test_intercept_updates_auth_status_on_success(self):
         """After successful auth, the profile appears in the authenticated set."""
