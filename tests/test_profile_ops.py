@@ -13,7 +13,7 @@ from unittest.mock import patch
 
 
 
-from claudewheel import profile_ops
+from claudewheel import discovery, profile_ops, state
 
 
 class _ProfileOpsTestCase(unittest.TestCase):
@@ -25,25 +25,34 @@ class _ProfileOpsTestCase(unittest.TestCase):
         self._patcher_home = patch.object(Path, "home", return_value=self.home)
         self._patcher_home.start()
 
-        # Set up .claudewheel/ for options and tokens
+        # Set up .claudewheel/ for options, tokens, and state
         self.launcher_dir = self.home / ".claudewheel"
         self.launcher_dir.mkdir()
         self.options_file = self.launcher_dir / "options.json"
         self.tokens_file = self.launcher_dir / "tokens.json"
+        self.state_file = self.launcher_dir / "state.json"
+        self.shared_dir = self.launcher_dir / "shared"
+        self.skills_dir = self.launcher_dir / "skills"
 
-        self._patcher_opts = patch.object(profile_ops, "OPTIONS_FILE", self.options_file)
-        self._patcher_tokens = patch.object(profile_ops, "TOKENS_FILE", self.tokens_file)
-        self._patcher_profiles = patch.object(
-            profile_ops, "PROFILES_DIR", self.home / ".claudewheel" / "profiles",
-        )
-        self._patcher_opts.start()
-        self._patcher_tokens.start()
-        self._patcher_profiles.start()
+        self._patchers = [
+            patch.object(profile_ops, "OPTIONS_FILE", self.options_file),
+            patch.object(profile_ops, "TOKENS_FILE", self.tokens_file),
+            patch.object(
+                profile_ops, "PROFILES_DIR", self.home / ".claudewheel" / "profiles",
+            ),
+            # delete_profile_core purges last_config via the state helpers --
+            # keep it away from the real ~/.claudewheel/state.json.
+            patch.object(state, "STATE_FILE", self.state_file),
+            # classify_shared_dirs resolves symlink targets against these.
+            patch.object(discovery, "SHARED_DIR", self.shared_dir),
+            patch.object(discovery, "SKILLS_DIR", self.skills_dir),
+        ]
+        for p in self._patchers:
+            p.start()
 
     def tearDown(self) -> None:
-        self._patcher_profiles.stop()
-        self._patcher_tokens.stop()
-        self._patcher_opts.stop()
+        for p in reversed(self._patchers):
+            p.stop()
         self._patcher_home.stop()
         self._tmp.cleanup()
 
@@ -71,6 +80,107 @@ class _ProfileOpsTestCase(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# Data-destruction guard (red-green: plain delete used to rmtree REAL shared
+# dirs -- a profile whose projects/ was a real directory lost actual
+# conversation data on default delete)
+# ---------------------------------------------------------------------------
+
+
+class DataDestructionGuardTests(_ProfileOpsTestCase):
+    """Real data at shared-dir names must block default deletion."""
+
+    def _make_victim(self) -> Path:
+        """Profile whose projects/ is a REAL directory holding data."""
+        self._write_options(["victim"])
+        pdir = self._make_profile_dir("victim")
+        projects = pdir / "projects"
+        projects.mkdir()
+        (projects / "conversation.jsonl").write_text("irreplaceable session data")
+        return projects
+
+    def test_real_projects_dir_blocks_default_delete(self) -> None:
+        """Default delete refuses when projects/ is a real dir; data survives."""
+        projects = self._make_victim()
+
+        err = io.StringIO()
+        with redirect_stderr(err), redirect_stdout(io.StringIO()):
+            rc = profile_ops.do_delete_profile("victim")
+
+        self.assertNotEqual(rc, 0)
+        self.assertTrue(projects.exists(), "real projects/ dir must survive")
+        self.assertTrue((projects / "conversation.jsonl").exists())
+
+    def test_cli_refusal_names_at_risk_dirs_and_flag(self) -> None:
+        """The refusal message names the at-risk dirs and --force-delete-data."""
+        self._make_victim()
+        err = io.StringIO()
+        with redirect_stderr(err), redirect_stdout(io.StringIO()):
+            rc = profile_ops.do_delete_profile("victim")
+        self.assertEqual(rc, 1)
+        self.assertIn("projects", err.getvalue())
+        self.assertIn("--force-delete-data", err.getvalue())
+
+    def test_core_refuses_with_at_risk_dirs(self) -> None:
+        """delete_profile_core reports data-destruction with the dir names."""
+        self._make_victim()
+        result = profile_ops.delete_profile_core("victim")
+        self.assertFalse(result.ok)
+        self.assertEqual(result.refusal_reason, "data-destruction")
+        self.assertEqual(result.at_risk_dirs, ["projects"])
+
+    def test_allow_data_destruction_deletes(self) -> None:
+        """allow_data_destruction=True is the only way past the guard."""
+        projects = self._make_victim()
+        result = profile_ops.delete_profile_core(
+            "victim", allow_data_destruction=True)
+        self.assertTrue(result.ok)
+        self.assertFalse(projects.exists())
+        self.assertFalse(
+            (self.home / ".claudewheel" / "profiles" / "victim").exists())
+
+    def test_force_delete_data_flag_deletes_via_cli_wrapper(self) -> None:
+        """force_data=True wires through do_delete_profile."""
+        projects = self._make_victim()
+        with redirect_stdout(io.StringIO()):
+            rc = profile_ops.do_delete_profile("victim", force_data=True)
+        self.assertEqual(rc, 0)
+        self.assertFalse(projects.exists())
+
+    def test_real_file_at_shared_name_also_blocks(self) -> None:
+        """A real FILE at a shared-dir name blocks the same as a real dir."""
+        self._write_options(["victim"])
+        pdir = self._make_profile_dir("victim")
+        (pdir / "todos").write_text("real data in a file")
+        result = profile_ops.delete_profile_core("victim")
+        self.assertFalse(result.ok)
+        self.assertEqual(result.refusal_reason, "data-destruction")
+        self.assertEqual(result.at_risk_dirs, ["todos"])
+
+    def test_all_missing_shared_dirs_delete_fine(self) -> None:
+        """A profile with NO shared entries at all (all missing) deletes."""
+        self._write_options(["plain"])
+        self._make_profile_dir("plain")
+        result = profile_ops.delete_profile_core("plain")
+        self.assertTrue(result.ok)
+        self.assertFalse(
+            (self.home / ".claudewheel" / "profiles" / "plain").exists())
+
+    def test_intact_symlinks_delete_fine(self) -> None:
+        """Intact shared-store symlinks are unlinked, target survives."""
+        self._write_options(["linked"])
+        pdir = self._make_profile_dir("linked")
+        target = self.shared_dir / "projects"
+        target.mkdir(parents=True)
+        (target / "data.jsonl").write_text("shared data")
+        (pdir / "projects").symlink_to(target)
+
+        result = profile_ops.delete_profile_core("linked")
+        self.assertTrue(result.ok)
+        self.assertGreaterEqual(result.removed_symlinks, 1)
+        self.assertTrue((target / "data.jsonl").exists())
+
+
+# ---------------------------------------------------------------------------
 # Validation
 # ---------------------------------------------------------------------------
 
@@ -78,8 +188,8 @@ class _ProfileOpsTestCase(unittest.TestCase):
 class DeleteProfileValidationTests(_ProfileOpsTestCase):
     """Tests for do_delete_profile validation logic."""
 
-    def test_refuses_unregistered_profile(self) -> None:
-        """Exit code 1 when profile not in options.json."""
+    def test_refuses_profile_with_no_registration_and_no_dir(self) -> None:
+        """Exit code 1 when profile is neither in options.json nor on disk."""
         self._write_options(["alpha", "beta"])
         err = io.StringIO()
         with redirect_stderr(err):
@@ -87,13 +197,38 @@ class DeleteProfileValidationTests(_ProfileOpsTestCase):
         self.assertEqual(rc, 1)
         self.assertIn("not registered", err.getvalue())
 
-    def test_refuses_missing_options_file(self) -> None:
-        """Exit code 1 when options.json does not exist."""
+    def test_deletes_unregistered_profile_with_dir_on_disk(self) -> None:
+        """A profile absent from options.json but present under PROFILES_DIR
+        deletes fine (the TUI shows discovered-but-unregistered profiles)."""
+        self._write_options(["alpha"])
+        pdir = self._make_profile_dir("orphan")
+        with redirect_stdout(io.StringIO()):
+            rc = profile_ops.do_delete_profile("orphan")
+        self.assertEqual(rc, 0)
+        self.assertFalse(pdir.exists())
+
+    def test_refuses_missing_options_file_and_no_dir(self) -> None:
+        """Exit code 1 when options.json is missing and the dir is absent."""
         # Don't write options file
         err = io.StringIO()
         with redirect_stderr(err):
             rc = profile_ops.do_delete_profile("any")
         self.assertEqual(rc, 1)
+
+    def test_refuses_default_profile(self) -> None:
+        """'default' (~/.claude) is never deletable, even when registered."""
+        self._write_options(["default"])
+        self._write_tokens({"default": "tok-d"})
+        err = io.StringIO()
+        with redirect_stderr(err):
+            rc = profile_ops.do_delete_profile("default")
+        self.assertEqual(rc, 1)
+        self.assertIn("built-in", err.getvalue())
+        # Nothing was cleaned up: options and tokens entries survive
+        opts = json.loads(self.options_file.read_text())
+        self.assertIn("default", opts["profile"]["values"])
+        tokens = json.loads(self.tokens_file.read_text())
+        self.assertIn("default", tokens)
 
     def test_refuses_running_profile(self) -> None:
         """Exit code 1 when profile appears to have active sessions."""
@@ -123,6 +258,109 @@ class DeleteProfileValidationTests(_ProfileOpsTestCase):
             rc = profile_ops.do_delete_profile("busy", force=True)
         self.assertEqual(rc, 0)
         self.assertFalse(pdir.exists())
+
+
+# ---------------------------------------------------------------------------
+# delete_profile_core: DeleteResult refusals, success flags, last_config purge
+# ---------------------------------------------------------------------------
+
+
+class DeleteProfileCoreTests(_ProfileOpsTestCase):
+    """Tests for the print-free core and its DeleteResult."""
+
+    def test_refusal_default_profile(self) -> None:
+        result = profile_ops.delete_profile_core("default")
+        self.assertFalse(result.ok)
+        self.assertEqual(result.refusal_reason, "default-profile")
+
+    def test_refusal_not_found_lists_known_profiles(self) -> None:
+        self._write_options(["alpha"])
+        opts = json.loads(self.options_file.read_text())
+        opts["profile"]["pinned"] = ["beta"]
+        self.options_file.write_text(json.dumps(opts))
+        result = profile_ops.delete_profile_core("ghost")
+        self.assertFalse(result.ok)
+        self.assertEqual(result.refusal_reason, "not-found")
+        self.assertEqual(result.known_profiles, ["alpha", "beta"])
+
+    def test_refusal_running(self) -> None:
+        self._write_options(["busy"])
+        pdir = self._make_profile_dir("busy")
+        sessions = pdir / "sessions"
+        sessions.mkdir()
+        (sessions / "sess.pid").write_text(str(os.getpid()))
+        result = profile_ops.delete_profile_core("busy")
+        self.assertFalse(result.ok)
+        self.assertEqual(result.refusal_reason, "running")
+        self.assertTrue(pdir.exists())
+
+    def test_skip_running_check(self) -> None:
+        self._write_options(["busy"])
+        pdir = self._make_profile_dir("busy")
+        sessions = pdir / "sessions"
+        sessions.mkdir()
+        (sessions / "sess.pid").write_text(str(os.getpid()))
+        result = profile_ops.delete_profile_core("busy", skip_running_check=True)
+        self.assertTrue(result.ok)
+        self.assertFalse(pdir.exists())
+
+    def test_success_reports_removal_flags(self) -> None:
+        self._write_options(["target"])
+        self._write_tokens({"target": "tok-t"})
+        self._make_profile_dir("target")
+        result = profile_ops.delete_profile_core("target")
+        self.assertTrue(result.ok)
+        self.assertIsNone(result.refusal_reason)
+        self.assertTrue(result.removed_from_options)
+        self.assertTrue(result.removed_from_tokens)
+        self.assertGreater(result.removed_real, 0)
+
+    def test_core_prints_nothing(self) -> None:
+        """The core must not print, even on success or refusal."""
+        self._write_options(["target"])
+        self._make_profile_dir("target")
+        out, err = io.StringIO(), io.StringIO()
+        with redirect_stdout(out), redirect_stderr(err):
+            profile_ops.delete_profile_core("target")
+            profile_ops.delete_profile_core("default")
+            profile_ops.delete_profile_core("ghost")
+        self.assertEqual(out.getvalue(), "")
+        self.assertEqual(err.getvalue(), "")
+
+    def test_last_config_purged_when_it_names_the_profile(self) -> None:
+        self._write_options(["target"])
+        self._make_profile_dir("target")
+        self.state_file.write_text(json.dumps({
+            "last_config": {"profile": "target", "model": "opus"},
+            "launch_count": 7,
+        }))
+        result = profile_ops.delete_profile_core("target")
+        self.assertTrue(result.ok)
+        self.assertTrue(result.last_config_purged)
+        on_disk = json.loads(self.state_file.read_text())
+        self.assertNotIn("profile", on_disk["last_config"])
+        # Everything else survives the read-modify-write
+        self.assertEqual(on_disk["last_config"]["model"], "opus")
+        self.assertEqual(on_disk["launch_count"], 7)
+
+    def test_last_config_untouched_when_other_profile(self) -> None:
+        self._write_options(["target"])
+        self._make_profile_dir("target")
+        self.state_file.write_text(json.dumps({
+            "last_config": {"profile": "other"},
+        }))
+        result = profile_ops.delete_profile_core("target")
+        self.assertTrue(result.ok)
+        self.assertFalse(result.last_config_purged)
+        on_disk = json.loads(self.state_file.read_text())
+        self.assertEqual(on_disk["last_config"]["profile"], "other")
+
+    def test_last_config_purge_tolerates_missing_state_file(self) -> None:
+        self._write_options(["target"])
+        self._make_profile_dir("target")
+        result = profile_ops.delete_profile_core("target")
+        self.assertTrue(result.ok)
+        self.assertFalse(result.last_config_purged)
 
 
 # ---------------------------------------------------------------------------
