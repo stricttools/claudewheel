@@ -126,7 +126,7 @@
     "source_docstring": "cbf6f6c58ea7cbef4602037467a6ce1be666e931ad8bdfeb7b26e26136496927"
   },
   "en/claudewheel-discovery.md": {
-    "content": "4a8672b98538dc354b717e3086ec3b34087069f59fc5cbe99812a70c3b90b231",
+    "content": "84dfedeba04c95c8025b2f9bb8cdeb3d5f71dcbe4d373f119bb8c54ec768c5f7",
     "description": "7e7fb434a504cf3fa3085cff75f2cf05d84c88c7373bd0058a4d9cc2858033a0",
     "source_docstring": "7e7fb434a504cf3fa3085cff75f2cf05d84c88c7373bd0058a4d9cc2858033a0"
   },
@@ -140,7 +140,7 @@
     "description": "6b23c5b2597c61837cad6ead132bac2ad17e8dfcbc153ac75fc7ebbfa22f7f05"
   },
   "en/claudewheel-health.md": {
-    "content": "00c6780c704d122efe5cd104b0612d1800e3acb1241fbc4230ef08b34e31cfa9",
+    "content": "1dbc511e7f539aaac0d74af5a7040f7417e532cbd574db00119033592193c55b",
     "description": "616b2e7551de9459df8ac62dd303a830a619494d5a5bb65ffbd834300130374c",
     "source_docstring": "c7572760e2ce569b7dff4f79d231eecd7498d359a23f810b906378093cc64737"
   },
@@ -190,7 +190,7 @@
     "source_docstring": "53de81c6bf59174733650ffbed2aff23258b1c0ec23f5def57d3dc58c79eb5b7"
   },
   "en/claudewheel-profile_ops.md": {
-    "content": "f9c052dbf7ed5a2d7ac11ea12c6175c259a7f2f51adf2d0375b93bb8dfe4c856",
+    "content": "183bbb2c4e4e03e90dedc0615de3a5411b87c5d2003938169c110ef8bd8254bf",
     "description": "b80f7437d0dcb2d5fec09d586b01e1f5aaf6d9f04438b1e7401900200066e315",
     "source_docstring": "0ba13db4391c8184b1aeb1fcc9df852c468579bb20aef0a1f060cb37476a5df8"
   },
@@ -204,7 +204,7 @@
     "source_docstring": "a85b2b5125feb8bc92eddef4b5444ce37744ee8cf80ae0c38a34194e12475980"
   },
   "en/claudewheel-segment.md": {
-    "content": "d54033431beb854fd6a5473cfa89a858ab9f0ee4e465a2c76fc95fe99bc15ab6",
+    "content": "1a0575820eed6a7e46cebb2c4fe5f0b262ed1e8ff7318a648cf359f7c7cf955b",
     "description": "448c8892eb6d7a402e282ab8b408191b15a6d51c889e897ed3712bf48389b1fd",
     "source_docstring": "4c69ff76029cf89be2b01c4d713a5a25f8c8f6c26f010a4a2345608094d2656d"
   },
@@ -234,7 +234,7 @@
     "source_docstring": "34b63fe6bd3010df4e68ccbbcb9529846486cb07f261094ec02aa96c8ce905c7"
   },
   "en/claudewheel-wizard.md": {
-    "content": "0fb571aa48dace883b58e6d86faa5d7a9ae963d7d2b1bc361e057d780ff12d12",
+    "content": "8ab4a7a0d275d564298f774e42bee983617e58bdd9f74c06f832a39e8a8e70de",
     "description": "eca7f4921ead7eaf93171d55d82c1ca107076a68c60f12db8c52178569756027",
     "source_docstring": "d6fb7afbdb80f4d5c36bdecbf5d1ebf4d0c4b4965567049a91a9b0c2c9aa8946"
   },
@@ -248,11 +248,11 @@
     "description": "7388a4eecb4b78175d5a7dcc97630a9743a9ab4243f1a47433b4535b65a8c8ad"
   },
   "en/cli-delete-profile.md": {
-    "content": "a19e0fceb2fd85d4413cf7628204a11502f6dd7ff4909d329a4726f0e3859ab8",
+    "content": "b18073006b9a8879d397a4bdf8baadbcb6b4374423c633476bffa2a2a36206b6",
     "description": "a8fcdc4157d28ee42b105a6f08b1574f2acbe3ea7ed99d2be33cc35fcc5c34c8"
   },
   "en/cli-deploy-hooks.md": {
-    "content": "3e07868019b51a65274dbd959b5753a10920f3542174a11e698c473dd7746167",
+    "content": "ee583822a39b3732f1566961a14e2db58a0468acd12d14a026c986347853e698",
     "description": "e268b8ee16d6c2925e4a1854dffa32bd98b32cd5d3624f984bd37df900bb95bc"
   },
   "en/cli-gc.md": {
@@ -268,7 +268,7 @@
     "description": "9846fa158f7016b46e6706107bfb3f7c2b27b607105d6f06764f5fb84a6edb0c"
   },
   "en/cli-index.md": {
-    "content": "3e937a3b8cd7adeec95fddc49777a0803b9e480631533d5d1dbe38d6bec0212a",
+    "content": "0560e3faab0c433a59aae5def6df2f011cc1ae963dfa69c8ea4952e5e824914c",
     "description": "6c93c0157d7601c07594d8cd1bb2df39f01cec2ddb6d36b3f83f80ebb63300d5"
   },
   "en/cli-install.md": {

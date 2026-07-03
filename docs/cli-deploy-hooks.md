@@ -16,7 +16,7 @@ deploy built-in hook scripts to the ~/.claudewheel/scripts/ directory
 | Name | Short | Type | Default | Env | Description |
 | --- | --- | --- | --- | --- | --- |
 | `--all` |  | bool |  |  | deploy every known hook script from the built-in registry at once |
-| `--force` |  | bool |  |  | overwrite existing hook scripts on disk instead of skipping them |
+| `--force-overwrite` |  | bool |  |  | overwrite existing hook scripts on disk instead of skipping them |
 
 ## Arguments
 

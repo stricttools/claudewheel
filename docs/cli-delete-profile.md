@@ -15,7 +15,7 @@ delete a registered profile and all associated data
 
 | Name | Short | Type | Default | Env | Description |
 | --- | --- | --- | --- | --- | --- |
-| `--force` |  | bool |  |  | force deletion even if sessions appear active; skips the safety check |
+| `--force-delete` |  | bool |  |  | force deletion even if sessions appear active; skips the safety check |
 
 ## Arguments
 
