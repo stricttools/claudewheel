@@ -279,6 +279,7 @@ DEFAULT_THEME_DARK = {
             "focus_bg": "#2a2a4e",
             "focus_fg": "#ffffff",
             "option_fg": "#5a8ea3",
+            "unavailable_fg": "#555555",
         },
         "github": {
             "value_fg": "#a8d8a8",
@@ -349,6 +350,7 @@ DEFAULT_THEME_LIGHT = {
             "focus_bg": "#d0e8f0",
             "focus_fg": "#000000",
             "option_fg": "#4a8ba3",
+            "unavailable_fg": "#bbbbbb",
         },
         "github": {
             "value_fg": "#2a7a2a",
