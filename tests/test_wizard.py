@@ -1405,5 +1405,58 @@ class BrowserSelectionTests(AuthFlowTestBase):
         self.assertEqual(env["BROWSER"], "false")
 
 
+class TokenPasteTests(AuthFlowTestBase):
+    """Tests for token paste cleanup and instructions in _auth_long_lived_token."""
+
+    def _run_token_flow(self, pasted: str) -> tuple[str, mock.MagicMock]:
+        """Run the token auth path with a fake pasted token."""
+        from claudewheel.wizard import run_auth_flow
+
+        fake_binary = self._make_fake_binary()
+
+        with mock.patch("claudewheel.wizard.run_selection",
+                        side_effect=["token", "copy"]), \
+             mock.patch("builtins.input", return_value=pasted), \
+             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard.subprocess.run",
+                        return_value=subprocess.CompletedProcess([], 0)), \
+             mock.patch("claudewheel.wizard.add_token") as mock_add:
+            result = run_auth_flow("~/.claudewheel/profiles/test", "test")
+        return result, mock_add
+
+    def test_embedded_whitespace_removed(self) -> None:
+        """Linebreaks, spaces, and tabs from a wrapped terminal copy are stripped."""
+        result, mock_add = self._run_token_flow("sk-ant-oat01-\nABC DEF\t123")
+        self.assertEqual(result, "authenticated")
+        mock_add.assert_called_once_with("test", "sk-ant-oat01-ABCDEF123")
+
+    def test_surrounding_whitespace_removed(self) -> None:
+        """Leading/trailing whitespace is stripped like the old .strip() did."""
+        result, mock_add = self._run_token_flow("  sk-ant-token-1  \n")
+        self.assertEqual(result, "authenticated")
+        mock_add.assert_called_once_with("test", "sk-ant-token-1")
+
+    def test_whitespace_only_input_fails(self) -> None:
+        """Input that cleans down to nothing is treated as no token."""
+        result, mock_add = self._run_token_flow(" \n\t ")
+        self.assertEqual(result, "failed")
+        mock_add.assert_not_called()
+        self.assertIn("No token", self._stdout_buf.getvalue())
+
+    def test_non_standard_prefix_still_warns_and_saves(self) -> None:
+        """Cleaned tokens without the sk-ant- prefix warn but still save."""
+        result, mock_add = self._run_token_flow("other -\ntoken")
+        self.assertEqual(result, "authenticated")
+        self.assertIn("Warning", self._stdout_buf.getvalue())
+        mock_add.assert_called_once_with("test", "other-token")
+
+    def test_paste_instructions_printed(self) -> None:
+        """Instructions about the token prefix and whitespace cleanup appear."""
+        self._run_token_flow("sk-ant-anything")
+        out = self._stdout_buf.getvalue()
+        self.assertIn("start with sk-ant-", out)
+        self.assertIn("removed automatically", out)
+
+
 if __name__ == "__main__":
     unittest.main()

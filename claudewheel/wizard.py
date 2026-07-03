@@ -576,12 +576,18 @@ def _auth_long_lived_token(config_dir: str, profile_name: str,
         return False
 
     print()
+    print("Copy the token shown above (it should start with sk-ant-).")
+    print("Whitespace and linebreaks are removed automatically.")
     try:
-        token = input("Paste the token that was displayed above: ").strip()
+        token = input("Paste the token that was displayed above: ")
     except (EOFError, KeyboardInterrupt):
         print()
         print("Token entry cancelled.")
         return False
+
+    # Remove ALL whitespace, including linebreaks and spaces embedded by
+    # line-wrapped terminal copies.
+    token = "".join(token.split())
 
     if not token:
         print("No token provided.")
