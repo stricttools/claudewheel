@@ -498,6 +498,33 @@ class OptionsRegistrationTests(CreateProfileTestBase):
             )
 
 
+class SummaryLinesTests(CreateProfileTestBase):
+    """create_profile returns summary data; presentation is the caller's job."""
+
+    def test_summary_lines_returned(self) -> None:
+        result = _make_result(name="sumtest", wire_hooks=True)
+        lines = create_profile(result, self.cfg)
+        self.assertEqual(lines[0], "Created profile 'sumtest':")
+        joined = "\n".join(lines)
+        self.assertIn("Config dir:", joined)
+        self.assertIn(str(self._profile_dir("sumtest")), joined)
+        self.assertIn("Settings from:  defaults", joined)
+        self.assertIn("Hooks wired:    True", joined)
+
+    def test_clone_source_in_summary(self) -> None:
+        source_dir = self.fake_home / ".claudewheel" / "profiles" / "src"
+        source_dir.mkdir(parents=True)
+        result = _make_result(name="cloned", clone_from="src")
+        lines = create_profile(result, self.cfg)
+        self.assertIn("Settings from:  src", "\n".join(lines))
+
+    def test_nothing_printed(self) -> None:
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            create_profile(_make_result(name="quiet"), self.cfg)
+        self.assertEqual(buf.getvalue(), "")
+
+
 class FakeTerminal:
     """A mock Terminal that feeds pre-recorded keystrokes and captures output."""
 
@@ -1058,7 +1085,11 @@ class AuthFlowTests(AuthFlowTestBase):
         self.assertEqual(result, "cancel")
 
     def test_selection_options_and_flags(self) -> None:
-        """The form gets three (key, label) options, inline (no alt screen)."""
+        """The form gets three (key, label) options, theme, and terminal.
+
+        No use_alt_screen override: the form renders fullscreen (borrowed
+        as a page when the caller's terminal is already raw).
+        """
         from claudewheel.wizard import run_auth_flow
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         return_value=None) as mock_sel:
@@ -1068,7 +1099,9 @@ class AuthFlowTests(AuthFlowTestBase):
         self.assertEqual(args[0], "Authenticate profile 'test'")
         self.assertEqual([key for key, _label in args[1]],
                          ["session", "token", "skip"])
-        self.assertFalse(kwargs.get("use_alt_screen", True))
+        self.assertEqual(args[2], THEME)
+        self.assertIs(args[3], self.term)
+        self.assertNotIn("use_alt_screen", kwargs)
 
     def test_custom_skip_label(self) -> None:
         """skip_label customizes the third option's label; key stays 'skip'."""
@@ -1300,7 +1333,7 @@ class BrowserSelectionTests(AuthFlowTestBase):
         self.assertEqual(args[0], "Choose browser")
         self.assertEqual(args[1], [("/usr/bin/firefox", "Firefox"),
                                    ("copy", "Copy URL instead")])
-        self.assertFalse(kwargs.get("use_alt_screen", True))
+        self.assertNotIn("use_alt_screen", kwargs)
 
     def test_browser_form_shown_after_token_choice(self) -> None:
         """Picking 'token' also shows the browser form."""
@@ -1600,6 +1633,87 @@ class AuthBrowserPersistenceTests(AuthFlowTestBase):
         self.assertEqual(state.get("auth_browser"), "/usr/bin/firefox")
         self.assertEqual(state.get("launch_count"), 7)
         self.assertEqual(state.get("recent_dirs"), ["/home/x"])
+
+
+class CookedWindowTests(AuthFlowTestBase):
+    """The subprocess helpers run their whole body inside terminal.cooked().
+
+    Inside the cooked window the claude subprocess, the prints, and the
+    token paste input() see a real cooked terminal; raw mode (and the alt
+    screen, if any) is restored when the window closes.
+    """
+
+    def _track_cooked(self, events: list[str]) -> None:
+        """Instrument self.term.cooked() to record enter/exit events."""
+        cm = self.term.cooked.return_value
+        cm.__enter__.side_effect = lambda *a: events.append("enter")
+        cm.__exit__.side_effect = lambda *a: events.append("exit") or False
+
+    def test_session_subprocess_runs_inside_cooked_window(self) -> None:
+        from claudewheel.wizard import run_auth_flow
+
+        events: list[str] = []
+        self._track_cooked(events)
+        fake_binary = self._make_fake_binary()
+
+        def fake_run(cmd, env=None):
+            events.append("subprocess")
+            return subprocess.CompletedProcess(cmd, 1)
+
+        with mock.patch("claudewheel.wizard.run_selection", autospec=True,
+                        side_effect=["session", "copy"]), \
+             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard.subprocess.run", side_effect=fake_run):
+            run_auth_flow("~/.claudewheel/profiles/test", "test", THEME, self.term)
+
+        self.assertEqual(events, ["enter", "subprocess", "exit"])
+
+    def test_token_paste_input_happens_inside_cooked_window(self) -> None:
+        from claudewheel.wizard import run_auth_flow
+
+        events: list[str] = []
+        self._track_cooked(events)
+        fake_binary = self._make_fake_binary()
+
+        def fake_input(prompt=""):
+            events.append("input")
+            return "sk-ant-x"
+
+        with mock.patch("claudewheel.wizard.run_selection", autospec=True,
+                        side_effect=["token", "copy"]), \
+             mock.patch("builtins.input", side_effect=fake_input), \
+             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard.subprocess.run",
+                        return_value=subprocess.CompletedProcess([], 0)), \
+             mock.patch("claudewheel.wizard.add_token"):
+            result = run_auth_flow("~/.claudewheel/profiles/test", "test",
+                                   THEME, self.term)
+
+        self.assertEqual(result, "authenticated")
+        self.assertEqual(events, ["enter", "input", "exit"])
+
+    def test_no_cooked_window_on_skip(self) -> None:
+        from claudewheel.wizard import run_auth_flow
+
+        with mock.patch("claudewheel.wizard.run_selection", autospec=True,
+                        return_value="skip"):
+            run_auth_flow("~/.claudewheel/profiles/test", "test", THEME, self.term)
+
+        self.term.cooked.assert_not_called()
+
+    def test_binary_lookup_failure_still_inside_cooked_window(self) -> None:
+        """Even the binary-not-found print happens inside the cooked window."""
+        from claudewheel.wizard import run_auth_flow
+
+        with mock.patch("claudewheel.wizard.run_selection", autospec=True,
+                        side_effect=["session", "copy"]), \
+             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", Path("/nonexistent/claude")), \
+             mock.patch("claudewheel.wizard.shutil.which", return_value=None):
+            result = run_auth_flow("~/.claudewheel/profiles/test", "test",
+                                   THEME, self.term)
+
+        self.assertEqual(result, "failed")
+        self.term.cooked.assert_called_once()
 
 
 class TokenPasteTests(AuthFlowTestBase):

@@ -153,8 +153,12 @@ def _load_shared_settings() -> dict:
     return build_canonical_shared_settings(SCRIPTS_DIR)
 
 
-def create_profile(result: WizardResult, cfg: ConfigManager) -> None:
-    """Execute the profile creation based on wizard results."""
+def create_profile(result: WizardResult, cfg: ConfigManager) -> list[str]:
+    """Execute the profile creation based on wizard results.
+
+    Returns the summary lines describing what was created; presentation is
+    the caller's job (the TUI shows a fullscreen page, the CLI prints them).
+    """
     config_dir = Path(result.config_dir).expanduser()
     config_dir.mkdir(parents=True, exist_ok=True)
 
@@ -235,16 +239,17 @@ def create_profile(result: WizardResult, cfg: ConfigManager) -> None:
     cfg.add_option("profile", result.name)
     cfg.set_option_metadata("profile", result.name, {"config_dir": result.config_dir})
 
-    # Summary
-    print(f"Created profile '{result.name}':")
-    print(f"  Config dir:     {config_dir}")
-    print(f"  Settings from:  {result.clone_from or 'defaults'}")
-    print(f"  Hooks wired:    {result.wire_hooks}")
-    print(f"  Shared symlinks:{result.symlink_shared}")
-    print(f"  Recap disabled: {result.disable_recap}")
-    print(f"  Cleanup 10y:    {result.cleanup_10y}")
-    print(f"  Auto-memory:    {not result.disable_memory}")
-    print(f"  Attribution:    {not result.disable_attribution}")
+    return [
+        f"Created profile '{result.name}':",
+        f"  Config dir:     {config_dir}",
+        f"  Settings from:  {result.clone_from or 'defaults'}",
+        f"  Hooks wired:    {result.wire_hooks}",
+        f"  Shared symlinks:{result.symlink_shared}",
+        f"  Recap disabled: {result.disable_recap}",
+        f"  Cleanup 10y:    {result.cleanup_10y}",
+        f"  Auto-memory:    {not result.disable_memory}",
+        f"  Attribution:    {not result.disable_attribution}",
+    ]
 
 
 def _find_claude_binary() -> str | None:
@@ -286,7 +291,6 @@ def run_auth_flow(config_dir: str, profile_name: str, theme, terminal,
             ("skip", skip_label),
         ],
         theme, terminal,
-        use_alt_screen=False,
     )
 
     if choice == "skip":
@@ -305,16 +309,16 @@ def run_auth_flow(config_dir: str, profile_name: str, theme, terminal,
         "Choose browser",
         detect_browsers() + [("copy", "Copy URL instead")],
         theme, terminal,
-        use_alt_screen=False,
         initial_key=remembered,
     )
     if browser is None:
         return "cancel"
 
     if choice == "session":
-        ok = _auth_session_login(config_dir, browser)
+        ok = _auth_session_login(config_dir, browser, terminal)
     else:
-        ok = _auth_long_lived_token(config_dir, profile_name, browser)
+        ok = _auth_long_lived_token(config_dir, profile_name, browser,
+                                    terminal)
 
     if ok:
         # Remember the working browser choice for the next auth flow.
@@ -336,84 +340,95 @@ def _apply_browser_env(env: dict[str, str], browser: str) -> None:
         env["BROWSER"] = browser
 
 
-def _auth_session_login(config_dir: str, browser: str) -> bool:
-    """Run ``claude auth login`` with CLAUDE_CONFIG_DIR and BROWSER set."""
-    binary = _find_claude_binary()
-    if binary is None:
-        print("Error: Claude binary not found. Install it or add it to PATH.")
+def _auth_session_login(config_dir: str, browser: str, terminal) -> bool:
+    """Run ``claude auth login`` with CLAUDE_CONFIG_DIR and BROWSER set.
+
+    The whole body runs inside ``terminal.cooked()`` so the claude subprocess
+    and all prints see a real cooked terminal; raw mode (and the alt screen,
+    if any) is restored on exit.
+    """
+    with terminal.cooked():
+        binary = _find_claude_binary()
+        if binary is None:
+            print("Error: Claude binary not found. Install it or add it to PATH.")
+            return False
+
+        env = dict(os.environ)
+        env["CLAUDE_CONFIG_DIR"] = str(Path(config_dir).expanduser())
+        _apply_browser_env(env, browser)
+
+        try:
+            result = subprocess.run([binary, "auth", "login"], env=env)
+        except OSError as e:
+            print(f"Error running claude auth login: {e}")
+            return False
+
+        if result.returncode != 0:
+            print("Auth login exited with an error.")
+            return False
+
+        credentials = Path(config_dir).expanduser() / ".credentials.json"
+        if credentials.exists():
+            print("Authentication successful.")
+            return True
+
+        print("Authentication did not complete (.credentials.json not found).")
         return False
-
-    env = dict(os.environ)
-    env["CLAUDE_CONFIG_DIR"] = str(Path(config_dir).expanduser())
-    _apply_browser_env(env, browser)
-
-    try:
-        result = subprocess.run([binary, "auth", "login"], env=env)
-    except OSError as e:
-        print(f"Error running claude auth login: {e}")
-        return False
-
-    if result.returncode != 0:
-        print("Auth login exited with an error.")
-        return False
-
-    credentials = Path(config_dir).expanduser() / ".credentials.json"
-    if credentials.exists():
-        print("Authentication successful.")
-        return True
-
-    print("Authentication did not complete (.credentials.json not found).")
-    return False
 
 
 def _auth_long_lived_token(config_dir: str, profile_name: str,
-                           browser: str) -> bool:
-    """Run ``claude setup-token``, then capture the token from user input."""
-    binary = _find_claude_binary()
-    if binary is None:
-        print("Error: Claude binary not found. Install it or add it to PATH.")
-        return False
+                           browser: str, terminal) -> bool:
+    """Run ``claude setup-token``, then capture the token from user input.
 
-    env = dict(os.environ)
-    env["CLAUDE_CONFIG_DIR"] = str(Path(config_dir).expanduser())
-    _apply_browser_env(env, browser)
+    The whole body runs inside ``terminal.cooked()`` so the subprocess, the
+    prints, and the token paste input() see a real cooked terminal.
+    """
+    with terminal.cooked():
+        binary = _find_claude_binary()
+        if binary is None:
+            print("Error: Claude binary not found. Install it or add it to PATH.")
+            return False
 
-    try:
-        result = subprocess.run([binary, "setup-token"], env=env)
-    except OSError as e:
-        print(f"Error running claude setup-token: {e}")
-        return False
+        env = dict(os.environ)
+        env["CLAUDE_CONFIG_DIR"] = str(Path(config_dir).expanduser())
+        _apply_browser_env(env, browser)
 
-    if result.returncode != 0:
-        print("setup-token exited with an error.")
-        return False
+        try:
+            result = subprocess.run([binary, "setup-token"], env=env)
+        except OSError as e:
+            print(f"Error running claude setup-token: {e}")
+            return False
 
-    print()
-    print("Copy the token shown above (it should start with sk-ant-).")
-    print("Whitespace and linebreaks are removed automatically.")
-    try:
-        token = input("Paste the token that was displayed above: ")
-    except (EOFError, KeyboardInterrupt):
+        if result.returncode != 0:
+            print("setup-token exited with an error.")
+            return False
+
         print()
-        print("Token entry cancelled.")
-        return False
+        print("Copy the token shown above (it should start with sk-ant-).")
+        print("Whitespace and linebreaks are removed automatically.")
+        try:
+            token = input("Paste the token that was displayed above: ")
+        except (EOFError, KeyboardInterrupt):
+            print()
+            print("Token entry cancelled.")
+            return False
 
-    # Remove ALL whitespace, including linebreaks and spaces embedded by
-    # line-wrapped terminal copies.
-    token = "".join(token.split())
+        # Remove ALL whitespace, including linebreaks and spaces embedded by
+        # line-wrapped terminal copies.
+        token = "".join(token.split())
 
-    if not token:
-        print("No token provided.")
-        return False
+        if not token:
+            print("No token provided.")
+            return False
 
-    if not token.startswith("sk-ant-"):
-        print("Warning: token does not start with 'sk-ant-' -- saving anyway.")
+        if not token.startswith("sk-ant-"):
+            print("Warning: token does not start with 'sk-ant-' -- saving anyway.")
 
-    try:
-        add_token(profile_name, token)
-    except OSError as e:
-        print(f"Error saving token: {e}")
-        return False
+        try:
+            add_token(profile_name, token)
+        except OSError as e:
+            print(f"Error saving token: {e}")
+            return False
 
-    print("Token saved successfully.")
-    return True
+        print("Token saved successfully.")
+        return True

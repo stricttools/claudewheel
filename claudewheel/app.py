@@ -398,20 +398,18 @@ class App:
     def _intercept_unauth(self, seg: Segment) -> str:
         """Prompt auth for an unauthenticated profile before launch.
 
-        Exits raw mode, runs the auth flow, and re-enters raw mode.
-        On "authenticated" and "failed" (credentials may be partially
-        written), re-runs profile discovery and updates auth status.
-        Returns the auth flow outcome: "authenticated", "skip", "cancel",
-        or "failed".
+        The app's terminal stays raw: the auth forms render borrowed as
+        pages in the existing alt screen, and the subprocess steps inside
+        the auth flow open their own cooked windows. On "authenticated"
+        and "failed" (credentials may be partially written), re-runs
+        profile discovery and updates auth status. Returns the auth flow
+        outcome: "authenticated", "skip", "cancel", or "failed".
         """
         from .wizard import run_auth_flow
 
         profile_name = seg.value
         meta = seg.state.metadata.get(profile_name, {})
         config_dir = meta.get("config_dir", "")
-
-        self.terminal.exit_raw()
-        print(f"Profile '{profile_name}' has no authentication configured.")
 
         outcome = run_auth_flow(config_dir, profile_name,
                                 self.theme, self.terminal,
@@ -420,7 +418,6 @@ class App:
         if outcome in ("authenticated", "failed"):
             self._refresh_profile_segment(seg)
 
-        self.terminal.enter_raw()
         return outcome
 
     def _refresh_profile_segment(self, seg: Segment) -> None:
@@ -432,17 +429,24 @@ class App:
         _update_auth_from_metadata(seg)
 
     def _launch_profile_wizard(self, seg: Segment) -> str | None:
-        """Exit TUI, run the profile wizard, create profile, return to TUI."""
+        """Run the create-profile flow as one continuous alt-screen session.
+
+        The app's terminal stays raw throughout: the wizard form, the auth
+        forms, and the creation summary page all render borrowed in the
+        existing alt screen (subprocess steps open cooked windows inside
+        the auth flow). The main TUI repaints on return.
+        """
+        from .ui import show_page
         from .wizard import run_profile_wizard, create_profile, run_auth_flow
         from .discovery import discover_profiles
-        self.terminal.exit_raw()
         existing = [p.name for p in discover_profiles()]
         result = run_profile_wizard(existing, self.theme, self.terminal)
         if not result.cancelled:
-            create_profile(result, self.cfg)
+            summary = create_profile(result, self.cfg)
             run_auth_flow(result.config_dir, result.name,
                           self.theme, self.terminal,
                           skip_label="Skip for now")
+            show_page("Profile created", summary, self.theme, self.terminal)
             # Add the new profile to the segment's live options (pinned)
             seg.state.add_pinned(result.name)
             # Re-run discovery to pick up the newly created profile. This
@@ -450,7 +454,6 @@ class App:
             # on "authenticated"/"failed" credentials may have been written.
             self._refresh_profile_segment(seg)
             seg.select_value(result.name)
-        self.terminal.enter_raw()
         return None
 
     def _handle_create_key(self, key: str, seg: Segment) -> str | None:

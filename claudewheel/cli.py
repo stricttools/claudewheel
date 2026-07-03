@@ -253,7 +253,9 @@ def _handle_new_profile() -> int:
         if result.cancelled:
             print("Cancelled.")
             return 0
-        create_profile(result, cfg)
+        summary = create_profile(result, cfg)
+        for line in summary:
+            print(line)
         outcome = run_auth_flow(result.config_dir, result.name, theme, terminal)
     finally:
         terminal.close()

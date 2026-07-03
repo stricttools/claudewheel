@@ -42,6 +42,7 @@ def _wizard_mocks(wizard_result, fresh_result=None):
         mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True, return_value=wizard_result),
         mock.patch("claudewheel.wizard.create_profile"),
         mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"),
+        mock.patch("claudewheel.ui.show_page"),
         mock.patch("claudewheel.discovery.discover_profiles", return_value=[]),
     ]
     if fresh_result is not None:
@@ -63,6 +64,7 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
             mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result),
             mock.patch("claudewheel.wizard.create_profile"),
             mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"),
+            mock.patch("claudewheel.ui.show_page"),
             mock.patch("claudewheel.discovery.discover_profiles", return_value=[]),
         ]
         if mock_auth:
@@ -108,6 +110,7 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
         with mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result) as mock_disc, \
              mock.patch.object(app_mod, "_update_auth_from_metadata") as mock_auth, \
              mock.patch("claudewheel.wizard.create_profile"), \
+             mock.patch("claudewheel.ui.show_page"), \
              mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
              mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
              mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True, return_value=wizard_result):
@@ -142,6 +145,7 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
         with mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result), \
              mock.patch.object(app_mod, "_update_auth_from_metadata"), \
              mock.patch("claudewheel.wizard.create_profile"), \
+             mock.patch("claudewheel.ui.show_page"), \
              mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
              mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
              mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True, return_value=wizard_result):
@@ -177,6 +181,7 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
         with mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result), \
              mock.patch.object(app_mod, "_update_auth_from_metadata"), \
              mock.patch("claudewheel.wizard.create_profile"), \
+             mock.patch("claudewheel.ui.show_page"), \
              mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
              mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
              mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True, return_value=wizard_result):
@@ -214,6 +219,7 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
         with mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result), \
              mock.patch.object(app_mod, "_update_auth_from_metadata"), \
              mock.patch("claudewheel.wizard.create_profile"), \
+             mock.patch("claudewheel.ui.show_page"), \
              mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
              mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
              mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True, return_value=wizard_result):
@@ -251,6 +257,7 @@ class WizardRefreshAuthTests(unittest.TestCase):
         # Use real _update_auth_from_metadata (not mocked) to verify it works
         with mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result), \
              mock.patch("claudewheel.wizard.create_profile"), \
+             mock.patch("claudewheel.ui.show_page"), \
              mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
              mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
              mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True, return_value=wizard_result):
@@ -286,6 +293,7 @@ class WizardRefreshAuthTests(unittest.TestCase):
 
         with mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result), \
              mock.patch("claudewheel.wizard.create_profile"), \
+             mock.patch("claudewheel.ui.show_page"), \
              mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
              mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
              mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True, return_value=wizard_result):
@@ -314,6 +322,7 @@ class WizardCancelledTests(unittest.TestCase):
         with mock.patch.object(app_mod, "_discover_profiles") as mock_disc, \
              mock.patch.object(app_mod, "_update_auth_from_metadata") as mock_auth, \
              mock.patch("claudewheel.wizard.create_profile"), \
+             mock.patch("claudewheel.ui.show_page"), \
              mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
              mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
              mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True, return_value=wizard_result):
@@ -414,9 +423,9 @@ class AuthInterceptTests(unittest.TestCase):
             skip_label="Launch without auth")
         mock_disc.assert_called_once_with({}, {})
         mock_auth_update.assert_called_once_with(seg)
-        # Terminal was exited and re-entered
-        app.terminal.exit_raw.assert_called_once()
-        app.terminal.enter_raw.assert_called_once()
+        # The terminal stays raw: the auth forms render borrowed
+        app.terminal.exit_raw.assert_not_called()
+        app.terminal.enter_raw.assert_not_called()
 
     def test_intercept_reruns_discovery_on_auth_failure(self):
         """On 'failed', discovery IS re-run (credentials may be partially written)."""
@@ -454,9 +463,9 @@ class AuthInterceptTests(unittest.TestCase):
         self.assertEqual(outcome, "skip")
         mock_disc.assert_not_called()
         mock_auth_update.assert_not_called()
-        # Terminal still exits and re-enters (for the auth prompt)
-        app.terminal.exit_raw.assert_called_once()
-        app.terminal.enter_raw.assert_called_once()
+        # The terminal stays raw even on skip: no raw-mode cycling
+        app.terminal.exit_raw.assert_not_called()
+        app.terminal.enter_raw.assert_not_called()
 
     def test_intercept_skips_discovery_on_cancel(self):
         """When the auth form is cancelled, discovery is not re-run."""
@@ -578,6 +587,87 @@ class AuthInterceptTests(unittest.TestCase):
 
         mock_intercept.assert_not_called()
         self.assertEqual(result, "launch")
+
+
+class ContinuousSessionTests(unittest.TestCase):
+    """The create-profile flow runs as one continuous alt-screen session:
+    the app terminal stays raw, and a summary page is shown after auth."""
+
+    def _make_app(self):
+        app = object.__new__(app_mod.App)
+        app.terminal = mock.MagicMock()
+        app.theme = mock.MagicMock()
+        app.cfg = mock.MagicMock()
+        return app
+
+    def _wizard_result(self, cancelled: bool = False):
+        wizard_result = mock.MagicMock()
+        wizard_result.cancelled = cancelled
+        wizard_result.name = "newprof"
+        wizard_result.config_dir = "~/.claudewheel/profiles/newprof"
+        return wizard_result
+
+    def test_terminal_never_raw_cycled_during_wizard_flow(self) -> None:
+        app = self._make_app()
+        seg = _make_profile_segment(discovered=["existing"])
+        fresh = DiscoveryResult(values=["existing", "newprof"], metadata={})
+
+        with mock.patch.object(app_mod, "_discover_profiles", return_value=fresh), \
+             mock.patch.object(app_mod, "_update_auth_from_metadata"), \
+             mock.patch("claudewheel.wizard.create_profile"), \
+             mock.patch("claudewheel.ui.show_page"), \
+             mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
+             mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
+             mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True,
+                        return_value=self._wizard_result()):
+            app._launch_profile_wizard(seg)
+
+        app.terminal.exit_raw.assert_not_called()
+        app.terminal.enter_raw.assert_not_called()
+
+    def test_summary_page_shown_after_auth(self) -> None:
+        app = self._make_app()
+        seg = _make_profile_segment(discovered=["existing"])
+        fresh = DiscoveryResult(values=["existing", "newprof"], metadata={})
+        summary = ["Created profile 'newprof':", "  Config dir: /x"]
+
+        manager = mock.MagicMock()
+        with mock.patch.object(app_mod, "_discover_profiles", return_value=fresh), \
+             mock.patch.object(app_mod, "_update_auth_from_metadata"), \
+             mock.patch("claudewheel.wizard.create_profile",
+                        return_value=summary) as mock_create, \
+             mock.patch("claudewheel.ui.show_page") as mock_page, \
+             mock.patch("claudewheel.wizard.run_auth_flow", autospec=True,
+                        return_value="skip") as mock_auth, \
+             mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
+             mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True,
+                        return_value=self._wizard_result()):
+            manager.attach_mock(mock_auth, "run_auth_flow")
+            manager.attach_mock(mock_page, "show_page")
+            app._launch_profile_wizard(seg)
+
+        mock_create.assert_called_once()
+        mock_page.assert_called_once_with(
+            "Profile created", summary, app.theme, app.terminal)
+        # The summary page appears after the auth flow, not before
+        call_names = [c[0] for c in manager.mock_calls]
+        self.assertLess(call_names.index("run_auth_flow"),
+                        call_names.index("show_page"))
+
+    def test_no_summary_page_on_cancel(self) -> None:
+        app = self._make_app()
+        seg = _make_profile_segment(discovered=["existing"])
+
+        with mock.patch("claudewheel.wizard.create_profile") as mock_create, \
+             mock.patch("claudewheel.ui.show_page") as mock_page, \
+             mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
+             mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
+             mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True,
+                        return_value=self._wizard_result(cancelled=True)):
+            app._launch_profile_wizard(seg)
+
+        mock_create.assert_not_called()
+        mock_page.assert_not_called()
 
 
 class ApplySlowDiscoverySaveStateTests(unittest.TestCase):
