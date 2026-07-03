@@ -25,7 +25,8 @@ def discover_profiles() -> list[ProfileInfo]:
     Scans ~/.claudewheel/profiles/ for subdirectories. Also checks bare
     ~/.claude/ as the "default" profile (Claude Code's built-in default,
     not a claudewheel profile). A directory qualifies as a profile if it
-    has .credentials.json or has a matching entry in tokens.json.
+    has .credentials.json, settings.json, or has a matching entry in
+    tokens.json.
 
     Returns a sorted list of ProfileInfo.
     """
@@ -51,10 +52,11 @@ def discover_profiles() -> list[ProfileInfo]:
             if not name:
                 continue
             has_credentials = (entry / ".credentials.json").exists()
-            if has_credentials:
+            has_settings = (entry / "settings.json").exists()
+            if has_credentials or has_settings:
                 profiles.append(ProfileInfo(
                     name=name, path=entry,
-                    has_credentials=True, has_token=False,
+                    has_credentials=has_credentials, has_token=False,
                 ))
                 found_names.add(name)
 

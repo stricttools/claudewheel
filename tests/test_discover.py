@@ -5,6 +5,7 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from claudewheel.segment import (
     DiscoveryResult,
@@ -652,6 +653,72 @@ class LastConfigSelectionOnlyTests(unittest.TestCase):
         state = {"last_config": {"directory": "/new/b"}}
         merge_slow_results(bar, results, state)
         self.assertEqual(seg.value, "/new/b")
+
+
+class ProfileDiscoverySettingsOnlyTests(unittest.TestCase):
+    """Tests for discover_profiles() accepting settings.json as a profile marker."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.home = Path(self._tmp.name)
+        self._patcher = patch.object(Path, "home", return_value=self.home)
+        self._patcher.start()
+        self._profiles_dir = self.home / ".claudewheel" / "profiles"
+        self._profiles_dir.mkdir(parents=True, exist_ok=True)
+        self._dir_patches = [
+            patch("claudewheel.discovery.PROFILES_DIR", self._profiles_dir),
+            patch("claudewheel.discovery.TOKENS_FILE", self.home / ".claudewheel" / "tokens.json"),
+        ]
+        for p in self._dir_patches:
+            p.start()
+
+    def tearDown(self) -> None:
+        for p in self._dir_patches:
+            p.stop()
+        self._patcher.stop()
+        self._tmp.cleanup()
+
+    def test_settings_only_profile_discovered(self) -> None:
+        """A profile with only settings.json (no .credentials.json) is discovered."""
+        from claudewheel.discovery import discover_profiles
+
+        pdir = self._profiles_dir / "newprof"
+        pdir.mkdir()
+        (pdir / "settings.json").write_text("{}")
+
+        profiles = discover_profiles()
+        names = [p.name for p in profiles]
+        self.assertIn("newprof", names)
+
+    def test_settings_only_has_no_credentials_or_token(self) -> None:
+        """Settings-only profile has has_credentials=False, has_token=False."""
+        from claudewheel.discovery import discover_profiles
+
+        pdir = self._profiles_dir / "settingsonly"
+        pdir.mkdir()
+        (pdir / "settings.json").write_text("{}")
+
+        profiles = discover_profiles()
+        prof = [p for p in profiles if p.name == "settingsonly"][0]
+        self.assertFalse(prof.has_credentials)
+        self.assertFalse(prof.has_token)
+
+    def test_profile_with_both_credentials_and_settings(self) -> None:
+        """A profile with both .credentials.json and settings.json works correctly."""
+        from claudewheel.discovery import discover_profiles
+
+        pdir = self._profiles_dir / "fullprof"
+        pdir.mkdir()
+        (pdir / ".credentials.json").write_text("{}")
+        (pdir / "settings.json").write_text("{}")
+
+        profiles = discover_profiles()
+        prof = [p for p in profiles if p.name == "fullprof"][0]
+        self.assertTrue(prof.has_credentials)
+        # It should be discovered exactly once
+        count = sum(1 for p in profiles if p.name == "fullprof")
+        self.assertEqual(count, 1)
 
 
 if __name__ == "__main__":
