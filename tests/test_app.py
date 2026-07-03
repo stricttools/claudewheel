@@ -529,6 +529,54 @@ class AuthInterceptTests(unittest.TestCase):
         self.assertIsNone(result)
         self.assertEqual(app._flash, "Auth failed")
 
+    def test_enter_outcome_unverified_suppresses_launch(self):
+        """Outcome 'unverified' suppresses launch and flashes the save note."""
+        app, seg = self._make_app_with_profile("noauth", authenticated=False)
+
+        with mock.patch.object(app, "_intercept_unauth",
+                               return_value="unverified"):
+            result = app._handle_key("ENTER")
+
+        self.assertIsNone(result)
+        self.assertEqual(app._flash, "Saved unverified token")
+
+    def test_enter_unknown_outcome_fails_closed(self):
+        """An unknown outcome string must never fall through to launch."""
+        app, seg = self._make_app_with_profile("noauth", authenticated=False)
+
+        with mock.patch.object(app, "_intercept_unauth",
+                               return_value="something-new"):
+            result = app._handle_key("ENTER")
+
+        self.assertIsNone(result)
+        self.assertIn("something-new", app._flash)
+
+    def test_intercept_reruns_discovery_on_unverified(self):
+        """On 'unverified' a token was written -- discovery IS re-run."""
+        app, seg = self._make_app_with_profile("noauth", authenticated=False)
+
+        fresh_result = DiscoveryResult(
+            values=["noauth"],
+            metadata={
+                "noauth": {
+                    "config_dir": "~/.claudewheel/profiles/noauth",
+                    "has_token": True,
+                    "has_credentials": False,
+                },
+            },
+        )
+
+        with mock.patch("claudewheel.wizard.run_auth_flow", autospec=True,
+                        return_value="unverified"), \
+             mock.patch.object(app_mod, "_discover_profiles",
+                               return_value=fresh_result) as mock_disc, \
+             mock.patch.object(app_mod, "_update_auth_from_metadata") as mock_auth_update:
+            outcome = app._intercept_unauth(seg)
+
+        self.assertEqual(outcome, "unverified")
+        mock_disc.assert_called_once_with({}, {})
+        mock_auth_update.assert_called_once_with(seg)
+
     def test_authenticated_profile_launches_without_intercept_or_flash(self):
         """An authenticated profile launches directly: no intercept, no flash."""
         app, seg = self._make_app_with_profile("authed", authenticated=True)

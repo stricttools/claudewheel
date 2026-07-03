@@ -239,16 +239,20 @@ class App:
                     if s.key == "profile" and s.value:
                         if s.state.has_auth_status and not s.state.is_authenticated(s.value):
                             outcome = self._intercept_unauth(s)
-                            if outcome == "authenticated":
-                                self._flash = "Authenticated"
+                            if outcome != "skip":
+                                # Fail closed: ONLY the explicit "skip"
+                                # outcome launches. Every other outcome --
+                                # known or unknown -- stays in the TUI with
+                                # a flash instead of silently launching.
+                                flashes = {
+                                    "authenticated": "Authenticated",
+                                    "unverified": "Saved unverified token",
+                                    "cancel": "Auth cancelled",
+                                    "failed": "Auth failed",
+                                }
+                                self._flash = flashes.get(
+                                    outcome, f"Auth outcome: {outcome}")
                                 return None
-                            if outcome == "cancel":
-                                self._flash = "Auth cancelled"
-                                return None
-                            if outcome == "failed":
-                                self._flash = "Auth failed"
-                                return None
-                            # "skip" falls through to launch
                         break
                 return "launch"
             case "TAB":
@@ -400,10 +404,11 @@ class App:
 
         The app's terminal stays raw: the auth forms render borrowed as
         pages in the existing alt screen, and the subprocess steps inside
-        the auth flow open their own cooked windows. On "authenticated"
-        and "failed" (credentials may be partially written), re-runs
-        profile discovery and updates auth status. Returns the auth flow
-        outcome: "authenticated", "skip", "cancel", or "failed".
+        the auth flow open their own cooked windows. On "authenticated",
+        "unverified" (a token was saved without validation), and "failed"
+        (credentials may be partially written), re-runs profile discovery
+        and updates auth status. Returns the auth flow outcome:
+        "authenticated", "unverified", "skip", "cancel", or "failed".
         """
         from .wizard import run_auth_flow
 
@@ -415,7 +420,7 @@ class App:
                                 self.theme, self.terminal,
                                 skip_label="Launch without auth")
 
-        if outcome in ("authenticated", "failed"):
+        if outcome in ("authenticated", "unverified", "failed"):
             self._refresh_profile_segment(seg)
 
         return outcome
@@ -450,8 +455,10 @@ class App:
             # Add the new profile to the segment's live options (pinned)
             seg.state.add_pinned(result.name)
             # Re-run discovery to pick up the newly created profile. This
-            # runs for every auth outcome: the profile itself is new, and
-            # on "authenticated"/"failed" credentials may have been written.
+            # runs unconditionally for every auth outcome (including
+            # "unverified"): the profile itself is new, and on
+            # "authenticated"/"unverified"/"failed" credentials may have
+            # been written.
             self._refresh_profile_segment(seg)
             seg.select_value(result.name)
         return None
