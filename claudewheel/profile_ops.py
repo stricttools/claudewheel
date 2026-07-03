@@ -96,6 +96,12 @@ def _remove_from_options(name: str) -> bool:
         with open(tmp, "w") as f:
             json.dump(options, f, indent=2)
             f.write("\n")
+        # The rename replaces the target inode, so carry over the existing
+        # file's mode -- otherwise the swap silently resets perms to umask.
+        try:
+            tmp.chmod(OPTIONS_FILE.stat().st_mode & 0o777)
+        except FileNotFoundError:
+            pass  # target vanished: fresh file keeps umask default
         tmp.rename(OPTIONS_FILE)
 
     return found
@@ -116,6 +122,9 @@ def _remove_from_tokens(name: str) -> bool:
     with open(tmp, "w") as f:
         json.dump(tokens, f, indent=2)
         f.write("\n")
+    # tokens.json holds secrets: chmod the tmp file BEFORE the rename so the
+    # swapped-in inode is 0600 (the rename replaces the target's perms).
+    tmp.chmod(0o600)
     tmp.rename(TOKENS_FILE)
     return True
 

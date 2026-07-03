@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 import time
 import unittest
@@ -201,6 +202,31 @@ class AddTokenTests(unittest.TestCase):
 
         mode = self.tokens_file.stat().st_mode & 0o777
         self.assertEqual(mode, 0o600)
+
+    def test_update_preserves_0600_permissions(self) -> None:
+        """Updating an existing 0600 tokens.json must not loosen it to umask
+        default -- the atomic tmp-swap replaces the target inode, so the tmp
+        file's perms win. Regression test for the tmp-swap perms bug."""
+        old_umask = os.umask(0o022)  # pin umask so the tmp file defaults 0644
+        self.addCleanup(os.umask, old_umask)
+        self._write_tokens({"myprof": {"token": "old-tok", "created": "2024-01-01"}})
+        self.tokens_file.chmod(0o600)
+
+        add_token("myprof", "new-tok")
+
+        mode = self.tokens_file.stat().st_mode & 0o777
+        self.assertEqual(mode, 0o600)
+
+    def test_corrupt_file_raises_oserror_and_is_not_overwritten(self) -> None:
+        """A corrupt tokens.json is a hard OSError (callers catch OSError),
+        and the corrupt content is left untouched -- never silently clobbered."""
+        self.tokens_file.write_text("{not json")
+
+        with self.assertRaises(OSError) as ctx:
+            add_token("prof", "tok-x")
+        self.assertIn("corrupt", str(ctx.exception).lower())
+        # Original corrupt content preserved for the user to inspect/recover.
+        self.assertEqual(self.tokens_file.read_text(), "{not json")
 
     def test_atomic_write_leaves_no_tmp_file(self) -> None:
         """The tmp-file swap leaves no .tmp sibling and valid JSON behind."""

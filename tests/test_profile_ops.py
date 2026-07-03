@@ -192,6 +192,20 @@ class RemoveFromOptionsTests(_ProfileOpsTestCase):
         result = profile_ops._remove_from_options("ghost")
         self.assertFalse(result)
 
+    def test_preserves_target_file_mode(self) -> None:
+        """The atomic tmp-swap must preserve the existing file's permissions
+        (the tmp file is created with umask-default perms and its mode wins
+        after rename). Regression test for the tmp-swap perms bug."""
+        old_umask = os.umask(0o022)  # pin umask so the tmp file defaults 0644
+        self.addCleanup(os.umask, old_umask)
+        self._write_options(["alpha", "beta"])
+        self.options_file.chmod(0o640)
+
+        self.assertTrue(profile_ops._remove_from_options("alpha"))
+
+        mode = self.options_file.stat().st_mode & 0o777
+        self.assertEqual(mode, 0o640)
+
 
 # ---------------------------------------------------------------------------
 # Tokens cleanup
@@ -218,6 +232,19 @@ class RemoveFromTokensTests(_ProfileOpsTestCase):
     def test_returns_false_when_no_file(self) -> None:
         result = profile_ops._remove_from_tokens("any")
         self.assertFalse(result)
+
+    def test_preserves_0600_permissions(self) -> None:
+        """tokens.json holds secrets and must stay 0600 after the atomic
+        tmp-swap rewrite. Regression test for the tmp-swap perms bug."""
+        old_umask = os.umask(0o022)  # pin umask so the tmp file defaults 0644
+        self.addCleanup(os.umask, old_umask)
+        self._write_tokens({"alpha": "tok-a", "beta": "tok-b"})
+        self.tokens_file.chmod(0o600)
+
+        self.assertTrue(profile_ops._remove_from_tokens("alpha"))
+
+        mode = self.tokens_file.stat().st_mode & 0o777
+        self.assertEqual(mode, 0o600)
 
 
 # AddTokenTests moved to tests/test_tokens.py when add_token moved to tokens.py.

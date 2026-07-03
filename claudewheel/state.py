@@ -13,6 +13,22 @@ from .constants import INODES_FILE, STATE_FILE
 AUTH_BROWSER_KEY = "auth_browser"
 
 
+def _write_json_atomic(path, data) -> None:
+    """Atomic tmp+rename JSON write that preserves the target's file mode.
+
+    The tmp file is created with umask-default perms and the rename replaces
+    the target inode, so without the chmod any pre-existing restrictive mode
+    on the target would be silently lost on every update.
+    """
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(data, indent=2) + "\n")
+    try:
+        tmp.chmod(path.stat().st_mode & 0o777)
+    except FileNotFoundError:
+        pass  # fresh file: umask default is fine
+    tmp.rename(path)
+
+
 def load_state_value(key: str):
     """Read a single value fresh from state.json on disk.
 
@@ -48,9 +64,7 @@ def save_state_value(key: str, value) -> None:
             pass
     data[key] = value
     STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    tmp = STATE_FILE.with_suffix(".tmp")
-    tmp.write_text(json.dumps(data, indent=2) + "\n")
-    tmp.rename(STATE_FILE)
+    _write_json_atomic(STATE_FILE, data)
 
 
 def merge_out_of_band_keys(state: dict) -> None:
@@ -110,6 +124,4 @@ def record_inode(directory: str) -> None:
 
     # Atomic write: tmp + rename
     INODES_FILE.parent.mkdir(parents=True, exist_ok=True)
-    tmp = INODES_FILE.with_suffix(".tmp")
-    tmp.write_text(json.dumps(data, indent=2) + "\n")
-    tmp.rename(INODES_FILE)
+    _write_json_atomic(INODES_FILE, data)

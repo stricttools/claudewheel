@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -11,6 +12,7 @@ from unittest.mock import patch
 from claudewheel.state import (
     AUTH_BROWSER_KEY,
     load_state_value,
+    record_inode,
     save_launch_state,
     save_state_value,
 )
@@ -103,6 +105,53 @@ class SaveStateValueTests(StateFileTestCase):
     def test_no_tmp_file_left_behind(self) -> None:
         save_state_value("k", "v")
         self.assertFalse((self.tmp_path / "state.tmp").exists())
+
+    def test_preserves_target_file_mode(self) -> None:
+        """The atomic tmp-swap must preserve the existing file's permissions
+        (the tmp file is created with umask-default perms and its mode wins
+        after rename). Regression test for the tmp-swap perms bug."""
+        old_umask = os.umask(0o022)  # pin umask so the tmp file defaults 0644
+        self.addCleanup(os.umask, old_umask)
+        self.state_file.write_text(json.dumps({"k": "old"}))
+        self.state_file.chmod(0o640)
+
+        save_state_value("k", "new")
+
+        mode = self.state_file.stat().st_mode & 0o777
+        self.assertEqual(mode, 0o640)
+
+
+# ---------------------------------------------------------------------------
+# record_inode permissions
+# ---------------------------------------------------------------------------
+
+
+class RecordInodePermissionTests(unittest.TestCase):
+    """Mode-preservation test for record_inode()'s atomic tmp-swap.
+
+    Functional record_inode() coverage lives in tests/test_inode.py; this
+    class only covers the tmp-swap perms bug alongside its state.py siblings.
+    """
+
+    def test_preserves_target_file_mode(self) -> None:
+        old_umask = os.umask(0o022)  # pin umask so the tmp file defaults 0644
+        self.addCleanup(os.umask, old_umask)
+        with tempfile.TemporaryDirectory() as tmp:
+            inodes_file = Path(tmp) / "inodes.json"
+            inodes_file.write_text(json.dumps({"/stale/path": 12345}) + "\n")
+            inodes_file.chmod(0o640)
+            project_dir = Path(tmp) / "proj"
+            project_dir.mkdir()
+
+            with patch("claudewheel.state.INODES_FILE", inodes_file):
+                record_inode(str(project_dir))
+
+            # The write happened (new mapping recorded) ...
+            data = json.loads(inodes_file.read_text())
+            self.assertIn(os.path.abspath(str(project_dir)), data)
+            # ... and the pre-existing mode survived the swap.
+            mode = inodes_file.stat().st_mode & 0o777
+            self.assertEqual(mode, 0o640)
 
 
 # ---------------------------------------------------------------------------

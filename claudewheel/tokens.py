@@ -81,13 +81,21 @@ def add_token(name: str, token: str) -> None:
     """Add or update a profile's OAuth token in tokens.json.
 
     Writes token, created (today), and expires_at (created + TOKEN_TTL_DAYS).
-    Creates the file with 0600 permissions if it does not exist.
+    The file always ends up with 0600 permissions (it holds secrets).
     Writes atomically via tmp-file rename.
+
+    Raises OSError if an existing tokens.json cannot be parsed -- a corrupt
+    file is never silently overwritten (callers handle OSError).
     """
     try:
         tokens = json.loads(TOKENS_FILE.read_text())
     except FileNotFoundError:
         tokens = {}
+    except json.JSONDecodeError as e:
+        raise OSError(
+            f"{TOKENS_FILE} is corrupt ({e}); refusing to overwrite it. "
+            "Fix or remove the file, then retry."
+        ) from e
 
     created = date.today()
     tokens[name] = {
@@ -96,11 +104,12 @@ def add_token(name: str, token: str) -> None:
         "expires_at": (created + timedelta(days=TOKEN_TTL_DAYS)).isoformat(),
     }
 
-    creating = not TOKENS_FILE.exists()
     tmp = TOKENS_FILE.with_suffix(".tmp")
     with open(tmp, "w") as f:
         json.dump(tokens, f, indent=2)
         f.write("\n")
+    # The rename replaces the target inode, so the tmp file's perms become
+    # the target's. Chmod BEFORE the rename: keeps updates 0600 and avoids a
+    # window where the secret is world-readable at umask-default perms.
+    tmp.chmod(0o600)
     tmp.rename(TOKENS_FILE)
-    if creating:
-        TOKENS_FILE.chmod(0o600)
