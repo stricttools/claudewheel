@@ -10,6 +10,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
+from . import auth
 from .constants import (
     CLAUDE_SYMLINK,
     PROFILES_DIR, PROFILE_SHARED_DIRS, SCRIPTS_DIR,
@@ -18,6 +19,7 @@ from .constants import (
 from .config import ConfigManager
 from .defaults import DISALLOWED_TOOLS, build_canonical_shared_settings
 from .discovery import detect_browsers
+from .pty_runner import run_under_pty
 from .state import AUTH_BROWSER_KEY, load_state_value, save_state_value
 from .tokens import add_token
 from .ui import FormField, get_field, run_form, run_selection
@@ -273,7 +275,10 @@ def run_auth_flow(config_dir: str, profile_name: str, theme, terminal,
     in the last successful auth is remembered in state.json and pre-focused
     on the next run. Returns one of:
 
-    - ``"authenticated"`` -- auth was set up successfully
+    - ``"authenticated"`` -- auth was set up successfully (tokens: validated
+      against the API before saving)
+    - ``"unverified"`` -- a token was saved WITHOUT validation (the probe
+      was unreachable or inconclusive and the user explicitly chose to save)
     - ``"skip"`` -- the user explicitly chose to skip
     - ``"cancel"`` -- the user cancelled a form (Esc/Ctrl-C)
     - ``"failed"`` -- auth was attempted but did not complete
@@ -316,14 +321,16 @@ def run_auth_flow(config_dir: str, profile_name: str, theme, terminal,
 
     if choice == "session":
         ok = _auth_session_login(config_dir, browser, terminal)
+        outcome = "authenticated" if ok else "failed"
     else:
-        ok = _auth_long_lived_token(config_dir, profile_name, browser,
-                                    terminal)
+        outcome = _auth_long_lived_token(config_dir, profile_name, browser,
+                                         theme, terminal)
 
-    if ok:
-        # Remember the working browser choice for the next auth flow.
+    if outcome in ("authenticated", "unverified"):
+        # Remember the working browser choice for the next auth flow. An
+        # unverified save still means the browser step itself worked.
         save_state_value(AUTH_BROWSER_KEY, browser)
-    return "authenticated" if ok else "failed"
+    return outcome
 
 
 def _apply_browser_env(env: dict[str, str], browser: str) -> None:
@@ -376,59 +383,135 @@ def _auth_session_login(config_dir: str, browser: str, terminal) -> bool:
         return False
 
 
-def _auth_long_lived_token(config_dir: str, profile_name: str,
-                           browser: str, terminal) -> bool:
-    """Run ``claude setup-token``, then capture the token from user input.
+_PASTE_PROMPT = "Paste the token manually, or press Enter to abort: "
 
-    The whole body runs inside ``terminal.cooked()`` so the subprocess, the
-    prints, and the token paste input() see a real cooked terminal.
+
+def _read_pasted_token(prompt: str) -> str | None:
+    """Read a manually pasted token from input().
+
+    Removes ALL whitespace, including linebreaks and spaces embedded by
+    line-wrapped terminal copies. Returns None on EOF/Ctrl-C; an empty
+    string when nothing (or only whitespace) was entered.
+    """
+    try:
+        raw = input(prompt)
+    except (EOFError, KeyboardInterrupt):
+        print()
+        return None
+    return "".join(raw.split())
+
+
+def _capture_setup_token(config_dir: str, browser: str) -> str | None:
+    """Run ``claude setup-token`` under a PTY and scrape the token.
+
+    Must run inside a cooked window: run_under_pty proxies the real terminal
+    (it sets its own raw mode internally and restores it). The user interacts
+    with setup-token normally while ALL output is captured; the token is then
+    extracted from the capture -- no paste needed. Returns the token, or None
+    on failure.
+
+    If extraction fails, that is a hard, explicit situation: the user is told
+    the scrape failed and offered a manual paste as a clearly labeled recovery
+    step -- not a silent fallback. Empty input aborts.
+    """
+    binary = _find_claude_binary()
+    if binary is None:
+        print("Error: Claude binary not found. Install it or add it to PATH.")
+        return None
+
+    env = dict(os.environ)
+    env["CLAUDE_CONFIG_DIR"] = str(Path(config_dir).expanduser())
+    _apply_browser_env(env, browser)
+
+    try:
+        exit_code, captured = run_under_pty([binary, "setup-token"], env)
+    except (OSError, RuntimeError) as e:
+        print(f"Error running claude setup-token: {e}")
+        return None
+
+    if exit_code != 0:
+        print("setup-token exited with an error.")
+        return None
+
+    token = auth.extract_token(captured)
+    if token is not None:
+        return token
+
+    print()
+    print("Error: could not extract the token from setup-token's output.")
+    token = _read_pasted_token(_PASTE_PROMPT)
+    if not token:
+        print("No token provided.")
+        return None
+    return token
+
+
+def _save_token(profile_name: str, token: str) -> bool:
+    """Write the token via add_token; print and return False on OSError."""
+    try:
+        add_token(profile_name, token)
+    except OSError as e:
+        print(f"Error saving token: {e}")
+        return False
+    return True
+
+
+def _auth_long_lived_token(config_dir: str, profile_name: str, browser: str,
+                           theme, terminal) -> str:
+    """Run ``claude setup-token``, scrape the token, validate it, save it.
+
+    Every token (scraped or manually recovered) is probed against the API
+    BEFORE being saved. Returns one of:
+
+    - ``"authenticated"`` -- the probe returned VALID and the token was saved
+    - ``"unverified"`` -- the probe was UNREACHABLE/INDETERMINATE and the
+      user explicitly chose to save the unvalidated token
+    - ``"failed"`` -- anything else. A token the API rejects (401) is NEVER
+      saved: one manual re-paste is offered (the scrape may have picked a
+      stale frame), then the flow fails hard.
     """
     with terminal.cooked():
-        binary = _find_claude_binary()
-        if binary is None:
-            print("Error: Claude binary not found. Install it or add it to PATH.")
-            return False
+        token = _capture_setup_token(config_dir, browser)
+        if token is None:
+            return "failed"
 
-        env = dict(os.environ)
-        env["CLAUDE_CONFIG_DIR"] = str(Path(config_dir).expanduser())
-        _apply_browser_env(env, browser)
+        status = auth.validate_token(token)
+        if status == auth.INVALID:
+            print("Error: the token was rejected by the API (401).")
+            print("The captured token may be stale or truncated.")
+            token = _read_pasted_token(_PASTE_PROMPT)
+            if not token:
+                print("No token provided.")
+                return "failed"
+            status = auth.validate_token(token)
+            if status == auth.INVALID:
+                print("Error: the token was rejected by the API (401) again.")
+                return "failed"
 
-        try:
-            result = subprocess.run([binary, "setup-token"], env=env)
-        except OSError as e:
-            print(f"Error running claude setup-token: {e}")
-            return False
+        if status == auth.VALID:
+            if not _save_token(profile_name, token):
+                return "failed"
+            print("Token validated and saved successfully.")
+            return "authenticated"
 
-        if result.returncode != 0:
-            print("setup-token exited with an error.")
-            return False
+    # UNREACHABLE or INDETERMINATE: the token cannot be verified right now.
+    # The cooked window is closed, so the choice form renders borrowed in
+    # the caller's session (raw terminal) like the other auth forms.
+    reason = ("API unreachable" if status == auth.UNREACHABLE
+              else "validation inconclusive")
+    choice = run_selection(
+        f"Token could not be validated ({reason})",
+        [
+            ("save", "Save unvalidated"),
+            ("abort", "Abort"),
+        ],
+        theme, terminal,
+    )
+    if choice != "save":
+        return "failed"
 
-        print()
-        print("Copy the token shown above (it should start with sk-ant-).")
-        print("Whitespace and linebreaks are removed automatically.")
-        try:
-            token = input("Paste the token that was displayed above: ")
-        except (EOFError, KeyboardInterrupt):
-            print()
-            print("Token entry cancelled.")
-            return False
-
-        # Remove ALL whitespace, including linebreaks and spaces embedded by
-        # line-wrapped terminal copies.
-        token = "".join(token.split())
-
-        if not token:
-            print("No token provided.")
-            return False
-
-        if not token.startswith("sk-ant-"):
-            print("Warning: token does not start with 'sk-ant-' -- saving anyway.")
-
-        try:
-            add_token(profile_name, token)
-        except OSError as e:
-            print(f"Error saving token: {e}")
-            return False
-
-        print("Token saved successfully.")
-        return True
+    with terminal.cooked():
+        if not _save_token(profile_name, token):
+            return "failed"
+        print("Token saved WITHOUT validation.")
+    return "unverified"
