@@ -1,3 +1,4 @@
 {"commits":["f785537f669210c5c7037b8a801ce3b007e772b5","e6bcf5f4ba7e59656a150e3ddf4e3c93da82cc53"],"user_facing":false}
 {"commits":["882f9517087c10f246fb554f69ebfa8ba5ae8ff1"],"user_facing":false}
 {"commits":["4f02bb882f6cce58081b51d79dcc8f2316062143"],"user_facing":true,"description":"Dependency installation no longer requires a machine-local checkout: `uv.lock` previously carried a local path for `strictcli`, breaking installs and CI outside the author's machine. It now resolves from PyPI (strictcli 0.24.0).","type":"fix"}
+{"commits":["87dfd514abe5d3c263ec981c77307f17a96b5a5f"],"user_facing":false}
