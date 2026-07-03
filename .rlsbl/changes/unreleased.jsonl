@@ -3,3 +3,4 @@
 {"commits":["4f02bb882f6cce58081b51d79dcc8f2316062143"],"user_facing":true,"description":"Dependency installation no longer requires a machine-local checkout: `uv.lock` previously carried a local path for `strictcli`, breaking installs and CI outside the author's machine. It now resolves from PyPI (strictcli 0.24.0).","type":"fix"}
 {"commits":["87dfd514abe5d3c263ec981c77307f17a96b5a5f"],"user_facing":false}
 {"commits":["8b38a4327b5f204e52f2b28bad03eff103de53e4"],"user_facing":true,"description":"**Breaking.** Renamed `--force` to `--force-delete` (delete-profile) and `--force-overwrite` (deploy-hooks). Boolean flags now require explicit `--flag`/`--no-flag` where no default is set.","type":"breaking"}
+{"commits":["85db92206330c24a85b49e94d7cfcefaa47e95cb"],"user_facing":false}
