@@ -274,6 +274,21 @@ class CollectionOrderTests(unittest.TestCase):
         st.set_defaults(["def"])
         self.assertEqual(st.options, ["pin", "disc"])
 
+    def test_pinned_profile_appears_in_options(self) -> None:
+        """Profile segment: pinned values appear alongside discovered ones.
+
+        Mirrors the profile segment's collection_order=["pinned", "discovered"].
+        After creating a profile (adding it as pinned), it must show up in options
+        even if the discovery scan hasn't re-run yet.
+        """
+        st = SegmentState(collection_order=["pinned", "discovered"])
+        st.set_discovered(["existing-profile"])
+        st.add_pinned("new-profile")
+        self.assertIn("new-profile", st.options)
+        # Pinned appears before discovered
+        self.assertEqual(st.options.index("new-profile"), 0)
+        self.assertIn("existing-profile", st.options)
+
     def test_ephemeral_always_at_end(self) -> None:
         """Ephemeral values are always appended after the ordered collections."""
         st = SegmentState(collection_order=["discovered"])

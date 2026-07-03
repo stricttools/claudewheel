@@ -647,7 +647,7 @@ def populate_segment_state(
 # Per-segment merge specs: collection_order and sort overrides
 _SEGMENT_MERGE_SPECS: dict[str, dict] = {
     "version": {"sort": "semver_desc"},
-    "profile": {"collection_order": ["discovered"]},
+    "profile": {"collection_order": ["pinned", "discovered"]},
     "model": {"collection_order": ["pinned", "defaults"]},
     "mcp": {"collection_order": ["pinned", "defaults"]},
     "permissions": {"collection_order": ["pinned", "defaults"]},
