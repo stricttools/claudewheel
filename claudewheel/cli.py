@@ -238,7 +238,7 @@ def _handle_reset_options() -> int:
 
 def _handle_new_profile() -> int:
     from .config import ConfigManager
-    from .wizard import run_profile_wizard, create_profile
+    from .wizard import run_profile_wizard, create_profile, run_auth_flow
     from .discovery import discover_profiles
 
     cfg = ConfigManager()
@@ -248,6 +248,7 @@ def _handle_new_profile() -> int:
         print("Cancelled.")
         return 0
     create_profile(result, cfg)
+    run_auth_flow(result.config_dir, result.name)
     return 0
 
 

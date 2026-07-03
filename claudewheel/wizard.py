@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import json
+import os
 import re
+import shutil
 import signal
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
 from .constants import (
+    CLAUDE_SYMLINK,
     CLEAR_SCREEN, CLEAR_LINE, RESET, BOLD, DIM,
     PROFILES_DIR, PROFILE_SHARED_DIRS, SCRIPTS_DIR,
     SHARED_DIR, SHARED_SETTINGS_FILE, SKILLS_DIR,
@@ -16,6 +20,7 @@ from .constants import (
 )
 from .config import ConfigManager
 from .defaults import DISALLOWED_TOOLS, build_canonical_shared_settings
+from .profile_ops import add_token
 from .terminal import Terminal
 
 # Color constants
@@ -445,6 +450,117 @@ def create_profile(result: WizardResult, cfg: ConfigManager) -> None:
     print(f"  Cleanup 10y:    {result.cleanup_10y}")
     print(f"  Auto-memory:    {not result.disable_memory}")
     print(f"  Attribution:    {not result.disable_attribution}")
+
+
+def _find_claude_binary() -> str | None:
+    """Locate the Claude Code binary. Returns the path or None."""
+    if CLAUDE_SYMLINK.exists() or CLAUDE_SYMLINK.is_symlink():
+        resolved = CLAUDE_SYMLINK.resolve()
+        if resolved.is_file():
+            return str(resolved)
+    found = shutil.which("claude")
+    return found
+
+
+def run_auth_flow(config_dir: str, profile_name: str) -> bool:
+    """Prompt the user to set up authentication for a newly created profile.
+
+    Offers three choices: session login (browser-based), long-lived token,
+    or skip. Returns True if auth was set up successfully, False otherwise.
+
+    This function is safe to call after create_profile() -- auth failure
+    never prevents profile creation.
+    """
     print()
-    print("  To set up long-lived auth, run:")
-    print(f"    CLAUDE_CONFIG_DIR={result.config_dir} claude setup-token")
+    print("Set up authentication:")
+    print("  [1] Session login (opens browser -- recommended)")
+    print("  [2] Long-lived token")
+    print("  [3] Skip")
+    print()
+
+    try:
+        choice = input("Choice [1/2/3]: ").strip()
+    except (EOFError, KeyboardInterrupt):
+        print()
+        return False
+
+    if choice == "1":
+        return _auth_session_login(config_dir)
+    elif choice == "2":
+        return _auth_long_lived_token(config_dir, profile_name)
+    else:
+        return False
+
+
+def _auth_session_login(config_dir: str) -> bool:
+    """Run ``claude auth login`` with CLAUDE_CONFIG_DIR set."""
+    binary = _find_claude_binary()
+    if binary is None:
+        print("Error: Claude binary not found. Install it or add it to PATH.")
+        return False
+
+    env = dict(os.environ)
+    env["CLAUDE_CONFIG_DIR"] = str(Path(config_dir).expanduser())
+
+    try:
+        result = subprocess.run([binary, "auth", "login"], env=env)
+    except OSError as e:
+        print(f"Error running claude auth login: {e}")
+        return False
+
+    if result.returncode != 0:
+        print("Auth login exited with an error.")
+        return False
+
+    credentials = Path(config_dir).expanduser() / ".credentials.json"
+    if credentials.exists():
+        print("Authentication successful.")
+        return True
+
+    print("Authentication did not complete (.credentials.json not found).")
+    return False
+
+
+def _auth_long_lived_token(config_dir: str, profile_name: str) -> bool:
+    """Run ``claude setup-token``, then capture the token from user input."""
+    binary = _find_claude_binary()
+    if binary is None:
+        print("Error: Claude binary not found. Install it or add it to PATH.")
+        return False
+
+    env = dict(os.environ)
+    env["CLAUDE_CONFIG_DIR"] = str(Path(config_dir).expanduser())
+
+    try:
+        result = subprocess.run([binary, "setup-token"], env=env)
+    except OSError as e:
+        print(f"Error running claude setup-token: {e}")
+        return False
+
+    if result.returncode != 0:
+        print("setup-token exited with an error.")
+        return False
+
+    print()
+    try:
+        token = input("Paste the token that was displayed above: ").strip()
+    except (EOFError, KeyboardInterrupt):
+        print()
+        print("Token entry cancelled.")
+        return False
+
+    if not token:
+        print("No token provided.")
+        return False
+
+    if not token.startswith("sk-ant-"):
+        print("Warning: token does not start with 'sk-ant-' -- saving anyway.")
+
+    try:
+        add_token(profile_name, token)
+    except OSError as e:
+        print(f"Error saving token: {e}")
+        return False
+
+    print("Token saved successfully.")
+    return True

@@ -377,13 +377,14 @@ class App:
 
     def _launch_profile_wizard(self, seg: Segment) -> str | None:
         """Exit TUI, run the profile wizard, create profile, return to TUI."""
-        from .wizard import run_profile_wizard, create_profile
+        from .wizard import run_profile_wizard, create_profile, run_auth_flow
         from .discovery import discover_profiles
         self.terminal.exit_raw()
         existing = [p.name for p in discover_profiles()]
         result = run_profile_wizard(existing)
         if not result.cancelled:
             create_profile(result, self.cfg)
+            run_auth_flow(result.config_dir, result.name)
             # Add the new profile to the segment's live options (pinned)
             seg.state.add_pinned(result.name)
             seg.select_value(result.name)
