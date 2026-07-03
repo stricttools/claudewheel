@@ -295,6 +295,12 @@ class App:
                     # Provenance overlay toggle (only when not actively searching)
                     if key == "?" and not focused.search_buffer:
                         self._show_provenance = not self._show_provenance
+                    elif (key == "i" and focused.key == "profile"
+                          and not focused.search_buffer
+                          and focused.value is not None):
+                        # Inspect the focused profile option ("+" sentinel and
+                        # empty selection yield value None and fall through).
+                        self._show_profile_inspect(focused)
                     elif focused.freeform and not focused._freeform_editing and focused.value:
                         # First keypress on a freeform segment: seed buffer from current value
                         focused.search_buffer = focused.value + key
@@ -422,6 +428,19 @@ class App:
             self._refresh_profile_segment(seg)
 
         return outcome
+
+    def _show_profile_inspect(self, seg: Segment) -> None:
+        """Show a fullscreen inspect page for the focused profile option.
+
+        The app's terminal stays raw: show_page renders borrowed in the
+        existing alt screen and the main TUI repaints on return.
+        """
+        from .profile_info import format_report, gather_profile_info
+        from .ui import show_page
+
+        report = gather_profile_info(seg.value)
+        show_page(f"Profile: {seg.value}", format_report(report),
+                  self.theme, self.terminal)
 
     def _refresh_profile_segment(self, seg: Segment) -> None:
         """Re-run profile discovery and update the segment's auth status."""

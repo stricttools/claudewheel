@@ -859,5 +859,97 @@ class ApplySlowDiscoverySaveStateTests(unittest.TestCase):
         self.assertNotIn(AUTH_BROWSER_KEY, on_disk)
 
 
+class ProfileInspectKeyTests(unittest.TestCase):
+    """The 'i' key opens the profile inspect page (Phase 4b guards)."""
+
+    def _make_app(self, seg: Segment) -> app_mod.App:
+        """Minimal App with a real _handle_key bound and *seg* focused."""
+        app = object.__new__(app_mod.App)
+        app.terminal = mock.MagicMock()
+        app.theme = mock.MagicMock()
+        app.cfg = mock.MagicMock()
+        app.bar = mock.MagicMock()
+        app.bar.segments = [seg]
+        app.bar.focused = seg
+        app._flash = ""
+        app._pending_install = None
+        app._pending_install_seg = None
+        app._show_provenance = False
+        app._pending_discovery = {}
+        return app
+
+    def _inspect_mocks(self):
+        """Patch the lazy imports inside _show_profile_inspect."""
+        return (
+            mock.patch("claudewheel.profile_info.gather_profile_info",
+                       return_value=mock.MagicMock()),
+            mock.patch("claudewheel.profile_info.format_report",
+                       return_value=["line"]),
+            mock.patch("claudewheel.ui.show_page"),
+        )
+
+    def test_i_opens_page_on_profile_segment(self) -> None:
+        seg = _make_profile_segment(discovered=["work"])
+        seg.select_value("work")
+        app = self._make_app(seg)
+        gather, fmt, page = self._inspect_mocks()
+        with gather as mock_gather, fmt, page as mock_page:
+            app._handle_key("i")
+        mock_gather.assert_called_once_with("work")
+        mock_page.assert_called_once()
+        self.assertIn("work", mock_page.call_args[0][0])
+
+    def test_i_guarded_on_plus_sentinel(self) -> None:
+        seg = _make_profile_segment(discovered=["work"])
+        seg.selected_value = "+"  # creatable sentinel
+        app = self._make_app(seg)
+        gather, fmt, page = self._inspect_mocks()
+        with gather, fmt, page as mock_page:
+            app._handle_key("i")
+        mock_page.assert_not_called()
+
+    def test_i_guarded_on_empty_selection(self) -> None:
+        seg = _make_profile_segment(discovered=["work"])
+        seg.selected_value = None
+        app = self._make_app(seg)
+        gather, fmt, page = self._inspect_mocks()
+        with gather, fmt, page as mock_page:
+            app._handle_key("i")
+        mock_page.assert_not_called()
+
+    def test_i_guarded_when_searching(self) -> None:
+        """With a non-empty search buffer, 'i' is a search character."""
+        seg = _make_profile_segment(discovered=["work"])
+        seg.select_value("work")
+        seg.searchable = True
+        seg.search_buffer = "wo"
+        app = self._make_app(seg)
+        gather, fmt, page = self._inspect_mocks()
+        with gather, fmt, page as mock_page:
+            app._handle_key("i")
+        mock_page.assert_not_called()
+        self.assertEqual(seg.search_buffer, "woi")
+
+    def test_i_ignored_on_other_segments(self) -> None:
+        seg = Segment(key="model", label="Model", options=["opus", "sonnet"])
+        seg.select_value("opus")
+        app = self._make_app(seg)
+        gather, fmt, page = self._inspect_mocks()
+        with gather, fmt, page as mock_page:
+            result = app._handle_key("i")
+        mock_page.assert_not_called()
+        self.assertIsNone(result)  # not a quit, not a launch
+
+    def test_i_searches_on_other_searchable_segments(self) -> None:
+        seg = Segment(key="model", label="Model", options=["opus", "sonnet"])
+        seg.searchable = True
+        app = self._make_app(seg)
+        gather, fmt, page = self._inspect_mocks()
+        with gather, fmt, page as mock_page:
+            app._handle_key("i")
+        mock_page.assert_not_called()
+        self.assertEqual(seg.search_buffer, "i")
+
+
 if __name__ == "__main__":
     unittest.main()
