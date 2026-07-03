@@ -67,18 +67,18 @@ class DiscoverProfilesTests(_HomeDirTestCase):
         self._make_profile("alpha")
         self._make_profile("beta")
         result = _discover_profiles()
-        names = [name for name, _path in result]
+        names = [p.name for p in result]
         self.assertEqual(names, ["alpha", "beta"])
 
-    def test_ignores_dirs_without_credentials(self) -> None:
-        """Profile dirs without .credentials.json are skipped."""
+    def test_ignores_dirs_without_any_marker(self) -> None:
+        """Profile dirs without .credentials.json or settings.json are skipped."""
         # Has credentials
         self._make_profile("real")
-        # Missing credentials
+        # Missing both markers
         fake = self._profiles_dir / "fake"
         fake.mkdir(parents=True, exist_ok=True)
         result = _discover_profiles()
-        names = [name for name, _path in result]
+        names = [p.name for p in result]
         self.assertEqual(names, ["real"])
 
     def test_returns_sorted_list(self) -> None:
@@ -87,7 +87,7 @@ class DiscoverProfilesTests(_HomeDirTestCase):
         self._make_profile("alpha")
         self._make_profile("mid")
         result = _discover_profiles()
-        names = [name for name, _path in result]
+        names = [p.name for p in result]
         self.assertEqual(names, ["alpha", "mid", "zeta"])
 
     def test_finds_token_backed_profile_without_credentials(self) -> None:
@@ -101,7 +101,7 @@ class DiscoverProfilesTests(_HomeDirTestCase):
         tokens_file.write_text(json.dumps({"work": "tok-abc"}))
         with patch("claudewheel.discovery.TOKENS_FILE", tokens_file):
             result = _discover_profiles()
-        names = [name for name, _path in result]
+        names = [p.name for p in result]
         self.assertIn("work", names)
 
     def test_token_profile_merged_and_sorted(self) -> None:
@@ -114,7 +114,7 @@ class DiscoverProfilesTests(_HomeDirTestCase):
         tokens_file.write_text(json.dumps({"alpha": "tok-a"}))
         with patch("claudewheel.discovery.TOKENS_FILE", tokens_file):
             result = _discover_profiles()
-        names = [name for name, _path in result]
+        names = [p.name for p in result]
         self.assertEqual(names, ["alpha", "beta"])
 
     def test_returns_empty_when_no_profiles(self) -> None:
@@ -464,6 +464,19 @@ class CheckTokensTests(_HomeDirTestCase):
         result = check_tokens()
         self.assertFalse(result.ok)
         self.assertIn("numeric", result.detail)
+
+    def test_no_warn_for_settings_only_profile(self) -> None:
+        """Settings-only profiles (no credentials, no token) don't trigger warnings."""
+        # Create a profile with only settings.json (no .credentials.json)
+        pdir = self._profiles_dir / "newprof"
+        pdir.mkdir(parents=True, exist_ok=True)
+        (pdir / "settings.json").write_text("{}")
+        # Tokens file exists but has no entry for "newprof"
+        self._write_tokens({})
+
+        result = check_tokens()
+        self.assertTrue(result.ok)
+        self.assertNotIn("newprof", result.detail)
 
 
 # ---------------------------------------------------------------------------
