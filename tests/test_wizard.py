@@ -974,7 +974,9 @@ class AuthFlowTestBase(unittest.TestCase):
 
     Patches detect_browsers to a fixed single-browser list so the browser
     selection form (shown after picking session/token) is deterministic and
-    never scans the real filesystem.
+    never scans the real filesystem. Patches STATE_FILE to a temp path so
+    the auth flow's browser-choice persistence never touches the real
+    ~/.claudewheel/state.json.
     """
 
     def setUp(self) -> None:
@@ -994,6 +996,21 @@ class AuthFlowTestBase(unittest.TestCase):
         )
         self._browsers_patch.start()
         self.addCleanup(self._browsers_patch.stop)
+
+        # Isolate the auth flow's browser-choice persistence from the real
+        # state.json. load_state_value/save_state_value read STATE_FILE from
+        # the state module's globals, so patching there covers wizard.py too.
+        self.state_file = self.fake_home / "state.json"
+        self._state_patch = mock.patch(
+            "claudewheel.state.STATE_FILE", self.state_file)
+        self._state_patch.start()
+        self.addCleanup(self._state_patch.stop)
+
+    def _read_state(self) -> dict:
+        """Read the patched state.json, or {} if it doesn't exist."""
+        if not self.state_file.exists():
+            return {}
+        return json.loads(self.state_file.read_text())
 
     def _profile_dir(self, name: str = "test") -> Path:
         return self.fake_home / ".claudewheel" / "profiles" / name
@@ -1403,6 +1420,176 @@ class BrowserSelectionTests(AuthFlowTestBase):
 
         env = mock_run.call_args.kwargs["env"]
         self.assertEqual(env["BROWSER"], "false")
+
+
+class AuthBrowserPersistenceTests(AuthFlowTestBase):
+    """Tests for remembering the browser choice across auth flows.
+
+    A successful auth stores the chosen browser key (path or "copy") under
+    "auth_browser" in state.json; the next browser form pre-focuses it via
+    initial_key. Failed or cancelled auth must not persist anything.
+    """
+
+    def _successful_session_run(self, browser_choice: str) -> str:
+        """Run a session auth that succeeds, choosing *browser_choice*."""
+        from claudewheel.wizard import run_auth_flow
+
+        config_dir = self._profile_dir("authtest")
+        config_dir.mkdir(parents=True, exist_ok=True)
+        fake_binary = self._make_fake_binary()
+
+        def fake_run(cmd, env=None):
+            (Path(env["CLAUDE_CONFIG_DIR"]) / ".credentials.json").write_text("{}")
+            return subprocess.CompletedProcess(cmd, 0)
+
+        with mock.patch("claudewheel.wizard.run_selection",
+                        side_effect=["session", browser_choice]), \
+             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard.subprocess.run", side_effect=fake_run):
+            return run_auth_flow(str(config_dir), "authtest")
+
+    def test_browser_persisted_after_successful_session_auth(self) -> None:
+        """A successful session auth writes the browser path to state.json."""
+        result = self._successful_session_run("/usr/bin/firefox")
+        self.assertEqual(result, "authenticated")
+        self.assertEqual(self._read_state().get("auth_browser"),
+                         "/usr/bin/firefox")
+
+    def test_copy_choice_persisted_after_successful_auth(self) -> None:
+        """The 'copy' pseudo-browser is remembered like a real browser."""
+        result = self._successful_session_run("copy")
+        self.assertEqual(result, "authenticated")
+        self.assertEqual(self._read_state().get("auth_browser"), "copy")
+
+    def test_browser_persisted_after_successful_token_auth(self) -> None:
+        """A successful token auth also persists the browser choice."""
+        from claudewheel.wizard import run_auth_flow
+
+        fake_binary = self._make_fake_binary()
+
+        with mock.patch("claudewheel.wizard.run_selection",
+                        side_effect=["token", "/usr/bin/firefox"]), \
+             mock.patch("builtins.input", return_value="sk-ant-token-1"), \
+             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard.subprocess.run",
+                        return_value=subprocess.CompletedProcess([], 0)), \
+             mock.patch("claudewheel.wizard.add_token"):
+            result = run_auth_flow("~/.claudewheel/profiles/test", "test")
+
+        self.assertEqual(result, "authenticated")
+        self.assertEqual(self._read_state().get("auth_browser"),
+                         "/usr/bin/firefox")
+
+    def test_not_persisted_after_failed_auth(self) -> None:
+        """A failed auth (non-zero exit) must not remember the browser."""
+        from claudewheel.wizard import run_auth_flow
+
+        fake_binary = self._make_fake_binary()
+
+        with mock.patch("claudewheel.wizard.run_selection",
+                        side_effect=["session", "/usr/bin/firefox"]), \
+             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard.subprocess.run",
+                        return_value=subprocess.CompletedProcess([], 1)):
+            result = run_auth_flow("~/.claudewheel/profiles/test", "test")
+
+        self.assertEqual(result, "failed")
+        self.assertNotIn("auth_browser", self._read_state())
+
+    def test_not_persisted_after_browser_form_cancel(self) -> None:
+        """Esc on the browser form must not write anything to state."""
+        from claudewheel.wizard import run_auth_flow
+
+        with mock.patch("claudewheel.wizard.run_selection",
+                        side_effect=["session", None]):
+            result = run_auth_flow("~/.claudewheel/profiles/test", "test")
+
+        self.assertEqual(result, "cancel")
+        self.assertNotIn("auth_browser", self._read_state())
+
+    def test_not_persisted_on_skip(self) -> None:
+        """Skipping auth never touches state.json."""
+        from claudewheel.wizard import run_auth_flow
+
+        with mock.patch("claudewheel.wizard.run_selection",
+                        return_value="skip"):
+            result = run_auth_flow("~/.claudewheel/profiles/test", "test")
+
+        self.assertEqual(result, "skip")
+        self.assertNotIn("auth_browser", self._read_state())
+
+    def test_remembered_browser_passed_as_initial_key(self) -> None:
+        """The browser form pre-focuses the remembered choice via initial_key."""
+        from claudewheel.wizard import run_auth_flow
+
+        self.state_file.write_text(
+            json.dumps({"auth_browser": "/usr/bin/firefox"}))
+
+        with mock.patch("claudewheel.wizard.run_selection",
+                        side_effect=["session", None]) as mock_sel:
+            run_auth_flow("~/.claudewheel/profiles/test", "test")
+
+        _args, kwargs = mock_sel.call_args_list[1]
+        self.assertEqual(kwargs.get("initial_key"), "/usr/bin/firefox")
+
+    def test_no_remembered_browser_passes_none(self) -> None:
+        """Without a remembered choice, initial_key is None (first option focused)."""
+        from claudewheel.wizard import run_auth_flow
+
+        with mock.patch("claudewheel.wizard.run_selection",
+                        side_effect=["session", None]) as mock_sel:
+            run_auth_flow("~/.claudewheel/profiles/test", "test")
+
+        _args, kwargs = mock_sel.call_args_list[1]
+        self.assertIsNone(kwargs.get("initial_key"))
+
+    def test_non_string_remembered_value_passes_none(self) -> None:
+        """A corrupt (non-string) auth_browser value degrades to initial_key=None."""
+        from claudewheel.wizard import run_auth_flow
+
+        self.state_file.write_text(json.dumps({"auth_browser": 42}))
+
+        with mock.patch("claudewheel.wizard.run_selection",
+                        side_effect=["session", None]) as mock_sel:
+            run_auth_flow("~/.claudewheel/profiles/test", "test")
+
+        _args, kwargs = mock_sel.call_args_list[1]
+        self.assertIsNone(kwargs.get("initial_key"))
+
+    def test_stale_browser_still_passed_as_initial_key(self) -> None:
+        """A remembered browser missing from the options is still passed through.
+
+        run_selection itself falls back to the first option when initial_key
+        isn't found (covered in test_ui.py) -- the wizard doesn't filter.
+        """
+        from claudewheel.wizard import run_auth_flow
+
+        self.state_file.write_text(
+            json.dumps({"auth_browser": "/usr/bin/uninstalled-browser"}))
+
+        with mock.patch("claudewheel.wizard.run_selection",
+                        side_effect=["session", None]) as mock_sel:
+            run_auth_flow("~/.claudewheel/profiles/test", "test")
+
+        args, kwargs = mock_sel.call_args_list[1]
+        self.assertEqual(kwargs.get("initial_key"),
+                         "/usr/bin/uninstalled-browser")
+        # The stale path is not among the offered options
+        self.assertNotIn("/usr/bin/uninstalled-browser",
+                         [key for key, _label in args[1]])
+
+    def test_persist_preserves_other_state_keys(self) -> None:
+        """Writing auth_browser must not clobber unrelated state.json keys."""
+        self.state_file.write_text(
+            json.dumps({"launch_count": 7, "recent_dirs": ["/home/x"]}))
+
+        result = self._successful_session_run("/usr/bin/firefox")
+        self.assertEqual(result, "authenticated")
+
+        state = self._read_state()
+        self.assertEqual(state.get("auth_browser"), "/usr/bin/firefox")
+        self.assertEqual(state.get("launch_count"), 7)
+        self.assertEqual(state.get("recent_dirs"), ["/home/x"])
 
 
 class TokenPasteTests(AuthFlowTestBase):

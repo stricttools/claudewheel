@@ -22,6 +22,7 @@ from .config import ConfigManager
 from .defaults import DISALLOWED_TOOLS, build_canonical_shared_settings
 from .discovery import detect_browsers
 from .profile_ops import add_token
+from .state import AUTH_BROWSER_KEY, load_state_value, save_state_value
 from .terminal import Terminal
 from .ui import ACCENT, DIM_CLR, run_selection
 
@@ -467,7 +468,9 @@ def run_auth_flow(config_dir: str, profile_name: str,
     Presents a selection form with three choices: session login
     (browser-based), long-lived token, or skip. After picking a method,
     a second form asks which browser to open the auth URL in (or to
-    suppress browser opening and copy the URL manually). Returns one of:
+    suppress browser opening and copy the URL manually). The browser chosen
+    in the last successful auth is remembered in state.json and pre-focused
+    on the next run. Returns one of:
 
     - ``"authenticated"`` -- auth was set up successfully
     - ``"skip"`` -- the user explicitly chose to skip
@@ -492,21 +495,31 @@ def run_auth_flow(config_dir: str, profile_name: str,
     if choice not in ("session", "token"):
         return "cancel"
 
+    # Pre-focus the browser chosen in the last successful auth. If that
+    # browser is gone from the options (uninstalled), run_selection falls
+    # back to focusing the first option -- the form always appears.
+    remembered = load_state_value(AUTH_BROWSER_KEY)
+    if not isinstance(remembered, str):
+        remembered = None
+
     browser = run_selection(
         "Choose browser",
         detect_browsers() + [("copy", "Copy URL instead")],
         use_alt_screen=False,
+        initial_key=remembered,
     )
     if browser is None:
         return "cancel"
 
     if choice == "session":
-        return ("authenticated"
-                if _auth_session_login(config_dir, browser)
-                else "failed")
-    return ("authenticated"
-            if _auth_long_lived_token(config_dir, profile_name, browser)
-            else "failed")
+        ok = _auth_session_login(config_dir, browser)
+    else:
+        ok = _auth_long_lived_token(config_dir, profile_name, browser)
+
+    if ok:
+        # Remember the working browser choice for the next auth flow.
+        save_state_value(AUTH_BROWSER_KEY, browser)
+    return "authenticated" if ok else "failed"
 
 
 def _apply_browser_env(env: dict[str, str], browser: str) -> None:
