@@ -80,6 +80,12 @@ def _remove_from_options(name: str) -> bool:
         values.remove(name)
         profile_sec["values"] = values
 
+    pinned = profile_sec.get("pinned", [])
+    if name in pinned:
+        pinned.remove(name)
+        profile_sec["pinned"] = pinned
+        found = True
+
     metadata = profile_sec.get("metadata", {})
     if name in metadata:
         del metadata[name]
@@ -143,17 +149,20 @@ def do_delete_profile(name: str, force: bool = False) -> int:
 
     Returns a process exit code (0 = success).
     """
-    # 1. Validate: must be in options.json
+    # 1. Validate: must be in options.json (values or pinned)
     try:
         options = json.loads(OPTIONS_FILE.read_text())
     except (FileNotFoundError, json.JSONDecodeError, OSError):
         print(f"Cannot read {OPTIONS_FILE}", file=sys.stderr)
         return 1
 
-    profile_values = options.get("profile", {}).get("values", [])
-    if name not in profile_values:
+    profile_sec = options.get("profile", {})
+    profile_values = profile_sec.get("values", [])
+    profile_pinned = profile_sec.get("pinned", [])
+    if name not in profile_values and name not in profile_pinned:
+        all_known = sorted(set(profile_values + profile_pinned))
         print(f"Profile '{name}' is not registered in options.json.", file=sys.stderr)
-        print(f"Known profiles: {', '.join(profile_values) or '<none>'}", file=sys.stderr)
+        print(f"Known profiles: {', '.join(all_known) or '<none>'}", file=sys.stderr)
         return 1
 
     # 2. Check if running

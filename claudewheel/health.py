@@ -360,7 +360,9 @@ def check_orphan_profiles() -> HealthResult:
     options_profiles: set[str] = set()
     try:
         options = json.loads(OPTIONS_FILE.read_text())
-        options_profiles = set(options.get("profile", {}).get("values", []))
+        profile_sec = options.get("profile", {})
+        options_profiles = set(profile_sec.get("values", []))
+        options_profiles |= set(profile_sec.get("pinned", []))
     except (FileNotFoundError, json.JSONDecodeError, OSError):
         pass
 

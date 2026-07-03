@@ -573,6 +573,26 @@ class CheckOrphanProfilesTests(_HomeDirTestCase):
         self.assertTrue(result.ok)
         self.assertIn("no profiles dir", result.detail)
 
+    def test_pinned_profile_not_orphan(self) -> None:
+        """A profile dir listed in options.json pinned (not values) is not orphan.
+
+        Wizard-created profiles are registered in the pinned list, not the
+        values list. The orphan check must consider both lists.
+        """
+        # Dir exists but has no .credentials.json (not discovered)
+        (self._profiles_dir / "wizard-prof").mkdir(parents=True, exist_ok=True)
+        # Write options.json with the profile only in pinned
+        options_dir = self.home / ".claudewheel"
+        options_dir.mkdir(parents=True, exist_ok=True)
+        options = {"profile": {"values": [], "pinned": ["wizard-prof"]}}
+        (options_dir / "options.json").write_text(json.dumps(options))
+
+        with patch("claudewheel.health.OPTIONS_FILE",
+                    self.home / ".claudewheel" / "options.json"):
+            result = check_orphan_profiles()
+        self.assertTrue(result.ok)
+        self.assertIn("no orphan", result.detail)
+
 
 if __name__ == "__main__":
     unittest.main()

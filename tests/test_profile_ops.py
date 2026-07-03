@@ -318,5 +318,73 @@ class DoDeleteProfileIntegrationTests(_ProfileOpsTestCase):
         self.assertNotIn("ghost", opts["profile"]["values"])
 
 
+# ---------------------------------------------------------------------------
+# Pinned profile support
+# ---------------------------------------------------------------------------
+
+
+class PinnedProfileTests(_ProfileOpsTestCase):
+    """Tests for profiles registered in options.json pinned list (wizard-created)."""
+
+    def _write_options_with_pinned(
+        self,
+        values: list[str],
+        pinned: list[str],
+        metadata: dict | None = None,
+    ) -> None:
+        opts: dict = {"profile": {"values": values, "pinned": pinned}}
+        if metadata:
+            opts["profile"]["metadata"] = metadata
+        self.options_file.write_text(json.dumps(opts, indent=2) + "\n")
+
+    def test_delete_profile_registered_only_in_pinned(self) -> None:
+        """A profile registered only in pinned (not values) can be deleted."""
+        self._write_options_with_pinned(values=[], pinned=["wizard-prof"])
+        self._make_profile_dir("wizard-prof")
+
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            rc = profile_ops.do_delete_profile("wizard-prof")
+        self.assertEqual(rc, 0)
+        self.assertFalse(
+            (self.home / ".claudewheel" / "profiles" / "wizard-prof").exists()
+        )
+
+    def test_remove_from_options_clears_pinned(self) -> None:
+        """_remove_from_options removes the profile from the pinned list."""
+        self._write_options_with_pinned(
+            values=["other"], pinned=["wizard-prof"],
+        )
+        result = profile_ops._remove_from_options("wizard-prof")
+        self.assertTrue(result)
+
+        opts = json.loads(self.options_file.read_text())
+        self.assertNotIn("wizard-prof", opts["profile"].get("pinned", []))
+        self.assertIn("other", opts["profile"]["values"])
+
+    def test_validation_rejects_unknown_profile(self) -> None:
+        """A profile in neither values nor pinned is rejected."""
+        self._write_options_with_pinned(
+            values=["alpha"], pinned=["beta"],
+        )
+        err = io.StringIO()
+        with redirect_stderr(err):
+            rc = profile_ops.do_delete_profile("ghost")
+        self.assertEqual(rc, 1)
+        self.assertIn("not registered", err.getvalue())
+
+    def test_known_profiles_message_includes_pinned(self) -> None:
+        """Error message for unknown profile lists both values and pinned profiles."""
+        self._write_options_with_pinned(
+            values=["from-values"], pinned=["from-pinned"],
+        )
+        err = io.StringIO()
+        with redirect_stderr(err):
+            profile_ops.do_delete_profile("ghost")
+        output = err.getvalue()
+        self.assertIn("from-values", output)
+        self.assertIn("from-pinned", output)
+
+
 if __name__ == "__main__":
     unittest.main()
