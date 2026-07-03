@@ -32,9 +32,10 @@ class _HomeDirTestCase(unittest.TestCase):
         self._skills_dir = self.home / ".claudewheel" / "skills"
         self._profiles_dir = self.home / ".claudewheel" / "profiles"
         self._dir_patches = [
-            patch("claudewheel.health.SHARED_DIR", self._shared_dir),
             patch("claudewheel.health.SKILLS_DIR", self._skills_dir),
             patch("claudewheel.health.PROFILES_DIR", self._profiles_dir),
+            patch("claudewheel.discovery.SHARED_DIR", self._shared_dir),
+            patch("claudewheel.discovery.SKILLS_DIR", self._skills_dir),
             patch("claudewheel.discovery.PROFILES_DIR", self._profiles_dir),
         ]
         for p in self._dir_patches:

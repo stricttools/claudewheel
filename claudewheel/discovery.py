@@ -7,7 +7,7 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
-from .constants import PROFILES_DIR, TOKENS_FILE
+from .constants import PROFILES_DIR, PROFILE_SHARED_DIRS, SHARED_DIR, SKILLS_DIR, TOKENS_FILE
 
 
 @dataclass
@@ -90,6 +90,37 @@ def discover_profiles() -> list[ProfileInfo]:
 
     profiles.sort(key=lambda p: p.name)
     return profiles
+
+
+def classify_shared_dirs(profile_path: Path) -> dict[str, str]:
+    """Classify each shared-store entry in a profile dir into one of four states.
+
+    Covers PROFILE_SHARED_DIRS (targets under SHARED_DIR) plus "skills"
+    (target SKILLS_DIR). States:
+
+    - "intact": a symlink pointing at the shared-store target
+    - "wrong-target": a symlink pointing elsewhere (safe to unlink)
+    - "real-dir": a real directory OR a real file at that name (deleting it
+      would destroy data; files get the same state because the danger is
+      identical -- the entry holds real data, not a link)
+    - "missing": no entry at that name (not a danger; some profiles were
+      created without symlinks)
+    """
+    states: dict[str, str] = {}
+    entries = [(d, SHARED_DIR / d) for d in PROFILE_SHARED_DIRS]
+    entries.append(("skills", SKILLS_DIR))
+    for name, target in entries:
+        link = profile_path / name
+        if link.is_symlink():
+            if link.resolve() == target.resolve():
+                states[name] = "intact"
+            else:
+                states[name] = "wrong-target"
+        elif link.exists():
+            states[name] = "real-dir"
+        else:
+            states[name] = "missing"
+    return states
 
 
 # Native browser binaries searched on PATH, in priority order.

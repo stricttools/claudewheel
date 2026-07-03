@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from claudewheel.constants import PROFILE_SHARED_DIRS
+from claudewheel.discovery import classify_shared_dirs
 from claudewheel.segment import (
     DiscoveryResult,
     Segment,
@@ -590,6 +593,93 @@ class ParseRequiresTests(unittest.TestCase):
     def test_dict_value_without_requires(self) -> None:
         config = {"values": [{"value": "a"}, "b"]}
         self.assertEqual(_parse_requires(config), {})
+
+
+class ClassifySharedDirsTests(unittest.TestCase):
+    """Tests for discovery.classify_shared_dirs() covering all four states."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        root = Path(self._tmp.name)
+        self.shared_dir = root / ".claudewheel" / "shared"
+        self.skills_dir = root / ".claudewheel" / "skills"
+        self.profile = root / ".claudewheel" / "profiles" / "prof"
+        self.profile.mkdir(parents=True)
+        self.shared_dir.mkdir(parents=True)
+        self.skills_dir.mkdir(parents=True)
+        for d in PROFILE_SHARED_DIRS:
+            (self.shared_dir / d).mkdir()
+        for target in [
+            patch("claudewheel.discovery.SHARED_DIR", self.shared_dir),
+            patch("claudewheel.discovery.SKILLS_DIR", self.skills_dir),
+        ]:
+            target.start()
+            self.addCleanup(target.stop)
+
+    def _link_all(self) -> None:
+        """Create correct symlinks for every shared dir plus skills."""
+        for d in PROFILE_SHARED_DIRS:
+            (self.profile / d).symlink_to(self.shared_dir / d)
+        (self.profile / "skills").symlink_to(self.skills_dir)
+
+    def test_covers_all_shared_names_plus_skills(self) -> None:
+        states = classify_shared_dirs(self.profile)
+        self.assertEqual(sorted(states), sorted(PROFILE_SHARED_DIRS + ["skills"]))
+
+    def test_all_intact(self) -> None:
+        self._link_all()
+        states = classify_shared_dirs(self.profile)
+        for name, state in states.items():
+            self.assertEqual(state, "intact", name)
+
+    def test_wrong_target(self) -> None:
+        self._link_all()
+        elsewhere = Path(self._tmp.name) / "elsewhere"
+        elsewhere.mkdir()
+        (self.profile / "projects").unlink()
+        (self.profile / "projects").symlink_to(elsewhere)
+        states = classify_shared_dirs(self.profile)
+        self.assertEqual(states["projects"], "wrong-target")
+        self.assertEqual(states["todos"], "intact")
+
+    def test_real_dir(self) -> None:
+        self._link_all()
+        (self.profile / "todos").unlink()
+        (self.profile / "todos").mkdir()
+        states = classify_shared_dirs(self.profile)
+        self.assertEqual(states["todos"], "real-dir")
+
+    def test_real_file_classified_as_real_dir_danger(self) -> None:
+        """A real FILE at a shared name is the same danger as a real dir."""
+        self._link_all()
+        (self.profile / "tasks").unlink()
+        (self.profile / "tasks").write_text("not a symlink")
+        states = classify_shared_dirs(self.profile)
+        self.assertEqual(states["tasks"], "real-dir")
+
+    def test_missing(self) -> None:
+        """Absent entries are 'missing', never a danger state."""
+        states = classify_shared_dirs(self.profile)
+        for name, state in states.items():
+            self.assertEqual(state, "missing", name)
+
+    def test_skills_states(self) -> None:
+        """skills entry is classified against SKILLS_DIR, not SHARED_DIR."""
+        (self.profile / "skills").symlink_to(self.skills_dir)
+        self.assertEqual(classify_shared_dirs(self.profile)["skills"], "intact")
+        (self.profile / "skills").unlink()
+        (self.profile / "skills").symlink_to(self.shared_dir)
+        self.assertEqual(classify_shared_dirs(self.profile)["skills"],
+                         "wrong-target")
+
+    def test_dangling_symlink_to_target_is_intact(self) -> None:
+        """A symlink at the right target counts as intact even if the shared
+        store entry is gone -- matches the original health-check semantics."""
+        self._link_all()
+        shutil.rmtree(self.shared_dir / "projects")
+        states = classify_shared_dirs(self.profile)
+        self.assertEqual(states["projects"], "intact")
 
 
 class DiscoveryResultTests(unittest.TestCase):

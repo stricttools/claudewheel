@@ -8,9 +8,9 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from .constants import INODES_FILE, OPTIONS_FILE, PROFILES_DIR, PROFILE_SHARED_DIRS, SHARED_DIR, SHARED_SETTINGS_FILE, SKILLS_DIR, TOKENS_FILE
+from .constants import INODES_FILE, OPTIONS_FILE, PROFILES_DIR, PROFILE_SHARED_DIRS, SHARED_SETTINGS_FILE, SKILLS_DIR, TOKENS_FILE
 from .defaults import DISALLOWED_TOOLS
-from .discovery import ProfileInfo, discover_profiles
+from .discovery import ProfileInfo, classify_shared_dirs, discover_profiles
 from .tokens import TOKEN_TTL_DAYS, compute_expiry, parse_entry
 
 
@@ -73,15 +73,15 @@ def check_shared_symlinks() -> HealthResult:
 
     broken: list[str] = []
     for p in profiles:
-        # Shared dirs -> ~/.claudewheel/shared/<dir>
+        states = classify_shared_dirs(p.path)
+        # Health checks completeness: anything not "intact" is broken,
+        # including "missing" (unlike delete-safety, which only fears
+        # "real-dir"). This preserves the original is_symlink() semantics.
         for d in PROFILE_SHARED_DIRS:
-            link = p.path / d
-            target = SHARED_DIR / d
-            if not link.is_symlink() or link.resolve() != target.resolve():
+            if states[d] != "intact":
                 broken.append(f"{p.name}/{d}")
-        # skills -> ~/.claudewheel/skills
-        sk = p.path / "skills"
-        if SKILLS_DIR.is_dir() and (not sk.is_symlink() or sk.resolve() != SKILLS_DIR.resolve()):
+        # skills -> ~/.claudewheel/skills (only checked if the store exists)
+        if SKILLS_DIR.is_dir() and states["skills"] != "intact":
             broken.append(f"{p.name}/skills")
 
     if broken:
