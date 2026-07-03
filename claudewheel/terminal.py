@@ -25,6 +25,7 @@ class Terminal:
         self.rows = 24
         self.cols = 80
         self._in_raw = False
+        self._alt_screen = True
 
     def get_size(self) -> tuple[int, int]:
         try:
@@ -35,18 +36,25 @@ class Terminal:
             size = shutil.get_terminal_size()
             return size.lines, size.columns
 
-    def enter_raw(self) -> None:
+    def enter_raw(self, alt_screen: bool = True) -> None:
         self.old_attrs = termios.tcgetattr(self.fd)
         tty.setcbreak(self.fd)  # cbreak, not raw -- lets Ctrl-C generate SIGINT
         self._in_raw = True
+        self._alt_screen = alt_screen  # remembered so exit_raw restores symmetrically
         self.rows, self.cols = self.get_size()
-        self._write_tty(ALT_SCREEN_ON + HIDE_CURSOR + CLEAR_SCREEN)
+        if alt_screen:
+            self._write_tty(ALT_SCREEN_ON + HIDE_CURSOR + CLEAR_SCREEN)
+        else:
+            self._write_tty(HIDE_CURSOR)
         atexit.register(self.exit_raw)
 
     def exit_raw(self) -> None:
         if self._in_raw and self.old_attrs is not None:
             termios.tcsetattr(self.fd, termios.TCSAFLUSH, self.old_attrs)
-            self._write_tty(SHOW_CURSOR + ALT_SCREEN_OFF)
+            if self._alt_screen:
+                self._write_tty(SHOW_CURSOR + ALT_SCREEN_OFF)
+            else:
+                self._write_tty(SHOW_CURSOR)
             self._in_raw = False
 
     def read_key(self) -> str:
