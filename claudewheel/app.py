@@ -381,12 +381,14 @@ class App:
         self.terminal.enter_raw()
         return None
 
-    def _intercept_unauth(self, seg: Segment) -> None:
+    def _intercept_unauth(self, seg: Segment) -> str:
         """Prompt auth for an unauthenticated profile before launch.
 
         Exits raw mode, runs the auth flow, and re-enters raw mode.
-        On success, re-runs profile discovery and updates auth status.
-        On skip/failure, returns silently (launch proceeds regardless).
+        On "authenticated" and "failed" (credentials may be partially
+        written), re-runs profile discovery and updates auth status.
+        Returns the auth flow outcome: "authenticated", "skip", "cancel",
+        or "failed".
         """
         from .wizard import run_auth_flow
 
@@ -397,12 +399,14 @@ class App:
         self.terminal.exit_raw()
         print(f"Profile '{profile_name}' has no authentication configured.")
 
-        success = run_auth_flow(config_dir, profile_name)
+        outcome = run_auth_flow(config_dir, profile_name,
+                                skip_label="Launch without auth")
 
-        if success:
+        if outcome in ("authenticated", "failed"):
             self._refresh_profile_segment(seg)
 
         self.terminal.enter_raw()
+        return outcome
 
     def _refresh_profile_segment(self, seg: Segment) -> None:
         """Re-run profile discovery and update the segment's auth status."""
@@ -421,10 +425,13 @@ class App:
         result = run_profile_wizard(existing)
         if not result.cancelled:
             create_profile(result, self.cfg)
-            run_auth_flow(result.config_dir, result.name)
+            run_auth_flow(result.config_dir, result.name,
+                          skip_label="Skip for now")
             # Add the new profile to the segment's live options (pinned)
             seg.state.add_pinned(result.name)
-            # Re-run discovery to pick up the newly created profile
+            # Re-run discovery to pick up the newly created profile. This
+            # runs for every auth outcome: the profile itself is new, and
+            # on "authenticated"/"failed" credentials may have been written.
             self._refresh_profile_segment(seg)
             seg.select_value(result.name)
         self.terminal.enter_raw()

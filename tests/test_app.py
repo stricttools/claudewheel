@@ -37,7 +37,7 @@ def _wizard_mocks(wizard_result, fresh_result=None):
     patches = [
         mock.patch("claudewheel.wizard.run_profile_wizard", return_value=wizard_result),
         mock.patch("claudewheel.wizard.create_profile"),
-        mock.patch("claudewheel.wizard.run_auth_flow"),
+        mock.patch("claudewheel.wizard.run_auth_flow", return_value="skip"),
         mock.patch("claudewheel.discovery.discover_profiles", return_value=[]),
     ]
     if fresh_result is not None:
@@ -57,7 +57,7 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
         patches = [
             mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result),
             mock.patch("claudewheel.wizard.create_profile"),
-            mock.patch("claudewheel.wizard.run_auth_flow"),
+            mock.patch("claudewheel.wizard.run_auth_flow", return_value="skip"),
             mock.patch("claudewheel.discovery.discover_profiles", return_value=[]),
         ]
         if mock_auth:
@@ -102,7 +102,7 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
         with mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result) as mock_disc, \
              mock.patch.object(app_mod, "_update_auth_from_metadata") as mock_auth, \
              mock.patch("claudewheel.wizard.create_profile"), \
-             mock.patch("claudewheel.wizard.run_auth_flow"), \
+             mock.patch("claudewheel.wizard.run_auth_flow", return_value="skip"), \
              mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
              mock.patch("claudewheel.wizard.run_profile_wizard", return_value=wizard_result):
             app._launch_profile_wizard(seg)
@@ -135,7 +135,7 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
         with mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result), \
              mock.patch.object(app_mod, "_update_auth_from_metadata"), \
              mock.patch("claudewheel.wizard.create_profile"), \
-             mock.patch("claudewheel.wizard.run_auth_flow"), \
+             mock.patch("claudewheel.wizard.run_auth_flow", return_value="skip"), \
              mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
              mock.patch("claudewheel.wizard.run_profile_wizard", return_value=wizard_result):
             app._launch_profile_wizard(seg)
@@ -169,7 +169,7 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
         with mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result), \
              mock.patch.object(app_mod, "_update_auth_from_metadata"), \
              mock.patch("claudewheel.wizard.create_profile"), \
-             mock.patch("claudewheel.wizard.run_auth_flow"), \
+             mock.patch("claudewheel.wizard.run_auth_flow", return_value="skip"), \
              mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
              mock.patch("claudewheel.wizard.run_profile_wizard", return_value=wizard_result):
             app._launch_profile_wizard(seg)
@@ -205,7 +205,7 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
         with mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result), \
              mock.patch.object(app_mod, "_update_auth_from_metadata"), \
              mock.patch("claudewheel.wizard.create_profile"), \
-             mock.patch("claudewheel.wizard.run_auth_flow"), \
+             mock.patch("claudewheel.wizard.run_auth_flow", return_value="skip"), \
              mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
              mock.patch("claudewheel.wizard.run_profile_wizard", return_value=wizard_result):
             app._launch_profile_wizard(seg)
@@ -241,7 +241,7 @@ class WizardRefreshAuthTests(unittest.TestCase):
         # Use real _update_auth_from_metadata (not mocked) to verify it works
         with mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result), \
              mock.patch("claudewheel.wizard.create_profile"), \
-             mock.patch("claudewheel.wizard.run_auth_flow"), \
+             mock.patch("claudewheel.wizard.run_auth_flow", return_value="skip"), \
              mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
              mock.patch("claudewheel.wizard.run_profile_wizard", return_value=wizard_result):
             app._launch_profile_wizard(seg)
@@ -275,7 +275,7 @@ class WizardRefreshAuthTests(unittest.TestCase):
 
         with mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result), \
              mock.patch("claudewheel.wizard.create_profile"), \
-             mock.patch("claudewheel.wizard.run_auth_flow"), \
+             mock.patch("claudewheel.wizard.run_auth_flow", return_value="skip"), \
              mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
              mock.patch("claudewheel.wizard.run_profile_wizard", return_value=wizard_result):
             app._launch_profile_wizard(seg)
@@ -302,7 +302,7 @@ class WizardCancelledTests(unittest.TestCase):
         with mock.patch.object(app_mod, "_discover_profiles") as mock_disc, \
              mock.patch.object(app_mod, "_update_auth_from_metadata") as mock_auth, \
              mock.patch("claudewheel.wizard.create_profile"), \
-             mock.patch("claudewheel.wizard.run_auth_flow"), \
+             mock.patch("claudewheel.wizard.run_auth_flow", return_value="skip"), \
              mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
              mock.patch("claudewheel.wizard.run_profile_wizard", return_value=wizard_result):
             app._launch_profile_wizard(seg)
@@ -389,37 +389,79 @@ class AuthInterceptTests(unittest.TestCase):
             },
         )
 
-        with mock.patch("claudewheel.wizard.run_auth_flow", return_value=True), \
+        with mock.patch("claudewheel.wizard.run_auth_flow", return_value="authenticated") as mock_flow, \
              mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result) as mock_disc, \
              mock.patch.object(app_mod, "_update_auth_from_metadata") as mock_auth_update:
-            app._intercept_unauth(seg)
+            outcome = app._intercept_unauth(seg)
 
+        self.assertEqual(outcome, "authenticated")
+        mock_flow.assert_called_once_with(
+            "~/.claudewheel/profiles/noauth", "noauth",
+            skip_label="Launch without auth")
         mock_disc.assert_called_once_with({}, {})
         mock_auth_update.assert_called_once_with(seg)
         # Terminal was exited and re-entered
         app.terminal.exit_raw.assert_called_once()
         app.terminal.enter_raw.assert_called_once()
 
-    def test_intercept_skips_discovery_on_auth_failure(self):
-        """When auth is skipped/fails, discovery is not re-run."""
+    def test_intercept_reruns_discovery_on_auth_failure(self):
+        """On 'failed', discovery IS re-run (credentials may be partially written)."""
         app, seg = self._make_app_with_profile("noauth", authenticated=False)
 
-        with mock.patch("claudewheel.wizard.run_auth_flow", return_value=False), \
+        fresh_result = DiscoveryResult(
+            values=["noauth"],
+            metadata={
+                "noauth": {
+                    "config_dir": "~/.claudewheel/profiles/noauth",
+                    "has_token": False,
+                    "has_credentials": False,
+                },
+            },
+        )
+
+        with mock.patch("claudewheel.wizard.run_auth_flow", return_value="failed"), \
+             mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result) as mock_disc, \
+             mock.patch.object(app_mod, "_update_auth_from_metadata") as mock_auth_update:
+            outcome = app._intercept_unauth(seg)
+
+        self.assertEqual(outcome, "failed")
+        mock_disc.assert_called_once_with({}, {})
+        mock_auth_update.assert_called_once_with(seg)
+
+    def test_intercept_skips_discovery_on_skip(self):
+        """When auth is skipped, discovery is not re-run."""
+        app, seg = self._make_app_with_profile("noauth", authenticated=False)
+
+        with mock.patch("claudewheel.wizard.run_auth_flow", return_value="skip"), \
              mock.patch.object(app_mod, "_discover_profiles") as mock_disc, \
              mock.patch.object(app_mod, "_update_auth_from_metadata") as mock_auth_update:
-            app._intercept_unauth(seg)
+            outcome = app._intercept_unauth(seg)
 
+        self.assertEqual(outcome, "skip")
         mock_disc.assert_not_called()
         mock_auth_update.assert_not_called()
         # Terminal still exits and re-enters (for the auth prompt)
         app.terminal.exit_raw.assert_called_once()
         app.terminal.enter_raw.assert_called_once()
 
+    def test_intercept_skips_discovery_on_cancel(self):
+        """When the auth form is cancelled, discovery is not re-run."""
+        app, seg = self._make_app_with_profile("noauth", authenticated=False)
+
+        with mock.patch("claudewheel.wizard.run_auth_flow", return_value="cancel"), \
+             mock.patch.object(app_mod, "_discover_profiles") as mock_disc, \
+             mock.patch.object(app_mod, "_update_auth_from_metadata") as mock_auth_update:
+            outcome = app._intercept_unauth(seg)
+
+        self.assertEqual(outcome, "cancel")
+        mock_disc.assert_not_called()
+        mock_auth_update.assert_not_called()
+
     def test_skip_auth_still_returns_launch(self):
         """Even when auth is skipped, _handle_key returns 'launch'."""
         app, seg = self._make_app_with_profile("noauth", authenticated=False)
 
-        with mock.patch("claudewheel.wizard.run_auth_flow", return_value=False):
+        with mock.patch("claudewheel.wizard.run_auth_flow", return_value="skip"):
             result = app._handle_key("ENTER")
 
         self.assertEqual(result, "launch")
@@ -440,7 +482,7 @@ class AuthInterceptTests(unittest.TestCase):
         )
 
         # Use real _update_auth_from_metadata to verify the full flow
-        with mock.patch("claudewheel.wizard.run_auth_flow", return_value=True), \
+        with mock.patch("claudewheel.wizard.run_auth_flow", return_value="authenticated"), \
              mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result):
             app._intercept_unauth(seg)
 

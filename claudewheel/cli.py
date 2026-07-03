@@ -248,7 +248,13 @@ def _handle_new_profile() -> int:
         print("Cancelled.")
         return 0
     create_profile(result, cfg)
-    run_auth_flow(result.config_dir, result.name)
+    outcome = run_auth_flow(result.config_dir, result.name)
+    if outcome == "authenticated":
+        print("Profile authenticated.")
+    elif outcome == "cancel":
+        print("Auth setup cancelled -- you can authenticate later by launching the profile.")
+    elif outcome == "failed":
+        print("Auth setup failed -- you can retry by launching the profile.")
     return 0
 
 
