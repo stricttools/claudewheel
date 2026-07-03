@@ -289,6 +289,14 @@ class App:
                 focused._freeform_editing = False
             case "CTRL_C":
                 return "quit"
+            case "CTRL_D" | "DELETE":
+                # Delete the focused profile (same guards as the 'i' inspect
+                # binding: profile segment, not searching, real value focused
+                # -- the "+" sentinel and empty selection yield value None).
+                if (focused.key == "profile"
+                        and not focused.search_buffer
+                        and focused.value is not None):
+                    self._delete_profile_flow(focused)
             case _:
                 # Single printable characters
                 if len(key) == 1 and key.isprintable():
@@ -441,6 +449,84 @@ class App:
         report = gather_profile_info(seg.value)
         show_page(f"Profile: {seg.value}", format_report(report),
                   self.theme, self.terminal)
+
+    def _delete_profile_flow(self, seg: Segment) -> None:
+        """Confirm and delete the focused profile from the TUI.
+
+        Profiles holding REAL data at shared-dir names are hard-blocked
+        with a fullscreen page pointing at the CLI escape hatch -- the TUI
+        offers no override. Otherwise an informed two-option confirm runs
+        (Cancel default-focused), then delete_profile_core() without any
+        force flags; refusals surface as a flash.
+        """
+        from .profile_info import _format_size, gather_profile_info
+        from .profile_ops import delete_profile_core
+        from .ui import run_selection, show_page
+
+        name = seg.value
+        report = gather_profile_info(name)
+
+        if report.danger:
+            at_risk = sorted(d for d, s in report.shared_dirs.items()
+                             if s == "real-dir")
+            show_page(
+                f"Cannot delete '{name}'",
+                [
+                    "Shared-dir names holding REAL data (not symlinks):",
+                    *(f"  {d}" for d in at_risk),
+                    "",
+                    "Deleting this profile would destroy that data.",
+                    "The TUI offers no override. If you are certain, run:",
+                    f"  claudewheel delete-profile {name} "
+                    "--no-force-delete --force-delete-data",
+                ],
+                self.theme, self.terminal)
+            return
+
+        if report.has_credentials and report.has_token:
+            auth = "credentials+token"
+        elif report.has_credentials:
+            auth = "credentials"
+        elif report.has_token:
+            auth = "token"
+        else:
+            auth = "no auth"
+        facts = (f"{auth}, {_format_size(report.disk_usage_bytes)}, "
+                 f"{report.active_sessions} active sessions")
+        choice = run_selection(
+            f"Delete profile '{name}'?",
+            [("cancel", "Cancel"), ("delete", f"Delete ({facts})")],
+            self.theme, self.terminal, initial_key="cancel")
+        if choice != "delete":
+            return
+
+        result = delete_profile_core(name)
+        if not result.ok:
+            flashes = {
+                "running": f"Not deleted: '{name}' has active sessions",
+                "default-profile":
+                    "Not deleted: 'default' is Claude Code's built-in ~/.claude",
+                "data-destruction":
+                    "Not deleted: real data at "
+                    f"{', '.join(result.at_risk_dirs)}",
+                "not-found": f"Not deleted: profile '{name}' not found",
+            }
+            self._flash = flashes.get(
+                result.refusal_reason,
+                f"Not deleted: {result.refusal_reason}")
+            return
+
+        # In-memory cleanup. The core already purged last_config["profile"]
+        # from state.json on disk; drop it from the in-memory state too so
+        # the app's later wholesale save_state() doesn't resurrect it.
+        last = self.cfg.state.get("last_config", {})
+        if last.get("profile") == name:
+            del last["profile"]
+        seg.state.remove_pinned(name)
+        seg.state.metadata.pop(name, None)
+        seg.selected_value = None
+        self._refresh_profile_segment(seg)
+        self._flash = f"Deleted profile '{name}'"
 
     def _refresh_profile_segment(self, seg: Segment) -> None:
         """Re-run profile discovery and update the segment's auth status."""
