@@ -261,6 +261,12 @@ class Renderer:
                     buf.append(unavail)
                     buf.append(display_value)
                     buf.append(RESET)
+                elif seg.state.has_auth_status and not seg.state.is_authenticated(seg.value):
+                    # Unauthenticated profile: render dimly
+                    unavail = sc.get("unavailable_fg", "") or DIM
+                    buf.append(unavail)
+                    buf.append(display_value)
+                    buf.append(RESET)
                 else:
                     buf.append(sc.get("value_fg", ""))
                     buf.append(display_value)
@@ -445,6 +451,11 @@ class Renderer:
             buf.append(RESET)
             return
         if seg.unavailable and opt_text in seg.unavailable:
+            buf.append(unavail_fg)
+            buf.append(display)
+            buf.append(RESET)
+            return
+        if seg.state.has_auth_status and not seg.state.is_authenticated(opt_text):
             buf.append(unavail_fg)
             buf.append(display)
             buf.append(RESET)

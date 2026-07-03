@@ -479,5 +479,97 @@ class AuthenticatedTests(unittest.TestCase):
         self.assertIsNot(first, second)
 
 
+class AuthFromMetadataTests(unittest.TestCase):
+    """Tests for _update_auth_from_metadata computing auth status from metadata."""
+
+    def test_auth_activated_when_metadata_has_auth_fields(self) -> None:
+        """Auth tracking activates when metadata contains has_token/has_credentials."""
+        from claudewheel.segment import Segment, _update_auth_from_metadata
+
+        seg = Segment(key="profile", label="Profile")
+        seg.state.set_metadata({
+            "alice": {"config_dir": "/a", "has_token": True, "has_credentials": True},
+            "bob": {"config_dir": "/b", "has_token": False, "has_credentials": False},
+        })
+        _update_auth_from_metadata(seg)
+        self.assertTrue(seg.state.has_auth_status)
+        self.assertTrue(seg.state.is_authenticated("alice"))
+        self.assertFalse(seg.state.is_authenticated("bob"))
+
+    def test_auth_not_activated_without_auth_fields(self) -> None:
+        """Auth tracking stays inactive when metadata has no auth fields."""
+        from claudewheel.segment import Segment, _update_auth_from_metadata
+
+        seg = Segment(key="version", label="Version")
+        seg.state.set_metadata({"1.0": {"path": "/opt"}})
+        _update_auth_from_metadata(seg)
+        self.assertFalse(seg.state.has_auth_status)
+
+    def test_token_only_is_authenticated(self) -> None:
+        """A profile with has_token=True but has_credentials=False is authenticated."""
+        from claudewheel.segment import Segment, _update_auth_from_metadata
+
+        seg = Segment(key="profile", label="Profile")
+        seg.state.set_metadata({
+            "tok": {"config_dir": "/t", "has_token": True, "has_credentials": False},
+        })
+        _update_auth_from_metadata(seg)
+        self.assertTrue(seg.state.is_authenticated("tok"))
+
+    def test_credentials_only_is_authenticated(self) -> None:
+        """A profile with has_credentials=True but has_token=False is authenticated."""
+        from claudewheel.segment import Segment, _update_auth_from_metadata
+
+        seg = Segment(key="profile", label="Profile")
+        seg.state.set_metadata({
+            "cred": {"config_dir": "/c", "has_token": False, "has_credentials": True},
+        })
+        _update_auth_from_metadata(seg)
+        self.assertTrue(seg.state.is_authenticated("cred"))
+
+    def test_pinned_without_metadata_is_unauthenticated(self) -> None:
+        """A pinned profile not in metadata is treated as unauthenticated."""
+        from claudewheel.segment import Segment, _update_auth_from_metadata
+
+        seg = Segment(key="profile", label="Profile")
+        seg.state.set_metadata({
+            "existing": {"config_dir": "/e", "has_token": True, "has_credentials": True},
+        })
+        seg.state.add_pinned("new-profile")
+        _update_auth_from_metadata(seg)
+        self.assertTrue(seg.state.has_auth_status)
+        self.assertTrue(seg.state.is_authenticated("existing"))
+        self.assertFalse(seg.state.is_authenticated("new-profile"))
+
+
+class DiscoverProfilesMetadataTests(unittest.TestCase):
+    """Tests that _discover_profiles includes auth fields in metadata."""
+
+    def test_metadata_includes_auth_fields(self) -> None:
+        """Metadata dicts from profile discovery include has_token and has_credentials."""
+        from unittest.mock import patch
+        from claudewheel.discovery import ProfileInfo
+        from claudewheel.segment import _discover_profiles
+
+        mock_profiles = [
+            ProfileInfo(name="default", path="/home/.claude", has_credentials=True, has_token=True),
+            ProfileInfo(name="work", path="/home/.claudewheel/profiles/work", has_credentials=True, has_token=False),
+            ProfileInfo(name="new", path="/home/.claudewheel/profiles/new", has_credentials=False, has_token=False),
+        ]
+        with patch("claudewheel.segment.discover_profiles", return_value=mock_profiles):
+            result = _discover_profiles({}, {})
+
+        self.assertIn("has_token", result.metadata["default"])
+        self.assertIn("has_credentials", result.metadata["default"])
+        self.assertTrue(result.metadata["default"]["has_token"])
+        self.assertTrue(result.metadata["default"]["has_credentials"])
+
+        self.assertTrue(result.metadata["work"]["has_credentials"])
+        self.assertFalse(result.metadata["work"]["has_token"])
+
+        self.assertFalse(result.metadata["new"]["has_credentials"])
+        self.assertFalse(result.metadata["new"]["has_token"])
+
+
 if __name__ == "__main__":
     unittest.main()

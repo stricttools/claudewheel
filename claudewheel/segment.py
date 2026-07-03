@@ -480,9 +480,14 @@ def _discover_profiles(config: dict, state: dict) -> DiscoveryResult:
     metadata: dict[str, dict] = {}
     for p in discovered:
         if p.name == "default":
-            metadata["default"] = {"config_dir": "~/.claude"}
+            config_dir = "~/.claude"
         else:
-            metadata[p.name] = {"config_dir": f"~/.claudewheel/profiles/{p.name}"}
+            config_dir = f"~/.claudewheel/profiles/{p.name}"
+        metadata[p.name] = {
+            "config_dir": config_dir,
+            "has_token": p.has_token,
+            "has_credentials": p.has_credentials,
+        }
     return DiscoveryResult(values=profiles, metadata=metadata)
 
 
@@ -642,6 +647,29 @@ def populate_segment_state(
         seg.state.set_installed(result.installed)
     if result.metadata:
         seg.state.update_metadata(result.metadata)
+    # Compute auth status from metadata: profiles with has_token or
+    # has_credentials are authenticated. Only activates when metadata
+    # contains auth fields (generic -- not tied to a specific segment key).
+    _update_auth_from_metadata(seg)
+
+
+def _update_auth_from_metadata(seg: "Segment") -> None:
+    """Compute and set authenticated set from segment metadata.
+
+    A value is authenticated if its metadata has ``has_token=True`` or
+    ``has_credentials=True``.  Auth tracking is only activated when at
+    least one metadata entry carries these fields, keeping the feature
+    invisible to segments that don't use it.
+    """
+    has_auth_fields = False
+    authenticated: set[str] = set()
+    for name, meta in seg.state.metadata.items():
+        if "has_token" in meta or "has_credentials" in meta:
+            has_auth_fields = True
+            if meta.get("has_token") or meta.get("has_credentials"):
+                authenticated.add(name)
+    if has_auth_fields:
+        seg.state.set_authenticated(authenticated)
 
 
 # Per-segment merge specs: collection_order and sort overrides
@@ -776,6 +804,8 @@ def merge_slow_results(
         # Update metadata if discovery produced any
         if dr.metadata:
             seg.state.update_metadata(dr.metadata)
+        # Recompute auth status from updated metadata
+        _update_auth_from_metadata(seg)
         # "+" is a virtual UI element via display_options, not in any collection
         # Restore selection: try current value first, fall back to last_config
         restored = False
