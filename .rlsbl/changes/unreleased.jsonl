@@ -11,3 +11,4 @@
 {"commits":["13d20151ae26b4b77dfa40a1528f451aec8904e4","0841391b84f7c1df56548be19d9f845d75b15f6d"],"user_facing":false}
 {"commits":["463b0390a724c8d327744582e18b92b69c9180a8"],"user_facing":false}
 {"commits":["ec5e25a4021234ee6526591adf6fdbe4f5227789"],"user_facing":true,"description":"Fixed a bug where updating tokens.json lost its restrictive file permissions (0600 reverted to 0644 on every write).","type":"fix"}
+{"commits":["40a20a3f7d5053ef974fb39b7478a77debd28417"],"user_facing":false}
