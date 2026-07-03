@@ -69,6 +69,8 @@ class SegmentState:
     _defaults: list[str] = field(default_factory=list)
     _ephemeral: list[str] = field(default_factory=list)
     _installed: set[str] = field(default_factory=set)
+    _authenticated: set[str] = field(default_factory=set)
+    _auth_status_active: bool = False
     metadata: dict[str, dict] = field(default_factory=dict)
     collection_order: list[str] = field(default_factory=lambda: list(_DEFAULT_COLLECTION_ORDER))
     sort: str | None = None
@@ -162,6 +164,18 @@ class SegmentState:
 
     def is_installed(self, val: str) -> bool:
         return val in self._installed
+
+    def set_authenticated(self, vals: set[str]) -> None:
+        self._authenticated = vals
+        self._auth_status_active = True
+        self._options = None
+
+    @property
+    def has_auth_status(self) -> bool:
+        return self._auth_status_active
+
+    def is_authenticated(self, val: str) -> bool:
+        return val in self._authenticated
 
 
 @dataclass

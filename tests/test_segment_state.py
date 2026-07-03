@@ -424,5 +424,45 @@ class StalenessVerifyTests(unittest.TestCase):
         self.assertEqual(len(st._discovered), len(set(st._discovered)))
 
 
+class AuthenticatedTests(unittest.TestCase):
+    """Tests for auth-status tracking on SegmentState."""
+
+    def test_has_auth_status_false_by_default(self) -> None:
+        """Auth status tracking is inactive until explicitly set."""
+        st = SegmentState()
+        self.assertFalse(st.has_auth_status)
+
+    def test_set_authenticated_activates_status(self) -> None:
+        """Calling set_authenticated sets has_auth_status to True."""
+        st = SegmentState()
+        st.set_authenticated({"prof1", "prof2"})
+        self.assertTrue(st.has_auth_status)
+
+    def test_is_authenticated_correct_values(self) -> None:
+        """is_authenticated returns True for values in the set, False otherwise."""
+        st = SegmentState()
+        st.set_authenticated({"alpha", "beta"})
+        self.assertTrue(st.is_authenticated("alpha"))
+        self.assertTrue(st.is_authenticated("beta"))
+        self.assertFalse(st.is_authenticated("gamma"))
+
+    def test_set_authenticated_empty_set_activates(self) -> None:
+        """Empty set still activates auth tracking (all profiles unauthenticated)."""
+        st = SegmentState()
+        st.set_authenticated(set())
+        self.assertTrue(st.has_auth_status)
+        self.assertFalse(st.is_authenticated("anything"))
+
+    def test_set_authenticated_invalidates_cache(self) -> None:
+        """set_authenticated invalidates the options cache."""
+        st = SegmentState()
+        st.set_defaults(["a", "b"])
+        first = st.options  # prime cache
+        st.set_authenticated({"a"})
+        second = st.options  # should rebuild
+        # Content is the same, but it must be a new list object (cache was invalidated)
+        self.assertIsNot(first, second)
+
+
 if __name__ == "__main__":
     unittest.main()
