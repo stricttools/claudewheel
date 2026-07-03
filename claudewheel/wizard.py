@@ -20,6 +20,7 @@ from .constants import (
 )
 from .config import ConfigManager
 from .defaults import DISALLOWED_TOOLS, build_canonical_shared_settings
+from .discovery import detect_browsers
 from .profile_ops import add_token
 from .terminal import Terminal
 from .ui import ACCENT, DIM_CLR, run_selection
@@ -464,11 +465,13 @@ def run_auth_flow(config_dir: str, profile_name: str,
     """Prompt the user to set up authentication for a newly created profile.
 
     Presents a selection form with three choices: session login
-    (browser-based), long-lived token, or skip. Returns one of:
+    (browser-based), long-lived token, or skip. After picking a method,
+    a second form asks which browser to open the auth URL in (or to
+    suppress browser opening and copy the URL manually). Returns one of:
 
     - ``"authenticated"`` -- auth was set up successfully
     - ``"skip"`` -- the user explicitly chose to skip
-    - ``"cancel"`` -- the user cancelled the form (Esc/Ctrl-C)
+    - ``"cancel"`` -- the user cancelled a form (Esc/Ctrl-C)
     - ``"failed"`` -- auth was attempted but did not complete
 
     This function is safe to call after create_profile() -- auth failure
@@ -484,19 +487,44 @@ def run_auth_flow(config_dir: str, profile_name: str,
         use_alt_screen=False,
     )
 
-    if choice == "session":
-        return "authenticated" if _auth_session_login(config_dir) else "failed"
-    if choice == "token":
-        return ("authenticated"
-                if _auth_long_lived_token(config_dir, profile_name)
-                else "failed")
     if choice == "skip":
         return "skip"
-    return "cancel"
+    if choice not in ("session", "token"):
+        return "cancel"
+
+    browser = run_selection(
+        "Choose browser",
+        detect_browsers() + [("copy", "Copy URL instead")],
+        use_alt_screen=False,
+    )
+    if browser is None:
+        return "cancel"
+
+    if choice == "session":
+        return ("authenticated"
+                if _auth_session_login(config_dir, browser)
+                else "failed")
+    return ("authenticated"
+            if _auth_long_lived_token(config_dir, profile_name, browser)
+            else "failed")
 
 
-def _auth_session_login(config_dir: str) -> bool:
-    """Run ``claude auth login`` with CLAUDE_CONFIG_DIR set."""
+def _apply_browser_env(env: dict[str, str], browser: str) -> None:
+    """Set BROWSER in ``env`` from the browser-form selection.
+
+    ``browser`` is either a browser binary path or ``"copy"``. Claude Code
+    spawns ``$BROWSER <url>``; ``BROWSER=false`` makes that fail, so claude
+    falls back to printing the URL for manual copying.
+    """
+    if browser == "copy":
+        env["BROWSER"] = "false"
+        print("Browser opening suppressed -- copy the URL shown below.")
+    else:
+        env["BROWSER"] = browser
+
+
+def _auth_session_login(config_dir: str, browser: str) -> bool:
+    """Run ``claude auth login`` with CLAUDE_CONFIG_DIR and BROWSER set."""
     binary = _find_claude_binary()
     if binary is None:
         print("Error: Claude binary not found. Install it or add it to PATH.")
@@ -504,6 +532,7 @@ def _auth_session_login(config_dir: str) -> bool:
 
     env = dict(os.environ)
     env["CLAUDE_CONFIG_DIR"] = str(Path(config_dir).expanduser())
+    _apply_browser_env(env, browser)
 
     try:
         result = subprocess.run([binary, "auth", "login"], env=env)
@@ -524,7 +553,8 @@ def _auth_session_login(config_dir: str) -> bool:
     return False
 
 
-def _auth_long_lived_token(config_dir: str, profile_name: str) -> bool:
+def _auth_long_lived_token(config_dir: str, profile_name: str,
+                           browser: str) -> bool:
     """Run ``claude setup-token``, then capture the token from user input."""
     binary = _find_claude_binary()
     if binary is None:
@@ -533,6 +563,7 @@ def _auth_long_lived_token(config_dir: str, profile_name: str) -> bool:
 
     env = dict(os.environ)
     env["CLAUDE_CONFIG_DIR"] = str(Path(config_dir).expanduser())
+    _apply_browser_env(env, browser)
 
     try:
         result = subprocess.run([binary, "setup-token"], env=env)

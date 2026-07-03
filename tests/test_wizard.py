@@ -969,13 +969,12 @@ class KeyExhaustionSafetyTests(WizardTUITestBase):
         self.assertTrue(result.cancelled)
 
 
-class AuthFlowTests(unittest.TestCase):
-    """Tests for run_auth_flow() post-wizard auth setup.
+class AuthFlowTestBase(unittest.TestCase):
+    """Shared setup for run_auth_flow() tests.
 
-    run_auth_flow presents its menu via ui.run_selection (mocked here) and
-    returns one of four outcome strings: "authenticated", "skip", "cancel",
-    "failed". Assertions use exact string comparison -- all four outcome
-    strings are truthy, so truthiness checks would be meaningless.
+    Patches detect_browsers to a fixed single-browser list so the browser
+    selection form (shown after picking session/token) is deterministic and
+    never scans the real filesystem.
     """
 
     def setUp(self) -> None:
@@ -989,6 +988,13 @@ class AuthFlowTests(unittest.TestCase):
         self._stdout_trap.__enter__()
         self.addCleanup(self._stdout_trap.__exit__, None, None, None)
 
+        self._browsers_patch = mock.patch(
+            "claudewheel.wizard.detect_browsers",
+            return_value=[("/usr/bin/firefox", "Firefox")],
+        )
+        self._browsers_patch.start()
+        self.addCleanup(self._browsers_patch.stop)
+
     def _profile_dir(self, name: str = "test") -> Path:
         return self.fake_home / ".claudewheel" / "profiles" / name
 
@@ -997,6 +1003,19 @@ class AuthFlowTests(unittest.TestCase):
         fake_binary.touch()
         fake_binary.chmod(0o755)
         return fake_binary
+
+
+class AuthFlowTests(AuthFlowTestBase):
+    """Tests for run_auth_flow() post-wizard auth setup.
+
+    run_auth_flow presents its menu via ui.run_selection (mocked here) and
+    returns one of four outcome strings: "authenticated", "skip", "cancel",
+    "failed". Assertions use exact string comparison -- all four outcome
+    strings are truthy, so truthiness checks would be meaningless.
+
+    Session/token paths mock run_selection with a two-item side_effect:
+    the method choice, then the browser choice.
+    """
 
     def test_skip_choice_returns_skip(self) -> None:
         """Choosing the skip option returns 'skip'."""
@@ -1039,7 +1058,7 @@ class AuthFlowTests(unittest.TestCase):
     def test_session_login_binary_not_found(self) -> None:
         """Session login returns 'failed' when Claude binary is missing."""
         from claudewheel.wizard import run_auth_flow
-        with mock.patch("claudewheel.wizard.run_selection", return_value="session"), \
+        with mock.patch("claudewheel.wizard.run_selection", side_effect=["session", "copy"]), \
              mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", Path("/nonexistent/claude")), \
              mock.patch("claudewheel.wizard.shutil.which", return_value=None):
             result = run_auth_flow("~/.claudewheel/profiles/test", "test")
@@ -1061,7 +1080,7 @@ class AuthFlowTests(unittest.TestCase):
             (Path(env["CLAUDE_CONFIG_DIR"]) / ".credentials.json").write_text("{}")
             return subprocess.CompletedProcess(cmd, 0)
 
-        with mock.patch("claudewheel.wizard.run_selection", return_value="session"), \
+        with mock.patch("claudewheel.wizard.run_selection", side_effect=["session", "copy"]), \
              mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
              mock.patch("claudewheel.wizard.subprocess.run", side_effect=fake_run):
             result = run_auth_flow(config_dir_str, "authtest")
@@ -1078,7 +1097,7 @@ class AuthFlowTests(unittest.TestCase):
 
         fake_binary = self._make_fake_binary()
 
-        with mock.patch("claudewheel.wizard.run_selection", return_value="session"), \
+        with mock.patch("claudewheel.wizard.run_selection", side_effect=["session", "copy"]), \
              mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
              mock.patch("claudewheel.wizard.subprocess.run",
                         return_value=subprocess.CompletedProcess([], 0)):
@@ -1092,7 +1111,7 @@ class AuthFlowTests(unittest.TestCase):
 
         fake_binary = self._make_fake_binary()
 
-        with mock.patch("claudewheel.wizard.run_selection", return_value="session"), \
+        with mock.patch("claudewheel.wizard.run_selection", side_effect=["session", "copy"]), \
              mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
              mock.patch("claudewheel.wizard.subprocess.run",
                         return_value=subprocess.CompletedProcess([], 1)):
@@ -1105,7 +1124,7 @@ class AuthFlowTests(unittest.TestCase):
 
         fake_binary = self._make_fake_binary()
 
-        with mock.patch("claudewheel.wizard.run_selection", return_value="token"), \
+        with mock.patch("claudewheel.wizard.run_selection", side_effect=["token", "copy"]), \
              mock.patch("builtins.input", return_value="sk-ant-fake-token-12345"), \
              mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
              mock.patch("claudewheel.wizard.subprocess.run",
@@ -1118,7 +1137,7 @@ class AuthFlowTests(unittest.TestCase):
     def test_long_lived_token_binary_not_found(self) -> None:
         """Long-lived token returns 'failed' when Claude binary is missing."""
         from claudewheel.wizard import run_auth_flow
-        with mock.patch("claudewheel.wizard.run_selection", return_value="token"), \
+        with mock.patch("claudewheel.wizard.run_selection", side_effect=["token", "copy"]), \
              mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", Path("/nonexistent/claude")), \
              mock.patch("claudewheel.wizard.shutil.which", return_value=None):
             result = run_auth_flow("~/.claudewheel/profiles/test", "test")
@@ -1130,7 +1149,7 @@ class AuthFlowTests(unittest.TestCase):
 
         fake_binary = self._make_fake_binary()
 
-        with mock.patch("claudewheel.wizard.run_selection", return_value="token"), \
+        with mock.patch("claudewheel.wizard.run_selection", side_effect=["token", "copy"]), \
              mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
              mock.patch("claudewheel.wizard.subprocess.run",
                         return_value=subprocess.CompletedProcess([], 1)):
@@ -1143,7 +1162,7 @@ class AuthFlowTests(unittest.TestCase):
 
         fake_binary = self._make_fake_binary()
 
-        with mock.patch("claudewheel.wizard.run_selection", return_value="token"), \
+        with mock.patch("claudewheel.wizard.run_selection", side_effect=["token", "copy"]), \
              mock.patch("builtins.input", return_value=""), \
              mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
              mock.patch("claudewheel.wizard.subprocess.run",
@@ -1158,7 +1177,7 @@ class AuthFlowTests(unittest.TestCase):
 
         fake_binary = self._make_fake_binary()
 
-        with mock.patch("claudewheel.wizard.run_selection", return_value="token"), \
+        with mock.patch("claudewheel.wizard.run_selection", side_effect=["token", "copy"]), \
              mock.patch("builtins.input", return_value="some-other-token"), \
              mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
              mock.patch("claudewheel.wizard.subprocess.run",
@@ -1175,7 +1194,7 @@ class AuthFlowTests(unittest.TestCase):
 
         fake_binary = self._make_fake_binary()
 
-        with mock.patch("claudewheel.wizard.run_selection", return_value="token"), \
+        with mock.patch("claudewheel.wizard.run_selection", side_effect=["token", "copy"]), \
              mock.patch("builtins.input", side_effect=KeyboardInterrupt), \
              mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
              mock.patch("claudewheel.wizard.subprocess.run",
@@ -1189,7 +1208,7 @@ class AuthFlowTests(unittest.TestCase):
 
         fake_binary = self._make_fake_binary()
 
-        with mock.patch("claudewheel.wizard.run_selection", return_value="token"), \
+        with mock.patch("claudewheel.wizard.run_selection", side_effect=["token", "copy"]), \
              mock.patch("builtins.input", return_value="sk-ant-fake-token-12345"), \
              mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
              mock.patch("claudewheel.wizard.subprocess.run",
@@ -1206,7 +1225,7 @@ class AuthFlowTests(unittest.TestCase):
 
         fake_binary = self._make_fake_binary()
 
-        with mock.patch("claudewheel.wizard.run_selection", return_value="session"), \
+        with mock.patch("claudewheel.wizard.run_selection", side_effect=["session", "copy"]), \
              mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
              mock.patch("claudewheel.wizard.subprocess.run",
                         side_effect=OSError("exec failed")):
@@ -1231,6 +1250,159 @@ class AuthFlowTests(unittest.TestCase):
              mock.patch("claudewheel.wizard.shutil.which", return_value=None):
             result = _find_claude_binary()
         self.assertIsNone(result)
+
+
+class BrowserSelectionTests(AuthFlowTestBase):
+    """Tests for the browser selection form shown after picking an auth method."""
+
+    def test_browser_form_shown_after_session_choice(self) -> None:
+        """Picking 'session' shows a second form with browsers + copy option."""
+        from claudewheel.wizard import run_auth_flow
+
+        fake_binary = self._make_fake_binary()
+
+        with mock.patch("claudewheel.wizard.run_selection",
+                        side_effect=["session", "/usr/bin/firefox"]) as mock_sel, \
+             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard.subprocess.run",
+                        return_value=subprocess.CompletedProcess([], 1)):
+            run_auth_flow("~/.claudewheel/profiles/test", "test")
+
+        self.assertEqual(mock_sel.call_count, 2)
+        args, kwargs = mock_sel.call_args_list[1]
+        self.assertEqual(args[0], "Choose browser")
+        self.assertEqual(args[1], [("/usr/bin/firefox", "Firefox"),
+                                   ("copy", "Copy URL instead")])
+        self.assertFalse(kwargs.get("use_alt_screen", True))
+
+    def test_browser_form_shown_after_token_choice(self) -> None:
+        """Picking 'token' also shows the browser form."""
+        from claudewheel.wizard import run_auth_flow
+
+        fake_binary = self._make_fake_binary()
+
+        with mock.patch("claudewheel.wizard.run_selection",
+                        side_effect=["token", "copy"]) as mock_sel, \
+             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard.subprocess.run",
+                        return_value=subprocess.CompletedProcess([], 1)):
+            run_auth_flow("~/.claudewheel/profiles/test", "test")
+
+        self.assertEqual(mock_sel.call_count, 2)
+        args, _kwargs = mock_sel.call_args_list[1]
+        self.assertEqual(args[0], "Choose browser")
+
+    def test_no_browser_form_on_skip(self) -> None:
+        """Choosing skip never shows the browser form."""
+        from claudewheel.wizard import run_auth_flow
+
+        with mock.patch("claudewheel.wizard.run_selection",
+                        side_effect=["skip"]) as mock_sel:
+            result = run_auth_flow("~/.claudewheel/profiles/test", "test")
+
+        self.assertEqual(result, "skip")
+        self.assertEqual(mock_sel.call_count, 1)
+
+    def test_no_browser_form_on_cancel(self) -> None:
+        """Cancelling the method form (None) never shows the browser form."""
+        from claudewheel.wizard import run_auth_flow
+
+        with mock.patch("claudewheel.wizard.run_selection",
+                        side_effect=[None]) as mock_sel:
+            result = run_auth_flow("~/.claudewheel/profiles/test", "test")
+
+        self.assertEqual(result, "cancel")
+        self.assertEqual(mock_sel.call_count, 1)
+
+    def test_esc_on_browser_form_cancels(self) -> None:
+        """Esc (None) on the browser form cancels the whole auth flow."""
+        from claudewheel.wizard import run_auth_flow
+
+        with mock.patch("claudewheel.wizard.run_selection",
+                        side_effect=["session", None]), \
+             mock.patch("claudewheel.wizard.subprocess.run") as mock_run:
+            result = run_auth_flow("~/.claudewheel/profiles/test", "test")
+
+        self.assertEqual(result, "cancel")
+        mock_run.assert_not_called()
+
+    def test_zero_browsers_shows_copy_only(self) -> None:
+        """When no browsers are detected, the form offers only the copy option."""
+        from claudewheel.wizard import run_auth_flow
+
+        with mock.patch("claudewheel.wizard.detect_browsers",
+                        return_value=[]), \
+             mock.patch("claudewheel.wizard.run_selection",
+                        side_effect=["session", None]) as mock_sel:
+            run_auth_flow("~/.claudewheel/profiles/test", "test")
+
+        args, _kwargs = mock_sel.call_args_list[1]
+        self.assertEqual(args[1], [("copy", "Copy URL instead")])
+
+    def test_session_browser_path_sets_env(self) -> None:
+        """A selected browser path is passed to claude auth login via BROWSER."""
+        from claudewheel.wizard import run_auth_flow
+
+        fake_binary = self._make_fake_binary()
+
+        with mock.patch("claudewheel.wizard.run_selection",
+                        side_effect=["session", "/usr/bin/firefox"]), \
+             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard.subprocess.run",
+                        return_value=subprocess.CompletedProcess([], 1)) as mock_run:
+            run_auth_flow("~/.claudewheel/profiles/test", "test")
+
+        env = mock_run.call_args.kwargs["env"]
+        self.assertEqual(env["BROWSER"], "/usr/bin/firefox")
+
+    def test_session_copy_sets_browser_false(self) -> None:
+        """Choosing 'copy' sets BROWSER=false and prints a note."""
+        from claudewheel.wizard import run_auth_flow
+
+        fake_binary = self._make_fake_binary()
+
+        with mock.patch("claudewheel.wizard.run_selection",
+                        side_effect=["session", "copy"]), \
+             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard.subprocess.run",
+                        return_value=subprocess.CompletedProcess([], 1)) as mock_run:
+            run_auth_flow("~/.claudewheel/profiles/test", "test")
+
+        env = mock_run.call_args.kwargs["env"]
+        self.assertEqual(env["BROWSER"], "false")
+        self.assertIn("suppressed", self._stdout_buf.getvalue())
+
+    def test_token_browser_path_sets_env(self) -> None:
+        """The token helper also receives the browser and sets BROWSER."""
+        from claudewheel.wizard import run_auth_flow
+
+        fake_binary = self._make_fake_binary()
+
+        with mock.patch("claudewheel.wizard.run_selection",
+                        side_effect=["token", "/usr/bin/firefox"]), \
+             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard.subprocess.run",
+                        return_value=subprocess.CompletedProcess([], 1)) as mock_run:
+            run_auth_flow("~/.claudewheel/profiles/test", "test")
+
+        env = mock_run.call_args.kwargs["env"]
+        self.assertEqual(env["BROWSER"], "/usr/bin/firefox")
+
+    def test_token_copy_sets_browser_false(self) -> None:
+        """'copy' on the token path sets BROWSER=false for claude setup-token."""
+        from claudewheel.wizard import run_auth_flow
+
+        fake_binary = self._make_fake_binary()
+
+        with mock.patch("claudewheel.wizard.run_selection",
+                        side_effect=["token", "copy"]), \
+             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard.subprocess.run",
+                        return_value=subprocess.CompletedProcess([], 1)) as mock_run:
+            run_auth_flow("~/.claudewheel/profiles/test", "test")
+
+        env = mock_run.call_args.kwargs["env"]
+        self.assertEqual(env["BROWSER"], "false")
 
 
 if __name__ == "__main__":
