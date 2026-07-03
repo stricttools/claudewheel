@@ -8,7 +8,7 @@ import sys
 import threading
 
 from .config import ConfigManager
-from .segment import DiscoveryResult, Segment, build_segment_bar, evaluate_requires, merge_slow_results, run_slow_discovery_via_registry
+from .segment import DiscoveryResult, Segment, build_segment_bar, evaluate_requires, merge_slow_results, run_slow_discovery_via_registry, _discover_profiles, _update_auth_from_metadata
 from .terminal import Terminal
 from .theme import parse_theme
 from .renderer import Renderer
@@ -387,6 +387,13 @@ class App:
             run_auth_flow(result.config_dir, result.name)
             # Add the new profile to the segment's live options (pinned)
             seg.state.add_pinned(result.name)
+            # Re-run discovery to pick up the newly created profile
+            fresh = _discover_profiles({}, {})
+            seg.state.set_discovered(fresh.values)
+            if fresh.metadata:
+                seg.state.update_metadata(fresh.metadata)
+            # Recompute auth status from the fresh metadata
+            _update_auth_from_metadata(seg)
             seg.select_value(result.name)
         self.terminal.enter_raw()
         return None
