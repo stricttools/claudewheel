@@ -1264,5 +1264,66 @@ class NewProfileFlowTests(unittest.TestCase):
         self.mocks["wizard"].assert_not_called()
 
 
+class ShowProfileCommandTests(unittest.TestCase):
+    """The show-profile subcommand: routing, report output, unknown names."""
+
+    def test_show_profile_in_subcommands(self) -> None:
+        """show-profile must be routed as a subcommand, not launch args."""
+        self.assertIn("show-profile", cli._SUBCOMMANDS)
+
+    def _report(self, **overrides):
+        from claudewheel.profile_info import ProfileReport
+        from pathlib import Path as _P
+        kwargs = dict(
+            name="work",
+            config_dir=_P("/fake/profiles/work"),
+            exists=True,
+            registered=True,
+            pinned=False,
+            has_credentials=True,
+            has_token=False,
+            token_expiry=None,
+        )
+        kwargs.update(overrides)
+        return ProfileReport(**kwargs)
+
+    def test_handler_prints_report(self) -> None:
+        report = self._report()
+        buf = io.StringIO()
+        with mock.patch("claudewheel.profile_info.gather_profile_info",
+                        return_value=report) as mock_gather, \
+                redirect_stdout(buf):
+            rc = cli._handle_show_profile("work")
+        self.assertEqual(rc, 0)
+        mock_gather.assert_called_once_with("work")
+        out = buf.getvalue()
+        self.assertIn("Profile: work", out)
+        self.assertIn("Credentials file: present", out)
+
+    def test_unknown_profile_exits_1(self) -> None:
+        report = self._report(exists=False, registered=False,
+                              has_credentials=False)
+        err = io.StringIO()
+        with mock.patch("claudewheel.profile_info.gather_profile_info",
+                        return_value=report), \
+                redirect_stderr(err):
+            with self.assertRaises(SystemExit) as ctx:
+                cli._handle_show_profile("work")
+        self.assertEqual(ctx.exception.code, 1)
+        self.assertIn("not found", err.getvalue())
+
+    def test_token_only_profile_is_shown(self) -> None:
+        """A profile known only via tokens.json is still inspectable."""
+        report = self._report(exists=False, registered=False,
+                              has_credentials=False, has_token=True)
+        buf = io.StringIO()
+        with mock.patch("claudewheel.profile_info.gather_profile_info",
+                        return_value=report), \
+                redirect_stdout(buf):
+            rc = cli._handle_show_profile("work")
+        self.assertEqual(rc, 0)
+        self.assertIn("Profile: work", buf.getvalue())
+
+
 if __name__ == "__main__":
     unittest.main()

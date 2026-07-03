@@ -301,6 +301,22 @@ def _handle_delete_profile(name: str, force_delete: bool) -> int:
     return 0
 
 
+def _handle_show_profile(name: str) -> int:
+    from .profile_info import format_report, gather_profile_info
+
+    report = gather_profile_info(name)
+    # Unknown = no dir on disk, not registered/pinned, and no token entry.
+    # "default" (~/.claude) is inspectable like any other profile.
+    if not (report.exists or report.registered or report.pinned
+            or report.has_token):
+        print(f"Profile '{name}' not found: no profile directory, "
+              "no options.json registration, no token.", file=sys.stderr)
+        sys.exit(1)
+    for line in format_report(report):
+        print(line)
+    return 0
+
+
 def _handle_show() -> int:
     from .config import ConfigManager
     cfg = ConfigManager()
@@ -849,7 +865,7 @@ def _handle_launch(
 # ---------------------------------------------------------------------------
 _SUBCOMMANDS = frozenset({
     "health", "config", "versions", "install", "uninstall",
-    "reset-options", "new-profile", "delete-profile", "show",
+    "reset-options", "new-profile", "delete-profile", "show-profile", "show",
     "migrate", "stats", "mv", "import", "deploy-hooks", "launch",
     "permission",
 })
@@ -894,6 +910,11 @@ def _build_app() -> App:
     app.command("delete-profile", help="delete a registered profile and all associated data",
                 args=[Arg(name="name", help="name of the profile to delete (e.g. work, personal, lisa)")])(
         _handle_delete_profile
+    )
+
+    app.command("show-profile", help="print a detailed inspection report for one profile (auth, symlinks, settings, sessions, disk)",
+                args=[Arg(name="name", help="name of the profile to inspect (e.g. work, personal, default)")])(
+        _handle_show_profile
     )
 
     app.command("show", help="print a summary of current segment selections, theme, and recent directories")(
