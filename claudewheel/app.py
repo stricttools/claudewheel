@@ -437,7 +437,7 @@ class App:
         from .discovery import discover_profiles
         self.terminal.exit_raw()
         existing = [p.name for p in discover_profiles()]
-        result = run_profile_wizard(existing)
+        result = run_profile_wizard(existing, self.theme, self.terminal)
         if not result.cancelled:
             create_profile(result, self.cfg)
             run_auth_flow(result.config_dir, result.name,

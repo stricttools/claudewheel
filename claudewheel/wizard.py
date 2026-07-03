@@ -6,45 +6,34 @@ import json
 import os
 import re
 import shutil
-import signal
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
 from .constants import (
     CLAUDE_SYMLINK,
-    CLEAR_SCREEN, CLEAR_LINE, RESET, BOLD, DIM,
     PROFILES_DIR, PROFILE_SHARED_DIRS, SCRIPTS_DIR,
     SHARED_DIR, SHARED_SETTINGS_FILE, SKILLS_DIR,
-    move_to, fg_rgb,
 )
 from .config import ConfigManager
 from .defaults import DISALLOWED_TOOLS, build_canonical_shared_settings
 from .discovery import detect_browsers
 from .state import AUTH_BROWSER_KEY, load_state_value, save_state_value
 from .tokens import add_token
-from .terminal import Terminal
-from .ui import ACCENT, DIM_CLR, run_selection
+from .ui import FormField, get_field, run_form, run_selection
 
-# Checkbox labels -- used to identify the 6 advanced fields
-_CHECKBOX_LABELS = [
-    "Wire common hooks",
-    "Symlink to shared store",
-    "Disable recap",
-    "10-year cleanup period",
-    "Disable auto-memory",
-    "Disable Co-Authored-By",
+# The 6 advanced checkboxes: (field key, display label). Keys match the
+# WizardResult attribute names.
+_CHECKBOX_DEFS = [
+    ("wire_hooks", "Wire common hooks"),
+    ("symlink_shared", "Symlink to shared store"),
+    ("disable_recap", "Disable recap"),
+    ("cleanup_10y", "10-year cleanup period"),
+    ("disable_memory", "Disable auto-memory"),
+    ("disable_attribution", "Disable Co-Authored-By"),
 ]
 
-
-@dataclass
-class WizardField:
-    """Defines a single input field in the profile creation wizard."""
-
-    label: str
-    field_type: str  # "text", "radio", "checkbox", "readonly", "button"
-    value: str | bool | None = None
-    options: list[str] | None = None  # for radio
+_DEFAULTS_TEMPLATE = "Defaults template"
 
 
 @dataclass
@@ -61,14 +50,6 @@ class WizardResult:
     disable_memory: bool
     disable_attribution: bool
     cancelled: bool = False
-
-
-def _get_field(fields: list[WizardField], label: str) -> WizardField:
-    """Look up a wizard field by its label."""
-    for f in fields:
-        if f.label == label:
-            return f
-    raise KeyError(f"No field with label {label!r}")
 
 
 def _validate_name(name: str, existing_profiles: list[str]) -> str | None:
@@ -88,156 +69,52 @@ def _validate_name(name: str, existing_profiles: list[str]) -> str | None:
     return None
 
 
-def _build_fields(existing_profiles: list[str]) -> list[WizardField]:
-    """Build the ordered list of wizard fields."""
-    radio_opts = ["Defaults template"] + existing_profiles
-    return [
-        WizardField("Name", "text", value=""),
-        WizardField("Config dir", "readonly", value="~/.claudewheel/profiles/"),
-        WizardField("Settings source", "radio", value=radio_opts[0], options=radio_opts),
-        WizardField("Advanced", "radio", value="Hide advanced",
-                     options=["Hide advanced", "Show advanced"]),
-        WizardField("Wire common hooks", "checkbox", value=True),
-        WizardField("Symlink to shared store", "checkbox", value=True),
-        WizardField("Disable recap", "checkbox", value=True),
-        WizardField("10-year cleanup period", "checkbox", value=True),
-        WizardField("Disable auto-memory", "checkbox", value=True),
-        WizardField("Disable Co-Authored-By", "checkbox", value=True),
-        WizardField("Create", "button"),
+def _build_fields(existing_profiles: list[str]) -> list[FormField]:
+    """Build the ordered list of wizard form fields."""
+    radio_opts = [_DEFAULTS_TEMPLATE] + existing_profiles
+
+    def advanced_expanded(fields: list[FormField]) -> bool:
+        return get_field(fields, "advanced").value == "Show advanced"
+
+    def sync_config_dir(fields: list[FormField]) -> None:
+        name = get_field(fields, "name").value or ""
+        get_field(fields, "config_dir").value = \
+            f"~/.claudewheel/profiles/{name}"
+
+    fields = [
+        FormField("name", "text", label="Name", value="",
+                  on_change=sync_config_dir),
+        FormField("config_dir", "readonly", label="Config dir",
+                  value="~/.claudewheel/profiles/"),
+        FormField("settings_source", "radio", label="Settings source",
+                  value=radio_opts[0], options=radio_opts),
+        FormField("advanced", "radio", label="Advanced",
+                  value="Hide advanced",
+                  options=["Hide advanced", "Show advanced"]),
     ]
+    for key, label in _CHECKBOX_DEFS:
+        fields.append(FormField(key, "checkbox", label=label, value=True,
+                                visible=advanced_expanded))
+    fields.append(FormField("create", "button", label="Create"))
+    return fields
 
 
-def _is_advanced_expanded(fields: list[WizardField]) -> bool:
-    """Return True when the Advanced toggle is set to show checkboxes."""
-    return _get_field(fields, "Advanced").value == "Show advanced"
-
-
-def _visible_fields(fields: list[WizardField]) -> list[WizardField]:
-    """Return fields that should be rendered based on current Advanced toggle."""
-    expanded = _is_advanced_expanded(fields)
-    return [f for f in fields
-            if expanded or f.label not in _CHECKBOX_LABELS]
-
-
-def _focusable_indices(fields: list[WizardField]) -> list[int]:
-    """Return indices into `fields` that are visible and interactive."""
-    visible = _visible_fields(fields)
-    visible_labels = {f.label for f in visible}
-    return [i for i, f in enumerate(fields)
-            if f.label in visible_labels and f.field_type != "readonly"]
-
-
-def _build_result(fields: list[WizardField]) -> WizardResult:
-    """Construct a WizardResult from current field values."""
-    name = _get_field(fields, "Name").value.strip()
-    source = _get_field(fields, "Settings source").value
-    clone = None if source == "Defaults template" else source
+def _build_result(values: dict[str, object]) -> WizardResult:
+    """Construct a WizardResult from submitted form values."""
+    name = str(values["name"]).strip()
+    source = values["settings_source"]
+    clone = None if source == _DEFAULTS_TEMPLATE else source
     return WizardResult(
         name=name,
         config_dir=f"~/.claudewheel/profiles/{name}",
         clone_from=clone,
-        wire_hooks=bool(_get_field(fields, "Wire common hooks").value),
-        symlink_shared=bool(_get_field(fields, "Symlink to shared store").value),
-        disable_recap=bool(_get_field(fields, "Disable recap").value),
-        cleanup_10y=bool(_get_field(fields, "10-year cleanup period").value),
-        disable_memory=bool(_get_field(fields, "Disable auto-memory").value),
-        disable_attribution=bool(_get_field(fields, "Disable Co-Authored-By").value),
+        wire_hooks=bool(values["wire_hooks"]),
+        symlink_shared=bool(values["symlink_shared"]),
+        disable_recap=bool(values["disable_recap"]),
+        cleanup_10y=bool(values["cleanup_10y"]),
+        disable_memory=bool(values["disable_memory"]),
+        disable_attribution=bool(values["disable_attribution"]),
     )
-
-
-def _hints_for_field(f: WizardField) -> str:
-    """Return context-sensitive keyboard hint text for the given field."""
-    if f.field_type == "text":
-        return "Tab: next  Enter: create  Esc: cancel"
-    if f.field_type == "radio":
-        return "Left/Right: cycle  Tab: next  Esc: cancel"
-    if f.field_type == "checkbox":
-        return "Space: toggle  Tab: next  Esc: cancel"
-    if f.field_type == "button":
-        return "Enter: select  Tab: next  Esc: cancel"
-    return "Esc: cancel"
-
-
-def _render(term: Terminal, fields: list[WizardField], focus: int,
-            error: str = "") -> None:
-    """Render the full wizard form centered in the terminal."""
-    rows, cols = term.get_size()
-    visible = _visible_fields(fields)
-
-    # Total lines: 1 title + 1 blank + visible fields + 1 blank (hints) + 1 error + 1 hints
-    form_lines = len(visible)
-    total_height = 1 + 1 + form_lines
-    start_row = max(1, (rows - total_height) // 2)
-    buf: list[str] = [CLEAR_SCREEN]
-
-    # Title
-    title = "New Profile"
-    title_col = max(1, (cols - len(title)) // 2)
-    buf.append(move_to(start_row, title_col) + BOLD + fg_rgb(*ACCENT) + title + RESET)
-
-    row = start_row + 2  # skip blank line after title
-    visible_set = {f.label for f in visible}
-    for i, f in enumerate(fields):
-        if f.label not in visible_set:
-            continue
-
-        focused = (i == focus)
-        color = fg_rgb(*ACCENT) if focused else fg_rgb(*DIM_CLR)
-        style = BOLD + color if focused else color
-
-        if f.field_type == "button":
-            line = f"{style}[ {f.label} ]{RESET}"
-            col = max(1, (cols - len(f.label) - 4) // 2)
-            buf.append(move_to(row, col) + CLEAR_LINE + line)
-            row += 1
-            continue
-
-        # Label + value
-        if f.field_type == "text":
-            cursor = "_" if focused else ""
-            val = f"[{f.value}{cursor}]"
-            line = f"{style}{f.label}: {RESET}{val}"
-        elif f.field_type == "readonly":
-            line = f"{style}{f.label}: {RESET}{DIM}{f.value}{RESET}"
-        elif f.field_type == "radio":
-            parts: list[str] = []
-            for opt in (f.options or []):
-                if opt == f.value:
-                    marker = "(*)"
-                    parts.append(f"{BOLD}{marker} {opt}{RESET}")
-                else:
-                    marker = "( )"
-                    parts.append(f"{marker} {opt}")
-            opts_str = "  ".join(parts)
-            line = f"{style}{f.label}: {RESET}{opts_str}"
-        elif f.field_type == "checkbox":
-            marker = "[x]" if f.value else "[ ]"
-            line = f"{style}{marker} {f.label}{RESET}"
-        else:
-            line = f"{style}{f.label}{RESET}"
-
-        col = max(1, (cols - 60) // 2)  # left-align fields within a 60-col area
-        buf.append(move_to(row, col) + CLEAR_LINE + line)
-        row += 1
-
-    # Error message on the row above hints (bottom - 1)
-    error_row = rows - 1
-    if error:
-        error_col = max(1, (cols - len(error)) // 2)
-        buf.append(move_to(error_row, error_col) + CLEAR_LINE
-                   + BOLD + fg_rgb(255, 100, 100) + error + RESET)
-    else:
-        buf.append(move_to(error_row, 1) + CLEAR_LINE)
-
-    # Keyboard hints at the very bottom row
-    hints_row = rows
-    focused_field = fields[focus]
-    hints = _hints_for_field(focused_field)
-    hints_col = max(1, (cols - len(hints)) // 2)
-    buf.append(move_to(hints_row, hints_col) + CLEAR_LINE
-               + DIM + fg_rgb(*DIM_CLR) + hints + RESET)
-
-    term.write("".join(buf))
 
 
 def _cancelled_result() -> WizardResult:
@@ -246,105 +123,24 @@ def _cancelled_result() -> WizardResult:
                         False, cancelled=True)
 
 
-def run_profile_wizard(existing_profiles: list[str]) -> WizardResult:
-    """Run the form TUI and return the user's choices."""
-    term = Terminal()
+def run_profile_wizard(existing_profiles: list[str], theme,
+                       terminal) -> WizardResult:
+    """Run the profile creation form and return the user's choices.
+
+    The form renders on *terminal* with *theme* colors via the ui widget
+    layer: fullscreen, borrowed when the terminal is already raw.
+    """
     fields = _build_fields(existing_profiles)
-    focusable = _focusable_indices(fields)
-    focus_pos = 0  # index into focusable list
-    focus = focusable[focus_pos]
-    error = ""  # persistent error string
 
-    term.enter_raw()
+    def validate(fields: list[FormField]) -> str | None:
+        name = str(get_field(fields, "name").value or "").strip()
+        return _validate_name(name, existing_profiles)
 
-    def on_resize(signum, frame):
-        term.rows, term.cols = term.get_size()
-        _render(term, fields, focus, error)
-
-    prev_handler = signal.signal(signal.SIGWINCH, on_resize)
-
-    try:
-        _render(term, fields, focus, error)
-        while True:
-            try:
-                key = term.read_key()
-            except KeyboardInterrupt:
-                return _cancelled_result()
-
-            f = fields[focus]
-
-            if key == "ESC" or key == "CTRL_C":
-                return _cancelled_result()
-
-            if key in ("TAB", "DOWN"):
-                error = ""  # clear error on focus change
-                focus_pos = (focus_pos + 1) % len(focusable)
-                focus = focusable[focus_pos]
-            elif key in ("SHIFT_TAB", "UP"):
-                error = ""  # clear error on focus change
-                focus_pos = (focus_pos - 1) % len(focusable)
-                focus = focusable[focus_pos]
-            elif key == "ENTER":
-                if f.field_type == "text":
-                    # Enter from Name field submits
-                    err = _validate_name(f.value.strip(), existing_profiles)
-                    if err:
-                        error = err
-                    else:
-                        return _build_result(fields)
-                elif f.field_type == "button":
-                    if f.label == "Create":
-                        name = _get_field(fields, "Name").value.strip()
-                        err = _validate_name(name, existing_profiles)
-                        if err:
-                            error = err
-                        else:
-                            return _build_result(fields)
-            elif key == " ":
-                if f.field_type == "checkbox":
-                    f.value = not f.value
-                    error = ""  # clear error on toggle
-                elif f.field_type == "radio":
-                    # Space cycles forward through radio options
-                    opts = f.options or []
-                    if opts:
-                        idx = opts.index(f.value) if f.value in opts else -1
-                        f.value = opts[(idx + 1) % len(opts)]
-                        error = ""  # clear error on cycle
-                    if f.label == "Advanced":
-                        focusable = _focusable_indices(fields)
-                        # Keep focus on Advanced
-                        focus_pos = focusable.index(focus)
-            elif key in ("LEFT", "RIGHT"):
-                if f.field_type == "radio":
-                    opts = f.options or []
-                    if opts:
-                        idx = opts.index(f.value) if f.value in opts else 0
-                        step = 1 if key == "RIGHT" else -1
-                        f.value = opts[(idx + step) % len(opts)]
-                        error = ""  # clear error on cycle
-                    if f.label == "Advanced":
-                        focusable = _focusable_indices(fields)
-                        # Keep focus on Advanced
-                        focus_pos = focusable.index(focus)
-            elif key == "BACKSPACE":
-                if f.field_type == "text" and isinstance(f.value, str):
-                    f.value = f.value[:-1]
-                    error = ""  # clear error on edit
-                    # Update computed config dir
-                    _get_field(fields, "Config dir").value = f"~/.claudewheel/profiles/{f.value}"
-            else:
-                # Printable character on text field
-                if f.field_type == "text" and len(key) == 1 and key.isprintable():
-                    f.value = (f.value or "") + key
-                    error = ""  # clear error on typing
-                    _get_field(fields, "Config dir").value = f"~/.claudewheel/profiles/{f.value}"
-
-            _render(term, fields, focus, error)
-    finally:
-        signal.signal(signal.SIGWINCH, prev_handler or signal.SIG_DFL)
-        term.exit_raw()
-        term.close()
+    values = run_form("New Profile", fields, theme, terminal,
+                      validate=validate)
+    if values is None:
+        return _cancelled_result()
+    return _build_result(values)
 
 
 def _load_shared_settings() -> dict:

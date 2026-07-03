@@ -249,7 +249,7 @@ def _handle_new_profile() -> int:
     terminal = Terminal()
     existing = [p.name for p in discover_profiles()]
     try:
-        result = run_profile_wizard(existing)
+        result = run_profile_wizard(existing, theme, terminal)
         if result.cancelled:
             print("Cancelled.")
             return 0

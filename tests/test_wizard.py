@@ -501,18 +501,19 @@ class OptionsRegistrationTests(CreateProfileTestBase):
 class FakeTerminal:
     """A mock Terminal that feeds pre-recorded keystrokes and captures output."""
 
-    def __init__(self, keys: list[str]):
+    def __init__(self, keys: list[str], in_raw: bool = False):
         self._keys = list(keys)
         self._index = 0
         self.rows = 40
         self.cols = 120
         self.output: list[str] = []
+        self._in_raw = in_raw
 
-    def enter_raw(self) -> None:
-        pass
+    def enter_raw(self, alt_screen: bool = True) -> None:
+        self._in_raw = True
 
     def exit_raw(self) -> None:
-        pass
+        self._in_raw = False
 
     def close(self) -> None:
         pass
@@ -538,8 +539,10 @@ class FakeTerminal:
 class WizardTUITestBase(unittest.TestCase):
     """Base class for wizard TUI tests.
 
-    Patches Terminal, signal.signal, and PROFILES_DIR so run_profile_wizard
-    can execute without a real terminal or filesystem side effects.
+    Patches signal.signal (the form runner in ui.py installs a SIGWINCH
+    handler) and PROFILES_DIR so run_profile_wizard can execute without a
+    real terminal or filesystem side effects. The FakeTerminal is injected
+    directly -- run_profile_wizard takes the terminal as a parameter.
     """
 
     def setUp(self) -> None:
@@ -557,7 +560,7 @@ class WizardTUITestBase(unittest.TestCase):
 
         # Patch signal.signal to avoid SIGWINCH issues in test
         self._signal_patch = mock.patch(
-            "claudewheel.wizard.signal.signal",
+            "claudewheel.ui.signal.signal",
             return_value=signal.SIG_DFL,
         )
         self._signal_patch.start()
@@ -569,9 +572,8 @@ class WizardTUITestBase(unittest.TestCase):
         """Run the wizard with fake keystrokes and return the result."""
         if existing_profiles is None:
             existing_profiles = []
-        fake_term = FakeTerminal(keys)
-        with mock.patch("claudewheel.wizard.Terminal", return_value=fake_term):
-            return run_profile_wizard(existing_profiles)
+        self.fake_term = FakeTerminal(keys)
+        return run_profile_wizard(existing_profiles, THEME, self.fake_term)
 
 
 class EnterFromNameSubmitsTests(WizardTUITestBase):

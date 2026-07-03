@@ -39,7 +39,7 @@ def _wizard_mocks(wizard_result, fresh_result=None):
     live in claudewheel.wizard, discovery in claudewheel.discovery.
     """
     patches = [
-        mock.patch("claudewheel.wizard.run_profile_wizard", return_value=wizard_result),
+        mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True, return_value=wizard_result),
         mock.patch("claudewheel.wizard.create_profile"),
         mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"),
         mock.patch("claudewheel.discovery.discover_profiles", return_value=[]),
@@ -74,7 +74,7 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
                 entered.append(p.start())
 
             # Patch the lazy import of run_profile_wizard
-            with mock.patch("claudewheel.wizard.run_profile_wizard", return_value=wizard_result):
+            with mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True, return_value=wizard_result):
                 app._launch_profile_wizard(seg)
         finally:
             for p in patches:
@@ -110,7 +110,7 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
              mock.patch("claudewheel.wizard.create_profile"), \
              mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
              mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
-             mock.patch("claudewheel.wizard.run_profile_wizard", return_value=wizard_result):
+             mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True, return_value=wizard_result):
             app._launch_profile_wizard(seg)
 
         mock_disc.assert_called_once_with({}, {})
@@ -144,7 +144,7 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
              mock.patch("claudewheel.wizard.create_profile"), \
              mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
              mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
-             mock.patch("claudewheel.wizard.run_profile_wizard", return_value=wizard_result):
+             mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True, return_value=wizard_result):
             app._launch_profile_wizard(seg)
 
         # Discovered values should be updated
@@ -179,7 +179,7 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
              mock.patch("claudewheel.wizard.create_profile"), \
              mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
              mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
-             mock.patch("claudewheel.wizard.run_profile_wizard", return_value=wizard_result):
+             mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True, return_value=wizard_result):
             app._launch_profile_wizard(seg)
 
         self.assertIn("newprof", seg.state.metadata)
@@ -216,7 +216,7 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
              mock.patch("claudewheel.wizard.create_profile"), \
              mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
              mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
-             mock.patch("claudewheel.wizard.run_profile_wizard", return_value=wizard_result):
+             mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True, return_value=wizard_result):
             app._launch_profile_wizard(seg)
 
         self.assertEqual(seg.value, "fresh")
@@ -253,7 +253,7 @@ class WizardRefreshAuthTests(unittest.TestCase):
              mock.patch("claudewheel.wizard.create_profile"), \
              mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
              mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
-             mock.patch("claudewheel.wizard.run_profile_wizard", return_value=wizard_result):
+             mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True, return_value=wizard_result):
             app._launch_profile_wizard(seg)
 
         # "existing" and "authed" both have has_token=True
@@ -288,7 +288,7 @@ class WizardRefreshAuthTests(unittest.TestCase):
              mock.patch("claudewheel.wizard.create_profile"), \
              mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
              mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
-             mock.patch("claudewheel.wizard.run_profile_wizard", return_value=wizard_result):
+             mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True, return_value=wizard_result):
             app._launch_profile_wizard(seg)
 
         self.assertTrue(seg.state.has_auth_status)
@@ -316,7 +316,7 @@ class WizardCancelledTests(unittest.TestCase):
              mock.patch("claudewheel.wizard.create_profile"), \
              mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
              mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
-             mock.patch("claudewheel.wizard.run_profile_wizard", return_value=wizard_result):
+             mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True, return_value=wizard_result):
             app._launch_profile_wizard(seg)
 
         mock_disc.assert_not_called()

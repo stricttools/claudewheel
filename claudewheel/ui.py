@@ -14,11 +14,6 @@ from .constants import (
 from .terminal import Terminal
 from .theme import ThemeColors
 
-# Color constants shared by raw-mode forms (the wizard imports these too).
-ACCENT = (107, 138, 255)  # #6B8AFF
-DIM_CLR = (136, 136, 136)  # #888888
-
-
 def _erase_inline(term: Terminal, line_count: int) -> None:
     """Erase the inline form so subsequent output flows cleanly."""
     # Cursor is just below the form: move up, then clear to end of screen.

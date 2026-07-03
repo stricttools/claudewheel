@@ -230,17 +230,25 @@ class ResizeHandlerTests(RunSelectionTestBase):
         self.assertGreater(len(self.term.output), writes_before)
 
 
-class WizardColorImportTests(unittest.TestCase):
-    """The wizard shares ui's color constants (moved from wizard to ui)."""
+class SelectionThemingTests(RunSelectionTestBase):
+    """run_selection colors are theme-driven -- the old hardcoded ACCENT and
+    DIM_CLR module constants are gone."""
 
-    def test_wizard_uses_ui_colors(self) -> None:
-        from claudewheel import wizard as wizard_mod
-        self.assertIs(wizard_mod.ACCENT, ui_mod.ACCENT)
-        self.assertIs(wizard_mod.DIM_CLR, ui_mod.DIM_CLR)
+    def test_hardcoded_color_constants_removed(self) -> None:
+        self.assertFalse(hasattr(ui_mod, "ACCENT"))
+        self.assertFalse(hasattr(ui_mod, "DIM_CLR"))
 
-    def test_color_values(self) -> None:
-        self.assertEqual(ui_mod.ACCENT, (107, 138, 255))
-        self.assertEqual(ui_mod.DIM_CLR, (136, 136, 136))
+    def test_title_uses_theme_title_fg(self) -> None:
+        self._run(["ESC"])
+        self.assertIn(THEME.forms_title_fg, self._output())
+
+    def test_focused_option_uses_theme_focus_span(self) -> None:
+        self._run(["ESC"])
+        self.assertIn(THEME.forms_focus_bg + THEME.forms_focus_fg, self._output())
+
+    def test_hints_use_theme_hint_fg(self) -> None:
+        self._run(["ESC"])
+        self.assertIn(THEME.forms_hint_fg, self._output())
 
 
 # ---------------------------------------------------------------------------
