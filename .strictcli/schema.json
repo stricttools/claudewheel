@@ -48,7 +48,7 @@
   },
   "project_id": "claudewheel",
   "name": "c",
-  "version": "0.15.0",
+  "version": "0.15.1",
   "help": "claudewheel - TUI launcher for Claude Code with profile, model, and directory selection",
   "commands": {
     "health": {
@@ -96,10 +96,9 @@
       "help": "delete a registered profile and all associated data",
       "flags": [
         {
-          "name": "force",
+          "name": "force-delete",
           "type": "bool",
           "help": "force deletion even if sessions appear active; skips the safety check",
-          "default": false,
           "negatable": true
         }
       ],
@@ -238,7 +237,7 @@
           "negatable": true
         },
         {
-          "name": "force",
+          "name": "force-overwrite",
           "type": "bool",
           "help": "overwrite existing hook scripts on disk instead of skipping them",
           "default": false,
