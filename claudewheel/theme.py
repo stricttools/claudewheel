@@ -53,6 +53,14 @@ class ThemeColors:
     overflow_minimap_fg: str = ""
     overflow_minimap_focused_bg: str = ""
     overflow_minimap_char: str = "▪"
+    # Form wizard colors
+    forms_title_fg: str = ""
+    forms_focus_bg: str = ""
+    forms_focus_fg: str = ""
+    forms_field_fg: str = ""
+    forms_error_fg: str = ""
+    forms_hint_fg: str = ""
+    forms_cursor_fg: str = ""
 
 
 def parse_theme(theme_dict: dict) -> ThemeColors:
@@ -71,6 +79,7 @@ def parse_theme(theme_dict: dict) -> ThemeColors:
 
     search = theme_dict.get("search", {})
     overflow = theme_dict.get("overflow", {})
+    forms = theme_dict.get("forms", {})
 
     return ThemeColors(
         global_fg=_hex_to_fg(g.get("fg")),
@@ -87,4 +96,11 @@ def parse_theme(theme_dict: dict) -> ThemeColors:
         overflow_minimap_fg=_hex_to_fg(overflow.get("minimap_fg")),
         overflow_minimap_focused_bg=_hex_to_bg(overflow.get("minimap_focused_bg")),
         overflow_minimap_char=overflow.get("minimap_char", "▪"),
+        forms_title_fg=_hex_to_fg(forms.get("title_fg")),
+        forms_focus_bg=_hex_to_bg(forms.get("focus_bg")),
+        forms_focus_fg=_hex_to_fg(forms.get("focus_fg")),
+        forms_field_fg=_hex_to_fg(forms.get("field_fg")),
+        forms_error_fg=_hex_to_fg(forms.get("error_fg")),
+        forms_hint_fg=_hex_to_fg(forms.get("hint_fg")),
+        forms_cursor_fg=_hex_to_fg(forms.get("cursor_fg")),
     )

@@ -208,6 +208,26 @@ class KeyMigrationTests(unittest.TestCase):
         for attr in default_profile:
             self.assertIn(attr, profile_seg, f"missing segment attr: {attr}")
 
+    def test_theme_without_forms_section_gains_it(self) -> None:
+        """A theme file on disk lacking the "forms" section gains it via _migrate()."""
+        theme_without_forms = {
+            k: v for k, v in DEFAULT_THEME_DARK.items() if k != "forms"
+        }
+        self.assertNotIn("forms", theme_without_forms)
+        paths = _setup_temp_config_dir(self.tmp, theme=theme_without_forms)
+        cm = self._make_cm(paths)
+
+        # In-memory theme now has the full forms section from defaults
+        self.assertIn("forms", cm.theme)
+        for key in ("title_fg", "focus_bg", "focus_fg", "field_fg",
+                    "error_fg", "hint_fg", "cursor_fg"):
+            self.assertIn(key, cm.theme["forms"], f"missing forms key: {key}")
+        self.assertEqual(cm.theme["forms"], DEFAULT_THEME_DARK["forms"])
+
+        # Persisted to disk too
+        on_disk = _read_json(paths["THEMES_DIR"] / "dark.json")
+        self.assertEqual(on_disk["forms"], DEFAULT_THEME_DARK["forms"])
+
     def test_removed_segments_not_re_added(self) -> None:
         """Segments intentionally removed by the user are NOT re-added by _migrate()."""
         # Only keep "profile", deliberately omit "github" and others

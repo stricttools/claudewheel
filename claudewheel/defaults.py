@@ -331,6 +331,15 @@ DEFAULT_THEME_DARK = {
         "minimap_focused_bg": "#ffffff",
         "minimap_char": "▪",
     },
+    "forms": {
+        "title_fg": "#7ec8e3",
+        "focus_bg": "#2a2a4e",
+        "focus_fg": "#ffffff",
+        "field_fg": "#e0e0e0",
+        "error_fg": "#ff6464",
+        "hint_fg": "#555555",
+        "cursor_fg": "#ffffff",
+    },
 }
 
 DEFAULT_THEME_LIGHT = {
@@ -401,5 +410,14 @@ DEFAULT_THEME_LIGHT = {
         "minimap_fg": "#cccccc",
         "minimap_focused_bg": "#000000",
         "minimap_char": "▪",
+    },
+    "forms": {
+        "title_fg": "#1a6b8a",
+        "focus_bg": "#d0e8f0",
+        "focus_fg": "#000000",
+        "field_fg": "#1a1a1a",
+        "error_fg": "#cc0000",
+        "hint_fg": "#aaaaaa",
+        "cursor_fg": "#000000",
     },
 }
