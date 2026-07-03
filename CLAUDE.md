@@ -45,6 +45,7 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 - **claudewheel.stats** (`claudewheel/stats.py`): Report shared-store statistics and clean up legacy data.
 - **claudewheel.terminal** (`claudewheel/terminal.py`): Raw terminal I/O: cbreak mode, escape sequence decoding, and alt screen.
 - **claudewheel.theme** (`claudewheel/theme.py`): Parse hex color themes into pre-computed ANSI escape sequences.
+- **claudewheel.ui** (`claudewheel/ui.py`): Reusable raw-mode selection form: a vertical list navigated with arrow keys.
 - **claudewheel.wizard** (`claudewheel/wizard.py`): Interactive form wizard for creating and configuring new profiles.
 
 ## Commands

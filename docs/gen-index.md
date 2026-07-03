@@ -37,4 +37,5 @@ order: 90
 - [claudewheel.stats](claudewheel-stats.html)
 - [claudewheel.terminal](claudewheel-terminal.html)
 - [claudewheel.theme](claudewheel-theme.html)
+- [claudewheel.ui](claudewheel-ui.html)
 - [claudewheel.wizard](claudewheel-wizard.html)
