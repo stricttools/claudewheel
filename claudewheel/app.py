@@ -230,6 +230,12 @@ class App:
                     if s.value and s.value in s.unavailable:
                         self._flash = f"{s.label}: {s.value} not available for this version"
                         return None
+                # Check for unauthenticated profile -- intercept and offer auth
+                for s in self.bar.segments:
+                    if s.key == "profile" and s.value:
+                        if s.state.has_auth_status and not s.state.is_authenticated(s.value):
+                            self._intercept_unauth(s)
+                        break
                 return "launch"
             case "TAB":
                 if focused.is_on_plus and focused.key == "profile":
@@ -374,6 +380,34 @@ class App:
         # Re-enter alt screen
         self.terminal.enter_raw()
         return None
+
+    def _intercept_unauth(self, seg: Segment) -> None:
+        """Prompt auth for an unauthenticated profile before launch.
+
+        Exits raw mode, runs the auth flow, and re-enters raw mode.
+        On success, re-runs profile discovery and updates auth status.
+        On skip/failure, returns silently (launch proceeds regardless).
+        """
+        from .wizard import run_auth_flow
+
+        profile_name = seg.value
+        meta = seg.state.metadata.get(profile_name, {})
+        config_dir = meta.get("config_dir", "")
+
+        self.terminal.exit_raw()
+        print(f"Profile '{profile_name}' has no authentication configured.")
+
+        success = run_auth_flow(config_dir, profile_name)
+
+        if success:
+            # Re-run discovery and update auth status (same as wizard refresh)
+            fresh = _discover_profiles({}, {})
+            seg.state.set_discovered(fresh.values)
+            if fresh.metadata:
+                seg.state.update_metadata(fresh.metadata)
+            _update_auth_from_metadata(seg)
+
+        self.terminal.enter_raw()
 
     def _launch_profile_wizard(self, seg: Segment) -> str | None:
         """Exit TUI, run the profile wizard, create profile, return to TUI."""

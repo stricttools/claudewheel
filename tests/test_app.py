@@ -311,5 +311,166 @@ class WizardCancelledTests(unittest.TestCase):
         mock_auth.assert_not_called()
 
 
+class AuthInterceptTests(unittest.TestCase):
+    """When Enter is pressed to launch, unauthenticated profiles trigger an auth prompt."""
+
+    def _make_app_with_profile(self, profile_name, authenticated, metadata=None):
+        """Create a minimal App with a profile segment configured for auth testing."""
+        seg = _make_profile_segment(discovered=[profile_name])
+        if metadata is None:
+            has_token = authenticated
+            has_creds = authenticated
+            metadata = {
+                profile_name: {
+                    "config_dir": f"~/.claudewheel/profiles/{profile_name}",
+                    "has_token": has_token,
+                    "has_credentials": has_creds,
+                },
+            }
+        seg.state.update_metadata(metadata)
+        # Activate auth tracking
+        auth_set = set()
+        for name, meta in metadata.items():
+            if meta.get("has_token") or meta.get("has_credentials"):
+                auth_set.add(name)
+        seg.state.set_authenticated(auth_set)
+        seg.select_value(profile_name)
+
+        app = object.__new__(app_mod.App)
+        app.terminal = mock.MagicMock()
+        app.cfg = mock.MagicMock()
+        app.bar = mock.MagicMock()
+        app.bar.segments = [seg]
+        app.bar.focused = seg
+        app._flash = ""
+        app._pending_install = None
+        app._pending_install_seg = None
+        app._show_provenance = False
+        app._pending_discovery = {}
+        return app, seg
+
+    def test_launch_intercepted_when_unauthenticated(self):
+        """When profile is unauthenticated, _intercept_unauth is called before launch."""
+        app, seg = self._make_app_with_profile("noauth", authenticated=False)
+        # Verify the segment is indeed unauthenticated
+        self.assertTrue(seg.state.has_auth_status)
+        self.assertFalse(seg.state.is_authenticated("noauth"))
+
+        with mock.patch.object(app, "_intercept_unauth") as mock_intercept:
+            result = app._handle_key("ENTER")
+
+        mock_intercept.assert_called_once_with(seg)
+        self.assertEqual(result, "launch")
+
+    def test_launch_proceeds_when_authenticated(self):
+        """When profile is authenticated, _intercept_unauth is not called."""
+        app, seg = self._make_app_with_profile("authed", authenticated=True)
+        self.assertTrue(seg.state.has_auth_status)
+        self.assertTrue(seg.state.is_authenticated("authed"))
+
+        with mock.patch.object(app, "_intercept_unauth") as mock_intercept:
+            result = app._handle_key("ENTER")
+
+        mock_intercept.assert_not_called()
+        self.assertEqual(result, "launch")
+
+    def test_intercept_reruns_discovery_on_auth_success(self):
+        """After successful auth, discovery is re-run and auth status updated."""
+        app, seg = self._make_app_with_profile("noauth", authenticated=False)
+
+        fresh_result = DiscoveryResult(
+            values=["noauth"],
+            metadata={
+                "noauth": {
+                    "config_dir": "~/.claudewheel/profiles/noauth",
+                    "has_token": True,
+                    "has_credentials": True,
+                },
+            },
+        )
+
+        with mock.patch("claudewheel.wizard.run_auth_flow", return_value=True), \
+             mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result) as mock_disc, \
+             mock.patch.object(app_mod, "_update_auth_from_metadata") as mock_auth_update:
+            app._intercept_unauth(seg)
+
+        mock_disc.assert_called_once_with({}, {})
+        mock_auth_update.assert_called_once_with(seg)
+        # Terminal was exited and re-entered
+        app.terminal.exit_raw.assert_called_once()
+        app.terminal.enter_raw.assert_called_once()
+
+    def test_intercept_skips_discovery_on_auth_failure(self):
+        """When auth is skipped/fails, discovery is not re-run."""
+        app, seg = self._make_app_with_profile("noauth", authenticated=False)
+
+        with mock.patch("claudewheel.wizard.run_auth_flow", return_value=False), \
+             mock.patch.object(app_mod, "_discover_profiles") as mock_disc, \
+             mock.patch.object(app_mod, "_update_auth_from_metadata") as mock_auth_update:
+            app._intercept_unauth(seg)
+
+        mock_disc.assert_not_called()
+        mock_auth_update.assert_not_called()
+        # Terminal still exits and re-enters (for the auth prompt)
+        app.terminal.exit_raw.assert_called_once()
+        app.terminal.enter_raw.assert_called_once()
+
+    def test_skip_auth_still_returns_launch(self):
+        """Even when auth is skipped, _handle_key returns 'launch'."""
+        app, seg = self._make_app_with_profile("noauth", authenticated=False)
+
+        with mock.patch("claudewheel.wizard.run_auth_flow", return_value=False):
+            result = app._handle_key("ENTER")
+
+        self.assertEqual(result, "launch")
+
+    def test_intercept_updates_auth_status_on_success(self):
+        """After successful auth, the profile appears in the authenticated set."""
+        app, seg = self._make_app_with_profile("noauth", authenticated=False)
+
+        fresh_result = DiscoveryResult(
+            values=["noauth"],
+            metadata={
+                "noauth": {
+                    "config_dir": "~/.claudewheel/profiles/noauth",
+                    "has_token": True,
+                    "has_credentials": False,
+                },
+            },
+        )
+
+        # Use real _update_auth_from_metadata to verify the full flow
+        with mock.patch("claudewheel.wizard.run_auth_flow", return_value=True), \
+             mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result):
+            app._intercept_unauth(seg)
+
+        self.assertTrue(seg.state.has_auth_status)
+        self.assertTrue(seg.state.is_authenticated("noauth"))
+
+    def test_no_intercept_when_no_auth_tracking(self):
+        """When auth tracking is not active, launch proceeds without intercept."""
+        seg = _make_profile_segment(discovered=["myprofile"])
+        seg.select_value("myprofile")
+        # No auth status set -- has_auth_status is False
+
+        app = object.__new__(app_mod.App)
+        app.terminal = mock.MagicMock()
+        app.cfg = mock.MagicMock()
+        app.bar = mock.MagicMock()
+        app.bar.segments = [seg]
+        app.bar.focused = seg
+        app._flash = ""
+        app._pending_install = None
+        app._pending_install_seg = None
+        app._show_provenance = False
+        app._pending_discovery = {}
+
+        with mock.patch.object(app, "_intercept_unauth") as mock_intercept:
+            result = app._handle_key("ENTER")
+
+        mock_intercept.assert_not_called()
+        self.assertEqual(result, "launch")
+
+
 if __name__ == "__main__":
     unittest.main()
