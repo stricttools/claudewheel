@@ -210,5 +210,128 @@ class CookedContextManagerTests(TerminalRawModeTestBase):
         self.assertIn(ALT_SCREEN_ON, self._output())
 
 
+class ReadKeyTests(TerminalRawModeTestBase):
+    """read_key() decodes escape sequences without leaking residue bytes."""
+
+    def _feed(self, data: bytes):
+        """Patch os.read/select.select in terminal module to serve `data`.
+
+        Returns the live buffer so tests can assert full consumption.
+        """
+        buf = bytearray(data)
+
+        def fake_read(fd, n):
+            self.assertEqual(n, 1)
+            if not buf:
+                self.fail("read_key tried to read past the fed bytes")
+            byte = bytes(buf[:1])
+            del buf[:1]
+            return byte
+
+        def fake_select(rlist, wlist, xlist, timeout=None):
+            return (list(rlist) if buf else [], [], [])
+
+        p1 = mock.patch("claudewheel.terminal.os.read", side_effect=fake_read)
+        p2 = mock.patch("claudewheel.terminal.select.select",
+                        side_effect=fake_select)
+        p1.start()
+        p2.start()
+        self.addCleanup(p1.stop)
+        self.addCleanup(p2.stop)
+        return buf
+
+    # --- CSI [digit~ keys (the stray-~ bug) ---
+
+    def test_delete_key_decodes(self) -> None:
+        buf = self._feed(b"\x1b[3~")
+        self.assertEqual(self.term.read_key(), "DELETE")
+        self.assertEqual(len(buf), 0, "trailing ~ leaked into the buffer")
+
+    def test_insert_key_decodes(self) -> None:
+        buf = self._feed(b"\x1b[2~")
+        self.assertEqual(self.term.read_key(), "INSERT")
+        self.assertEqual(len(buf), 0)
+
+    def test_pgup_key_decodes(self) -> None:
+        buf = self._feed(b"\x1b[5~")
+        self.assertEqual(self.term.read_key(), "PGUP")
+        self.assertEqual(len(buf), 0)
+
+    def test_pgdn_key_decodes(self) -> None:
+        buf = self._feed(b"\x1b[6~")
+        self.assertEqual(self.term.read_key(), "PGDN")
+        self.assertEqual(len(buf), 0)
+
+    def test_no_residue_after_delete(self) -> None:
+        """The read AFTER a Delete keypress gets the next key, not '~'."""
+        self._feed(b"\x1b[3~x")
+        self.assertEqual(self.term.read_key(), "DELETE")
+        self.assertEqual(self.term.read_key(), "x")
+
+    def test_no_residue_after_pgdn_then_enter(self) -> None:
+        self._feed(b"\x1b[6~\r")
+        self.assertEqual(self.term.read_key(), "PGDN")
+        self.assertEqual(self.term.read_key(), "ENTER")
+
+    def test_unknown_tilde_sequence_consumed_cleanly(self) -> None:
+        """F5 (ESC[15~): unmapped, but must not leak bytes."""
+        self._feed(b"\x1b[15~a")
+        self.assertEqual(self.term.read_key(), "CSI15~")
+        self.assertEqual(self.term.read_key(), "a")
+
+    def test_modifier_sequence_consumed_cleanly(self) -> None:
+        """Parametric Shift-Tab ESC[1;2Z: decoded, no residue."""
+        self._feed(b"\x1b[1;2Zq")
+        self.assertEqual(self.term.read_key(), "SHIFT_TAB")
+        self.assertEqual(self.term.read_key(), "q")
+
+    def test_unknown_modifier_sequence_consumed_cleanly(self) -> None:
+        """Ctrl-Right ESC[1;5C: unmapped params, consumed without leaking."""
+        self._feed(b"\x1b[1;5Cz")
+        self.assertEqual(self.term.read_key(), "CSI1;5C")
+        self.assertEqual(self.term.read_key(), "z")
+
+    # --- CTRL_D ---
+
+    def test_ctrl_d_decodes(self) -> None:
+        self._feed(b"\x04")
+        self.assertEqual(self.term.read_key(), "CTRL_D")
+
+    # --- regression: existing keys still decode ---
+
+    def test_arrow_keys_decode(self) -> None:
+        self._feed(b"\x1b[A\x1b[B\x1b[C\x1b[D")
+        self.assertEqual(self.term.read_key(), "UP")
+        self.assertEqual(self.term.read_key(), "DOWN")
+        self.assertEqual(self.term.read_key(), "RIGHT")
+        self.assertEqual(self.term.read_key(), "LEFT")
+
+    def test_home_end_decode(self) -> None:
+        self._feed(b"\x1b[H\x1b[F")
+        self.assertEqual(self.term.read_key(), "HOME")
+        self.assertEqual(self.term.read_key(), "END")
+
+    def test_shift_tab_decodes(self) -> None:
+        self._feed(b"\x1b[Z")
+        self.assertEqual(self.term.read_key(), "SHIFT_TAB")
+
+    def test_enter_tab_backspace_ctrl_c_decode(self) -> None:
+        self._feed(b"\r\n\t\x7f\x08\x03")
+        self.assertEqual(self.term.read_key(), "ENTER")
+        self.assertEqual(self.term.read_key(), "ENTER")
+        self.assertEqual(self.term.read_key(), "TAB")
+        self.assertEqual(self.term.read_key(), "BACKSPACE")
+        self.assertEqual(self.term.read_key(), "BACKSPACE")
+        self.assertEqual(self.term.read_key(), "CTRL_C")
+
+    def test_bare_escape_decodes(self) -> None:
+        self._feed(b"\x1b")
+        self.assertEqual(self.term.read_key(), "ESC")
+
+    def test_plain_character_passthrough(self) -> None:
+        self._feed(b"g")
+        self.assertEqual(self.term.read_key(), "g")
+
+
 if __name__ == "__main__":
     unittest.main()

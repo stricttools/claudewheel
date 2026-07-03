@@ -87,6 +87,35 @@ class Terminal:
                 ch2 = os.read(self.fd, 1).decode("utf-8", errors="replace")
                 if ch2 == "[":
                     ch3 = os.read(self.fd, 1).decode("utf-8", errors="replace")
+                    if ch3.isdigit():
+                        # Multi-byte CSI: consume parameter/intermediate bytes
+                        # (0x20-0x3F: digits, ';', etc.) through the final
+                        # byte (0x40-0x7E) so nothing leaks into the next read.
+                        params = ch3
+                        while True:
+                            nxt = os.read(self.fd, 1).decode(
+                                "utf-8", errors="replace")
+                            if "\x20" <= nxt <= "\x3f":
+                                params += nxt
+                                continue
+                            final = nxt
+                            break
+                        if final == "~":
+                            match params:
+                                case "2":
+                                    return "INSERT"
+                                case "3":
+                                    return "DELETE"
+                                case "5":
+                                    return "PGUP"
+                                case "6":
+                                    return "PGDN"
+                                case _:
+                                    return f"CSI{params}~"
+                        if final == "Z":
+                            # Parametric Shift-Tab, e.g. ESC[1;2Z
+                            return "SHIFT_TAB"
+                        return f"CSI{params}{final}"
                     match ch3:
                         case "A":
                             return "UP"
@@ -114,6 +143,8 @@ class Terminal:
             return "BACKSPACE"
         if ch == "\x03":
             return "CTRL_C"
+        if ch == "\x04":
+            return "CTRL_D"
         return ch
 
     def _write_tty(self, text: str) -> None:
