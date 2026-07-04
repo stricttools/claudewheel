@@ -456,5 +456,72 @@ class ModelSyncTests(unittest.TestCase):
         self.assertIn("claude-opus-4-7[1m]", user_models)
 
 
+# ---------------------------------------------------------------------------
+# 5. Rename recovery at startup
+# ---------------------------------------------------------------------------
+
+
+class RenameRecoveryOnStartupTests(unittest.TestCase):
+    """ConfigManager.__post_init__ calls recover_incomplete_renames to auto-repair."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.home = Path(self._tmp.name)
+        self.cw_dir = self.home / ".claudewheel"
+        self.cw_dir.mkdir()
+        self.profiles_dir = self.cw_dir / "profiles"
+        self.profiles_dir.mkdir()
+
+    def test_startup_recovers_rename(self) -> None:
+        """A .rename_pending breadcrumb triggers store repair during init."""
+        # Simulate: dir renamed to "repaired", JSON still has "broken"
+        new_dir = self.profiles_dir / "repaired"
+        new_dir.mkdir()
+        (new_dir / ".credentials.json").write_text("{}")
+        (new_dir / ".rename_pending").write_text(
+            json.dumps({"from": "broken", "to": "repaired"})
+        )
+
+        tokens_file = self.cw_dir / "tokens.json"
+        tokens_file.write_text(json.dumps({"broken": "tok-b"}))
+        options_file = self.cw_dir / "options.json"
+        _write_json(options_file, {"profile": {"values": ["broken"]}})
+        state_file = self.cw_dir / "state.json"
+        _write_json(state_file, {"last_config": {"profile": "broken"}})
+
+        # Patch all paths and suppress terminal detection
+        from claudewheel import config as config_mod
+        from claudewheel import profile_ops, state as state_mod
+
+        with (
+            patch.object(config_mod, "CONFIG_DIR", self.cw_dir),
+            patch.object(config_mod, "CONFIG_FILE", self.cw_dir / "config.json"),
+            patch.object(config_mod, "SEGMENTS_FILE", self.cw_dir / "segments.json"),
+            patch.object(config_mod, "OPTIONS_FILE", options_file),
+            patch.object(config_mod, "STATE_FILE", state_file),
+            patch.object(config_mod, "THEMES_DIR", self.cw_dir / "themes"),
+            patch.object(config_mod, "HOOKS_DIR", self.cw_dir / "hooks"),
+            patch.object(config_mod, "SHARED_SETTINGS_FILE", self.cw_dir / "shared-settings.json"),
+            patch.object(config_mod, "SCRIPTS_DIR", self.cw_dir / "scripts"),
+            patch.object(config_mod, "detect_terminal_background", return_value="dark"),
+            patch.object(profile_ops, "PROFILES_DIR", self.profiles_dir),
+            patch.object(profile_ops, "OPTIONS_FILE", options_file),
+            patch.object(profile_ops, "TOKENS_FILE", tokens_file),
+            patch.object(state_mod, "STATE_FILE", state_file),
+        ):
+            ConfigManager()
+
+        # Breadcrumb gone
+        self.assertFalse((new_dir / ".rename_pending").exists())
+        # Stores updated
+        tokens = json.loads(tokens_file.read_text())
+        self.assertNotIn("broken", tokens)
+        self.assertIn("repaired", tokens)
+        opts = json.loads(options_file.read_text())
+        self.assertIn("repaired", opts["profile"]["values"])
+        self.assertNotIn("broken", opts["profile"]["values"])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -176,6 +176,7 @@ class ConfigManager:
         self.theme = self._load_json(theme_file, theme_default)
         self._migrate(theme_file, theme_default)
         self._run_versioned_migrations(theme_file)
+        self._recover_incomplete_renames()
         self._ensure_shared_settings()
         self._warn_old_profile_dirs()
 
@@ -190,6 +191,12 @@ class ConfigManager:
             return theme_name
         detected = detect_terminal_background()
         return detected if detected in ("light", "dark") else "dark"
+
+    @staticmethod
+    def _recover_incomplete_renames() -> None:
+        """Finish any interrupted profile renames (crash recovery)."""
+        from .profile_ops import recover_incomplete_renames
+        recover_incomplete_renames()
 
     @staticmethod
     def _warn_old_profile_dirs() -> None:

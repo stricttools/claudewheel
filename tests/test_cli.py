@@ -8,6 +8,7 @@ unit-test in isolation -- avoiding the need to mock argparse + sys.exit.
 from __future__ import annotations
 
 import io
+import json
 import os
 import tempfile
 import unittest
@@ -1893,6 +1894,151 @@ class CheckTokensTests(unittest.TestCase):
             rc = cli._handle_check_tokens()
 
         return rc, buf.getvalue()
+
+
+# ---------------------------------------------------------------------------
+# Profile rename command
+# ---------------------------------------------------------------------------
+
+
+class RenameProfileDispatchTests(unittest.TestCase):
+    """'profile rename old new' dispatches to the handler with correct args."""
+
+    def test_dispatches(self) -> None:
+        with (
+            mock.patch("sys.argv", ["c", "profile", "rename", "alpha", "beta"]),
+            mock.patch.object(cli, "_handle_rename_profile", return_value=0) as mock_handler,
+        ):
+            try:
+                cli.main()
+            except SystemExit:
+                pass
+        mock_handler.assert_called_once()
+        self.assertEqual(mock_handler.call_args.kwargs["old"], "alpha")
+        self.assertEqual(mock_handler.call_args.kwargs["new"], "beta")
+
+
+class RenameProfileHandlerTests(unittest.TestCase):
+    """_handle_rename_profile validates inputs and delegates to rename_profile."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.home = Path(self._tmp.name)
+        self.profiles_dir = self.home / ".claudewheel" / "profiles"
+        self.profiles_dir.mkdir(parents=True)
+        self.options_file = self.home / ".claudewheel" / "options.json"
+        self.tokens_file = self.home / ".claudewheel" / "tokens.json"
+
+        self._patches = [
+            mock.patch.object(cli, "OPTIONS_FILE", self.options_file),
+        ]
+        for p in self._patches:
+            p.start()
+        self.addCleanup(self._stop_patches)
+
+    def _stop_patches(self) -> None:
+        for p in reversed(self._patches):
+            p.stop()
+
+    def _write_options(self, values: list[str], pinned: list[str] | None = None) -> None:
+        data = {"profile": {"values": values}}
+        if pinned:
+            data["profile"]["pinned"] = pinned
+        self.options_file.write_text(json.dumps(data))
+
+    def test_old_not_found_exits(self) -> None:
+        self._write_options([])
+        with (
+            mock.patch("claudewheel.cli.PROFILES_DIR",
+                       self.profiles_dir, create=True),
+            mock.patch("claudewheel.constants.PROFILES_DIR", self.profiles_dir),
+            self.assertRaises(SystemExit) as ctx,
+        ):
+            cli._handle_rename_profile("ghost", "newname")
+        self.assertEqual(ctx.exception.code, 1)
+
+    def test_bad_chars_exits(self) -> None:
+        (self.profiles_dir / "old").mkdir()
+        self._write_options(["old"])
+        with (
+            mock.patch("claudewheel.cli.PROFILES_DIR",
+                       self.profiles_dir, create=True),
+            mock.patch("claudewheel.constants.PROFILES_DIR", self.profiles_dir),
+            self.assertRaises(SystemExit) as ctx,
+        ):
+            cli._handle_rename_profile("old", "UPPER")
+        self.assertEqual(ctx.exception.code, 1)
+
+    def test_default_name_rejected(self) -> None:
+        (self.profiles_dir / "old").mkdir()
+        self._write_options(["old"])
+        with (
+            mock.patch("claudewheel.cli.PROFILES_DIR",
+                       self.profiles_dir, create=True),
+            mock.patch("claudewheel.constants.PROFILES_DIR", self.profiles_dir),
+            self.assertRaises(SystemExit) as ctx,
+        ):
+            cli._handle_rename_profile("old", "default")
+        self.assertEqual(ctx.exception.code, 1)
+
+    def test_target_exists_exits(self) -> None:
+        (self.profiles_dir / "src").mkdir()
+        (self.profiles_dir / "dst").mkdir()
+        self._write_options(["src", "dst"])
+        with (
+            mock.patch("claudewheel.cli.PROFILES_DIR",
+                       self.profiles_dir, create=True),
+            mock.patch("claudewheel.constants.PROFILES_DIR", self.profiles_dir),
+            self.assertRaises(SystemExit) as ctx,
+        ):
+            cli._handle_rename_profile("src", "dst")
+        self.assertEqual(ctx.exception.code, 1)
+
+    def test_running_profile_exits(self) -> None:
+        (self.profiles_dir / "active").mkdir()
+        self._write_options(["active"])
+        self.tokens_file.write_text("{}")
+        with (
+            mock.patch("claudewheel.cli.PROFILES_DIR",
+                       self.profiles_dir, create=True),
+            mock.patch("claudewheel.constants.PROFILES_DIR", self.profiles_dir),
+            mock.patch("claudewheel.profile_ops._is_profile_running", return_value=True),
+            self.assertRaises(SystemExit) as ctx,
+        ):
+            cli._handle_rename_profile("active", "newname")
+        self.assertEqual(ctx.exception.code, 1)
+
+    def test_success_calls_rename_profile(self) -> None:
+        (self.profiles_dir / "old").mkdir()
+        self._write_options(["old"])
+        self.tokens_file.write_text("{}")
+        buf = io.StringIO()
+        with (
+            mock.patch("claudewheel.cli.PROFILES_DIR",
+                       self.profiles_dir, create=True),
+            mock.patch("claudewheel.constants.PROFILES_DIR", self.profiles_dir),
+            mock.patch("claudewheel.profile_ops._is_profile_running", return_value=False),
+            mock.patch("claudewheel.profile_ops.rename_profile") as mock_rename,
+            redirect_stdout(buf),
+        ):
+            rc = cli._handle_rename_profile("old", "new-name")
+        self.assertEqual(rc, 0)
+        mock_rename.assert_called_once_with("old", "new-name")
+        self.assertIn("Renamed", buf.getvalue())
+
+    def test_token_conflict_exits(self) -> None:
+        (self.profiles_dir / "src").mkdir()
+        self._write_options(["src"])
+        self.tokens_file.write_text(json.dumps({"dst": "tok-conflict"}))
+        with (
+            mock.patch("claudewheel.cli.PROFILES_DIR",
+                       self.profiles_dir, create=True),
+            mock.patch("claudewheel.constants.PROFILES_DIR", self.profiles_dir),
+            self.assertRaises(SystemExit) as ctx,
+        ):
+            cli._handle_rename_profile("src", "dst")
+        self.assertEqual(ctx.exception.code, 1)
 
 
 if __name__ == "__main__":

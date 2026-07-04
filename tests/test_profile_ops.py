@@ -751,5 +751,180 @@ class FixAuthShadowTests(_ProfileOpsTestCase):
         self.assertEqual(mode, 0o600)
 
 
+# ---------------------------------------------------------------------------
+# Profile rename
+# ---------------------------------------------------------------------------
+
+
+class RenameProfileTests(_ProfileOpsTestCase):
+    """rename_profile moves dir and updates all JSON stores."""
+
+    def test_full_rename_updates_all_stores(self) -> None:
+        """Rename updates dir, tokens, options, and state."""
+        self._make_profile_dir("alpha")
+        self._write_options(
+            ["alpha", "beta"],
+            metadata={"alpha": {"config_dir": "~/.claudewheel/profiles/alpha"}},
+        )
+        self._write_tokens({"alpha": {"token": "tok-a"}, "beta": "tok-b"})
+        self.state_file.write_text(json.dumps({
+            "last_config": {"profile": "alpha", "model": "opus"},
+        }))
+
+        profile_ops.rename_profile("alpha", "zeta")
+
+        # Dir moved
+        profiles_dir = self.home / ".claudewheel" / "profiles"
+        self.assertFalse((profiles_dir / "alpha").exists())
+        self.assertTrue((profiles_dir / "zeta").is_dir())
+        # No breadcrumb
+        self.assertFalse((profiles_dir / "zeta" / ".rename_pending").exists())
+
+        # Tokens updated
+        tokens = json.loads(self.tokens_file.read_text())
+        self.assertNotIn("alpha", tokens)
+        self.assertIn("zeta", tokens)
+        self.assertEqual(tokens["zeta"]["token"], "tok-a")
+
+        # Options updated
+        options = json.loads(self.options_file.read_text())
+        values = options["profile"]["values"]
+        self.assertNotIn("alpha", values)
+        self.assertIn("zeta", values)
+        meta = options["profile"]["metadata"]
+        self.assertNotIn("alpha", meta)
+        self.assertIn("zeta", meta)
+        self.assertEqual(meta["zeta"]["config_dir"], "~/.claudewheel/profiles/zeta")
+
+        # State updated
+        state_data = json.loads(self.state_file.read_text())
+        self.assertEqual(state_data["last_config"]["profile"], "zeta")
+
+    def test_rename_tokens_absent_skipped(self) -> None:
+        """If profile has no token, rename still succeeds (tokens step is skipped)."""
+        self._make_profile_dir("notoken")
+        self._write_options(["notoken"])
+        # No tokens.json at all
+
+        profile_ops.rename_profile("notoken", "renamed")
+
+        profiles_dir = self.home / ".claudewheel" / "profiles"
+        self.assertTrue((profiles_dir / "renamed").is_dir())
+
+    def test_rename_state_not_matching_unchanged(self) -> None:
+        """If last_config.profile != old, state.json is not modified."""
+        self._make_profile_dir("gamma")
+        self._write_options(["gamma"])
+        self.state_file.write_text(json.dumps({
+            "last_config": {"profile": "other", "model": "sonnet"},
+        }))
+
+        profile_ops.rename_profile("gamma", "delta")
+
+        state_data = json.loads(self.state_file.read_text())
+        self.assertEqual(state_data["last_config"]["profile"], "other")
+
+    def test_rename_nonexistent_dir_raises(self) -> None:
+        """Renaming a profile with no directory raises ValueError."""
+        self._write_options(["ghost"])
+        with self.assertRaises(ValueError):
+            profile_ops.rename_profile("ghost", "new-name")
+
+    def test_rename_target_exists_raises(self) -> None:
+        """Renaming to an existing directory raises ValueError."""
+        self._make_profile_dir("src")
+        self._make_profile_dir("dst")
+        self._write_options(["src", "dst"])
+        with self.assertRaises(ValueError):
+            profile_ops.rename_profile("src", "dst")
+
+    def test_pinned_list_updated(self) -> None:
+        """Profile in pinned list gets renamed there too."""
+        self._make_profile_dir("pinned-one")
+        opts = {
+            "profile": {
+                "values": ["pinned-one"],
+                "pinned": ["pinned-one"],
+                "metadata": {},
+            }
+        }
+        self.options_file.write_text(json.dumps(opts))
+
+        profile_ops.rename_profile("pinned-one", "pinned-two")
+
+        options = json.loads(self.options_file.read_text())
+        self.assertIn("pinned-two", options["profile"]["pinned"])
+        self.assertNotIn("pinned-one", options["profile"]["pinned"])
+
+
+class RenameRecoveryTests(_ProfileOpsTestCase):
+    """recover_incomplete_renames finishes a crashed rename."""
+
+    def test_recovery_completes_rename(self) -> None:
+        """Breadcrumb in renamed dir triggers store updates."""
+        # Simulate crash: dir already renamed, but JSON stores still reference old
+        profiles_dir = self.home / ".claudewheel" / "profiles"
+        new_dir = profiles_dir / "new-name"
+        new_dir.mkdir(parents=True)
+        (new_dir / ".credentials.json").write_text("{}")
+        (new_dir / ".rename_pending").write_text(
+            json.dumps({"from": "old-name", "to": "new-name"})
+        )
+
+        self._write_options(
+            ["old-name"],
+            metadata={"old-name": {"config_dir": "~/.claudewheel/profiles/old-name"}},
+        )
+        self._write_tokens({"old-name": "tok-old"})
+        self.state_file.write_text(json.dumps({
+            "last_config": {"profile": "old-name"},
+        }))
+
+        recovered = profile_ops.recover_incomplete_renames()
+
+        self.assertEqual(recovered, ["new-name"])
+        # Breadcrumb removed
+        self.assertFalse((new_dir / ".rename_pending").exists())
+        # Stores updated
+        tokens = json.loads(self.tokens_file.read_text())
+        self.assertNotIn("old-name", tokens)
+        self.assertIn("new-name", tokens)
+        options = json.loads(self.options_file.read_text())
+        self.assertNotIn("old-name", options["profile"]["values"])
+        self.assertIn("new-name", options["profile"]["values"])
+        state_data = json.loads(self.state_file.read_text())
+        self.assertEqual(state_data["last_config"]["profile"], "new-name")
+
+    def test_recovery_no_breadcrumb_noop(self) -> None:
+        """Without breadcrumb, nothing happens."""
+        profiles_dir = self.home / ".claudewheel" / "profiles"
+        profiles_dir.mkdir(parents=True)
+        (profiles_dir / "clean").mkdir()
+
+        recovered = profile_ops.recover_incomplete_renames()
+        self.assertEqual(recovered, [])
+
+    def test_recovery_idempotent(self) -> None:
+        """Running recovery when stores already reference new name is safe."""
+        profiles_dir = self.home / ".claudewheel" / "profiles"
+        new_dir = profiles_dir / "fresh"
+        new_dir.mkdir(parents=True)
+        (new_dir / ".rename_pending").write_text(
+            json.dumps({"from": "stale", "to": "fresh"})
+        )
+
+        # Stores already have "fresh" (not "stale")
+        self._write_options(["fresh"])
+        self._write_tokens({"fresh": "tok-f"})
+
+        recovered = profile_ops.recover_incomplete_renames()
+
+        self.assertEqual(recovered, ["fresh"])
+        # Breadcrumb removed, stores unchanged
+        self.assertFalse((new_dir / ".rename_pending").exists())
+        tokens = json.loads(self.tokens_file.read_text())
+        self.assertIn("fresh", tokens)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -372,6 +372,72 @@ def _handle_show_profile(name: str) -> int:
     return 0
 
 
+def _handle_rename_profile(old: str, new: str) -> int:
+    """Rename a profile: validate inputs, then delegate to core rename logic."""
+    import re
+    from .constants import PROFILES_DIR, TOKENS_FILE
+    from .profile_ops import _is_profile_running, rename_profile
+
+    # Validate old exists
+    old_dir = PROFILES_DIR / old
+    try:
+        import json as _json
+        options = _json.loads(OPTIONS_FILE.read_text())
+    except (FileNotFoundError, _json.JSONDecodeError, OSError):
+        options = {}
+    profile_sec = options.get("profile", {})
+    registered = old in profile_sec.get("values", []) or old in profile_sec.get("pinned", [])
+    if not registered and not old_dir.is_dir():
+        print(f"Profile '{old}' not found.", file=sys.stderr)
+        sys.exit(1)
+
+    # Validate new name charset
+    if not re.match(r'^[a-z0-9][a-z0-9-]*$', new):
+        print("Invalid name: use lowercase letters, digits, hyphens only "
+              "(must start with letter or digit).", file=sys.stderr)
+        sys.exit(1)
+
+    # Validate not reserved
+    if new == "default":
+        print("Cannot rename to 'default': reserved name.", file=sys.stderr)
+        sys.exit(1)
+
+    # Validate not already taken
+    new_dir = PROFILES_DIR / new
+    if new_dir.exists():
+        print(f"Profile '{new}' already exists (directory).", file=sys.stderr)
+        sys.exit(1)
+    new_in_values = new in profile_sec.get("values", [])
+    new_in_pinned = new in profile_sec.get("pinned", [])
+    if new_in_values or new_in_pinned:
+        print(f"Profile '{new}' already registered in options.", file=sys.stderr)
+        sys.exit(1)
+    try:
+        import json as _json
+        tokens = _json.loads(TOKENS_FILE.read_text())
+    except (FileNotFoundError, _json.JSONDecodeError, OSError):
+        tokens = {}
+    if new in tokens:
+        print(f"Profile '{new}' already has a token entry.", file=sys.stderr)
+        sys.exit(1)
+
+    # Check not running
+    if _is_profile_running(old):
+        print(f"Profile '{old}' has active sessions. "
+              "Stop them before renaming.", file=sys.stderr)
+        sys.exit(1)
+
+    # Perform rename
+    try:
+        rename_profile(old, new)
+    except (ValueError, OSError) as e:
+        print(f"Rename failed: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"Renamed profile '{old}' -> '{new}'.")
+    return 0
+
+
 def _handle_check_tokens() -> int:
     """Validate stored tokens for all discovered profiles against the Anthropic API."""
     import json
@@ -1051,6 +1117,12 @@ def _build_app() -> App:
     profile_grp.command("show", help="inspect a profile's configuration and status",
                         args=[Arg(name="name", help="name of the profile to inspect (e.g. work, personal, default)")])(
         _handle_show_profile
+    )
+
+    profile_grp.command("rename", help="rename a profile",
+                        args=[Arg(name="old", help="current profile name"),
+                              Arg(name="new", help="new profile name")])(
+        _handle_rename_profile
     )
 
     profile_grp.command("fix-auth", help="remove session credentials that shadow a long-lived token",
