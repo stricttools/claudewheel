@@ -48,7 +48,7 @@
   },
   "project_id": "claudewheel",
   "name": "c",
-  "version": "0.18.1",
+  "version": "0.18.2",
   "help": "claudewheel - TUI launcher for Claude Code with profile, model, and directory selection",
   "commands": {
     "health": {
@@ -86,44 +86,6 @@
     "reset-options": {
       "name": "reset-options",
       "help": "delete options.json so it regenerates from defaults"
-    },
-    "new-profile": {
-      "name": "new-profile",
-      "help": "run the interactive wizard to create and configure a new Claude profile"
-    },
-    "delete-profile": {
-      "name": "delete-profile",
-      "help": "delete a registered profile and all associated data",
-      "flags": [
-        {
-          "name": "force-delete",
-          "type": "bool",
-          "help": "force deletion even if sessions appear active; skips the safety check",
-          "negatable": true
-        },
-        {
-          "name": "force-delete-data",
-          "type": "bool",
-          "help": "delete even when shared-dir names hold REAL data instead of symlinks; this DESTROYS that data (e.g. conversation history)",
-          "negatable": true
-        }
-      ],
-      "args": [
-        {
-          "name": "name",
-          "help": "name of the profile to delete (e.g. work, personal, lisa)"
-        }
-      ]
-    },
-    "show-profile": {
-      "name": "show-profile",
-      "help": "print a detailed inspection report for one profile (auth, symlinks, settings, sessions, disk)",
-      "args": [
-        {
-          "name": "name",
-          "help": "name of the profile to inspect (e.g. work, personal, default)"
-        }
-      ]
     },
     "show": {
       "name": "show",
@@ -350,6 +312,64 @@
     }
   },
   "groups": {
+    "profile": {
+      "name": "profile",
+      "help": "create, inspect, delete, and manage profiles",
+      "commands": {
+        "create": {
+          "name": "create",
+          "help": "create a new profile interactively"
+        },
+        "delete": {
+          "name": "delete",
+          "help": "delete a registered profile",
+          "flags": [
+            {
+              "name": "force-delete",
+              "type": "bool",
+              "help": "force deletion even if sessions appear active; skips the safety check",
+              "negatable": true
+            },
+            {
+              "name": "force-delete-data",
+              "type": "bool",
+              "help": "delete even when shared-dir names hold REAL data instead of symlinks; this DESTROYS that data (e.g. conversation history)",
+              "negatable": true
+            }
+          ],
+          "args": [
+            {
+              "name": "name",
+              "help": "name of the profile to delete (e.g. work, personal, lisa)"
+            }
+          ]
+        },
+        "show": {
+          "name": "show",
+          "help": "inspect a profile's configuration and status",
+          "args": [
+            {
+              "name": "name",
+              "help": "name of the profile to inspect (e.g. work, personal, default)"
+            }
+          ]
+        },
+        "fix-auth": {
+          "name": "fix-auth",
+          "help": "remove session credentials that shadow a long-lived token",
+          "args": [
+            {
+              "name": "name",
+              "help": "profile name whose auth shadow to remove"
+            }
+          ]
+        },
+        "check-tokens": {
+          "name": "check-tokens",
+          "help": "validate stored tokens against the Anthropic API"
+        }
+      }
+    },
     "permission": {
       "name": "permission",
       "help": "add, remove, and list permission rules across Claude profiles",
@@ -473,5 +493,10 @@
         }
       }
     }
+  },
+  "deprecated": {
+    "new-profile": "Renamed: use 'claudewheel profile create' instead.",
+    "delete-profile": "Renamed: use 'claudewheel profile delete <name>' instead.",
+    "show-profile": "Renamed: use 'claudewheel profile show <name>' instead."
   }
 }

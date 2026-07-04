@@ -2,6 +2,39 @@
 
 # Changelog
 
+## 0.19.0
+
+CLI profile command group, auth shadow fix, hook guard, rate-limit tier, live theme switching, and online token validation.
+
+<details>
+<summary>Context</summary>
+
+Breaking: profile commands are now grouped under `claudewheel profile` (create/delete/show/fix-auth/check-tokens). Old flat names print a redirect and exit.
+
+New features: auth-shadow detection and fix (profile fix-auth strips session credentials shadowing long-lived tokens), a PreToolUse hook blocking unsafe git/rm patterns in AI sessions, rate-limit tier capture from session-login credentials for downstream tools, a themed install-confirmation dialog, online token validation (profile check-tokens), and Mode 2031 live theme switching for terminals that support it.
+
+Fixes: CSI decoder handles private-mode sequences without byte leakage, and SIGTERM/SIGHUP are cleanly saved/restored during forms and PTY sessions.
+
+</details>
+
+### Breaking
+
+- **Breaking.** Profile commands renamed to a group: `new-profile` -> `profile create`, `delete-profile` -> `profile delete`, `show-profile` -> `profile show`. Old names print a redirect and exit.
+
+### Features
+
+- New `profile fix-auth` command strips session credentials that shadow a long-lived token, and a health check detects the condition.
+- New `hook-block-unsafe-commands` hook blocks raw `git add`, `git stash`, `git restore`, `git checkout --`, and `rm` in AI agent sessions, directing to safegit/saferm.
+- Rate-limit tier is captured from session-login credentials and exposed to downstream tools (e.g., howmuchleft) via a `.credentials.json` stub at launch.
+- Version install uses a themed confirmation dialog and result page instead of a bare text prompt.
+- New `profile check-tokens` command validates stored tokens against the Anthropic API and reports per-profile status.
+- Live theme switching: terminals supporting Mode 2031 (kitty, Ghostty, foot, VTE 0.82+) automatically switch claudewheel's theme when the OS dark/light mode changes mid-session.
+
+### Fixes
+
+- Fixed CSI decoder to handle private-mode sequences (ESC[?...) without leaking bytes into the input stream.
+- SIGTERM and SIGHUP are now handled cleanly during forms and PTY sessions, preventing terminal corruption on kill.
+
 ## 0.18.2
 
 Profiles now launch without a login screen, and the theme adapts to light/dark terminals automatically.
