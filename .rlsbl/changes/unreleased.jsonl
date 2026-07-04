@@ -1,0 +1,6 @@
+{"commits":["a6d2ebc6ed0b37e0f019f1f27fff020bc7adc29e"],"user_facing":true,"description":"Terminal background detection timeout reduced from 1s to 500ms, halving worst-case startup latency on unsupported terminals.","type":"feature"}
+{"commits":["904d949e222c549d95e13e58c595340b4aee98ae"],"user_facing":true,"description":"Fixed a race where concurrent sessions could lose the remembered browser choice on state save.","type":"fix"}
+{"commits":["1511f24e604c8c988e17656f202fe6a78ef82be4","91b3ca88d3656a2f9d4e94379b3e99c2850888b8"],"user_facing":false}
+{"commits":["cee1b3aba0cc868b1ebbd807968a3eaa7ae05412","91a6df2eb76ab71c28bb3661ab788a58a5bb8af0"],"user_facing":true,"description":"Profile inspect page now offers to fix auth shadow inline when detected (press `f`).","type":"feature"}
+{"commits":["63c72812a9cd6352e52739b182c82518115109dd"],"user_facing":true,"description":"New `profile rename <old> <new>` command with automatic recovery if interrupted mid-rename.","type":"feature"}
+{"commits":["7df4085a04796740d71787f132f129ae86162d62"],"user_facing":false}
