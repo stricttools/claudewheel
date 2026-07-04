@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from .config import ConfigManager
 from .segment import DiscoveryResult, Segment, build_segment_bar, evaluate_requires, merge_slow_results, run_slow_discovery_via_registry, _discover_profiles, _update_auth_from_metadata
 from .state import merge_out_of_band_keys
-from .terminal import Terminal
+from .terminal import Terminal, detect_mode2031_support
 from .theme import parse_theme
 from .renderer import Renderer
 
@@ -48,7 +48,7 @@ class Binding:
     condition: Callable[[KeyContext], bool] | None  # None = unconditional
     handler: Callable  # (app, key) -> str | None
     priority: int  # hint ordering (lower = shown first)
-    mode: str  # "main" / "creating" / "freeform" / "install"
+    mode: str | None  # "main" / "creating" / "freeform" / "install" / None (cross-mode)
 
 
 class App:
@@ -85,12 +85,19 @@ class App:
         self.running = False
         self._flash: str = ""  # Temporary message shown for one render cycle
         self._show_provenance: bool = False  # Phase 9: provenance overlay toggle
+        self._mode2031_supported: bool = False
         self._bindings: list[Binding] = self._build_bindings()
 
     def run_tui(self) -> dict[str, str | None] | None:
         """Enter the TUI loop. Returns selections on launch, None on quit."""
         self.running = True
+        # Detect Mode 2031 support before entering raw (uses its own cbreak)
+        mode2031_result = detect_mode2031_support()
+        self._mode2031_supported = mode2031_result is not None
         self.terminal.enter_raw()
+        # Subscribe to Mode 2031 after entering raw mode
+        if self._mode2031_supported:
+            self.terminal.subscribe_mode2031()
 
         def on_resize(signum, frame):
             self.terminal.rows, self.terminal.cols = self.terminal.get_size()
@@ -242,7 +249,7 @@ class App:
         ctx = self._build_context()
         filtered = [
             b for b in self._bindings
-            if b.mode == ctx.mode
+            if (b.mode is None or b.mode == ctx.mode)
             and (b.condition is None or b.condition(ctx))
             and b.label is not None
         ]
@@ -257,7 +264,7 @@ class App:
         """Process a keypress via the binding registry."""
         ctx = self._build_context()
         for b in self._bindings:
-            if b.mode != ctx.mode:
+            if b.mode is not None and b.mode != ctx.mode:
                 continue
             # Key matching
             if b.keys is not None:
@@ -420,6 +427,27 @@ class App:
     def _h_main_quit(self, key: str) -> str | None:
         return "quit"
 
+    # -- Cross-mode handlers --
+
+    def _h_theme_switch(self, key: str) -> str | None:
+        """Handle Mode 2031 theme-change notification."""
+        from .constants import THEMES_DIR
+        from .defaults import DEFAULT_THEME_DARK, DEFAULT_THEME_LIGHT
+
+        mode = "dark" if key == "THEME_DARK" else "light"
+        theme_file = THEMES_DIR / f"{mode}.json"
+        default = DEFAULT_THEME_DARK if mode == "dark" else DEFAULT_THEME_LIGHT
+        try:
+            import json
+            with open(theme_file) as f:
+                theme_dict = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            theme_dict = default
+        self.theme = parse_theme(theme_dict)
+        self.renderer.theme = self.theme
+        self.cfg.theme = theme_dict
+        return None
+
     # -- Freeform mode handlers --
 
     def _h_freeform_enter(self, key: str) -> str | None:
@@ -565,6 +593,25 @@ class App:
     def _build_bindings(self) -> list[Binding]:
         """Build the full binding registry from handler methods."""
         return [
+            # =============================================================
+            # CROSS-MODE (mode=None): checked first regardless of mode
+            # =============================================================
+            Binding(
+                keys=frozenset({"THEME_DARK"}),
+                label=None,  # hidden
+                condition=None,
+                handler=App._h_theme_switch,
+                priority=0,
+                mode=None,
+            ),
+            Binding(
+                keys=frozenset({"THEME_LIGHT"}),
+                label=None,  # hidden
+                condition=None,
+                handler=App._h_theme_switch,
+                priority=0,
+                mode=None,
+            ),
             # =============================================================
             # CREATING MODE
             # =============================================================
