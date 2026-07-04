@@ -27,6 +27,7 @@ class Terminal:
         self.cols = 80
         self._in_raw = False
         self._alt_screen = True
+        self._mode2031_subscribed = False
 
     def get_size(self) -> tuple[int, int]:
         try:
@@ -49,8 +50,17 @@ class Terminal:
             self._write_tty(HIDE_CURSOR)
         atexit.register(self.exit_raw)
 
+    def subscribe_mode2031(self) -> None:
+        """Subscribe to Mode 2031 theme-change notifications."""
+        self._write_tty("\x1b[?2031h")
+        self._mode2031_subscribed = True
+
     def exit_raw(self) -> None:
         if self._in_raw and self.old_attrs is not None:
+            # Unsubscribe from Mode 2031 before restoring terminal state
+            if self._mode2031_subscribed:
+                self._write_tty("\x1b[?2031l")
+                self._mode2031_subscribed = False
             termios.tcsetattr(self.fd, termios.TCSAFLUSH, self.old_attrs)
             if self._alt_screen:
                 self._write_tty(SHOW_CURSOR + ALT_SCREEN_OFF)
@@ -115,6 +125,13 @@ class Terminal:
                         if final == "Z":
                             # Parametric Shift-Tab, e.g. ESC[1;2Z
                             return "SHIFT_TAB"
+                        # Mode 2031 theme-change notifications:
+                        # CSI ?997;1n = dark, CSI ?997;2n = light
+                        if final == "n":
+                            if params == "?997;1":
+                                return "THEME_DARK"
+                            if params == "?997;2":
+                                return "THEME_LIGHT"
                         return f"CSI{params}{final}"
                     match ch3:
                         case "A":
@@ -208,6 +225,102 @@ def detect_terminal_background() -> str | None:
         except termios.error:
             pass
         tty_file.close()
+
+
+def detect_mode2031_support() -> str | None:
+    """Detect whether the terminal supports Mode 2031 (theme-change notifications).
+
+    Sends CSI ?996n (Mode 2031 query) + DA1 sentinel. If the terminal
+    responds with CSI ?997;Xn (where X=1 for dark, X=2 for light),
+    Mode 2031 is supported. Returns "dark", "light", or None.
+
+    Must be called BEFORE entering the TUI.
+    """
+    term_env = os.environ.get("TERM", "")
+    if term_env in ("dumb", "Eterm") or term_env.startswith("screen"):
+        return None
+
+    try:
+        tty_file = open("/dev/tty", "r+b", buffering=0)
+    except OSError:
+        return None
+
+    fd = tty_file.fileno()
+    try:
+        old_attrs = termios.tcgetattr(fd)
+    except termios.error:
+        tty_file.close()
+        return None
+
+    try:
+        tty.setcbreak(fd)
+
+        # Mode 2031 query + DA1 sentinel
+        tty_file.write(b"\x1b[?996n\x1b[c")
+        tty_file.flush()
+
+        result = _parse_mode2031_response(fd)
+        return result
+    except OSError:
+        return None
+    finally:
+        try:
+            termios.tcsetattr(fd, termios.TCSAFLUSH, old_attrs)
+        except termios.error:
+            pass
+        tty_file.close()
+
+
+def _parse_mode2031_response(fd: int) -> str | None:
+    """Read and parse the Mode 2031 query response from the terminal.
+
+    Returns "dark" (mode=1), "light" (mode=2), or None (unsupported/timeout).
+    """
+    r, _, _ = select.select([fd], [], [], 1.0)
+    if not r:
+        return None  # timeout
+
+    # Read available bytes
+    response = b""
+    while True:
+        r, _, _ = select.select([fd], [], [], 0.1)
+        if not r:
+            break
+        chunk = os.read(fd, 256)
+        if not chunk:
+            break
+        response += chunk
+
+    if not response:
+        return None
+
+    # Look for CSI ?997;Xn where X is 1 (dark) or 2 (light)
+    # The sequence is: ESC [ ? 9 9 7 ; X n
+    marker = b"\x1b[?997;"
+    idx = response.find(marker)
+    if idx < 0:
+        return None
+
+    # Parse the mode digit(s) after the marker, up to 'n'
+    rest = response[idx + len(marker):]
+    digits = b""
+    for byte in rest:
+        if byte == ord("n"):
+            break
+        digits += bytes([byte])
+    else:
+        return None  # no 'n' terminator found
+
+    try:
+        mode = int(digits)
+    except ValueError:
+        return None
+
+    if mode == 1:
+        return "dark"
+    if mode == 2:
+        return "light"
+    return None
 
 
 def _parse_osc11_response(fd: int) -> str | None:
