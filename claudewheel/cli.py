@@ -318,6 +318,73 @@ def _handle_show_profile(name: str) -> int:
     return 0
 
 
+def _handle_fix_auth(name: str) -> int:
+    """Remove session credentials that shadow a long-lived token."""
+    import json
+    from .constants import TOKENS_FILE
+    from .fsutil import write_json_atomic_secret
+    from .profile_info import config_dir_for
+    from .tokens import parse_entry
+
+    # 1. Resolve profile config dir
+    config_dir = config_dir_for(name)
+
+    # 2. Check tokens.json has a valid entry
+    try:
+        tokens = json.loads(TOKENS_FILE.read_text())
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        tokens = {}
+    if parse_entry(tokens.get(name)) is None:
+        print(f"No long-lived token for '{name}', nothing to fix.", file=sys.stderr)
+        sys.exit(1)
+
+    # 3. Read .credentials.json
+    creds_path = config_dir / ".credentials.json"
+    if not creds_path.exists():
+        print(f"No auth shadow detected for '{name}'.")
+        return 0
+    try:
+        creds = json.loads(creds_path.read_text())
+    except (json.JSONDecodeError, OSError) as e:
+        print(f"Cannot read {creds_path}: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    if "claudeAiOauth" not in creds:
+        print(f"No auth shadow detected for '{name}'.")
+        return 0
+
+    # 4. Extract tier fields before stripping
+    oauth_block = creds["claudeAiOauth"]
+    tier = oauth_block.get("rateLimitTier") if isinstance(oauth_block, dict) else None
+    sub_type = oauth_block.get("subscriptionType") if isinstance(oauth_block, dict) else None
+
+    if tier or sub_type:
+        # Save tier data into tokens.json entry
+        entry = tokens.get(name)
+        if isinstance(entry, str):
+            entry = {"token": entry}
+        elif not isinstance(entry, dict):
+            entry = {}
+        if tier:
+            entry["rateLimitTier"] = tier
+        if sub_type:
+            entry["subscriptionType"] = sub_type
+        tokens[name] = entry
+        write_json_atomic_secret(TOKENS_FILE, tokens)
+
+    # 5. Strip claudeAiOauth
+    creds.pop("claudeAiOauth", None)
+
+    # 6. Write back
+    write_json_atomic_secret(creds_path, creds)
+
+    # 7. Report
+    print(f"Removed session credentials from {name}. Long-lived token will now be used.")
+    if tier:
+        print(f"Saved rate-limit tier: {tier}")
+    return 0
+
+
 def _handle_show() -> int:
     from .config import ConfigManager
     cfg = ConfigManager()
@@ -923,6 +990,11 @@ def _build_app() -> App:
     profile_grp.command("show", help="inspect a profile's configuration and status",
                         args=[Arg(name="name", help="name of the profile to inspect (e.g. work, personal, default)")])(
         _handle_show_profile
+    )
+
+    profile_grp.command("fix-auth", help="remove session credentials that shadow a long-lived token",
+                        args=[Arg(name="name", help="profile name whose auth shadow to remove")])(
+        _handle_fix_auth
     )
 
     # Hard-break old top-level names so they fail loudly with migration guidance

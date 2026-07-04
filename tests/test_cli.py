@@ -1448,5 +1448,122 @@ class DeprecatedProfileCommandTests(unittest.TestCase):
         self.assertIn("profile show", msg)
 
 
+class FixAuthTests(unittest.TestCase):
+    """Tests for _handle_fix_auth: remove session credentials shadowing tokens."""
+
+    def setUp(self) -> None:
+        import json
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.home = Path(self._tmp.name)
+        self.profiles_dir = self.home / ".claudewheel" / "profiles"
+        self.profiles_dir.mkdir(parents=True)
+        self.tokens_file = self.home / ".claudewheel" / "tokens.json"
+
+    def _make_profile(self, name: str) -> Path:
+        pdir = self.profiles_dir / name
+        pdir.mkdir(parents=True, exist_ok=True)
+        return pdir
+
+    def _write_tokens(self, data: dict) -> None:
+        import json
+        self.tokens_file.parent.mkdir(parents=True, exist_ok=True)
+        self.tokens_file.write_text(json.dumps(data))
+        self.tokens_file.chmod(0o600)
+
+    def _write_credentials(self, pdir: Path, data: dict) -> None:
+        import json
+        creds = pdir / ".credentials.json"
+        creds.write_text(json.dumps(data))
+        creds.chmod(0o600)
+
+    def _run_fix_auth(self, name: str) -> tuple[int | None, str, str]:
+        """Run _handle_fix_auth with patched constants. Returns (rc, stdout, stderr)."""
+        out = io.StringIO()
+        err = io.StringIO()
+        rc = None
+        with (
+            mock.patch("claudewheel.constants.TOKENS_FILE", self.tokens_file),
+            mock.patch("claudewheel.profile_info.PROFILES_DIR", self.profiles_dir),
+            redirect_stdout(out),
+            redirect_stderr(err),
+        ):
+            try:
+                rc = cli._handle_fix_auth(name)
+            except SystemExit as e:
+                rc = e.code
+        return rc, out.getvalue(), err.getvalue()
+
+    def test_fix_auth_strips_shadow_and_saves_tier(self) -> None:
+        """With shadow present and tier data, key is stripped and tier saved."""
+        import json
+        pdir = self._make_profile("work")
+        self._write_tokens({"work": {"token": "tok-abc", "created": "2025-01-01", "expires_at": "2026-01-01"}})
+        self._write_credentials(pdir, {
+            "claudeAiOauth": {
+                "accessToken": "short",
+                "rateLimitTier": "tier4",
+                "subscriptionType": "pro",
+            },
+            "mcpOAuth": {"keep": "this"},
+        })
+
+        rc, out, err = self._run_fix_auth("work")
+        self.assertEqual(rc, 0)
+        self.assertIn("Removed session credentials from work", out)
+        self.assertIn("Saved rate-limit tier: tier4", out)
+
+        # Verify .credentials.json no longer has claudeAiOauth
+        creds = json.loads((pdir / ".credentials.json").read_text())
+        self.assertNotIn("claudeAiOauth", creds)
+        self.assertIn("mcpOAuth", creds)
+
+        # Verify tokens.json has tier fields
+        tokens = json.loads(self.tokens_file.read_text())
+        self.assertEqual(tokens["work"]["rateLimitTier"], "tier4")
+        self.assertEqual(tokens["work"]["subscriptionType"], "pro")
+
+    def test_fix_auth_no_shadow_exits_0(self) -> None:
+        """When no claudeAiOauth key exists, prints 'no auth shadow' and exits 0."""
+        pdir = self._make_profile("clean")
+        self._write_tokens({"clean": "tok-xyz"})
+        self._write_credentials(pdir, {"mcpOAuth": {"x": "y"}})
+
+        rc, out, err = self._run_fix_auth("clean")
+        self.assertEqual(rc, 0)
+        self.assertIn("No auth shadow detected", out)
+
+    def test_fix_auth_no_token_exits_1(self) -> None:
+        """When profile has no tokens.json entry, exits 1 with error."""
+        self._make_profile("orphan")
+        self._write_tokens({})
+
+        rc, out, err = self._run_fix_auth("orphan")
+        self.assertEqual(rc, 1)
+        self.assertIn("No long-lived token", err)
+
+    def test_fix_auth_shadow_no_tier_data(self) -> None:
+        """When shadow exists but has no tier fields, key is stripped without tier save."""
+        import json
+        pdir = self._make_profile("notier")
+        self._write_tokens({"notier": {"token": "tok-nt", "created": "2025-01-01", "expires_at": "2026-01-01"}})
+        self._write_credentials(pdir, {
+            "claudeAiOauth": {"accessToken": "short-lived"},
+        })
+
+        rc, out, err = self._run_fix_auth("notier")
+        self.assertEqual(rc, 0)
+        self.assertIn("Removed session credentials from notier", out)
+        self.assertNotIn("Saved rate-limit tier", out)
+
+        # Verify .credentials.json no longer has claudeAiOauth
+        creds = json.loads((pdir / ".credentials.json").read_text())
+        self.assertNotIn("claudeAiOauth", creds)
+
+        # Verify tokens.json was NOT modified (no tier fields)
+        tokens = json.loads(self.tokens_file.read_text())
+        self.assertNotIn("rateLimitTier", tokens.get("notier", {}))
+
+
 if __name__ == "__main__":
     unittest.main()
