@@ -932,7 +932,7 @@ class App:
                     "",
                     "Deleting this profile would destroy that data.",
                     "The TUI offers no override. If you are certain, run:",
-                    f"  claudewheel delete-profile {name} "
+                    f"  claudewheel profile delete {name} "
                     "--no-force-delete --force-delete-data",
                 ],
                 self.theme, self.terminal)
