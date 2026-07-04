@@ -107,6 +107,59 @@ def _do_show(cfg: object) -> int:
     return 0
 
 
+def _write_tier_stub(profile: str | None, config_dir: str | None) -> None:
+    """Write a rateLimitTier stub into .credentials.json if tokens.json has tier data.
+
+    This lets downstream tools (e.g. howmuchleft) read the tier from
+    .credentials.json even when auth is via CLAUDE_CODE_OAUTH_TOKEN.
+    Short-circuits if .credentials.json already has the same tier value.
+    Best-effort: silently skips on any error.
+    """
+    import json
+    from pathlib import Path
+    from .constants import TOKENS_FILE
+    from .fsutil import write_json_atomic_secret
+
+    if not profile or not config_dir:
+        return
+    try:
+        tokens = json.loads(TOKENS_FILE.read_text())
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return
+    entry = tokens.get(profile)
+    if not isinstance(entry, dict):
+        return
+    tier = entry.get("rateLimitTier")
+    if not tier:
+        return
+    subscription = entry.get("subscriptionType")
+
+    creds_path = Path(config_dir) / ".credentials.json"
+    # Short-circuit: skip write if existing file already has matching tier
+    try:
+        existing = json.loads(creds_path.read_text())
+        existing_oauth = existing.get("claudeAiOauth")
+        if isinstance(existing_oauth, dict):
+            if existing_oauth.get("rateLimitTier") == tier:
+                return
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        existing = {}
+
+    # Merge tier fields into existing credentials (preserve other keys)
+    oauth = existing.get("claudeAiOauth", {})
+    if not isinstance(oauth, dict):
+        oauth = {}
+    oauth["rateLimitTier"] = tier
+    if subscription:
+        oauth["subscriptionType"] = subscription
+    existing["claudeAiOauth"] = oauth
+    try:
+        Path(config_dir).mkdir(parents=True, exist_ok=True)
+        write_json_atomic_secret(creds_path, existing)
+    except OSError:
+        pass
+
+
 def _do_launch_sequence(
     cfg: object, selections: dict, extra_flags: list[str] | None = None,
     interactive: bool = True,
@@ -146,6 +199,7 @@ def _do_launch_sequence(
             extra_flags=extra_flags,
             metadata=metadata,
         )
+        _write_tier_stub(selections.get("profile"), env.get("CLAUDE_CONFIG_DIR"))
         do_launch(cwd, argv, env)
     except OSError as e:
         print(f"Launch failed: {e}", file=sys.stderr)

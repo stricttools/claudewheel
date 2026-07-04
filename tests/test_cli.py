@@ -1565,6 +1565,135 @@ class FixAuthTests(unittest.TestCase):
         self.assertNotIn("rateLimitTier", tokens.get("notier", {}))
 
 
+class WriteTierStubTests(unittest.TestCase):
+    """Tests for _write_tier_stub: writing rateLimitTier into .credentials.json at launch."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.root = Path(self._tmp.name)
+        self.tokens_file = self.root / "tokens.json"
+        self.config_dir = self.root / "profiles" / "work"
+        self.config_dir.mkdir(parents=True)
+
+        # _write_tier_stub imports TOKENS_FILE from .constants at call time
+        self._patch_tokens = mock.patch("claudewheel.constants.TOKENS_FILE", self.tokens_file)
+        self._patch_tokens.start()
+        self.addCleanup(self._patch_tokens.stop)
+
+    def _write_tokens(self, data: dict) -> None:
+        import json
+        self.tokens_file.write_text(json.dumps(data))
+
+    def _read_creds(self) -> dict:
+        import json
+        return json.loads((self.config_dir / ".credentials.json").read_text())
+
+    def test_writes_tier_stub(self) -> None:
+        """When tokens.json has tier data, .credentials.json gets a stub."""
+        import json
+        self._write_tokens({"work": {
+            "token": "tok-1",
+            "rateLimitTier": "default_claude_pro",
+            "subscriptionType": "claude_pro",
+        }})
+
+        cli._write_tier_stub("work", str(self.config_dir))
+
+        creds = self._read_creds()
+        self.assertEqual(creds["claudeAiOauth"]["rateLimitTier"], "default_claude_pro")
+        self.assertEqual(creds["claudeAiOauth"]["subscriptionType"], "claude_pro")
+
+    def test_no_tier_no_write(self) -> None:
+        """When tokens.json has no tier field, .credentials.json is not created."""
+        self._write_tokens({"work": {"token": "tok-2"}})
+
+        cli._write_tier_stub("work", str(self.config_dir))
+
+        self.assertFalse((self.config_dir / ".credentials.json").exists())
+
+    def test_short_circuits_when_matching(self) -> None:
+        """When .credentials.json already has the matching tier, no write occurs."""
+        import json
+        self._write_tokens({"work": {
+            "token": "tok-3",
+            "rateLimitTier": "default_claude_pro",
+        }})
+        # Pre-populate matching credentials
+        creds_path = self.config_dir / ".credentials.json"
+        creds_path.write_text(json.dumps({
+            "claudeAiOauth": {"rateLimitTier": "default_claude_pro"}
+        }))
+        original_mtime = creds_path.stat().st_mtime
+
+        import time
+        time.sleep(0.01)  # ensure timestamp differs if rewritten
+
+        cli._write_tier_stub("work", str(self.config_dir))
+
+        # File should not have been rewritten
+        self.assertEqual(creds_path.stat().st_mtime, original_mtime)
+
+    def test_overwrites_when_tier_differs(self) -> None:
+        """When .credentials.json has a different tier, it is updated."""
+        import json
+        self._write_tokens({"work": {
+            "token": "tok-4",
+            "rateLimitTier": "default_claude_max_5x",
+        }})
+        creds_path = self.config_dir / ".credentials.json"
+        creds_path.write_text(json.dumps({
+            "claudeAiOauth": {"rateLimitTier": "default_claude_pro"}
+        }))
+
+        cli._write_tier_stub("work", str(self.config_dir))
+
+        creds = self._read_creds()
+        self.assertEqual(creds["claudeAiOauth"]["rateLimitTier"], "default_claude_max_5x")
+
+    def test_no_profile_no_write(self) -> None:
+        """When profile is None, nothing happens."""
+        self._write_tokens({"work": {
+            "token": "tok-5",
+            "rateLimitTier": "default_claude_pro",
+        }})
+
+        cli._write_tier_stub(None, str(self.config_dir))
+
+        self.assertFalse((self.config_dir / ".credentials.json").exists())
+
+    def test_no_config_dir_no_write(self) -> None:
+        """When config_dir is None, nothing happens."""
+        self._write_tokens({"work": {
+            "token": "tok-6",
+            "rateLimitTier": "default_claude_pro",
+        }})
+
+        cli._write_tier_stub("work", None)
+
+    def test_merges_into_existing_credentials(self) -> None:
+        """Existing keys in .credentials.json are preserved."""
+        import json
+        self._write_tokens({"work": {
+            "token": "tok-7",
+            "rateLimitTier": "default_claude_pro",
+        }})
+        creds_path = self.config_dir / ".credentials.json"
+        creds_path.write_text(json.dumps({"otherKey": "preserved"}))
+
+        cli._write_tier_stub("work", str(self.config_dir))
+
+        creds = self._read_creds()
+        self.assertEqual(creds["otherKey"], "preserved")
+        self.assertEqual(creds["claudeAiOauth"]["rateLimitTier"], "default_claude_pro")
+
+    def test_missing_tokens_file_no_crash(self) -> None:
+        """When tokens.json doesn't exist, function silently returns."""
+        self.assertFalse(self.tokens_file.exists())
+        cli._write_tier_stub("work", str(self.config_dir))
+        self.assertFalse((self.config_dir / ".credentials.json").exists())
+
+
 class CheckTokensTests(unittest.TestCase):
     """Tests for the 'profile check-tokens' subcommand."""
 
