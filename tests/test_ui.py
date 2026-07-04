@@ -667,6 +667,19 @@ class ShowPageTests(FormRunnerTestBase):
         show_page("Done", ["l"], THEME, term)  # must not raise
         self.assertIn("Done", self._output())
 
+    def test_returns_pressed_key(self) -> None:
+        term = FakeTerminal(["f"])
+        self.term = term
+        result = show_page("Title", ["body"], THEME, term)
+        self.assertEqual(result, "f")
+
+    def test_returns_empty_string_on_interrupt(self) -> None:
+        term = FakeTerminal([])
+        term.read_key = mock.Mock(side_effect=KeyboardInterrupt)
+        self.term = term
+        result = show_page("Title", ["body"], THEME, term)
+        self.assertEqual(result, "")
+
 
 class FormSessionSignalTests(unittest.TestCase):
     """_form_session must save/restore SIGTERM and SIGHUP alongside SIGWINCH."""

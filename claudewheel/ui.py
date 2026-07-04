@@ -405,11 +405,13 @@ def run_form(title: str, fields: list[FormField], theme: ThemeColors,
 
 
 def show_page(title: str, lines: list[str], theme: ThemeColors, terminal, *,
-              hint: str = "press any key to continue") -> None:
+              hint: str = "press any key to continue") -> str:
     """Render a fullscreen page of text and wait for a single keypress.
 
     Uses the same terminal semantics as run_form: borrowed when the terminal
     is already raw, otherwise an owned alt-screen raw cycle (never closed).
+
+    Returns the key string that was pressed (empty string on interrupt).
     """
     def render() -> None:
         rows, cols = terminal.get_size()
@@ -431,6 +433,6 @@ def show_page(title: str, lines: list[str], theme: ThemeColors, terminal, *,
     with _form_session(terminal, True, render):
         render()
         try:
-            terminal.read_key()
+            return terminal.read_key()
         except KeyboardInterrupt:
-            pass
+            return ""
