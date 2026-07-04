@@ -6,6 +6,8 @@ import copy
 import signal
 import sys
 import threading
+from collections.abc import Callable
+from dataclasses import dataclass
 
 from .config import ConfigManager
 from .segment import DiscoveryResult, Segment, build_segment_bar, evaluate_requires, merge_slow_results, run_slow_discovery_via_registry, _discover_profiles, _update_auth_from_metadata
@@ -13,6 +15,41 @@ from .state import merge_out_of_band_keys
 from .terminal import Terminal
 from .theme import parse_theme
 from .renderer import Renderer
+
+
+# ---------------------------------------------------------------------------
+# Phase 0: Data structures for the keybinding registry
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class KeyContext:
+    """Ephemeral snapshot of state relevant to key dispatch decisions."""
+
+    focused: Segment
+    mode: str
+    seg_key: str
+    search_buffer: str
+    value: str | None
+    is_on_plus: bool
+    searchable: bool
+    freeform: bool
+    freeform_editing: bool
+    creating: bool
+    pending_install: bool
+    show_provenance: bool
+
+
+@dataclass(frozen=True)
+class Binding:
+    """A single keybinding entry in the registry."""
+
+    keys: frozenset[str] | None  # None = match-any-printable
+    label: str | None  # None = hidden from hints
+    condition: Callable[[KeyContext], bool] | None  # None = unconditional
+    handler: Callable  # (app, key) -> str | None
+    priority: int  # hint ordering (lower = shown first)
+    mode: str  # "main" / "creating" / "freeform" / "install"
 
 
 class App:
@@ -51,6 +88,7 @@ class App:
         self._pending_install: str | None = None  # version awaiting install confirmation
         self._pending_install_seg: Segment | None = None
         self._show_provenance: bool = False  # Phase 9: provenance overlay toggle
+        self._bindings: list[Binding] = self._build_bindings()
 
     def run_tui(self) -> dict[str, str | None] | None:
         """Enter the TUI loop. Returns selections on launch, None on quit."""
@@ -170,219 +208,314 @@ class App:
         focused.search_buffer = ""
         focused._freeform_editing = False
 
-    def _handle_key(self, key: str) -> str | None:
-        """Process a keypress and return an action string or None to continue."""
+    # ------------------------------------------------------------------
+    # Key context builder
+    # ------------------------------------------------------------------
+
+    def _build_context(self) -> KeyContext:
+        """Build an ephemeral KeyContext from current app state."""
         focused = self.bar.focused
-
-        # Creation mode intercepts all keys
+        # Mode precedence: creating > freeform > install > main
         if focused.creating:
-            return self._handle_create_key(key, focused)
+            mode = "creating"
+        elif focused.freeform and focused.search_buffer and focused._freeform_editing:
+            mode = "freeform"
+        elif self._pending_install:
+            mode = "install"
+        else:
+            mode = "main"
+        return KeyContext(
+            focused=focused,
+            mode=mode,
+            seg_key=focused.key,
+            search_buffer=focused.search_buffer,
+            value=focused.value,
+            is_on_plus=focused.is_on_plus,
+            searchable=focused.searchable,
+            freeform=focused.freeform,
+            freeform_editing=focused._freeform_editing,
+            creating=focused.creating,
+            pending_install=bool(self._pending_install),
+            show_provenance=self._show_provenance,
+        )
 
-        # Freeform editing mode: route all keys to the freeform handler which
-        # supports LEFT/RIGHT (exit + navigate) and BACKSPACE (exit when empty).
-        if focused.freeform and focused.search_buffer and focused._freeform_editing:
-            return self._handle_freeform_key(key, focused)
+    # ------------------------------------------------------------------
+    # Registry-based dispatch
+    # ------------------------------------------------------------------
 
-        # Pending install confirmation
-        if self._pending_install:
-            return self._handle_install_key(key)
-
-        match key:
-            case "LEFT" | "SHIFT_TAB":
-                self._defocus()
-                self.bar.move_focus(-1)
-            case "RIGHT":
-                self._defocus()
-                self.bar.move_focus(1)
-            case "UP":
-                if focused.search_buffer:
-                    focused.search_buffer = ""
-                focused._freeform_editing = False
-                focused.cycle(-1)
-            case "DOWN":
-                if focused.search_buffer:
-                    focused.search_buffer = ""
-                focused._freeform_editing = False
-                focused.cycle(1)
-            case "ENTER":
-                # "+" on profile segment launches the wizard
-                if focused.is_on_plus and focused.key == "profile":
-                    return self._launch_profile_wizard(focused)
-                # Enter creation mode if on the "+" sentinel (other segments)
-                if focused.is_on_plus:
-                    focused.creating = True
-                    focused.create_buffer = ""
-                    return None
-                # Check for required segments without a selection
-                missing = [
-                    s.label
-                    for s in self.bar.segments
-                    if s.required and s.value is None
-                ]
-                if missing:
-                    self._flash = f"Required: {', '.join(missing)}"
-                    return None
-                # Check for non-installed version -- offer to install
-                for s in self.bar.segments:
-                    if s.value and s.state.has_installed and not s.state.is_installed(s.value):
-                        self._pending_install = s.value
-                        self._pending_install_seg = s
-                        self._flash = f"{s.value} not on disk. Enter=install, Esc=cancel"
-                        return None
-                # Check for unavailable selections
-                for s in self.bar.segments:
-                    if s.value and s.value in s.unavailable:
-                        self._flash = f"{s.label}: {s.value} not available for this version"
-                        return None
-                # Check for unauthenticated profile -- intercept and offer auth
-                for s in self.bar.segments:
-                    if s.key == "profile" and s.value:
-                        if s.state.has_auth_status and not s.state.is_authenticated(s.value):
-                            outcome = self._intercept_unauth(s)
-                            if outcome != "skip":
-                                # Fail closed: ONLY the explicit "skip"
-                                # outcome launches. Every other outcome --
-                                # known or unknown -- stays in the TUI with
-                                # a flash instead of silently launching.
-                                flashes = {
-                                    "authenticated": "Authenticated",
-                                    "unverified": "Saved unverified token",
-                                    "cancel": "Auth cancelled",
-                                    "failed": "Auth failed",
-                                }
-                                self._flash = flashes.get(
-                                    outcome, f"Auth outcome: {outcome}")
-                                return None
-                        break
-                return "launch"
-            case "TAB":
-                if focused.is_on_plus and focused.key == "profile":
-                    return self._launch_profile_wizard(focused)
-                # Enter creation mode if on the "+" sentinel (other segments)
-                if focused.is_on_plus:
-                    focused.creating = True
-                    focused.create_buffer = ""
-                    return None
-                if focused.searchable and focused.search_buffer:
-                    # Accept the top fuzzy match
-                    matches = focused.filtered_options
-                    if matches:
-                        focused.select_value(matches[0])
-                    focused.search_buffer = ""
-                    if focused.tab_advances:
-                        self._apply_pending_for_segment(focused)
-                        self.bar.move_focus(1)
-                elif focused.tab_advances:
-                    self._apply_pending_for_segment(focused)
-                    self.bar.move_focus(1)
-            case "BACKSPACE":
-                if focused.freeform and not focused._freeform_editing and focused.value:
-                    # First backspace on a freeform segment: seed buffer from current value
-                    trimmed = focused.value[:-1]
-                    if trimmed:
-                        focused.search_buffer = trimmed
-                        focused._freeform_editing = True
-                elif focused.searchable and focused.search_buffer:
-                    focused.search_buffer = focused.search_buffer[:-1]
-            case "ESC":
-                focused.search_buffer = ""
-                focused._freeform_editing = False
-            case "CTRL_C":
-                return "quit"
-            case "CTRL_D" | "DELETE":
-                # Delete the focused profile (same guards as the 'i' inspect
-                # binding: profile segment, not searching, real value focused
-                # -- the "+" sentinel and empty selection yield value None).
-                if (focused.key == "profile"
-                        and not focused.search_buffer
-                        and focused.value is not None):
-                    self._delete_profile_flow(focused)
-            case _:
-                # Single printable characters
-                if len(key) == 1 and key.isprintable():
-                    # Provenance overlay toggle (only when not actively searching)
-                    if key == "?" and not focused.search_buffer:
-                        self._show_provenance = not self._show_provenance
-                    elif (key == "i" and focused.key == "profile"
-                          and not focused.search_buffer
-                          and focused.value is not None):
-                        # Inspect the focused profile option ("+" sentinel and
-                        # empty selection yield value None and fall through).
-                        self._show_profile_inspect(focused)
-                    elif focused.freeform and not focused._freeform_editing and focused.value:
-                        # First keypress on a freeform segment: seed buffer from current value
-                        focused.search_buffer = focused.value + key
-                        focused._freeform_editing = True
-                    elif focused.searchable and (focused.search_buffer or key != "q"):
-                        focused.search_buffer += key
-                    elif key == "q":
-                        return "quit"
+    def _handle_key(self, key: str) -> str | None:
+        """Process a keypress via the binding registry."""
+        ctx = self._build_context()
+        for b in self._bindings:
+            if b.mode != ctx.mode:
+                continue
+            # Key matching
+            if b.keys is not None:
+                if key not in b.keys:
+                    continue
+            else:
+                # keys=None means match-any-printable
+                if not (len(key) == 1 and key.isprintable()):
+                    continue
+            # Condition check
+            if b.condition is not None and not b.condition(ctx):
+                continue
+            return b.handler(self, key)
         return None
 
-    def _handle_freeform_key(self, key: str, seg: Segment) -> str | None:
-        """Handle keystrokes in freeform editing mode (search buffer active on a freeform segment)."""
-        match key:
-            case "ENTER":
-                # Submit the typed text as the value
-                text = seg.search_buffer.strip()
-                if text:
-                    seg.state.add_ephemeral(text)
-                    seg.select_value(text)
-                seg.search_buffer = ""
-                seg._freeform_editing = False
-                if seg.tab_advances:
-                    self._apply_pending_for_segment(seg)
-                    self.bar.move_focus(1)
-                return None
-            case "TAB":
-                # Accept the top fuzzy match (not the raw text)
-                matches = seg.filtered_options
-                if matches:
-                    seg.select_value(matches[0])
-                seg.search_buffer = ""
-                seg._freeform_editing = False
-                if seg.tab_advances:
-                    self._apply_pending_for_segment(seg)
-                    self.bar.move_focus(1)
-                return None
-            case "BACKSPACE":
-                seg.search_buffer = seg.search_buffer[:-1]
-                if not seg.search_buffer:
-                    seg._freeform_editing = False
-                return None
-            case "LEFT":
-                seg.search_buffer = ""
-                seg._freeform_editing = False
-                self._apply_pending_for_segment(seg)
-                self.bar.move_focus(-1)
-                return None
-            case "RIGHT":
-                seg.search_buffer = ""
-                seg._freeform_editing = False
-                self._apply_pending_for_segment(seg)
-                self.bar.move_focus(1)
-                return None
-            case "ESC":
-                seg.search_buffer = ""
-                seg._freeform_editing = False
-                return None
-            case "CTRL_C":
-                seg.search_buffer = ""
-                seg._freeform_editing = False
-                return "quit"
-            case _:
-                if len(key) == 1 and key.isprintable():
-                    seg.search_buffer += key
+    # ------------------------------------------------------------------
+    # Handler methods extracted from the old match/case dispatch
+    # ------------------------------------------------------------------
+
+    def _h_main_left(self, key: str) -> str | None:
+        self._defocus()
+        self.bar.move_focus(-1)
         return None
 
-    def _handle_install_key(self, key: str) -> str | None:
-        """Handle keystrokes during install confirmation."""
+    def _h_main_right(self, key: str) -> str | None:
+        self._defocus()
+        self.bar.move_focus(1)
+        return None
+
+    def _h_main_up(self, key: str) -> str | None:
+        focused = self.bar.focused
+        if focused.search_buffer:
+            focused.search_buffer = ""
+        focused._freeform_editing = False
+        focused.cycle(-1)
+        return None
+
+    def _h_main_down(self, key: str) -> str | None:
+        focused = self.bar.focused
+        if focused.search_buffer:
+            focused.search_buffer = ""
+        focused._freeform_editing = False
+        focused.cycle(1)
+        return None
+
+    def _h_main_enter(self, key: str) -> str | None:
+        focused = self.bar.focused
+        # "+" on profile segment launches the wizard
+        if focused.is_on_plus and focused.key == "profile":
+            return self._launch_profile_wizard(focused)
+        # Enter creation mode if on the "+" sentinel (other segments)
+        if focused.is_on_plus:
+            focused.creating = True
+            focused.create_buffer = ""
+            return None
+        # Check for required segments without a selection
+        missing = [
+            s.label
+            for s in self.bar.segments
+            if s.required and s.value is None
+        ]
+        if missing:
+            self._flash = f"Required: {', '.join(missing)}"
+            return None
+        # Check for non-installed version -- offer to install
+        for s in self.bar.segments:
+            if s.value and s.state.has_installed and not s.state.is_installed(s.value):
+                self._pending_install = s.value
+                self._pending_install_seg = s
+                self._flash = f"{s.value} not on disk. Enter=install, Esc=cancel"
+                return None
+        # Check for unavailable selections
+        for s in self.bar.segments:
+            if s.value and s.value in s.unavailable:
+                self._flash = f"{s.label}: {s.value} not available for this version"
+                return None
+        # Check for unauthenticated profile -- intercept and offer auth
+        for s in self.bar.segments:
+            if s.key == "profile" and s.value:
+                if s.state.has_auth_status and not s.state.is_authenticated(s.value):
+                    outcome = self._intercept_unauth(s)
+                    if outcome != "skip":
+                        flashes = {
+                            "authenticated": "Authenticated",
+                            "unverified": "Saved unverified token",
+                            "cancel": "Auth cancelled",
+                            "failed": "Auth failed",
+                        }
+                        self._flash = flashes.get(
+                            outcome, f"Auth outcome: {outcome}")
+                        return None
+                break
+        return "launch"
+
+    def _h_main_tab(self, key: str) -> str | None:
+        focused = self.bar.focused
+        if focused.is_on_plus and focused.key == "profile":
+            return self._launch_profile_wizard(focused)
+        if focused.is_on_plus:
+            focused.creating = True
+            focused.create_buffer = ""
+            return None
+        if focused.searchable and focused.search_buffer:
+            matches = focused.filtered_options
+            if matches:
+                focused.select_value(matches[0])
+            focused.search_buffer = ""
+            if focused.tab_advances:
+                self._apply_pending_for_segment(focused)
+                self.bar.move_focus(1)
+        elif focused.tab_advances:
+            self._apply_pending_for_segment(focused)
+            self.bar.move_focus(1)
+        return None
+
+    def _h_main_backspace(self, key: str) -> str | None:
+        focused = self.bar.focused
+        if focused.freeform and not focused._freeform_editing and focused.value:
+            trimmed = focused.value[:-1]
+            if trimmed:
+                focused.search_buffer = trimmed
+                focused._freeform_editing = True
+        elif focused.searchable and focused.search_buffer:
+            focused.search_buffer = focused.search_buffer[:-1]
+        return None
+
+    def _h_main_esc(self, key: str) -> str | None:
+        focused = self.bar.focused
+        focused.search_buffer = ""
+        focused._freeform_editing = False
+        return None
+
+    def _h_main_ctrl_c(self, key: str) -> str | None:
+        return "quit"
+
+    def _h_main_delete(self, key: str) -> str | None:
+        focused = self.bar.focused
+        if (focused.key == "profile"
+                and not focused.search_buffer
+                and focused.value is not None):
+            self._delete_profile_flow(focused)
+        return None
+
+    def _h_main_question(self, key: str) -> str | None:
+        self._show_provenance = not self._show_provenance
+        return None
+
+    def _h_main_inspect(self, key: str) -> str | None:
+        self._show_profile_inspect(self.bar.focused)
+        return None
+
+    def _h_main_freeform_seed(self, key: str) -> str | None:
+        focused = self.bar.focused
+        focused.search_buffer = focused.value + key
+        focused._freeform_editing = True
+        return None
+
+    def _h_main_search(self, key: str) -> str | None:
+        self.bar.focused.search_buffer += key
+        return None
+
+    def _h_main_quit(self, key: str) -> str | None:
+        return "quit"
+
+    # -- Freeform mode handlers --
+
+    def _h_freeform_enter(self, key: str) -> str | None:
+        seg = self.bar.focused
+        text = seg.search_buffer.strip()
+        if text:
+            seg.state.add_ephemeral(text)
+            seg.select_value(text)
+        seg.search_buffer = ""
+        seg._freeform_editing = False
+        if seg.tab_advances:
+            self._apply_pending_for_segment(seg)
+            self.bar.move_focus(1)
+        return None
+
+    def _h_freeform_tab(self, key: str) -> str | None:
+        seg = self.bar.focused
+        matches = seg.filtered_options
+        if matches:
+            seg.select_value(matches[0])
+        seg.search_buffer = ""
+        seg._freeform_editing = False
+        if seg.tab_advances:
+            self._apply_pending_for_segment(seg)
+            self.bar.move_focus(1)
+        return None
+
+    def _h_freeform_backspace(self, key: str) -> str | None:
+        seg = self.bar.focused
+        seg.search_buffer = seg.search_buffer[:-1]
+        if not seg.search_buffer:
+            seg._freeform_editing = False
+        return None
+
+    def _h_freeform_left(self, key: str) -> str | None:
+        seg = self.bar.focused
+        seg.search_buffer = ""
+        seg._freeform_editing = False
+        self._apply_pending_for_segment(seg)
+        self.bar.move_focus(-1)
+        return None
+
+    def _h_freeform_right(self, key: str) -> str | None:
+        seg = self.bar.focused
+        seg.search_buffer = ""
+        seg._freeform_editing = False
+        self._apply_pending_for_segment(seg)
+        self.bar.move_focus(1)
+        return None
+
+    def _h_freeform_esc(self, key: str) -> str | None:
+        seg = self.bar.focused
+        seg.search_buffer = ""
+        seg._freeform_editing = False
+        return None
+
+    def _h_freeform_ctrl_c(self, key: str) -> str | None:
+        seg = self.bar.focused
+        seg.search_buffer = ""
+        seg._freeform_editing = False
+        return "quit"
+
+    def _h_freeform_printable(self, key: str) -> str | None:
+        self.bar.focused.search_buffer += key
+        return None
+
+    # -- Creating mode handlers --
+
+    def _h_create_enter(self, key: str) -> str | None:
+        seg = self.bar.focused
+        if seg.create_buffer.strip():
+            self._confirm_create(seg)
+        return None
+
+    def _h_create_esc(self, key: str) -> str | None:
+        seg = self.bar.focused
+        seg.creating = False
+        seg.create_buffer = ""
+        return None
+
+    def _h_create_backspace(self, key: str) -> str | None:
+        seg = self.bar.focused
+        seg.create_buffer = seg.create_buffer[:-1]
+        return None
+
+    def _h_create_ctrl_c(self, key: str) -> str | None:
+        seg = self.bar.focused
+        seg.creating = False
+        seg.create_buffer = ""
+        return "quit"
+
+    def _h_create_printable(self, key: str) -> str | None:
+        self.bar.focused.create_buffer += key
+        return None
+
+    # -- Install mode handlers --
+
+    def _h_install_enter(self, key: str) -> str | None:
         version = self._pending_install
         seg = self._pending_install_seg
         self._pending_install = None
         self._pending_install_seg = None
 
-        if key != "ENTER" or not version or not seg:
+        if not version or not seg:
             return None
 
         from .install import install_version
@@ -394,8 +527,6 @@ class App:
                 pct = downloaded * 100 // total
                 print(f"\r  {mb_done:.0f}/{mb_total:.0f} MB ({pct}%)", end="", flush=True)
 
-        # Cooked window: leaves the alt screen so the user sees download
-        # progress; raw mode is restored on exit even if the body raises.
         with self.terminal.cooked():
             print(f"Downloading Claude Code {version}...")
             try:
@@ -410,6 +541,314 @@ class App:
             except KeyboardInterrupt:
                 pass
         return None
+
+    def _h_install_cancel(self, key: str) -> str | None:
+        """Any non-ENTER key in install mode cancels the install."""
+        self._pending_install = None
+        self._pending_install_seg = None
+        return None
+
+    # ------------------------------------------------------------------
+    # Registry builder (called from __init__)
+    # ------------------------------------------------------------------
+
+    def _build_bindings(self) -> list[Binding]:
+        """Build the full binding registry from handler methods."""
+        return [
+            # =============================================================
+            # CREATING MODE
+            # =============================================================
+            Binding(
+                keys=frozenset({"ENTER"}),
+                label="enter: confirm",
+                condition=None,
+                handler=App._h_create_enter,
+                priority=20,
+                mode="creating",
+            ),
+            Binding(
+                keys=frozenset({"ESC"}),
+                label="esc: cancel",
+                condition=None,
+                handler=App._h_create_esc,
+                priority=20,
+                mode="creating",
+            ),
+            Binding(
+                keys=frozenset({"BACKSPACE"}),
+                label="bksp: delete",
+                condition=None,
+                handler=App._h_create_backspace,
+                priority=20,
+                mode="creating",
+            ),
+            Binding(
+                keys=frozenset({"CTRL_C"}),
+                label=None,  # hidden
+                condition=None,
+                handler=App._h_create_ctrl_c,
+                priority=20,
+                mode="creating",
+            ),
+            Binding(
+                keys=None,  # match-any-printable
+                label=None,
+                condition=None,
+                handler=App._h_create_printable,
+                priority=99,
+                mode="creating",
+            ),
+            # =============================================================
+            # FREEFORM MODE
+            # =============================================================
+            Binding(
+                keys=frozenset({"ENTER"}),
+                label="enter: submit",
+                condition=None,
+                handler=App._h_freeform_enter,
+                priority=20,
+                mode="freeform",
+            ),
+            Binding(
+                keys=frozenset({"TAB"}),
+                label="tab: accept match",
+                condition=None,
+                handler=App._h_freeform_tab,
+                priority=20,
+                mode="freeform",
+            ),
+            Binding(
+                keys=frozenset({"BACKSPACE"}),
+                label="bksp: delete",
+                condition=None,
+                handler=App._h_freeform_backspace,
+                priority=20,
+                mode="freeform",
+            ),
+            Binding(
+                keys=frozenset({"LEFT"}),
+                label=None,  # hidden (undocumented exit)
+                condition=None,
+                handler=App._h_freeform_left,
+                priority=40,
+                mode="freeform",
+            ),
+            Binding(
+                keys=frozenset({"RIGHT"}),
+                label=None,  # hidden (undocumented exit)
+                condition=None,
+                handler=App._h_freeform_right,
+                priority=40,
+                mode="freeform",
+            ),
+            Binding(
+                keys=frozenset({"ESC"}),
+                label="esc: cancel",
+                condition=None,
+                handler=App._h_freeform_esc,
+                priority=20,
+                mode="freeform",
+            ),
+            Binding(
+                keys=frozenset({"CTRL_C"}),
+                label=None,  # hidden
+                condition=None,
+                handler=App._h_freeform_ctrl_c,
+                priority=20,
+                mode="freeform",
+            ),
+            Binding(
+                keys=None,  # match-any-printable
+                label=None,
+                condition=None,
+                handler=App._h_freeform_printable,
+                priority=99,
+                mode="freeform",
+            ),
+            # =============================================================
+            # INSTALL MODE
+            # =============================================================
+            Binding(
+                keys=frozenset({"ENTER"}),
+                label="enter: install",
+                condition=None,
+                handler=App._h_install_enter,
+                priority=30,
+                mode="install",
+            ),
+            # Catch-all for install: any key that is NOT ENTER cancels.
+            # This uses keys=None (printable) plus explicit non-printable keys.
+            Binding(
+                keys=frozenset({
+                    "ESC", "BACKSPACE", "TAB", "SHIFT_TAB",
+                    "LEFT", "RIGHT", "UP", "DOWN",
+                    "CTRL_C", "CTRL_D", "DELETE",
+                }),
+                label=None,
+                condition=None,
+                handler=App._h_install_cancel,
+                priority=99,
+                mode="install",
+            ),
+            Binding(
+                keys=None,  # match-any-printable (also cancels)
+                label=None,
+                condition=None,
+                handler=App._h_install_cancel,
+                priority=99,
+                mode="install",
+            ),
+            # =============================================================
+            # MAIN MODE
+            # =============================================================
+            Binding(
+                keys=frozenset({"LEFT", "SHIFT_TAB"}),
+                label=None,  # SHIFT_TAB hidden
+                condition=None,
+                handler=App._h_main_left,
+                priority=40,
+                mode="main",
+            ),
+            Binding(
+                keys=frozenset({"RIGHT"}),
+                label="arrows: navigate",
+                condition=None,
+                handler=App._h_main_right,
+                priority=40,
+                mode="main",
+            ),
+            Binding(
+                keys=frozenset({"UP"}),
+                label=None,
+                condition=None,
+                handler=App._h_main_up,
+                priority=40,
+                mode="main",
+            ),
+            Binding(
+                keys=frozenset({"DOWN"}),
+                label=None,
+                condition=None,
+                handler=App._h_main_down,
+                priority=40,
+                mode="main",
+            ),
+            Binding(
+                keys=frozenset({"ENTER"}),
+                label="enter: launch",
+                condition=None,
+                handler=App._h_main_enter,
+                priority=30,
+                mode="main",
+            ),
+            Binding(
+                keys=frozenset({"TAB"}),
+                label="tab: next",
+                condition=None,
+                handler=App._h_main_tab,
+                priority=40,
+                mode="main",
+            ),
+            Binding(
+                keys=frozenset({"BACKSPACE"}),
+                label=None,
+                condition=None,
+                handler=App._h_main_backspace,
+                priority=40,
+                mode="main",
+            ),
+            Binding(
+                keys=frozenset({"ESC"}),
+                label="esc: clear",
+                condition=None,
+                handler=App._h_main_esc,
+                priority=20,
+                mode="main",
+            ),
+            Binding(
+                keys=frozenset({"CTRL_C"}),
+                label=None,  # hidden
+                condition=None,
+                handler=App._h_main_ctrl_c,
+                priority=60,
+                mode="main",
+            ),
+            Binding(
+                keys=frozenset({"CTRL_D", "DELETE"}),
+                label="del: delete",
+                condition=lambda ctx: (
+                    ctx.seg_key == "profile"
+                    and not ctx.search_buffer
+                    and ctx.value is not None
+                ),
+                handler=App._h_main_delete,
+                priority=50,
+                mode="main",
+            ),
+            # Provenance toggle: ? when not searching
+            Binding(
+                keys=frozenset({"?"}),
+                label="?: sources",
+                condition=lambda ctx: not ctx.search_buffer,
+                handler=App._h_main_question,
+                priority=60,
+                mode="main",
+            ),
+            # Profile inspect: i when on profile, no search, value present
+            Binding(
+                keys=frozenset({"i"}),
+                label="i: inspect",
+                condition=lambda ctx: (
+                    ctx.seg_key == "profile"
+                    and not ctx.search_buffer
+                    and ctx.value is not None
+                ),
+                handler=App._h_main_inspect,
+                priority=50,
+                mode="main",
+            ),
+            # Freeform seed: first printable on a freeform segment with a value
+            Binding(
+                keys=None,  # match-any-printable
+                label=None,
+                condition=lambda ctx: (
+                    ctx.freeform
+                    and not ctx.freeform_editing
+                    and ctx.value is not None
+                ),
+                handler=App._h_main_freeform_seed,
+                priority=70,
+                mode="main",
+            ),
+            # Search or quit: searchable segment. The 'q' special case (quit
+            # when buffer is empty) is handled dynamically inside the handler.
+            Binding(
+                keys=None,  # match-any-printable
+                label=None,
+                condition=lambda ctx: ctx.searchable,
+                handler=App._h_main_search_or_quit,
+                priority=80,
+                mode="main",
+            ),
+            # Quit with 'q' when non-searchable (fallback for non-searchable segments)
+            Binding(
+                keys=frozenset({"q"}),
+                label="q: quit",
+                condition=lambda ctx: not ctx.searchable,
+                handler=App._h_main_quit,
+                priority=60,
+                mode="main",
+            ),
+        ]
+
+    def _h_main_search_or_quit(self, key: str) -> str | None:
+        """Handle printable key on searchable segment: search or quit."""
+        focused = self.bar.focused
+        if focused.search_buffer or key != "q":
+            focused.search_buffer += key
+            return None
+        # key is 'q' and buffer is empty -> quit
+        return "quit"
 
     def _intercept_unauth(self, seg: Segment) -> str:
         """Prompt auth for an unauthenticated profile before launch.
@@ -564,29 +1003,6 @@ class App:
             # been written.
             self._refresh_profile_segment(seg)
             seg.select_value(result.name)
-        return None
-
-    def _handle_create_key(self, key: str, seg: Segment) -> str | None:
-        """Handle keystrokes while in creation mode."""
-        match key:
-            case "ENTER":
-                if seg.create_buffer.strip():
-                    self._confirm_create(seg)
-                return None
-            case "ESC":
-                seg.creating = False
-                seg.create_buffer = ""
-                return None
-            case "BACKSPACE":
-                seg.create_buffer = seg.create_buffer[:-1]
-                return None
-            case "CTRL_C":
-                seg.creating = False
-                seg.create_buffer = ""
-                return "quit"
-            case _:
-                if len(key) == 1 and key.isprintable():
-                    seg.create_buffer += key
         return None
 
     def _confirm_create(self, seg: Segment) -> None:

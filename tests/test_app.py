@@ -371,6 +371,7 @@ class AuthInterceptTests(unittest.TestCase):
         app._pending_install_seg = None
         app._show_provenance = False
         app._pending_discovery = {}
+        app._bindings = app._build_bindings()
         return app, seg
 
     def test_launch_intercepted_when_unauthenticated(self):
@@ -631,6 +632,7 @@ class AuthInterceptTests(unittest.TestCase):
         app._pending_install_seg = None
         app._show_provenance = False
         app._pending_discovery = {}
+        app._bindings = app._build_bindings()
 
         with mock.patch.object(app, "_intercept_unauth") as mock_intercept:
             result = app._handle_key("ENTER")
@@ -721,15 +723,30 @@ class ContinuousSessionTests(unittest.TestCase):
 
 
 class InstallKeyCookedWindowTests(unittest.TestCase):
-    """_handle_install_key opens a cooked window for its download prompt
-    instead of hand-rolling exit_raw/enter_raw around it."""
+    """Install confirmation via _handle_key opens a cooked window for its
+    download prompt instead of hand-rolling exit_raw/enter_raw around it."""
 
     def _make_app(self, version: str = "1.2.3"):
         app = object.__new__(app_mod.App)
         app.terminal = mock.MagicMock()
         seg = mock.MagicMock()
+        seg.key = "version"
+        seg.search_buffer = ""
+        seg.creating = False
+        seg.freeform = False
+        seg._freeform_editing = False
+        seg.searchable = False
+        seg.is_on_plus = False
+        seg.value = version
+        # Build a minimal bar with the mock segment as focused
+        app.bar = mock.MagicMock()
+        app.bar.focused = seg
+        app._flash = ""
         app._pending_install = version
         app._pending_install_seg = seg
+        app._show_provenance = False
+        app._pending_discovery = {}
+        app._bindings = app._build_bindings()
         return app, seg
 
     def _track_cooked(self, app, events: list[str]) -> None:
@@ -753,7 +770,7 @@ class InstallKeyCookedWindowTests(unittest.TestCase):
                         side_effect=fake_install) as mock_install, \
              mock.patch("builtins.input", side_effect=fake_input), \
              redirect_stdout(io.StringIO()):
-            result = app._handle_install_key("ENTER")
+            result = app._handle_key("ENTER")
 
         self.assertIsNone(result)
         self.assertEqual(mock_install.call_args.args, ("1.2.3",))
@@ -769,7 +786,7 @@ class InstallKeyCookedWindowTests(unittest.TestCase):
 
     def test_non_enter_key_cancels_without_cooked_window(self) -> None:
         app, seg = self._make_app()
-        result = app._handle_install_key("ESC")
+        result = app._handle_key("ESC")
         self.assertIsNone(result)
         app.terminal.cooked.assert_not_called()
         seg.state.mark_installed.assert_not_called()
@@ -783,7 +800,7 @@ class InstallKeyCookedWindowTests(unittest.TestCase):
                         side_effect=OSError("network down")), \
              mock.patch("builtins.input", return_value=""), \
              redirect_stdout(buf):
-            result = app._handle_install_key("ENTER")
+            result = app._handle_key("ENTER")
 
         self.assertIsNone(result)
         seg.state.mark_installed.assert_not_called()
@@ -795,7 +812,7 @@ class InstallKeyCookedWindowTests(unittest.TestCase):
         with mock.patch("claudewheel.install.install_version"), \
              mock.patch("builtins.input", side_effect=KeyboardInterrupt), \
              redirect_stdout(io.StringIO()):
-            result = app._handle_install_key("ENTER")
+            result = app._handle_key("ENTER")
 
         self.assertIsNone(result)
         seg.state.mark_installed.assert_called_once_with("1.2.3")
@@ -876,6 +893,7 @@ class ProfileInspectKeyTests(unittest.TestCase):
         app._pending_install_seg = None
         app._show_provenance = False
         app._pending_discovery = {}
+        app._bindings = app._build_bindings()
         return app
 
     def _inspect_mocks(self):
@@ -970,6 +988,7 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         app._pending_install_seg = None
         app._show_provenance = False
         app._pending_discovery = {}
+        app._bindings = app._build_bindings()
         # The flow re-runs discovery on success; keep it out of unit tests.
         app._refresh_profile_segment = mock.MagicMock()
         return app

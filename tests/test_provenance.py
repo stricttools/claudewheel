@@ -34,6 +34,8 @@ def _make_app_mock(bar: SegmentBar) -> MagicMock:
     app.cfg.state = {}
     app.cfg.options_def = {}
     app._handle_key = App._handle_key.__get__(app, App)
+    app._build_context = App._build_context.__get__(app, App)
+    app._bindings = App._build_bindings(app)
     app._defocus = App._defocus.__get__(app, App)
     app._apply_pending_for_segment = App._apply_pending_for_segment.__get__(app, App)
     return app
@@ -76,8 +78,6 @@ class ProvenanceToggleTests(unittest.TestCase):
         seg.creating = True
         seg.create_buffer = ""
         app = _make_app_mock(bar)
-        # Bind create handler too
-        app._handle_create_key = App._handle_create_key.__get__(app, App)
         app._handle_key("?")
         # Should NOT toggle provenance
         self.assertFalse(app._show_provenance)
