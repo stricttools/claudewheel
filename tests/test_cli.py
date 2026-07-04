@@ -1265,11 +1265,17 @@ class NewProfileFlowTests(unittest.TestCase):
 
 
 class ShowProfileCommandTests(unittest.TestCase):
-    """The show-profile subcommand: routing, report output, unknown names."""
+    """The profile show subcommand: routing, report output, unknown names."""
 
-    def test_show_profile_in_subcommands(self) -> None:
-        """show-profile must be routed as a subcommand, not launch args."""
-        self.assertIn("show-profile", cli._SUBCOMMANDS)
+    def test_profile_in_subcommands(self) -> None:
+        """'profile' group must be routed as a subcommand, not launch args."""
+        self.assertIn("profile", cli._SUBCOMMANDS)
+
+    def test_deprecated_names_in_subcommands(self) -> None:
+        """Deprecated top-level names must remain in _SUBCOMMANDS so main()
+        doesn't rewrite them to 'launch <name>' before the deprecation fires."""
+        for name in ("new-profile", "delete-profile", "show-profile"):
+            self.assertIn(name, cli._SUBCOMMANDS)
 
     def _report(self, **overrides):
         from claudewheel.profile_info import ProfileReport
@@ -1351,6 +1357,95 @@ class DeleteProfileHandlerTests(unittest.TestCase):
                 cli._handle_delete_profile(
                     "work", force_delete=False, force_delete_data=False)
         self.assertEqual(ctx.exception.code, 1)
+
+
+class ProfileGroupDispatchTests(unittest.TestCase):
+    """Verify 'profile create/delete/show' dispatch to the correct handlers."""
+
+    def test_profile_create_dispatches(self) -> None:
+        """'claudewheel profile create' calls _handle_new_profile."""
+        with (
+            mock.patch("sys.argv", ["c", "profile", "create"]),
+            mock.patch.object(cli, "_handle_new_profile", return_value=0) as mock_handler,
+        ):
+            try:
+                cli.main()
+            except SystemExit:
+                pass
+        mock_handler.assert_called_once()
+
+    def test_profile_delete_dispatches(self) -> None:
+        """'claudewheel profile delete work' calls _handle_delete_profile."""
+        with (
+            mock.patch("sys.argv", ["c", "profile", "delete", "work"]),
+            mock.patch.object(cli, "_handle_delete_profile", return_value=0) as mock_handler,
+        ):
+            try:
+                cli.main()
+            except SystemExit:
+                pass
+        mock_handler.assert_called_once()
+        # strictcli passes args as kwargs
+        self.assertEqual(mock_handler.call_args.kwargs["name"], "work")
+
+    def test_profile_show_dispatches(self) -> None:
+        """'claudewheel profile show work' calls _handle_show_profile."""
+        with (
+            mock.patch("sys.argv", ["c", "profile", "show", "work"]),
+            mock.patch.object(cli, "_handle_show_profile", return_value=0) as mock_handler,
+        ):
+            try:
+                cli.main()
+            except SystemExit:
+                pass
+        mock_handler.assert_called_once()
+        self.assertEqual(mock_handler.call_args.kwargs["name"], "work")
+
+
+class DeprecatedProfileCommandTests(unittest.TestCase):
+    """Verify old top-level names exit 1 with deprecation messages on stderr."""
+
+    def test_new_profile_deprecated(self) -> None:
+        """'claudewheel new-profile' exits 1 with migration guidance on stderr."""
+        err = io.StringIO()
+        with (
+            mock.patch("sys.argv", ["c", "new-profile"]),
+            redirect_stderr(err),
+        ):
+            with self.assertRaises(SystemExit) as ctx:
+                cli.main()
+            self.assertEqual(ctx.exception.code, 1)
+        msg = err.getvalue()
+        self.assertIn("deprecated", msg)
+        self.assertIn("profile create", msg)
+
+    def test_delete_profile_deprecated(self) -> None:
+        """'claudewheel delete-profile work' exits 1 with migration guidance on stderr."""
+        err = io.StringIO()
+        with (
+            mock.patch("sys.argv", ["c", "delete-profile", "work"]),
+            redirect_stderr(err),
+        ):
+            with self.assertRaises(SystemExit) as ctx:
+                cli.main()
+            self.assertEqual(ctx.exception.code, 1)
+        msg = err.getvalue()
+        self.assertIn("deprecated", msg)
+        self.assertIn("profile delete", msg)
+
+    def test_show_profile_deprecated(self) -> None:
+        """'claudewheel show-profile work' exits 1 with migration guidance on stderr."""
+        err = io.StringIO()
+        with (
+            mock.patch("sys.argv", ["c", "show-profile", "work"]),
+            redirect_stderr(err),
+        ):
+            with self.assertRaises(SystemExit) as ctx:
+                cli.main()
+            self.assertEqual(ctx.exception.code, 1)
+        msg = err.getvalue()
+        self.assertIn("deprecated", msg)
+        self.assertIn("profile show", msg)
 
 
 if __name__ == "__main__":

@@ -866,9 +866,13 @@ def _handle_launch(
 # ---------------------------------------------------------------------------
 _SUBCOMMANDS = frozenset({
     "health", "config", "versions", "install", "uninstall",
-    "reset-options", "new-profile", "delete-profile", "show-profile", "show",
+    "reset-options", "show",
     "migrate", "stats", "mv", "import", "deploy-hooks", "launch",
-    "permission",
+    "permission", "profile",
+    # Deprecated top-level names kept here so main() doesn't rewrite
+    # e.g. "c new-profile" to "c launch new-profile" before the
+    # deprecation handler can fire.
+    "new-profile", "delete-profile", "show-profile",
 })
 
 
@@ -904,19 +908,27 @@ def _build_app() -> App:
         _handle_reset_options
     )
 
-    app.command("new-profile", help="run the interactive wizard to create and configure a new Claude profile")(
+    # -- Profile group --
+    profile_grp = app.group("profile", help="create, inspect, delete, and manage profiles")
+
+    profile_grp.command("create", help="create a new profile interactively")(
         _handle_new_profile
     )
 
-    app.command("delete-profile", help="delete a registered profile and all associated data",
-                args=[Arg(name="name", help="name of the profile to delete (e.g. work, personal, lisa)")])(
+    profile_grp.command("delete", help="delete a registered profile",
+                        args=[Arg(name="name", help="name of the profile to delete (e.g. work, personal, lisa)")])(
         _handle_delete_profile
     )
 
-    app.command("show-profile", help="print a detailed inspection report for one profile (auth, symlinks, settings, sessions, disk)",
-                args=[Arg(name="name", help="name of the profile to inspect (e.g. work, personal, default)")])(
+    profile_grp.command("show", help="inspect a profile's configuration and status",
+                        args=[Arg(name="name", help="name of the profile to inspect (e.g. work, personal, default)")])(
         _handle_show_profile
     )
+
+    # Hard-break old top-level names so they fail loudly with migration guidance
+    app.deprecate("new-profile", message="Renamed: use 'claudewheel profile create' instead.")
+    app.deprecate("delete-profile", message="Renamed: use 'claudewheel profile delete <name>' instead.")
+    app.deprecate("show-profile", message="Renamed: use 'claudewheel profile show <name>' instead.")
 
     app.command("show", help="print a summary of current segment selections, theme, and recent directories")(
         _handle_show
