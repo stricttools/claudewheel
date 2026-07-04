@@ -42,6 +42,17 @@ inspect a profile's configuration and status
 | --- | --- | --- |
 | `name` | yes | name of the profile to inspect (e.g. work, personal, default) |
 
+## profile rename
+
+rename a profile
+
+### Arguments
+
+| Name | Required | Description |
+| --- | --- | --- |
+| `old` | yes | current profile name |
+| `new` | yes | new profile name |
+
 ## profile fix-auth
 
 remove session credentials that shadow a long-lived token
