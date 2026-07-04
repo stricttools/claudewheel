@@ -368,4 +368,19 @@ class ConfigManager:
         self.options_def = options
 
     def save_state(self):
+        """Save in-memory state to disk.
+
+        Merges out-of-band keys (auth_browser) from disk before writing to
+        prevent clobber by stale in-memory state. The auth wizard writes
+        auth_browser directly to disk while the TUI holds its own in-memory
+        state loaded at startup; this merge ensures that value survives.
+        """
+        try:
+            on_disk = json.loads(STATE_FILE.read_text())
+            if isinstance(on_disk, dict):
+                browser = on_disk.get("auth_browser")
+                if browser is not None:
+                    self.state["auth_browser"] = browser
+        except (OSError, json.JSONDecodeError, ValueError):
+            pass
         write_json_atomic(STATE_FILE, self.state)

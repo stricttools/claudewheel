@@ -160,13 +160,26 @@ class RecordInodePermissionTests(unittest.TestCase):
 
 
 class _StubCfg:
-    """Minimal ConfigManager stand-in: a state dict plus save_state()."""
+    """Minimal ConfigManager stand-in: a state dict plus save_state().
+
+    Mirrors ConfigManager.save_state()'s out-of-band merge logic so that
+    tests exercise the same contract (auth_browser survives clobber).
+    """
 
     def __init__(self, state_file: Path, state: dict | None = None) -> None:
         self._state_file = state_file
         self.state: dict = state if state is not None else {}
 
     def save_state(self) -> None:
+        # Merge out-of-band keys (same as ConfigManager.save_state)
+        try:
+            on_disk = json.loads(self._state_file.read_text())
+            if isinstance(on_disk, dict):
+                browser = on_disk.get("auth_browser")
+                if browser is not None:
+                    self.state["auth_browser"] = browser
+        except (OSError, json.JSONDecodeError, ValueError):
+            pass
         self._state_file.write_text(json.dumps(self.state, indent=2) + "\n")
 
 
@@ -218,6 +231,77 @@ class SaveLaunchStateTests(StateFileTestCase):
         cfg = self._cfg({AUTH_BROWSER_KEY: "copy"})
         save_launch_state(cfg, {})
         self.assertEqual(self._read()[AUTH_BROWSER_KEY], "copy")
+
+
+# ---------------------------------------------------------------------------
+# ConfigManager.save_state out-of-band merge
+# ---------------------------------------------------------------------------
+
+
+class ConfigManagerSaveStateMergeTests(StateFileTestCase):
+    """Test that ConfigManager.save_state() merges out-of-band auth_browser."""
+
+    def _make_cfg(self, state: dict | None = None):
+        """Build a real ConfigManager with patched paths to use our temp dir."""
+        from claudewheel.config import ConfigManager
+        from unittest.mock import patch as _patch
+
+        cfg_dir = self.tmp_path / "cfg"
+        cfg_dir.mkdir(parents=True, exist_ok=True)
+        cfg = object.__new__(ConfigManager)
+        cfg.state = state if state is not None else {}
+        return cfg
+
+    def test_merges_auth_browser_from_disk(self) -> None:
+        """save_state picks up auth_browser written by an external process."""
+        from claudewheel.config import ConfigManager
+        from unittest.mock import patch as _patch
+
+        cfg = object.__new__(ConfigManager)
+        cfg.state = {"launch_count": 5}
+
+        # Simulate out-of-band write by auth wizard
+        self.state_file.write_text(json.dumps({"auth_browser": "/usr/bin/chrome"}))
+
+        # Patch STATE_FILE in the config module too (save_state reads it)
+        with _patch("claudewheel.config.STATE_FILE", self.state_file):
+            cfg.save_state()
+
+        on_disk = json.loads(self.state_file.read_text())
+        self.assertEqual(on_disk["auth_browser"], "/usr/bin/chrome")
+        self.assertEqual(on_disk["launch_count"], 5)
+
+    def test_no_clobber_when_disk_missing(self) -> None:
+        """save_state works when state file doesn't exist yet."""
+        from claudewheel.config import ConfigManager
+        from unittest.mock import patch as _patch
+
+        cfg = object.__new__(ConfigManager)
+        cfg.state = {"launch_count": 1}
+
+        with _patch("claudewheel.config.STATE_FILE", self.state_file):
+            cfg.save_state()
+
+        on_disk = json.loads(self.state_file.read_text())
+        self.assertEqual(on_disk, {"launch_count": 1})
+        self.assertNotIn("auth_browser", on_disk)
+
+    def test_in_memory_auth_browser_not_clobbered_by_disk_none(self) -> None:
+        """If auth_browser is already in memory and not on disk, it survives."""
+        from claudewheel.config import ConfigManager
+        from unittest.mock import patch as _patch
+
+        cfg = object.__new__(ConfigManager)
+        cfg.state = {"auth_browser": "copy", "launch_count": 2}
+
+        # Disk file exists but has no auth_browser key
+        self.state_file.write_text(json.dumps({"other": "stuff"}))
+
+        with _patch("claudewheel.config.STATE_FILE", self.state_file):
+            cfg.save_state()
+
+        on_disk = json.loads(self.state_file.read_text())
+        self.assertEqual(on_disk["auth_browser"], "copy")
 
 
 if __name__ == "__main__":

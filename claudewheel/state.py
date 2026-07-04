@@ -80,7 +80,6 @@ def save_launch_state(cfg: ConfigManager, selections: dict[str, str | None]) -> 
         recent.insert(0, directory)
         cfg.state["recent_dirs"] = recent[:20]
 
-    merge_out_of_band_keys(cfg.state)
     cfg.save_state()
 
 

@@ -864,7 +864,10 @@ class ApplySlowDiscoverySaveStateTests(unittest.TestCase):
         state_file = self.state_file
 
         class _StubCfg:
-            """ConfigManager stand-in: wholesale save_state like the real one."""
+            """ConfigManager stand-in: wholesale save_state like the real one.
+
+            Mirrors the out-of-band merge logic in ConfigManager.save_state().
+            """
 
             def __init__(self) -> None:
                 # In-memory state loaded at startup -- no auth_browser yet.
@@ -872,6 +875,14 @@ class ApplySlowDiscoverySaveStateTests(unittest.TestCase):
                 self.options_def: dict = {}
 
             def save_state(self) -> None:
+                try:
+                    on_disk = json.loads(state_file.read_text())
+                    if isinstance(on_disk, dict):
+                        browser = on_disk.get("auth_browser")
+                        if browser is not None:
+                            self.state["auth_browser"] = browser
+                except (OSError, json.JSONDecodeError, ValueError):
+                    pass
                 state_file.write_text(json.dumps(self.state, indent=2) + "\n")
 
         app.cfg = _StubCfg()
@@ -988,6 +999,82 @@ class ProfileInspectKeyTests(unittest.TestCase):
             app._handle_key("i")
         mock_page.assert_not_called()
         self.assertEqual(seg.search_buffer, "i")
+
+
+class InspectAuthShadowFixTests(unittest.TestCase):
+    """Pressing 'f' on the inspect page fixes auth shadow when detected."""
+
+    def _make_app(self, seg: Segment) -> app_mod.App:
+        app = object.__new__(app_mod.App)
+        app.terminal = mock.MagicMock()
+        app.theme = mock.MagicMock()
+        app.cfg = mock.MagicMock()
+        app.bar = mock.MagicMock()
+        app.bar.segments = [seg]
+        app.bar.focused = seg
+        app._flash = ""
+        app._show_provenance = False
+        app._pending_discovery = {}
+        app._bindings = app._build_bindings()
+        return app
+
+    def test_f_fixes_auth_shadow_when_detected(self) -> None:
+        seg = _make_profile_segment(discovered=["work"])
+        seg.select_value("work")
+        app = self._make_app(seg)
+        with (
+            mock.patch("claudewheel.profile_info.gather_profile_info",
+                       return_value=mock.MagicMock()),
+            mock.patch("claudewheel.profile_info.format_report",
+                       return_value=["line"]),
+            mock.patch("claudewheel.ui.show_page", return_value="f") as mock_page,
+            mock.patch.object(app_mod, "_detect_auth_shadow", return_value=True),
+            mock.patch.object(app_mod, "_fix_auth_shadow",
+                              return_value="Auth shadow fixed") as mock_fix,
+        ):
+            app._show_profile_inspect(seg)
+        mock_fix.assert_called_once_with("work")
+        self.assertEqual(app._flash, "Auth shadow fixed")
+        # Verify hint shows the fix option
+        _, kwargs = mock_page.call_args
+        self.assertIn("f: fix auth shadow", kwargs.get("hint", ""))
+
+    def test_other_key_does_not_fix(self) -> None:
+        seg = _make_profile_segment(discovered=["work"])
+        seg.select_value("work")
+        app = self._make_app(seg)
+        with (
+            mock.patch("claudewheel.profile_info.gather_profile_info",
+                       return_value=mock.MagicMock()),
+            mock.patch("claudewheel.profile_info.format_report",
+                       return_value=["line"]),
+            mock.patch("claudewheel.ui.show_page", return_value="q"),
+            mock.patch.object(app_mod, "_detect_auth_shadow", return_value=True),
+            mock.patch.object(app_mod, "_fix_auth_shadow") as mock_fix,
+        ):
+            app._show_profile_inspect(seg)
+        mock_fix.assert_not_called()
+        self.assertEqual(app._flash, "")
+
+    def test_no_shadow_f_ignored(self) -> None:
+        seg = _make_profile_segment(discovered=["work"])
+        seg.select_value("work")
+        app = self._make_app(seg)
+        with (
+            mock.patch("claudewheel.profile_info.gather_profile_info",
+                       return_value=mock.MagicMock()),
+            mock.patch("claudewheel.profile_info.format_report",
+                       return_value=["line"]),
+            mock.patch("claudewheel.ui.show_page", return_value="f") as mock_page,
+            mock.patch.object(app_mod, "_detect_auth_shadow", return_value=False),
+            mock.patch.object(app_mod, "_fix_auth_shadow") as mock_fix,
+        ):
+            app._show_profile_inspect(seg)
+        mock_fix.assert_not_called()
+        self.assertEqual(app._flash, "")
+        # Verify hint does NOT offer fix
+        _, kwargs = mock_page.call_args
+        self.assertNotIn("f: fix auth shadow", kwargs.get("hint", ""))
 
 
 class ProfileDeleteKeyTests(unittest.TestCase):
