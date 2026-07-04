@@ -2,6 +2,20 @@
 
 # Changelog
 
+## 0.19.1
+
+Profile rename command, inline auth-shadow fix on inspect page, faster detection, and a state-save race fix.
+
+### Features
+
+- Terminal background detection timeout reduced from 1s to 500ms, halving worst-case startup latency on unsupported terminals.
+- Profile inspect page now offers to fix auth shadow inline when detected (press `f`).
+- New `profile rename <old> <new>` command with automatic recovery if interrupted mid-rename.
+
+### Fixes
+
+- Fixed a race where concurrent sessions could lose the remembered browser choice on state save.
+
 ## 0.19.0
 
 CLI profile command group, auth shadow fix, hook guard, rate-limit tier, live theme switching, and online token validation.

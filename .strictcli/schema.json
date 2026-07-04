@@ -48,7 +48,7 @@
   },
   "project_id": "claudewheel",
   "name": "c",
-  "version": "0.18.2",
+  "version": "0.19.0",
   "help": "claudewheel - TUI launcher for Claude Code with profile, model, and directory selection",
   "commands": {
     "health": {
@@ -351,6 +351,20 @@
             {
               "name": "name",
               "help": "name of the profile to inspect (e.g. work, personal, default)"
+            }
+          ]
+        },
+        "rename": {
+          "name": "rename",
+          "help": "rename a profile",
+          "args": [
+            {
+              "name": "old",
+              "help": "current profile name"
+            },
+            {
+              "name": "new",
+              "help": "new profile name"
             }
           ]
         },
