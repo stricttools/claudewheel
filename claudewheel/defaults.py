@@ -86,7 +86,7 @@ def build_canonical_shared_settings(scripts_dir: Path) -> dict:
 
 
 DEFAULT_CONFIG = {
-    "theme": "dark",
+    "theme": "auto",
     "enabled_segments": [
         "profile",
         "github",

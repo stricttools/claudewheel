@@ -29,6 +29,7 @@ from .defaults import (
     build_canonical_shared_settings,
 )
 from .fsutil import write_json_atomic
+from .terminal import detect_terminal_background
 
 
 # ---------------------------------------------------------------------------
@@ -169,7 +170,7 @@ class ConfigManager:
         self.segments_def = self._load_json(SEGMENTS_FILE, DEFAULT_SEGMENTS)
         self.options_def = self._load_json(OPTIONS_FILE, DEFAULT_OPTIONS)
         self.state = self._load_json(STATE_FILE, DEFAULT_STATE)
-        theme_name = self.config.get("theme", "dark")
+        theme_name = self._resolve_theme_name(self.config.get("theme", "auto"))
         theme_file = THEMES_DIR / f"{theme_name}.json"
         theme_default = DEFAULT_THEME_LIGHT if theme_name == "light" else DEFAULT_THEME_DARK
         self.theme = self._load_json(theme_file, theme_default)
@@ -177,6 +178,18 @@ class ConfigManager:
         self._run_versioned_migrations(theme_file)
         self._ensure_shared_settings()
         self._warn_old_profile_dirs()
+
+    @staticmethod
+    def _resolve_theme_name(theme_name: str) -> str:
+        """Resolve 'auto' theme to 'light' or 'dark' via terminal detection.
+
+        Explicit 'light' or 'dark' are returned as-is. 'auto' queries the
+        terminal background color; detection failure falls back to 'dark'.
+        """
+        if theme_name != "auto":
+            return theme_name
+        detected = detect_terminal_background()
+        return detected if detected in ("light", "dark") else "dark"
 
     @staticmethod
     def _warn_old_profile_dirs() -> None:
