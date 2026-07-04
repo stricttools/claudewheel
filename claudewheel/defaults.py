@@ -6,6 +6,8 @@ from pathlib import Path
 
 
 DISALLOWED_TOOLS = [
+    "Artifact",
+    "DesignSync",
     "EnterPlanMode",
     "EnterWorktree",
     "ExitPlanMode",
@@ -14,6 +16,7 @@ DISALLOWED_TOOLS = [
     "NotebookEdit",
     "PushNotification",
     "RemoteTrigger",
+    "ReportFindings",
     "Skill",
     "TaskCreate",
     "TaskGet",
