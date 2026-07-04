@@ -2121,5 +2121,185 @@ class TokenValidationOutcomeTests(AuthFlowTestBase):
         mock_add.assert_called_once_with("test", "sk-ant-oat01-repasted")
 
 
+class OnboardingFlagTests(CreateProfileTestBase):
+    """create_profile() must write .claude.json with hasCompletedOnboarding: true."""
+
+    def _read_claude_json(self, name: str = "test") -> dict:
+        path = self._profile_dir(name) / ".claude.json"
+        if not path.exists():
+            return {}
+        return json.loads(path.read_text())
+
+    def test_create_profile_writes_onboarding_flag(self) -> None:
+        """A freshly created profile has .claude.json with hasCompletedOnboarding."""
+        result = _make_result(name="onboard")
+        create_profile(result, self.cfg)
+        cj = self._read_claude_json("onboard")
+        self.assertTrue(cj.get("hasCompletedOnboarding"),
+                        ".claude.json must contain hasCompletedOnboarding: true")
+
+    def test_create_profile_preserves_existing_claude_json(self) -> None:
+        """If .claude.json already exists (e.g. from a prior CC run),
+        create_profile merges without clobbering other keys."""
+        profile_dir = self._profile_dir("merge")
+        profile_dir.mkdir(parents=True)
+        existing = {"machineID": "abc123", "cachedGrowthBookFeatures": {"x": True}}
+        (profile_dir / ".claude.json").write_text(json.dumps(existing))
+
+        result = _make_result(name="merge")
+        create_profile(result, self.cfg)
+
+        cj = self._read_claude_json("merge")
+        self.assertTrue(cj.get("hasCompletedOnboarding"))
+        self.assertEqual(cj["machineID"], "abc123")
+        self.assertEqual(cj["cachedGrowthBookFeatures"], {"x": True})
+
+    def test_create_profile_handles_corrupt_claude_json(self) -> None:
+        """Corrupt .claude.json is overwritten with just the flag."""
+        profile_dir = self._profile_dir("corrupt")
+        profile_dir.mkdir(parents=True)
+        (profile_dir / ".claude.json").write_text("NOT VALID JSON{{{")
+
+        result = _make_result(name="corrupt")
+        create_profile(result, self.cfg)
+
+        cj = self._read_claude_json("corrupt")
+        self.assertTrue(cj.get("hasCompletedOnboarding"))
+
+
+class OnboardingFlagAuthTests(AuthFlowTestBase):
+    """run_auth_flow() must write .claude.json with hasCompletedOnboarding
+    after successful auth (authenticated or unverified)."""
+
+    def _read_claude_json(self, config_dir: str) -> dict:
+        path = Path(config_dir).expanduser() / ".claude.json"
+        if not path.exists():
+            return {}
+        return json.loads(path.read_text())
+
+    def test_session_login_success_writes_onboarding_flag(self) -> None:
+        """After successful session login, .claude.json has the flag."""
+        from claudewheel.wizard import run_auth_flow
+
+        config_dir = self._profile_dir("authonboard")
+        config_dir.mkdir(parents=True, exist_ok=True)
+        config_dir_str = str(config_dir)
+        fake_binary = self._make_fake_binary()
+
+        def fake_run(cmd, env=None):
+            (Path(env["CLAUDE_CONFIG_DIR"]) / ".credentials.json").write_text("{}")
+            return subprocess.CompletedProcess(cmd, 0)
+
+        with mock.patch("claudewheel.wizard.run_selection", autospec=True,
+                        side_effect=["session", "copy"]), \
+             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard.subprocess.run", side_effect=fake_run):
+            result = run_auth_flow(config_dir_str, "authonboard", THEME, self.term)
+
+        self.assertEqual(result, "authenticated")
+        cj = self._read_claude_json(config_dir_str)
+        self.assertTrue(cj.get("hasCompletedOnboarding"),
+                        ".claude.json must contain hasCompletedOnboarding after session login")
+
+    def test_token_valid_writes_onboarding_flag(self) -> None:
+        """After a validated token save, .claude.json has the flag."""
+        from claudewheel import auth
+        from claudewheel.wizard import run_auth_flow
+
+        config_dir = self._profile_dir("tokenonboard")
+        config_dir.mkdir(parents=True, exist_ok=True)
+        config_dir_str = str(config_dir)
+        fake_binary = self._make_fake_binary()
+
+        with mock.patch("claudewheel.wizard.run_selection", autospec=True,
+                        side_effect=["token", "copy"]), \
+             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard.run_under_pty", autospec=True,
+                        return_value=(0, CAPTURED_OUTPUT)), \
+             mock.patch("claudewheel.auth.validate_token", autospec=True,
+                        return_value=auth.VALID), \
+             mock.patch("claudewheel.wizard.add_token"):
+            result = run_auth_flow(config_dir_str, "tokenonboard", THEME, self.term)
+
+        self.assertEqual(result, "authenticated")
+        cj = self._read_claude_json(config_dir_str)
+        self.assertTrue(cj.get("hasCompletedOnboarding"),
+                        ".claude.json must contain hasCompletedOnboarding after token save")
+
+    def test_unverified_save_writes_onboarding_flag(self) -> None:
+        """After an unverified token save, .claude.json has the flag."""
+        from claudewheel import auth
+        from claudewheel.wizard import run_auth_flow
+
+        config_dir = self._profile_dir("unverified")
+        config_dir.mkdir(parents=True, exist_ok=True)
+        config_dir_str = str(config_dir)
+        fake_binary = self._make_fake_binary()
+
+        with mock.patch("claudewheel.wizard.run_selection", autospec=True,
+                        side_effect=["token", "copy", "save"]), \
+             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard.run_under_pty", autospec=True,
+                        return_value=(0, CAPTURED_OUTPUT)), \
+             mock.patch("claudewheel.auth.validate_token", autospec=True,
+                        return_value=auth.UNREACHABLE), \
+             mock.patch("claudewheel.wizard.add_token"):
+            result = run_auth_flow(config_dir_str, "unverified", THEME, self.term)
+
+        self.assertEqual(result, "unverified")
+        cj = self._read_claude_json(config_dir_str)
+        self.assertTrue(cj.get("hasCompletedOnboarding"),
+                        ".claude.json must contain hasCompletedOnboarding after unverified save")
+
+    def test_failed_auth_does_not_write_flag(self) -> None:
+        """Failed auth must NOT write the onboarding flag."""
+        from claudewheel.wizard import run_auth_flow
+
+        config_dir = self._profile_dir("failauth")
+        config_dir.mkdir(parents=True, exist_ok=True)
+        config_dir_str = str(config_dir)
+        fake_binary = self._make_fake_binary()
+
+        with mock.patch("claudewheel.wizard.run_selection", autospec=True,
+                        side_effect=["session", "copy"]), \
+             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard.subprocess.run",
+                        return_value=subprocess.CompletedProcess([], 1)):
+            result = run_auth_flow(config_dir_str, "failauth", THEME, self.term)
+
+        self.assertEqual(result, "failed")
+        cj = self._read_claude_json(config_dir_str)
+        self.assertFalse(cj.get("hasCompletedOnboarding", False),
+                         "Failed auth must not write hasCompletedOnboarding")
+
+    def test_auth_preserves_existing_claude_json_keys(self) -> None:
+        """Auth must merge the flag without clobbering existing keys."""
+        from claudewheel import auth
+        from claudewheel.wizard import run_auth_flow
+
+        config_dir = self._profile_dir("mergeauth")
+        config_dir.mkdir(parents=True, exist_ok=True)
+        config_dir_str = str(config_dir)
+        existing = {"machineID": "xyz", "someOther": 42}
+        (config_dir / ".claude.json").write_text(json.dumps(existing))
+        fake_binary = self._make_fake_binary()
+
+        with mock.patch("claudewheel.wizard.run_selection", autospec=True,
+                        side_effect=["token", "copy"]), \
+             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard.run_under_pty", autospec=True,
+                        return_value=(0, CAPTURED_OUTPUT)), \
+             mock.patch("claudewheel.auth.validate_token", autospec=True,
+                        return_value=auth.VALID), \
+             mock.patch("claudewheel.wizard.add_token"):
+            result = run_auth_flow(config_dir_str, "mergeauth", THEME, self.term)
+
+        self.assertEqual(result, "authenticated")
+        cj = self._read_claude_json(config_dir_str)
+        self.assertTrue(cj.get("hasCompletedOnboarding"))
+        self.assertEqual(cj["machineID"], "xyz")
+        self.assertEqual(cj["someOther"], 42)
+
+
 if __name__ == "__main__":
     unittest.main()

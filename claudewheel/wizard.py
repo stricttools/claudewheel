@@ -19,6 +19,7 @@ from .constants import (
 from .config import ConfigManager
 from .defaults import DISALLOWED_TOOLS, build_canonical_shared_settings
 from .discovery import detect_browsers
+from .fsutil import write_json_atomic
 from .pty_runner import run_under_pty
 from .state import AUTH_BROWSER_KEY, load_state_value, save_state_value
 from .tokens import add_token
@@ -155,6 +156,31 @@ def _load_shared_settings() -> dict:
     return build_canonical_shared_settings(SCRIPTS_DIR)
 
 
+def _set_onboarding_flag(config_dir: str) -> None:
+    """Merge ``hasCompletedOnboarding: true`` into ``{config_dir}/.claude.json``.
+
+    Claude Code gates on this flag in interactive mode -- it is normally
+    set by CC's own OAuth success handler, but claudewheel bypasses that
+    when injecting tokens via CLAUDE_CODE_OAUTH_TOKEN. Read-merge-write
+    preserves any other metadata CC has already written (machineID,
+    cachedGrowthBookFeatures, etc.). Corrupt or missing files are handled
+    gracefully. If the config directory itself doesn't exist, this is a
+    no-op (nothing to write to).
+    """
+    expanded = Path(config_dir).expanduser()
+    if not expanded.is_dir():
+        return
+    path = expanded / ".claude.json"
+    data: dict = {}
+    if path.exists():
+        try:
+            data = json.loads(path.read_text())
+        except (json.JSONDecodeError, OSError):
+            data = {}
+    data["hasCompletedOnboarding"] = True
+    write_json_atomic(path, data)
+
+
 def create_profile(result: WizardResult, cfg: ConfigManager) -> list[str]:
     """Execute the profile creation based on wizard results.
 
@@ -222,6 +248,10 @@ def create_profile(result: WizardResult, cfg: ConfigManager) -> list[str]:
     # Write settings.json
     settings_path = config_dir / "settings.json"
     settings_path.write_text(json.dumps(settings, indent=2) + "\n")
+
+    # Mark onboarding complete so CC skips the login/onboarding screen
+    # when launched with a token injected via CLAUDE_CODE_OAUTH_TOKEN
+    _set_onboarding_flag(result.config_dir)
 
     # Symlink shared dirs
     if result.symlink_shared:
@@ -330,6 +360,8 @@ def run_auth_flow(config_dir: str, profile_name: str, theme, terminal,
         # Remember the working browser choice for the next auth flow. An
         # unverified save still means the browser step itself worked.
         save_state_value(AUTH_BROWSER_KEY, browser)
+        # Mark onboarding complete so CC skips the login screen
+        _set_onboarding_flag(config_dir)
     return outcome
 
 
