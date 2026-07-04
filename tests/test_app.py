@@ -1019,18 +1019,20 @@ class InspectAuthShadowFixTests(unittest.TestCase):
         return app
 
     def test_f_fixes_auth_shadow_when_detected(self) -> None:
+        from claudewheel.profile_ops import FixAuthResult
+
         seg = _make_profile_segment(discovered=["work"])
         seg.select_value("work")
         app = self._make_app(seg)
+        report = mock.MagicMock(has_auth_shadow=True)
         with (
             mock.patch("claudewheel.profile_info.gather_profile_info",
-                       return_value=mock.MagicMock()),
+                       return_value=report),
             mock.patch("claudewheel.profile_info.format_report",
                        return_value=["line"]),
             mock.patch("claudewheel.ui.show_page", return_value="f") as mock_page,
-            mock.patch.object(app_mod, "_detect_auth_shadow", return_value=True),
-            mock.patch.object(app_mod, "_fix_auth_shadow",
-                              return_value="Auth shadow fixed") as mock_fix,
+            mock.patch("claudewheel.profile_ops.fix_auth_shadow",
+                       return_value=FixAuthResult(ok=True)) as mock_fix,
         ):
             app._show_profile_inspect(seg)
         mock_fix.assert_called_once_with("work")
@@ -1043,14 +1045,14 @@ class InspectAuthShadowFixTests(unittest.TestCase):
         seg = _make_profile_segment(discovered=["work"])
         seg.select_value("work")
         app = self._make_app(seg)
+        report = mock.MagicMock(has_auth_shadow=True)
         with (
             mock.patch("claudewheel.profile_info.gather_profile_info",
-                       return_value=mock.MagicMock()),
+                       return_value=report),
             mock.patch("claudewheel.profile_info.format_report",
                        return_value=["line"]),
             mock.patch("claudewheel.ui.show_page", return_value="q"),
-            mock.patch.object(app_mod, "_detect_auth_shadow", return_value=True),
-            mock.patch.object(app_mod, "_fix_auth_shadow") as mock_fix,
+            mock.patch("claudewheel.profile_ops.fix_auth_shadow") as mock_fix,
         ):
             app._show_profile_inspect(seg)
         mock_fix.assert_not_called()
@@ -1060,14 +1062,14 @@ class InspectAuthShadowFixTests(unittest.TestCase):
         seg = _make_profile_segment(discovered=["work"])
         seg.select_value("work")
         app = self._make_app(seg)
+        report = mock.MagicMock(has_auth_shadow=False)
         with (
             mock.patch("claudewheel.profile_info.gather_profile_info",
-                       return_value=mock.MagicMock()),
+                       return_value=report),
             mock.patch("claudewheel.profile_info.format_report",
                        return_value=["line"]),
             mock.patch("claudewheel.ui.show_page", return_value="f") as mock_page,
-            mock.patch.object(app_mod, "_detect_auth_shadow", return_value=False),
-            mock.patch.object(app_mod, "_fix_auth_shadow") as mock_fix,
+            mock.patch("claudewheel.profile_ops.fix_auth_shadow") as mock_fix,
         ):
             app._show_profile_inspect(seg)
         mock_fix.assert_not_called()

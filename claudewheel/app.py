@@ -50,81 +50,6 @@ class Binding:
     mode: str | None  # "main" / "creating" / "freeform" / "install" / None (cross-mode)
 
 
-# ---------------------------------------------------------------------------
-# Auth shadow detection and fix (inline until profile_ops.fix_auth_shadow lands)
-# ---------------------------------------------------------------------------
-
-
-def _detect_auth_shadow(name: str) -> bool:
-    """Return True if *name* has a session credential shadowing a long-lived token."""
-    import json
-    from .constants import PROFILES_DIR, TOKENS_FILE
-    from .tokens import parse_entry
-
-    try:
-        tokens = json.loads(TOKENS_FILE.read_text())
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
-        return False
-    if parse_entry(tokens.get(name)) is None:
-        return False
-    creds_path = PROFILES_DIR / name / ".credentials.json"
-    if not creds_path.exists():
-        return False
-    try:
-        creds = json.loads(creds_path.read_text())
-    except (json.JSONDecodeError, OSError):
-        return False
-    return "claudeAiOauth" in creds
-
-
-def _fix_auth_shadow(name: str) -> str:
-    """Remove session credentials that shadow a long-lived token.
-
-    Returns a human-readable outcome string suitable for flash display.
-    """
-    import json
-    from .constants import PROFILES_DIR, TOKENS_FILE
-    from .fsutil import write_json_atomic_secret
-    from .tokens import parse_entry
-
-    try:
-        tokens = json.loads(TOKENS_FILE.read_text())
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
-        return "No tokens.json found"
-    if parse_entry(tokens.get(name)) is None:
-        return "No long-lived token for this profile"
-    creds_path = PROFILES_DIR / name / ".credentials.json"
-    if not creds_path.exists():
-        return "No credentials file found"
-    try:
-        creds = json.loads(creds_path.read_text())
-    except (json.JSONDecodeError, OSError) as e:
-        return f"Cannot read credentials: {e}"
-    if "claudeAiOauth" not in creds:
-        return "No auth shadow detected"
-
-    # Extract tier fields before stripping
-    oauth_block = creds["claudeAiOauth"]
-    tier = oauth_block.get("rateLimitTier") if isinstance(oauth_block, dict) else None
-    sub_type = oauth_block.get("subscriptionType") if isinstance(oauth_block, dict) else None
-
-    if tier or sub_type:
-        entry = tokens.get(name)
-        if isinstance(entry, str):
-            entry = {"token": entry}
-        elif not isinstance(entry, dict):
-            entry = {}
-        if tier:
-            entry["rateLimitTier"] = tier
-        if sub_type:
-            entry["subscriptionType"] = sub_type
-        tokens[name] = entry
-        write_json_atomic_secret(TOKENS_FILE, tokens)
-
-    creds.pop("claudeAiOauth", None)
-    write_json_atomic_secret(creds_path, creds)
-    return "Auth shadow fixed"
-
 
 class App:
     """TUI application managing the event loop, keyboard handling, and segment interaction."""
@@ -980,19 +905,22 @@ class App:
         If the profile has an auth shadow, the hint offers 'f' to fix it.
         """
         from .profile_info import format_report, gather_profile_info
+        from .profile_ops import fix_auth_shadow
         from .ui import show_page
 
         report = gather_profile_info(seg.value)
-        has_shadow = _detect_auth_shadow(seg.value)
-        if has_shadow:
+        if report.has_auth_shadow:
             hint = "f: fix auth shadow   any key: close"
         else:
             hint = "any key: close"
         key = show_page(f"Profile: {seg.value}", format_report(report),
                         self.theme, self.terminal, hint=hint)
-        if key == "f" and has_shadow:
-            outcome = _fix_auth_shadow(seg.value)
-            self._flash = outcome
+        if key == "f" and report.has_auth_shadow:
+            result = fix_auth_shadow(seg.value)
+            if result.ok:
+                self._flash = "Auth shadow fixed"
+            else:
+                self._flash = f"Could not fix: {result.reason}"
 
     def _delete_profile_flow(self, seg: Segment) -> None:
         """Confirm and delete the focused profile from the TUI.
