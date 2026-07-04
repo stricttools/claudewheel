@@ -62,8 +62,6 @@ def _make_app(seg: Segment, extra_segments: list[Segment] | None = None,
     segments = [seg] + (extra_segments or [])
     app.bar = SegmentBar(segments=segments, focus_idx=focus_idx)
     app._flash = ""
-    app._pending_install = None
-    app._pending_install_seg = None
     app._show_provenance = False
     app._pending_discovery = {}
     app._bindings = app._build_bindings()
@@ -194,10 +192,10 @@ class MainModeEnterTests(unittest.TestCase):
         seg.state.set_installed({"1.0.0"})
         seg.select_value("2.0.0")
         app = _make_app(seg)
-        result = app._handle_key("ENTER")
+        with mock.patch.object(app, "_run_install_flow") as m:
+            result = app._handle_key("ENTER")
         self.assertIsNone(result)
-        self.assertEqual(app._pending_install, "2.0.0")
-        self.assertIn("not on disk", app._flash)
+        m.assert_called_once_with(seg, "2.0.0")
 
     def test_enter_flashes_unavailable(self):
         seg = _make_segment()
@@ -629,48 +627,6 @@ class FreeformModeTests(unittest.TestCase):
 # ===========================================================================
 
 
-class InstallModeTests(unittest.TestCase):
-    """Keys during install confirmation (_pending_install is set)."""
-
-    def _make_install_app(self) -> App:
-        seg = _make_segment()
-        seg.state.set_installed({"1.0.0"})
-        app = _make_app(seg)
-        app._pending_install = "2.0.0"
-        app._pending_install_seg = seg
-        return app
-
-    def test_enter_in_install_mode_calls_install(self):
-        app = self._make_install_app()
-        with mock.patch("claudewheel.install.install_version") as m, \
-             mock.patch("builtins.input", return_value=""):
-            result = app._handle_key("ENTER")
-        m.assert_called_once()
-        self.assertIsNone(result)
-
-    def test_any_other_key_cancels_install(self):
-        app = self._make_install_app()
-        result = app._handle_key("ESC")
-        self.assertIsNone(result)
-        self.assertIsNone(app._pending_install)
-        self.assertIsNone(app._pending_install_seg)
-
-    def test_q_in_install_mode_cancels_not_quits(self):
-        """q during install mode cancels the install, does NOT quit."""
-        app = self._make_install_app()
-        result = app._handle_key("q")
-        self.assertIsNone(result)
-        self.assertIsNone(app._pending_install)
-
-    def test_ctrl_c_in_install_mode_cancels(self):
-        """CTRL_C during install mode cancels, not quit."""
-        app = self._make_install_app()
-        result = app._handle_key("CTRL_C")
-        # Install handler consumes CTRL_C as "any non-ENTER key" -> cancel
-        self.assertIsNone(result)
-        self.assertIsNone(app._pending_install)
-
-
 # ===========================================================================
 # LEFT clears search buffer and freeform editing via _defocus
 # ===========================================================================
@@ -701,7 +657,7 @@ class DefocusCleanupTests(unittest.TestCase):
 
 
 class ModeRoutingTests(unittest.TestCase):
-    """Correct mode precedence: creating > freeform > install > main."""
+    """Correct mode precedence: creating > freeform > main."""
 
     def test_creating_takes_precedence_over_freeform(self):
         """Even if freeform conditions are met, creating intercepts."""
@@ -714,31 +670,6 @@ class ModeRoutingTests(unittest.TestCase):
         app._handle_key("a")
         # Goes to creating handler
         self.assertEqual(seg.create_buffer, "a")
-
-    def test_freeform_takes_precedence_over_install(self):
-        """Freeform mode blocks the install handler."""
-        seg = _make_segment(freeform=True)
-        seg.search_buffer = "x"
-        seg._freeform_editing = True
-        app = _make_app(seg)
-        app._pending_install = "2.0.0"
-        app._pending_install_seg = seg
-        app._handle_key("a")
-        # Goes to freeform handler (appends to search)
-        self.assertEqual(seg.search_buffer, "xa")
-        # Install still pending
-        self.assertEqual(app._pending_install, "2.0.0")
-
-    def test_install_takes_precedence_over_main(self):
-        """Install mode blocks main handler."""
-        seg = _make_segment(searchable=True)
-        app = _make_app(seg)
-        app._pending_install = "2.0.0"
-        app._pending_install_seg = seg
-        # 'q' would quit in main mode, but in install mode it cancels
-        result = app._handle_key("q")
-        self.assertIsNone(result)
-        self.assertIsNone(app._pending_install)
 
 
 if __name__ == "__main__":

@@ -36,7 +36,6 @@ class KeyContext:
     freeform: bool
     freeform_editing: bool
     creating: bool
-    pending_install: bool
     show_provenance: bool
 
 
@@ -85,8 +84,6 @@ class App:
         )
         self.running = False
         self._flash: str = ""  # Temporary message shown for one render cycle
-        self._pending_install: str | None = None  # version awaiting install confirmation
-        self._pending_install_seg: Segment | None = None
         self._show_provenance: bool = False  # Phase 9: provenance overlay toggle
         self._bindings: list[Binding] = self._build_bindings()
 
@@ -215,13 +212,11 @@ class App:
     def _build_context(self) -> KeyContext:
         """Build an ephemeral KeyContext from current app state."""
         focused = self.bar.focused
-        # Mode precedence: creating > freeform > install > main
+        # Mode precedence: creating > freeform > main
         if focused.creating:
             mode = "creating"
         elif focused.freeform and focused.search_buffer and focused._freeform_editing:
             mode = "freeform"
-        elif self._pending_install:
-            mode = "install"
         else:
             mode = "main"
         return KeyContext(
@@ -235,7 +230,6 @@ class App:
             freeform=focused.freeform,
             freeform_editing=focused._freeform_editing,
             creating=focused.creating,
-            pending_install=bool(self._pending_install),
             show_provenance=self._show_provenance,
         )
 
@@ -328,12 +322,10 @@ class App:
         if missing:
             self._flash = f"Required: {', '.join(missing)}"
             return None
-        # Check for non-installed version -- offer to install
+        # Check for non-installed version -- offer to install via form
         for s in self.bar.segments:
             if s.value and s.state.has_installed and not s.state.is_installed(s.value):
-                self._pending_install = s.value
-                self._pending_install_seg = s
-                self._flash = f"{s.value} not on disk. Enter=install, Esc=cancel"
+                self._run_install_flow(s, s.value)
                 return None
         # Check for unavailable selections
         for s in self.bar.segments:
@@ -523,16 +515,19 @@ class App:
         self.bar.focused.create_buffer += key
         return None
 
-    # -- Install mode handlers --
+    # -- Install flow (form-based) --
 
-    def _h_install_enter(self, key: str) -> str | None:
-        version = self._pending_install
-        seg = self._pending_install_seg
-        self._pending_install = None
-        self._pending_install_seg = None
+    def _run_install_flow(self, seg: Segment, version: str) -> None:
+        """Confirm install via run_selection, download in cooked, show result page."""
+        from .ui import run_selection, show_page
 
-        if not version or not seg:
-            return None
+        choice = run_selection(
+            f"Install Claude Code v{version}?",
+            [("install", "Install"), ("cancel", "Cancel")],
+            self.theme, self.terminal,
+        )
+        if choice != "install":
+            return
 
         from .install import install_version
 
@@ -543,26 +538,25 @@ class App:
                 pct = downloaded * 100 // total
                 print(f"\r  {mb_done:.0f}/{mb_total:.0f} MB ({pct}%)", end="", flush=True)
 
+        error: str | None = None
         with self.terminal.cooked():
             print(f"Downloading Claude Code {version}...")
             try:
                 install_version(version, progress_callback=on_progress)
-                print(f"\nInstalled {version} successfully. Press Enter to continue...")
                 seg.state.mark_installed(version)
             except OSError as e:
-                print(f"\nInstallation failed: {e}")
-                print("Press Enter to continue...")
-            try:
-                input()
-            except KeyboardInterrupt:
-                pass
-        return None
+                error = str(e)
 
-    def _h_install_cancel(self, key: str) -> str | None:
-        """Any non-ENTER key in install mode cancels the install."""
-        self._pending_install = None
-        self._pending_install_seg = None
-        return None
+        if error:
+            show_page("Install failed", [
+                f"Version: {version}",
+                "",
+                f"Error: {error}",
+            ], self.theme, self.terminal)
+        else:
+            show_page("Install complete", [
+                f"Claude Code {version} installed successfully.",
+            ], self.theme, self.terminal)
 
     # ------------------------------------------------------------------
     # Registry builder (called from __init__)
@@ -680,39 +674,6 @@ class App:
                 handler=App._h_freeform_printable,
                 priority=99,
                 mode="freeform",
-            ),
-            # =============================================================
-            # INSTALL MODE
-            # =============================================================
-            Binding(
-                keys=frozenset({"ENTER"}),
-                label="enter: install",
-                condition=None,
-                handler=App._h_install_enter,
-                priority=30,
-                mode="install",
-            ),
-            # Catch-all for install: any key that is NOT ENTER cancels.
-            # This uses keys=None (printable) plus explicit non-printable keys.
-            Binding(
-                keys=frozenset({
-                    "ESC", "BACKSPACE", "TAB", "SHIFT_TAB",
-                    "LEFT", "RIGHT", "UP", "DOWN",
-                    "CTRL_C", "CTRL_D", "DELETE",
-                }),
-                label=None,
-                condition=None,
-                handler=App._h_install_cancel,
-                priority=99,
-                mode="install",
-            ),
-            Binding(
-                keys=None,  # match-any-printable (also cancels)
-                label=None,
-                condition=None,
-                handler=App._h_install_cancel,
-                priority=99,
-                mode="install",
             ),
             # =============================================================
             # MAIN MODE

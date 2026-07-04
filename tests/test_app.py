@@ -367,8 +367,6 @@ class AuthInterceptTests(unittest.TestCase):
         app.bar.segments = [seg]
         app.bar.focused = seg
         app._flash = ""
-        app._pending_install = None
-        app._pending_install_seg = None
         app._show_provenance = False
         app._pending_discovery = {}
         app._bindings = app._build_bindings()
@@ -628,8 +626,6 @@ class AuthInterceptTests(unittest.TestCase):
         app.bar.segments = [seg]
         app.bar.focused = seg
         app._flash = ""
-        app._pending_install = None
-        app._pending_install_seg = None
         app._show_provenance = False
         app._pending_discovery = {}
         app._bindings = app._build_bindings()
@@ -722,15 +718,19 @@ class ContinuousSessionTests(unittest.TestCase):
         mock_page.assert_not_called()
 
 
-class InstallKeyCookedWindowTests(unittest.TestCase):
-    """Install confirmation via _handle_key opens a cooked window for its
-    download prompt instead of hand-rolling exit_raw/enter_raw around it."""
+class InstallFlowFormTests(unittest.TestCase):
+    """Install flow uses run_selection for confirm, cooked window for download,
+    and show_page for the result."""
 
-    def _make_app(self, version: str = "1.2.3"):
+    def _make_app_with_uninstalled(self, version: str = "1.2.3"):
+        """Build a minimal App where ENTER triggers the install flow."""
         app = object.__new__(app_mod.App)
         app.terminal = mock.MagicMock()
+        app.theme = mock.MagicMock()
+        app.cfg = mock.MagicMock()
         seg = mock.MagicMock()
         seg.key = "version"
+        seg.label = "Version"
         seg.search_buffer = ""
         seg.creating = False
         seg.freeform = False
@@ -738,12 +738,14 @@ class InstallKeyCookedWindowTests(unittest.TestCase):
         seg.searchable = False
         seg.is_on_plus = False
         seg.value = version
-        # Build a minimal bar with the mock segment as focused
+        seg.required = True
+        seg.state.has_installed = True
+        seg.state.is_installed.return_value = False
+        seg.unavailable = set()
         app.bar = mock.MagicMock()
         app.bar.focused = seg
+        app.bar.segments = [seg]
         app._flash = ""
-        app._pending_install = version
-        app._pending_install_seg = seg
         app._show_provenance = False
         app._pending_discovery = {}
         app._bindings = app._build_bindings()
@@ -751,72 +753,93 @@ class InstallKeyCookedWindowTests(unittest.TestCase):
 
     def _track_cooked(self, app, events: list[str]) -> None:
         cm = app.terminal.cooked.return_value
-        cm.__enter__.side_effect = lambda *a: events.append("enter")
-        cm.__exit__.side_effect = lambda *a: events.append("exit") or False
+        cm.__enter__.side_effect = lambda *a: events.append("cooked_enter")
+        cm.__exit__.side_effect = lambda *a: events.append("cooked_exit") or False
 
-    def test_enter_installs_inside_cooked_window(self) -> None:
-        app, seg = self._make_app()
+    def test_confirm_install_downloads_and_marks_installed(self) -> None:
+        """User confirms install -> download in cooked -> mark_installed -> success page."""
+        app, seg = self._make_app_with_uninstalled()
         events: list[str] = []
         self._track_cooked(app, events)
 
         def fake_install(version, progress_callback=None):
             events.append("install")
 
-        def fake_input(prompt=""):
-            events.append("input")
-            return ""
-
-        with mock.patch("claudewheel.install.install_version",
-                        side_effect=fake_install) as mock_install, \
-             mock.patch("builtins.input", side_effect=fake_input), \
+        with mock.patch("claudewheel.ui.run_selection", return_value="install") as mock_sel, \
+             mock.patch("claudewheel.install.install_version", side_effect=fake_install), \
+             mock.patch("claudewheel.ui.show_page") as mock_page, \
              redirect_stdout(io.StringIO()):
             result = app._handle_key("ENTER")
 
         self.assertIsNone(result)
-        self.assertEqual(mock_install.call_args.args, ("1.2.3",))
+        # Confirm dialog shown with correct title
+        self.assertIn("1.2.3", mock_sel.call_args[0][0])
+        # Download happened inside cooked window
+        self.assertEqual(events, ["cooked_enter", "install", "cooked_exit"])
         seg.state.mark_installed.assert_called_once_with("1.2.3")
-        # Everything happens inside the cooked window, in order
-        self.assertEqual(events, ["enter", "install", "input", "exit"])
-        # No hand-rolled raw-mode cycling anymore
-        app.terminal.exit_raw.assert_not_called()
-        app.terminal.enter_raw.assert_not_called()
-        # Pending install state is consumed
-        self.assertIsNone(app._pending_install)
-        self.assertIsNone(app._pending_install_seg)
+        # Success page shown
+        mock_page.assert_called_once()
+        self.assertEqual(mock_page.call_args[0][0], "Install complete")
 
-    def test_non_enter_key_cancels_without_cooked_window(self) -> None:
-        app, seg = self._make_app()
-        result = app._handle_key("ESC")
+    def test_cancel_install_does_nothing(self) -> None:
+        """User cancels at the confirm dialog -> no download, no page."""
+        app, seg = self._make_app_with_uninstalled()
+
+        with mock.patch("claudewheel.ui.run_selection", return_value="cancel") as mock_sel, \
+             mock.patch("claudewheel.install.install_version") as mock_install, \
+             mock.patch("claudewheel.ui.show_page") as mock_page:
+            result = app._handle_key("ENTER")
+
         self.assertIsNone(result)
+        mock_install.assert_not_called()
+        mock_page.assert_not_called()
+        seg.state.mark_installed.assert_not_called()
         app.terminal.cooked.assert_not_called()
-        seg.state.mark_installed.assert_not_called()
-        self.assertIsNone(app._pending_install)
-        self.assertIsNone(app._pending_install_seg)
 
-    def test_install_failure_prints_error_and_stays_in_cooked_flow(self) -> None:
-        app, seg = self._make_app()
-        buf = io.StringIO()
-        with mock.patch("claudewheel.install.install_version",
-                        side_effect=OSError("network down")), \
-             mock.patch("builtins.input", return_value=""), \
-             redirect_stdout(buf):
+    def test_escape_from_confirm_does_nothing(self) -> None:
+        """Escape from run_selection (returns None) -> no download."""
+        app, seg = self._make_app_with_uninstalled()
+
+        with mock.patch("claudewheel.ui.run_selection", return_value=None), \
+             mock.patch("claudewheel.install.install_version") as mock_install, \
+             mock.patch("claudewheel.ui.show_page") as mock_page:
             result = app._handle_key("ENTER")
 
         self.assertIsNone(result)
+        mock_install.assert_not_called()
+        mock_page.assert_not_called()
         seg.state.mark_installed.assert_not_called()
-        self.assertIn("Installation failed", buf.getvalue())
-        app.terminal.cooked.assert_called_once()
 
-    def test_keyboard_interrupt_on_continue_prompt_is_swallowed(self) -> None:
-        app, seg = self._make_app()
-        with mock.patch("claudewheel.install.install_version"), \
-             mock.patch("builtins.input", side_effect=KeyboardInterrupt), \
+    def test_install_failure_shows_error_page(self) -> None:
+        """Download fails -> show_page with error message, mark_installed not called."""
+        app, seg = self._make_app_with_uninstalled()
+
+        with mock.patch("claudewheel.ui.run_selection", return_value="install"), \
+             mock.patch("claudewheel.install.install_version",
+                        side_effect=OSError("network down")), \
+             mock.patch("claudewheel.ui.show_page") as mock_page, \
              redirect_stdout(io.StringIO()):
             result = app._handle_key("ENTER")
 
         self.assertIsNone(result)
-        seg.state.mark_installed.assert_called_once_with("1.2.3")
-        app.terminal.cooked.assert_called_once()
+        seg.state.mark_installed.assert_not_called()
+        mock_page.assert_called_once()
+        title = mock_page.call_args[0][0]
+        lines = mock_page.call_args[0][1]
+        self.assertEqual(title, "Install failed")
+        self.assertTrue(any("network down" in line for line in lines))
+
+    def test_no_pending_install_attribute(self) -> None:
+        """App no longer has _pending_install or _pending_install_seg attributes."""
+        app, _ = self._make_app_with_uninstalled()
+        self.assertFalse(hasattr(app, "_pending_install"))
+        self.assertFalse(hasattr(app, "_pending_install_seg"))
+
+    def test_no_install_mode_in_bindings(self) -> None:
+        """No binding entry with mode='install' exists in the registry."""
+        app, _ = self._make_app_with_uninstalled()
+        install_bindings = [b for b in app._bindings if b.mode == "install"]
+        self.assertEqual(install_bindings, [])
 
 
 class ApplySlowDiscoverySaveStateTests(unittest.TestCase):
@@ -889,8 +912,6 @@ class ProfileInspectKeyTests(unittest.TestCase):
         app.bar.segments = [seg]
         app.bar.focused = seg
         app._flash = ""
-        app._pending_install = None
-        app._pending_install_seg = None
         app._show_provenance = False
         app._pending_discovery = {}
         app._bindings = app._build_bindings()
@@ -984,8 +1005,6 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         app.bar.segments = [seg]
         app.bar.focused = seg
         app._flash = ""
-        app._pending_install = None
-        app._pending_install_seg = None
         app._show_provenance = False
         app._pending_discovery = {}
         app._bindings = app._build_bindings()
