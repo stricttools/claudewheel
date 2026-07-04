@@ -78,10 +78,15 @@ def compute_expiry(entry: object, tokens_mtime: float,
     return TokenExpiry(created, expires, remaining)
 
 
-def add_token(name: str, token: str) -> None:
+def add_token(
+    name: str, token: str, *,
+    tier: str | None = None,
+    subscription: str | None = None,
+) -> None:
     """Add or update a profile's OAuth token in tokens.json.
 
     Writes token, created (today), and expires_at (created + TOKEN_TTL_DAYS).
+    Optionally stores rateLimitTier and subscriptionType when provided.
     The file always ends up with 0600 permissions (it holds secrets).
     Writes atomically via tmp-file rename.
 
@@ -99,10 +104,54 @@ def add_token(name: str, token: str) -> None:
         ) from e
 
     created = date.today()
-    tokens[name] = {
+    entry: dict = {
         "token": token,
         "created": created.isoformat(),
         "expires_at": (created + timedelta(days=TOKEN_TTL_DAYS)).isoformat(),
     }
+    if tier is not None:
+        entry["rateLimitTier"] = tier
+    if subscription is not None:
+        entry["subscriptionType"] = subscription
+    tokens[name] = entry
+
+    write_json_atomic_secret(TOKENS_FILE, tokens)
+
+
+def store_tier(name: str, *, tier: str | None = None,
+               subscription: str | None = None) -> None:
+    """Store rate-limit tier metadata in tokens.json for a profile.
+
+    Creates or updates the entry. If the profile already has a token entry,
+    the tier fields are merged into it. If not, a tier-only entry (no token)
+    is created -- parse_entry returns None for such entries, which is fine.
+
+    Raises OSError if tokens.json is corrupt (same contract as add_token).
+    """
+    if tier is None and subscription is None:
+        return
+
+    try:
+        tokens = json.loads(TOKENS_FILE.read_text())
+    except FileNotFoundError:
+        tokens = {}
+    except json.JSONDecodeError as e:
+        raise OSError(
+            f"{TOKENS_FILE} is corrupt ({e}); refusing to overwrite it. "
+            "Fix or remove the file, then retry."
+        ) from e
+
+    existing = tokens.get(name)
+    if isinstance(existing, str):
+        # Legacy bare-string entry: upgrade to dict
+        existing = {"token": existing}
+    elif not isinstance(existing, dict):
+        existing = {}
+
+    if tier is not None:
+        existing["rateLimitTier"] = tier
+    if subscription is not None:
+        existing["subscriptionType"] = subscription
+    tokens[name] = existing
 
     write_json_atomic_secret(TOKENS_FILE, tokens)

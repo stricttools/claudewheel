@@ -2301,5 +2301,103 @@ class OnboardingFlagAuthTests(AuthFlowTestBase):
         self.assertEqual(cj["someOther"], 42)
 
 
+class TierCaptureTests(AuthFlowTestBase):
+    """Tests for rate-limit tier capture during session login."""
+
+    def test_tier_captured_on_session_login(self) -> None:
+        """When .credentials.json has rateLimitTier, it is stored in tokens.json."""
+        from claudewheel.wizard import run_auth_flow
+
+        config_dir = self._profile_dir("tiertest")
+        config_dir.mkdir(parents=True, exist_ok=True)
+        config_dir_str = str(config_dir)
+
+        tokens_file = self.fake_home / ".claudewheel" / "tokens.json"
+        tokens_file.parent.mkdir(parents=True, exist_ok=True)
+
+        fake_binary = self._make_fake_binary()
+
+        def fake_run(cmd, env=None):
+            creds = {
+                "claudeAiOauth": {
+                    "rateLimitTier": "default_claude_pro",
+                    "subscriptionType": "claude_pro",
+                    "accessToken": "secret",
+                }
+            }
+            (Path(env["CLAUDE_CONFIG_DIR"]) / ".credentials.json").write_text(
+                json.dumps(creds))
+            return subprocess.CompletedProcess(cmd, 0)
+
+        from claudewheel import tokens as tokens_mod
+        with mock.patch("claudewheel.wizard.run_selection", autospec=True,
+                        side_effect=["session", "copy"]), \
+             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard.subprocess.run", side_effect=fake_run), \
+             mock.patch.object(tokens_mod, "TOKENS_FILE", tokens_file):
+            result = run_auth_flow(config_dir_str, "tiertest", THEME, self.term)
+
+        self.assertEqual(result, "authenticated")
+        tokens = json.loads(tokens_file.read_text())
+        entry = tokens["tiertest"]
+        self.assertEqual(entry["rateLimitTier"], "default_claude_pro")
+        self.assertEqual(entry["subscriptionType"], "claude_pro")
+        # Should NOT have the access token
+        self.assertNotIn("accessToken", entry)
+
+    def test_tier_not_captured_when_absent(self) -> None:
+        """When .credentials.json has no tier fields, tokens.json is not written."""
+        from claudewheel.wizard import run_auth_flow
+
+        config_dir = self._profile_dir("notier")
+        config_dir.mkdir(parents=True, exist_ok=True)
+        config_dir_str = str(config_dir)
+
+        tokens_file = self.fake_home / ".claudewheel" / "tokens.json"
+        tokens_file.parent.mkdir(parents=True, exist_ok=True)
+
+        fake_binary = self._make_fake_binary()
+
+        def fake_run(cmd, env=None):
+            # No claudeAiOauth section
+            (Path(env["CLAUDE_CONFIG_DIR"]) / ".credentials.json").write_text("{}")
+            return subprocess.CompletedProcess(cmd, 0)
+
+        with mock.patch("claudewheel.wizard.run_selection", autospec=True,
+                        side_effect=["session", "copy"]), \
+             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard.subprocess.run", side_effect=fake_run), \
+             mock.patch("claudewheel.wizard.store_tier") as mock_store:
+            result = run_auth_flow(config_dir_str, "notier", THEME, self.term)
+
+        self.assertEqual(result, "authenticated")
+        mock_store.assert_not_called()
+
+    def test_tier_capture_tolerates_corrupt_credentials(self) -> None:
+        """Corrupt .credentials.json does not crash the auth flow."""
+        from claudewheel.wizard import run_auth_flow
+
+        config_dir = self._profile_dir("corrupt")
+        config_dir.mkdir(parents=True, exist_ok=True)
+        config_dir_str = str(config_dir)
+
+        fake_binary = self._make_fake_binary()
+
+        def fake_run(cmd, env=None):
+            (Path(env["CLAUDE_CONFIG_DIR"]) / ".credentials.json").write_text("{bad json")
+            return subprocess.CompletedProcess(cmd, 0)
+
+        with mock.patch("claudewheel.wizard.run_selection", autospec=True,
+                        side_effect=["session", "copy"]), \
+             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard.subprocess.run", side_effect=fake_run), \
+             mock.patch("claudewheel.wizard.store_tier") as mock_store:
+            result = run_auth_flow(config_dir_str, "corrupt", THEME, self.term)
+
+        # Auth succeeds (credentials file exists) despite corrupt JSON
+        self.assertEqual(result, "authenticated")
+        mock_store.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()

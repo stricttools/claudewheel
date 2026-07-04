@@ -22,7 +22,7 @@ from .discovery import detect_browsers
 from .fsutil import write_json_atomic
 from .pty_runner import run_under_pty
 from .state import AUTH_BROWSER_KEY, load_state_value, save_state_value
-from .tokens import add_token
+from .tokens import add_token, store_tier
 from .ui import FormField, get_field, run_form, run_selection
 
 # The 6 advanced checkboxes: (field key, display label). Keys match the
@@ -350,7 +350,7 @@ def run_auth_flow(config_dir: str, profile_name: str, theme, terminal,
         return "cancel"
 
     if choice == "session":
-        ok = _auth_session_login(config_dir, browser, terminal)
+        ok = _auth_session_login(config_dir, profile_name, browser, terminal)
         outcome = "authenticated" if ok else "failed"
     else:
         outcome = _auth_long_lived_token(config_dir, profile_name, browser,
@@ -379,7 +379,31 @@ def _apply_browser_env(env: dict[str, str], browser: str) -> None:
         env["BROWSER"] = browser
 
 
-def _auth_session_login(config_dir: str, browser: str, terminal) -> bool:
+def _capture_tier_from_credentials(credentials: Path, profile_name: str) -> None:
+    """Read rateLimitTier/subscriptionType from .credentials.json and store in tokens.json.
+
+    Best-effort: silently skips if the credentials file cannot be parsed or
+    the expected fields are absent (older Claude Code versions omit them).
+    """
+    try:
+        data = json.loads(credentials.read_text())
+    except (json.JSONDecodeError, OSError):
+        return
+    oauth = data.get("claudeAiOauth")
+    if not isinstance(oauth, dict):
+        return
+    tier = oauth.get("rateLimitTier")
+    subscription = oauth.get("subscriptionType")
+    if not tier and not subscription:
+        return
+    try:
+        store_tier(profile_name, tier=tier, subscription=subscription)
+    except OSError:
+        pass  # best-effort: don't fail auth flow over tier storage
+
+
+def _auth_session_login(config_dir: str, profile_name: str,
+                        browser: str, terminal) -> bool:
     """Run ``claude auth login`` with CLAUDE_CONFIG_DIR and BROWSER set.
 
     The whole body runs inside ``terminal.cooked()`` so the claude subprocess
@@ -408,6 +432,8 @@ def _auth_session_login(config_dir: str, browser: str, terminal) -> bool:
 
         credentials = Path(config_dir).expanduser() / ".credentials.json"
         if credentials.exists():
+            # Extract rate-limit tier metadata if present
+            _capture_tier_from_credentials(credentials, profile_name)
             print("Authentication successful.")
             return True
 
