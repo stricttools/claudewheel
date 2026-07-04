@@ -279,6 +279,62 @@ class GatherTierTests(ProfileInfoFixture):
         self.assertIsNone(report.subscription_type)
 
 
+class GatherAuthShadowTests(ProfileInfoFixture):
+    """has_auth_shadow: both token AND claudeAiOauth in credentials needed."""
+
+    def test_shadow_when_both_present(self) -> None:
+        """has_auth_shadow is True when token exists AND .credentials.json has claudeAiOauth."""
+        (self.profile / ".credentials.json").write_text(
+            json.dumps({"claudeAiOauth": {"accessToken": "short-lived"}})
+        )
+        self._write_tokens({"work": {"token": "tok-long-lived"}})
+        report = profile_info.gather_profile_info("work")
+        self.assertTrue(report.has_auth_shadow)
+
+    def test_no_shadow_when_only_token(self) -> None:
+        """has_auth_shadow is False when token exists but no claudeAiOauth in credentials."""
+        (self.profile / ".credentials.json").write_text(
+            json.dumps({"mcpOAuth": {"x": "y"}})
+        )
+        self._write_tokens({"work": {"token": "tok-long"}})
+        report = profile_info.gather_profile_info("work")
+        self.assertFalse(report.has_auth_shadow)
+
+    def test_no_shadow_when_only_credentials(self) -> None:
+        """has_auth_shadow is False when claudeAiOauth exists but no valid token."""
+        (self.profile / ".credentials.json").write_text(
+            json.dumps({"claudeAiOauth": {"accessToken": "x"}})
+        )
+        # No entry in tokens.json
+        report = profile_info.gather_profile_info("work")
+        self.assertFalse(report.has_auth_shadow)
+
+    def test_no_shadow_when_no_credentials_file(self) -> None:
+        """has_auth_shadow is False when .credentials.json doesn't exist."""
+        self._write_tokens({"work": {"token": "tok"}})
+        report = profile_info.gather_profile_info("work")
+        self.assertFalse(report.has_auth_shadow)
+
+    def test_shadow_shown_in_format_report(self) -> None:
+        """format_report includes the auth shadow line when has_auth_shadow is True."""
+        (self.profile / ".credentials.json").write_text(
+            json.dumps({"claudeAiOauth": {"accessToken": "short"}})
+        )
+        self._write_tokens({"work": {"token": "tok"}})
+        report = profile_info.gather_profile_info("work")
+        lines = profile_info.format_report(report)
+        text = "\n".join(lines)
+        self.assertIn("Auth shadow: yes", text)
+        self.assertIn("session credentials override token", text)
+
+    def test_no_shadow_line_when_not_shadowed(self) -> None:
+        """format_report omits the auth shadow line when has_auth_shadow is False."""
+        report = profile_info.gather_profile_info("work")
+        lines = profile_info.format_report(report)
+        text = "\n".join(lines)
+        self.assertNotIn("Auth shadow", text)
+
+
 class FormatReportTests(ProfileInfoFixture):
     """format_report renders the report fields as readable lines."""
 

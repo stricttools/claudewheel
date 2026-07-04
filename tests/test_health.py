@@ -38,6 +38,7 @@ class _HomeDirTestCase(unittest.TestCase):
             patch("claudewheel.discovery.SHARED_DIR", self._shared_dir),
             patch("claudewheel.discovery.SKILLS_DIR", self._skills_dir),
             patch("claudewheel.discovery.PROFILES_DIR", self._profiles_dir),
+            patch("claudewheel.profile_info.PROFILES_DIR", self._profiles_dir),
         ]
         for p in self._dir_patches:
             p.start()
@@ -643,8 +644,12 @@ class CheckAuthShadowTests(_HomeDirTestCase):
         self._tokens_file = self.home / ".claudewheel" / "tokens.json"
         self._tokens_patcher = patch("claudewheel.health.TOKENS_FILE", self._tokens_file)
         self._tokens_patcher.start()
+        # detect_auth_shadow (in profile_info) reads TOKENS_FILE from its own module
+        self._pi_tokens_patcher = patch("claudewheel.profile_info.TOKENS_FILE", self._tokens_file)
+        self._pi_tokens_patcher.start()
 
     def tearDown(self) -> None:
+        self._pi_tokens_patcher.stop()
         self._tokens_patcher.stop()
         super().tearDown()
 
@@ -697,11 +702,11 @@ class CheckAuthShadowTests(_HomeDirTestCase):
         self.assertIn("no auth shadow", result.detail)
 
     def test_no_tokens_file(self) -> None:
-        """Returns OK when tokens.json does not exist."""
+        """Returns OK when tokens.json does not exist (no shadow possible)."""
         self._make_profile("any")
         result = check_auth_shadow()
         self.assertTrue(result.ok)
-        self.assertIn("no tokens.json", result.detail)
+        self.assertIn("no auth shadow", result.detail)
 
     def test_no_profiles(self) -> None:
         """Returns OK when no profiles are discovered."""

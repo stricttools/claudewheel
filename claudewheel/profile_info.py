@@ -9,7 +9,7 @@ from pathlib import Path
 
 from .constants import OPTIONS_FILE, PROFILES_DIR, TOKENS_FILE
 from .discovery import classify_shared_dirs
-from .tokens import TokenExpiry, compute_expiry
+from .tokens import TokenExpiry, compute_expiry, parse_entry
 
 
 @dataclass
@@ -24,6 +24,7 @@ class ProfileReport:
     has_credentials: bool              # .credentials.json present
     has_token: bool                    # entry in tokens.json
     token_expiry: TokenExpiry | None   # only when has_token
+    has_auth_shadow: bool = False      # claudeAiOauth in creds AND valid token
     rate_limit_tier: str | None = None       # from tokens.json entry
     subscription_type: str | None = None     # from tokens.json entry
     shared_dirs: dict[str, str] = field(default_factory=dict)
@@ -142,6 +143,36 @@ def _read_settings(config_dir: Path) -> tuple[bool, dict[str, int],
     )
 
 
+def detect_auth_shadow(name: str) -> bool:
+    """Return True if profile has session credentials shadowing a long-lived token.
+
+    Conditions (all must be true):
+    - A valid token entry exists in tokens.json for *name*
+    - .credentials.json exists in the profile's config dir
+    - .credentials.json contains a "claudeAiOauth" key
+
+    Lightweight check usable from both gather_profile_info and health checks.
+    """
+    # Check tokens.json for a valid entry
+    try:
+        tokens = json.loads(TOKENS_FILE.read_text())
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return False
+    if parse_entry(tokens.get(name)) is None:
+        return False
+
+    # Check .credentials.json for claudeAiOauth
+    config_dir = config_dir_for(name)
+    creds_path = config_dir / ".credentials.json"
+    if not creds_path.exists():
+        return False
+    try:
+        creds = json.loads(creds_path.read_text())
+    except (json.JSONDecodeError, OSError):
+        return False
+    return "claudeAiOauth" in creds
+
+
 def gather_profile_info(name: str) -> ProfileReport:
     """Assemble a full ProfileReport for *name*.
 
@@ -166,6 +197,8 @@ def gather_profile_info(name: str) -> ProfileReport:
         (settings_found, permission_counts,
          away, cleanup, auto_memory) = _read_settings(config_dir)
 
+    has_auth_shadow = detect_auth_shadow(name)
+
     return ProfileReport(
         name=name,
         config_dir=config_dir,
@@ -175,6 +208,7 @@ def gather_profile_info(name: str) -> ProfileReport:
         has_credentials=has_credentials,
         has_token=has_token,
         token_expiry=token_expiry,
+        has_auth_shadow=has_auth_shadow,
         rate_limit_tier=rate_limit_tier,
         subscription_type=subscription_type,
         shared_dirs=shared_dirs,
@@ -225,6 +259,9 @@ def format_report(report: ProfileReport) -> list[str]:
                      f"{exp.remaining_days:.0f} days left)")
     else:
         lines.append("Token: none")
+
+    if report.has_auth_shadow:
+        lines.append("Auth shadow: yes (session credentials override token)")
 
     if report.rate_limit_tier:
         sub = f" ({report.subscription_type})" if report.subscription_type else ""

@@ -292,13 +292,7 @@ def check_shared_settings_drift() -> HealthResult:
 
 def check_auth_shadow() -> HealthResult:
     """Detect profiles where .credentials.json claudeAiOauth shadows a long-lived token."""
-    tokens_file = TOKENS_FILE
-    if not tokens_file.exists():
-        return HealthResult(True, "auth-shadow", "no tokens.json")
-    try:
-        tokens = json.loads(tokens_file.read_text())
-    except (json.JSONDecodeError, OSError):
-        return HealthResult(False, "auth-shadow", "unreadable tokens.json")
+    from .profile_info import detect_auth_shadow
 
     profiles = _discover_profiles()
     if not profiles:
@@ -306,18 +300,7 @@ def check_auth_shadow() -> HealthResult:
 
     shadowed: list[str] = []
     for p in profiles:
-        # Profile must have a valid long-lived token
-        if parse_entry(tokens.get(p.name)) is None:
-            continue
-        # Check if .credentials.json also has claudeAiOauth
-        creds_path = p.path / ".credentials.json"
-        if not creds_path.exists():
-            continue
-        try:
-            creds = json.loads(creds_path.read_text())
-        except (json.JSONDecodeError, OSError):
-            continue
-        if "claudeAiOauth" in creds:
+        if detect_auth_shadow(p.name):
             shadowed.append(p.name)
 
     if shadowed:
