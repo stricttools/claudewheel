@@ -31,17 +31,30 @@ class Renderer:
         # Tracks where each segment's value is drawn, for fan-out alignment
         self._segment_positions: dict[str, tuple[int, int]] = {}
 
-    def render(self, bar: SegmentBar, flash: str = "", *, show_provenance: bool = False) -> None:
+    def render(self, bar: SegmentBar, flash: str = "", *, show_provenance: bool = False, hints: list[str] = ()) -> None:
         self._show_provenance = show_provenance
         buf: list[str] = [CLEAR_SCREEN]
         center_row = self.term.rows // 2
         self._render_center_line(buf, bar, center_row)
         self._render_arrows(buf, center_row)
-        self._render_fan_out(buf, bar, center_row)
-        self._render_status(buf, bar, flash)
+        # Compute reserved bottom rows from hint width (stable even when
+        # flash/provenance override the actual status content).
+        reserved_bottom_rows = self._hint_line_count(hints)
+        self._render_fan_out(buf, bar, center_row, reserved_bottom_rows)
+        self._render_status(buf, bar, flash, hints)
         self._render_minimap(buf, bar)
         self.term.write("".join(buf))
         self.term.flush()
+
+    def _hint_line_count(self, hints: list[str]) -> int:
+        """Return 1 or 2 depending on whether hints wrap to a second line."""
+        if not hints:
+            return 1
+        joined = "   ".join(hints)
+        max_width = self.term.cols - 4
+        if len(joined) <= max_width:
+            return 1
+        return 2
 
     def _seg_colors(self, key: str) -> dict[str, str]:
         """Get per-segment color dict, falling back to empty strings."""
@@ -322,7 +335,8 @@ class Renderer:
             buf.append(RESET)
 
     def _render_fan_out(
-        self, buf: list[str], bar: SegmentBar, center_row: int
+        self, buf: list[str], bar: SegmentBar, center_row: int,
+        reserved_bottom_rows: int = 1,
     ) -> None:
         """Render non-selected options vertically above/below the focused segment."""
         seg = bar.focused
@@ -384,7 +398,7 @@ class Renderer:
         # Render below options
         for offset, opt_text in enumerate(below, start=1):
             row = center_row + offset
-            if row >= self.term.rows:
+            if row > self.term.rows - reserved_bottom_rows:
                 break
             display = self._fit_value(opt_text, seg.min_width, seg.max_width)
             # Clip fan-out options at screen edges when scrolling
@@ -546,9 +560,9 @@ class Renderer:
             buf.append(self.theme.overflow_minimap_char)
             buf.append(RESET)
 
-    def _render_status(self, buf: list[str], bar: SegmentBar, flash: str = "") -> None:
-        buf.append(move_to(self.term.rows, 2))
+    def _render_status(self, buf: list[str], bar: SegmentBar, flash: str = "", hints: list[str] = ()) -> None:
         if flash:
+            buf.append(move_to(self.term.rows, 2))
             # Show flash message prominently (bold + empty_value_fg for visibility)
             buf.append(BOLD + self.theme.empty_value_fg)
             buf.append(flash[: self.term.cols - 4])
@@ -557,27 +571,56 @@ class Renderer:
         # Provenance legend replaces normal hints when overlay is active
         if self._show_provenance:
             legend = "* discovered  ^ pinned  . default  ~ ephemeral   ?: hide"
+            buf.append(move_to(self.term.rows, 2))
             buf.append(DIM)
             buf.append(legend[: self.term.cols - 4])
             buf.append(RESET)
             return
-        seg = bar.focused
-        if seg.creating:
-            hints = "type: name   enter: confirm   esc: cancel"
-        elif seg.is_on_plus:
-            hints = "enter: create new   arrows: navigate   q: quit"
-        elif seg.freeform and seg.search_buffer:
-            hints = "type: path   enter: use   tab: match   esc: clear   backspace: delete"
-        elif seg.searchable:
-            if seg.search_buffer:
-                hints = "type: search   tab: accept   esc: clear   backspace: delete   enter: launch"
-            else:
-                hints = "type: search   tab: accept   esc: clear   ?: sources   q: quit"
+        # Render hints (may wrap to two lines)
+        if not hints:
+            return
+        joined = "   ".join(hints)
+        max_width = self.term.cols - 4
+        if len(joined) <= max_width:
+            # Single line at last row
+            buf.append(move_to(self.term.rows, 2))
+            buf.append(DIM)
+            buf.append(joined[:max_width])
+            buf.append(RESET)
         else:
-            hints = "arrows: navigate   enter: launch   ?: sources   q: quit"
-        buf.append(DIM)
-        buf.append(hints[: self.term.cols - 4])
-        buf.append(RESET)
+            # Two lines: greedy split at separator boundary
+            line1, line2 = self._split_hints(hints, max_width)
+            buf.append(move_to(self.term.rows - 1, 2))
+            buf.append(DIM)
+            buf.append(line1[:max_width])
+            buf.append(RESET)
+            buf.append(move_to(self.term.rows, 2))
+            buf.append(DIM)
+            buf.append(line2[:max_width])
+            buf.append(RESET)
+
+    @staticmethod
+    def _split_hints(hints: list[str], max_width: int) -> tuple[str, str]:
+        """Split hints into two lines, filling the first line greedily."""
+        sep = "   "
+        line1_parts: list[str] = []
+        line1_len = 0
+        split_idx = 0
+        for i, hint in enumerate(hints):
+            needed = len(hint) if not line1_parts else len(sep) + len(hint)
+            if line1_len + needed <= max_width:
+                line1_parts.append(hint)
+                line1_len += needed
+                split_idx = i + 1
+            else:
+                break
+        # Ensure at least one item on line 1
+        if not line1_parts:
+            line1_parts.append(hints[0])
+            split_idx = 1
+        line1 = sep.join(line1_parts)
+        line2 = sep.join(hints[split_idx:])
+        return line1, line2
 
     def _fit_value(self, value: str, min_w: int, max_w: int) -> str:
         """Truncate with ellipsis or pad with spaces to fit width constraints."""

@@ -226,7 +226,8 @@ class ProvenanceStatusBarTests(unittest.TestCase):
         renderer = self._make_renderer(show_provenance=False)
         bar = _make_bar("model")
         buf: list[str] = []
-        renderer._render_status(buf, bar)
+        hints = ["?: sources", "q: quit"]
+        renderer._render_status(buf, bar, hints=hints)
         joined = "".join(buf)
         self.assertIn("?: sources", joined)
 
@@ -236,7 +237,8 @@ class ProvenanceStatusBarTests(unittest.TestCase):
         bar = _make_bar("model")
         bar.segments[0].searchable = True
         buf: list[str] = []
-        renderer._render_status(buf, bar)
+        hints = ["?: sources", "q: quit"]
+        renderer._render_status(buf, bar, hints=hints)
         joined = "".join(buf)
         self.assertIn("?: sources", joined)
 
@@ -247,7 +249,9 @@ class ProvenanceStatusBarTests(unittest.TestCase):
         bar.segments[0].searchable = True
         bar.segments[0].search_buffer = "abc"
         buf: list[str] = []
-        renderer._render_status(buf, bar)
+        # During active search, the '?' binding condition excludes it
+        hints = ["tab: accept", "esc: clear"]
+        renderer._render_status(buf, bar, hints=hints)
         joined = "".join(buf)
         self.assertNotIn("?: sources", joined)
 

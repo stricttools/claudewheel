@@ -97,7 +97,7 @@ class App:
 
         def on_resize(signum, frame):
             self.terminal.rows, self.terminal.cols = self.terminal.get_size()
-            self.renderer.render(self.bar)
+            self.renderer.render(self.bar, hints=self._compute_hints())
 
         signal.signal(signal.SIGWINCH, on_resize)
 
@@ -110,7 +110,7 @@ class App:
 
         try:
             evaluate_requires(self.bar)
-            self.renderer.render(self.bar, show_provenance=self._show_provenance)
+            self.renderer.render(self.bar, show_provenance=self._show_provenance, hints=self._compute_hints())
             while self.running:
                 try:
                     key = self.terminal.read_key()
@@ -126,7 +126,7 @@ class App:
                 if self._slow_results is not None and not self._slow_thread.is_alive():
                     self._apply_slow_discovery()
                 evaluate_requires(self.bar)
-                self.renderer.render(self.bar, self._flash, show_provenance=self._show_provenance)
+                self.renderer.render(self.bar, self._flash, show_provenance=self._show_provenance, hints=self._compute_hints())
                 self._flash = ""  # Clear flash after one render cycle
         finally:
             self.terminal.exit_raw()
@@ -238,6 +238,22 @@ class App:
             pending_install=bool(self._pending_install),
             show_provenance=self._show_provenance,
         )
+
+    # ------------------------------------------------------------------
+    # Hint computation
+    # ------------------------------------------------------------------
+
+    def _compute_hints(self) -> list[str]:
+        """Compute visible hint labels from the binding registry for the current state."""
+        ctx = self._build_context()
+        filtered = [
+            b for b in self._bindings
+            if b.mode == ctx.mode
+            and (b.condition is None or b.condition(ctx))
+            and b.label is not None
+        ]
+        filtered.sort(key=lambda b: b.priority)
+        return [b.label for b in filtered]
 
     # ------------------------------------------------------------------
     # Registry-based dispatch
