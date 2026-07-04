@@ -162,3 +162,155 @@ class Terminal:
         """Close the /dev/tty file handle."""
         if self._tty_file is not None and not self._tty_file.closed:
             self._tty_file.close()
+
+
+def detect_terminal_background() -> str | None:
+    """Detect whether the terminal has a light or dark background.
+
+    Uses the OSC 11 query (background color request) with a DA1 sentinel
+    to detect terminals that do not support OSC 11. Returns "light",
+    "dark", or None (unsupported / timeout / error).
+
+    Must be called BEFORE entering the TUI (before raw mode, before
+    user input can race with the response).
+    """
+    term_env = os.environ.get("TERM", "")
+    # Terminals known not to support OSC 11
+    if term_env in ("dumb", "Eterm") or term_env.startswith("screen"):
+        return None
+
+    try:
+        tty_file = open("/dev/tty", "r+b", buffering=0)
+    except OSError:
+        return None
+
+    fd = tty_file.fileno()
+    try:
+        old_attrs = termios.tcgetattr(fd)
+    except termios.error:
+        tty_file.close()
+        return None
+
+    try:
+        tty.setcbreak(fd)
+
+        # OSC 11 query (BEL terminator) + DA1 sentinel
+        tty_file.write(b"\x1b]11;?\x07\x1b[c")
+        tty_file.flush()
+
+        result = _parse_osc11_response(fd)
+        return result
+    except OSError:
+        return None
+    finally:
+        try:
+            termios.tcsetattr(fd, termios.TCSAFLUSH, old_attrs)
+        except termios.error:
+            pass
+        tty_file.close()
+
+
+def _parse_osc11_response(fd: int) -> str | None:
+    """Read and parse the OSC 11 response from the terminal.
+
+    Returns "light", "dark", or None.
+    """
+    r, _, _ = select.select([fd], [], [], 1.0)
+    if not r:
+        return None  # timeout
+
+    # Read available bytes (up to 256 is plenty for OSC 11 + DA1)
+    response = b""
+    while True:
+        r, _, _ = select.select([fd], [], [], 0.1)
+        if not r:
+            break
+        chunk = os.read(fd, 256)
+        if not chunk:
+            break
+        response += chunk
+
+    if not response:
+        return None
+
+    # DA1 response starts with ESC[? -- if that's the first thing,
+    # the terminal doesn't support OSC 11.
+    if response.startswith(b"\x1b[?"):
+        return None
+
+    # Look for OSC 11 response: ESC]11;rgb:RRRR/GGGG/BBBB (terminated by BEL or ST)
+    # The ESC] prefix may also be \x9d (8-bit OSC introducer).
+    osc_start = -1
+    for i, byte in enumerate(response):
+        if byte == 0x1b and i + 1 < len(response) and response[i + 1] == ord("]"):
+            osc_start = i + 2
+            break
+        if byte == 0x9d:
+            osc_start = i + 1
+            break
+
+    if osc_start < 0:
+        return None
+
+    # Extract the payload up to BEL (\x07), ST (\x1b\\), or 8-bit ST (\x9c)
+    payload = b""
+    j = osc_start
+    while j < len(response):
+        if response[j] == 0x07:
+            break
+        if response[j] == 0x9c:
+            break
+        if response[j] == 0x1b and j + 1 < len(response) and response[j + 1] == ord("\\"):
+            break
+        payload += bytes([response[j]])
+        j += 1
+
+    # Payload should be like: 11;rgb:RRRR/GGGG/BBBB
+    payload_str = payload.decode("ascii", errors="replace")
+    if not payload_str.startswith("11;rgb:"):
+        return None
+
+    rgb_part = payload_str[7:]  # after "11;rgb:"
+    return _classify_rgb(rgb_part)
+
+
+def _classify_rgb(rgb_str: str) -> str | None:
+    """Parse an rgb:RR/GG/BB (1-4 hex digits per channel) string and classify as light or dark.
+
+    Returns "light" if perceived luminance > 0.5, "dark" otherwise, or None on parse error.
+    """
+    parts = rgb_str.split("/")
+    if len(parts) != 3:
+        return None
+
+    channels: list[float] = []
+    for part in parts:
+        part = part.strip()
+        if not part or len(part) > 4:
+            return None
+        try:
+            val = int(part, 16)
+        except ValueError:
+            return None
+        # Normalize to 0.0-1.0: the max value depends on the digit count
+        max_val = (16 ** len(part)) - 1
+        if max_val == 0:
+            return None
+        channels.append(val / max_val)
+
+    r, g, b = channels
+
+    # Linearize sRGB
+    def linearize(c: float) -> float:
+        if c <= 0.04045:
+            return c / 12.92
+        return ((c + 0.055) / 1.055) ** 2.4
+
+    r_lin = linearize(r)
+    g_lin = linearize(g)
+    b_lin = linearize(b)
+
+    # Perceived luminance (ITU-R BT.709)
+    luminance = 0.2126 * r_lin + 0.7152 * g_lin + 0.0722 * b_lin
+
+    return "light" if luminance > 0.5 else "dark"
