@@ -87,7 +87,7 @@ class Terminal:
                 ch2 = os.read(self.fd, 1).decode("utf-8", errors="replace")
                 if ch2 == "[":
                     ch3 = os.read(self.fd, 1).decode("utf-8", errors="replace")
-                    if ch3.isdigit():
+                    if "\x30" <= ch3 <= "\x3f":
                         # Multi-byte CSI: consume parameter/intermediate bytes
                         # (0x20-0x3F: digits, ';', etc.) through the final
                         # byte (0x40-0x7E) so nothing leaks into the next read.

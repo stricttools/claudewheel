@@ -333,5 +333,89 @@ class ReadKeyTests(TerminalRawModeTestBase):
         self.assertEqual(self.term.read_key(), "g")
 
 
+class CSIPrivateModeTests(ReadKeyTests):
+    """CSI sequences starting with '?' (private modes) must be fully consumed.
+
+    The entry gate (ch3.isdigit()) previously rejected '?' so sequences like
+    ESC[?997;1n leaked bytes into subsequent reads.
+    """
+
+    def test_mode2031_notification_consumed(self) -> None:
+        """ESC[?997;1n (Mode 2031 notification) is consumed as one token."""
+        buf = self._feed(b"\x1b[?997;1nx")
+        self.assertEqual(self.term.read_key(), "CSI?997;1n")
+        self.assertEqual(len(buf), 1, "trailing 'x' should remain")
+        self.assertEqual(self.term.read_key(), "x")
+
+    def test_mode2031_no_byte_leak(self) -> None:
+        """After consuming ESC[?997;1n, the next read_key sees the byte after."""
+        self._feed(b"\x1b[?997;1nA")
+        self.term.read_key()  # consume the CSI sequence
+        self.assertEqual(self.term.read_key(), "A")
+
+    def test_simple_private_mode_query(self) -> None:
+        """ESC[?996n (a private mode query) is consumed cleanly."""
+        buf = self._feed(b"\x1b[?996nz")
+        self.assertEqual(self.term.read_key(), "CSI?996n")
+        self.assertEqual(self.term.read_key(), "z")
+
+    def test_private_set_mode(self) -> None:
+        """ESC[?2031h (DECSET-style) is consumed cleanly."""
+        buf = self._feed(b"\x1b[?2031hq")
+        self.assertEqual(self.term.read_key(), "CSI?2031h")
+        self.assertEqual(self.term.read_key(), "q")
+
+    def test_private_reset_mode(self) -> None:
+        """ESC[?2031l (DECRST-style) is consumed cleanly."""
+        buf = self._feed(b"\x1b[?2031lw")
+        self.assertEqual(self.term.read_key(), "CSI?2031l")
+        self.assertEqual(self.term.read_key(), "w")
+
+    def test_digit_gate_still_works_for_delete(self) -> None:
+        """Regression: DELETE (ESC[3~) still decodes after the gate change."""
+        buf = self._feed(b"\x1b[3~m")
+        self.assertEqual(self.term.read_key(), "DELETE")
+        self.assertEqual(self.term.read_key(), "m")
+
+    def test_digit_gate_still_works_for_pgup(self) -> None:
+        """Regression: PGUP (ESC[5~) still decodes after the gate change."""
+        buf = self._feed(b"\x1b[5~")
+        self.assertEqual(self.term.read_key(), "PGUP")
+
+    def test_digit_gate_still_works_for_pgdn(self) -> None:
+        """Regression: PGDN (ESC[6~) still decodes after the gate change."""
+        buf = self._feed(b"\x1b[6~")
+        self.assertEqual(self.term.read_key(), "PGDN")
+
+    def test_digit_gate_still_works_for_insert(self) -> None:
+        """Regression: INSERT (ESC[2~) still decodes after the gate change."""
+        buf = self._feed(b"\x1b[2~")
+        self.assertEqual(self.term.read_key(), "INSERT")
+
+    def test_semicolon_gate_entry(self) -> None:
+        """Semicolon (0x3B) is in the 0x30-0x3F range and should enter the loop."""
+        buf = self._feed(b"\x1b[;2Ry")
+        self.assertEqual(self.term.read_key(), "CSI;2R")
+        self.assertEqual(self.term.read_key(), "y")
+
+    def test_less_than_gate_entry(self) -> None:
+        """'<' (0x3C) is in the 0x30-0x3F range and should enter the loop."""
+        buf = self._feed(b"\x1b[<35;10;1Mv")
+        self.assertEqual(self.term.read_key(), "CSI<35;10;1M")
+        self.assertEqual(self.term.read_key(), "v")
+
+    def test_equals_gate_entry(self) -> None:
+        """'=' (0x3D) is in the 0x30-0x3F range and should enter the loop."""
+        buf = self._feed(b"\x1b[=1ck")
+        self.assertEqual(self.term.read_key(), "CSI=1c")
+        self.assertEqual(self.term.read_key(), "k")
+
+    def test_greater_than_gate_entry(self) -> None:
+        """'>' (0x3E) is in the 0x30-0x3F range and should enter the loop."""
+        buf = self._feed(b"\x1b[>1cj")
+        self.assertEqual(self.term.read_key(), "CSI>1c")
+        self.assertEqual(self.term.read_key(), "j")
+
+
 if __name__ == "__main__":
     unittest.main()
