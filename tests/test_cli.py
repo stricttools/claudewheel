@@ -1484,6 +1484,7 @@ class FixAuthTests(unittest.TestCase):
         rc = None
         with (
             mock.patch("claudewheel.constants.TOKENS_FILE", self.tokens_file),
+            mock.patch("claudewheel.profile_ops.TOKENS_FILE", self.tokens_file),
             mock.patch("claudewheel.profile_info.PROFILES_DIR", self.profiles_dir),
             redirect_stdout(out),
             redirect_stderr(err),

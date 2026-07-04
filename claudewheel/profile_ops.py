@@ -11,7 +11,84 @@ from dataclasses import dataclass, field
 from .constants import OPTIONS_FILE, PROFILES_DIR, TOKENS_FILE
 from .discovery import classify_shared_dirs
 from .fsutil import write_json_atomic, write_json_atomic_secret
+from .profile_info import config_dir_for
 from .state import load_state_value, save_state_value
+from .tokens import parse_entry
+
+
+@dataclass
+class FixAuthResult:
+    """Outcome of fix_auth_shadow(): success or a reason for no-op/failure.
+
+    ok: True when the shadow was removed, False otherwise.
+    reason: None on success; "no-token" / "no-shadow" / "unreadable-creds" on failure.
+    tier_saved: rateLimitTier value preserved into tokens.json, or None.
+    subscription_saved: subscriptionType value preserved into tokens.json, or None.
+    """
+
+    ok: bool
+    reason: str | None = None
+    tier_saved: str | None = None
+    subscription_saved: str | None = None
+
+
+def fix_auth_shadow(name: str) -> FixAuthResult:
+    """Remove session credentials (claudeAiOauth) that shadow a long-lived token.
+
+    Reads the profile's .credentials.json, strips the claudeAiOauth key, and
+    preserves any tier/subscription metadata into tokens.json. Zero printing,
+    zero sys.exit -- returns a FixAuthResult describing what happened.
+    """
+    config_dir = config_dir_for(name)
+
+    # 1. Check tokens.json has a valid entry
+    try:
+        tokens = json.loads(TOKENS_FILE.read_text())
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        tokens = {}
+    if parse_entry(tokens.get(name)) is None:
+        return FixAuthResult(ok=False, reason="no-token")
+
+    # 2. Read .credentials.json
+    creds_path = config_dir / ".credentials.json"
+    if not creds_path.exists():
+        return FixAuthResult(ok=False, reason="no-shadow")
+    try:
+        creds = json.loads(creds_path.read_text())
+    except (json.JSONDecodeError, OSError):
+        return FixAuthResult(ok=False, reason="unreadable-creds")
+
+    if "claudeAiOauth" not in creds:
+        return FixAuthResult(ok=False, reason="no-shadow")
+
+    # 3. Extract tier fields before stripping
+    oauth_block = creds["claudeAiOauth"]
+    tier = oauth_block.get("rateLimitTier") if isinstance(oauth_block, dict) else None
+    sub_type = oauth_block.get("subscriptionType") if isinstance(oauth_block, dict) else None
+
+    if tier or sub_type:
+        # Save tier data into tokens.json entry
+        entry = tokens.get(name)
+        if isinstance(entry, str):
+            entry = {"token": entry}
+        elif not isinstance(entry, dict):
+            entry = {}
+        if tier:
+            entry["rateLimitTier"] = tier
+        if sub_type:
+            entry["subscriptionType"] = sub_type
+        tokens[name] = entry
+        write_json_atomic_secret(TOKENS_FILE, tokens)
+
+    # 4. Strip claudeAiOauth and write back
+    creds.pop("claudeAiOauth", None)
+    write_json_atomic_secret(creds_path, creds)
+
+    return FixAuthResult(
+        ok=True,
+        tier_saved=tier,
+        subscription_saved=sub_type,
+    )
 
 
 @dataclass
@@ -270,3 +347,144 @@ def do_delete_profile(name: str, force: bool = False,
         print("  Cleared last_config profile reference in state.json")
     print(f"Profile '{name}' deleted.")
     return 0
+
+
+# ---------------------------------------------------------------------------
+# Profile rename
+# ---------------------------------------------------------------------------
+
+RENAME_PENDING_FILE = ".rename_pending"
+
+
+def _update_options_rename(old: str, new: str) -> None:
+    """Swap old->new in options.json values list, pinned list, and metadata."""
+    try:
+        options = json.loads(OPTIONS_FILE.read_text())
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return
+
+    profile_sec = options.get("profile")
+    if not profile_sec:
+        return
+
+    changed = False
+
+    values = profile_sec.get("values", [])
+    if old in values:
+        idx = values.index(old)
+        values[idx] = new
+        changed = True
+
+    pinned = profile_sec.get("pinned", [])
+    if old in pinned:
+        idx = pinned.index(old)
+        pinned[idx] = new
+        changed = True
+
+    metadata = profile_sec.get("metadata", {})
+    if old in metadata:
+        entry = metadata.pop(old)
+        entry["config_dir"] = f"~/.claudewheel/profiles/{new}"
+        metadata[new] = entry
+        changed = True
+
+    if changed:
+        write_json_atomic(OPTIONS_FILE, options)
+
+
+def _update_tokens_rename(old: str, new: str) -> bool:
+    """Move old key to new in tokens.json. Returns True if token existed."""
+    try:
+        tokens = json.loads(TOKENS_FILE.read_text())
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return False
+
+    if old not in tokens:
+        return False
+
+    tokens[new] = tokens.pop(old)
+    write_json_atomic_secret(TOKENS_FILE, tokens)
+    return True
+
+
+def _update_state_rename(old: str, new: str) -> None:
+    """If last_config.profile == old, change to new."""
+    last_config = load_state_value("last_config")
+    if not isinstance(last_config, dict) or last_config.get("profile") != old:
+        return
+    last_config["profile"] = new
+    save_state_value("last_config", last_config)
+
+
+def rename_profile(old: str, new: str) -> None:
+    """Rename a profile directory and update all JSON stores.
+
+    Raises ValueError on validation failures, OSError on filesystem errors.
+    The function is crash-safe: a .rename_pending breadcrumb file is written
+    before the rename and removed after all stores are updated. If a crash
+    occurs mid-rename, recover_incomplete_renames() can finish the job.
+    """
+    old_dir = PROFILES_DIR / old
+    new_dir = PROFILES_DIR / new
+
+    if not old_dir.is_dir():
+        raise ValueError(f"Profile directory does not exist: {old_dir}")
+    if new_dir.exists():
+        raise ValueError(f"Target directory already exists: {new_dir}")
+
+    # 1. Write breadcrumb
+    pending_path = old_dir / RENAME_PENDING_FILE
+    pending_path.write_text(json.dumps({"from": old, "to": new}))
+
+    # 2. Atomic directory rename (same filesystem)
+    os.rename(old_dir, new_dir)
+
+    # 3-5. Update all JSON stores
+    _update_tokens_rename(old, new)
+    _update_options_rename(old, new)
+    _update_state_rename(old, new)
+
+    # 6. Remove breadcrumb (it moved with the dir in step 2)
+    breadcrumb = new_dir / RENAME_PENDING_FILE
+    if breadcrumb.exists():
+        breadcrumb.unlink()
+
+
+def recover_incomplete_renames() -> list[str]:
+    """Scan PROFILES_DIR for .rename_pending breadcrumbs and finish the rename.
+
+    Returns a list of recovered profile names (the new names).
+    Called at startup to auto-repair after a crash mid-rename.
+    """
+    recovered: list[str] = []
+    if not PROFILES_DIR.is_dir():
+        return recovered
+
+    for profile_dir in PROFILES_DIR.iterdir():
+        if not profile_dir.is_dir():
+            continue
+        pending = profile_dir / RENAME_PENDING_FILE
+        if not pending.exists():
+            continue
+        try:
+            data = json.loads(pending.read_text())
+        except (json.JSONDecodeError, OSError):
+            continue
+        old = data.get("from")
+        new = data.get("to")
+        if not old or not new:
+            continue
+        # The dir was already renamed (it's at new's path now)
+        if profile_dir.name != new:
+            continue
+
+        # Re-run store updates (idempotent: if they already reference new, no-op)
+        _update_tokens_rename(old, new)
+        _update_options_rename(old, new)
+        _update_state_rename(old, new)
+
+        # Remove breadcrumb
+        pending.unlink()
+        recovered.append(new)
+
+    return recovered

@@ -13,7 +13,7 @@ from unittest.mock import patch
 
 
 
-from claudewheel import discovery, profile_ops, state
+from claudewheel import discovery, profile_info, profile_ops, state
 
 
 class _ProfileOpsTestCase(unittest.TestCase):
@@ -39,6 +39,10 @@ class _ProfileOpsTestCase(unittest.TestCase):
             patch.object(profile_ops, "TOKENS_FILE", self.tokens_file),
             patch.object(
                 profile_ops, "PROFILES_DIR", self.home / ".claudewheel" / "profiles",
+            ),
+            # fix_auth_shadow uses config_dir_for from profile_info
+            patch.object(
+                profile_info, "PROFILES_DIR", self.home / ".claudewheel" / "profiles",
             ),
             # delete_profile_core purges last_config via the state helpers --
             # keep it away from the real ~/.claudewheel/state.json.
@@ -605,6 +609,146 @@ class PinnedProfileTests(_ProfileOpsTestCase):
         output = err.getvalue()
         self.assertIn("from-values", output)
         self.assertIn("from-pinned", output)
+
+
+# ---------------------------------------------------------------------------
+# fix_auth_shadow
+# ---------------------------------------------------------------------------
+
+
+class FixAuthShadowTests(_ProfileOpsTestCase):
+    """Tests for fix_auth_shadow: remove claudeAiOauth from .credentials.json."""
+
+    def _write_credentials(self, pdir: Path, data: dict) -> None:
+        creds = pdir / ".credentials.json"
+        creds.write_text(json.dumps(data))
+        creds.chmod(0o600)
+
+    def test_no_token_returns_reason(self) -> None:
+        """When tokens.json has no entry for the profile, reason is 'no-token'."""
+        self._make_profile_dir("orphan")
+        self._write_tokens({})
+        result = profile_ops.fix_auth_shadow("orphan")
+        self.assertFalse(result.ok)
+        self.assertEqual(result.reason, "no-token")
+
+    def test_no_credentials_file_returns_no_shadow(self) -> None:
+        """When .credentials.json doesn't exist, reason is 'no-shadow'."""
+        pdir = self._make_profile_dir("clean")
+        # Remove the .credentials.json that _make_profile_dir creates
+        (pdir / ".credentials.json").unlink()
+        self._write_tokens({"clean": {"token": "tok-abc"}})
+        result = profile_ops.fix_auth_shadow("clean")
+        self.assertFalse(result.ok)
+        self.assertEqual(result.reason, "no-shadow")
+
+    def test_no_claudeAiOauth_key_returns_no_shadow(self) -> None:
+        """When .credentials.json exists but has no claudeAiOauth, reason is 'no-shadow'."""
+        pdir = self._make_profile_dir("noshadow")
+        self._write_credentials(pdir, {"mcpOAuth": {"x": "y"}})
+        self._write_tokens({"noshadow": {"token": "tok-ns"}})
+        result = profile_ops.fix_auth_shadow("noshadow")
+        self.assertFalse(result.ok)
+        self.assertEqual(result.reason, "no-shadow")
+
+    def test_unreadable_credentials_returns_reason(self) -> None:
+        """When .credentials.json is corrupt JSON, reason is 'unreadable-creds'."""
+        pdir = self._make_profile_dir("corrupt")
+        (pdir / ".credentials.json").write_text("{not json at all")
+        self._write_tokens({"corrupt": {"token": "tok-c"}})
+        result = profile_ops.fix_auth_shadow("corrupt")
+        self.assertFalse(result.ok)
+        self.assertEqual(result.reason, "unreadable-creds")
+
+    def test_strips_shadow_and_saves_tier(self) -> None:
+        """Shadow is stripped, tier data saved to tokens.json."""
+        pdir = self._make_profile_dir("work")
+        self._write_credentials(pdir, {
+            "claudeAiOauth": {
+                "accessToken": "short-lived",
+                "rateLimitTier": "default_claude_pro",
+                "subscriptionType": "claude_pro",
+            },
+            "mcpOAuth": {"keep": "this"},
+        })
+        self._write_tokens({"work": {"token": "tok-work"}})
+
+        result = profile_ops.fix_auth_shadow("work")
+
+        self.assertTrue(result.ok)
+        self.assertIsNone(result.reason)
+        self.assertEqual(result.tier_saved, "default_claude_pro")
+        self.assertEqual(result.subscription_saved, "claude_pro")
+
+        # Verify .credentials.json was updated
+        creds = json.loads((pdir / ".credentials.json").read_text())
+        self.assertNotIn("claudeAiOauth", creds)
+        self.assertIn("mcpOAuth", creds)
+
+        # Verify tokens.json has tier fields
+        tokens = json.loads(self.tokens_file.read_text())
+        self.assertEqual(tokens["work"]["rateLimitTier"], "default_claude_pro")
+        self.assertEqual(tokens["work"]["subscriptionType"], "claude_pro")
+        # Original token preserved
+        self.assertEqual(tokens["work"]["token"], "tok-work")
+
+    def test_strips_shadow_no_tier_data(self) -> None:
+        """Shadow stripped even without tier fields; no tier saved."""
+        pdir = self._make_profile_dir("notier")
+        self._write_credentials(pdir, {
+            "claudeAiOauth": {"accessToken": "short"},
+        })
+        self._write_tokens({"notier": {"token": "tok-nt"}})
+
+        result = profile_ops.fix_auth_shadow("notier")
+
+        self.assertTrue(result.ok)
+        self.assertIsNone(result.tier_saved)
+        self.assertIsNone(result.subscription_saved)
+
+        # Verify .credentials.json was updated
+        creds = json.loads((pdir / ".credentials.json").read_text())
+        self.assertNotIn("claudeAiOauth", creds)
+
+        # Verify tokens.json was NOT modified (no tier to save)
+        tokens = json.loads(self.tokens_file.read_text())
+        self.assertNotIn("rateLimitTier", tokens.get("notier", {}))
+
+    def test_bare_string_token_upgraded_to_dict_with_tier(self) -> None:
+        """When token entry is a bare string, it's upgraded to a dict to hold tier."""
+        pdir = self._make_profile_dir("legacy")
+        self._write_credentials(pdir, {
+            "claudeAiOauth": {
+                "accessToken": "ephemeral",
+                "rateLimitTier": "tier_max",
+            },
+        })
+        self._write_tokens({"legacy": "bare-tok-string"})
+
+        result = profile_ops.fix_auth_shadow("legacy")
+
+        self.assertTrue(result.ok)
+        self.assertEqual(result.tier_saved, "tier_max")
+
+        tokens = json.loads(self.tokens_file.read_text())
+        self.assertEqual(tokens["legacy"]["token"], "bare-tok-string")
+        self.assertEqual(tokens["legacy"]["rateLimitTier"], "tier_max")
+
+    def test_atomic_write_preserves_credentials_permissions(self) -> None:
+        """The atomic write to .credentials.json preserves 0600 permissions."""
+        pdir = self._make_profile_dir("perms")
+        self._write_credentials(pdir, {
+            "claudeAiOauth": {"accessToken": "x"},
+            "other": "keep",
+        })
+        creds_path = pdir / ".credentials.json"
+        creds_path.chmod(0o600)
+        self._write_tokens({"perms": {"token": "tok-p"}})
+
+        profile_ops.fix_auth_shadow("perms")
+
+        mode = creds_path.stat().st_mode & 0o777
+        self.assertEqual(mode, 0o600)
 
 
 if __name__ == "__main__":
