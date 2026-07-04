@@ -2,6 +2,15 @@
 
 # Changelog
 
+## 0.18.1
+
+Hint bar now automatically reflects available keybindings and wraps on narrow terminals.
+
+### Features
+
+- Keyboard shortcuts are now shown automatically in the hint bar based on current context — new bindings no longer require manual hint-string updates.
+- Hint bar wraps to a second line on narrow terminals instead of truncating.
+
 ## 0.18.0
 
 Themed form system, zero-paste token capture with API validation, profile inspect and delete in the TUI, and six new internal modules.
