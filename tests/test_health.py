@@ -224,13 +224,19 @@ class CheckHooksWiredTests(_HomeDirTestCase):
                         "hooks": [
                             {"command": "/usr/bin/hook-block-worktree"},
                         ]
-                    }
+                    },
+                    {
+                        "matcher": "Bash",
+                        "hooks": [
+                            {"command": "/usr/bin/hook-block-unsafe-commands"},
+                        ]
+                    },
                 ],
             }
         }
 
     def test_ok_when_all_hooks_present(self) -> None:
-        """Returns OK when hook-timestamp and hook-block-worktree are present."""
+        """Returns OK when all required hooks are present."""
         pdir = self._make_profile("hooked")
         self._write_settings(pdir, self._good_settings())
 
@@ -257,6 +263,34 @@ class CheckHooksWiredTests(_HomeDirTestCase):
         result = check_hooks_wired()
         self.assertFalse(result.ok)
         self.assertIn("missing hook-timestamp", result.detail)
+
+    def test_warn_when_block_unsafe_commands_missing(self) -> None:
+        """Returns WARN when hook-block-unsafe-commands is missing from PreToolUse."""
+        pdir = self._make_profile("no-bash-hook")
+        settings = {
+            "hooks": {
+                "UserPromptSubmit": [
+                    {
+                        "hooks": [
+                            {"command": "/usr/bin/hook-timestamp"},
+                        ]
+                    }
+                ],
+                "PreToolUse": [
+                    {
+                        "matcher": "Agent",
+                        "hooks": [
+                            {"command": "/usr/bin/hook-block-worktree"},
+                        ]
+                    }
+                ],
+            }
+        }
+        self._write_settings(pdir, settings)
+
+        result = check_hooks_wired()
+        self.assertFalse(result.ok)
+        self.assertIn("missing PreToolUse hook-block-unsafe-commands", result.detail)
 
     def test_warn_when_no_settings_json(self) -> None:
         """Returns WARN when settings.json does not exist."""

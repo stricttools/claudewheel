@@ -240,10 +240,30 @@ class BuildCanonicalSharedSettingsTests(unittest.TestCase):
         self.assertTrue(any("hook-timestamp" in h["command"] for h in ups_hooks))
         for h in ups_hooks:
             self.assertTrue(h["command"].startswith(str(scripts)))
-        ptu_hooks = result["hooks"]["PreToolUse"][0]["hooks"]
-        self.assertTrue(any("hook-block-worktree" in h["command"] for h in ptu_hooks))
-        for h in ptu_hooks:
+        # Agent matcher
+        ptu_agent = result["hooks"]["PreToolUse"][0]
+        self.assertEqual(ptu_agent["matcher"], "Agent")
+        self.assertTrue(any("hook-block-worktree" in h["command"] for h in ptu_agent["hooks"]))
+        for h in ptu_agent["hooks"]:
             self.assertTrue(h["command"].startswith(str(scripts)))
+
+    def test_pretooluse_bash_matcher_present(self) -> None:
+        """PreToolUse contains a Bash matcher entry with hook-block-unsafe-commands."""
+        scripts = Path("/my/scripts")
+        result = build_canonical_shared_settings(scripts)
+        ptu_list = result["hooks"]["PreToolUse"]
+        # Find the Bash matcher entry
+        bash_entries = [e for e in ptu_list if e.get("matcher") == "Bash"]
+        self.assertEqual(len(bash_entries), 1, "Expected exactly one Bash matcher entry")
+        bash_entry = bash_entries[0]
+        hook_commands = [h["command"] for h in bash_entry["hooks"]]
+        self.assertTrue(
+            any("hook-block-unsafe-commands" in cmd for cmd in hook_commands),
+            f"Expected hook-block-unsafe-commands in Bash hooks, got: {hook_commands}",
+        )
+        # Verify it references the scripts dir
+        for cmd in hook_commands:
+            self.assertTrue(cmd.startswith(str(scripts)))
 
     def test_disallowed_tools_is_copy(self) -> None:
         """Returned disallowedTools is a copy, not the original list."""

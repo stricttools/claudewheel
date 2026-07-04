@@ -96,6 +96,7 @@ def check_hooks_wired() -> HealthResult:
     Checks:
     - UserPromptSubmit: hook-timestamp
     - PreToolUse: hook-block-worktree (matcher: Agent)
+    - PreToolUse: hook-block-unsafe-commands (matcher: Bash)
     """
     profiles = _discover_profiles()
     if not profiles:
@@ -148,6 +149,25 @@ def check_hooks_wired() -> HealthResult:
                     break
         if not has_block_worktree:
             missing.append(f"{p.name}: missing PreToolUse hook-block-worktree")
+
+        # Check PreToolUse Bash hook (block-unsafe-commands)
+        has_block_unsafe = False
+        if ptu_list and isinstance(ptu_list, list):
+            for entry in ptu_list:
+                if not isinstance(entry, dict):
+                    continue
+                if entry.get("matcher") != "Bash":
+                    continue
+                entry_hooks = entry.get("hooks", [])
+                for h in entry_hooks:
+                    cmd = h.get("command", "") if isinstance(h, dict) else ""
+                    if "hook-block-unsafe-commands" in cmd:
+                        has_block_unsafe = True
+                        break
+                if has_block_unsafe:
+                    break
+        if not has_block_unsafe:
+            missing.append(f"{p.name}: missing PreToolUse hook-block-unsafe-commands")
 
     if missing:
         return HealthResult(False, "hooks-wired", "; ".join(missing))

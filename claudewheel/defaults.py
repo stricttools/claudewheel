@@ -47,7 +47,13 @@ def build_canonical_shared_settings(scripts_dir: Path) -> dict:
                     "hooks": [
                         {"type": "command", "command": str(scripts_dir / "hook-block-worktree")},
                     ],
-                }
+                },
+                {
+                    "matcher": "Bash",
+                    "hooks": [
+                        {"type": "command", "command": str(scripts_dir / "hook-block-unsafe-commands")},
+                    ],
+                },
             ],
         },
         "disallowedTools": DISALLOWED_TOOLS[:],
