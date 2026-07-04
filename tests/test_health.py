@@ -11,6 +11,7 @@ from unittest.mock import patch
 from claudewheel.defaults import DISALLOWED_TOOLS
 from claudewheel.health import (
     _discover_profiles,
+    check_auth_shadow,
     check_hooks_wired,
     check_orphan_profiles,
     check_settings_defaults,
@@ -593,6 +594,88 @@ class CheckOrphanProfilesTests(_HomeDirTestCase):
             result = check_orphan_profiles()
         self.assertTrue(result.ok)
         self.assertIn("no orphan", result.detail)
+
+
+# ---------------------------------------------------------------------------
+# check_auth_shadow
+# ---------------------------------------------------------------------------
+
+
+class CheckAuthShadowTests(_HomeDirTestCase):
+    """Tests for check_auth_shadow()."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self._tokens_file = self.home / ".claudewheel" / "tokens.json"
+        self._tokens_patcher = patch("claudewheel.health.TOKENS_FILE", self._tokens_file)
+        self._tokens_patcher.start()
+
+    def tearDown(self) -> None:
+        self._tokens_patcher.stop()
+        super().tearDown()
+
+    def _write_tokens(self, tokens: dict) -> None:
+        self._tokens_file.parent.mkdir(parents=True, exist_ok=True)
+        self._tokens_file.write_text(json.dumps(tokens))
+
+    def _write_credentials(self, pdir: Path, data: dict) -> None:
+        (pdir / ".credentials.json").write_text(json.dumps(data))
+
+    def test_flagged_when_both_token_and_claude_ai_oauth(self) -> None:
+        """Profile with both tokens.json entry AND claudeAiOauth in .credentials.json is flagged."""
+        pdir = self._make_profile("work")
+        self._write_tokens({"work": {"token": "tok-xxx", "created": "2025-01-01", "expires_at": "2026-01-01"}})
+        self._write_credentials(pdir, {"claudeAiOauth": {"accessToken": "short-lived"}})
+
+        result = check_auth_shadow()
+        self.assertFalse(result.ok)
+        self.assertIn("work", result.detail)
+        self.assertIn("shadowed", result.detail)
+
+    def test_not_flagged_when_only_token(self) -> None:
+        """Profile with only tokens.json entry (no claudeAiOauth) is not flagged."""
+        pdir = self._make_profile("clean")
+        self._write_tokens({"clean": "tok-abc"})
+        self._write_credentials(pdir, {"mcpOAuth": {"some": "data"}})
+
+        result = check_auth_shadow()
+        self.assertTrue(result.ok)
+        self.assertIn("no auth shadow", result.detail)
+
+    def test_not_flagged_when_only_credentials(self) -> None:
+        """Profile with claudeAiOauth but no tokens.json entry is not flagged."""
+        pdir = self._make_profile("session-only")
+        self._write_tokens({})  # no entry for "session-only"
+        self._write_credentials(pdir, {"claudeAiOauth": {"accessToken": "x"}})
+
+        result = check_auth_shadow()
+        self.assertTrue(result.ok)
+        self.assertIn("no auth shadow", result.detail)
+
+    def test_not_flagged_when_mcp_oauth_only(self) -> None:
+        """Profile with mcpOAuth but no claudeAiOauth is not flagged."""
+        pdir = self._make_profile("mcp-only")
+        self._write_tokens({"mcp-only": "tok-mcp"})
+        self._write_credentials(pdir, {"mcpOAuth": {"provider": "github"}})
+
+        result = check_auth_shadow()
+        self.assertTrue(result.ok)
+        self.assertIn("no auth shadow", result.detail)
+
+    def test_no_tokens_file(self) -> None:
+        """Returns OK when tokens.json does not exist."""
+        self._make_profile("any")
+        result = check_auth_shadow()
+        self.assertTrue(result.ok)
+        self.assertIn("no tokens.json", result.detail)
+
+    def test_no_profiles(self) -> None:
+        """Returns OK when no profiles are discovered."""
+        self._tokens_file.parent.mkdir(parents=True, exist_ok=True)
+        self._tokens_file.write_text("{}")
+        result = check_auth_shadow()
+        self.assertTrue(result.ok)
+        self.assertIn("no profiles found", result.detail)
 
 
 if __name__ == "__main__":

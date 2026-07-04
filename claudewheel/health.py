@@ -270,6 +270,44 @@ def check_shared_settings_drift() -> HealthResult:
     return HealthResult(True, "settings-drift", f"all {len(profiles)} profiles in sync")
 
 
+def check_auth_shadow() -> HealthResult:
+    """Detect profiles where .credentials.json claudeAiOauth shadows a long-lived token."""
+    tokens_file = TOKENS_FILE
+    if not tokens_file.exists():
+        return HealthResult(True, "auth-shadow", "no tokens.json")
+    try:
+        tokens = json.loads(tokens_file.read_text())
+    except (json.JSONDecodeError, OSError):
+        return HealthResult(False, "auth-shadow", "unreadable tokens.json")
+
+    profiles = _discover_profiles()
+    if not profiles:
+        return HealthResult(True, "auth-shadow", "no profiles found")
+
+    shadowed: list[str] = []
+    for p in profiles:
+        # Profile must have a valid long-lived token
+        if parse_entry(tokens.get(p.name)) is None:
+            continue
+        # Check if .credentials.json also has claudeAiOauth
+        creds_path = p.path / ".credentials.json"
+        if not creds_path.exists():
+            continue
+        try:
+            creds = json.loads(creds_path.read_text())
+        except (json.JSONDecodeError, OSError):
+            continue
+        if "claudeAiOauth" in creds:
+            shadowed.append(p.name)
+
+    if shadowed:
+        return HealthResult(
+            False, "auth-shadow",
+            f"shadowed: {', '.join(shadowed)} — session credentials override long-lived tokens"
+        )
+    return HealthResult(True, "auth-shadow", "no auth shadow detected")
+
+
 def check_token_expiry() -> HealthResult:
     """Warn if any token is approaching 1-year expiry (setup-token TTL)."""
     tokens_file = TOKENS_FILE
@@ -461,6 +499,7 @@ def run_health_check() -> list[HealthResult]:
         check_shared_settings_drift(),
         check_tokens(),
         check_token_expiry(),
+        check_auth_shadow(),
         check_orphan_profiles(),
         check_file_permissions(),
         check_inode_renames(),
