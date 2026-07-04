@@ -1565,5 +1565,283 @@ class FixAuthTests(unittest.TestCase):
         self.assertNotIn("rateLimitTier", tokens.get("notier", {}))
 
 
+class CheckTokensTests(unittest.TestCase):
+    """Tests for the 'profile check-tokens' subcommand."""
+
+    # A realistic-length token (108 chars) for testing truncation
+    FULL_TOKEN = "sk-ant-oat01-" + "A" * 95
+
+    def _make_profile_info(self, name: str) -> object:
+        from claudewheel.discovery import ProfileInfo
+        return ProfileInfo(name=name, path=Path(f"/fake/{name}"),
+                          has_credentials=True, has_token=True)
+
+    def _run_check_tokens(self, profiles, tokens_data, validate_side_effect):
+        """Run _handle_check_tokens with mocked dependencies.
+
+        Returns (exit_code, stdout_text).
+        """
+        import json
+
+        buf = io.StringIO()
+        with (
+            mock.patch("claudewheel.cli.discover_profiles", create=True),
+            mock.patch("claudewheel.discovery.discover_profiles", return_value=profiles),
+            mock.patch("claudewheel.auth.validate_token", side_effect=validate_side_effect),
+        ):
+            # Patch TOKENS_FILE.read_text to return our data
+            tokens_json = json.dumps(tokens_data)
+            with (
+                mock.patch("claudewheel.constants.TOKENS_FILE") as mock_tf,
+                redirect_stdout(buf),
+            ):
+                mock_tf.read_text.return_value = tokens_json
+                # The handler imports TOKENS_FILE from .constants, so patch at use site
+                with mock.patch("pathlib.Path.read_text", return_value=tokens_json):
+                    rc = cli._handle_check_tokens()
+
+        return rc, buf.getvalue()
+
+    def _run_via_import(self, profiles, tokens_data, validate_results):
+        """Run _handle_check_tokens by patching the imports it uses internally."""
+        import json
+
+        buf = io.StringIO()
+
+        # Build a validate_token that returns results based on token value
+        token_to_result = {}
+        profile_idx = 0
+        for p in profiles:
+            entry = tokens_data.get(p.name)
+            # parse_entry logic
+            if isinstance(entry, str) and entry:
+                tok = entry
+            elif isinstance(entry, dict) and entry.get("token"):
+                tok = entry["token"]
+            else:
+                continue
+            if profile_idx < len(validate_results):
+                token_to_result[tok] = validate_results[profile_idx]
+                profile_idx += 1
+
+        def fake_validate(token, timeout=5.0):
+            return token_to_result.get(token, "indeterminate")
+
+        with (
+            mock.patch("claudewheel.cli.json.loads", return_value=tokens_data),
+            mock.patch("claudewheel.cli.TOKENS_FILE", create=True) as mock_tf,
+        ):
+            # This approach is fragile; use a simpler method
+            pass
+
+        # Simpler approach: patch at module level in cli
+        tokens_json = json.dumps(tokens_data)
+        fake_tokens_file = mock.MagicMock()
+        fake_tokens_file.read_text.return_value = tokens_json
+
+        with (
+            mock.patch("claudewheel.discovery.discover_profiles", return_value=profiles),
+            mock.patch("claudewheel.auth.validate_token", side_effect=fake_validate),
+            mock.patch("claudewheel.constants.TOKENS_FILE", fake_tokens_file),
+            redirect_stdout(buf),
+        ):
+            rc = cli._handle_check_tokens()
+
+        return rc, buf.getvalue()
+
+    def test_all_valid_exit_0(self) -> None:
+        """When all profiles have valid tokens, exit code is 0."""
+        from claudewheel.discovery import ProfileInfo
+
+        profiles = [
+            ProfileInfo(name="personal", path=Path("/fake/personal"),
+                        has_credentials=True, has_token=True),
+            ProfileInfo(name="work", path=Path("/fake/work"),
+                        has_credentials=True, has_token=True),
+        ]
+        tokens_data = {
+            "personal": self.FULL_TOKEN,
+            "work": {"token": self.FULL_TOKEN.replace("A", "B")},
+        }
+
+        def fake_validate(token, timeout=5.0):
+            return "valid"
+
+        rc, out = self._run_with_patches(profiles, tokens_data, fake_validate)
+        self.assertEqual(rc, 0)
+        self.assertIn("valid", out)
+        self.assertIn("personal", out)
+        self.assertIn("work", out)
+
+    def test_one_invalid_exit_1(self) -> None:
+        """When one profile has an invalid token, exit code is 1."""
+        from claudewheel.discovery import ProfileInfo
+
+        profiles = [
+            ProfileInfo(name="good", path=Path("/fake/good"),
+                        has_credentials=True, has_token=True),
+            ProfileInfo(name="bad", path=Path("/fake/bad"),
+                        has_credentials=True, has_token=True),
+        ]
+        tokens_data = {
+            "good": self.FULL_TOKEN,
+            "bad": self.FULL_TOKEN.replace("A", "C"),
+        }
+        token_good = self.FULL_TOKEN
+        token_bad = self.FULL_TOKEN.replace("A", "C")
+
+        def fake_validate(token, timeout=5.0):
+            if token == token_good:
+                return "valid"
+            return "invalid"
+
+        rc, out = self._run_with_patches(profiles, tokens_data, fake_validate)
+        self.assertEqual(rc, 1)
+        self.assertIn("valid", out)
+        self.assertIn("invalid", out)
+
+    def test_unreachable_exit_1(self) -> None:
+        """UNREACHABLE status causes exit 1."""
+        from claudewheel.discovery import ProfileInfo
+
+        profiles = [
+            ProfileInfo(name="offline", path=Path("/fake/offline"),
+                        has_credentials=True, has_token=True),
+        ]
+        tokens_data = {"offline": self.FULL_TOKEN}
+
+        def fake_validate(token, timeout=5.0):
+            return "unreachable"
+
+        rc, out = self._run_with_patches(profiles, tokens_data, fake_validate)
+        self.assertEqual(rc, 1)
+        self.assertIn("unreachable", out)
+
+    def test_no_token_shows_no_token(self) -> None:
+        """Profile with no token entry shows 'no token' status."""
+        from claudewheel.discovery import ProfileInfo
+
+        profiles = [
+            ProfileInfo(name="empty", path=Path("/fake/empty"),
+                        has_credentials=True, has_token=False),
+        ]
+        tokens_data = {}
+
+        def fake_validate(token, timeout=5.0):
+            raise AssertionError("validate_token should not be called for no-token profiles")
+
+        rc, out = self._run_with_patches(profiles, tokens_data, fake_validate)
+        self.assertEqual(rc, 0)
+        self.assertIn("no token", out)
+        self.assertIn("-", out)
+
+    def test_token_never_fully_printed(self) -> None:
+        """The full 108-char token must never appear in output."""
+        from claudewheel.discovery import ProfileInfo
+
+        profiles = [
+            ProfileInfo(name="secret", path=Path("/fake/secret"),
+                        has_credentials=True, has_token=True),
+        ]
+        tokens_data = {"secret": self.FULL_TOKEN}
+
+        def fake_validate(token, timeout=5.0):
+            return "valid"
+
+        rc, out = self._run_with_patches(profiles, tokens_data, fake_validate)
+        # The full token (108 chars) must not be in output
+        self.assertNotIn(self.FULL_TOKEN, out)
+        # But the first 20 chars + "..." should be there
+        self.assertIn(self.FULL_TOKEN[:20] + "...", out)
+
+    def test_indeterminate_exit_1(self) -> None:
+        """INDETERMINATE status causes exit 1."""
+        from claudewheel.discovery import ProfileInfo
+
+        profiles = [
+            ProfileInfo(name="weird", path=Path("/fake/weird"),
+                        has_credentials=True, has_token=True),
+        ]
+        tokens_data = {"weird": self.FULL_TOKEN}
+
+        def fake_validate(token, timeout=5.0):
+            return "indeterminate"
+
+        rc, out = self._run_with_patches(profiles, tokens_data, fake_validate)
+        self.assertEqual(rc, 1)
+        self.assertIn("indeterminate", out)
+
+    def test_tabular_output_format(self) -> None:
+        """Output has header row with Profile, Status, Token columns."""
+        from claudewheel.discovery import ProfileInfo
+
+        profiles = [
+            ProfileInfo(name="test", path=Path("/fake/test"),
+                        has_credentials=True, has_token=True),
+        ]
+        tokens_data = {"test": self.FULL_TOKEN}
+
+        def fake_validate(token, timeout=5.0):
+            return "valid"
+
+        rc, out = self._run_with_patches(profiles, tokens_data, fake_validate)
+        lines = out.strip().split("\n")
+        self.assertGreaterEqual(len(lines), 2)  # header + at least one row
+        self.assertIn("Profile", lines[0])
+        self.assertIn("Status", lines[0])
+        self.assertIn("Token", lines[0])
+
+    def test_command_registered_and_dispatches(self) -> None:
+        """'claudewheel profile check-tokens' dispatches to _handle_check_tokens."""
+        with (
+            mock.patch("sys.argv", ["c", "profile", "check-tokens"]),
+            mock.patch.object(cli, "_handle_check_tokens", return_value=0) as mock_handler,
+        ):
+            try:
+                cli.main()
+            except SystemExit:
+                pass
+        mock_handler.assert_called_once()
+
+    def test_no_token_profile_among_valid_still_exit_0(self) -> None:
+        """Mix of valid tokens and no-token profiles still exits 0."""
+        from claudewheel.discovery import ProfileInfo
+
+        profiles = [
+            ProfileInfo(name="has_tok", path=Path("/fake/has_tok"),
+                        has_credentials=True, has_token=True),
+            ProfileInfo(name="no_tok", path=Path("/fake/no_tok"),
+                        has_credentials=True, has_token=False),
+        ]
+        tokens_data = {"has_tok": self.FULL_TOKEN}
+
+        def fake_validate(token, timeout=5.0):
+            return "valid"
+
+        rc, out = self._run_with_patches(profiles, tokens_data, fake_validate)
+        self.assertEqual(rc, 0)
+        self.assertIn("valid", out)
+        self.assertIn("no token", out)
+
+    def _run_with_patches(self, profiles, tokens_data, validate_fn):
+        """Helper to run _handle_check_tokens with clean patches."""
+        import json
+
+        buf = io.StringIO()
+        tokens_json = json.dumps(tokens_data)
+        fake_tokens_file = mock.MagicMock()
+        fake_tokens_file.read_text.return_value = tokens_json
+
+        with (
+            mock.patch("claudewheel.discovery.discover_profiles", return_value=profiles),
+            mock.patch("claudewheel.auth.validate_token", side_effect=validate_fn),
+            mock.patch("claudewheel.constants.TOKENS_FILE", fake_tokens_file),
+            redirect_stdout(buf),
+        ):
+            rc = cli._handle_check_tokens()
+
+        return rc, buf.getvalue()
+
+
 if __name__ == "__main__":
     unittest.main()

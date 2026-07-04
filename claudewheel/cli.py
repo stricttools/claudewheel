@@ -318,6 +318,56 @@ def _handle_show_profile(name: str) -> int:
     return 0
 
 
+def _handle_check_tokens() -> int:
+    """Validate stored tokens for all discovered profiles against the Anthropic API."""
+    import json
+    from .constants import TOKENS_FILE
+    from .discovery import discover_profiles
+    from .tokens import parse_entry
+    from .auth import validate_token, VALID, INVALID, UNREACHABLE, INDETERMINATE
+
+    # Load tokens.json
+    try:
+        tokens = json.loads(TOKENS_FILE.read_text())
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        tokens = {}
+
+    profiles = discover_profiles()
+    if not profiles:
+        print("No profiles found.")
+        return 0
+
+    # Collect results: (name, status, token_display)
+    results: list[tuple[str, str, str]] = []
+    for p in profiles:
+        entry = tokens.get(p.name)
+        token = parse_entry(entry)
+        if token is None:
+            results.append((p.name, "no token", "-"))
+            continue
+        status = validate_token(token)
+        # Truncate token for display: first 20 chars + "..."
+        token_display = token[:20] + "..."
+        results.append((p.name, status, token_display))
+
+    # Print tabular output
+    col_name = max(len("Profile"), max(len(r[0]) for r in results))
+    col_status = max(len("Status"), max(len(r[1]) for r in results))
+    col_token = max(len("Token"), max(len(r[2]) for r in results))
+
+    header = f"{'Profile':<{col_name}}  {'Status':<{col_status}}  {'Token':<{col_token}}"
+    print(header)
+    for name, status, token_display in results:
+        print(f"{name:<{col_name}}  {status:<{col_status}}  {token_display:<{col_token}}")
+
+    # Exit 1 if any profile has invalid, unreachable, or indeterminate status
+    any_bad = any(
+        s in (INVALID, UNREACHABLE, INDETERMINATE)
+        for _, s, _ in results
+    )
+    return 1 if any_bad else 0
+
+
 def _handle_fix_auth(name: str) -> int:
     """Remove session credentials that shadow a long-lived token."""
     import json
@@ -995,6 +1045,10 @@ def _build_app() -> App:
     profile_grp.command("fix-auth", help="remove session credentials that shadow a long-lived token",
                         args=[Arg(name="name", help="profile name whose auth shadow to remove")])(
         _handle_fix_auth
+    )
+
+    profile_grp.command("check-tokens", help="validate stored tokens against the Anthropic API")(
+        _handle_check_tokens
     )
 
     # Hard-break old top-level names so they fail loudly with migration guidance
