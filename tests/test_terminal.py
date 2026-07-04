@@ -595,5 +595,13 @@ class DetectMode2031SupportTests(unittest.TestCase):
         fake_tty.close.assert_called()
 
 
+class TerminalQueryTimeoutConstantTests(unittest.TestCase):
+    """Verify the _TERMINAL_QUERY_TIMEOUT module constant."""
+
+    def test_constant_exists_and_value(self) -> None:
+        from claudewheel.terminal import _TERMINAL_QUERY_TIMEOUT
+        self.assertEqual(_TERMINAL_QUERY_TIMEOUT, 0.5)
+
+
 if __name__ == "__main__":
     unittest.main()

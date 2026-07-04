@@ -14,6 +14,12 @@ import tty
 
 from .constants import (ALT_SCREEN_ON, ALT_SCREEN_OFF, HIDE_CURSOR, SHOW_CURSOR, CLEAR_SCREEN)
 
+# Timeout (seconds) for the initial select() in terminal query responses
+# (OSC 11 background color, Mode 2031 dark/light). Shorter than the follow-up
+# chunk-read timeout (0.1s) because these queries either respond quickly or not
+# at all -- waiting a full second delays startup for no benefit.
+_TERMINAL_QUERY_TIMEOUT = 0.5
+
 
 class Terminal:
     """Low-level terminal I/O: raw mode, key reading, alt screen, and size detection."""
@@ -276,7 +282,7 @@ def _parse_mode2031_response(fd: int) -> str | None:
 
     Returns "dark" (mode=1), "light" (mode=2), or None (unsupported/timeout).
     """
-    r, _, _ = select.select([fd], [], [], 1.0)
+    r, _, _ = select.select([fd], [], [], _TERMINAL_QUERY_TIMEOUT)
     if not r:
         return None  # timeout
 
@@ -328,7 +334,7 @@ def _parse_osc11_response(fd: int) -> str | None:
 
     Returns "light", "dark", or None.
     """
-    r, _, _ = select.select([fd], [], [], 1.0)
+    r, _, _ = select.select([fd], [], [], _TERMINAL_QUERY_TIMEOUT)
     if not r:
         return None  # timeout
 
