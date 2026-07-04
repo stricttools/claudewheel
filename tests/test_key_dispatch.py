@@ -51,7 +51,8 @@ def _make_profile_segment(
     return seg
 
 
-def _make_app(seg: Segment, extra_segments: list[Segment] | None = None) -> App:
+def _make_app(seg: Segment, extra_segments: list[Segment] | None = None,
+              focus_idx: int = 0) -> App:
     """Build a minimal App with a real _handle_key and seg focused."""
     app = object.__new__(App)
     app.terminal = mock.MagicMock()
@@ -59,12 +60,13 @@ def _make_app(seg: Segment, extra_segments: list[Segment] | None = None) -> App:
     app.cfg = mock.MagicMock()
     app.cfg.state = {}
     segments = [seg] + (extra_segments or [])
-    app.bar = SegmentBar(segments=segments, focus_idx=0)
+    app.bar = SegmentBar(segments=segments, focus_idx=focus_idx)
     app._flash = ""
     app._pending_install = None
     app._pending_install_seg = None
     app._show_provenance = False
     app._pending_discovery = {}
+    app._bindings = app._build_bindings()
     return app
 
 
@@ -79,17 +81,7 @@ class MainModeNavigationTests(unittest.TestCase):
     def test_left_moves_focus_left(self):
         seg1 = _make_segment(key="a", label="A")
         seg2 = _make_segment(key="b", label="B")
-        app = object.__new__(App)
-        app.terminal = mock.MagicMock()
-        app.theme = mock.MagicMock()
-        app.cfg = mock.MagicMock()
-        app.cfg.state = {}
-        app.bar = SegmentBar(segments=[seg1, seg2], focus_idx=1)
-        app._flash = ""
-        app._pending_install = None
-        app._pending_install_seg = None
-        app._show_provenance = False
-        app._pending_discovery = {}
+        app = _make_app(seg1, extra_segments=[seg2], focus_idx=1)
         result = app._handle_key("LEFT")
         self.assertIsNone(result)
         self.assertEqual(app.bar.focus_idx, 0)
@@ -97,17 +89,7 @@ class MainModeNavigationTests(unittest.TestCase):
     def test_shift_tab_moves_focus_left(self):
         seg1 = _make_segment(key="a", label="A")
         seg2 = _make_segment(key="b", label="B")
-        app = object.__new__(App)
-        app.terminal = mock.MagicMock()
-        app.theme = mock.MagicMock()
-        app.cfg = mock.MagicMock()
-        app.cfg.state = {}
-        app.bar = SegmentBar(segments=[seg1, seg2], focus_idx=1)
-        app._flash = ""
-        app._pending_install = None
-        app._pending_install_seg = None
-        app._show_provenance = False
-        app._pending_discovery = {}
+        app = _make_app(seg1, extra_segments=[seg2], focus_idx=1)
         result = app._handle_key("SHIFT_TAB")
         self.assertIsNone(result)
         self.assertEqual(app.bar.focus_idx, 0)
@@ -115,17 +97,7 @@ class MainModeNavigationTests(unittest.TestCase):
     def test_right_moves_focus_right(self):
         seg1 = _make_segment(key="a", label="A")
         seg2 = _make_segment(key="b", label="B")
-        app = object.__new__(App)
-        app.terminal = mock.MagicMock()
-        app.theme = mock.MagicMock()
-        app.cfg = mock.MagicMock()
-        app.cfg.state = {}
-        app.bar = SegmentBar(segments=[seg1, seg2], focus_idx=0)
-        app._flash = ""
-        app._pending_install = None
-        app._pending_install_seg = None
-        app._show_provenance = False
-        app._pending_discovery = {}
+        app = _make_app(seg1, extra_segments=[seg2])
         result = app._handle_key("RIGHT")
         self.assertIsNone(result)
         self.assertEqual(app.bar.focus_idx, 1)
@@ -256,17 +228,7 @@ class MainModeTabTests(unittest.TestCase):
     def test_tab_advances_focus(self):
         seg1 = _make_segment(key="a", label="A", tab_advances=True)
         seg2 = _make_segment(key="b", label="B")
-        app = object.__new__(App)
-        app.terminal = mock.MagicMock()
-        app.theme = mock.MagicMock()
-        app.cfg = mock.MagicMock()
-        app.cfg.state = {}
-        app.bar = SegmentBar(segments=[seg1, seg2], focus_idx=0)
-        app._flash = ""
-        app._pending_install = None
-        app._pending_install_seg = None
-        app._show_provenance = False
-        app._pending_discovery = {}
+        app = _make_app(seg1, extra_segments=[seg2])
         app._handle_key("TAB")
         self.assertEqual(app.bar.focus_idx, 1)
 
@@ -638,17 +600,7 @@ class FreeformModeTests(unittest.TestCase):
         seg1.search_buffer = "x"
         seg1._freeform_editing = True
         seg2 = _make_segment(key="b", label="B")
-        app = object.__new__(App)
-        app.terminal = mock.MagicMock()
-        app.theme = mock.MagicMock()
-        app.cfg = mock.MagicMock()
-        app.cfg.state = {}
-        app.bar = SegmentBar(segments=[seg1, seg2], focus_idx=0)
-        app._flash = ""
-        app._pending_install = None
-        app._pending_install_seg = None
-        app._show_provenance = False
-        app._pending_discovery = {}
+        app = _make_app(seg1, extra_segments=[seg2])
         app._handle_key("LEFT")
         self.assertEqual(seg1.search_buffer, "")
         self.assertFalse(seg1._freeform_editing)
@@ -658,17 +610,7 @@ class FreeformModeTests(unittest.TestCase):
         seg1.search_buffer = "x"
         seg1._freeform_editing = True
         seg2 = _make_segment(key="b", label="B")
-        app = object.__new__(App)
-        app.terminal = mock.MagicMock()
-        app.theme = mock.MagicMock()
-        app.cfg = mock.MagicMock()
-        app.cfg.state = {}
-        app.bar = SegmentBar(segments=[seg1, seg2], focus_idx=0)
-        app._flash = ""
-        app._pending_install = None
-        app._pending_install_seg = None
-        app._show_provenance = False
-        app._pending_discovery = {}
+        app = _make_app(seg1, extra_segments=[seg2])
         app._handle_key("RIGHT")
         self.assertEqual(seg1.search_buffer, "")
         self.assertFalse(seg1._freeform_editing)
