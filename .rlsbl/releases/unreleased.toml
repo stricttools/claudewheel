@@ -1,9 +1,15 @@
 # Version bump type: patch, minor, major, hotfix, or prerelease
-bump = ""
+bump = "minor"
 # Short description of this release (required)
-description = ""
+description = "CLI profile command group, auth shadow fix, hook guard, rate-limit tier, live theme switching, and online token validation."
 # Optional context explaining why these changes were made
-context = ""
+context = """
+Breaking: profile commands are now grouped under `claudewheel profile` (create/delete/show/fix-auth/check-tokens). Old flat names print a redirect and exit.
+
+New features: auth-shadow detection and fix (profile fix-auth strips session credentials shadowing long-lived tokens), a PreToolUse hook blocking unsafe git/rm patterns in AI sessions, rate-limit tier capture from session-login credentials for downstream tools, a themed install-confirmation dialog, online token validation (profile check-tokens), and Mode 2031 live theme switching for terminals that support it.
+
+Fixes: CSI decoder handles private-mode sequences without byte leakage, and SIGTERM/SIGHUP are cleanly saved/restored during forms and PTY sessions.
+"""
 # Pre-release identifier: alpha, beta, rc, or stable
 # preid = ""
 # Set to true to generate a blog post for this release
