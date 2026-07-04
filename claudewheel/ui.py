@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import Callable
 
 from .constants import (
-    BOLD, CLEAR_LINE, CLEAR_SCREEN, DIM, RESET,
+    BOLD, CLEAR_LINE, CLEAR_SCREEN, RESET,
     csi, move_to,
 )
 from .terminal import Terminal
@@ -163,12 +163,12 @@ def _field_lines(f: FormField, focused: bool, th: ThemeColors) -> list[str]:
                 f"{th.forms_field_fg}[{f.value or ''}{RESET}{cursor}"
                 f"{th.forms_field_fg}]{RESET}"]
     if f.field_type == "readonly":
-        return [f"{th.forms_field_fg}{f.label}:{RESET} {DIM}{f.value}{RESET}"]
+        return [f"{th.forms_field_fg}{f.label}:{RESET} {th.forms_readonly_fg}{f.value}{RESET}"]
     if f.field_type == "radio":
         parts: list[str] = []
         for opt in (f.options or []):
             if opt == f.value:
-                parts.append(f"{BOLD}(*) {opt}{RESET}")
+                parts.append(f"{BOLD}{th.forms_field_fg}(*) {opt}{RESET}")
             else:
                 parts.append(f"{th.forms_field_fg}( ) {opt}{RESET}")
         return [f"{label_style}{f.label}:{RESET} " + "  ".join(parts)]

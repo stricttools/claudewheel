@@ -516,6 +516,31 @@ class FormThemingTests(FormRunnerTestBase):
         self.assertIn(THEME.forms_hint_fg, out)
         self.assertIn("esc: cancel", out)
 
+    def test_readonly_field_uses_forms_readonly_fg(self) -> None:
+        """Readonly field values use the themed readonly color, not bare DIM."""
+        from claudewheel.constants import DIM
+        self._run(["ESC"])
+        out = self._output()
+        # The readonly value "/some/where" should be styled with forms_readonly_fg
+        self.assertIn(THEME.forms_readonly_fg + "/some/where", out)
+        # Bare DIM must not appear in text-rendering context
+        # (DIM followed by a printable character would indicate bare usage)
+        for i, _ in enumerate(out):
+            if out[i:i + len(DIM)] == DIM:
+                # After DIM, the next non-escape char should not be a
+                # printable letter/slash (which would indicate value text)
+                after = out[i + len(DIM):i + len(DIM) + 1]
+                self.assertNotIn(after, "/abcdefghijklmnopqrstuvwxyz",
+                                 "Bare DIM used for text rendering")
+
+    def test_selected_radio_uses_bold_with_themed_fg(self) -> None:
+        """The selected radio option uses BOLD + themed field color, not bare BOLD."""
+        from claudewheel.constants import BOLD as BOLD_SEQ
+        self._run(["ESC"])
+        out = self._output()
+        # The selected radio "fast" should be rendered with BOLD + forms_field_fg
+        self.assertIn(BOLD_SEQ + THEME.forms_field_fg + "(*) fast", out)
+
 
 class FormTerminalSemanticsTests(FormRunnerTestBase):
     """Borrowed vs owned terminal handling."""

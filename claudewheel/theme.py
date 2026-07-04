@@ -61,6 +61,7 @@ class ThemeColors:
     forms_error_fg: str = ""
     forms_hint_fg: str = ""
     forms_cursor_fg: str = ""
+    forms_readonly_fg: str = ""
 
 
 def parse_theme(theme_dict: dict) -> ThemeColors:
@@ -103,4 +104,5 @@ def parse_theme(theme_dict: dict) -> ThemeColors:
         forms_error_fg=_hex_to_fg(forms.get("error_fg")),
         forms_hint_fg=_hex_to_fg(forms.get("hint_fg")),
         forms_cursor_fg=_hex_to_fg(forms.get("cursor_fg")),
+        forms_readonly_fg=_hex_to_fg(forms.get("readonly_fg")),
     )

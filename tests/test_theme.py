@@ -10,7 +10,7 @@ from claudewheel.theme import ThemeColors, parse_hex, parse_theme
 
 FORMS_KEYS = (
     "title_fg", "focus_bg", "focus_fg", "field_fg",
-    "error_fg", "hint_fg", "cursor_fg",
+    "error_fg", "hint_fg", "cursor_fg", "readonly_fg",
 )
 
 
@@ -61,7 +61,7 @@ class FormsParsingTests(unittest.TestCase):
         for attr in (
             "forms_title_fg", "forms_focus_bg", "forms_focus_fg",
             "forms_field_fg", "forms_error_fg", "forms_hint_fg",
-            "forms_cursor_fg",
+            "forms_cursor_fg", "forms_readonly_fg",
         ):
             self.assertEqual(getattr(colors, attr), "", f"{attr} should be empty")
 
@@ -82,6 +82,7 @@ class FormsParsingTests(unittest.TestCase):
         self.assertEqual(colors.forms_error_fg, "")
         self.assertEqual(colors.forms_hint_fg, "")
         self.assertEqual(colors.forms_cursor_fg, "")
+        self.assertEqual(colors.forms_readonly_fg, "")
 
 
 class DefaultThemeFormsTests(unittest.TestCase):
@@ -101,7 +102,7 @@ class DefaultThemeFormsTests(unittest.TestCase):
             for attr in (
                 "forms_title_fg", "forms_focus_bg", "forms_focus_fg",
                 "forms_field_fg", "forms_error_fg", "forms_hint_fg",
-                "forms_cursor_fg",
+                "forms_cursor_fg", "forms_readonly_fg",
             ):
                 self.assertNotEqual(
                     getattr(colors, attr), "",

@@ -339,6 +339,7 @@ DEFAULT_THEME_DARK = {
         "error_fg": "#ff6464",
         "hint_fg": "#555555",
         "cursor_fg": "#ffffff",
+        "readonly_fg": "#888888",
     },
 }
 
@@ -419,5 +420,6 @@ DEFAULT_THEME_LIGHT = {
         "error_fg": "#cc0000",
         "hint_fg": "#aaaaaa",
         "cursor_fg": "#000000",
+        "readonly_fg": "#666666",
     },
 }
