@@ -24,6 +24,8 @@ class ProfileReport:
     has_credentials: bool              # .credentials.json present
     has_token: bool                    # entry in tokens.json
     token_expiry: TokenExpiry | None   # only when has_token
+    rate_limit_tier: str | None = None       # from tokens.json entry
+    subscription_type: str | None = None     # from tokens.json entry
     shared_dirs: dict[str, str] = field(default_factory=dict)
     danger: bool = False               # any shared entry is a real dir/file
     settings_found: bool = False
@@ -59,16 +61,20 @@ def _read_options_registration(name: str) -> tuple[bool, bool]:
     )
 
 
-def _read_token_state(name: str) -> tuple[bool, TokenExpiry | None]:
-    """Return (has_token, expiry) for *name* from tokens.json."""
+def _read_token_state(name: str) -> tuple[bool, TokenExpiry | None,
+                                          str | None, str | None]:
+    """Return (has_token, expiry, tier, subscription) for *name* from tokens.json."""
     try:
         tokens = json.loads(TOKENS_FILE.read_text())
         mtime = TOKENS_FILE.stat().st_mtime
     except (FileNotFoundError, json.JSONDecodeError, OSError):
-        return False, None
+        return False, None, None, None
     if name not in tokens:
-        return False, None
-    return True, compute_expiry(tokens[name], mtime)
+        return False, None, None, None
+    entry = tokens[name]
+    tier = entry.get("rateLimitTier") if isinstance(entry, dict) else None
+    subscription = entry.get("subscriptionType") if isinstance(entry, dict) else None
+    return True, compute_expiry(entry, mtime), tier, subscription
 
 
 def _count_active_sessions(config_dir: Path) -> int:
@@ -145,7 +151,7 @@ def gather_profile_info(name: str) -> ProfileReport:
     config_dir = config_dir_for(name)
     exists = config_dir.is_dir()
     registered, pinned = _read_options_registration(name)
-    has_token, token_expiry = _read_token_state(name)
+    has_token, token_expiry, rate_limit_tier, subscription_type = _read_token_state(name)
     has_credentials = (config_dir / ".credentials.json").exists()
 
     shared_dirs: dict[str, str] = {}
@@ -169,6 +175,8 @@ def gather_profile_info(name: str) -> ProfileReport:
         has_credentials=has_credentials,
         has_token=has_token,
         token_expiry=token_expiry,
+        rate_limit_tier=rate_limit_tier,
+        subscription_type=subscription_type,
         shared_dirs=shared_dirs,
         danger=any(s == "real-dir" for s in shared_dirs.values()),
         settings_found=settings_found,
@@ -217,6 +225,12 @@ def format_report(report: ProfileReport) -> list[str]:
                      f"{exp.remaining_days:.0f} days left)")
     else:
         lines.append("Token: none")
+
+    if report.rate_limit_tier:
+        sub = f" ({report.subscription_type})" if report.subscription_type else ""
+        lines.append(f"Tier: {report.rate_limit_tier}{sub}")
+    else:
+        lines.append("Tier: unknown")
 
     if report.shared_dirs:
         intact = sum(1 for s in report.shared_dirs.values() if s == "intact")

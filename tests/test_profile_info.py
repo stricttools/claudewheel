@@ -242,6 +242,43 @@ class GatherUnknownAndDefaultTests(ProfileInfoFixture):
                          self.profiles_dir / "work")
 
 
+class GatherTierTests(ProfileInfoFixture):
+    """Tier data from tokens.json entry."""
+
+    def test_tier_from_tokens(self) -> None:
+        self._write_tokens({"work": {
+            "token": "tok",
+            "rateLimitTier": "default_claude_pro",
+            "subscriptionType": "claude_pro",
+        }})
+        report = profile_info.gather_profile_info("work")
+        self.assertEqual(report.rate_limit_tier, "default_claude_pro")
+        self.assertEqual(report.subscription_type, "claude_pro")
+
+    def test_no_tier_returns_none(self) -> None:
+        self._write_tokens({"work": {"token": "tok"}})
+        report = profile_info.gather_profile_info("work")
+        self.assertIsNone(report.rate_limit_tier)
+        self.assertIsNone(report.subscription_type)
+
+    def test_tier_only_entry_no_token(self) -> None:
+        """Tier-only entry (from session login) has tier but no token."""
+        self._write_tokens({"work": {
+            "rateLimitTier": "default_claude_max_5x",
+            "subscriptionType": "claude_max_5x",
+        }})
+        report = profile_info.gather_profile_info("work")
+        self.assertTrue(report.has_token)  # entry exists
+        self.assertEqual(report.rate_limit_tier, "default_claude_max_5x")
+
+    def test_bare_string_entry_no_tier(self) -> None:
+        """Legacy bare-string entries have no tier fields."""
+        self._write_tokens({"work": "tok-legacy"})
+        report = profile_info.gather_profile_info("work")
+        self.assertIsNone(report.rate_limit_tier)
+        self.assertIsNone(report.subscription_type)
+
+
 class FormatReportTests(ProfileInfoFixture):
     """format_report renders the report fields as readable lines."""
 
@@ -280,6 +317,8 @@ class FormatReportTests(ProfileInfoFixture):
         self.assertIn("awaySummaryEnabled: False", text)
         self.assertIn("Active sessions: 0", text)
         self.assertIn("Disk usage:", text)
+        # Tier should show "unknown" since no tier in tokens entry
+        self.assertIn("Tier: unknown", text)
 
     def test_minimal_report_lines(self) -> None:
         report = profile_info.gather_profile_info("nope")
@@ -288,6 +327,32 @@ class FormatReportTests(ProfileInfoFixture):
         self.assertIn("Registered: no", text)
         self.assertIn("Token: none", text)
         self.assertIn("Settings: no settings.json", text)
+        self.assertIn("Tier: unknown", text)
+
+    def test_tier_display_with_subscription(self) -> None:
+        """When tier and subscription are present, both appear."""
+        self._write_tokens({"work": {
+            "token": "tok",
+            "rateLimitTier": "default_claude_pro",
+            "subscriptionType": "claude_pro",
+        }})
+        report = profile_info.gather_profile_info("work")
+        lines = profile_info.format_report(report)
+        text = "\n".join(lines)
+        self.assertIn("Tier: default_claude_pro (claude_pro)", text)
+
+    def test_tier_display_without_subscription(self) -> None:
+        """When only tier is present, no parenthetical."""
+        self._write_tokens({"work": {
+            "token": "tok",
+            "rateLimitTier": "default_claude_max_20x",
+        }})
+        report = profile_info.gather_profile_info("work")
+        lines = profile_info.format_report(report)
+        text = "\n".join(lines)
+        self.assertIn("Tier: default_claude_max_20x", text)
+        # Should not have empty parentheses
+        self.assertNotIn("()", text)
 
     def test_format_size_units(self) -> None:
         self.assertEqual(profile_info._format_size(0), "0 B")
