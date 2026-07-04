@@ -1,0 +1,2 @@
+{"commits":["dfcbf1031c4075ac9874d4d10113c6f1b074cafb","771bf2f049c01f70e1be92209b405fef73d107b0"],"user_facing":true,"description":"Keyboard shortcuts are now shown automatically in the hint bar based on current context \u2014 new bindings no longer require manual hint-string updates.","type":"feature"}
+{"commits":["1624b184ad71cfc8c828da1ff5ac514be3aa9e2f","41ee451d51ca24e31a858e16a3254345a6a7b1e2","6483f43b8bcddc5aa9c162346ca207221cb91923"],"user_facing":true,"description":"Hint bar wraps to a second line on narrow terminals instead of truncating.","type":"feature"}
