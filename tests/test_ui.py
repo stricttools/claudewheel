@@ -203,10 +203,11 @@ class CleanupTests(RunSelectionTestBase):
 
     def test_sigwinch_installed_before_enter_raw_and_restored(self) -> None:
         self._run(["ENTER"])
-        # Two calls: install form handler, then restore previous handler
-        self.assertEqual(self.signal_mock.call_count, 2)
-        for call in self.signal_mock.call_args_list:
-            self.assertEqual(call.args[0], signal.SIGWINCH)
+        # Six calls: install SIGWINCH/SIGTERM/SIGHUP, restore all three
+        self.assertEqual(self.signal_mock.call_count, 6)
+        sigwinch_calls = [c for c in self.signal_mock.call_args_list
+                          if c.args[0] == signal.SIGWINCH]
+        self.assertEqual(len(sigwinch_calls), 2)
 
     def test_inline_form_erased_on_exit(self) -> None:
         self._run(["ENTER"], use_alt_screen=False)
@@ -570,9 +571,11 @@ class FormTerminalSemanticsTests(FormRunnerTestBase):
 
     def test_borrowed_mode_still_swaps_sigwinch(self) -> None:
         self._run(["ESC"], in_raw=True)
-        self.assertEqual(self.signal_mock.call_count, 2)
-        for call in self.signal_mock.call_args_list:
-            self.assertEqual(call.args[0], signal.SIGWINCH)
+        # Six calls: install SIGWINCH/SIGTERM/SIGHUP, restore all three
+        self.assertEqual(self.signal_mock.call_count, 6)
+        sigwinch_calls = [c for c in self.signal_mock.call_args_list
+                          if c.args[0] == signal.SIGWINCH]
+        self.assertEqual(len(sigwinch_calls), 2)
 
     def test_inline_mode_emits_no_clear_screen(self) -> None:
         self._run(["ESC"], use_alt_screen=False)
@@ -663,6 +666,106 @@ class ShowPageTests(FormRunnerTestBase):
         self.term = term
         show_page("Done", ["l"], THEME, term)  # must not raise
         self.assertIn("Done", self._output())
+
+
+class FormSessionSignalTests(unittest.TestCase):
+    """_form_session must save/restore SIGTERM and SIGHUP alongside SIGWINCH."""
+
+    def setUp(self) -> None:
+        self._signal_patch = mock.patch(
+            "claudewheel.ui.signal.signal",
+            return_value=signal.SIG_DFL,
+        )
+        self.signal_mock = self._signal_patch.start()
+        self.addCleanup(self._signal_patch.stop)
+
+    def _installed_signals(self) -> list[int]:
+        """Return the signal numbers that were passed to signal.signal() calls."""
+        return [call.args[0] for call in self.signal_mock.call_args_list]
+
+    def test_sigterm_saved_and_restored_owned(self) -> None:
+        """SIGTERM handler is installed on entry and restored on exit (owned mode)."""
+        term = FakeTerminal(["ESC"])
+        run_form("T", [FormField("a", "text", label="A", value="")],
+                 THEME, term)
+        signals = self._installed_signals()
+        # SIGTERM must appear at least twice: install and restore
+        self.assertGreaterEqual(signals.count(signal.SIGTERM), 2)
+
+    def test_sighup_saved_and_restored_owned(self) -> None:
+        """SIGHUP handler is installed on entry and restored on exit (owned mode)."""
+        term = FakeTerminal(["ESC"])
+        run_form("T", [FormField("a", "text", label="A", value="")],
+                 THEME, term)
+        signals = self._installed_signals()
+        self.assertGreaterEqual(signals.count(signal.SIGHUP), 2)
+
+    def test_sigterm_saved_and_restored_borrowed(self) -> None:
+        """SIGTERM handler is installed/restored even in borrowed mode."""
+        term = FakeTerminal(["ESC"], in_raw=True)
+        run_form("T", [FormField("a", "text", label="A", value="")],
+                 THEME, term)
+        signals = self._installed_signals()
+        self.assertGreaterEqual(signals.count(signal.SIGTERM), 2)
+
+    def test_sighup_saved_and_restored_borrowed(self) -> None:
+        """SIGHUP handler is installed/restored even in borrowed mode."""
+        term = FakeTerminal(["ESC"], in_raw=True)
+        run_form("T", [FormField("a", "text", label="A", value="")],
+                 THEME, term)
+        signals = self._installed_signals()
+        self.assertGreaterEqual(signals.count(signal.SIGHUP), 2)
+
+    def test_owned_mode_handler_raises_system_exit(self) -> None:
+        """In owned mode, the SIGTERM handler calls exit_raw then raises SystemExit."""
+        term = FakeTerminal(["ESC"])
+        run_form("T", [FormField("a", "text", label="A", value="")],
+                 THEME, term)
+        # Find the SIGTERM handler (first call with SIGTERM)
+        handler = None
+        for call in self.signal_mock.call_args_list:
+            if call.args[0] == signal.SIGTERM and callable(call.args[1]):
+                handler = call.args[1]
+                break
+        self.assertIsNotNone(handler, "SIGTERM handler not installed")
+        # Calling the handler should raise SystemExit
+        with self.assertRaises(SystemExit):
+            handler(signal.SIGTERM, None)
+
+    def test_borrowed_mode_handler_raises_system_exit(self) -> None:
+        """In borrowed mode, the SIGTERM handler raises SystemExit."""
+        term = FakeTerminal(["ESC"], in_raw=True)
+        run_form("T", [FormField("a", "text", label="A", value="")],
+                 THEME, term)
+        handler = None
+        for call in self.signal_mock.call_args_list:
+            if call.args[0] == signal.SIGTERM and callable(call.args[1]):
+                handler = call.args[1]
+                break
+        self.assertIsNotNone(handler, "SIGTERM handler not installed")
+        with self.assertRaises(SystemExit):
+            handler(signal.SIGTERM, None)
+
+    def test_borrowed_mode_handler_does_not_call_exit_raw(self) -> None:
+        """In borrowed mode, the handler must NOT call exit_raw (the outer owner does)."""
+        term = FakeTerminal(["ESC"], in_raw=True)
+        term.exit_raw = mock.Mock()
+        run_form("T", [FormField("a", "text", label="A", value="")],
+                 THEME, term)
+        # exit_raw should not have been called during the form session
+        # (borrowed mode never calls exit_raw)
+        term.exit_raw.assert_not_called()
+        # Now call the SIGTERM handler -- it should also NOT call exit_raw
+        handler = None
+        for call in self.signal_mock.call_args_list:
+            if call.args[0] == signal.SIGTERM and callable(call.args[1]):
+                handler = call.args[1]
+                break
+        self.assertIsNotNone(handler)
+        term.exit_raw.reset_mock()
+        with self.assertRaises(SystemExit):
+            handler(signal.SIGTERM, None)
+        term.exit_raw.assert_not_called()
 
 
 if __name__ == "__main__":

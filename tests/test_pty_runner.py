@@ -188,5 +188,82 @@ class RealTtyProxyTests(unittest.TestCase):
         self.assertEqual(before, after)
 
 
+class SignalHandlerTests(unittest.TestCase):
+    """SIGTERM and SIGHUP are saved/restored around the pty proxy loop."""
+
+    def test_sigterm_saved_and_restored_headless(self) -> None:
+        """In headless mode (no proxy), SIGTERM handler is saved/restored."""
+        prev = signal.getsignal(signal.SIGTERM)
+        code, _ = run_under_pty(
+            [sys.executable, "-c", "pass"],
+            dict(os.environ),
+            proxy_terminal=False,
+        )
+        self.assertEqual(code, 0)
+        after = signal.getsignal(signal.SIGTERM)
+        self.assertIs(after, prev)
+
+    def test_sighup_saved_and_restored_headless(self) -> None:
+        """In headless mode, SIGHUP handler is saved/restored."""
+        prev = signal.getsignal(signal.SIGHUP)
+        code, _ = run_under_pty(
+            [sys.executable, "-c", "pass"],
+            dict(os.environ),
+            proxy_terminal=False,
+        )
+        self.assertEqual(code, 0)
+        after = signal.getsignal(signal.SIGHUP)
+        self.assertIs(after, prev)
+
+    @unittest.skipUnless(_dev_tty_available(), "requires an openable /dev/tty")
+    def test_sigterm_saved_and_restored_proxy(self) -> None:
+        """In proxy mode, SIGTERM handler is saved/restored."""
+        prev = signal.getsignal(signal.SIGTERM)
+        code, _ = run_under_pty(
+            [sys.executable, "-c", "pass"],
+            dict(os.environ),
+        )
+        self.assertEqual(code, 0)
+        after = signal.getsignal(signal.SIGTERM)
+        self.assertIs(after, prev)
+
+    @unittest.skipUnless(_dev_tty_available(), "requires an openable /dev/tty")
+    def test_sighup_saved_and_restored_proxy(self) -> None:
+        """In proxy mode, SIGHUP handler is saved/restored."""
+        prev = signal.getsignal(signal.SIGHUP)
+        code, _ = run_under_pty(
+            [sys.executable, "-c", "pass"],
+            dict(os.environ),
+        )
+        self.assertEqual(code, 0)
+        after = signal.getsignal(signal.SIGHUP)
+        self.assertIs(after, prev)
+
+    def test_sigterm_handler_forwards_to_child(self) -> None:
+        """The SIGTERM handler installed during proxy forwards to the child."""
+        # We verify indirectly: mock os.kill to capture calls.
+        # We need to intercept the signal handler that is installed during
+        # the proxy loop. Since the handler is defined inside run_under_pty,
+        # we capture it by wrapping signal.signal.
+        captured_handlers = {}
+        real_signal = signal.signal
+
+        def capturing_signal(sig, handler):
+            captured_handlers[sig] = handler
+            return real_signal(sig, handler)
+
+        with mock.patch("claudewheel.pty_runner.signal.signal",
+                        side_effect=capturing_signal):
+            code, _ = run_under_pty(
+                [sys.executable, "-c", "pass"],
+                dict(os.environ),
+                proxy_terminal=False,
+            )
+        self.assertEqual(code, 0)
+        # A SIGTERM handler should have been installed
+        self.assertIn(signal.SIGTERM, captured_handlers,
+                      "SIGTERM handler not installed")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -78,6 +78,16 @@ def run_under_pty(
     winch_installed = False
     tty_fd = tty_file.fileno() if tty_file is not None else None
 
+    def on_sigterm(signum, frame):
+        try:
+            os.kill(pid, signum)
+        except ProcessLookupError:
+            pass
+        raise SystemExit(1)
+
+    prev_term = signal.signal(signal.SIGTERM, on_sigterm)
+    prev_hup = signal.signal(signal.SIGHUP, on_sigterm)
+
     try:
         if tty_fd is not None:
             _copy_winsize(tty_fd, master_fd)
@@ -128,6 +138,8 @@ def run_under_pty(
                 if data:
                     os.write(master_fd, data)
     finally:
+        signal.signal(signal.SIGTERM, prev_term or signal.SIG_DFL)
+        signal.signal(signal.SIGHUP, prev_hup or signal.SIG_DFL)
         if winch_installed:
             # prev_winch may be None if the previous handler was not
             # installed from Python; fall back to SIG_DFL (wizard.py pattern).

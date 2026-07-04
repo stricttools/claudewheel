@@ -253,20 +253,33 @@ def _render_form_inline(term, th: ThemeColors, title: str,
 
 @contextlib.contextmanager
 def _form_session(terminal, use_alt_screen: bool, render):
-    """SIGWINCH swap and raw-mode ownership around a form or page.
+    """Signal swap and raw-mode ownership around a form or page.
 
     Borrowed mode (terminal already raw): render only -- never enter or exit
     raw mode, and never close. Owned mode (cooked terminal): enter_raw at
     start, exit_raw at end -- but never close a terminal we didn't create.
     The resize handler is installed before entering raw mode so the previous
     owner's handler can't draw over the form.
+
+    SIGTERM and SIGHUP are caught so the terminal can be restored on
+    abrupt termination. In owned mode the handler calls exit_raw before
+    raising SystemExit; in borrowed mode it raises SystemExit directly
+    (the outer owner is responsible for terminal cleanup).
     """
     def on_resize(signum, frame):
         terminal.rows, terminal.cols = terminal.get_size()
         render()
 
-    prev_handler = signal.signal(signal.SIGWINCH, on_resize)
     borrowed = bool(getattr(terminal, "_in_raw", False))
+
+    def on_term(signum, frame):
+        if not borrowed:
+            terminal.exit_raw()
+        raise SystemExit(1)
+
+    prev_winch = signal.signal(signal.SIGWINCH, on_resize)
+    prev_term = signal.signal(signal.SIGTERM, on_term)
+    prev_hup = signal.signal(signal.SIGHUP, on_term)
     if not borrowed:
         terminal.enter_raw(alt_screen=use_alt_screen)
     try:
@@ -274,7 +287,9 @@ def _form_session(terminal, use_alt_screen: bool, render):
     finally:
         if not borrowed:
             terminal.exit_raw()
-        signal.signal(signal.SIGWINCH, prev_handler or signal.SIG_DFL)
+        signal.signal(signal.SIGWINCH, prev_winch or signal.SIG_DFL)
+        signal.signal(signal.SIGTERM, prev_term or signal.SIG_DFL)
+        signal.signal(signal.SIGHUP, prev_hup or signal.SIG_DFL)
 
 
 def run_form(title: str, fields: list[FormField], theme: ThemeColors,
