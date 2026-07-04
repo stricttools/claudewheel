@@ -145,5 +145,188 @@ class DeployHooksTests(unittest.TestCase):
         self.assertEqual(existing.read_text(), HOOK_SCRIPTS[name])
 
 
+class HookBlockUnsafeCommandsTests(unittest.TestCase):
+    """Tests for the hook-block-unsafe-commands script content."""
+
+    def test_script_in_registry(self) -> None:
+        """hook-block-unsafe-commands exists in HOOK_SCRIPTS."""
+        self.assertIn("hook-block-unsafe-commands", HOOK_SCRIPTS)
+
+    def test_script_valid_bash_syntax(self) -> None:
+        """The script passes bash -n (syntax check)."""
+        import subprocess
+        import tempfile
+        import os
+
+        script = HOOK_SCRIPTS["hook-block-unsafe-commands"]
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=False) as f:
+            f.write(script)
+            f.flush()
+            try:
+                result = subprocess.run(
+                    ["bash", "-n", f.name],
+                    capture_output=True, text=True, timeout=5,
+                )
+                self.assertEqual(result.returncode, 0, f"bash -n failed: {result.stderr}")
+            finally:
+                os.unlink(f.name)
+
+    def test_script_starts_with_shebang(self) -> None:
+        """Script begins with #!/usr/bin/env bash."""
+        script = HOOK_SCRIPTS["hook-block-unsafe-commands"]
+        self.assertTrue(script.startswith("#!/usr/bin/env bash\n"))
+
+    def test_script_uses_jq_to_extract_fields(self) -> None:
+        """Script uses jq to extract tool_name and tool_input.command."""
+        script = HOOK_SCRIPTS["hook-block-unsafe-commands"]
+        self.assertIn(".tool_name", script)
+        self.assertIn(".tool_input.command", script)
+
+    def test_script_exits_early_for_non_bash_tool(self) -> None:
+        """Script has an early exit for non-Bash tool names."""
+        script = HOOK_SCRIPTS["hook-block-unsafe-commands"]
+        self.assertIn('"Bash"', script)
+        # The pattern: [[ "$tool_name" != "Bash" ]] && exit 0
+        self.assertIn('!= "Bash"', script)
+
+    def test_script_matches_git_add_patterns(self) -> None:
+        """Script contains grep patterns that match git add variants."""
+        script = HOOK_SCRIPTS["hook-block-unsafe-commands"]
+        self.assertIn("git\\s+add", script)
+        # Should reference the replacement
+        self.assertIn("safegit commit", script)
+
+    def test_script_matches_git_stash(self) -> None:
+        """Script contains a pattern for git stash."""
+        script = HOOK_SCRIPTS["hook-block-unsafe-commands"]
+        self.assertIn("git\\s+stash", script)
+
+    def test_script_matches_git_restore(self) -> None:
+        """Script contains a pattern for git restore."""
+        script = HOOK_SCRIPTS["hook-block-unsafe-commands"]
+        self.assertIn("git\\s+restore", script)
+
+    def test_script_matches_git_checkout_doubledash(self) -> None:
+        """Script contains a pattern for 'git checkout -- ' (destructive form)."""
+        script = HOOK_SCRIPTS["hook-block-unsafe-commands"]
+        self.assertIn("git\\s+checkout\\s+--\\s", script)
+
+    def test_script_matches_rm(self) -> None:
+        """Script contains a pattern for rm with arguments."""
+        script = HOOK_SCRIPTS["hook-block-unsafe-commands"]
+        # The pattern checks for 'rm\s' (rm followed by space, meaning it has args)
+        self.assertIn("rm\\s", script)
+        # Should reference saferm
+        self.assertIn("saferm delete", script)
+
+    def test_script_deny_json_format(self) -> None:
+        """Script outputs the correct deny JSON structure."""
+        script = HOOK_SCRIPTS["hook-block-unsafe-commands"]
+        self.assertIn("hookSpecificOutput", script)
+        self.assertIn("permissionDecision", script)
+        self.assertIn("deny", script)
+        self.assertIn("permissionDecisionReason", script)
+
+    def test_script_deployed_by_all(self) -> None:
+        """deploy-hooks --all creates the hook-block-unsafe-commands script."""
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        scripts_dir = Path(tmp.name) / "scripts"
+        with mock.patch.object(cli, "SCRIPTS_DIR", scripts_dir):
+            out = io.StringIO()
+            with mock.patch("sys.argv", ["c", "deploy-hooks", "--all"]), \
+                 redirect_stdout(out), redirect_stderr(io.StringIO()):
+                try:
+                    cli.main()
+                except SystemExit:
+                    pass
+        dest = scripts_dir / "hook-block-unsafe-commands"
+        self.assertTrue(dest.exists(), "hook-block-unsafe-commands should be deployed by --all")
+        self.assertEqual(dest.read_text(), HOOK_SCRIPTS["hook-block-unsafe-commands"])
+
+
+class HookPatternDocumentation(unittest.TestCase):
+    """Documented pattern-match expectations for hook-block-unsafe-commands.
+
+    These tests document which commands SHOULD match forbidden patterns
+    and which should NOT. Since the patterns are bash grep -qE expressions,
+    we verify them through documented expectations (not execution).
+    """
+
+    def test_git_add_should_match(self) -> None:
+        """Commands that should be caught by the git add pattern."""
+        # The pattern: (^|[;&|]|&&|\|\|)\s*git\s+add\s+(-[AuU]|--all|\.)
+        import re
+        pattern = r'(^|[;&|]|&&|\|\|)\s*git\s+add\s+(-[AuU]|--all|\.)'
+        # Should match
+        self.assertRegex("git add .", pattern)
+        self.assertRegex("git add -A", pattern)
+        self.assertRegex("git add --all", pattern)
+        self.assertRegex("git add -u", pattern)
+        self.assertRegex("cd foo && git add .", pattern)
+        self.assertRegex("echo done; git add -A", pattern)
+
+    def test_git_add_should_not_match_specific_files(self) -> None:
+        """git add <specific-file> should NOT be caught (safegit might not be needed)."""
+        import re
+        pattern = r'(^|[;&|]|&&|\|\|)\s*git\s+add\s+(-[AuU]|--all|\.)'
+        # Should NOT match -- specific file
+        self.assertIsNone(re.search(pattern, "git add myfile.txt"))
+        self.assertIsNone(re.search(pattern, "git add src/main.py"))
+
+    def test_git_checkout_branch_should_not_match(self) -> None:
+        """git checkout <branch> should NOT be caught."""
+        import re
+        pattern = r'(^|[;&|]|&&|\|\|)\s*git\s+checkout\s+--\s'
+        # Should NOT match -- branch switching
+        self.assertIsNone(re.search(pattern, "git checkout main"))
+        self.assertIsNone(re.search(pattern, "git checkout -b new-branch"))
+        self.assertIsNone(re.search(pattern, "git checkout feature/xyz"))
+
+    def test_git_checkout_doubledash_should_match(self) -> None:
+        """git checkout -- <file> should be caught."""
+        import re
+        pattern = r'(^|[;&|]|&&|\|\|)\s*git\s+checkout\s+--\s'
+        # Should match
+        self.assertRegex("git checkout -- file.txt", pattern)
+        self.assertRegex("git checkout -- .", pattern)
+        self.assertRegex("cd repo && git checkout -- src/main.py", pattern)
+
+    def test_git_stash_all_forms_match(self) -> None:
+        """All git stash subcommands should match."""
+        import re
+        pattern = r'(^|[;&|]|&&|\|\|)\s*git\s+stash'
+        self.assertRegex("git stash", pattern)
+        self.assertRegex("git stash push", pattern)
+        self.assertRegex("git stash pop", pattern)
+        self.assertRegex("git stash drop", pattern)
+        self.assertRegex("cd foo && git stash", pattern)
+
+    def test_git_restore_matches(self) -> None:
+        """git restore in any form should match."""
+        import re
+        pattern = r'(^|[;&|]|&&|\|\|)\s*git\s+restore'
+        self.assertRegex("git restore file.txt", pattern)
+        self.assertRegex("git restore --staged file.txt", pattern)
+        self.assertRegex("git restore .", pattern)
+
+    def test_rm_with_args_matches(self) -> None:
+        """rm with arguments should match."""
+        import re
+        pattern = r'(^|[;&|]|&&|\|\|)\s*rm\s'
+        self.assertRegex("rm file.txt", pattern)
+        self.assertRegex("rm -rf dir/", pattern)
+        self.assertRegex("rm -f old.log", pattern)
+        self.assertRegex("cd /tmp && rm leftover.txt", pattern)
+
+    def test_rm_in_variable_does_not_match(self) -> None:
+        """Strings containing 'rm' as part of another word should not match."""
+        import re
+        pattern = r'(^|[;&|]|&&|\|\|)\s*rm\s'
+        # Should NOT match -- rm is part of a word
+        self.assertIsNone(re.search(pattern, "echo inform the user"))
+        self.assertIsNone(re.search(pattern, "firmware update"))
+
+
 if __name__ == "__main__":
     unittest.main()
