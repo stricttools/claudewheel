@@ -1,0 +1,1 @@
+{"id":"18c00d12faf172a03e12fa769193439cbf57bed4b0eda8f7","commits":["51afc045b2306cc0f20384e07d96b12d7576c018"],"user_facing":true,"description":"New patch-profiles command syncs existing profiles and shared settings to canonical hook/disallowedTools defaults","type":"feature"}
