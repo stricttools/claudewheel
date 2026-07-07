@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import stat
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -42,17 +43,44 @@ def check_tmpfs_quota() -> HealthResult:
     return HealthResult(True, "tmpfs", "unknown")
 
 
+def _tmp_claude_dir() -> Path:
+    """Return the per-user Claude scratch dir under /tmp."""
+    return Path(f"/tmp/claude-{os.getuid()}")
+
+
+def _real_disk_usage(root: Path) -> int:
+    """Sum the real tmpfs block usage of regular files under root.
+
+    Correctness requirements this satisfies:
+    - Never follows symlinks. os.walk(followlinks=False) does not descend into
+      symlinked directories, and lstat + S_ISREG skips symlinks to files. So
+      symlink targets living outside /tmp (Claude session dirs link into home
+      and project dirs) are never counted -- they consume zero /tmp space.
+    - Counts REAL disk usage (st_blocks * 512), not apparent st_size. tmpfs
+      charges by allocated blocks; apparent size overcounts sparse files.
+    """
+    total = 0
+    for dirpath, _dirnames, filenames in os.walk(root, followlinks=False):
+        for name in filenames:
+            try:
+                st = os.lstat(os.path.join(dirpath, name))
+            except OSError:
+                continue
+            if stat.S_ISREG(st.st_mode):
+                total += st.st_blocks * 512
+    return total
+
+
 def check_tmp_claude_size() -> HealthResult:
-    """Check size of /tmp/claude-$UID/ directory."""
-    uid = os.getuid()
-    tmp_dir = Path(f"/tmp/claude-{uid}")
+    """Check real tmpfs usage of /tmp/claude-$UID/ (excludes symlink targets)."""
+    tmp_dir = _tmp_claude_dir()
     if not tmp_dir.exists():
         return HealthResult(True, "/tmp/claude", "not present")
     try:
-        total = sum(f.stat().st_size for f in tmp_dir.rglob("*") if f.is_file())
+        total = _real_disk_usage(tmp_dir)
         mb = total / (1024 * 1024)
-        if mb > 2048:
-            return HealthResult(False, "/tmp/claude", f"{mb:.0f} MB (>2 GB threshold)")
+        if mb > 1024:
+            return HealthResult(False, "/tmp/claude", f"{mb:.0f} MB (>1 GB threshold)")
         return HealthResult(True, "/tmp/claude", f"{mb:.0f} MB")
     except Exception as e:
         return HealthResult(True, "/tmp/claude", f"check failed: {e}")

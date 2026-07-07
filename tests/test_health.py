@@ -8,6 +8,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from claudewheel import health
 from claudewheel.defaults import DISALLOWED_TOOLS
 from claudewheel.health import (
     _discover_profiles,
@@ -16,6 +17,7 @@ from claudewheel.health import (
     check_orphan_profiles,
     check_settings_defaults,
     check_shared_symlinks,
+    check_tmp_claude_size,
     check_tokens,
 )
 
@@ -715,6 +717,118 @@ class CheckAuthShadowTests(_HomeDirTestCase):
         result = check_auth_shadow()
         self.assertTrue(result.ok)
         self.assertIn("no profiles found", result.detail)
+
+
+# ---------------------------------------------------------------------------
+# check_tmp_claude_size / _real_disk_usage
+# ---------------------------------------------------------------------------
+
+
+class CheckTmpClaudeSizeTests(unittest.TestCase):
+    """Tests for check_tmp_claude_size() and its real-usage measurement.
+
+    The check must report the REAL tmpfs block usage of /tmp/claude-$UID/,
+    excluding symlink targets (both file and directory symlinks) which live
+    outside /tmp and consume zero /tmp space.
+    """
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp_dir = Path(self._tmp.name) / "claude"
+        self.tmp_dir.mkdir()
+        # Somewhere OUTSIDE tmp_dir to host symlink targets.
+        self.outside = Path(self._tmp.name) / "outside"
+        self.outside.mkdir()
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    @staticmethod
+    def _real_blocks(path: Path) -> int:
+        """Real block usage of a single regular file via lstat."""
+        st = path.lstat()
+        return st.st_blocks * 512
+
+    def test_symlink_to_large_file_not_counted(self) -> None:
+        """A symlink to a large file outside the dir must NOT add its size."""
+        regular = self.tmp_dir / "real.bin"
+        regular.write_bytes(b"\x00" * 100_000)
+        big = self.outside / "big.bin"
+        big.write_bytes(b"\x00" * 5_000_000)
+        (self.tmp_dir / "link.bin").symlink_to(big)
+
+        usage = health._real_disk_usage(self.tmp_dir)
+        # Only the one regular file's blocks are counted; the 5 MB symlink
+        # target contributes nothing.
+        self.assertEqual(usage, self._real_blocks(regular))
+
+    def test_symlinked_directory_not_descended(self) -> None:
+        """Contents of a symlinked directory pointing outside must NOT count."""
+        regular = self.tmp_dir / "real.bin"
+        regular.write_bytes(b"\x00" * 100_000)
+        # Directory of heavy files living outside tmp_dir.
+        heavy_dir = self.outside / "heavy"
+        heavy_dir.mkdir()
+        (heavy_dir / "a.bin").write_bytes(b"\x00" * 4_000_000)
+        (heavy_dir / "b.bin").write_bytes(b"\x00" * 4_000_000)
+        # Symlink the whole directory into tmp_dir.
+        (self.tmp_dir / "linkdir").symlink_to(heavy_dir)
+
+        usage = health._real_disk_usage(self.tmp_dir)
+        self.assertEqual(usage, self._real_blocks(regular))
+
+    def test_regular_files_counted(self) -> None:
+        """Regular (non-symlink) files, including nested ones, ARE counted."""
+        f1 = self.tmp_dir / "a.bin"
+        f1.write_bytes(b"\x00" * 100_000)
+        nested = self.tmp_dir / "sub"
+        nested.mkdir()
+        f2 = nested / "b.bin"
+        f2.write_bytes(b"\x00" * 200_000)
+
+        usage = health._real_disk_usage(self.tmp_dir)
+        self.assertEqual(usage, self._real_blocks(f1) + self._real_blocks(f2))
+        self.assertGreater(usage, 0)
+
+    def test_check_reports_ok_and_ignores_symlink_targets(self) -> None:
+        """The top-level check reports small usage despite a huge symlink target."""
+        (self.tmp_dir / "real.bin").write_bytes(b"\x00" * 100_000)
+        big = self.outside / "big.bin"
+        big.write_bytes(b"\x00" * 5_000_000)
+        (self.tmp_dir / "link.bin").symlink_to(big)
+
+        with patch.object(health, "_tmp_claude_dir", return_value=self.tmp_dir):
+            result = check_tmp_claude_size()
+        self.assertTrue(result.ok)
+        self.assertEqual(result.label, "/tmp/claude")
+        # Well under 1 MB of real usage -> reported as ~0 MB.
+        self.assertIn("MB", result.detail)
+
+    def test_not_present(self) -> None:
+        """Returns OK 'not present' when the dir does not exist."""
+        missing = Path(self._tmp.name) / "does-not-exist"
+        with patch.object(health, "_tmp_claude_dir", return_value=missing):
+            result = check_tmp_claude_size()
+        self.assertTrue(result.ok)
+        self.assertIn("not present", result.detail)
+
+    def test_threshold_warns_above_1gb(self) -> None:
+        """Usage above 1024 MB warns with the '>1 GB threshold' message."""
+        over = 1025 * 1024 * 1024
+        with patch.object(health, "_tmp_claude_dir", return_value=self.tmp_dir), \
+             patch.object(health, "_real_disk_usage", return_value=over):
+            result = check_tmp_claude_size()
+        self.assertFalse(result.ok)
+        self.assertIn("1 GB threshold", result.detail)
+
+    def test_threshold_ok_at_1gb_boundary(self) -> None:
+        """Usage of exactly 1024 MB is OK (boundary is inclusive)."""
+        at = 1024 * 1024 * 1024
+        with patch.object(health, "_tmp_claude_dir", return_value=self.tmp_dir), \
+             patch.object(health, "_real_disk_usage", return_value=at):
+            result = check_tmp_claude_size()
+        self.assertTrue(result.ok)
+        self.assertNotIn("threshold", result.detail)
 
 
 if __name__ == "__main__":
