@@ -4,6 +4,10 @@ Each entry maps a script name to its content as a string constant.
 Scripts are deployed to SCRIPTS_DIR (~/.claudewheel/scripts/).
 """
 
+from __future__ import annotations
+
+from pathlib import Path
+
 HOOK_SCRIPTS: dict[str, str] = {
     "hook-timestamp": """\
 #!/usr/bin/env bash
@@ -82,3 +86,27 @@ fi
 exit 0
 """,
 }
+
+
+def deploy_scripts(
+    names: list[str], scripts_dir: Path, force_overwrite: bool = False
+) -> list[tuple[str, str]]:
+    """Write the named hook scripts into *scripts_dir*, chmod 0755.
+
+    Returns a list of (name, action) pairs where action is one of
+    "created", "overwritten", or "exists" (skipped because it already
+    existed and *force_overwrite* was False). Unknown names in *names*
+    raise KeyError -- callers validate against HOOK_SCRIPTS first.
+    """
+    scripts_dir.mkdir(parents=True, exist_ok=True)
+    results: list[tuple[str, str]] = []
+    for name in names:
+        dest = scripts_dir / name
+        if dest.exists() and not force_overwrite:
+            results.append((name, "exists"))
+            continue
+        action = "overwritten" if dest.exists() else "created"
+        dest.write_text(HOOK_SCRIPTS[name])
+        dest.chmod(0o755)
+        results.append((name, action))
+    return results

@@ -591,7 +591,7 @@ def _handle_import(source: str, from_: list[str], to: list[str], dry_run: bool, 
 @strictcli.flag("all", type=bool, default=False, help="deploy every known hook script from the built-in registry at once")
 @strictcli.flag("force-overwrite", type=bool, default=False, help="overwrite existing hook scripts on disk instead of skipping them")
 def _handle_deploy_hooks(name: str, all: bool, force_overwrite: bool) -> int:
-    from .hook_scripts import HOOK_SCRIPTS
+    from .hook_scripts import HOOK_SCRIPTS, deploy_scripts
 
     if not name and not all:
         print("Error: provide a script name or --all", file=sys.stderr)
@@ -605,20 +605,22 @@ def _handle_deploy_hooks(name: str, all: bool, force_overwrite: bool) -> int:
         print(f"Error: unknown hook script: {name!r} (known: {known})", file=sys.stderr)
         sys.exit(1)
 
-    SCRIPTS_DIR.mkdir(parents=True, exist_ok=True)
-
     targets = sorted(HOOK_SCRIPTS) if all else [name]
-    for script_name in targets:
+    for script_name, action in deploy_scripts(targets, SCRIPTS_DIR, force_overwrite):
         dest = SCRIPTS_DIR / script_name
-        if dest.exists() and not force_overwrite:
+        if action == "exists":
             print(f"already exists: {dest}")
-            continue
-        action = "overwritten" if dest.exists() else "created"
-        dest.write_text(HOOK_SCRIPTS[script_name])
-        dest.chmod(0o755)
-        print(f"{action}: {dest}")
+        else:
+            print(f"{action}: {dest}")
 
     return 0
+
+
+@strictcli.flag("dry-run", type=bool, default=False,
+                help="preview the changes without writing anything to disk")
+def _handle_patch_profiles(dry_run: bool) -> int:
+    from .patch_profiles import run_patch_profiles
+    return run_patch_profiles(dry_run=dry_run)
 
 
 def _handle_permission_add(category: str, rule: str,
@@ -1061,7 +1063,7 @@ def _handle_launch(
 _SUBCOMMANDS = frozenset({
     "health", "config", "versions", "install", "uninstall",
     "reset-options", "show",
-    "migrate", "stats", "mv", "import", "deploy-hooks", "launch",
+    "migrate", "stats", "mv", "import", "deploy-hooks", "patch-profiles", "launch",
     "permission", "profile",
     # Deprecated top-level names kept here so main() doesn't rewrite
     # e.g. "c new-profile" to "c launch new-profile" before the
@@ -1185,6 +1187,10 @@ def _build_app() -> App:
     app.command("deploy-hooks", help="deploy built-in hook scripts to the ~/.claudewheel/scripts/ directory",
                 args=[Arg(name="name", help="name of the specific hook script to deploy (omit to use --all)", required=False, default="")])(
         _handle_deploy_hooks
+    )
+
+    app.command("patch-profiles", help="sync existing profiles and shared-settings.json to canonical hook and disallowedTools defaults")(
+        _handle_patch_profiles
     )
 
     # -- Permission group --

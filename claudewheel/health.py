@@ -170,7 +170,10 @@ def check_hooks_wired() -> HealthResult:
             missing.append(f"{p.name}: missing PreToolUse hook-block-unsafe-commands")
 
     if missing:
-        return HealthResult(False, "hooks-wired", "; ".join(missing))
+        return HealthResult(
+            False, "hooks-wired",
+            "; ".join(missing) + " -- run 'claudewheel patch-profiles' to sync",
+        )
     return HealthResult(True, "hooks-wired", f"all {len(profiles)} profiles OK")
 
 
@@ -210,9 +213,9 @@ def check_settings_defaults() -> HealthResult:
         current_disallowed = set(cw.get("disallowedTools", []))
         missing_tools = sorted(set(DISALLOWED_TOOLS) - current_disallowed)
         if missing_tools:
-            issues.append(f"{p.name}: missing disallowedTools: {', '.join(missing_tools)}")
+            issues.append(f"{p.name}: missing disallowedTools: {', '.join(missing_tools)} (run 'claudewheel patch-profiles')")
         if "disallowedTools" in s:
-            issues.append(f"{p.name}: has inert top-level disallowedTools key (run patch-profiles)")
+            issues.append(f"{p.name}: has inert top-level disallowedTools key (run 'claudewheel patch-profiles')")
 
     if issues:
         return HealthResult(False, "settings-defaults", "; ".join(issues))
