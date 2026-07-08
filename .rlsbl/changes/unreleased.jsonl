@@ -7,3 +7,4 @@
 {"id":"18c04cbc2f50de9643b63158e136441cad8490bfdae90574","commits":["feaacdfa72d667d3414b592388cc6338bb61bdcb","b5079bea18bdf37f2e1df20f344e72a802e0e576"],"user_facing":true,"description":"**New `canonical-drift` health check.** `claudewheel health` now reports when a profile's permission rules or hook wiring diverge from the canonical guardrail set.","type":"feature"}
 {"id":"18c04cbc38ddaa21be37353637c64b98be538ce562ddab32","commits":["afad417f987d5ae12cef3a30512237ce76bc9fed"],"user_facing":true,"description":"**Added Claude Opus 4.8 model variants** to the model selection defaults.","type":"feature"}
 {"id":"18c04cbc42fe06837210663c9c0f433ab24e39ef75058c58","commits":["bd01d751ce28f1c35fc31f9c6f58b45cdd407921","8cb692743779c1dea65ddc942fe370a67f200d15","ff421daa461c7f00e6dc0eefee97a928d7ebc737"],"user_facing":false}
+{"id":"18c04cbc4c1b0a4d09853b2319f04993a1138032b187fc2f","commits":["811fd7496c8c76491f58a13bf08ad915f3860f03"],"user_facing":false}
