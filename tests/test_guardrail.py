@@ -22,6 +22,7 @@ from claudewheel.guardrail import (
     ALLOW_CONFLICTS,
     EXPECTED_HOOK_WIRINGS,
     RULES,
+    SettingsCoverage,
     Tier,
 )
 
@@ -231,6 +232,73 @@ class HookPatternTests(unittest.TestCase):
         self.assertIsNone(re.search(pat, "git switch main"))
         self.assertIsNotNone(re.search(pat, "git switch -f main"))
         self.assertIsNotNone(re.search(pat, "git switch --force"))
+
+
+class SettingsCoverageTests(unittest.TestCase):
+    """The settings_coverage annotation is honest and internally consistent.
+
+    settings_coverage records how completely a rule's deny/ask glob(s) cover
+    its hook danger surface. It applies only to the hook-backed-with-settings
+    tiers (HARD_DENY, ESCALATE); ADVISE (hook, no settings) and ASK (settings,
+    no hook) carry None.
+    """
+
+    # Independent pins (hand-stated, not derived from the module).
+    _EXPECTED = {
+        "rm": SettingsCoverage.PARTIAL,
+        "git-push-delete": SettingsCoverage.PARTIAL,
+        "git-reset": SettingsCoverage.PARTIAL,
+        "git-checkout-file": SettingsCoverage.NONE,
+    }
+
+    def test_hook_backed_tiers_annotated(self) -> None:
+        # Every HARD_DENY/ESCALATE rule must carry a coverage value.
+        for r in RULES:
+            if r.tier in (Tier.HARD_DENY, Tier.ESCALATE):
+                self.assertIsInstance(
+                    r.settings_coverage, SettingsCoverage, r.key
+                )
+
+    def test_advise_and_ask_carry_no_coverage(self) -> None:
+        for r in RULES:
+            if r.tier in (Tier.ADVISE, Tier.ASK):
+                self.assertIsNone(r.settings_coverage, r.key)
+                self.assertEqual(r.coverage_reason, "", r.key)
+
+    def test_none_iff_no_settings(self) -> None:
+        # For HARD_DENY/ESCALATE: NONE <=> the rule owns no deny AND no ask
+        # glob; FULL/PARTIAL => the rule owns at least one settings glob.
+        for r in RULES:
+            if r.tier not in (Tier.HARD_DENY, Tier.ESCALATE):
+                continue
+            has_settings = bool(r.deny_rules) or bool(r.ask_rules)
+            if r.settings_coverage is SettingsCoverage.NONE:
+                self.assertFalse(
+                    has_settings,
+                    f"{r.key}: NONE coverage but owns settings glob(s)",
+                )
+            else:
+                self.assertTrue(
+                    has_settings,
+                    f"{r.key}: {r.settings_coverage} coverage but no settings",
+                )
+
+    def test_specific_pins(self) -> None:
+        for key, expected in self._EXPECTED.items():
+            self.assertEqual(_rule(key).settings_coverage, expected, key)
+
+    def test_partial_and_none_have_reasons(self) -> None:
+        # PARTIAL/NONE are the non-derivable cases: they must explain what the
+        # glob misses (or what covers the rule instead).
+        for r in RULES:
+            if r.settings_coverage in (
+                SettingsCoverage.PARTIAL,
+                SettingsCoverage.NONE,
+            ):
+                self.assertTrue(
+                    r.coverage_reason.strip(),
+                    f"{r.key}: {r.settings_coverage} needs a coverage_reason",
+                )
 
 
 class OrderingTests(unittest.TestCase):

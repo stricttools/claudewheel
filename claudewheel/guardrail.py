@@ -28,10 +28,18 @@ class Tier(Enum):
     """The four guardrail enforcement tiers.
 
     - HARD_DENY: denied for everyone (main agent and subagents) via a
-      PreToolUse hook. A backing settings ``deny`` rule provides defense in
-      depth for the cases the hook cannot reach.
+      PreToolUse hook, which is the AUTHORITATIVE enforcer. Any backing
+      settings ``deny`` glob is best-effort defense-in-depth for the PLAIN
+      command form only -- it does NOT reproduce the hook's full match surface
+      (compound commands after a separator, wrapper invocations like
+      sudo/env/xargs/find -exec, alternate remotes, etc.). A rule may even own
+      no deny glob at all. See each rule's ``settings_coverage`` for how
+      completely its deny glob(s) track the hook; never treat the deny array as
+      a substitute for the hook.
     - ESCALATE: denied only when the caller is a subagent; the main agent
       falls through silently so the settings ``ask`` rule prompts the user.
+      As with HARD_DENY, the ``ask`` glob is best-effort for the plain form and
+      the hook is authoritative (see ``settings_coverage``).
     - ADVISE: PostToolUse advice only. The command runs; the agent is nudged
       afterward via additionalContext. No settings entries.
     - ASK: settings ``ask`` rule only. No hook involvement at all.
@@ -41,6 +49,25 @@ class Tier(Enum):
     ESCALATE = "escalate"
     ADVISE = "advise"
     ASK = "ask"
+
+
+class SettingsCoverage(Enum):
+    """How completely a rule's settings deny/ask glob(s) cover its hook surface.
+
+    Applies ONLY to the hook-backed-with-settings tiers HARD_DENY and ESCALATE.
+    It is N/A (``None`` on the rule) for ADVISE (hook only, no settings by
+    design) and ASK (settings only, no hook).
+
+    - FULL: the deny/ask glob(s) cover the rule's entire hook danger surface.
+    - PARTIAL: the glob(s) cover only part of it (carry a ``coverage_reason``
+      naming what the glob misses).
+    - NONE: the rule owns no settings backstop of its own (carry a
+      ``coverage_reason`` explaining what, if anything, covers it instead).
+    """
+
+    FULL = "full"
+    PARTIAL = "partial"
+    NONE = "none"
 
 
 # Separator anchor shared by every command matcher: start-of-string or a shell
@@ -79,6 +106,10 @@ class GuardrailRule:
         ADVISE nudge). ``None`` for ESCALATE (hook is silent for main) and ASK.
       - subagent_advice: message shown to a subagent (HARD_DENY deny reason +
         suffix, ESCALATE escalation message, ADVISE nudge). ``None`` for ASK.
+      - settings_coverage: how completely this rule's deny/ask glob(s) cover
+        its hook surface (HARD_DENY/ESCALATE only; ``None`` for ADVISE/ASK).
+      - coverage_reason: for PARTIAL/NONE coverage, a short note on what the
+        settings glob misses or what covers the rule instead. Empty otherwise.
     """
 
     key: str
@@ -88,6 +119,8 @@ class GuardrailRule:
     ask_rules: tuple[str, ...] = ()
     main_advice: str | None = None
     subagent_advice: str | None = None
+    settings_coverage: SettingsCoverage | None = None
+    coverage_reason: str = ""
 
 
 def _as_sentence(text: str) -> str:
@@ -109,6 +142,9 @@ def _hard_deny(
     patterns: list[str],
     deny_rules: list[str],
     advice: str,
+    *,
+    coverage: SettingsCoverage,
+    reason: str = "",
 ) -> GuardrailRule:
     main_advice = _as_sentence(advice)
     return GuardrailRule(
@@ -118,6 +154,8 @@ def _hard_deny(
         deny_rules=tuple(deny_rules),
         main_advice=main_advice,
         subagent_advice=main_advice + " " + SUBAGENT_HARD_DENY_SUFFIX,
+        settings_coverage=coverage,
+        coverage_reason=reason,
     )
 
 
@@ -126,6 +164,9 @@ def _escalate(
     patterns: list[str],
     ask_rules: list[str],
     lead: str,
+    *,
+    coverage: SettingsCoverage,
+    reason: str = "",
 ) -> GuardrailRule:
     return GuardrailRule(
         key=key,
@@ -134,6 +175,8 @@ def _escalate(
         ask_rules=tuple(ask_rules),
         main_advice=None,
         subagent_advice=_as_sentence(lead) + " " + ESCALATE_TAIL,
+        settings_coverage=coverage,
+        coverage_reason=reason,
     )
 
 
@@ -216,6 +259,12 @@ RULES: tuple[GuardrailRule, ...] = (
         [_wrapped_matcher("rm")],
         ["Bash(rm:*)"],
         "Use 'saferm delete --description \"why\" file1 file2' instead of 'rm'",
+        coverage=SettingsCoverage.PARTIAL,
+        reason=(
+            "Bash(rm:*) matches only the bare 'rm' command; the hook also "
+            "reaches rm via sudo/env/xargs and find -exec, which no deny glob "
+            "covers."
+        ),
     ),
     _hard_deny(
         "git-add-bulk",
@@ -228,18 +277,25 @@ RULES: tuple[GuardrailRule, ...] = (
             "Bash(git add -u*)",
         ],
         "Use 'safegit commit -m \"msg\" -- file1 file2' instead of 'git add'",
+        coverage=SettingsCoverage.PARTIAL,
+        reason=(
+            "the hook's -[AuU] flag class also matches 'git add -U', which no "
+            "deny glob covers (globs cover -A/-u/--all/. only)."
+        ),
     ),
     _hard_deny(
         "git-stash",
         [_cmd(r"git\s+stash")],
         ["Bash(git stash:*)"],
         "Use 'safegit commit' on a temporary branch instead of 'git stash'",
+        coverage=SettingsCoverage.FULL,
     ),
     _hard_deny(
         "git-restore",
         [_cmd(r"git\s+restore")],
         ["Bash(git restore:*)"],
         "Use the Edit tool to revert specific lines instead of 'git restore'",
+        coverage=SettingsCoverage.FULL,
     ),
     _hard_deny(
         "git-checkout-file",
@@ -249,6 +305,11 @@ RULES: tuple[GuardrailRule, ...] = (
         [_cmd(r"git\s+checkout\s+--\s")],
         [],
         "Use the Edit tool to revert specific lines instead of 'git checkout -- file'",
+        coverage=SettingsCoverage.NONE,
+        reason=(
+            "owns no deny glob of its own; the sibling git-checkout rule's "
+            "Bash(git checkout:*) is the settings backstop for this form."
+        ),
     ),
     _hard_deny(
         "git-checkout",
@@ -257,6 +318,7 @@ RULES: tuple[GuardrailRule, ...] = (
         ["Bash(git checkout:*)"],
         "'git checkout' is deprecated here; use 'git switch' for branches "
         "(plain git switch is allowed) or the Edit tool to revert files",
+        coverage=SettingsCoverage.FULL,
     ),
     _hard_deny(
         "git-push-delete",
@@ -269,6 +331,12 @@ RULES: tuple[GuardrailRule, ...] = (
         [_cmd(r"git\s+push\b[^;&|]*(--delete|\s-d(\s|$)|\s\+?:)")],
         ["Bash(git push origin --delete*)"],
         "Deleting remote branches is destructive; ask the user to do this deliberately.",
+        coverage=SettingsCoverage.PARTIAL,
+        reason=(
+            "the deny glob covers only origin + --delete; the hook also matches "
+            "the empty-source colon refspec (:b / +:b), the -d short form, and "
+            "any other remote."
+        ),
     ),
     # -- ESCALATE ---------------------------------------------------------
     _escalate(
@@ -280,12 +348,18 @@ RULES: tuple[GuardrailRule, ...] = (
             "Bash(./safegit push:*)",
         ],
         "Pushes happen only via rlsbl (rlsbl release run / rlsbl push).",
+        coverage=SettingsCoverage.FULL,
     ),
     _escalate(
         "git-reset",
         [_cmd(r"git\s+reset(\s|$)")],
         ["Bash(git reset *)"],
         "git reset is destructive in shared worktrees.",
+        coverage=SettingsCoverage.PARTIAL,
+        reason=(
+            "ask glob Bash(git reset *) requires a trailing argument and misses "
+            "the bare 'git reset' (no args) that the hook matches."
+        ),
     ),
     _escalate(
         "git-switch-force",
@@ -296,30 +370,39 @@ RULES: tuple[GuardrailRule, ...] = (
             "Bash(git switch --force*)",
         ],
         "Forced switch destroys uncommitted work in shared worktrees.",
+        coverage=SettingsCoverage.FULL,
     ),
     _escalate(
         "gh-workflow-run",
         [_cmd(r"gh\s+workflow\s+run(\s|$)")],
         ["Bash(gh workflow run*)"],
         "Triggering CI workflows is an outward-facing action.",
+        coverage=SettingsCoverage.FULL,
     ),
     _escalate(
         "saferm-purge",
         [_cmd(r"saferm\s+purge(\s|$)")],
         ["Bash(saferm purge:*)"],
         "saferm purge permanently destroys archived files.",
+        coverage=SettingsCoverage.FULL,
     ),
     _escalate(
         "git-rebase",
         [_cmd(r"git\s+rebase(\s|$)")],
         ["Bash(git rebase *)"],
         "Rebase rewrites history in shared worktrees.",
+        coverage=SettingsCoverage.PARTIAL,
+        reason=(
+            "ask glob Bash(git rebase *) requires a trailing argument and "
+            "misses the bare 'git rebase' (no args) that the hook matches."
+        ),
     ),
     _escalate(
         "safegit-rewrite-author",
         [_cmd(r"safegit\s+rewrite-author(\s|$)")],
         ["Bash(safegit rewrite-author:*)"],
         "Author rewriting is history rewriting.",
+        coverage=SettingsCoverage.FULL,
     ),
     # -- ADVISE -----------------------------------------------------------
     _advise(
