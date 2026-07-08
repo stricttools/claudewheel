@@ -2,6 +2,40 @@
 
 # Changelog
 
+## 0.20.0
+
+Subagent-aware command guardrails, a reconcile-permissions command, and a canonical-drift health check.
+
+<details>
+<summary>Context</summary>
+
+This release overhauls the command-guardrail system that claudewheel deploys to
+Claude Code profiles into a single canonical protocol driven by one model
+(claudewheel/guardrail.py). Guardrail hooks now distinguish subagents from the
+main agent via the PreToolUse agent_id field: escalate-tier commands (git push,
+git reset, rebase, saferm purge, gh workflow run, forced switch) are hard-denied
+for subagents with instructions to escalate to the parent agent, while the main
+agent falls through to a confirmation prompt. git checkout is steered to git
+switch, and kill/pkill trigger advice to build graceful stop scripts. The new
+reconcile-permissions command sweeps every profile and the shared defaults to
+the canonical rule set, and the new canonical-drift health check reports any
+divergence.
+
+</details>
+
+### Features
+
+- New patch-profiles command syncs existing profiles and shared settings to canonical hook/disallowedTools defaults
+- **New `reconcile-permissions` command.** Reconciles each profile's permission rules and the shared defaults to the canonical guardrail set: adds missing rules, removes obsolete ones, and strips dead allow entries. Requires an explicit `--dry-run` or `--apply`.
+- **Guardrail hooks now distinguish subagents from the main agent.** Escalate-tier commands (git push, git reset, rebase, saferm purge, gh workflow run, forced switch) are hard-denied for subagents with instructions to escalate to the parent agent, while the main agent falls through to a confirmation prompt. `git checkout` is steered to `git switch`, and `kill`/`pkill` now trigger advice to build graceful stop scripts.
+- **New `canonical-drift` health check.** `claudewheel health` now reports when a profile's permission rules or hook wiring diverge from the canonical guardrail set.
+- **Added Claude Opus 4.8 model variants** to the model selection defaults.
+
+### Fixes
+
+- Health check /tmp/claude now measures real tmpfs usage (excludes symlink targets, uses block size); threshold lowered to 1 GB
+- Fixed the rm hard-block hook emitting invalid JSON (rm commands were never blocked) and hardened it to catch sudo/env/xargs/find -exec rm
+
 ## 0.19.1
 
 Profile rename command, inline auth-shadow fix on inspect page, faster detection, and a state-save race fix.
