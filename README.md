@@ -86,7 +86,34 @@ Profile, GitHub, and Model are *creatable*: their option lists end with a `+` se
 
 ## Commands
 
-> *[selfdoc: no strictcli app found in 'claudewheel/']*
+| Command | Description |
+| --- | --- |
+| `health` | run diagnostic health checks on profiles, tokens, and hooks, then exit |
+| `config` | open the ~/.claudewheel/ config directory in your $EDITOR |
+| `versions` | list all installed Claude Code versions, marking the current symlink target |
+| `install` | download and install a specific Claude Code version |
+| `uninstall` | delete an installed Claude Code version binary from the versions directory |
+| `reset-options` | delete options.json so it regenerates from defaults |
+| `show` | print a summary of current segment selections, theme, and recent directories |
+| `migrate` | move session data files from one profile to another, optionally filtered by UUID |
+| `stats` | report shared-store stats and clean up legacy data |
+| `mv` | rename a project directory and migrate session data |
+| `import` | import session data from an external Claude Code directory |
+| `deploy-hooks` | deploy built-in hook scripts to the ~/.claudewheel/scripts/ directory |
+| `patch-profiles` | sync existing profiles and shared-settings.json to canonical hook and disallowedTools defaults |
+| `reconcile-permissions` | reconcile profile and shared-settings permissions (deny/ask/allow) to the canonical guardrail model; requires exactly one of --dry-run or --apply |
+| `launch` | start the interactive TUI launcher to select a profile, model, and directory |
+| **profile** | create, inspect, delete, and manage profiles |
+| `profile create` | create a new profile interactively |
+| `profile delete` | delete a registered profile |
+| `profile show` | inspect a profile's configuration and status |
+| `profile rename` | rename a profile |
+| `profile fix-auth` | remove session credentials that shadow a long-lived token |
+| `profile check-tokens` | validate stored tokens against the Anthropic API |
+| **permission** | add, remove, and list permission rules across Claude profiles |
+| `permission add` | Add a permission rule to a profile's settings.json. Takes a category (allow, deny, or ask) and a rule string such as Bash or Read(//home/**). Writes the rule into the specified category array. Use --profile to target a single profile or --all-profiles to apply the rule across every registered profile. Skips duplicates if the rule already exists in the category. |
+| `permission remove` | Remove a permission rule from a profile's settings.json. Takes a category (allow, deny, or ask) and the exact rule string to delete. The rule is removed from the specified category array and the file is saved. Use --profile to target a single profile or --all-profiles to remove the rule from every registered profile. Reports whether the rule was found. |
+| `permission list` | List permission rules from a profile's settings.json. Displays rules in grouped, flat, or JSON format controlled by --format. Use --category to filter output to a single category (allow, deny, or ask). Use --profile to inspect a single profile or --all-profiles to show rules from every registered profile, with each profile's rules displayed under a header. |
 
 ### Segment overrides
 
