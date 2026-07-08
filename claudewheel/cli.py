@@ -1094,6 +1094,25 @@ _SUBCOMMANDS = frozenset({
     "new-profile", "delete-profile", "show-profile",
 })
 
+# Flags that must be handled at the app level rather than routed to the
+# "launch" subcommand. --help/--version show the app-wide help/version, and
+# --dump-schema is a strictcli reserved flag that dumps the CLI schema.
+_APP_LEVEL_FLAGS = frozenset({"--help", "-h", "--version", "-v", "--dump-schema"})
+
+
+def _inject_launch(argv: list[str]) -> list[str]:
+    """Return argv with the "launch" subcommand injected when appropriate.
+
+    argv includes argv[0] (the program name). When no subcommand is given, or
+    the leading token is neither a known subcommand nor an app-level flag, the
+    "launch" subcommand is injected so the interactive TUI starts. App-level
+    flags (see _APP_LEVEL_FLAGS) and known subcommands are left untouched.
+    """
+    rest = argv[1:]
+    if not rest or (rest[0] not in _SUBCOMMANDS and rest[0] not in _APP_LEVEL_FLAGS):
+        return [argv[0], "launch"] + rest
+    return list(argv)
+
 
 def _build_app() -> App:
     """Build the strictcli App with all subcommands registered."""
@@ -1321,11 +1340,8 @@ def main() -> None:
         _passthrough = []
 
     # If no subcommand given, inject "launch" so the TUI starts.
-    # Exception: --help/-h/--version/-v should be handled at the app level
-    # to show all commands, not the launch command's help.
-    rest = sys.argv[1:]
-    _APP_LEVEL_FLAGS = {"--help", "-h", "--version", "-v"}
-    if not rest or (rest[0] not in _SUBCOMMANDS and rest[0] not in _APP_LEVEL_FLAGS):
-        sys.argv = [sys.argv[0], "launch"] + rest
+    # Exception: app-level flags (--help/-h/--version/-v/--dump-schema) are
+    # handled at the app level, not routed to the launch command.
+    sys.argv = _inject_launch(sys.argv)
 
     _build_app().run()
