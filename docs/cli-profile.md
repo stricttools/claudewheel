@@ -9,15 +9,15 @@ nav_order: 11
 
 # c profile
 
-create, inspect, delete, and manage profiles
+create, inspect, rename, delete, and manage Claude Code profiles and their stored tokens
 
 ## profile create
 
-create a new profile interactively
+create a new profile interactively through a guided wizard, then set up its authentication
 
 ## profile delete
 
-delete a registered profile
+delete a registered profile and clean up its directory, tokens, and options entries
 
 ### Flags
 
@@ -34,7 +34,7 @@ delete a registered profile
 
 ## profile show
 
-inspect a profile's configuration and status
+inspect a profile's configuration, authentication status, and session data in a detailed report
 
 ### Arguments
 
@@ -44,14 +44,14 @@ inspect a profile's configuration and status
 
 ## profile rename
 
-rename a profile
+rename a profile, moving its directory, tokens, and session data to the new name
 
 ### Arguments
 
 | Name | Required | Description |
 | --- | --- | --- |
-| `old` | yes | current profile name |
-| `new` | yes | new profile name |
+| `old` | yes | current name of the profile to rename (must be an existing, non-running profile) |
+| `new` | yes | new name for the profile (lowercase letters, digits, and hyphens; must be unused) |
 
 ## profile fix-auth
 
@@ -61,8 +61,8 @@ remove session credentials that shadow a long-lived token
 
 | Name | Required | Description |
 | --- | --- | --- |
-| `name` | yes | profile name whose auth shadow to remove |
+| `name` | yes | name of the profile whose shadowing session credentials should be removed |
 
 ## profile check-tokens
 
-validate stored tokens against the Anthropic API
+validate every discovered profile's stored OAuth token against the Anthropic API

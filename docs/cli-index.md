@@ -34,5 +34,5 @@ Version: 0.20.0
 
 ## Command Groups
 
-- [profile](cli-profile.html) -- create, inspect, delete, and manage profiles
+- [profile](cli-profile.html) -- create, inspect, rename, delete, and manage Claude Code profiles and their stored tokens
 - [permission](cli-permission.html) -- add, remove, and list permission rules across Claude profiles

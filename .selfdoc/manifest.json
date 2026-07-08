@@ -288,11 +288,16 @@
       "type": "doc"
     },
     {
+      "path": "guardrails.md",
+      "title": "Guardrails",
+      "type": "doc"
+    },
+    {
       "path": "index.md",
       "title": "claudewheel",
       "type": "doc"
     }
   ],
   "posts": [],
-  "last_gen": "2026-07-08T20:08:44.060389+00:00"
+  "last_gen": "2026-07-08T20:50:42.942662+00:00"
 }

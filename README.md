@@ -103,13 +103,13 @@ Profile, GitHub, and Model are *creatable*: their option lists end with a `+` se
 | `patch-profiles` | sync existing profiles and shared-settings.json to canonical hook and disallowedTools defaults |
 | `reconcile-permissions` | reconcile profile and shared-settings permissions (deny/ask/allow) to the canonical guardrail model; requires exactly one of --dry-run or --apply |
 | `launch` | start the interactive TUI launcher to select a profile, model, and directory |
-| **profile** | create, inspect, delete, and manage profiles |
-| `profile create` | create a new profile interactively |
-| `profile delete` | delete a registered profile |
-| `profile show` | inspect a profile's configuration and status |
-| `profile rename` | rename a profile |
+| **profile** | create, inspect, rename, delete, and manage Claude Code profiles and their stored tokens |
+| `profile create` | create a new profile interactively through a guided wizard, then set up its authentication |
+| `profile delete` | delete a registered profile and clean up its directory, tokens, and options entries |
+| `profile show` | inspect a profile's configuration, authentication status, and session data in a detailed report |
+| `profile rename` | rename a profile, moving its directory, tokens, and session data to the new name |
 | `profile fix-auth` | remove session credentials that shadow a long-lived token |
-| `profile check-tokens` | validate stored tokens against the Anthropic API |
+| `profile check-tokens` | validate every discovered profile's stored OAuth token against the Anthropic API |
 | **permission** | add, remove, and list permission rules across Claude profiles |
 | `permission add` | Add a permission rule to a profile's settings.json. Takes a category (allow, deny, or ask) and a rule string such as Bash or Read(//home/**). Writes the rule into the specified category array. Use --profile to target a single profile or --all-profiles to apply the rule across every registered profile. Skips duplicates if the rule already exists in the category. |
 | `permission remove` | Remove a permission rule from a profile's settings.json. Takes a category (allow, deny, or ask) and the exact rule string to delete. The rule is removed from the specified category array and the file is saved. Use --profile to target a single profile or --all-profiles to remove the rule from every registered profile. Reports whether the rule was found. |
