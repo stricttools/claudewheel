@@ -156,6 +156,47 @@ def _ask(key: str, ask_rules: list[str]) -> GuardrailRule:
     )
 
 
+# ---------------------------------------------------------------------------
+# Pattern builders -- anchoring by construction.
+#
+# No rule hand-writes a raw or weakly-anchored ERE pattern. Every command
+# matcher is built from one of these so the SEP anchor (and, where relevant,
+# the wrapper alternation) is applied uniformly and cannot be forgotten.
+# ---------------------------------------------------------------------------
+
+
+def _cmd(literal: str) -> str:
+    """SEP-anchor a command-matcher *literal*.
+
+    Prepends the shared separator anchor so the matcher only fires when the
+    literal begins a shell command (start-of-string or after a ``;``/``&``/``|``
+    separator), never mid-token (e.g. ``mygit add`` must not match ``git add``).
+    """
+    return SEP + literal
+
+
+def _wrapped_matcher(cmd: str) -> str:
+    """SEP-anchored matcher for *cmd* plus indirect-invocation wrappers.
+
+    Emits three OR-joined branches so *cmd* is caught whether it is invoked
+    directly or reached through a common wrapper:
+
+      - the SEP-anchored bare form (``cmd`` at start / after a separator);
+      - via ``sudo``/``env``/``xargs`` (allowing any leading ``-flag`` tokens);
+      - via ``find``'s ``-exec``/``-execdir``/``-ok``/``-okdir`` actions.
+
+    *cmd* is an ERE fragment (e.g. ``rm`` or ``p?kill``); each branch requires
+    it to be followed by whitespace or end-of-string so ``rmdir``/``killall``
+    do not match.
+    """
+    tail = r"(\s|$)"
+    return (
+        SEP + cmd + tail
+        + r"|(^|\s)(sudo|env|xargs)\s+(-\S+\s+)*" + cmd + tail
+        + r"|(^|\s)-(exec|execdir|ok|okdir)\s+" + cmd + tail
+    )
+
+
 # The canonical, ordered list of every guardrail rule.
 #
 # Order is load-bearing:
@@ -168,22 +209,18 @@ RULES: tuple[GuardrailRule, ...] = (
     # -- HARD_DENY --------------------------------------------------------
     _hard_deny(
         "rm",
-        [
-            # Anchored rm after a separator/start (incl. end-of-string), plus rm
-            # reached indirectly via sudo/env/xargs (allowing flag tokens) or
-            # find's -exec/-ok family.
-            SEP
-            + r"rm(\s|$)"
-            + r"|(^|\s)(sudo|env|xargs)\s+(-\S+\s+)*rm(\s|$)"
-            + r"|(^|\s)-(exec|execdir|ok|okdir)\s+rm(\s|$)",
-        ],
+        # Anchored rm after a separator/start (incl. end-of-string), plus rm
+        # reached indirectly via sudo/env/xargs (allowing flag tokens) or
+        # find's -exec/-ok family. Built by _wrapped_matcher so the anchor and
+        # wrapper alternation are applied by construction.
+        [_wrapped_matcher("rm")],
         ["Bash(rm:*)"],
         "Use 'saferm delete --description \"why\" file1 file2' instead of 'rm'",
     ),
     _hard_deny(
         "git-add-bulk",
         # Matches git add -A/-u/-U/--all/. but NOT a plain ``git add file``.
-        [SEP + r"git\s+add\s+(-[AuU]|--all|\.)"],
+        [_cmd(r"git\s+add\s+(-[AuU]|--all|\.)")],
         [
             "Bash(git add .)",
             "Bash(git add -A*)",
@@ -194,13 +231,13 @@ RULES: tuple[GuardrailRule, ...] = (
     ),
     _hard_deny(
         "git-stash",
-        [SEP + r"git\s+stash"],
+        [_cmd(r"git\s+stash")],
         ["Bash(git stash:*)"],
         "Use 'safegit commit' on a temporary branch instead of 'git stash'",
     ),
     _hard_deny(
         "git-restore",
-        [SEP + r"git\s+restore"],
+        [_cmd(r"git\s+restore")],
         ["Bash(git restore:*)"],
         "Use the Edit tool to revert specific lines instead of 'git restore'",
     ),
@@ -209,14 +246,14 @@ RULES: tuple[GuardrailRule, ...] = (
         # The dashdash form ``git checkout -- <path>``. Must be evaluated BEFORE
         # git-checkout so its file-specific advice wins. Owns no settings rule
         # of its own (covered by git-checkout's Bash(git checkout:*)).
-        [SEP + r"git\s+checkout\s+--\s"],
+        [_cmd(r"git\s+checkout\s+--\s")],
         [],
         "Use the Edit tool to revert specific lines instead of 'git checkout -- file'",
     ),
     _hard_deny(
         "git-checkout",
         # All other forms of git checkout.
-        [SEP + r"git\s+checkout(\s|$)"],
+        [_cmd(r"git\s+checkout(\s|$)")],
         ["Bash(git checkout:*)"],
         "'git checkout' is deprecated here; use 'git switch' for branches "
         "(plain git switch is allowed) or the Edit tool to revert files",
@@ -226,14 +263,14 @@ RULES: tuple[GuardrailRule, ...] = (
         # git push ... --delete (and the -d short form / argument-order
         # variants). Must be evaluated BEFORE the ESCALATE push rule so the
         # deletion-specific advice fires first.
-        [SEP + r"git\s+push\b.*(--delete|\s-d(\s|$))"],
+        [_cmd(r"git\s+push\b.*(--delete|\s-d(\s|$))")],
         ["Bash(git push origin --delete*)"],
         "Deleting remote branches is destructive; ask the user to do this deliberately.",
     ),
     # -- ESCALATE ---------------------------------------------------------
     _escalate(
         "push",
-        [SEP + r"(git|safegit|\./safegit)\s+push(\s|$)"],
+        [_cmd(r"(git|safegit|\./safegit)\s+push(\s|$)")],
         [
             "Bash(git push:*)",
             "Bash(safegit push:*)",
@@ -243,14 +280,14 @@ RULES: tuple[GuardrailRule, ...] = (
     ),
     _escalate(
         "git-reset",
-        [SEP + r"git\s+reset(\s|$)"],
+        [_cmd(r"git\s+reset(\s|$)")],
         ["Bash(git reset *)"],
         "git reset is destructive in shared worktrees.",
     ),
     _escalate(
         "git-switch-force",
         # git switch -f / --force, but NOT a plain ``git switch <branch>``.
-        [SEP + r"git\s+switch\s+(-f|--force)(\s|$)"],
+        [_cmd(r"git\s+switch\s+(-f|--force)(\s|$)")],
         [
             "Bash(git switch -f*)",
             "Bash(git switch --force*)",
@@ -259,25 +296,25 @@ RULES: tuple[GuardrailRule, ...] = (
     ),
     _escalate(
         "gh-workflow-run",
-        [SEP + r"gh\s+workflow\s+run(\s|$)"],
+        [_cmd(r"gh\s+workflow\s+run(\s|$)")],
         ["Bash(gh workflow run*)"],
         "Triggering CI workflows is an outward-facing action.",
     ),
     _escalate(
         "saferm-purge",
-        [SEP + r"saferm\s+purge(\s|$)"],
+        [_cmd(r"saferm\s+purge(\s|$)")],
         ["Bash(saferm purge:*)"],
         "saferm purge permanently destroys archived files.",
     ),
     _escalate(
         "git-rebase",
-        [SEP + r"git\s+rebase(\s|$)"],
+        [_cmd(r"git\s+rebase(\s|$)")],
         ["Bash(git rebase *)"],
         "Rebase rewrites history in shared worktrees.",
     ),
     _escalate(
         "safegit-rewrite-author",
-        [SEP + r"safegit\s+rewrite-author(\s|$)"],
+        [_cmd(r"safegit\s+rewrite-author(\s|$)")],
         ["Bash(safegit rewrite-author:*)"],
         "Author rewriting is history rewriting.",
     ),
