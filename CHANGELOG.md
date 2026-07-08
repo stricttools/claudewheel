@@ -2,6 +2,39 @@
 
 # Changelog
 
+## 0.20.1
+
+Guardrail correctness fixes, a repaired --dump-schema/--version, and new guardrail documentation.
+
+<details>
+<summary>Context</summary>
+
+Hardens the command-guardrail system and fixes release-adjacent CLI bugs.
+Guardrail: colon-refspec remote-branch deletion (git push origin :branch) is now
+hard-denied for everyone (previously only ask-gated for the main agent); a
+cross-separator false-positive that could wrongly block chained pushes is fixed;
+and the kill/pkill advice no longer fires on commands like 'npm run kill'. The
+rule patterns are now built through anchoring helpers so a weak anchor is
+structurally impossible, and each hook-backed rule carries a settings-coverage
+annotation. CLI: claudewheel --dump-schema and --version both worked incorrectly
+(the former failed outright; the latter reported a stale version) and are fixed.
+Docs: a new Guardrails page explains the tiers and subagent handling, with a
+per-rule table generated from the model so it can't drift; claudewheel health
+gains a deployed-hook drift check.
+
+</details>
+
+### Features
+
+- **New Guardrails documentation page** covering the four enforcement tiers, subagent-vs-main-agent handling, and the command-string caveat, with an always-in-sync per-rule reference table generated from the guardrail model.
+- **`claudewheel health` now detects deployed-hook drift** — it warns when the hook scripts installed for a profile differ from the current model.
+
+### Fixes
+
+- **Guardrail fixes.** Remote-branch deletion via the colon-refspec form (`git push origin :branch`) is now hard-denied for everyone, matching `--delete`; a cross-separator false-positive that could wrongly block chained pushes is fixed; and `kill`/`pkill` advice no longer fires spuriously on commands like `npm run kill`.
+- **Fixed `claudewheel --dump-schema`**, which previously failed because the CLI injected an implicit launch subcommand before the flag was parsed.
+- **Fixed `claudewheel --version`** reporting a stale version in editable/source checkouts; it now reads the project's actual version from package.json.
+
 ## 0.20.0
 
 Subagent-aware command guardrails, a reconcile-permissions command, and a canonical-drift health check.
