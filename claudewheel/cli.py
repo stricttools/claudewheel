@@ -1147,34 +1147,34 @@ def _build_app() -> App:
     )
 
     # -- Profile group --
-    profile_grp = app.group("profile", help="create, inspect, delete, and manage profiles")
+    profile_grp = app.group("profile", help="create, inspect, rename, delete, and manage Claude Code profiles and their stored tokens")
 
-    profile_grp.command("create", help="create a new profile interactively")(
+    profile_grp.command("create", help="create a new profile interactively through a guided wizard, then set up its authentication")(
         _handle_new_profile
     )
 
-    profile_grp.command("delete", help="delete a registered profile",
+    profile_grp.command("delete", help="delete a registered profile and clean up its directory, tokens, and options entries",
                         args=[Arg(name="name", help="name of the profile to delete (e.g. work, personal, lisa)")])(
         _handle_delete_profile
     )
 
-    profile_grp.command("show", help="inspect a profile's configuration and status",
+    profile_grp.command("show", help="inspect a profile's configuration, authentication status, and session data in a detailed report",
                         args=[Arg(name="name", help="name of the profile to inspect (e.g. work, personal, default)")])(
         _handle_show_profile
     )
 
-    profile_grp.command("rename", help="rename a profile",
-                        args=[Arg(name="old", help="current profile name"),
-                              Arg(name="new", help="new profile name")])(
+    profile_grp.command("rename", help="rename a profile, moving its directory, tokens, and session data to the new name",
+                        args=[Arg(name="old", help="current name of the profile to rename (must be an existing, non-running profile)"),
+                              Arg(name="new", help="new name for the profile (lowercase letters, digits, and hyphens; must be unused)")])(
         _handle_rename_profile
     )
 
     profile_grp.command("fix-auth", help="remove session credentials that shadow a long-lived token",
-                        args=[Arg(name="name", help="profile name whose auth shadow to remove")])(
+                        args=[Arg(name="name", help="name of the profile whose shadowing session credentials should be removed")])(
         _handle_fix_auth
     )
 
-    profile_grp.command("check-tokens", help="validate stored tokens against the Anthropic API")(
+    profile_grp.command("check-tokens", help="validate every discovered profile's stored OAuth token against the Anthropic API")(
         _handle_check_tokens
     )
 
