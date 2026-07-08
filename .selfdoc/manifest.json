@@ -2,7 +2,7 @@
   "schema_version": 1,
   "name": "claudewheel",
   "slug": "claudewheel",
-  "version": "0.19.1",
+  "version": "0.20.0",
   "description": "TUI launcher for Claude Code: pick a profile, model, directory, and permissions from a segment bar, then launch.",
   "language": "python",
   "base_url": "https://claudewheel.smmh.dev",
@@ -294,5 +294,5 @@
     }
   ],
   "posts": [],
-  "last_gen": "2026-07-08T12:44:14.951555+00:00"
+  "last_gen": "2026-07-08T19:58:28.752454+00:00"
 }

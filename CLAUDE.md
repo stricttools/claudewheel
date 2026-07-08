@@ -18,7 +18,7 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 
 ## Architecture
 
-- **claudewheel** (`claudewheel/__init__.py`): Package version detection from installed metadata or package.json.
+- **claudewheel** (`claudewheel/__init__.py`): Package version detection from package.json or installed metadata.
 - **claudewheel.__main__** (`claudewheel/__main__.py`): Entry point for `python -m claudewheel` invocation.
 - **claudewheel.app** (`claudewheel/app.py`): TUI event loop, keyboard dispatch, and segment interaction.
 - **claudewheel.auth** (`claudewheel/auth.py`): Validate OAuth tokens against the Anthropic API and extract them from captured output.
