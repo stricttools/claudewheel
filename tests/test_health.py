@@ -14,6 +14,7 @@ from claudewheel.health import (
     _discover_profiles,
     check_auth_shadow,
     check_canonical_permissions_drift,
+    check_deployed_hook_drift,
     check_hooks_wired,
     check_orphan_profiles,
     check_settings_defaults,
@@ -988,6 +989,91 @@ class CheckCanonicalPermissionsDriftTests(_HomeDirTestCase):
         """OK when there are no profiles and no shared-settings.json."""
         result = check_canonical_permissions_drift()
         self.assertTrue(result.ok)
+
+
+# ---------------------------------------------------------------------------
+# check_deployed_hook_drift
+# ---------------------------------------------------------------------------
+
+
+class CheckDeployedHookDriftTests(unittest.TestCase):
+    """Tests for check_deployed_hook_drift().
+
+    The check byte-compares each deployed hook script under SCRIPTS_DIR against
+    the HOOK_SCRIPTS model. Warn-only; absence (no dir / not deployed) is OK.
+    """
+
+    #: A small controlled model so tests don't depend on the real script bodies.
+    MODEL = {
+        "hook-alpha": "#!/usr/bin/env bash\necho alpha\n",
+        "hook-beta": "#!/usr/bin/env bash\necho beta\n",
+    }
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self._scripts_dir = Path(self._tmp.name) / "scripts"
+        self._patches = [
+            patch("claudewheel.health.SCRIPTS_DIR", self._scripts_dir),
+            patch("claudewheel.health.HOOK_SCRIPTS", self.MODEL),
+        ]
+        for p in self._patches:
+            p.start()
+
+    def tearDown(self) -> None:
+        for p in self._patches:
+            p.stop()
+        self._tmp.cleanup()
+
+    def _deploy(self, name: str, content: str) -> None:
+        self._scripts_dir.mkdir(parents=True, exist_ok=True)
+        (self._scripts_dir / name).write_text(content)
+
+    def test_ok_when_deployed_matches_model(self) -> None:
+        """OK when every deployed script is byte-identical to the model."""
+        for name, content in self.MODEL.items():
+            self._deploy(name, content)
+
+        result = check_deployed_hook_drift()
+        self.assertTrue(result.ok)
+        self.assertEqual(result.label, "hook-drift")
+        self.assertIn("2 deployed hook scripts match model", result.detail)
+
+    def test_warn_when_deployed_script_mutated(self) -> None:
+        """WARN naming the drifted script when a deployed file differs."""
+        self._deploy("hook-alpha", self.MODEL["hook-alpha"])
+        # Mutate hook-beta on disk so it no longer matches the model.
+        self._deploy("hook-beta", "#!/usr/bin/env bash\necho TAMPERED\n")
+
+        result = check_deployed_hook_drift()
+        self.assertFalse(result.ok)
+        self.assertIn("hook-beta", result.detail)
+        self.assertNotIn("hook-alpha", result.detail)
+        self.assertIn("deploy-hooks", result.detail)
+
+    def test_ok_when_scripts_dir_absent(self) -> None:
+        """OK (skip) when SCRIPTS_DIR does not exist -- CI / fresh machines."""
+        # Do not create the scripts dir at all.
+        result = check_deployed_hook_drift()
+        self.assertTrue(result.ok)
+        self.assertIn("not deployed", result.detail)
+
+    def test_ok_when_script_not_deployed(self) -> None:
+        """A model script absent on disk is skipped, not counted as drift."""
+        # Only deploy one of the two model scripts.
+        self._deploy("hook-alpha", self.MODEL["hook-alpha"])
+
+        result = check_deployed_hook_drift()
+        self.assertTrue(result.ok)
+        self.assertIn("1 deployed hook scripts match model", result.detail)
+
+    def test_ok_when_dir_exists_but_no_model_scripts(self) -> None:
+        """OK with 'none deployed' message when the dir has no model scripts."""
+        self._scripts_dir.mkdir(parents=True, exist_ok=True)
+        (self._scripts_dir / "unrelated-tool").write_text("x")
+
+        result = check_deployed_hook_drift()
+        self.assertTrue(result.ok)
+        self.assertIn("no model hook scripts deployed", result.detail)
 
 
 if __name__ == "__main__":

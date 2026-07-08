@@ -10,10 +10,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from . import guardrail
-from .constants import INODES_FILE, OPTIONS_FILE, PROFILES_DIR, PROFILE_SHARED_DIRS, SHARED_SETTINGS_FILE, SKILLS_DIR, TOKENS_FILE
+from .constants import INODES_FILE, OPTIONS_FILE, PROFILES_DIR, PROFILE_SHARED_DIRS, SCRIPTS_DIR, SHARED_SETTINGS_FILE, SKILLS_DIR, TOKENS_FILE
 from .defaults import DISALLOWED_TOOLS
 from .discovery import ProfileInfo, classify_shared_dirs, discover_profiles
 from .fsutil import write_json_atomic
+from .hook_scripts import HOOK_SCRIPTS
 from .tokens import TOKEN_TTL_DAYS, compute_expiry, parse_entry
 
 
@@ -558,6 +559,50 @@ def check_inode_renames() -> HealthResult:
     return HealthResult(True, "inode-renames", "no renames detected")
 
 
+def check_deployed_hook_drift() -> HealthResult:
+    """Compare deployed hook scripts against the generated ``HOOK_SCRIPTS`` model.
+
+    Byte-hashes each script deployed under ``SCRIPTS_DIR`` against the
+    corresponding ``HOOK_SCRIPTS[name]`` string (the canonical model, generated
+    from the guardrail spec at import). Drift means a deployed script no longer
+    matches what ``claudewheel deploy-hooks`` would write -- usually a stale copy
+    left over after the model was regenerated.
+
+    Warn-only: reports drift but NEVER raises and is never a hard gate. Absence
+    is not drift: if ``SCRIPTS_DIR`` does not exist (CI, fresh machines) or an
+    individual model script has not been deployed yet, it is skipped and the
+    check stays OK. Only the scripts present in both ``HOOK_SCRIPTS`` and on disk
+    are compared.
+    """
+    if not SCRIPTS_DIR.is_dir():
+        return HealthResult(True, "hook-drift", "no scripts dir (hooks not deployed)")
+
+    drifted: list[str] = []
+    checked = 0
+    for name in sorted(HOOK_SCRIPTS):
+        dest = SCRIPTS_DIR / name
+        if not dest.exists():
+            continue  # not deployed on this machine -> nothing to compare
+        checked += 1
+        try:
+            disk = dest.read_bytes()
+        except OSError as e:
+            drifted.append(f"{name}: unreadable ({e})")
+            continue
+        if disk != HOOK_SCRIPTS[name].encode():
+            drifted.append(name)
+
+    if drifted:
+        return HealthResult(
+            False, "hook-drift",
+            f"deployed scripts differ from model: {', '.join(drifted)} "
+            "-- run 'claudewheel deploy-hooks <name> --force-overwrite'",
+        )
+    if checked == 0:
+        return HealthResult(True, "hook-drift", "no model hook scripts deployed")
+    return HealthResult(True, "hook-drift", f"all {checked} deployed hook scripts match model")
+
+
 def run_health_check() -> list[HealthResult]:
     """Run all health checks and return results."""
     return [
@@ -568,6 +613,7 @@ def run_health_check() -> list[HealthResult]:
         check_settings_defaults(),
         check_shared_settings_drift(),
         check_canonical_permissions_drift(),
+        check_deployed_hook_drift(),
         check_tokens(),
         check_token_expiry(),
         check_auth_shadow(),
