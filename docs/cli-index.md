@@ -1,8 +1,7 @@
 ---
 title: c CLI Reference
-description: "Complete CLI reference for c — all available commands, subcommands, flags, arguments, and usage examples with detailed descriptions."
+description: "Complete CLI reference for claudewheel — profile management, health checks, permission reconciliation, hook deployment, and every command's flags and args."
 generated: true
-seeded: true
 nav_group: "CLI Reference"
 nav_order: 0
 order: 91
