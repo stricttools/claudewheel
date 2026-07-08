@@ -117,8 +117,8 @@ class AdviseNegativeTests(unittest.TestCase):
         _assert_silent(self, "echo hello")
 
     def test_killall_excluded(self) -> None:
-        # The model's pattern is (^|\s)p?kill(\s|$): 'killall' is NOT followed
-        # by whitespace/end after 'kill', so it must not match.
+        # The model requires kill/pkill to be followed by whitespace/end, so
+        # 'killall' (no separator after 'kill') must not match.
         _assert_silent(self, "killall x")
 
     def test_skills(self) -> None:

@@ -260,10 +260,13 @@ RULES: tuple[GuardrailRule, ...] = (
     ),
     _hard_deny(
         "git-push-delete",
-        # git push ... --delete (and the -d short form / argument-order
-        # variants). Must be evaluated BEFORE the ESCALATE push rule so the
-        # deletion-specific advice fires first.
-        [_cmd(r"git\s+push\b.*(--delete|\s-d(\s|$))")],
+        # git push ... branch deletion in any form: --delete, the -d short form,
+        # and an empty-source refspec (``:branch`` / ``+:branch``, matched by
+        # ``\s\+?:``). The match is bounded to a single shell segment
+        # (``[^;&|]*`` rather than a greedy ``.*``) so a stray colon or -d in a
+        # LATER command cannot leak in. Must be evaluated BEFORE the ESCALATE
+        # push rule so the deletion-specific advice fires first.
+        [_cmd(r"git\s+push\b[^;&|]*(--delete|\s-d(\s|$)|\s\+?:)")],
         ["Bash(git push origin --delete*)"],
         "Deleting remote branches is destructive; ask the user to do this deliberately.",
     ),
@@ -321,11 +324,12 @@ RULES: tuple[GuardrailRule, ...] = (
     # -- ADVISE -----------------------------------------------------------
     _advise(
         "kill",
-        # Word-anchored kill/pkill anywhere in a compound command. ``killall``
-        # will NOT match (kill must be followed by whitespace/end), but a
-        # phrase like ``npm run kill`` WOULD match -- an acceptable false
-        # positive for an advice-only nudge.
-        [r"(^|\s)p?kill(\s|$)"],
+        # SEP-anchored kill/pkill, direct or via a sudo/env/xargs/find-exec
+        # wrapper (built by _wrapped_matcher). ``killall`` will NOT match (kill
+        # must be followed by whitespace/end), and neither will task/target
+        # names like ``npm run kill`` -- the command must actually begin a shell
+        # segment or be reached through a real wrapper.
+        [_wrapped_matcher("p?kill")],
         "This kill/pkill ran, but prefer building graceful stop commands or "
         "PID-file-based stop scripts into your tooling instead of killing "
         "processes directly.",
