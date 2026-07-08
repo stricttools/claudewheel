@@ -214,8 +214,8 @@ class HookBlockUnsafeCommandsTests(unittest.TestCase):
     def test_script_matches_rm(self) -> None:
         """Script contains a pattern for rm with arguments."""
         script = HOOK_SCRIPTS["hook-block-unsafe-commands"]
-        # The pattern checks for 'rm\s' (rm followed by space, meaning it has args)
-        self.assertIn("rm\\s", script)
+        # The pattern checks for 'rm' followed by whitespace or end-of-string.
+        self.assertIn("rm(\\s|$)", script)
         # Should reference saferm
         self.assertIn("saferm delete", script)
 

@@ -58,7 +58,10 @@ command=$(printf '%s' "$input" | jq -r '.tool_input.command // empty' 2>/dev/nul
 [[ -z "$command" ]] && exit 0
 
 deny() {
-    printf '%s' "{\\"hookSpecificOutput\\": {\\"hookEventName\\": \\"PreToolUse\\", \\"permissionDecision\\": \\"deny\\", \\"permissionDecisionReason\\": \\"$1\\"}}"
+    # Build the JSON with jq so the reason string is escaped correctly.
+    # Hand-interpolating $1 into JSON breaks when the message contains quotes,
+    # producing unparseable output that Claude Code silently discards.
+    jq -cn --arg reason "$1" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: $reason}}'
     exit 0
 }
 
@@ -79,7 +82,9 @@ if printf '%s' "$command" | grep -qE '(^|[;&|]|&&|\\|\\|)\\s*git\\s+checkout\\s+
     deny "Use the Edit tool to revert specific lines instead of 'git checkout -- file'"
 fi
 
-if printf '%s' "$command" | grep -qE '(^|[;&|]|&&|\\|\\|)\\s*rm\\s'; then
+# rm matcher: anchored rm after a separator/start, plus rm reached indirectly
+# via sudo/env/xargs (allowing flag tokens) or find's -exec/-ok family.
+if printf '%s' "$command" | grep -qE '(^|[;&|]|&&|\\|\\|)\\s*rm(\\s|$)|(^|\\s)(sudo|env|xargs)\\s+(-\\S+\\s+)*rm(\\s|$)|(^|\\s)-(exec|execdir|ok|okdir)\\s+rm(\\s|$)'; then
     deny "Use 'saferm delete --description \\\"why\\\" file1 file2' instead of 'rm'"
 fi
 
