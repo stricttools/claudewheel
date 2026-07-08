@@ -8,11 +8,12 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from claudewheel import health
+from claudewheel import guardrail, health
 from claudewheel.defaults import DISALLOWED_TOOLS
 from claudewheel.health import (
     _discover_profiles,
     check_auth_shadow,
+    check_canonical_permissions_drift,
     check_hooks_wired,
     check_orphan_profiles,
     check_settings_defaults,
@@ -211,7 +212,7 @@ class CheckHooksWiredTests(_HomeDirTestCase):
         (pdir / "settings.json").write_text(json.dumps(settings))
 
     def _good_settings(self) -> dict:
-        """Return settings with all required hooks present."""
+        """Return settings with all four canonical hook wirings present."""
         return {
             "hooks": {
                 "UserPromptSubmit": [
@@ -235,17 +236,41 @@ class CheckHooksWiredTests(_HomeDirTestCase):
                         ]
                     },
                 ],
+                "PostToolUse": [
+                    {
+                        "matcher": "Bash",
+                        "hooks": [
+                            {"command": "/usr/bin/hook-advise-commands"},
+                        ]
+                    },
+                ],
             }
         }
 
+    def _three_hook_settings(self) -> dict:
+        """Return settings with only the three old hooks (no PostToolUse advise)."""
+        settings = self._good_settings()
+        del settings["hooks"]["PostToolUse"]
+        return settings
+
     def test_ok_when_all_hooks_present(self) -> None:
-        """Returns OK when all required hooks are present."""
+        """Returns OK when all four canonical hook wirings are present."""
         pdir = self._make_profile("hooked")
         self._write_settings(pdir, self._good_settings())
 
         result = check_hooks_wired()
         self.assertTrue(result.ok)
         self.assertIn("1 profiles OK", result.detail)
+
+    def test_warn_when_only_three_old_hooks(self) -> None:
+        """A profile with only the three old hooks fails, missing PostToolUse advise."""
+        pdir = self._make_profile("three-only")
+        self._write_settings(pdir, self._three_hook_settings())
+
+        result = check_hooks_wired()
+        self.assertFalse(result.ok)
+        self.assertIn("PostToolUse", result.detail)
+        self.assertIn("hook-advise-commands", result.detail)
 
     def test_warn_when_hook_timestamp_missing(self) -> None:
         """Returns WARN when hook-timestamp is missing from UserPromptSubmit."""
@@ -265,7 +290,7 @@ class CheckHooksWiredTests(_HomeDirTestCase):
 
         result = check_hooks_wired()
         self.assertFalse(result.ok)
-        self.assertIn("missing hook-timestamp", result.detail)
+        self.assertIn("hook-timestamp", result.detail)
 
     def test_warn_when_block_unsafe_commands_missing(self) -> None:
         """Returns WARN when hook-block-unsafe-commands is missing from PreToolUse."""
@@ -293,7 +318,7 @@ class CheckHooksWiredTests(_HomeDirTestCase):
 
         result = check_hooks_wired()
         self.assertFalse(result.ok)
-        self.assertIn("missing PreToolUse hook-block-unsafe-commands", result.detail)
+        self.assertIn("hook-block-unsafe-commands", result.detail)
 
     def test_warn_when_no_settings_json(self) -> None:
         """Returns WARN when settings.json does not exist."""
@@ -322,13 +347,16 @@ class CheckSettingsDefaultsTests(_HomeDirTestCase):
         (pdir / "settings.json").write_text(json.dumps(settings))
 
     def _good_settings(self) -> dict:
+        # Permission-array content is now the canonical-drift check's job, so
+        # check_settings_defaults no longer enforces any deny/ask count. These
+        # arrays are deliberately empty to prove the old thresholds are gone.
         return {
             "awaySummaryEnabled": False,
             "cleanupPeriodDays": 365,
             "autoMemoryEnabled": False,
             "permissions": {
-                "deny": ["a", "b", "c", "d", "e"],
-                "ask": ["a", "b", "c", "d"],
+                "deny": [],
+                "ask": [],
                 "disableAutoMode": "disable",
             },
             "claudewheel": {"disallowedTools": DISALLOWED_TOOLS[:]},
@@ -342,6 +370,31 @@ class CheckSettingsDefaultsTests(_HomeDirTestCase):
         result = check_settings_defaults()
         self.assertTrue(result.ok)
         self.assertIn("1 profiles OK", result.detail)
+
+    def test_ok_when_permission_arrays_below_old_thresholds(self) -> None:
+        """Thresholds removed: few (or zero) deny/ask rules no longer warn."""
+        pdir = self._make_profile("fewRules")
+        settings = self._good_settings()
+        settings["permissions"] = {
+            "deny": ["Bash(rm:*)"],
+            "ask": [],
+            "disableAutoMode": "disable",
+        }
+        self._write_settings(pdir, settings)
+
+        result = check_settings_defaults()
+        self.assertTrue(result.ok)
+
+    def test_warn_when_auto_mode_not_disabled(self) -> None:
+        """disableAutoMode is still enforced after the threshold removal."""
+        pdir = self._make_profile("autoOn")
+        settings = self._good_settings()
+        settings["permissions"] = {"deny": [], "ask": []}
+        self._write_settings(pdir, settings)
+
+        result = check_settings_defaults()
+        self.assertFalse(result.ok)
+        self.assertIn("auto mode not disabled", result.detail)
 
     def test_warn_when_away_summary_enabled(self) -> None:
         """Returns WARN when awaySummaryEnabled is not false."""
@@ -829,6 +882,112 @@ class CheckTmpClaudeSizeTests(unittest.TestCase):
             result = check_tmp_claude_size()
         self.assertTrue(result.ok)
         self.assertNotIn("threshold", result.detail)
+
+
+# ---------------------------------------------------------------------------
+# check_canonical_permissions_drift
+# ---------------------------------------------------------------------------
+
+
+class CheckCanonicalPermissionsDriftTests(_HomeDirTestCase):
+    """Tests for check_canonical_permissions_drift()."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        # The check reads the module-level SHARED_SETTINGS_FILE constant, so
+        # redirect it into the temp home.
+        self._shared_settings_file = self.home / ".claudewheel" / "shared-settings.json"
+        self._ss_patcher = patch("claudewheel.health.SHARED_SETTINGS_FILE", self._shared_settings_file)
+        self._ss_patcher.start()
+
+    def tearDown(self) -> None:
+        self._ss_patcher.stop()
+        super().tearDown()
+
+    def _canonical_perms(self) -> dict:
+        """A permissions block that exactly matches the canonical guardrail model."""
+        return {
+            "deny": guardrail.canonical_deny_rules(),
+            "ask": guardrail.canonical_ask_rules(),
+            # A non-conflicting allow that must be left alone.
+            "allow": ["Bash(git rm:*)"],
+        }
+
+    def _write_settings(self, pdir: Path, permissions: dict) -> None:
+        (pdir / "settings.json").write_text(json.dumps({"permissions": permissions}))
+
+    def _write_shared(self, permissions: dict) -> None:
+        self._shared_settings_file.parent.mkdir(parents=True, exist_ok=True)
+        self._shared_settings_file.write_text(
+            json.dumps({"profileDefaults": {"permissions": permissions}})
+        )
+
+    def test_ok_when_everything_matches(self) -> None:
+        """OK when profile and profileDefaults both match canonical with no conflicting allows."""
+        pdir = self._make_profile("clean")
+        self._write_settings(pdir, self._canonical_perms())
+        self._write_shared(self._canonical_perms())
+
+        result = check_canonical_permissions_drift()
+        self.assertTrue(result.ok)
+        self.assertIn("match canonical", result.detail)
+
+    def test_warn_when_deny_entries_missing(self) -> None:
+        """WARN naming canonical deny entries a profile is missing."""
+        pdir = self._make_profile("missingDeny")
+        perms = self._canonical_perms()
+        # Drop two canonical deny rules.
+        perms["deny"] = [d for d in perms["deny"] if d not in ("Bash(rm:*)", "Bash(git stash:*)")]
+        self._write_settings(pdir, perms)
+
+        result = check_canonical_permissions_drift()
+        self.assertFalse(result.ok)
+        self.assertIn("missingDeny", result.detail)
+        self.assertIn("missing", result.detail)
+        self.assertIn("Bash(rm:*)", result.detail)
+        self.assertIn("Bash(git stash:*)", result.detail)
+
+    def test_warn_when_extra_ask_entries(self) -> None:
+        """WARN naming non-canonical ask entries a profile carries."""
+        pdir = self._make_profile("extraAsk")
+        perms = self._canonical_perms()
+        perms["ask"] = perms["ask"] + ["Bash(kill:*)"]
+        self._write_settings(pdir, perms)
+
+        result = check_canonical_permissions_drift()
+        self.assertFalse(result.ok)
+        self.assertIn("extraAsk", result.detail)
+        self.assertIn("extra", result.detail)
+        self.assertIn("Bash(kill:*)", result.detail)
+
+    def test_warn_when_conflicting_allow(self) -> None:
+        """WARN flagging a permissions.allow entry that is a dead/conflicting allow."""
+        pdir = self._make_profile("conflictAllow")
+        perms = self._canonical_perms()
+        perms["allow"] = ["Bash(git rm:*)", "Bash(git stash:*)"]
+        self._write_settings(pdir, perms)
+
+        result = check_canonical_permissions_drift()
+        self.assertFalse(result.ok)
+        self.assertIn("conflictAllow", result.detail)
+        self.assertIn("dead/conflicting", result.detail)
+        self.assertIn("Bash(git stash:*)", result.detail)
+
+    def test_warn_when_stale_profile_defaults(self) -> None:
+        """WARN when shared-settings profileDefaults drifts from canonical."""
+        stale = self._canonical_perms()
+        stale["deny"] = [d for d in stale["deny"] if d != "Bash(git restore:*)"]
+        self._write_shared(stale)
+
+        result = check_canonical_permissions_drift()
+        self.assertFalse(result.ok)
+        self.assertIn("profileDefaults", result.detail)
+        self.assertIn("Bash(git restore:*)", result.detail)
+
+    def test_ok_no_profiles_no_shared(self) -> None:
+        """OK when there are no profiles and no shared-settings.json."""
+        result = check_canonical_permissions_drift()
+        self.assertTrue(result.ok)
 
 
 if __name__ == "__main__":
