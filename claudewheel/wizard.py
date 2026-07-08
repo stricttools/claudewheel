@@ -20,6 +20,7 @@ from .config import ConfigManager
 from .defaults import DISALLOWED_TOOLS, build_canonical_shared_settings
 from .discovery import detect_browsers
 from .fsutil import write_json_atomic
+from .patch_profiles import merge_hooks
 from .pty_runner import run_under_pty
 from .state import AUTH_BROWSER_KEY, load_state_value, save_state_value
 from .tokens import add_token, store_tier
@@ -225,23 +226,16 @@ def create_profile(result: WizardResult, cfg: ConfigManager) -> list[str]:
     # Record which tools claudewheel manages (enforcement is via --disallowedTools CLI flag in launch.py)
     settings.setdefault("claudewheel", {})["disallowedTools"] = shared.get("disallowedTools", DISALLOWED_TOOLS[:])
 
-    # Wire hooks -- merge into existing hooks if cloned
+    # Wire hooks -- when the profile already has a hooks section (e.g. cloned),
+    # additively merge ALL canonical events/matchers (reusing the matcher-based,
+    # de-duplicated merge that patch-profiles uses) so every wiring lands, not
+    # just UserPromptSubmit. With no hooks section, copy the canonical hooks.
     canonical_hooks = shared.get("hooks", {})
     if result.wire_hooks:
-        existing_hooks = settings.get("hooks", {}).get("UserPromptSubmit", [])
+        existing_hooks = settings.get("hooks")
         if existing_hooks:
-            # Collect all commands already present across all entries
-            all_cmds: set[str] = set()
-            for entry in existing_hooks:
-                for h in entry.get("hooks", []):
-                    all_cmds.add(h.get("command", ""))
-            # Append missing wanted hooks to the first entry's hook list
-            wanted = canonical_hooks.get("UserPromptSubmit", [{}])[0].get("hooks", [])
-            first_hooks = existing_hooks[0].setdefault("hooks", [])
-            for h in wanted:
-                if h["command"] not in all_cmds:
-                    first_hooks.append(h)
-            settings.setdefault("hooks", {})["UserPromptSubmit"] = existing_hooks
+            merge_hooks(existing_hooks, canonical_hooks)
+            settings["hooks"] = existing_hooks
         else:
             settings["hooks"] = canonical_hooks
 

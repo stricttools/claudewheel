@@ -2399,5 +2399,90 @@ class TierCaptureTests(AuthFlowTestBase):
         mock_store.assert_not_called()
 
 
+class HookMergeGapTests(CreateProfileTestBase):
+    """Phase 3: every canonical hook wiring lands, not just UserPromptSubmit.
+
+    Regression for the wizard merge gap: cloning a profile that already had a
+    hooks section used to merge ONLY UserPromptSubmit, silently dropping the
+    PreToolUse (Agent/Bash) and PostToolUse (Bash) wirings. The wizard now
+    reuses the additive, matcher-based merge so all four wirings survive.
+    """
+
+    def _assert_all_wirings(self, hooks: dict) -> None:
+        """Assert every guardrail.EXPECTED_HOOK_WIRINGS tuple is wired."""
+        from claudewheel import guardrail
+        for event, matcher, script in guardrail.EXPECTED_HOOK_WIRINGS:
+            entries = hooks.get(event, [])
+            entry = next(
+                (e for e in entries if e.get("matcher") == matcher), None)
+            self.assertIsNotNone(entry, f"missing {event}[{matcher}] wiring")
+            cmds = [h["command"] for h in entry["hooks"]]
+            self.assertIn(str(self._scripts_dir / script), cmds)
+
+    def test_clone_with_only_userpromptsubmit_gets_all_wirings(self) -> None:
+        """A source whose hooks section has only UserPromptSubmit still ends up
+        with all four canonical wirings after creation."""
+        existing = {
+            "hooks": {
+                "UserPromptSubmit": [
+                    {"matcher": "", "hooks": [
+                        {"type": "command",
+                         "command": str(self._scripts_dir / "hook-timestamp")},
+                    ]},
+                ],
+            }
+        }
+        source_dir = self.fake_home / ".claudewheel" / "profiles" / "onlyups"
+        source_dir.mkdir(parents=True)
+        (source_dir / "settings.json").write_text(json.dumps(existing))
+
+        result = _make_result(name="mergegap", clone_from="onlyups",
+                              wire_hooks=True)
+        create_profile(result, self.cfg)
+
+        settings = self._read_settings("mergegap")
+        self._assert_all_wirings(settings["hooks"])
+
+    def test_clone_custom_ups_hook_preserved_and_all_wired(self) -> None:
+        """A user-added UserPromptSubmit hook is preserved while the missing
+        canonical wirings are merged in."""
+        existing = {
+            "hooks": {
+                "UserPromptSubmit": [
+                    {"matcher": "", "hooks": [
+                        {"type": "command", "command": "/opt/custom/my-hook"},
+                    ]},
+                ],
+            }
+        }
+        source_dir = self.fake_home / ".claudewheel" / "profiles" / "custom"
+        source_dir.mkdir(parents=True)
+        (source_dir / "settings.json").write_text(json.dumps(existing))
+
+        result = _make_result(name="custmerge", clone_from="custom",
+                              wire_hooks=True)
+        create_profile(result, self.cfg)
+
+        settings = self._read_settings("custmerge")
+        self._assert_all_wirings(settings["hooks"])
+        cmds = [h["command"]
+                for h in settings["hooks"]["UserPromptSubmit"][0]["hooks"]]
+        self.assertIn("/opt/custom/my-hook", cmds)
+
+    def test_fresh_profile_gets_canonical_permissions_and_all_wirings(self) -> None:
+        """A fresh (non-cloned) profile carries the canonical deny/ask arrays
+        from the guardrail model and all four hook wirings."""
+        from claudewheel import guardrail
+        result = _make_result(name="freshcanon", wire_hooks=True)
+        create_profile(result, self.cfg)
+
+        settings = self._read_settings("freshcanon")
+        self._assert_all_wirings(settings["hooks"])
+        self.assertEqual(
+            settings["permissions"]["deny"], guardrail.canonical_deny_rules())
+        self.assertEqual(
+            settings["permissions"]["ask"], guardrail.canonical_ask_rules())
+
+
 if __name__ == "__main__":
     unittest.main()
