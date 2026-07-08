@@ -8,6 +8,9 @@
   ],
   "docs": "docs/",
   "output": "docs/_build/",
+  "directives": {
+    "table-guardrails": "docs/_directives/guardrail_table.py"
+  },
   "base_url": "https://claudewheel.smmh.dev",
   "versions": [
     {
