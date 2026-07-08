@@ -137,5 +137,42 @@ class AdviseNonBashTests(unittest.TestCase):
         self.assertEqual(out.strip(), "")
 
 
+class KillFalsePositiveTests(unittest.TestCase):
+    """The kill advisor must be command-anchored: it nudges only when kill /
+    pkill is actually invoked as a command (directly or via a real wrapper),
+    never when 'kill' is merely a task/target name (npm run kill, etc.)."""
+
+    # 'kill' here is a script/task name, not the kill(1) command -> stay silent.
+    SILENT = (
+        "npm run kill",
+        "yarn kill",
+        "make kill",
+        "pnpm kill",
+        "killall x",
+    )
+
+    # Real kill/pkill invocations, direct or through a wrapper -> must advise.
+    ADVISE = (
+        "kill 123",
+        "kill -9 123",
+        "pkill -f x",
+        "build.sh && kill $(cat app.pid)",
+        "sudo kill 123",
+        "xargs -0 kill",
+        "find . -exec kill {} \\;",
+    )
+
+    def test_non_command_kill_stays_silent(self) -> None:
+        for command in self.SILENT:
+            with self.subTest(command=command):
+                _assert_silent(self, command)
+
+    def test_real_kill_advises(self) -> None:
+        for command in self.ADVISE:
+            with self.subTest(command=command):
+                ctx = _assert_advises(self, command)
+                self.assertEqual(ctx, _kill_advice())
+
+
 if __name__ == "__main__":
     unittest.main()

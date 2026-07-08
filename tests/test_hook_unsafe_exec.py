@@ -336,5 +336,123 @@ class HookNonBashTests(unittest.TestCase):
         self.assertEqual(out.strip(), "")
 
 
+# Independent hand-enumerated oracle for the git-push-delete rule. These rows
+# are NOT derived from the rule's own regex -- they assert the intended contract
+# so a tautological "regex matches its own pattern" cannot pass them.
+_DELETE_ADVICE_MARKER = "Deleting remote branches"
+
+# Remotes to exercise: two named remotes plus a URL remote (whose embedded
+# colon in git@host:repo.git must NOT be misread as an empty-source refspec).
+_DELETE_REMOTES = ("origin", "upstream", "git@host:repo.git")
+
+# Deletion forms, as f-string templates over {remote}. Every one of these MUST
+# be treated as a remote-branch deletion (hard-deny) regardless of remote.
+_DELETE_FORMS = (
+    ("colon-empty-source", "git push {remote} :b"),
+    ("colon-force-empty-source", "git push {remote} +:b"),
+    ("colon-refs-heads", "git push {remote} :refs/heads/b"),
+    ("short-d", "git push {remote} -d b"),
+    ("long-delete", "git push {remote} --delete b"),
+    ("flag-reordered", "git push --delete {remote} b"),
+)
+
+
+class HookGitPushDeleteMatrixTests(unittest.TestCase):
+    """git-push-delete: every deletion form for every remote hard-denies both
+    callers with the branch-deletion advice."""
+
+    def test_deletion_forms_hard_deny_main(self) -> None:
+        for remote in _DELETE_REMOTES:
+            for form_name, template in _DELETE_FORMS:
+                command = template.format(remote=remote)
+                with self.subTest(remote=remote, form=form_name, caller="main"):
+                    reason = _assert_denies(self, command)
+                    self.assertIn(_DELETE_ADVICE_MARKER, reason)
+
+    def test_deletion_forms_hard_deny_subagent(self) -> None:
+        for remote in _DELETE_REMOTES:
+            for form_name, template in _DELETE_FORMS:
+                command = template.format(remote=remote)
+                with self.subTest(
+                    remote=remote, form=form_name, caller="subagent"
+                ):
+                    reason = _assert_denies(self, command, agent_id="sub-1")
+                    self.assertIn(_DELETE_ADVICE_MARKER, reason)
+                    self.assertIn(SUBAGENT_HARD_DENY_SUFFIX, reason)
+
+
+class HookGitPushDeleteNegativeTests(unittest.TestCase):
+    """Pushes that are NOT branch deletions must not fire the delete rule.
+
+    For a MAIN caller the delete rule (HARD_DENY) is the only thing that could
+    deny a push, so an allow (empty stdout) proves the delete rule stayed
+    silent. For a SUBAGENT caller the plain-push ESCALATE rule may legitimately
+    deny -- but its reason must be the escalation message, never the
+    branch-deletion advice.
+    """
+
+    # Ordinary pushes and force-with-source pushes -- never deletions.
+    NORMAL_PUSHES = (
+        "git push origin b",
+        "git push origin HEAD:main",
+        "git push origin main:main",
+        "git push -u origin b",
+        "git push origin +HEAD:main",
+        "git push git@host:repo.git main",
+    )
+
+    # A stray colon or -d living in a LATER shell segment must not leak into the
+    # push segment's match (the matcher is bounded to a single shell segment).
+    CROSS_SEPARATOR = (
+        "git push origin main && echo ' :done'",
+        "git push origin main; grep ' :' f",
+        "git push origin main && git branch -d oldbranch",
+    )
+
+    def _assert_not_delete_denied(self, command: str) -> None:
+        # Main caller: the delete rule is the only push-denier -> must allow.
+        _assert_allows(self, command)
+        # Subagent caller: if denied at all, it must be the escalation, not the
+        # branch-deletion advice.
+        _, out = _run_hook(command, agent_id="sub-1")
+        if out.strip():
+            self.assertNotIn(_DELETE_ADVICE_MARKER, out)
+
+    def test_normal_pushes_not_delete_denied(self) -> None:
+        for command in self.NORMAL_PUSHES:
+            with self.subTest(command=command):
+                self._assert_not_delete_denied(command)
+
+    def test_cross_separator_not_delete_denied(self) -> None:
+        for command in self.CROSS_SEPARATOR:
+            with self.subTest(command=command):
+                self._assert_not_delete_denied(command)
+
+
+class HookAntiKeywordFalsePositiveTests(unittest.TestCase):
+    """Structural anchoring property: a rule's command keyword appearing as a
+    NON-command token (an argument to echo / another script) must not fire.
+
+    Exercised via the block hook, so it covers every HARD_DENY and ESCALATE
+    rule. The subagent caller is the strictest observer (both tiers can deny a
+    subagent), so subagent-allow proves the rule did not fire for either tier.
+    """
+
+    def _samples(self) -> dict[str, str]:
+        return {**_HARD_DENY_SAMPLES, **_ESCALATE_SAMPLES}
+
+    def test_keyword_as_echo_argument_does_not_fire(self) -> None:
+        for key, sample in self._samples().items():
+            command = f"echo {sample}"
+            with self.subTest(rule=key, wrapper="echo"):
+                _assert_allows(self, command, agent_id="sub-1")
+
+    def test_keyword_as_script_argument_does_not_fire(self) -> None:
+        for key, sample in self._samples().items():
+            command = f"somescript {sample}"
+            with self.subTest(rule=key, wrapper="somescript"):
+                _assert_allows(self, command, agent_id="sub-1")
+
+
 if __name__ == "__main__":
     unittest.main()
