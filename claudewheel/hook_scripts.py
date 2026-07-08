@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from claudewheel import guardrail
+
 HOOK_SCRIPTS: dict[str, str] = {
     "hook-timestamp": """\
 #!/usr/bin/env bash
@@ -37,59 +39,9 @@ isolation=$(printf '%s' "$input" | jq -r '.tool_input.isolation // empty' 2>/dev
 printf '%s' '{"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny", "permissionDecisionReason": "Worktree isolation is blocked by policy."}}'
 exit 0
 """,
-    "hook-block-unsafe-commands": """\
-#!/usr/bin/env bash
-# PreToolUse hook that blocks unsafe git/rm commands and suggests safe alternatives.
-#
-# Reads JSON from stdin (CC's hook payload). If the tool is "Bash",
-# inspects the command string for forbidden patterns (git add, git stash,
-# git restore, git checkout --, rm). Denies with an actionable message
-# explaining what to use instead. Otherwise exits silently.
-
-set -uo pipefail
-
-input=$(cat 2>/dev/null || true)
-[[ -z "$input" ]] && exit 0
-
-tool_name=$(printf '%s' "$input" | jq -r '.tool_name // empty' 2>/dev/null)
-[[ "$tool_name" != "Bash" ]] && exit 0
-
-command=$(printf '%s' "$input" | jq -r '.tool_input.command // empty' 2>/dev/null)
-[[ -z "$command" ]] && exit 0
-
-deny() {
-    # Build the JSON with jq so the reason string is escaped correctly.
-    # Hand-interpolating $1 into JSON breaks when the message contains quotes,
-    # producing unparseable output that Claude Code silently discards.
-    jq -cn --arg reason "$1" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: $reason}}'
-    exit 0
-}
-
-# Check for forbidden patterns
-if printf '%s' "$command" | grep -qE '(^|[;&|]|&&|\\|\\|)\\s*git\\s+add\\s+(-[AuU]|--all|\\.)'; then
-    deny "Use 'safegit commit -- file1 file2' instead of 'git add'"
-fi
-
-if printf '%s' "$command" | grep -qE '(^|[;&|]|&&|\\|\\|)\\s*git\\s+stash'; then
-    deny "Use 'safegit commit' on a temporary branch instead of 'git stash'"
-fi
-
-if printf '%s' "$command" | grep -qE '(^|[;&|]|&&|\\|\\|)\\s*git\\s+restore'; then
-    deny "Use the Edit tool to revert specific lines instead of 'git restore'"
-fi
-
-if printf '%s' "$command" | grep -qE '(^|[;&|]|&&|\\|\\|)\\s*git\\s+checkout\\s+--\\s'; then
-    deny "Use the Edit tool to revert specific lines instead of 'git checkout -- file'"
-fi
-
-# rm matcher: anchored rm after a separator/start, plus rm reached indirectly
-# via sudo/env/xargs (allowing flag tokens) or find's -exec/-ok family.
-if printf '%s' "$command" | grep -qE '(^|[;&|]|&&|\\|\\|)\\s*rm(\\s|$)|(^|\\s)(sudo|env|xargs)\\s+(-\\S+\\s+)*rm(\\s|$)|(^|\\s)-(exec|execdir|ok|okdir)\\s+rm(\\s|$)'; then
-    deny "Use 'saferm delete --description \\\"why\\\" file1 file2' instead of 'rm'"
-fi
-
-exit 0
-""",
+    # Generated from the canonical guardrail model. See claudewheel/guardrail.py.
+    "hook-block-unsafe-commands": guardrail.generate_blocker_script(),
+    "hook-advise-commands": guardrail.generate_advise_script(),
 }
 
 
