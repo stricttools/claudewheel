@@ -8,6 +8,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from claudewheel import guardrail
 from claudewheel.defaults import DISALLOWED_TOOLS, build_canonical_shared_settings
 from claudewheel.health import check_shared_settings_drift
 
@@ -269,6 +270,105 @@ class BuildCanonicalSharedSettingsTests(unittest.TestCase):
         """Returned disallowedTools is a copy, not the original list."""
         result = build_canonical_shared_settings(Path("/scripts"))
         self.assertIsNot(result["disallowedTools"], DISALLOWED_TOOLS)
+
+    # -- canonical permissions derive from the guardrail model --------------
+
+    def test_deny_matches_guardrail_model(self) -> None:
+        """profileDefaults.permissions.deny is exactly canonical_deny_rules()."""
+        result = build_canonical_shared_settings(Path("/scripts"))
+        deny = result["profileDefaults"]["permissions"]["deny"]
+        self.assertEqual(deny, guardrail.canonical_deny_rules())
+
+    def test_ask_matches_guardrail_model(self) -> None:
+        """profileDefaults.permissions.ask is exactly canonical_ask_rules()."""
+        result = build_canonical_shared_settings(Path("/scripts"))
+        ask = result["profileDefaults"]["permissions"]["ask"]
+        self.assertEqual(ask, guardrail.canonical_ask_rules())
+
+    def test_deny_starts_with_rm_hard_deny(self) -> None:
+        """The first deny entry is the rm hard-deny rule (model order)."""
+        result = build_canonical_shared_settings(Path("/scripts"))
+        deny = result["profileDefaults"]["permissions"]["deny"]
+        self.assertEqual(deny[0], "Bash(rm:*)")
+
+    def test_ask_ends_with_sudo(self) -> None:
+        """The last ask entry is the sudo prompt (model order)."""
+        result = build_canonical_shared_settings(Path("/scripts"))
+        ask = result["profileDefaults"]["permissions"]["ask"]
+        self.assertEqual(ask[-1], "Bash(sudo:*)")
+
+    def test_old_rm_chain_kill_pkill_ask_entries_gone(self) -> None:
+        """The old literal rm-chain and kill/pkill ask entries are removed.
+
+        rm now lives in the deny array (hard-deny), and kill/pkill are handled
+        by the advise-tier PostToolUse hook, not a settings ask rule.
+        """
+        result = build_canonical_shared_settings(Path("/scripts"))
+        ask = result["profileDefaults"]["permissions"]["ask"]
+        for gone in (
+            "Bash(rm:*)",
+            "Bash(*&& rm:*)",
+            "Bash(*; rm:*)",
+            "Bash(*| rm:*)",
+            "Bash(*| xargs rm:*)",
+            "Bash(kill:*)",
+            "Bash(pkill:*)",
+        ):
+            self.assertNotIn(gone, ask)
+
+    def test_hooks_include_posttooluse_advise_wiring(self) -> None:
+        """PostToolUse wires hook-advise-commands on the Bash matcher, alongside
+        the original UserPromptSubmit and PreToolUse (Agent/Bash) wirings."""
+        scripts = Path("/my/scripts")
+        result = build_canonical_shared_settings(scripts)
+        hooks = result["hooks"]
+
+        # Original three still present.
+        self.assertIn("UserPromptSubmit", hooks)
+        self.assertIn("PreToolUse", hooks)
+        pre_matchers = {e["matcher"] for e in hooks["PreToolUse"]}
+        self.assertEqual(pre_matchers, {"Agent", "Bash"})
+
+        # New PostToolUse advise wiring.
+        self.assertIn("PostToolUse", hooks)
+        post = hooks["PostToolUse"]
+        bash_entries = [e for e in post if e.get("matcher") == "Bash"]
+        self.assertEqual(len(bash_entries), 1)
+        cmds = [h["command"] for h in bash_entries[0]["hooks"]]
+        self.assertTrue(any("hook-advise-commands" in c for c in cmds))
+        for c in cmds:
+            self.assertTrue(c.startswith(str(scripts)))
+
+    def test_hooks_match_all_expected_wirings(self) -> None:
+        """Every guardrail.EXPECTED_HOOK_WIRINGS tuple is present in the hooks."""
+        scripts = Path("/my/scripts")
+        hooks = build_canonical_shared_settings(scripts)["hooks"]
+        for event, matcher, script in guardrail.EXPECTED_HOOK_WIRINGS:
+            entries = hooks.get(event, [])
+            entry = next((e for e in entries if e.get("matcher") == matcher), None)
+            self.assertIsNotNone(
+                entry, f"missing {event}[{matcher}] wiring"
+            )
+            cmds = [h["command"] for h in entry["hooks"]]
+            self.assertTrue(
+                any(c == str(scripts / script) for c in cmds),
+                f"{event}[{matcher}] missing {script}",
+            )
+
+    def test_permissions_are_copies_not_model_references(self) -> None:
+        """Mutating the returned deny/ask must not mutate the guardrail model."""
+        result = build_canonical_shared_settings(Path("/scripts"))
+        perms = result["profileDefaults"]["permissions"]
+        perms["deny"].append("Bash(SENTINEL-DENY)")
+        perms["ask"].append("Bash(SENTINEL-ASK)")
+        self.assertNotIn("Bash(SENTINEL-DENY)", guardrail.canonical_deny_rules())
+        self.assertNotIn("Bash(SENTINEL-ASK)", guardrail.canonical_ask_rules())
+        # A fresh build is likewise unpolluted.
+        fresh = build_canonical_shared_settings(Path("/scripts"))
+        self.assertNotIn(
+            "Bash(SENTINEL-DENY)",
+            fresh["profileDefaults"]["permissions"]["deny"],
+        )
 
 
 if __name__ == "__main__":

@@ -105,7 +105,8 @@ class MergeHooksTests(_PatchProfilesTestCase):
         c = self.canonical()
         existing = {
             "UserPromptSubmit": c["hooks"]["UserPromptSubmit"],
-            "PreToolUse": [c["hooks"]["PreToolUse"][0]],  # Agent only
+            "PreToolUse": [c["hooks"]["PreToolUse"][0]],  # Agent only, missing Bash
+            "PostToolUse": c["hooks"]["PostToolUse"],
         }
         added = merge_hooks(existing, c["hooks"])
         self.assertEqual(len(added), 1)

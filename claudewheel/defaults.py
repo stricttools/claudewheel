@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from . import guardrail
+
 
 DISALLOWED_TOOLS = [
     "Artifact",
@@ -26,39 +28,40 @@ DISALLOWED_TOOLS = [
     "TaskUpdate",
 ]
 
+def _build_canonical_hooks(scripts_dir: Path) -> dict:
+    """Build the hooks dict from the guardrail model's EXPECTED_HOOK_WIRINGS.
+
+    Each wiring is an (event, matcher, script-name) tuple. Wirings are grouped
+    by event, and within each event by matcher, so several scripts sharing an
+    (event, matcher) pair land in one entry's ``hooks`` list. The guardrail
+    module is the single source of truth -- adding a wiring there flows through
+    here automatically.
+    """
+    hooks: dict[str, list] = {}
+    for event, matcher, script in guardrail.EXPECTED_HOOK_WIRINGS:
+        entries = hooks.setdefault(event, [])
+        entry = next((e for e in entries if e["matcher"] == matcher), None)
+        if entry is None:
+            entry = {"matcher": matcher, "hooks": []}
+            entries.append(entry)
+        entry["hooks"].append(
+            {"type": "command", "command": str(scripts_dir / script)}
+        )
+    return hooks
+
+
 def build_canonical_shared_settings(scripts_dir: Path) -> dict:
     """Build the canonical shared-settings dict from current defaults.
 
-    The hooks section mirrors what _HOOKS_TEMPLATE used to define in wizard.py.
+    The hooks section is derived from guardrail.EXPECTED_HOOK_WIRINGS.
     The disallowedTools section comes from DISALLOWED_TOOLS above.
+    The profileDefaults permissions deny/ask arrays are derived from the
+    guardrail model (canonical_deny_rules() / canonical_ask_rules()).
     The profileDefaults section contains default settings applied to new profiles
     when no clone source is specified (previously lived in profile-defaults.json).
     """
     return {
-        "hooks": {
-            "UserPromptSubmit": [
-                {
-                    "matcher": "",
-                    "hooks": [
-                        {"type": "command", "command": str(scripts_dir / "hook-timestamp")},
-                    ],
-                }
-            ],
-            "PreToolUse": [
-                {
-                    "matcher": "Agent",
-                    "hooks": [
-                        {"type": "command", "command": str(scripts_dir / "hook-block-worktree")},
-                    ],
-                },
-                {
-                    "matcher": "Bash",
-                    "hooks": [
-                        {"type": "command", "command": str(scripts_dir / "hook-block-unsafe-commands")},
-                    ],
-                },
-            ],
-        },
+        "hooks": _build_canonical_hooks(scripts_dir),
         "disallowedTools": DISALLOWED_TOOLS[:],
         "profileDefaults": {
             "awaySummaryEnabled": False,
@@ -66,28 +69,8 @@ def build_canonical_shared_settings(scripts_dir: Path) -> dict:
             "autoMemoryEnabled": False,
             "includeGitInstructions": False,
             "permissions": {
-                "deny": [
-                    "Bash(git add .)",
-                    "Bash(git add -A*)",
-                    "Bash(git add --all*)",
-                    "Bash(git add -u*)",
-                    "Bash(git reset *)",
-                    "Bash(git checkout -f*)",
-                    "Bash(git checkout --force*)",
-                    "Bash(git switch -f*)",
-                    "Bash(git switch --force*)",
-                    "Bash(git push origin --delete*)",
-                ],
-                "ask": [
-                    "Bash(rm:*)",
-                    "Bash(*&& rm:*)",
-                    "Bash(*; rm:*)",
-                    "Bash(*| rm:*)",
-                    "Bash(*| xargs rm:*)",
-                    "Bash(kill:*)",
-                    "Bash(pkill:*)",
-                    "Bash(sudo:*)",
-                ],
+                "deny": guardrail.canonical_deny_rules(),
+                "ask": guardrail.canonical_ask_rules(),
                 "defaultMode": "default",
             },
         },
