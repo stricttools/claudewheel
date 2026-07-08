@@ -153,6 +153,63 @@ class SettingsRuleHygieneTests(unittest.TestCase):
                     self.assertNotIn("\n", advice, r.key)
 
 
+class SentencePunctuationTests(unittest.TestCase):
+    """The advice/message joins must read as clean sentences.
+
+    Regression guard for the message-join defect: HARD_DENY main advice did
+    not end with sentence punctuation, so joining the subagent suffix produced
+    ``...instead of 'rm' You are a subagent...`` with no separating period.
+    """
+
+    _TERMINALS = (".", "!", "?")
+
+    def test_hard_deny_main_advice_ends_with_terminal_punctuation(self) -> None:
+        rules = guardrail.rules_by_tier(Tier.HARD_DENY)
+        self.assertTrue(rules)
+        for r in rules:
+            self.assertTrue(r.main_advice, r.key)
+            self.assertIn(r.main_advice[-1], self._TERMINALS, r.key)
+
+    def test_hard_deny_subagent_advice_is_sentence_plus_suffix(self) -> None:
+        rules = guardrail.rules_by_tier(Tier.HARD_DENY)
+        self.assertTrue(rules)
+        for r in rules:
+            # The subagent message is exactly the terminal-punctuated main
+            # advice, a single space, then the fixed suffix.
+            expected = (
+                r.main_advice + " " + guardrail.SUBAGENT_HARD_DENY_SUFFIX
+            )
+            self.assertEqual(r.subagent_advice, expected, r.key)
+            # The suffix always follows a terminal-punctuated sentence: the
+            # char immediately before " " + suffix is one of . ! ?
+            marker = " " + guardrail.SUBAGENT_HARD_DENY_SUFFIX
+            idx = r.subagent_advice.rfind(marker)
+            self.assertGreater(idx, 0, r.key)
+            self.assertIn(r.subagent_advice[idx - 1], self._TERMINALS, r.key)
+            # The exact old broken join must not appear.
+            self.assertNotIn(
+                "'rm' You are a subagent", r.subagent_advice, r.key
+            )
+
+    def test_escalate_tail_follows_terminal_punctuation(self) -> None:
+        rules = guardrail.rules_by_tier(Tier.ESCALATE)
+        self.assertTrue(rules)
+        for r in rules:
+            marker = " " + guardrail.ESCALATE_TAIL
+            idx = r.subagent_advice.rfind(marker)
+            self.assertGreater(idx, 0, r.key)
+            self.assertIn(r.subagent_advice[idx - 1], self._TERMINALS, r.key)
+
+    def test_all_main_advice_ends_with_terminal_punctuation(self) -> None:
+        # Every rule with non-None main_advice (HARD_DENY + ADVISE).
+        found = False
+        for r in RULES:
+            if r.main_advice is not None:
+                found = True
+                self.assertIn(r.main_advice[-1], self._TERMINALS, r.key)
+        self.assertTrue(found)
+
+
 class HookPatternTests(unittest.TestCase):
     def test_every_hook_pattern_compiles(self) -> None:
         for r in RULES:

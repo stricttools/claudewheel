@@ -90,19 +90,34 @@ class GuardrailRule:
     subagent_advice: str | None = None
 
 
+def _as_sentence(text: str) -> str:
+    """Ensure *text* ends with terminal sentence punctuation.
+
+    Strips trailing whitespace; if the result is non-empty and its last
+    character is not one of ``.``/``!``/``?``, appends a period. Only the final
+    character matters -- internal punctuation (e.g. ``;``) is left untouched.
+    Idempotent for text that already ends in terminal punctuation.
+    """
+    text = text.rstrip()
+    if text and text[-1] not in ".!?":
+        text += "."
+    return text
+
+
 def _hard_deny(
     key: str,
     patterns: list[str],
     deny_rules: list[str],
     advice: str,
 ) -> GuardrailRule:
+    main_advice = _as_sentence(advice)
     return GuardrailRule(
         key=key,
         tier=Tier.HARD_DENY,
         hook_patterns=tuple(patterns),
         deny_rules=tuple(deny_rules),
-        main_advice=advice,
-        subagent_advice=advice + " " + SUBAGENT_HARD_DENY_SUFFIX,
+        main_advice=main_advice,
+        subagent_advice=main_advice + " " + SUBAGENT_HARD_DENY_SUFFIX,
     )
 
 
@@ -118,11 +133,12 @@ def _escalate(
         hook_patterns=tuple(patterns),
         ask_rules=tuple(ask_rules),
         main_advice=None,
-        subagent_advice=lead + " " + ESCALATE_TAIL,
+        subagent_advice=_as_sentence(lead) + " " + ESCALATE_TAIL,
     )
 
 
 def _advise(key: str, patterns: list[str], advice: str) -> GuardrailRule:
+    advice = _as_sentence(advice)
     return GuardrailRule(
         key=key,
         tier=Tier.ADVISE,
