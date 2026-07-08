@@ -1,4 +1,4 @@
-"""Pre-launch diagnostics: symlinks, tokens, hooks, permissions, and disk usage."""
+"""Pre-launch diagnostics: symlinks, tokens, disk usage, and permission/hook drift against the canonical guardrail model."""
 
 from __future__ import annotations
 

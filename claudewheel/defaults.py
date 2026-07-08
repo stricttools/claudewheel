@@ -1,4 +1,4 @@
-"""Default values for config, segments, options, state, and themes."""
+"""Default values for config, segments, options, state, and themes; canonical permission rules and hook wiring are derived from the guardrail model."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Registry of hook script templates for deploy-hooks command.
+"""Registry of hook script templates for deploy-hooks, with blocker/advise scripts generated from the guardrail model.
 
 Each entry maps a script name to its content as a string constant.
 Scripts are deployed to SCRIPTS_DIR (~/.claudewheel/scripts/).
