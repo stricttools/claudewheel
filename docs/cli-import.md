@@ -1,8 +1,7 @@
 ---
 title: c import
-description: "import session data from an external Claude Code directory"
+description: "Import Claude Code session data from an external directory into the shared store, remapping recorded project paths and reassigning colliding session UUIDs."
 generated: true
-seeded: true
 nav_group: "CLI Reference"
 nav_order: 4
 ---

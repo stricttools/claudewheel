@@ -1,8 +1,7 @@
 ---
 title: c patch-profiles
-description: "sync existing profiles and shared-settings.json to canonical hook and disallowedTools defaults"
+description: "Sync existing profiles and shared-settings.json to the canonical guardrail hooks and disallowedTools defaults; use --dry-run to preview changes first."
 generated: true
-seeded: true
 nav_group: "CLI Reference"
 nav_order: 9
 ---

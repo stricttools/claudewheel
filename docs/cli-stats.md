@@ -1,8 +1,7 @@
 ---
 title: c stats
-description: "report shared-store stats and clean up legacy data"
+description: "Report statistics about the claudewheel shared data store and clean up legacy artifacts; use --dry-run to preview the cleanup without writing to disk."
 generated: true
-seeded: true
 nav_group: "CLI Reference"
 nav_order: 15
 ---

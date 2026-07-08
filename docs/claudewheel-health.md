@@ -1,6 +1,6 @@
 ---
 title: claudewheel.health
-description: "Pre-launch diagnostics: symlinks, tokens, disk usage, and permission/hook drift against the canonical guardrail model."
+description: "Pre-launch diagnostics: symlinks, tokens, disk usage, permission drift, and deployed hook-script drift checked against the canonical guardrail model."
 generated: true
 nav_group: "API Reference"
 nav_order: 13

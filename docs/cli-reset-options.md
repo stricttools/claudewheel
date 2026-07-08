@@ -1,8 +1,7 @@
 ---
 title: c reset-options
-description: "delete options.json so it regenerates from defaults"
+description: "Delete the claudewheel options.json file so it is regenerated from built-in defaults on the next launch, discarding any customized option values."
 generated: true
-seeded: true
 nav_group: "CLI Reference"
 nav_order: 13
 ---

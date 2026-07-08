@@ -1,8 +1,7 @@
 ---
 title: c profile
-description: "Reference for the c profile command group — subcommands, flags, arguments, and usage details for the profile group in the c CLI."
+description: "Create, inspect, delete, rename, and repair Claude Code profiles, and validate their stored OAuth tokens against the Anthropic API."
 generated: true
-seeded: true
 nav_group: "CLI Reference"
 nav_order: 11
 ---

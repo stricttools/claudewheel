@@ -1,8 +1,7 @@
 ---
 title: c install
-description: "download and install a specific Claude Code version"
+description: "Download, verify, and install a specific Claude Code version from Google Cloud Storage by passing its semver string, for example 2.1.119."
 generated: true
-seeded: true
 nav_group: "CLI Reference"
 nav_order: 5
 ---

@@ -1,8 +1,7 @@
 ---
 title: c reconcile-permissions
-description: "reconcile profile and shared-settings permissions (deny/ask/allow) to the canonical guardrail model; requires exactly one of --dry-run or --apply"
+description: "Reconcile profile and shared-settings permission rules (deny, ask, allow) to the canonical guardrail model; pass exactly one of --dry-run or --apply."
 generated: true
-seeded: true
 nav_group: "CLI Reference"
 nav_order: 12
 ---

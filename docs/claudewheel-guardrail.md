@@ -1,6 +1,6 @@
 ---
 title: claudewheel.guardrail
-description: "Canonical guardrail protocol model."
+description: "Canonical guardrail model: the four enforcement tiers, per-rule settings-coverage annotations, and the bash hook scripts generated from the rule set."
 generated: true
 nav_group: "API Reference"
 nav_order: 12
