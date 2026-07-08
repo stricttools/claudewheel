@@ -623,6 +623,28 @@ def _handle_patch_profiles(dry_run: bool) -> int:
     return run_patch_profiles(dry_run=dry_run)
 
 
+@strictcli.flag("dry-run", type=bool, default=False,
+                help="print the per-target permissions diff and change NOTHING (mutually exclusive with --apply; you MUST pass exactly one of --dry-run or --apply)")
+@strictcli.flag("apply", type=bool, default=False,
+                help="perform the reconciliation, writing each target atomically (mutually exclusive with --dry-run; you MUST pass exactly one of --dry-run or --apply)")
+@strictcli.flag("profile", type=str, default="",
+                help="reconcile only this single profile; when given, shared-settings.json profileDefaults is left untouched (omit to reconcile every profile AND shared-settings profileDefaults)")
+def _handle_reconcile_permissions(dry_run: bool, apply: bool, profile: str) -> int:
+    from .reconcile import run_reconcile
+
+    if dry_run == apply:
+        # Neither (both False) or both (both True) is a hard error: the caller
+        # must declare intent explicitly.
+        print(
+            "Error: pass exactly one of --dry-run or --apply "
+            "(--dry-run previews, --apply writes)",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
+    return run_reconcile(dry_run=dry_run, profile=profile or None)
+
+
 def _handle_permission_add(category: str, rule: str,
                            profile: str, all_profiles: bool) -> int:
     from .permission import validate_rule, resolve_profiles, load_settings, add_rule, save_settings
@@ -1063,7 +1085,8 @@ def _handle_launch(
 _SUBCOMMANDS = frozenset({
     "health", "config", "versions", "install", "uninstall",
     "reset-options", "show",
-    "migrate", "stats", "mv", "import", "deploy-hooks", "patch-profiles", "launch",
+    "migrate", "stats", "mv", "import", "deploy-hooks", "patch-profiles",
+    "reconcile-permissions", "launch",
     "permission", "profile",
     # Deprecated top-level names kept here so main() doesn't rewrite
     # e.g. "c new-profile" to "c launch new-profile" before the
@@ -1191,6 +1214,10 @@ def _build_app() -> App:
 
     app.command("patch-profiles", help="sync existing profiles and shared-settings.json to canonical hook and disallowedTools defaults")(
         _handle_patch_profiles
+    )
+
+    app.command("reconcile-permissions", help="reconcile profile and shared-settings permissions (deny/ask/allow) to the canonical guardrail model; requires exactly one of --dry-run or --apply")(
+        _handle_reconcile_permissions
     )
 
     # -- Permission group --
