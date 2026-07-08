@@ -1,6 +1,6 @@
 ---
 title: claudewheel.defaults
-description: "All DEFAULT_* configuration dicts for claudewheel."
+description: "Default values for config, segments, options, state, and themes; canonical permission rules and hook wiring are derived from the guardrail model."
 generated: true
 nav_group: "API Reference"
 nav_order: 8

@@ -1,6 +1,6 @@
 ---
 title: claudewheel.hook_scripts
-description: "Registry of hook script templates for deploy-hooks command."
+description: "Registry of hook script templates for deploy-hooks, with blocker/advise scripts generated from the guardrail model."
 generated: true
 nav_group: "API Reference"
 nav_order: 14
