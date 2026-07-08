@@ -1,5 +1,5 @@
 ---
-description: "claudewheel is a TUI launcher for Claude Code: pick a profile, model, directory, and permissions from a visual segment bar, then launch a session."
+description: "claudewheel is a TUI launcher for Claude Code: pick a profile, model, directory, and permissions from a visual segment bar, then launch a guarded session."
 ---
 
 # claudewheel
@@ -10,6 +10,7 @@ A TUI launcher for Claude Code that presents a horizontal segment bar for select
 
 - [CLI Reference](cli-index.html) -- all commands, flags, and arguments
 - [API Reference](gen-index.html) -- auto-generated module and function docs
+- [Guardrails](guardrails.html) -- enforcement tiers, subagent handling, command-string caveats, and upgrading profiles
 
 ## Overview
 
