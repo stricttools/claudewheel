@@ -1,6 +1,6 @@
 ---
 title: claudewheel
-description: "claudewheel - TUI launcher for Claude Code."
+description: "claudewheel package root -- resolves the installed version from the repo-root package.json or Python package metadata."
 generated: true
 nav_group: "API Reference"
 nav_order: 1

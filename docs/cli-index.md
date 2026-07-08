@@ -1,6 +1,6 @@
 ---
 title: c CLI Reference
-description: "Complete CLI reference for claudewheel — profile management, health checks, permission reconciliation, hook deployment, and every command's flags and args."
+description: "Complete CLI reference for claudewheel — profile management, health checks, permission reconciliation, session import, hook deployment, and every command's flags and arguments."
 generated: true
 nav_group: "CLI Reference"
 nav_order: 0

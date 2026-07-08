@@ -1,6 +1,6 @@
 ---
 title: claudewheel.cli
-description: "main() function with strictcli for claudewheel CLI."
+description: "CLI argument parsing, subcommand routing, and launch orchestration for the claudewheel command-line interface."
 generated: true
 nav_group: "API Reference"
 nav_order: 5
