@@ -19,5 +19,6 @@
       "type": "cloudflare-pages",
       "local": true
     }
-  }
+  },
+  "coverage_unit": "commit"
 }
