@@ -2,7 +2,7 @@
   "schema_version": 1,
   "name": "claudewheel",
   "slug": "claudewheel",
-  "version": "0.19.0",
+  "version": "0.19.1",
   "description": "TUI launcher for Claude Code: pick a profile, model, directory, and permissions from a segment bar, then launch.",
   "language": "python",
   "base_url": "https://claudewheel.smmh.dev",
@@ -58,6 +58,11 @@
       "type": "doc"
     },
     {
+      "path": "claudewheel-guardrail.md",
+      "title": "claudewheel.guardrail",
+      "type": "doc"
+    },
+    {
       "path": "claudewheel-health.md",
       "title": "claudewheel.health",
       "type": "doc"
@@ -98,6 +103,11 @@
       "type": "doc"
     },
     {
+      "path": "claudewheel-patch_profiles.md",
+      "title": "claudewheel.patch_profiles",
+      "type": "doc"
+    },
+    {
       "path": "claudewheel-permission.md",
       "title": "claudewheel.permission",
       "type": "doc"
@@ -120,6 +130,11 @@
     {
       "path": "claudewheel-pty_runner.md",
       "title": "claudewheel.pty_runner",
+      "type": "doc"
+    },
+    {
+      "path": "claudewheel-reconcile.md",
+      "title": "claudewheel.reconcile",
       "type": "doc"
     },
     {
@@ -223,6 +238,11 @@
       "type": "doc"
     },
     {
+      "path": "cli-patch-profiles.md",
+      "title": "c patch-profiles",
+      "type": "doc"
+    },
+    {
       "path": "cli-permission.md",
       "title": "c permission",
       "type": "doc"
@@ -230,6 +250,11 @@
     {
       "path": "cli-profile.md",
       "title": "c profile",
+      "type": "doc"
+    },
+    {
+      "path": "cli-reconcile-permissions.md",
+      "title": "c reconcile-permissions",
       "type": "doc"
     },
     {
@@ -269,5 +294,5 @@
     }
   ],
   "posts": [],
-  "last_gen": "2026-07-04T12:11:06.085942+00:00"
+  "last_gen": "2026-07-08T12:32:23.178929+00:00"
 }

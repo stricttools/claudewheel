@@ -2,6 +2,7 @@
 title: c import
 description: "import session data from an external Claude Code directory"
 generated: true
+seeded: true
 nav_group: "CLI Reference"
 nav_order: 4
 ---

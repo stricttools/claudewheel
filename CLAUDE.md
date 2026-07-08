@@ -25,23 +25,26 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 - **claudewheel.cli** (`claudewheel/cli.py`): CLI argument parsing, subcommand routing, and launch orchestration.
 - **claudewheel.config** (`claudewheel/config.py`): Config loading, saving, and schema migration system.
 - **claudewheel.constants** (`claudewheel/constants.py`): Filesystem paths, ANSI escape sequences, and terminal color helpers.
-- **claudewheel.defaults** (`claudewheel/defaults.py`): Default values for config, segments, options, state, and themes.
+- **claudewheel.defaults** (`claudewheel/defaults.py`): Default values for config, segments, options, state, and themes; canonical permission rules and hook wiring are derived from the guardrail model.
 - **claudewheel.discovery** (`claudewheel/discovery.py`): Scan the filesystem for Claude Code profiles and their credentials.
 - **claudewheel.fsutil** (`claudewheel/fsutil.py`): Atomic file writes that preserve or enforce target permissions.
 - **claudewheel.fuzzy** (`claudewheel/fuzzy.py`): Score, rank, and highlight fuzzy matches between queries and option lists.
-- **claudewheel.health** (`claudewheel/health.py`): Pre-launch diagnostics: symlinks, tokens, hooks, permissions, and disk usage.
-- **claudewheel.hook_scripts** (`claudewheel/hook_scripts.py`): Registry of hook script templates for deploy-hooks command.
+- **claudewheel.guardrail** (`claudewheel/guardrail.py`): Canonical guardrail protocol model.
+- **claudewheel.health** (`claudewheel/health.py`): Pre-launch diagnostics: symlinks, tokens, disk usage, and permission/hook drift against the canonical guardrail model.
+- **claudewheel.hook_scripts** (`claudewheel/hook_scripts.py`): Registry of hook script templates for deploy-hooks, with blocker/advise scripts generated from the guardrail model.
 - **claudewheel.hooks** (`claudewheel/hooks.py`): Run user-defined hook scripts at pre-launch and other lifecycle stages.
 - **claudewheel.import_** (`claudewheel/import_.py`): Import Claude Code session data from an external directory into the shared store.
 - **claudewheel.install** (`claudewheel/install.py`): Download, verify, and install Claude Code binaries from Google Cloud Storage.
 - **claudewheel.launch** (`claudewheel/launch.py`): Map TUI selections to binary path, env vars, flags, and exec.
 - **claudewheel.migrate** (`claudewheel/migrate.py`): Move session artifacts between profiles.
 - **claudewheel.mv** (`claudewheel/mv.py`): Move session data after a project directory rename.
+- **claudewheel.patch_profiles** (`claudewheel/patch_profiles.py`): Sync existing profiles and shared-settings.json toward canonical defaults.
 - **claudewheel.permission** (`claudewheel/permission.py`): Core logic for managing profile permission rules.
 - **claudewheel.profile** (`claudewheel/profile.py`): Resolve a profile name to CLAUDE_CONFIG_DIR and OAuth token env vars.
 - **claudewheel.profile_info** (`claudewheel/profile_info.py`): Gather and format a detailed inspection report for a single profile.
 - **claudewheel.profile_ops** (`claudewheel/profile_ops.py`): Delete profiles and clean up their dirs, tokens, and options.
 - **claudewheel.pty_runner** (`claudewheel/pty_runner.py`): Run a child process under a PTY, proxying the real terminal and capturing its output.
+- **claudewheel.reconcile** (`claudewheel/reconcile.py`): Reconcile profile and shared-settings permissions toward the canonical model.
 - **claudewheel.renderer** (`claudewheel/renderer.py`): Draw the segment bar, fan-out options, minimap, and scroll arrows.
 - **claudewheel.segment** (`claudewheel/segment.py`): Segment and SegmentBar dataclasses, option discovery, and cross-segment constraints.
 - **claudewheel.session** (`claudewheel/session.py`): Session lookup: locate session JSONL files and extract metadata.

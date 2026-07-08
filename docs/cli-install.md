@@ -2,6 +2,7 @@
 title: c install
 description: "download and install a specific Claude Code version"
 generated: true
+seeded: true
 nav_group: "CLI Reference"
 nav_order: 5
 ---

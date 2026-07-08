@@ -2,6 +2,7 @@
 title: c CLI Reference
 description: "Complete CLI reference for c — all available commands, subcommands, flags, arguments, and usage examples with detailed descriptions."
 generated: true
+seeded: true
 nav_group: "CLI Reference"
 nav_order: 0
 order: 91
@@ -12,7 +13,7 @@ order: 91
 
 claudewheel - TUI launcher for Claude Code with profile, model, and directory selection
 
-Version: 0.19.0
+Version: 0.19.1
 
 ## Commands
 
@@ -28,6 +29,8 @@ Version: 0.19.0
 - [mv](cli-mv.html) -- rename a project directory and migrate session data
 - [import](cli-import.html) -- import session data from an external Claude Code directory
 - [deploy-hooks](cli-deploy-hooks.html) -- deploy built-in hook scripts to the ~/.claudewheel/scripts/ directory
+- [patch-profiles](cli-patch-profiles.html) -- sync existing profiles and shared-settings.json to canonical hook and disallowedTools defaults
+- [reconcile-permissions](cli-reconcile-permissions.html) -- reconcile profile and shared-settings permissions (deny/ask/allow) to the canonical guardrail model; requires exactly one of --dry-run or --apply
 - [launch](cli-launch.html) -- start the interactive TUI launcher to select a profile, model, and directory
 
 ## Command Groups
