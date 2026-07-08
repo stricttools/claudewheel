@@ -8,6 +8,11 @@ approximations). This catches two bug classes:
   1. Invalid deny JSON (unparseable output is silently discarded by Claude
      Code, so a "deny" never fires).
   2. rm matcher gaps (sudo/env/xargs/find -exec rm slipping through).
+
+The script is generated from claudewheel.guardrail's canonical model, so the
+tier matrices below are driven directly off guardrail.RULES: every HARD_DENY
+rule must deny both main and subagent callers, every ESCALATE rule must deny
+subagents but let the main caller fall through.
 """
 
 from __future__ import annotations
@@ -20,20 +25,35 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from claudewheel import guardrail
+from claudewheel.guardrail import (
+    ESCALATE_TAIL,
+    SUBAGENT_HARD_DENY_SUFFIX,
+    Tier,
+)
 from claudewheel.hook_scripts import HOOK_SCRIPTS
 
 
-def _run_hook(command: str | None, tool_name: str = "Bash") -> tuple[int, str]:
-    """Run the hook script with a payload built from *command*/*tool_name*.
+def _run_hook(
+    command: str | None,
+    tool_name: str = "Bash",
+    agent_id: str | None = None,
+) -> tuple[int, str]:
+    """Run the hook script with a payload built from the arguments.
 
     Returns (returncode, stdout). The script is written fresh to a temp file
-    each call so the test always exercises the current template text.
+    each call so the test always exercises the current template text. When
+    *agent_id* is provided, it is added to the payload (mirroring Claude Code,
+    which includes agent_id/agent_type only for subagent tool calls).
     """
     script = HOOK_SCRIPTS["hook-block-unsafe-commands"]
     tool_input: dict = {}
     if command is not None:
         tool_input = {"command": command}
-    payload = json.dumps({"tool_name": tool_name, "tool_input": tool_input})
+    payload: dict = {"tool_name": tool_name, "tool_input": tool_input}
+    if agent_id is not None:
+        payload["agent_id"] = agent_id
+        payload["agent_type"] = "claude"
 
     with tempfile.NamedTemporaryFile(
         mode="w", suffix=".sh", delete=False
@@ -44,7 +64,7 @@ def _run_hook(command: str | None, tool_name: str = "Bash") -> tuple[int, str]:
         os.chmod(path, os.stat(path).st_mode | stat.S_IXUSR)
         proc = subprocess.run(
             ["bash", path],
-            input=payload,
+            input=json.dumps(payload),
             capture_output=True,
             text=True,
             timeout=10,
@@ -54,9 +74,13 @@ def _run_hook(command: str | None, tool_name: str = "Bash") -> tuple[int, str]:
         Path(path).unlink()
 
 
-def _assert_denies(testcase: unittest.TestCase, command: str) -> str:
+def _assert_denies(
+    testcase: unittest.TestCase,
+    command: str,
+    agent_id: str | None = None,
+) -> str:
     """Assert the hook denies *command* with valid deny JSON. Returns reason."""
-    rc, out = _run_hook(command)
+    rc, out = _run_hook(command, agent_id=agent_id)
     testcase.assertEqual(rc, 0, f"hook should exit 0 for {command!r}")
     testcase.assertTrue(
         out.strip(), f"expected deny output for {command!r}, got empty stdout"
@@ -77,13 +101,43 @@ def _assert_denies(testcase: unittest.TestCase, command: str) -> str:
     return reason
 
 
-def _assert_allows(testcase: unittest.TestCase, command: str) -> None:
+def _assert_allows(
+    testcase: unittest.TestCase,
+    command: str,
+    agent_id: str | None = None,
+) -> None:
     """Assert the hook allows (exit 0, empty stdout) *command*."""
-    rc, out = _run_hook(command)
+    rc, out = _run_hook(command, agent_id=agent_id)
     testcase.assertEqual(rc, 0, f"hook should exit 0 for {command!r}")
     testcase.assertEqual(
-        out.strip(), "", f"expected allow (empty stdout) for {command!r}, got {out!r}"
+        out.strip(),
+        "",
+        f"expected allow (empty stdout) for {command!r} "
+        f"(agent_id={agent_id!r}), got {out!r}",
     )
+
+
+# One representative command that matches each HARD_DENY rule's pattern.
+_HARD_DENY_SAMPLES: dict[str, str] = {
+    "rm": "rm foo",
+    "git-add-bulk": "git add -A",
+    "git-stash": "git stash",
+    "git-restore": "git restore file.txt",
+    "git-checkout-file": "git checkout -- file.txt",
+    "git-checkout": "git checkout main",
+    "git-push-delete": "git push origin --delete foo",
+}
+
+# One representative command that matches each ESCALATE rule's pattern.
+_ESCALATE_SAMPLES: dict[str, str] = {
+    "push": "git push",
+    "git-reset": "git reset --hard",
+    "git-switch-force": "git switch -f other",
+    "gh-workflow-run": "gh workflow run ci.yml",
+    "saferm-purge": "saferm purge",
+    "git-rebase": "git rebase main",
+    "safegit-rewrite-author": "safegit rewrite-author foo",
+}
 
 
 class HookDenyBranchTests(unittest.TestCase):
@@ -114,6 +168,90 @@ class HookDenyBranchTests(unittest.TestCase):
         # The literal message contains quotes around "why" -- these must survive
         # intact through JSON encoding.
         self.assertIn('"why"', reason)
+
+
+class HookHardDenyMatrixTests(unittest.TestCase):
+    """Every HARD_DENY rule denies BOTH main and subagent callers.
+
+    Driven off guardrail.RULES: the main caller sees main_advice, the subagent
+    caller sees subagent_advice (main_advice + the report-to-parent suffix).
+    """
+
+    def test_every_hard_deny_rule_has_a_sample(self) -> None:
+        keys = {r.key for r in guardrail.rules_by_tier(Tier.HARD_DENY)}
+        self.assertEqual(
+            keys,
+            set(_HARD_DENY_SAMPLES),
+            "HARD_DENY sample commands out of sync with guardrail.RULES",
+        )
+
+    def test_main_caller_denied_with_main_advice(self) -> None:
+        for rule in guardrail.rules_by_tier(Tier.HARD_DENY):
+            command = _HARD_DENY_SAMPLES[rule.key]
+            with self.subTest(rule=rule.key, caller="main"):
+                reason = _assert_denies(self, command)
+                self.assertEqual(reason, rule.main_advice)
+
+    def test_subagent_caller_denied_with_subagent_advice(self) -> None:
+        for rule in guardrail.rules_by_tier(Tier.HARD_DENY):
+            command = _HARD_DENY_SAMPLES[rule.key]
+            with self.subTest(rule=rule.key, caller="subagent"):
+                reason = _assert_denies(self, command, agent_id="sub-1")
+                self.assertEqual(reason, rule.subagent_advice)
+                self.assertIn(SUBAGENT_HARD_DENY_SUFFIX, reason)
+
+
+class HookOrderingTests(unittest.TestCase):
+    """Rule ordering is load-bearing: specific rules must win over general ones."""
+
+    def test_checkout_file_wins_over_checkout(self) -> None:
+        # 'git checkout -- file' matches BOTH git-checkout-file and git-checkout;
+        # the file-specific (Edit-tool) advice must fire, not the deprecation one.
+        reason = _assert_denies(self, "git checkout -- file.txt")
+        self.assertIn("Edit tool", reason)
+        self.assertNotIn("deprecated", reason)
+
+    def test_push_delete_wins_over_push_for_main(self) -> None:
+        # 'git push --delete' is HARD_DENY (branch deletion), so even a MAIN
+        # caller is denied -- it does not fall through like a plain push.
+        reason = _assert_denies(self, "git push origin --delete foo")
+        self.assertIn("Deleting remote branches", reason)
+
+    def test_plain_push_main_falls_through(self) -> None:
+        # Plain push is ESCALATE: main caller falls through (settings ask rule
+        # handles it), so the hook emits nothing.
+        _assert_allows(self, "git push")
+
+    def test_plain_push_subagent_escalates(self) -> None:
+        reason = _assert_denies(self, "git push", agent_id="sub-1")
+        self.assertIn("rlsbl", reason)
+        self.assertIn("Explain in detail to your parent agent", reason)
+
+
+class HookEscalateMatrixTests(unittest.TestCase):
+    """Every ESCALATE rule denies subagents but lets the main caller through."""
+
+    def test_every_escalate_rule_has_a_sample(self) -> None:
+        keys = {r.key for r in guardrail.rules_by_tier(Tier.ESCALATE)}
+        self.assertEqual(
+            keys,
+            set(_ESCALATE_SAMPLES),
+            "ESCALATE sample commands out of sync with guardrail.RULES",
+        )
+
+    def test_subagent_denied_with_lead_and_tail(self) -> None:
+        for rule in guardrail.rules_by_tier(Tier.ESCALATE):
+            command = _ESCALATE_SAMPLES[rule.key]
+            with self.subTest(rule=rule.key, caller="subagent"):
+                reason = _assert_denies(self, command, agent_id="sub-1")
+                self.assertEqual(reason, rule.subagent_advice)
+                self.assertIn(ESCALATE_TAIL, reason)
+
+    def test_main_caller_falls_through(self) -> None:
+        for rule in guardrail.rules_by_tier(Tier.ESCALATE):
+            command = _ESCALATE_SAMPLES[rule.key]
+            with self.subTest(rule=rule.key, caller="main"):
+                _assert_allows(self, command)
 
 
 class HookRmHardeningTests(unittest.TestCase):
@@ -154,28 +292,34 @@ class HookRmHardeningTests(unittest.TestCase):
 
 
 class HookAllowTests(unittest.TestCase):
-    """Commands that must NOT be blocked (allow: exit 0, empty stdout)."""
+    """Commands that must NOT be blocked (allow: exit 0, empty stdout).
 
-    def test_npm_install(self) -> None:
-        _assert_allows(self, "npm install")
+    Checked for BOTH main and subagent callers -- a negative must stay silent
+    regardless of who runs it.
+    """
 
-    def test_rmdir(self) -> None:
-        _assert_allows(self, "rmdir foo")
+    NEGATIVES = [
+        "npm install",
+        "rmdir foo",
+        "grep rm file",
+        "git rm file",
+        "ls /home/norm/",
+        'saferm delete --description "x" f',
+        "git switch main",
+        "git add file.txt",
+        "rlsbl push",
+        "echo hello",
+    ]
 
-    def test_grep_rm(self) -> None:
-        _assert_allows(self, "grep rm file")
+    def test_negatives_main(self) -> None:
+        for command in self.NEGATIVES:
+            with self.subTest(command=command, caller="main"):
+                _assert_allows(self, command)
 
-    def test_git_rm(self) -> None:
-        _assert_allows(self, "git rm file")
-
-    def test_path_containing_rm(self) -> None:
-        _assert_allows(self, "ls /home/norm/")
-
-    def test_saferm(self) -> None:
-        _assert_allows(self, 'saferm delete --description "x" f')
-
-    def test_echo(self) -> None:
-        _assert_allows(self, "echo hello")
+    def test_negatives_subagent(self) -> None:
+        for command in self.NEGATIVES:
+            with self.subTest(command=command, caller="subagent"):
+                _assert_allows(self, command, agent_id="sub-1")
 
 
 class HookNonBashTests(unittest.TestCase):
@@ -183,6 +327,11 @@ class HookNonBashTests(unittest.TestCase):
 
     def test_non_bash_tool_allows(self) -> None:
         rc, out = _run_hook("rm -rf /", tool_name="Read")
+        self.assertEqual(rc, 0)
+        self.assertEqual(out.strip(), "")
+
+    def test_non_bash_tool_allows_subagent(self) -> None:
+        rc, out = _run_hook("rm -rf /", tool_name="Read", agent_id="sub-1")
         self.assertEqual(rc, 0)
         self.assertEqual(out.strip(), "")
 
