@@ -87,7 +87,7 @@ Profile, GitHub, and Model are *creatable*: their option lists end with a `+` se
 
 ## Commands
 
-:-: table-commands path="claudewheel/"
+:-: table-commands path="."
 
 ### Segment overrides
 

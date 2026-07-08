@@ -23,7 +23,7 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 
 ## Commands
 
-:-: table-commands path="claudewheel/"
+:-: table-commands path="."
 
 ## Config system
 
