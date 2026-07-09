@@ -317,6 +317,7 @@ def run_auth_flow(config_dir: str, profile_name: str, theme, terminal,
         [
             ("session", "Session login (recommended)"),
             ("token", "Long-lived token"),
+            ("paste", "Paste token directly"),
             ("skip", skip_label),
         ],
         theme, terminal,
@@ -324,36 +325,41 @@ def run_auth_flow(config_dir: str, profile_name: str, theme, terminal,
 
     if choice == "skip":
         return "skip"
-    if choice not in ("session", "token"):
+    if choice not in ("session", "token", "paste"):
         return "cancel"
 
-    # Pre-focus the browser chosen in the last successful auth. If that
-    # browser is gone from the options (uninstalled), run_selection falls
-    # back to focusing the first option -- the form always appears.
-    remembered = load_state_value(AUTH_BROWSER_KEY)
-    if not isinstance(remembered, str):
-        remembered = None
-
-    browser = run_selection(
-        "Choose browser",
-        detect_browsers() + [("copy", "Copy URL instead")],
-        theme, terminal,
-        initial_key=remembered,
-    )
-    if browser is None:
-        return "cancel"
-
-    if choice == "session":
-        ok = _auth_session_login(config_dir, profile_name, browser, terminal)
-        outcome = "authenticated" if ok else "failed"
+    if choice == "paste":
+        outcome = _auth_paste_token(config_dir, profile_name, theme, terminal)
     else:
-        outcome = _auth_long_lived_token(config_dir, profile_name, browser,
-                                         theme, terminal)
+        # Pre-focus the browser chosen in the last successful auth. If that
+        # browser is gone from the options (uninstalled), run_selection falls
+        # back to focusing the first option -- the form always appears.
+        remembered = load_state_value(AUTH_BROWSER_KEY)
+        if not isinstance(remembered, str):
+            remembered = None
+
+        browser = run_selection(
+            "Choose browser",
+            detect_browsers() + [("copy", "Copy URL instead")],
+            theme, terminal,
+            initial_key=remembered,
+        )
+        if browser is None:
+            return "cancel"
+
+        if choice == "session":
+            ok = _auth_session_login(config_dir, profile_name, browser, terminal)
+            outcome = "authenticated" if ok else "failed"
+        else:
+            outcome = _auth_long_lived_token(config_dir, profile_name, browser,
+                                             theme, terminal)
 
     if outcome in ("authenticated", "unverified"):
         # Remember the working browser choice for the next auth flow. An
         # unverified save still means the browser step itself worked.
-        save_state_value(AUTH_BROWSER_KEY, browser)
+        # The paste path has no browser step, so skip persistence.
+        if choice != "paste":
+            save_state_value(AUTH_BROWSER_KEY, browser)
         # Mark onboarding complete so CC skips the login screen
         _set_onboarding_flag(config_dir)
     return outcome
@@ -506,6 +512,65 @@ def _save_token(profile_name: str, token: str) -> bool:
         print(f"Error saving token: {e}")
         return False
     return True
+
+
+def _auth_paste_token(config_dir: str, profile_name: str,
+                      theme, terminal) -> str:
+    """Prompt the user to paste a token directly, validate it, save it.
+
+    Skips the browser selection and PTY capture entirely -- the user pastes
+    a token they already have. Validation and outcome handling mirror
+    ``_auth_long_lived_token``. Returns one of:
+
+    - ``"authenticated"`` -- the probe returned VALID and the token was saved
+    - ``"unverified"`` -- the probe was UNREACHABLE/INDETERMINATE and the
+      user explicitly chose to save the unvalidated token
+    - ``"failed"`` -- anything else (cancelled, rejected, save error)
+    """
+    with terminal.cooked():
+        token = _read_pasted_token("Paste your API token: ")
+        if not token:
+            return "cancel"
+
+        status = auth.validate_token(token)
+        if status == auth.INVALID:
+            print("Error: the token was rejected by the API (401).")
+            token = _read_pasted_token("Paste the corrected token, or press Enter to abort: ")
+            if not token:
+                print("No token provided.")
+                return "failed"
+            status = auth.validate_token(token)
+            if status == auth.INVALID:
+                print("Error: the token was rejected by the API (401) again.")
+                return "failed"
+
+        if status == auth.VALID:
+            if not _save_token(profile_name, token):
+                return "failed"
+            print("Token validated and saved successfully.")
+            return "authenticated"
+
+    # UNREACHABLE or INDETERMINATE: the token cannot be verified right now.
+    # The cooked window is closed, so the choice form renders borrowed in
+    # the caller's session (raw terminal) like the other auth forms.
+    reason = ("API unreachable" if status == auth.UNREACHABLE
+              else "validation inconclusive")
+    choice = run_selection(
+        f"Token could not be validated ({reason})",
+        [
+            ("save", "Save unvalidated"),
+            ("abort", "Abort"),
+        ],
+        theme, terminal,
+    )
+    if choice != "save":
+        return "failed"
+
+    with terminal.cooked():
+        if not _save_token(profile_name, token):
+            return "failed"
+        print("Token saved WITHOUT validation.")
+    return "unverified"
 
 
 def _auth_long_lived_token(config_dir: str, profile_name: str, browser: str,

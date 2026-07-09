@@ -1098,7 +1098,7 @@ class AuthFlowTests(AuthFlowTestBase):
         args, kwargs = mock_sel.call_args
         self.assertEqual(args[0], "Authenticate profile 'test'")
         self.assertEqual([key for key, _label in args[1]],
-                         ["session", "token", "skip"])
+                         ["session", "token", "paste", "skip"])
         self.assertEqual(args[2], THEME)
         self.assertIs(args[3], self.term)
         self.assertNotIn("use_alt_screen", kwargs)
@@ -1113,7 +1113,7 @@ class AuthFlowTests(AuthFlowTestBase):
                                    skip_label="Launch without auth")
         self.assertEqual(result, "skip")
         args, _kwargs = mock_sel.call_args
-        self.assertEqual(args[1][2], ("skip", "Launch without auth"))
+        self.assertEqual(args[1][3], ("skip", "Launch without auth"))
 
     def test_session_login_binary_not_found(self) -> None:
         """Session login returns 'failed' when Claude binary is missing."""
@@ -2482,6 +2482,235 @@ class HookMergeGapTests(CreateProfileTestBase):
             settings["permissions"]["deny"], guardrail.canonical_deny_rules())
         self.assertEqual(
             settings["permissions"]["ask"], guardrail.canonical_ask_rules())
+
+
+class PasteTokenTests(AuthFlowTestBase):
+    """Tests for the 'Paste token directly' auth flow (_auth_paste_token).
+
+    The paste path skips browser selection entirely -- the user pastes a
+    token they already have. Validation and outcome handling mirror
+    _auth_long_lived_token.
+    """
+
+    def test_paste_valid_token_saves_and_authenticates(self) -> None:
+        """VALID paste: token saved, outcome is 'authenticated'."""
+        from claudewheel import auth
+        from claudewheel.wizard import run_auth_flow
+
+        with mock.patch("claudewheel.wizard.run_selection", autospec=True,
+                        return_value="paste"), \
+             mock.patch("builtins.input", return_value="sk-ant-oat01-GOODTOKEN123"), \
+             mock.patch("claudewheel.auth.validate_token", autospec=True,
+                        return_value=auth.VALID) as mock_probe, \
+             mock.patch("claudewheel.wizard.add_token") as mock_add:
+            result = run_auth_flow("~/.claudewheel/profiles/test", "test",
+                                   THEME, self.term)
+
+        self.assertEqual(result, "authenticated")
+        mock_add.assert_called_once_with("test", "sk-ant-oat01-GOODTOKEN123")
+        mock_probe.assert_called_once_with("sk-ant-oat01-GOODTOKEN123")
+
+    def test_paste_invalid_then_valid_repaste_saves(self) -> None:
+        """INVALID first paste + VALID re-paste: the re-pasted token is saved."""
+        from claudewheel import auth
+        from claudewheel.wizard import run_auth_flow
+
+        with mock.patch("claudewheel.wizard.run_selection", autospec=True,
+                        return_value="paste"), \
+             mock.patch("builtins.input",
+                        side_effect=["sk-ant-bad", "sk-ant-good"]), \
+             mock.patch("claudewheel.auth.validate_token", autospec=True,
+                        side_effect=[auth.INVALID, auth.VALID]) as mock_probe, \
+             mock.patch("claudewheel.wizard.add_token") as mock_add:
+            result = run_auth_flow("~/.claudewheel/profiles/test", "test",
+                                   THEME, self.term)
+
+        self.assertEqual(result, "authenticated")
+        mock_add.assert_called_once_with("test", "sk-ant-good")
+        self.assertEqual(mock_probe.call_count, 2)
+        self.assertIn("rejected by the API (401)",
+                      self._stdout_buf.getvalue())
+
+    def test_paste_invalid_twice_fails(self) -> None:
+        """INVALID first paste + INVALID re-paste: fails, nothing saved."""
+        from claudewheel import auth
+        from claudewheel.wizard import run_auth_flow
+
+        with mock.patch("claudewheel.wizard.run_selection", autospec=True,
+                        return_value="paste"), \
+             mock.patch("builtins.input",
+                        side_effect=["sk-ant-bad1", "sk-ant-bad2"]), \
+             mock.patch("claudewheel.auth.validate_token", autospec=True,
+                        side_effect=[auth.INVALID, auth.INVALID]), \
+             mock.patch("claudewheel.wizard.add_token") as mock_add:
+            result = run_auth_flow("~/.claudewheel/profiles/test", "test",
+                                   THEME, self.term)
+
+        self.assertEqual(result, "failed")
+        mock_add.assert_not_called()
+
+    def test_paste_unreachable_save_returns_unverified(self) -> None:
+        """UNREACHABLE + explicit 'Save unvalidated': saved, 'unverified'."""
+        from claudewheel import auth
+        from claudewheel.wizard import run_auth_flow
+
+        with mock.patch("claudewheel.wizard.run_selection", autospec=True,
+                        side_effect=["paste", "save"]) as mock_sel, \
+             mock.patch("builtins.input", return_value="sk-ant-token"), \
+             mock.patch("claudewheel.auth.validate_token", autospec=True,
+                        return_value=auth.UNREACHABLE), \
+             mock.patch("claudewheel.wizard.add_token") as mock_add:
+            result = run_auth_flow("~/.claudewheel/profiles/test", "test",
+                                   THEME, self.term)
+
+        self.assertEqual(result, "unverified")
+        mock_add.assert_called_once_with("test", "sk-ant-token")
+        # The second run_selection call is the save/abort choice form
+        args, _kwargs = mock_sel.call_args_list[1]
+        self.assertIn("API unreachable", args[0])
+
+    def test_paste_unreachable_abort_fails(self) -> None:
+        """UNREACHABLE + 'Abort': failed, nothing saved."""
+        from claudewheel import auth
+        from claudewheel.wizard import run_auth_flow
+
+        with mock.patch("claudewheel.wizard.run_selection", autospec=True,
+                        side_effect=["paste", "abort"]), \
+             mock.patch("builtins.input", return_value="sk-ant-token"), \
+             mock.patch("claudewheel.auth.validate_token", autospec=True,
+                        return_value=auth.UNREACHABLE), \
+             mock.patch("claudewheel.wizard.add_token") as mock_add:
+            result = run_auth_flow("~/.claudewheel/profiles/test", "test",
+                                   THEME, self.term)
+
+        self.assertEqual(result, "failed")
+        mock_add.assert_not_called()
+
+    def test_paste_empty_input_cancels(self) -> None:
+        """Empty paste (Enter with no token) returns 'cancel'."""
+        from claudewheel.wizard import run_auth_flow
+
+        with mock.patch("claudewheel.wizard.run_selection", autospec=True,
+                        return_value="paste"), \
+             mock.patch("builtins.input", return_value=""), \
+             mock.patch("claudewheel.wizard.add_token") as mock_add:
+            result = run_auth_flow("~/.claudewheel/profiles/test", "test",
+                                   THEME, self.term)
+
+        self.assertEqual(result, "cancel")
+        mock_add.assert_not_called()
+
+    def test_paste_skips_browser_selection(self) -> None:
+        """The paste path never shows the browser selection form."""
+        from claudewheel import auth
+        from claudewheel.wizard import run_auth_flow
+
+        with mock.patch("claudewheel.wizard.run_selection", autospec=True,
+                        return_value="paste") as mock_sel, \
+             mock.patch("builtins.input", return_value="sk-ant-token"), \
+             mock.patch("claudewheel.auth.validate_token", autospec=True,
+                        return_value=auth.VALID), \
+             mock.patch("claudewheel.wizard.add_token"):
+            run_auth_flow("~/.claudewheel/profiles/test", "test",
+                          THEME, self.term)
+
+        # Only one run_selection call: the auth method choice.
+        # No "Choose browser" call.
+        mock_sel.assert_called_once()
+        args, _kwargs = mock_sel.call_args
+        self.assertIn("Authenticate profile", args[0])
+
+    def test_paste_does_not_persist_browser_state(self) -> None:
+        """The paste path has no browser -- auth_browser must not be written."""
+        from claudewheel import auth
+        from claudewheel.wizard import run_auth_flow
+
+        with mock.patch("claudewheel.wizard.run_selection", autospec=True,
+                        return_value="paste"), \
+             mock.patch("builtins.input", return_value="sk-ant-token"), \
+             mock.patch("claudewheel.auth.validate_token", autospec=True,
+                        return_value=auth.VALID), \
+             mock.patch("claudewheel.wizard.add_token"):
+            result = run_auth_flow("~/.claudewheel/profiles/test", "test",
+                                   THEME, self.term)
+
+        self.assertEqual(result, "authenticated")
+        self.assertNotIn("auth_browser", self._read_state())
+
+    def test_paste_sets_onboarding_flag(self) -> None:
+        """Successful paste auth sets hasCompletedOnboarding in .claude.json."""
+        from claudewheel import auth
+        from claudewheel.wizard import run_auth_flow
+
+        config_dir = self._profile_dir("pasteonboard")
+        config_dir.mkdir(parents=True, exist_ok=True)
+        config_dir_str = str(config_dir)
+
+        with mock.patch("claudewheel.wizard.run_selection", autospec=True,
+                        return_value="paste"), \
+             mock.patch("builtins.input", return_value="sk-ant-token"), \
+             mock.patch("claudewheel.auth.validate_token", autospec=True,
+                        return_value=auth.VALID), \
+             mock.patch("claudewheel.wizard.add_token"):
+            result = run_auth_flow(config_dir_str, "pasteonboard",
+                                   THEME, self.term)
+
+        self.assertEqual(result, "authenticated")
+        cj_path = config_dir / ".claude.json"
+        self.assertTrue(cj_path.exists())
+        cj = json.loads(cj_path.read_text())
+        self.assertTrue(cj.get("hasCompletedOnboarding"))
+
+    def test_paste_option_in_selection_list(self) -> None:
+        """The paste option appears in the auth method selection form."""
+        from claudewheel.wizard import run_auth_flow
+
+        with mock.patch("claudewheel.wizard.run_selection", autospec=True,
+                        return_value=None) as mock_sel:
+            run_auth_flow("~/.claudewheel/profiles/test", "test",
+                          THEME, self.term)
+
+        mock_sel.assert_called_once()
+        args, _kwargs = mock_sel.call_args
+        keys = [key for key, _label in args[1]]
+        self.assertEqual(keys, ["session", "token", "paste", "skip"])
+
+    def test_paste_indeterminate_save_returns_unverified(self) -> None:
+        """INDETERMINATE + save: saved, 'unverified'."""
+        from claudewheel import auth
+        from claudewheel.wizard import run_auth_flow
+
+        with mock.patch("claudewheel.wizard.run_selection", autospec=True,
+                        side_effect=["paste", "save"]) as mock_sel, \
+             mock.patch("builtins.input", return_value="sk-ant-token"), \
+             mock.patch("claudewheel.auth.validate_token", autospec=True,
+                        return_value=auth.INDETERMINATE), \
+             mock.patch("claudewheel.wizard.add_token") as mock_add:
+            result = run_auth_flow("~/.claudewheel/profiles/test", "test",
+                                   THEME, self.term)
+
+        self.assertEqual(result, "unverified")
+        mock_add.assert_called_once_with("test", "sk-ant-token")
+        args, _kwargs = mock_sel.call_args_list[1]
+        self.assertIn("validation inconclusive", args[0])
+
+    def test_paste_save_error_returns_failed(self) -> None:
+        """OSError from add_token returns 'failed' even for a VALID token."""
+        from claudewheel import auth
+        from claudewheel.wizard import run_auth_flow
+
+        with mock.patch("claudewheel.wizard.run_selection", autospec=True,
+                        return_value="paste"), \
+             mock.patch("builtins.input", return_value="sk-ant-token"), \
+             mock.patch("claudewheel.auth.validate_token", autospec=True,
+                        return_value=auth.VALID), \
+             mock.patch("claudewheel.wizard.add_token",
+                        side_effect=OSError("disk full")):
+            result = run_auth_flow("~/.claudewheel/profiles/test", "test",
+                                   THEME, self.term)
+
+        self.assertEqual(result, "failed")
+        self.assertIn("Error saving token", self._stdout_buf.getvalue())
 
 
 if __name__ == "__main__":
