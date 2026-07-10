@@ -1,4 +1,4 @@
-"""Save selections, launch count, and recent directories to state.json."""
+"""Persist launch state (selections, counts, recent dirs) and project inodes."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""Path-injected profile enumeration and env resolution beside discovery."""
+"""The profile store: enumerate, resolve, create, delete, and rename profiles."""
 
 from __future__ import annotations
 
