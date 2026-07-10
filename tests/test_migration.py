@@ -16,14 +16,11 @@ from claudewheel.defaults import (
     DEFAULT_STATE,
     DEFAULT_THEME_DARK,
 )
-
-
-def _write_json(path: Path, data: dict | list) -> None:
-    """Write JSON to *path*, creating parent dirs as needed."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w") as f:
-        json.dump(data, f, indent=2)
-        f.write("\n")
+from tests.wheelhelpers import (
+    patch_config_constants as _patch_constants,
+    setup_temp_config_dir as _setup_temp_config_dir,
+    write_json as _write_json,
+)
 
 
 def _read_json(path: Path) -> dict | list:
@@ -87,67 +84,9 @@ class DeepMergeTests(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Helper: set up a temp dir that mimics ~/.claudewheel
+# Config-dir setup and constant patching are provided by tests.wheelhelpers
+# (imported above as _setup_temp_config_dir and _patch_constants).
 # ---------------------------------------------------------------------------
-
-
-def _setup_temp_config_dir(
-    tmp: Path,
-    *,
-    config: dict | None = None,
-    segments: list[dict] | None = None,
-    options: dict | None = None,
-    state: dict | None = None,
-    theme: dict | None = None,
-) -> dict[str, Path]:
-    """Create config files in *tmp* and return a dict of path constants.
-
-    Any parameter left as None gets a sensible default that won't cause
-    ConfigManager.__post_init__ to error.
-    """
-    launcher_dir = tmp / "claudewheel"
-    themes_dir = launcher_dir / "themes"
-    hooks_dir = launcher_dir / "hooks"
-    scripts_dir = launcher_dir / "scripts"
-    launcher_dir.mkdir(parents=True, exist_ok=True)
-    themes_dir.mkdir(exist_ok=True)
-    hooks_dir.mkdir(exist_ok=True)
-    scripts_dir.mkdir(exist_ok=True)
-
-    config_file = launcher_dir / "config.json"
-    segments_file = launcher_dir / "segments.json"
-    options_file = launcher_dir / "options.json"
-    state_file = launcher_dir / "state.json"
-    theme_file = themes_dir / "dark.json"
-    shared_settings_file = launcher_dir / "shared-settings.json"
-
-    _write_json(config_file, config if config is not None else DEFAULT_CONFIG)
-    _write_json(segments_file, segments if segments is not None else DEFAULT_SEGMENTS)
-    _write_json(options_file, options if options is not None else DEFAULT_OPTIONS)
-    _write_json(state_file, state if state is not None else DEFAULT_STATE)
-    _write_json(theme_file, theme if theme is not None else DEFAULT_THEME_DARK)
-
-    return {
-        "CONFIG_DIR": launcher_dir,
-        "CONFIG_FILE": config_file,
-        "SEGMENTS_FILE": segments_file,
-        "OPTIONS_FILE": options_file,
-        "STATE_FILE": state_file,
-        "THEMES_DIR": themes_dir,
-        "HOOKS_DIR": hooks_dir,
-        "SCRIPTS_DIR": scripts_dir,
-        "SHARED_SETTINGS_FILE": shared_settings_file,
-    }
-
-
-def _patch_constants(paths: dict[str, Path]):
-    """Return a stack of unittest.mock.patch.object contexts for config module constants."""
-    import claudewheel.config as cfg_mod
-
-    return [
-        patch.object(cfg_mod, name, value)
-        for name, value in paths.items()
-    ]
 
 
 # ---------------------------------------------------------------------------
