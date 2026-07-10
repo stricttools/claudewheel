@@ -28,6 +28,7 @@ from .defaults import (
     DEFAULT_THEME_LIGHT,
     build_canonical_shared_settings,
 )
+from .appdata import OptionsFile, StateFile
 from .fsutil import write_json_atomic
 from .terminal import detect_terminal_background
 
@@ -294,7 +295,7 @@ class ConfigManager:
         new_models = [m for m in default_models if m not in user_models]
         if new_models:
             user_models.extend(new_models)
-            write_json_atomic(OPTIONS_FILE, self.options_def)
+            OptionsFile(OPTIONS_FILE).write(self.options_def)
 
     def _run_versioned_migrations(self, theme_file: Path) -> None:
         """Run schema-versioned migrations that change existing values.
@@ -338,7 +339,7 @@ class ConfigManager:
         if theme_changed:
             write_json_atomic(theme_file, self.theme)
         if options_changed:
-            write_json_atomic(OPTIONS_FILE, self.options_def)
+            OptionsFile(OPTIONS_FILE).write(self.options_def)
 
     @staticmethod
     def _deep_merge_missing(target: dict, defaults: dict) -> bool:
@@ -358,23 +359,15 @@ class ConfigManager:
 
     def add_option(self, segment_key: str, value: str) -> None:
         """Add a new option value to the pinned list in options.json for the given segment."""
-        options = self._load_json(OPTIONS_FILE, self.options_def)
-        if segment_key not in options:
-            options[segment_key] = {"values": [], "pinned": []}
-        pinned = options[segment_key].setdefault("pinned", [])
-        if value not in pinned:
-            pinned.append(value)
-            write_json_atomic(OPTIONS_FILE, options)
-            # Also update in-memory copy
-            self.options_def = options
+        self.options_def = OptionsFile(OPTIONS_FILE).add_pinned(
+            segment_key, value, self.options_def
+        )
 
     def set_option_metadata(self, segment_key: str, value: str, meta: dict) -> None:
         """Set metadata for a specific option value in options.json."""
-        options = self._load_json(OPTIONS_FILE, self.options_def)
-        seg = options.setdefault(segment_key, {"values": []})
-        seg.setdefault("metadata", {})[value] = meta
-        write_json_atomic(OPTIONS_FILE, options)
-        self.options_def = options
+        self.options_def = OptionsFile(OPTIONS_FILE).set_metadata(
+            segment_key, value, meta, self.options_def
+        )
 
     def save_state(self):
         """Save in-memory state to disk.
@@ -384,12 +377,4 @@ class ConfigManager:
         auth_browser directly to disk while the TUI holds its own in-memory
         state loaded at startup; this merge ensures that value survives.
         """
-        try:
-            on_disk = json.loads(STATE_FILE.read_text())
-            if isinstance(on_disk, dict):
-                browser = on_disk.get("auth_browser")
-                if browser is not None:
-                    self.state["auth_browser"] = browser
-        except (OSError, json.JSONDecodeError, ValueError):
-            pass
-        write_json_atomic(STATE_FILE, self.state)
+        StateFile(STATE_FILE).save(self.state)
