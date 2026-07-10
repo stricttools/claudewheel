@@ -17,6 +17,7 @@ from claudewheel.wizard import WizardResult, create_profile, run_profile_wizard
 from claudewheel.constants import PROFILE_SHARED_DIRS
 from claudewheel import wizard as wizard_mod
 from claudewheel import config as config_mod
+from claudewheel import profile_ops as profile_ops_mod
 from claudewheel.config import ConfigManager
 from claudewheel.defaults import (
     DEFAULT_CONFIG,
@@ -113,6 +114,10 @@ class CreateProfileTestBase(unittest.TestCase):
             mock.patch.object(config_mod, "SCRIPTS_DIR", self._scripts_dir),
             mock.patch.object(config_mod, "SHARED_DIR", self.fake_home / ".claudewheel" / "shared"),
             mock.patch.object(config_mod, "SHARED_SETTINGS_FILE", self._shared_settings_file),
+            # ConfigManager() (built in setUp) calls _recover_incomplete_renames(),
+            # which scans profile_ops.PROFILES_DIR for .rename_pending breadcrumbs.
+            # Without this it scans the real ~/.claudewheel/profiles.
+            mock.patch.object(profile_ops_mod, "PROFILES_DIR", self.launcher_dir / "profiles"),
             # wizard.py imports PROFILES_DIR, SHARED_DIR, SKILLS_DIR directly
             mock.patch.object(wizard_mod, "PROFILES_DIR", self.launcher_dir / "profiles"),
             mock.patch.object(wizard_mod, "SCRIPTS_DIR", self._scripts_dir),
@@ -1016,6 +1021,16 @@ class AuthFlowTestBase(unittest.TestCase):
         self.addCleanup(self._tmp.cleanup)
         self.fake_home = Path(self._tmp.name)
 
+        # Poison HOME so run_auth_flow's Path(config_dir).expanduser() on the
+        # literal "~/.claudewheel/profiles/test" resolves into the sandbox
+        # instead of the real home.
+        self._orig_home = os.environ.get("HOME")
+        os.environ["HOME"] = str(self.fake_home)
+        self.addCleanup(self._restore_home)
+        self._home_patch = mock.patch.object(Path, "home", return_value=self.fake_home)
+        self._home_patch.start()
+        self.addCleanup(self._home_patch.stop)
+
         # Capture stdout so tests can inspect printed output
         self._stdout_buf = io.StringIO()
         self._stdout_trap = contextlib.redirect_stdout(self._stdout_buf)
@@ -1041,6 +1056,12 @@ class AuthFlowTestBase(unittest.TestCase):
             "claudewheel.state.STATE_FILE", self.state_file)
         self._state_patch.start()
         self.addCleanup(self._state_patch.stop)
+
+    def _restore_home(self) -> None:
+        if self._orig_home is None:
+            os.environ.pop("HOME", None)
+        else:
+            os.environ["HOME"] = self._orig_home
 
     def _read_state(self) -> dict:
         """Read the patched state.json, or {} if it doesn't exist."""

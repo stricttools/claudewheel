@@ -36,12 +36,16 @@ class _HomeDirTestCase(unittest.TestCase):
         self._shared_dir = self.home / ".claudewheel" / "shared"
         self._skills_dir = self.home / ".claudewheel" / "skills"
         self._profiles_dir = self.home / ".claudewheel" / "profiles"
+        self._tokens_file = self.home / ".claudewheel" / "tokens.json"
         self._dir_patches = [
             patch("claudewheel.health.SKILLS_DIR", self._skills_dir),
             patch("claudewheel.health.PROFILES_DIR", self._profiles_dir),
             patch("claudewheel.discovery.SHARED_DIR", self._shared_dir),
             patch("claudewheel.discovery.SKILLS_DIR", self._skills_dir),
             patch("claudewheel.discovery.PROFILES_DIR", self._profiles_dir),
+            # discover_profiles() reads discovery.TOKENS_FILE during its scan;
+            # without this it hits the real ~/.claudewheel/tokens.json.
+            patch("claudewheel.discovery.TOKENS_FILE", self._tokens_file),
             patch("claudewheel.profile_info.PROFILES_DIR", self._profiles_dir),
         ]
         for p in self._dir_patches:

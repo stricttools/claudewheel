@@ -7,7 +7,9 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from claudewheel import discovery as discovery_mod
 from claudewheel.profile import resolve_profile
+from tests.wheelhelpers import SandboxHomeTestCase
 
 
 def _fake_config_manager(options_def: dict):
@@ -17,7 +19,18 @@ def _fake_config_manager(options_def: dict):
     return mgr
 
 
-class ResolveProfileTests(unittest.TestCase):
+class ResolveProfileTests(SandboxHomeTestCase):
+
+    def setUp(self) -> None:
+        super().setUp()
+        # resolve_profile() -> segment._discover_profiles() -> discovery.discover_profiles()
+        # does a real filesystem scan using discovery's import-time path constants.
+        # Rebind them (and Path.home, via the base class) into the empty sandbox so
+        # no real ~/.claudewheel or ~/.claude is touched.
+        self.patch_constants_across(
+            [discovery_mod],
+            names=["PROFILES_DIR", "TOKENS_FILE", "SHARED_DIR", "SKILLS_DIR"],
+        )
 
     def _options_with_profile(self, name: str, config_dir: str) -> dict:
         return {
