@@ -7,9 +7,10 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
-from .constants import SHARED_DIR, encode_path
-from .discovery import discover_profiles
+from .constants import PROFILES_DIR, SHARED_DIR, TOKENS_FILE, encode_path
 from .fsutil import write_json_atomic, write_text_atomic
+from .profile_store import ProfileStore
+from .tokens import TokenStore
 
 PREFIX = "[mv]"
 
@@ -36,10 +37,16 @@ class MvResult:
 def _discover_profile_dirs() -> list[Path]:
     """Find all profile directories plus ~/.claudewheel/shared/ if it exists.
 
-    Uses the shared discovery module for profiles, then includes the
-    shared store directory (which holds the actual session data).
+    Enumerates profiles via a path-injected ProfileStore (interim call-time
+    construction from this module's path constants until a later phase threads a
+    Workspace through), then includes the shared store directory as a peer
+    target (it holds the actual session data). A corrupt tokens.json raises
+    ``TokenStoreError`` -- the uniform hard-error contract.
     """
-    dirs: list[Path] = [p.path for p in discover_profiles()]
+    store = ProfileStore(
+        PROFILES_DIR, Path.home() / ".claude", TokenStore(TOKENS_FILE)
+    )
+    dirs: list[Path] = [p.path for p in store.enumerate()]
     if SHARED_DIR.is_dir() and SHARED_DIR not in dirs:
         dirs.append(SHARED_DIR)
     return sorted(dirs)
