@@ -1,14 +1,16 @@
-"""Tests for ConfigManager migration logic: _deep_merge_missing, _migrate, _run_versioned_migrations."""
+"""Tests for AppConfigStore migration logic: _deep_merge_missing, _migrate, _run_versioned_migrations."""
 
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest import mock
 
-from claudewheel.config import ConfigManager
+from claudewheel.config import AppConfigStore
+from claudewheel.workspace import Workspace
 from claudewheel.defaults import (
     DEFAULT_CONFIG,
     DEFAULT_OPTIONS,
@@ -17,10 +19,19 @@ from claudewheel.defaults import (
     DEFAULT_THEME_DARK,
 )
 from tests.wheelhelpers import (
-    patch_config_constants as _patch_constants,
     setup_temp_config_dir as _setup_temp_config_dir,
     write_json as _write_json,
 )
+
+
+def _appconfig(paths: dict[str, Path]) -> AppConfigStore:
+    """Construct an AppConfigStore over the sandbox launcher dir in *paths*.
+
+    ``setup_temp_config_dir`` returns a mapping whose ``CONFIG_DIR`` is the
+    ``~/.claudewheel``-shaped root; the workspace derives every other path from
+    it, so no per-module constant patching is required.
+    """
+    return Workspace.open(paths["CONFIG_DIR"]).appconfig()
 
 
 def _read_json(path: Path) -> dict | list:
@@ -34,13 +45,13 @@ def _read_json(path: Path) -> dict | list:
 
 
 class DeepMergeTests(unittest.TestCase):
-    """Test ConfigManager._deep_merge_missing() in isolation."""
+    """Test AppConfigStore._deep_merge_missing() in isolation."""
 
     def test_adds_missing_keys_returns_true(self) -> None:
         """Missing top-level keys are added and the method returns True."""
         target: dict = {"a": 1}
         defaults = {"a": 1, "b": 2}
-        result = ConfigManager._deep_merge_missing(target, defaults)
+        result = AppConfigStore._deep_merge_missing(target, defaults)
         self.assertTrue(result)
         self.assertEqual(target["b"], 2)
 
@@ -48,7 +59,7 @@ class DeepMergeTests(unittest.TestCase):
         """Existing keys are left untouched and False is returned when nothing is missing."""
         target = {"a": 99, "b": 42}
         defaults = {"a": 1, "b": 2}
-        result = ConfigManager._deep_merge_missing(target, defaults)
+        result = AppConfigStore._deep_merge_missing(target, defaults)
         self.assertFalse(result)
         self.assertEqual(target["a"], 99)
         self.assertEqual(target["b"], 42)
@@ -57,7 +68,7 @@ class DeepMergeTests(unittest.TestCase):
         """Missing keys inside nested dicts are added recursively."""
         target: dict = {"outer": {"existing": "keep"}}
         defaults = {"outer": {"existing": "default", "new_key": "added"}}
-        result = ConfigManager._deep_merge_missing(target, defaults)
+        result = AppConfigStore._deep_merge_missing(target, defaults)
         self.assertTrue(result)
         self.assertEqual(target["outer"]["existing"], "keep")
         self.assertEqual(target["outer"]["new_key"], "added")
@@ -66,7 +77,7 @@ class DeepMergeTests(unittest.TestCase):
         """A completely absent nested dict is deep-copied from defaults."""
         target: dict = {}
         defaults = {"section": {"key1": "val1", "key2": {"nested": True}}}
-        result = ConfigManager._deep_merge_missing(target, defaults)
+        result = AppConfigStore._deep_merge_missing(target, defaults)
         self.assertTrue(result)
         self.assertEqual(target["section"]["key1"], "val1")
         self.assertTrue(target["section"]["key2"]["nested"])
@@ -78,14 +89,15 @@ class DeepMergeTests(unittest.TestCase):
         """Running merge twice with the same defaults returns False the second time."""
         target: dict = {"a": 1}
         defaults = {"a": 1, "b": 2, "c": {"d": 3}}
-        ConfigManager._deep_merge_missing(target, defaults)
-        result = ConfigManager._deep_merge_missing(target, defaults)
+        AppConfigStore._deep_merge_missing(target, defaults)
+        result = AppConfigStore._deep_merge_missing(target, defaults)
         self.assertFalse(result)
 
 
 # ---------------------------------------------------------------------------
-# Config-dir setup and constant patching are provided by tests.wheelhelpers
-# (imported above as _setup_temp_config_dir and _patch_constants).
+# Config-dir setup is provided by tests.wheelhelpers (imported above as
+# _setup_temp_config_dir); the store is built by the module-level _appconfig
+# helper over a Workspace rooted at the sandbox launcher dir.
 # ---------------------------------------------------------------------------
 
 
@@ -104,13 +116,9 @@ class KeyMigrationTests(unittest.TestCase):
     def tearDown(self) -> None:
         self._tmp_obj.cleanup()
 
-    def _make_cm(self, paths: dict[str, Path]) -> ConfigManager:
-        """Create a ConfigManager with patched path constants."""
-        patches = _patch_constants(paths)
-        for p in patches:
-            p.start()
-            self.addCleanup(p.stop)
-        return ConfigManager()
+    def _make_cm(self, paths: dict[str, Path]) -> AppConfigStore:
+        """Create an AppConfigStore over the sandbox launcher dir."""
+        return _appconfig(paths)
 
     def test_missing_config_keys_added(self) -> None:
         """Keys absent from config.json are filled in from defaults."""
@@ -156,14 +164,15 @@ class KeyMigrationTests(unittest.TestCase):
         paths = _setup_temp_config_dir(self.tmp, theme=theme_without_forms)
         cm = self._make_cm(paths)
 
-        # In-memory theme now has the full forms section from defaults
-        self.assertIn("forms", cm.theme)
+        # load_theme now returns the full forms section (merged from defaults)
+        loaded = cm.load_theme("dark")
+        self.assertIn("forms", loaded)
         for key in ("title_fg", "focus_bg", "focus_fg", "field_fg",
                     "error_fg", "hint_fg", "cursor_fg"):
-            self.assertIn(key, cm.theme["forms"], f"missing forms key: {key}")
-        self.assertEqual(cm.theme["forms"], DEFAULT_THEME_DARK["forms"])
+            self.assertIn(key, loaded["forms"], f"missing forms key: {key}")
+        self.assertEqual(loaded["forms"], DEFAULT_THEME_DARK["forms"])
 
-        # Persisted to disk too
+        # Persisted to disk too (migration wrote the merged dark.json)
         on_disk = _read_json(paths["THEMES_DIR"] / "dark.json")
         self.assertEqual(on_disk["forms"], DEFAULT_THEME_DARK["forms"])
 
@@ -200,12 +209,8 @@ class VersionedMigrationTests(unittest.TestCase):
     def tearDown(self) -> None:
         self._tmp_obj.cleanup()
 
-    def _make_cm(self, paths: dict[str, Path]) -> ConfigManager:
-        patches = _patch_constants(paths)
-        for p in patches:
-            p.start()
-            self.addCleanup(p.stop)
-        return ConfigManager()
+    def _make_cm(self, paths: dict[str, Path]) -> AppConfigStore:
+        return _appconfig(paths)
 
     def test_schema_v0_github_required_migrated_to_false(self) -> None:
         """With _schema_version 0 and github required=true, migration sets it to false."""
@@ -329,12 +334,8 @@ class ModelSyncTests(unittest.TestCase):
     def tearDown(self) -> None:
         self._tmp_obj.cleanup()
 
-    def _make_cm(self, paths: dict[str, Path]) -> ConfigManager:
-        patches = _patch_constants(paths)
-        for p in patches:
-            p.start()
-            self.addCleanup(p.stop)
-        return ConfigManager()
+    def _make_cm(self, paths: dict[str, Path]) -> AppConfigStore:
+        return _appconfig(paths)
 
     def test_migrate_adds_new_model_to_existing_options(self) -> None:
         """New default models (e.g. fable) are appended to the user's model list."""
@@ -401,7 +402,7 @@ class ModelSyncTests(unittest.TestCase):
 
 
 class RenameRecoveryOnStartupTests(unittest.TestCase):
-    """ConfigManager.__post_init__ calls recover_incomplete_renames to auto-repair."""
+    """AppConfigStore.__post_init__ calls recover_incomplete_renames to auto-repair."""
 
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
@@ -429,28 +430,14 @@ class RenameRecoveryOnStartupTests(unittest.TestCase):
         state_file = self.cw_dir / "state.json"
         _write_json(state_file, {"last_config": {"profile": "broken"}})
 
-        # Patch all paths and suppress terminal detection. Recovery now builds a
-        # ProfileStore from the config module's own path constants, so those are
-        # the ones to redirect (plus state_mod.STATE_FILE for the state helpers).
-        from claudewheel import config as config_mod
-        from claudewheel import state as state_mod
-
-        with (
-            patch.object(config_mod, "CONFIG_DIR", self.cw_dir),
-            patch.object(config_mod, "CONFIG_FILE", self.cw_dir / "config.json"),
-            patch.object(config_mod, "SEGMENTS_FILE", self.cw_dir / "segments.json"),
-            patch.object(config_mod, "OPTIONS_FILE", options_file),
-            patch.object(config_mod, "STATE_FILE", state_file),
-            patch.object(config_mod, "THEMES_DIR", self.cw_dir / "themes"),
-            patch.object(config_mod, "HOOKS_DIR", self.cw_dir / "hooks"),
-            patch.object(config_mod, "SHARED_SETTINGS_FILE", self.cw_dir / "shared-settings.json"),
-            patch.object(config_mod, "SCRIPTS_DIR", self.cw_dir / "scripts"),
-            patch.object(config_mod, "PROFILES_DIR", self.profiles_dir),
-            patch.object(config_mod, "TOKENS_FILE", tokens_file),
-            patch.object(config_mod, "detect_terminal_background", return_value="dark"),
-            patch.object(state_mod, "STATE_FILE", state_file),
-        ):
-            ConfigManager()
+        # The workspace derives profiles/tokens/options/state paths from the
+        # launcher root, so construction alone drives recovery -- no per-module
+        # path patching, and no terminal detection is attempted at construction.
+        # A spy proves construction never queries the terminal.
+        spy = mock.Mock(side_effect=AssertionError("terminal I/O attempted"))
+        with mock.patch("claudewheel.config.detect_terminal_background", spy):
+            Workspace.open(self.cw_dir).appconfig()
+        self.assertFalse(spy.called)
 
         # Breadcrumb gone
         self.assertFalse((new_dir / ".rename_pending").exists())
@@ -461,6 +448,66 @@ class RenameRecoveryOnStartupTests(unittest.TestCase):
         opts = json.loads(options_file.read_text())
         self.assertIn("repaired", opts["profile"]["values"])
         self.assertNotIn("broken", opts["profile"]["values"])
+
+
+# ---------------------------------------------------------------------------
+# 6. Phase 5.1 construction contract: lazy, idempotent, fail-loud
+# ---------------------------------------------------------------------------
+
+
+def _snapshot(root: Path) -> dict[str, tuple[float, int]]:
+    """Map each file under *root* to (mtime, size) for change detection."""
+    snap: dict[str, tuple[float, int]] = {}
+    for dp, _dns, fns in os.walk(root):
+        for f in fns:
+            p = Path(dp) / f
+            st = p.stat()
+            snap[str(p)] = (st.st_mtime, st.st_size)
+    return snap
+
+
+class ConstructionContractTests(unittest.TestCase):
+    """Phase 5.1: Workspace.appconfig() is lazy-on-open, idempotent, fail-loud."""
+
+    def setUp(self) -> None:
+        self._tmp_obj = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._tmp_obj.name)
+
+    def tearDown(self) -> None:
+        self._tmp_obj.cleanup()
+
+    def test_open_and_store_accessors_do_not_touch_disk(self) -> None:
+        """Workspace.open + .tokens + .profiles create/modify nothing on disk."""
+        root = self.tmp / "cw"  # deliberately does not exist yet
+        ws = Workspace.open(root)
+        _ = ws.tokens
+        _ = ws.profiles
+        self.assertFalse(root.exists(), "accessors must not create the root")
+
+    def test_reopen_is_a_no_op(self) -> None:
+        """Constructing appconfig() twice on a migrated root writes nothing new."""
+        paths = _setup_temp_config_dir(self.tmp)
+        ws = Workspace.open(paths["CONFIG_DIR"])
+        ws.appconfig()  # first construction migrates + materializes everything
+
+        before = _snapshot(paths["CONFIG_DIR"])
+        ws.appconfig()  # second construction must be a pure no-op
+        after = _snapshot(paths["CONFIG_DIR"])
+
+        self.assertEqual(after, before, "reopen mutated files on disk")
+
+    def test_readonly_root_raises(self) -> None:
+        """appconfig() on a read-only (0o555) root fails loudly (no silent skip)."""
+        root = self.tmp / "cw"
+        root.mkdir()
+        # Empty root: construction must create themes/ + write default files,
+        # which a read-only root forbids -> hard error.
+        os.chmod(root, 0o555)
+        try:
+            with self.assertRaises((PermissionError, OSError)):
+                Workspace.open(root).appconfig()
+        finally:
+            os.chmod(root, 0o755)
 
 
 if __name__ == "__main__":
