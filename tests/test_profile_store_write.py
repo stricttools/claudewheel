@@ -218,11 +218,6 @@ class CreateTests(_WriteBase):
                 "disallowedTools": ["Foo"],
             },
         )
-        self.patch_constants_across(
-            [wiz],
-            ["PROFILES_DIR", "SHARED_DIR", "SKILLS_DIR", "SCRIPTS_DIR",
-             "SHARED_SETTINGS_FILE"],
-        )
         result = WizardResult(
             name="wizprof",
             config_dir=str(self.profiles_dir / "wizprof"),

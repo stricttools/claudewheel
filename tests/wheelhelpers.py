@@ -5,10 +5,9 @@ This module centralizes the two things every filesystem-touching test needs:
 1. A sandboxed fake ``$HOME`` (``SandboxHomeTestCase``) that both sets the
    ``HOME`` environment variable AND patches ``pathlib.Path.home`` so any
    runtime ``Path.home()`` call in production code resolves into a tmpdir,
-   never the real home. A few modules still hold import-time path copies
-   captured against the *real* home, so poisoning ``Path.home`` alone does not
-   redirect them -- use :meth:`SandboxHomeTestCase.patch_constants_across` to
-   rebind those per-module copies at the sandbox for the duration of a test.
+   never the real home. Path resolution is fully workspace-driven now, so
+   poisoning ``Path.home`` is sufficient: no module holds import-time path
+   copies that need per-module rebinding.
 
 2. A config-dir builder (``setup_temp_config_dir``) shared by the migration and
    theme-auto tests.
@@ -130,9 +129,8 @@ class SandboxHomeTestCase(unittest.TestCase):
     Subclasses that need the built-in ``~/.claude`` default profile populated
     should set the class attribute ``populate_default_profile = True``.
 
-    ``self.sandbox_paths`` maps every path-constant name to its sandbox value;
-    pass it (or a subset) to :meth:`patch_constants_across` to rebind the
-    per-module copies captured at import time.
+    ``self.sandbox_paths`` maps every path-constant name to its sandbox value,
+    for tests that need to reference a specific sandbox path directly.
     """
 
     # Subclasses may override to populate ~/.claude with a default profile.
@@ -222,26 +220,3 @@ class SandboxHomeTestCase(unittest.TestCase):
         if credentials:
             (pdir / ".credentials.json").write_text("{}")
         return pdir
-
-    def patch_constants_across(
-        self,
-        modules,
-        names: list[str] | None = None,
-    ) -> None:
-        """Rebind sandbox path constants across the given imported *modules*.
-
-        For each constant name in *names* (default: all sandbox path
-        constants), every module in *modules* that defines that name has its
-        module-level copy patched to the sandbox value for the duration of the
-        test (auto-stopped via ``addCleanup``). Modules that do not define a
-        given name are skipped, so a single call can cover a heterogeneous set
-        of consumers.
-        """
-        selected = names if names is not None else list(self.sandbox_paths)
-        for name in selected:
-            value = self.sandbox_paths[name]
-            for mod in modules:
-                if hasattr(mod, name):
-                    p = patch.object(mod, name, value)
-                    p.start()
-                    self.addCleanup(p.stop)

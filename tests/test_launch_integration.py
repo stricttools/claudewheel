@@ -15,7 +15,6 @@ from __future__ import annotations
 import unittest
 from unittest import mock
 
-from claudewheel import segment as segment_mod
 from claudewheel.binaries import BinaryLocator
 from claudewheel.launch import resolve_launch_config
 from claudewheel.segment import _discover_profiles
@@ -50,7 +49,6 @@ class LaunchIntegrationTests(SandboxHomeTestCase):
 
     def test_created_profile_is_discovered(self) -> None:
         """Segment discovery enumerates the created profile with auth metadata."""
-        self.patch_constants_across([segment_mod], ["PROFILES_DIR", "TOKENS_FILE"])
         result = _discover_profiles({}, {}, self.ws)
         self.assertIn("work", result.values)
         # Metadata carries auth-presence fields, never a config_dir.
