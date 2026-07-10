@@ -1,131 +1,137 @@
-"""Tests for theme auto-detection integration in ConfigManager."""
+"""Tests for theme auto-detection at the UI boundary (not during store construction).
+
+Phase 5.2 moved terminal-querying theme resolution OUT of ``AppConfigStore``
+construction. The store performs zero terminal I/O; ``resolve_theme_name`` (a
+module-level function) is called at the UI boundary, and ``store.load_theme``
+reads the resolved theme file. These tests split accordingly:
+
+- a construction test proving no terminal query happens when building the store;
+- boundary-resolution tests exercising ``resolve_theme_name`` + ``load_theme``
+  with terminal detection mocked.
+"""
 
 from __future__ import annotations
 
-import json
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 
-from claudewheel.config import ConfigManager
-from claudewheel.defaults import (
-    DEFAULT_CONFIG,
-    DEFAULT_OPTIONS,
-    DEFAULT_SEGMENTS,
-    DEFAULT_STATE,
-    DEFAULT_THEME_DARK,
-    DEFAULT_THEME_LIGHT,
-)
-from tests.wheelhelpers import (
-    patch_config_constants as _patch_constants,
-    setup_temp_config_dir as _setup_temp_config_dir,
-)
+from claudewheel.config import AppConfigStore, resolve_theme_name
+from claudewheel.workspace import Workspace
+from claudewheel.defaults import DEFAULT_CONFIG
+from tests.wheelhelpers import setup_temp_config_dir as _setup_temp_config_dir
 
 
-class ThemeAutoDetectionTests(unittest.TestCase):
-    """ConfigManager resolves 'auto' theme via terminal detection."""
+def _store(paths: dict[str, Path]) -> AppConfigStore:
+    return Workspace.open(paths["CONFIG_DIR"]).appconfig()
+
+
+class StoreConstructionNoTTYTests(unittest.TestCase):
+    """AppConfigStore construction performs no terminal I/O, even with theme=auto."""
 
     def setUp(self) -> None:
         self.tmp = Path(tempfile.mkdtemp())
 
-    def _make_cm(self, paths: dict[str, Path], detect_result: str | None = None) -> ConfigManager:
-        patches = _patch_constants(paths)
-        for p in patches:
-            p.start()
-            self.addCleanup(p.stop)
-        detect_patch = patch(
-            "claudewheel.config.detect_terminal_background",
-            return_value=detect_result,
-        )
-        detect_patch.start()
-        self.addCleanup(detect_patch.stop)
-        return ConfigManager()
+    def test_construction_never_queries_terminal(self) -> None:
+        """Building the store must not call detect_terminal_background."""
+        paths = _setup_temp_config_dir(self.tmp, config={**DEFAULT_CONFIG, "theme": "auto"})
+        spy = Mock(side_effect=AssertionError("terminal I/O attempted during construction"))
+        with patch("claudewheel.config.detect_terminal_background", spy):
+            _store(paths)
+        self.assertFalse(spy.called, "construction must not query the terminal")
+
+
+class BoundaryThemeResolutionTests(unittest.TestCase):
+    """resolve_theme_name + store.load_theme reproduce the old auto-detect behavior."""
+
+    def setUp(self) -> None:
+        self.tmp = Path(tempfile.mkdtemp())
+
+    def _resolve_and_load(self, paths: dict[str, Path], detect_result: str | None) -> dict:
+        """Build the store (no TTY), then resolve+load the theme at the boundary."""
+        store = _store(paths)
+        with patch("claudewheel.config.detect_terminal_background", return_value=detect_result):
+            name = resolve_theme_name(store.config.get("theme", "auto"))
+        return store.load_theme(name)
 
     def test_auto_theme_detects_dark(self) -> None:
-        """When config has theme=auto and detection returns dark, use dark theme."""
+        """theme=auto + detection 'dark' -> dark theme at the boundary."""
         paths = _setup_temp_config_dir(self.tmp, config={**DEFAULT_CONFIG, "theme": "auto"})
-        cm = self._make_cm(paths, detect_result="dark")
-        # The loaded theme should be the dark one
-        self.assertEqual(cm.theme["name"], "dark")
+        theme = self._resolve_and_load(paths, detect_result="dark")
+        self.assertEqual(theme["name"], "dark")
 
     def test_auto_theme_detects_light(self) -> None:
-        """When config has theme=auto and detection returns light, use light theme."""
+        """theme=auto + detection 'light' -> light theme at the boundary."""
         paths = _setup_temp_config_dir(self.tmp, config={**DEFAULT_CONFIG, "theme": "auto"})
-        cm = self._make_cm(paths, detect_result="light")
-        self.assertEqual(cm.theme["name"], "light")
+        theme = self._resolve_and_load(paths, detect_result="light")
+        self.assertEqual(theme["name"], "light")
 
     def test_auto_theme_detection_returns_none_falls_back_to_dark(self) -> None:
-        """When detection returns None (unsupported terminal), fall back to dark."""
+        """theme=auto + detection None (unsupported terminal) -> dark."""
         paths = _setup_temp_config_dir(self.tmp, config={**DEFAULT_CONFIG, "theme": "auto"})
-        cm = self._make_cm(paths, detect_result=None)
-        self.assertEqual(cm.theme["name"], "dark")
+        theme = self._resolve_and_load(paths, detect_result=None)
+        self.assertEqual(theme["name"], "dark")
 
     def test_explicit_dark_respected(self) -> None:
-        """When config explicitly says dark, detection is not called."""
+        """theme=dark: detection is not called; dark theme loaded."""
         paths = _setup_temp_config_dir(self.tmp, config={**DEFAULT_CONFIG, "theme": "dark"})
+        store = _store(paths)
         with patch("claudewheel.config.detect_terminal_background") as mock_detect:
-            patches = _patch_constants(paths)
-            for p in patches:
-                p.start()
-                self.addCleanup(p.stop)
-            cm = ConfigManager()
-            mock_detect.assert_not_called()
-        self.assertEqual(cm.theme["name"], "dark")
+            name = resolve_theme_name(store.config.get("theme", "auto"))
+        mock_detect.assert_not_called()
+        self.assertEqual(store.load_theme(name)["name"], "dark")
 
     def test_explicit_light_respected(self) -> None:
-        """When config explicitly says light, detection is not called."""
+        """theme=light: detection is not called; light theme loaded."""
         paths = _setup_temp_config_dir(self.tmp, config={**DEFAULT_CONFIG, "theme": "light"})
+        store = _store(paths)
         with patch("claudewheel.config.detect_terminal_background") as mock_detect:
-            patches = _patch_constants(paths)
-            for p in patches:
-                p.start()
-                self.addCleanup(p.stop)
-            cm = ConfigManager()
-            mock_detect.assert_not_called()
-        self.assertEqual(cm.theme["name"], "light")
+            name = resolve_theme_name(store.config.get("theme", "auto"))
+        mock_detect.assert_not_called()
+        self.assertEqual(store.load_theme(name)["name"], "light")
 
     def test_default_config_has_auto_theme(self) -> None:
         """DEFAULT_CONFIG sets theme to auto for new installations."""
         self.assertEqual(DEFAULT_CONFIG["theme"], "auto")
 
     def test_new_install_uses_auto_detection(self) -> None:
-        """A fresh install (DEFAULT_CONFIG) triggers auto-detection."""
-        paths = _setup_temp_config_dir(self.tmp)  # uses DEFAULT_CONFIG
-        cm = self._make_cm(paths, detect_result="light")
-        self.assertEqual(cm.theme["name"], "light")
+        """A fresh install (DEFAULT_CONFIG) triggers auto-detection at the boundary."""
+        paths = _setup_temp_config_dir(self.tmp)  # uses DEFAULT_CONFIG (theme=auto)
+        theme = self._resolve_and_load(paths, detect_result="light")
+        self.assertEqual(theme["name"], "light")
 
 
 class ResolveThemeNameTests(unittest.TestCase):
-    """ConfigManager._resolve_theme_name unit tests."""
+    """resolve_theme_name() module-function unit tests."""
 
     def test_dark_passthrough(self) -> None:
         with patch("claudewheel.config.detect_terminal_background") as m:
-            result = ConfigManager._resolve_theme_name("dark")
+            result = resolve_theme_name("dark")
         m.assert_not_called()
         self.assertEqual(result, "dark")
 
     def test_light_passthrough(self) -> None:
         with patch("claudewheel.config.detect_terminal_background") as m:
-            result = ConfigManager._resolve_theme_name("light")
+            result = resolve_theme_name("light")
         m.assert_not_called()
         self.assertEqual(result, "light")
 
     def test_auto_calls_detection(self) -> None:
         with patch("claudewheel.config.detect_terminal_background", return_value="dark") as m:
-            result = ConfigManager._resolve_theme_name("auto")
+            result = resolve_theme_name("auto")
         m.assert_called_once()
         self.assertEqual(result, "dark")
 
     def test_auto_with_none_falls_back_to_dark(self) -> None:
         with patch("claudewheel.config.detect_terminal_background", return_value=None):
-            result = ConfigManager._resolve_theme_name("auto")
+            result = resolve_theme_name("auto")
         self.assertEqual(result, "dark")
 
     def test_custom_theme_name_passthrough(self) -> None:
         """A custom theme name (e.g. 'solarized') passes through unchanged."""
         with patch("claudewheel.config.detect_terminal_background") as m:
-            result = ConfigManager._resolve_theme_name("solarized")
+            result = resolve_theme_name("solarized")
         m.assert_not_called()
         self.assertEqual(result, "solarized")
 
