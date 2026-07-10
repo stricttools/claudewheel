@@ -11,13 +11,12 @@ from pathlib import Path
 from .appdata import OptionsFile, StateFile
 from .fsutil import write_json_atomic
 from .shared_store import SharedStore
-from .tokens import TokenStore, TokenStoreError
+from .tokens import TokenStore
 
 __all__ = [
     "Profile",
     "ProfileStore",
     "DeletionResult",
-    "TokenStoreError",
 ]
 
 # Segment key under which profiles are registered in options.json.
