@@ -16,3 +16,4 @@
 {"id":"18c0fd3839a25836a34eb9078cf0475fa380bb1c8b84347a","commits":["80dc690bea705fd01b4cc324cef89e6340941b95"],"user_facing":false}
 {"id":"18c0fd38415e7ed4f753ba8c900b459ea8d157e9bfd74fc8","commits":["8b77c03e5595b4fa25f5611b92ea10389c665911"],"user_facing":false}
 {"id":"18c0fd4227c7a2744dc2c0a5f25d4919adb3db5feecc519f","commits":["f296ac261996082727a5432bd9708a8f37452a16"],"user_facing":false}
+{"id":"18c0fdbd94ceddbe75df6e6a60b244da832f075ef7585838","commits":["1e5be3d2425d9edddf056e7842ce4f83ff0236b5"],"user_facing":true,"description":"**resolve_profile no longer writes.** Profile resolution performs zero filesystem writes and no terminal queries \u2014 safe on read-only mounts and headless servers.","type":"fix"}
