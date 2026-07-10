@@ -429,9 +429,11 @@ class RenameRecoveryOnStartupTests(unittest.TestCase):
         state_file = self.cw_dir / "state.json"
         _write_json(state_file, {"last_config": {"profile": "broken"}})
 
-        # Patch all paths and suppress terminal detection
+        # Patch all paths and suppress terminal detection. Recovery now builds a
+        # ProfileStore from the config module's own path constants, so those are
+        # the ones to redirect (plus state_mod.STATE_FILE for the state helpers).
         from claudewheel import config as config_mod
-        from claudewheel import profile_ops, state as state_mod
+        from claudewheel import state as state_mod
 
         with (
             patch.object(config_mod, "CONFIG_DIR", self.cw_dir),
@@ -443,10 +445,9 @@ class RenameRecoveryOnStartupTests(unittest.TestCase):
             patch.object(config_mod, "HOOKS_DIR", self.cw_dir / "hooks"),
             patch.object(config_mod, "SHARED_SETTINGS_FILE", self.cw_dir / "shared-settings.json"),
             patch.object(config_mod, "SCRIPTS_DIR", self.cw_dir / "scripts"),
+            patch.object(config_mod, "PROFILES_DIR", self.profiles_dir),
+            patch.object(config_mod, "TOKENS_FILE", tokens_file),
             patch.object(config_mod, "detect_terminal_background", return_value="dark"),
-            patch.object(profile_ops, "PROFILES_DIR", self.profiles_dir),
-            patch.object(profile_ops, "OPTIONS_FILE", options_file),
-            patch.object(profile_ops, "TOKENS_FILE", tokens_file),
             patch.object(state_mod, "STATE_FILE", state_file),
         ):
             ConfigManager()

@@ -412,14 +412,17 @@ class AuthInterceptTests(unittest.TestCase):
             },
         )
 
+        from claudewheel.profile_info import config_dir_for
+
         with mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="authenticated") as mock_flow, \
              mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result) as mock_disc, \
              mock.patch.object(app_mod, "_update_auth_from_metadata") as mock_auth_update:
             outcome = app._intercept_unauth(seg)
 
         self.assertEqual(outcome, "authenticated")
+        # config_dir is derived from the profile name via config_dir_for.
         mock_flow.assert_called_once_with(
-            "~/.claudewheel/profiles/noauth", "noauth",
+            str(config_dir_for("noauth")), "noauth",
             app.theme, app.terminal,
             skip_label="Launch without auth")
         mock_disc.assert_called_once_with({}, {})
@@ -1112,21 +1115,37 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         report.active_sessions = 0
         return report
 
-    def _flow_mocks(self, report=None, selection="cancel", result=None):
-        """Patch the lazy imports inside _delete_profile_flow.
+    def _flow_mocks(self, report=None, selection="cancel", result=None,
+                    raises=None):
+        """Patch the lazy imports + Workspace inside _delete_profile_flow.
 
-        Returns (gather, core, run_selection, show_page) patchers.
+        Returns (gather, workspace, run_selection, show_page) patchers. The
+        mock ProfileStore is exposed as ``self._store`` so tests can assert on
+        ``self._store.delete``.
         """
-        from claudewheel.profile_ops import DeleteResult
+        from claudewheel.profile_store import DeletionResult
         if report is None:
             report = self._report()
-        if result is None:
-            result = DeleteResult(ok=True)
+
+        self._store = mock.MagicMock()
+        if raises is not None:
+            self._store.delete.side_effect = raises
+        else:
+            if result is None:
+                result = DeletionResult(
+                    removed_symlinks=0, removed_real=0,
+                    removed_from_options=True, removed_from_tokens=True,
+                    last_config_purged=True,
+                )
+            self._store.delete.return_value = result
+
+        fake_ws_cls = mock.MagicMock()
+        fake_ws_cls.default.return_value.profiles = self._store
+
         return (
             mock.patch("claudewheel.profile_info.gather_profile_info",
                        return_value=report),
-            mock.patch("claudewheel.profile_ops.delete_profile_core",
-                       return_value=result),
+            mock.patch.object(app_mod, "Workspace", new=fake_ws_cls),
             mock.patch("claudewheel.ui.run_selection",
                        return_value=selection),
             mock.patch("claudewheel.ui.show_page"),
@@ -1138,21 +1157,21 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         seg = _make_profile_segment(discovered=["work"])
         seg.selected_value = "+"
         app = self._make_app(seg)
-        gather, core, sel, page = self._flow_mocks()
-        with gather as mock_gather, core as mock_core, sel, page:
+        gather, ws, sel, page = self._flow_mocks()
+        with gather as mock_gather, ws, sel, page:
             app._handle_key("CTRL_D")
         mock_gather.assert_not_called()
-        mock_core.assert_not_called()
+        self._store.delete.assert_not_called()
 
     def test_guarded_on_empty_selection(self) -> None:
         seg = _make_profile_segment(discovered=["work"])
         seg.selected_value = None
         app = self._make_app(seg)
-        gather, core, sel, page = self._flow_mocks()
-        with gather as mock_gather, core as mock_core, sel, page:
+        gather, ws, sel, page = self._flow_mocks()
+        with gather as mock_gather, ws, sel, page:
             app._handle_key("DELETE")
         mock_gather.assert_not_called()
-        mock_core.assert_not_called()
+        self._store.delete.assert_not_called()
 
     def test_guarded_when_searching(self) -> None:
         seg = _make_profile_segment(discovered=["work"])
@@ -1160,30 +1179,30 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         seg.searchable = True
         seg.search_buffer = "wo"
         app = self._make_app(seg)
-        gather, core, sel, page = self._flow_mocks()
-        with gather as mock_gather, core as mock_core, sel, page:
+        gather, ws, sel, page = self._flow_mocks()
+        with gather as mock_gather, ws, sel, page:
             app._handle_key("CTRL_D")
         mock_gather.assert_not_called()
-        mock_core.assert_not_called()
+        self._store.delete.assert_not_called()
         self.assertEqual(seg.search_buffer, "wo")  # buffer untouched
 
     def test_ignored_on_other_segments(self) -> None:
         seg = Segment(key="model", label="Model", options=["opus", "sonnet"])
         seg.select_value("opus")
         app = self._make_app(seg)
-        gather, core, sel, page = self._flow_mocks()
-        with gather as mock_gather, core as mock_core, sel, page:
+        gather, ws, sel, page = self._flow_mocks()
+        with gather as mock_gather, ws, sel, page:
             result = app._handle_key("CTRL_D")
         mock_gather.assert_not_called()
-        mock_core.assert_not_called()
+        self._store.delete.assert_not_called()
         self.assertIsNone(result)  # not a quit, not a launch
 
     def test_delete_key_triggers_flow_like_ctrl_d(self) -> None:
         seg = _make_profile_segment(discovered=["work"])
         seg.select_value("work")
         app = self._make_app(seg)
-        gather, core, sel, page = self._flow_mocks(selection="cancel")
-        with gather as mock_gather, core, sel, page:
+        gather, ws, sel, page = self._flow_mocks(selection="cancel")
+        with gather as mock_gather, ws, sel, page:
             app._handle_key("DELETE")
         mock_gather.assert_called_once_with("work")
 
@@ -1196,10 +1215,10 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         report = self._report(danger=True,
                               shared_dirs={"projects": "real-dir",
                                            "todos": "intact"})
-        gather, core, sel, page = self._flow_mocks(report=report)
-        with gather, core as mock_core, sel as mock_sel, page as mock_page:
+        gather, ws, sel, page = self._flow_mocks(report=report)
+        with gather, ws, sel as mock_sel, page as mock_page:
             app._handle_key("CTRL_D")
-        mock_core.assert_not_called()
+        self._store.delete.assert_not_called()
         mock_sel.assert_not_called()
         mock_page.assert_called_once()
         title, lines = mock_page.call_args[0][0], mock_page.call_args[0][1]
@@ -1215,28 +1234,28 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         seg = _make_profile_segment(discovered=["work"])
         seg.select_value("work")
         app = self._make_app(seg)
-        gather, core, sel, page = self._flow_mocks(selection="cancel")
-        with gather, core as mock_core, sel, page:
+        gather, ws, sel, page = self._flow_mocks(selection="cancel")
+        with gather, ws, sel, page:
             app._handle_key("CTRL_D")
-        mock_core.assert_not_called()
+        self._store.delete.assert_not_called()
         self.assertEqual(seg.value, "work")
 
     def test_escape_from_confirm_does_not_delete(self) -> None:
         seg = _make_profile_segment(discovered=["work"])
         seg.select_value("work")
         app = self._make_app(seg)
-        gather, core, sel, page = self._flow_mocks(selection=None)
-        with gather, core as mock_core, sel, page:
+        gather, ws, sel, page = self._flow_mocks(selection=None)
+        with gather, ws, sel, page:
             app._handle_key("CTRL_D")
-        mock_core.assert_not_called()
+        self._store.delete.assert_not_called()
 
     def test_confirm_defaults_to_cancel(self) -> None:
         """Cancel is first in the options and pre-focused via initial_key."""
         seg = _make_profile_segment(discovered=["work"])
         seg.select_value("work")
         app = self._make_app(seg)
-        gather, core, sel, page = self._flow_mocks(selection="cancel")
-        with gather, core, sel as mock_sel, page:
+        gather, ws, sel, page = self._flow_mocks(selection="cancel")
+        with gather, ws, sel as mock_sel, page:
             app._handle_key("CTRL_D")
         args, kwargs = mock_sel.call_args
         options = args[1]
@@ -1245,27 +1264,28 @@ class ProfileDeleteKeyTests(unittest.TestCase):
 
     # -- delete + cleanup -----------------------------------------------------
 
-    def test_confirm_delete_calls_core_without_force_flags(self) -> None:
+    def test_confirm_delete_calls_store_without_force(self) -> None:
         seg = _make_profile_segment(discovered=["work"])
         seg.select_value("work")
         app = self._make_app(seg)
-        gather, core, sel, page = self._flow_mocks(selection="delete")
-        with gather, core as mock_core, sel, page:
+        gather, ws, sel, page = self._flow_mocks(selection="delete")
+        with gather, ws, sel, page:
             app._handle_key("CTRL_D")
-        mock_core.assert_called_once_with("work")
+        # TUI never forces: no allow_data_destruction, running is pre-checked.
+        self._store.delete.assert_called_once_with("work")
 
     def test_success_runs_all_cleanup_steps(self) -> None:
         seg = _make_profile_segment(discovered=["work", "other"],
                                     pinned=["work"])
         seg.select_value("work")
-        seg.state.metadata = {"work": {"config_dir": "/x"},
-                              "other": {"config_dir": "/y"}}
+        seg.state.metadata = {"work": {"has_token": True},
+                              "other": {"has_token": True}}
         state = {"last_config": {"profile": "work", "model": "opus"}}
         app = self._make_app(seg, state=state)
-        gather, core, sel, page = self._flow_mocks(selection="delete")
-        with gather, core, sel, page:
+        gather, ws, sel, page = self._flow_mocks(selection="delete")
+        with gather, ws, sel, page:
             app._handle_key("CTRL_D")
-        # 1. last_config purged in memory (disk purge happened in the core)
+        # 1. last_config purged in memory (disk purge happened in the store)
         self.assertNotIn("profile", state["last_config"])
         self.assertEqual(state["last_config"]["model"], "opus")
         # 2. unpinned
@@ -1286,8 +1306,8 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         seg.select_value("work")
         state = {"last_config": {"profile": "other"}}
         app = self._make_app(seg, state=state)
-        gather, core, sel, page = self._flow_mocks(selection="delete")
-        with gather, core, sel, page:
+        gather, ws, sel, page = self._flow_mocks(selection="delete")
+        with gather, ws, sel, page:
             app._handle_key("CTRL_D")
         self.assertEqual(state["last_config"]["profile"], "other")
 
@@ -1300,8 +1320,8 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         seg.select_value("work")
         state = {"last_config": {"profile": "work", "model": "opus"}}
         app = self._make_app(seg, state=state)
-        gather, core, sel, page = self._flow_mocks(selection="delete")
-        with gather, core, sel, page:
+        gather, ws, sel, page = self._flow_mocks(selection="delete")
+        with gather, ws, sel, page:
             app._handle_key("CTRL_D")
 
         # Simulate the app's later wholesale save: selections come from the
@@ -1313,38 +1333,41 @@ class ProfileDeleteKeyTests(unittest.TestCase):
 
     # -- refusals -------------------------------------------------------------
 
-    def test_refusal_flashes_reason_and_skips_cleanup(self) -> None:
-        from claudewheel.profile_ops import DeleteResult
-
+    def test_running_profile_blocked_and_skips_cleanup(self) -> None:
+        """A profile with active sessions is refused (TUI policy) before the
+        store is touched; no cleanup happens."""
         seg = _make_profile_segment(discovered=["work"])
         seg.select_value("work")
         state = {"last_config": {"profile": "work"}}
         app = self._make_app(seg, state=state)
-        refusal = DeleteResult(ok=False, refusal_reason="running")
-        gather, core, sel, page = self._flow_mocks(selection="delete",
-                                                   result=refusal)
-        with gather, core, sel, page:
+        report = self._report()
+        report.active_sessions = 1
+        gather, ws, sel, page = self._flow_mocks(report=report,
+                                                 selection="delete")
+        with gather, ws, sel, page:
             app._handle_key("CTRL_D")
         self.assertIn("active sessions", app._flash)
+        self._store.delete.assert_not_called()
         # No cleanup: selection and last_config untouched
         self.assertEqual(seg.value, "work")
         self.assertEqual(state["last_config"]["profile"], "work")
         app._refresh_profile_segment.assert_not_called()
 
-    def test_data_destruction_race_flashes_dirs(self) -> None:
-        """If real data appears between confirm and core (race), flash it."""
-        from claudewheel.profile_ops import DeleteResult
-
+    def test_store_refusal_flashes_message(self) -> None:
+        """A ValueError refusal from the store surfaces as a flash; no cleanup."""
         seg = _make_profile_segment(discovered=["work"])
         seg.select_value("work")
-        app = self._make_app(seg)
-        refusal = DeleteResult(ok=False, refusal_reason="data-destruction",
-                               at_risk_dirs=["projects"])
-        gather, core, sel, page = self._flow_mocks(selection="delete",
-                                                   result=refusal)
-        with gather, core, sel, page:
+        state = {"last_config": {"profile": "work"}}
+        app = self._make_app(seg, state=state)
+        gather, ws, sel, page = self._flow_mocks(
+            selection="delete",
+            raises=ValueError("Profile 'work' holds REAL data at: projects"))
+        with gather, ws, sel, page:
             app._handle_key("CTRL_D")
         self.assertIn("projects", app._flash)
+        self.assertEqual(seg.value, "work")
+        self.assertEqual(state["last_config"]["profile"], "work")
+        app._refresh_profile_segment.assert_not_called()
 
 
 if __name__ == "__main__":

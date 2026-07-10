@@ -1386,31 +1386,75 @@ class ShowProfileCommandTests(unittest.TestCase):
 
 
 class DeleteProfileHandlerTests(unittest.TestCase):
-    """_handle_delete_profile wires both force flags to do_delete_profile."""
+    """_handle_delete_profile: running check (CLI policy) + ProfileStore.delete."""
+
+    def _ok_result(self):
+        from claudewheel.profile_store import DeletionResult
+        return DeletionResult(
+            removed_symlinks=1, removed_real=2,
+            removed_from_options=True, removed_from_tokens=True,
+            last_config_purged=False,
+        )
 
     def test_flags_wire_through(self) -> None:
-        with mock.patch("claudewheel.profile_ops.do_delete_profile",
-                        return_value=0) as mock_del:
+        """--force-delete skips the running check; --force-delete-data maps to
+        allow_data_destruction on ProfileStore.delete."""
+        mock_store = mock.MagicMock()
+        mock_store.delete.return_value = self._ok_result()
+        with mock.patch.object(cli, "_profile_store", return_value=mock_store), \
+             mock.patch("claudewheel.profile_ops._is_profile_running") as mock_run, \
+             redirect_stdout(io.StringIO()):
             rc = cli._handle_delete_profile(
                 "work", force_delete=True, force_delete_data=True)
         self.assertEqual(rc, 0)
-        mock_del.assert_called_once_with("work", force=True, force_data=True)
+        mock_run.assert_not_called()  # force-delete skips the running check
+        mock_store.delete.assert_called_once_with(
+            "work", allow_data_destruction=True)
 
     def test_default_flags_off(self) -> None:
-        with mock.patch("claudewheel.profile_ops.do_delete_profile",
-                        return_value=0) as mock_del:
+        """No force flags: running check runs, allow_data_destruction is False."""
+        mock_store = mock.MagicMock()
+        mock_store.delete.return_value = self._ok_result()
+        with mock.patch.object(cli, "_profile_store", return_value=mock_store), \
+             mock.patch("claudewheel.profile_ops._is_profile_running",
+                        return_value=False) as mock_run, \
+             redirect_stdout(io.StringIO()):
             rc = cli._handle_delete_profile(
                 "work", force_delete=False, force_delete_data=False)
         self.assertEqual(rc, 0)
-        mock_del.assert_called_once_with("work", force=False, force_data=False)
+        mock_run.assert_called_once_with("work")
+        mock_store.delete.assert_called_once_with(
+            "work", allow_data_destruction=False)
 
-    def test_nonzero_rc_exits(self) -> None:
-        with mock.patch("claudewheel.profile_ops.do_delete_profile",
-                        return_value=1):
+    def test_running_profile_blocked_without_force(self) -> None:
+        """A running profile is refused (CLI policy) unless --force-delete."""
+        mock_store = mock.MagicMock()
+        err = io.StringIO()
+        with mock.patch.object(cli, "_profile_store", return_value=mock_store), \
+             mock.patch("claudewheel.profile_ops._is_profile_running",
+                        return_value=True), \
+             redirect_stderr(err):
             with self.assertRaises(SystemExit) as ctx:
                 cli._handle_delete_profile(
                     "work", force_delete=False, force_delete_data=False)
         self.assertEqual(ctx.exception.code, 1)
+        self.assertIn("active sessions", err.getvalue())
+        mock_store.delete.assert_not_called()
+
+    def test_store_refusal_exits_1(self) -> None:
+        """A ValueError refusal from the store prints and exits 1."""
+        mock_store = mock.MagicMock()
+        mock_store.delete.side_effect = ValueError("Profile 'work' not found")
+        err = io.StringIO()
+        with mock.patch.object(cli, "_profile_store", return_value=mock_store), \
+             mock.patch("claudewheel.profile_ops._is_profile_running",
+                        return_value=False), \
+             redirect_stderr(err):
+            with self.assertRaises(SystemExit) as ctx:
+                cli._handle_delete_profile(
+                    "work", force_delete=False, force_delete_data=False)
+        self.assertEqual(ctx.exception.code, 1)
+        self.assertIn("not found", err.getvalue())
 
 
 class ProfileGroupDispatchTests(unittest.TestCase):
@@ -2068,22 +2112,23 @@ class RenameProfileHandlerTests(unittest.TestCase):
             cli._handle_rename_profile("active", "newname")
         self.assertEqual(ctx.exception.code, 1)
 
-    def test_success_calls_rename_profile(self) -> None:
+    def test_success_calls_store_rename(self) -> None:
         (self.profiles_dir / "old").mkdir()
         self._write_options(["old"])
         self.tokens_file.write_text("{}")
         buf = io.StringIO()
+        mock_store = mock.MagicMock()
         with (
             mock.patch("claudewheel.cli.PROFILES_DIR",
                        self.profiles_dir, create=True),
             mock.patch("claudewheel.constants.PROFILES_DIR", self.profiles_dir),
             mock.patch("claudewheel.profile_ops._is_profile_running", return_value=False),
-            mock.patch("claudewheel.profile_ops.rename_profile") as mock_rename,
+            mock.patch.object(cli, "_profile_store", return_value=mock_store),
             redirect_stdout(buf),
         ):
             rc = cli._handle_rename_profile("old", "new-name")
         self.assertEqual(rc, 0)
-        mock_rename.assert_called_once_with("old", "new-name")
+        mock_store.rename.assert_called_once_with("old", "new-name")
         self.assertIn("Renamed", buf.getvalue())
 
     def test_token_conflict_exits(self) -> None:

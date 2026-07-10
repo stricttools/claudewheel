@@ -300,53 +300,61 @@ class ClaudeConfigScanDiscoveryTests(unittest.TestCase):
     """Tests for _discover_profiles."""
 
     def test_profiles_returned_when_found(self) -> None:
-        """When discover_profiles() finds profiles, they are returned."""
+        """When the store enumerates profiles, their names are returned."""
         from unittest.mock import patch
-        from claudewheel.discovery import ProfileInfo
+        from claudewheel.profile_store import Profile
 
         mock_profiles = [
-            ProfileInfo(name="work", path=Path("/fake"), has_credentials=True, has_token=False),
-            ProfileInfo(name="personal", path=Path("/fake"), has_credentials=True, has_token=False),
+            Profile(name="work", path=Path("/fake/work"), has_credentials=True, has_token=False),
+            Profile(name="personal", path=Path("/fake/personal"), has_credentials=True, has_token=False),
         ]
 
         config = {
             "values": ["stale-profile"],
             "discovery": {"type": "claude_config_scan"},
         }
-        with patch("claudewheel.segment.discover_profiles", return_value=mock_profiles):
+        with patch("claudewheel.segment.ProfileStore") as MockStore:
+            MockStore.return_value.enumerate.return_value = mock_profiles
             result = _discover_profiles(config, state={})
         self.assertEqual(result.values, ["work", "personal"])
 
     def test_empty_when_no_profiles_found(self) -> None:
-        """When discover_profiles() returns empty, values are empty."""
+        """When the store enumerates nothing, values are empty."""
         from unittest.mock import patch
 
         config = {
             "values": ["stale-profile"],
             "discovery": {"type": "claude_config_scan"},
         }
-        with patch("claudewheel.segment.discover_profiles", return_value=[]):
+        with patch("claudewheel.segment.ProfileStore") as MockStore:
+            MockStore.return_value.enumerate.return_value = []
             result = _discover_profiles(config, state={})
         self.assertEqual(result.values, [])
 
-    def test_metadata_returned(self) -> None:
-        """Discovery returns metadata mapping profile names to config dirs."""
+    def test_metadata_carries_auth_fields_only(self) -> None:
+        """Metadata carries has_token/has_credentials -- never a config_dir
+        (profile identity comes from the store, not persisted metadata)."""
         from unittest.mock import patch
-        from claudewheel.discovery import ProfileInfo
+        from claudewheel.profile_store import Profile
 
         mock_profiles = [
-            ProfileInfo(name="default", path=Path("/fake"), has_credentials=True, has_token=False),
-            ProfileInfo(name="myprof", path=Path("/fake"), has_credentials=True, has_token=False),
+            Profile(name="default", path=Path("/fake/default"), has_credentials=True, has_token=False),
+            Profile(name="myprof", path=Path("/fake/myprof"), has_credentials=False, has_token=True),
         ]
 
         config = {
             "values": [],
             "discovery": {"type": "claude_config_scan"},
         }
-        with patch("claudewheel.segment.discover_profiles", return_value=mock_profiles):
+        with patch("claudewheel.segment.ProfileStore") as MockStore:
+            MockStore.return_value.enumerate.return_value = mock_profiles
             result = _discover_profiles(config, state={})
-        self.assertEqual(result.metadata["default"]["config_dir"], "~/.claude")
-        self.assertEqual(result.metadata["myprof"]["config_dir"], "~/.claudewheel/profiles/myprof")
+        self.assertNotIn("config_dir", result.metadata["default"])
+        self.assertNotIn("config_dir", result.metadata["myprof"])
+        self.assertEqual(result.metadata["default"]["has_credentials"], True)
+        self.assertEqual(result.metadata["default"]["has_token"], False)
+        self.assertEqual(result.metadata["myprof"]["has_credentials"], False)
+        self.assertEqual(result.metadata["myprof"]["has_token"], True)
 
 
 class GhAuthDiscoveryTests(unittest.TestCase):

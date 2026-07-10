@@ -9,7 +9,7 @@ import strictcli
 from strictcli import App, Arg, CoRequired, Flag, FlagSet, MutexGroup
 
 from . import __version__
-from .constants import CONFIG_DIR, OPTIONS_FILE, SCRIPTS_DIR, VERSIONS_DIR, CLAUDE_SYMLINK, SHARED_DIR, TOKENS_FILE, encode_path
+from .constants import CONFIG_DIR, OPTIONS_FILE, PROFILES_DIR, SCRIPTS_DIR, SKILLS_DIR, STATE_FILE, VERSIONS_DIR, CLAUDE_SYMLINK, SHARED_DIR, TOKENS_FILE, encode_path
 from .segment import version_sort_key
 
 # Passthrough args after "--" are stashed here by main() before strictcli sees argv.
@@ -159,16 +159,39 @@ def _write_tier_stub(profile: str | None, config_dir: str | None) -> None:
         pass
 
 
+def _profile_store():
+    """Build a fully-wired ProfileStore from cli-module path constants.
+
+    Read APIs work without the write stores, but delete/rename need them, so
+    every store this helper hands out is wired for writes. Tests patch the cli
+    module constants (and Path.home) to redirect it at a sandbox.
+    """
+    from pathlib import Path
+    from .appdata import OptionsFile, StateFile
+    from .profile_store import ProfileStore
+    from .shared_store import SharedStore
+    from .tokens import TokenStore
+
+    return ProfileStore(
+        PROFILES_DIR, Path.home() / ".claude", TokenStore(TOKENS_FILE),
+        shared=SharedStore(SHARED_DIR, SKILLS_DIR),
+        options=OptionsFile(OPTIONS_FILE),
+        state=StateFile(STATE_FILE),
+    )
+
+
 def _do_launch_sequence(
     cfg: object, selections: dict, extra_flags: list[str] | None = None,
     interactive: bool = True,
     metadata: dict[str, dict[str, dict]] | None = None,
 ) -> None:
     """Run health check, hooks, save state, resolve, and exec. Does not return on success."""
+    from pathlib import Path
     from .binaries import BinaryLocator
     from .health import run_health_check, print_health_report
     from .hooks import run_hooks
     from .launch import resolve_launch_config, do_launch
+    from .profile_store import ProfileStore
     from .state import record_inode, save_launch_state
     from .tokens import TokenStore
 
@@ -194,16 +217,25 @@ def _do_launch_sequence(
     if interactive:
         save_launch_state(cfg, selections)
         record_inode(selections.get("directory", os.getcwd()))
+    # Read-side ProfileStore is enough: env() supplies both config dir and
+    # token. A stale/unknown profile name raises ValueError (the hard-error
+    # contract); a corrupt tokens.json raises TokenStoreError. Both are caught
+    # here so the user sees a clean message, never a traceback.
+    profiles = ProfileStore(PROFILES_DIR, Path.home() / ".claude",
+                            TokenStore(TOKENS_FILE))
     try:
         cwd, argv, env = resolve_launch_config(
             selections, cfg.options_def, cfg.config.get("default_flags", []),
             locator=BinaryLocator.default(),
-            token_store=TokenStore(TOKENS_FILE),
+            profiles=profiles,
             extra_flags=extra_flags,
             metadata=metadata,
         )
         _write_tier_stub(selections.get("profile"), env.get("CLAUDE_CONFIG_DIR"))
         do_launch(cwd, argv, env)
+    except ValueError as e:
+        print(f"Launch failed: {e}", file=sys.stderr)
+        sys.exit(1)
     except OSError as e:
         print(f"Launch failed: {e}", file=sys.stderr)
         sys.exit(1)
@@ -352,10 +384,40 @@ def _handle_new_profile() -> int:
 @strictcli.flag("force-delete", type=bool, help="force deletion even if sessions appear active; skips the safety check")
 @strictcli.flag("force-delete-data", type=bool, help="delete even when shared-dir names hold REAL data instead of symlinks; this DESTROYS that data (e.g. conversation history)")
 def _handle_delete_profile(name: str, force_delete: bool, force_delete_data: bool) -> int:
-    from .profile_ops import do_delete_profile
-    rc = do_delete_profile(name, force=force_delete, force_data=force_delete_data)
-    if rc != 0:
-        sys.exit(rc)
+    """Delete a profile via ProfileStore. The running check is CLI policy."""
+    from .profile_ops import _is_profile_running
+
+    # Running check is CLI policy (ProfileStore.delete does not enforce it).
+    if not force_delete and _is_profile_running(name):
+        print(
+            f"Profile '{name}' appears to have active sessions. "
+            "Use --force-delete to delete anyway.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    store = _profile_store()
+    try:
+        result = store.delete(name, allow_data_destruction=force_delete_data)
+    except ValueError as e:
+        # Covers default / not-found / data-destruction refusals.
+        print(str(e), file=sys.stderr)
+        sys.exit(1)
+
+    print(f"Deleting profile '{name}'...")
+    print(f"  Removed dir: {result.removed_symlinks} symlinks unlinked, "
+          f"{result.removed_real} real entries removed")
+    if result.removed_from_options:
+        print("  Removed from options.json")
+    else:
+        print("  Not found in options.json (already clean)")
+    if result.removed_from_tokens:
+        print("  Removed from tokens.json")
+    else:
+        print("  Not found in tokens.json (already clean)")
+    if result.last_config_purged:
+        print("  Cleared last_config profile reference in state.json")
+    print(f"Profile '{name}' deleted.")
     return 0
 
 
@@ -376,10 +438,16 @@ def _handle_show_profile(name: str) -> int:
 
 
 def _handle_rename_profile(old: str, new: str) -> int:
-    """Rename a profile: validate inputs, then delegate to core rename logic."""
+    """Rename a profile: validate inputs, then delegate to ProfileStore.rename.
+
+    The charset, name-collision (options + tokens), and running checks stay
+    here as CLI policy -- they produce clean, targeted messages. The store
+    enforces dir-existence and the 'default' reservation as a backstop; its
+    ValueErrors are mapped to the same error-print + exit-1 style.
+    """
     import re
     from .constants import PROFILES_DIR, TOKENS_FILE
-    from .profile_ops import _is_profile_running, rename_profile
+    from .profile_ops import _is_profile_running
 
     # Validate old exists
     old_dir = PROFILES_DIR / old
@@ -432,7 +500,7 @@ def _handle_rename_profile(old: str, new: str) -> int:
 
     # Perform rename
     try:
-        rename_profile(old, new)
+        _profile_store().rename(old, new)
     except (ValueError, OSError) as e:
         print(f"Rename failed: {e}", file=sys.stderr)
         sys.exit(1)

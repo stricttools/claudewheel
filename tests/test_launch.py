@@ -1,9 +1,10 @@
 """Tests for launch.py resolve_launch_config.
 
 Covers disallowed-tools CLI flags, version selection / fallback via a
-BinaryLocator, and OAuth token resolution / corruption handling via a
-TokenStore. Both concerns are injected as explicit arguments pointed at
-tmpdir paths -- no module-constant patching.
+BinaryLocator, and profile resolution (config dir + OAuth token + the
+hard-error contract for stale names) via an injected ProfileStore. Every
+concern is injected as an explicit argument pointed at tmpdir paths -- no
+module-constant patching.
 """
 
 from __future__ import annotations
@@ -17,11 +18,12 @@ from unittest import mock
 from claudewheel.binaries import BinaryLocator
 from claudewheel.defaults import DISALLOWED_TOOLS
 from claudewheel.launch import resolve_launch_config
+from claudewheel.profile_store import ProfileStore
 from claudewheel.tokens import TokenStore, TokenStoreError
 
 
 class ResolveLaunchConfigTestBase(unittest.TestCase):
-    """Base class: a tmpdir-backed BinaryLocator and TokenStore per test."""
+    """Base class: tmpdir-backed BinaryLocator + ProfileStore per test."""
 
     def setUp(self) -> None:
         super().setUp()
@@ -33,12 +35,25 @@ class ResolveLaunchConfigTestBase(unittest.TestCase):
         self.versions_dir.mkdir()
         self.symlink_path = self.tmp / "claude"
         self.tokens_file = self.tmp / "tokens.json"
+        self.profiles_dir = self.tmp / "profiles"
+        self.profiles_dir.mkdir()
+        self.claude_dir = self.tmp / ".claude"
 
         self.locator = BinaryLocator(
             versions_dir=self.versions_dir,
             claude_symlink=self.symlink_path,
         )
         self.token_store = TokenStore(self.tokens_file)
+        self.profiles = ProfileStore(
+            self.profiles_dir, self.claude_dir, self.token_store,
+        )
+
+    def _make_profile(self, name: str) -> Path:
+        """Create a discoverable profile dir under profiles_dir."""
+        pdir = self.profiles_dir / name
+        pdir.mkdir()
+        (pdir / "settings.json").write_text("{}")
+        return pdir
 
     def _resolve(
         self,
@@ -47,7 +62,7 @@ class ResolveLaunchConfigTestBase(unittest.TestCase):
         default_flags: list[str] | None = None,
         extra_flags: list[str] | None = None,
         locator: BinaryLocator | None = None,
-        token_store: TokenStore | None = None,
+        profiles: ProfileStore | None = None,
     ) -> tuple[str, list[str], dict[str, str]]:
         """Call resolve_launch_config with fetch_gh_token mocked out."""
         if selections is None:
@@ -61,7 +76,7 @@ class ResolveLaunchConfigTestBase(unittest.TestCase):
             return resolve_launch_config(
                 selections, options_def, default_flags,
                 locator=locator or self.locator,
-                token_store=token_store or self.token_store,
+                profiles=profiles or self.profiles,
                 extra_flags=extra_flags,
             )
 
@@ -131,11 +146,48 @@ class ResolveBinaryPathTests(ResolveLaunchConfigTestBase):
         self.assertIn("not on disk", str(ctx.exception))
 
 
+class ResolveProfileConfigDirTests(ResolveLaunchConfigTestBase):
+    """Profile selection maps to CLAUDE_CONFIG_DIR via the ProfileStore."""
+
+    def test_no_profile_uses_default_config_dir(self) -> None:
+        """No profile -> the store's 'default' path (claude_dir), no token."""
+        _, _, env = self._resolve(selections={"profile": None})
+        self.assertEqual(env["CLAUDE_CONFIG_DIR"], str(self.claude_dir))
+        self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN", env)
+
+    def test_selected_profile_sets_its_config_dir(self) -> None:
+        """A discovered profile resolves to profiles_dir/<name>."""
+        pdir = self._make_profile("work")
+        _, _, env = self._resolve(selections={"profile": "work"})
+        self.assertEqual(env["CLAUDE_CONFIG_DIR"], str(pdir))
+
+    def test_stale_profile_name_raises_valueerror(self) -> None:
+        """A profile that no longer exists raises ValueError listing the available
+        names -- the hard-error contract that replaced the silent ~/.claude fallback."""
+        # No profile dirs, empty tokens -> nothing discoverable.
+        with self.assertRaises(ValueError) as ctx:
+            self._resolve(selections={"profile": "ghost"})
+        msg = str(ctx.exception)
+        self.assertIn("ghost", msg)
+        self.assertIn("Available", msg)
+
+    def test_stale_profile_lists_available_names(self) -> None:
+        """The error names the profiles that DO exist."""
+        self._make_profile("work")
+        self._make_profile("personal")
+        with self.assertRaises(ValueError) as ctx:
+            self._resolve(selections={"profile": "ghost"})
+        msg = str(ctx.exception)
+        self.assertIn("work", msg)
+        self.assertIn("personal", msg)
+
+
 class ResolveTokenTests(ResolveLaunchConfigTestBase):
-    """OAuth token resolution through the injected TokenStore."""
+    """OAuth token resolution through the injected ProfileStore."""
 
     def test_token_from_store_sets_env(self) -> None:
         """A token present for the profile is written to CLAUDE_CODE_OAUTH_TOKEN."""
+        self._make_profile("work")
         self.tokens_file.write_text(json.dumps({"work": "tok-abc"}))
 
         _, _, env = self._resolve(selections={"profile": "work"})
@@ -143,6 +195,7 @@ class ResolveTokenTests(ResolveLaunchConfigTestBase):
 
     def test_missing_tokens_file_yields_no_token(self) -> None:
         """A missing tokens.json is not an error and sets no OAuth token env."""
+        self._make_profile("work")
         self.assertFalse(self.tokens_file.exists())
 
         _, _, env = self._resolve(selections={"profile": "work"})
@@ -150,6 +203,7 @@ class ResolveTokenTests(ResolveLaunchConfigTestBase):
 
     def test_absent_entry_yields_no_token(self) -> None:
         """A tokens.json without the profile's entry sets no OAuth token env."""
+        self._make_profile("work")
         self.tokens_file.write_text(json.dumps({"other": "tok"}))
 
         _, _, env = self._resolve(selections={"profile": "work"})

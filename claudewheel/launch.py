@@ -8,7 +8,7 @@ from pathlib import Path
 
 from .binaries import BinaryLocator
 from .defaults import DISALLOWED_TOOLS
-from .tokens import TokenStore
+from .profile_store import ProfileStore
 
 
 def fetch_gh_token(account: str) -> str | None:
@@ -30,34 +30,39 @@ def resolve_launch_config(
     options_def: dict,
     default_flags: list[str],
     locator: BinaryLocator,
-    token_store: TokenStore,
+    profiles: ProfileStore,
     extra_flags: list[str] | None = None,
     metadata: dict[str, dict[str, dict]] | None = None,
 ) -> tuple[str, list[str], dict[str, str]]:
     """Build (cwd, argv, env) for os.execvpe from TUI selections.
 
     Maps segment values to their concrete effects:
-    - profile -> CLAUDE_CONFIG_DIR env var (from metadata or options.json)
+    - profile -> CLAUDE_CONFIG_DIR + OAuth token env vars via *profiles*
     - github -> GH_TOKEN env var (fetched live via gh CLI)
     - version -> binary path (under ~/.local/share/claude/versions/)
     - directory -> os.chdir target
     - mcp -> --strict-mcp-config flag (if "strict")
     - permissions -> --dangerously-skip-permissions or --permission-mode=X
 
-    When *metadata* is provided (TUI path), use it for profile/model lookups.
-    When None (skip-TUI path), fall back to reading from *options_def*.
+    The selected profile is resolved through the injected *profiles*
+    ProfileStore -- the single source of profile identity. A profile that no
+    longer exists raises :class:`ValueError` (the hard-error contract that
+    replaced the old silent ~/.claude fallback); a corrupt tokens.json raises
+    :class:`TokenStoreError`. No profile selected falls back to the store's
+    "default" path (~/.claude) with no token.
+
+    When *metadata* is provided (TUI path), use it for model lookups. When
+    None (skip-TUI path), fall back to reading from *options_def*.
     """
-    # 1. Profile -> config dir
+    # 1. Profile -> config dir + OAuth token (via ProfileStore; no metadata).
     profile = selections.get("profile")
-    config_dir = str(Path("~/.claude").expanduser())
+    profile_env: dict[str, str] = {}
     if profile:
-        if metadata and "profile" in metadata:
-            meta = metadata["profile"]
-        else:
-            meta = options_def.get("profile", {}).get("metadata", {})
-        profile_meta = meta.get(profile, {})
-        if "config_dir" in profile_meta:
-            config_dir = str(Path(profile_meta["config_dir"]).expanduser())
+        # Unknown/stale name -> ValueError; corrupt tokens.json -> TokenStoreError.
+        profile_env = profiles.env(profile)
+        config_dir = profile_env["CLAUDE_CONFIG_DIR"]
+    else:
+        config_dir = str(profiles.path_for("default"))
 
     # 2. GH token
     gh_account = selections.get("github")
@@ -116,13 +121,12 @@ def resolve_launch_config(
     env["CLAUDE_CONFIG_DIR"] = config_dir
     if gh_token:
         env["GH_TOKEN"] = gh_token
-    # Long-lived OAuth token (from tokens.json, keyed by profile name).
-    # A corrupt tokens.json raises TokenStoreError (surfaced cleanly by the
-    # CLI launch handler); a missing file or absent entry yields no token.
-    if profile:
-        token = token_store.token_for(profile)
-        if token:
-            env["CLAUDE_CODE_OAUTH_TOKEN"] = token
+    # Long-lived OAuth token, supplied by ProfileStore.env() alongside the
+    # config dir. env() adds CLAUDE_CODE_OAUTH_TOKEN only when the store yields
+    # a truthy token for the profile; a missing file or absent entry yields none.
+    oauth_token = profile_env.get("CLAUDE_CODE_OAUTH_TOKEN")
+    if oauth_token:
+        env["CLAUDE_CODE_OAUTH_TOKEN"] = oauth_token
 
     # 9. Argv
     argv = [binary_path] + default_flags + mcp_flags + perm_flags + model_flags + disallowed_flags

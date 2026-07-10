@@ -11,8 +11,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .config import ConfigManager
-from .discovery import discover_profiles
+from .constants import PROFILES_DIR, TOKENS_FILE
 from .fuzzy import fuzzy_rank
+from .profile_store import ProfileStore
+from .tokens import TokenStore
 
 NPM_CACHE_TTL = 3600  # 1 hour
 
@@ -474,21 +476,21 @@ def _discover_directory_scan(config: dict, state: dict) -> DiscoveryResult:
 
 
 def _discover_profiles(config: dict, state: dict) -> DiscoveryResult:
-    """Discover Claude Code profiles via filesystem scan."""
-    discovered = discover_profiles()
-    profiles: list[str] = [p.name for p in discovered]
-    metadata: dict[str, dict] = {}
-    for p in discovered:
-        if p.name == "default":
-            config_dir = "~/.claude"
-        else:
-            config_dir = f"~/.claudewheel/profiles/{p.name}"
-        metadata[p.name] = {
-            "config_dir": config_dir,
-            "has_token": p.has_token,
-            "has_credentials": p.has_credentials,
-        }
-    return DiscoveryResult(values=profiles, metadata=metadata)
+    """Discover Claude Code profiles via ProfileStore enumeration.
+
+    Profile identity comes solely from the store (profile dirs + tokens);
+    config_dir is never persisted, so metadata carries only auth-presence
+    fields. A corrupt tokens.json raises TokenStoreError, which propagates so
+    discovery fails loudly rather than silently omitting profiles.
+    """
+    store = ProfileStore(PROFILES_DIR, Path.home() / ".claude", TokenStore(TOKENS_FILE))
+    discovered = store.enumerate()
+    values: list[str] = [p.name for p in discovered]
+    metadata: dict[str, dict] = {
+        p.name: {"has_token": p.has_token, "has_credentials": p.has_credentials}
+        for p in discovered
+    }
+    return DiscoveryResult(values=values, metadata=metadata)
 
 
 def _discover_gh_accounts(config: dict, state: dict) -> DiscoveryResult:

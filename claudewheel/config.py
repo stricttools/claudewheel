@@ -16,6 +16,9 @@ from .constants import (
     THEMES_DIR,
     HOOKS_DIR,
     SCRIPTS_DIR,
+    PROFILES_DIR,
+    SKILLS_DIR,
+    TOKENS_FILE,
     SHARED_DIR,  # noqa: F401 -- re-exported; tests patch claudewheel.config.SHARED_DIR
     SHARED_SETTINGS_FILE,
 )
@@ -198,8 +201,15 @@ class ConfigManager:
     @staticmethod
     def _recover_incomplete_renames() -> None:
         """Finish any interrupted profile renames (crash recovery)."""
-        from .profile_ops import recover_incomplete_renames
-        recover_incomplete_renames()
+        from .profile_store import ProfileStore
+        from .shared_store import SharedStore
+        from .tokens import TokenStore
+        ProfileStore(
+            PROFILES_DIR, Path.home() / ".claude", TokenStore(TOKENS_FILE),
+            shared=SharedStore(SHARED_DIR, SKILLS_DIR),
+            options=OptionsFile(OPTIONS_FILE),
+            state=StateFile(STATE_FILE),
+        ).recover_incomplete_renames()
 
     @staticmethod
     def _warn_old_profile_dirs() -> None:
@@ -361,12 +371,6 @@ class ConfigManager:
         """Add a new option value to the pinned list in options.json for the given segment."""
         self.options_def = OptionsFile(OPTIONS_FILE).add_pinned(
             segment_key, value, self.options_def
-        )
-
-    def set_option_metadata(self, segment_key: str, value: str, meta: dict) -> None:
-        """Set metadata for a specific option value in options.json."""
-        self.options_def = OptionsFile(OPTIONS_FILE).set_metadata(
-            segment_key, value, meta, self.options_def
         )
 
     def save_state(self):

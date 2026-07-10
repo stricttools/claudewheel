@@ -115,15 +115,21 @@ class CreateProfileTestBase(unittest.TestCase):
             mock.patch.object(config_mod, "SHARED_DIR", self.fake_home / ".claudewheel" / "shared"),
             mock.patch.object(config_mod, "SHARED_SETTINGS_FILE", self._shared_settings_file),
             # ConfigManager() (built in setUp) calls _recover_incomplete_renames(),
-            # which scans profile_ops.PROFILES_DIR for .rename_pending breadcrumbs.
-            # Without this it scans the real ~/.claudewheel/profiles.
+            # which now builds a ProfileStore from the config module's own path
+            # constants. Redirect those so recovery never touches the real home.
             mock.patch.object(profile_ops_mod, "PROFILES_DIR", self.launcher_dir / "profiles"),
-            # wizard.py imports PROFILES_DIR, SHARED_DIR, SKILLS_DIR directly
+            mock.patch.object(config_mod, "PROFILES_DIR", self.launcher_dir / "profiles"),
+            mock.patch.object(config_mod, "TOKENS_FILE", self.launcher_dir / "tokens.json"),
+            mock.patch.object(config_mod, "SKILLS_DIR", self.fake_home / ".claudewheel" / "skills"),
+            # wizard.create_profile builds a ProfileStore from these constants.
             mock.patch.object(wizard_mod, "PROFILES_DIR", self.launcher_dir / "profiles"),
             mock.patch.object(wizard_mod, "SCRIPTS_DIR", self._scripts_dir),
             mock.patch.object(wizard_mod, "SHARED_SETTINGS_FILE", self._shared_settings_file),
             mock.patch.object(wizard_mod, "SHARED_DIR", self.fake_home / ".claudewheel" / "shared"),
             mock.patch.object(wizard_mod, "SKILLS_DIR", self.fake_home / ".claudewheel" / "skills"),
+            mock.patch.object(wizard_mod, "OPTIONS_FILE", self.launcher_dir / "options.json"),
+            mock.patch.object(wizard_mod, "STATE_FILE", self.launcher_dir / "state.json"),
+            mock.patch.object(wizard_mod, "TOKENS_FILE", self.launcher_dir / "tokens.json"),
         ]
         for p in self._patches:
             p.start()
@@ -432,49 +438,18 @@ class SymlinkCreationTests(CreateProfileTestBase):
         expected = {"projects", "session-env", "file-history", "tasks", "todos", "paste-cache"}
         self.assertEqual(set(PROFILE_SHARED_DIRS), expected)
 
-    def test_existing_symlink_not_overwritten(self) -> None:
-        """If a symlink already exists at the target, it is not replaced."""
-        profile_dir = self._profile_dir()
-        profile_dir.mkdir(parents=True)
-        # Pre-create a symlink pointing elsewhere
-        other_target = self.fake_home / "other-target"
-        other_target.mkdir()
-        existing_link = profile_dir / PROFILE_SHARED_DIRS[0]
-        existing_link.symlink_to(other_target)
-
-        result = _make_result(symlink_shared=True)
-        create_profile(result, self.cfg)
-
-        # The pre-existing symlink should still point to other_target
-        self.assertEqual(existing_link.resolve(), other_target.resolve())
-
-
-class NoSymlinksTests(CreateProfileTestBase):
-    """Test 8: dirs NOT created when symlink_shared=False."""
-
-    def test_no_symlinks_created(self) -> None:
-        result = _make_result(symlink_shared=False)
-        create_profile(result, self.cfg)
-
-        profile_dir = self._profile_dir()
-        for dirname in PROFILE_SHARED_DIRS:
-            link = profile_dir / dirname
-            self.assertFalse(link.exists(), f"{dirname} should not exist")
-            self.assertFalse(link.is_symlink(), f"{dirname} should not be a symlink")
-
-    def test_shared_base_not_created(self) -> None:
-        """~/.claudewheel/shared/ itself should not be created."""
-        result = _make_result(symlink_shared=False)
-        create_profile(result, self.cfg)
-        shared_base = self.fake_home / ".claudewheel" / "shared"
-        self.assertFalse(shared_base.exists())
+    # NOTE: symlink_shared=False no longer suppresses symlinks, and a
+    # pre-existing profile dir is now a hard error (ProfileStore.create refuses
+    # it). The old "no symlinks" and "existing symlink not overwritten" tests
+    # are superseded by tests/test_profile_store_write.py::CreateTests
+    # (test_create_artifacts, test_create_existing_dir).
 
 
 class OptionsRegistrationTests(CreateProfileTestBase):
-    """Test 9: add_option and set_option_metadata called correctly."""
+    """Registration lands the profile name in options.json (pinned), no metadata."""
 
     def test_add_option_called(self) -> None:
-        """The profile name is added to the 'profile' segment options."""
+        """The profile name is added to the 'profile' segment pinned list."""
         result = _make_result(name="newprof")
         create_profile(result, self.cfg)
 
@@ -482,25 +457,13 @@ class OptionsRegistrationTests(CreateProfileTestBase):
         options = json.loads((self.launcher_dir / "options.json").read_text())
         self.assertIn("newprof", options["profile"]["pinned"])
 
-    def test_metadata_set(self) -> None:
-        """Metadata with config_dir is set for the new profile."""
+    def test_no_config_dir_metadata_written(self) -> None:
+        """config_dir is never persisted -- no metadata entry is created."""
         result = _make_result(name="newprof")
         create_profile(result, self.cfg)
 
         options = json.loads((self.launcher_dir / "options.json").read_text())
-        meta = options["profile"]["metadata"]["newprof"]
-        self.assertEqual(meta, {"config_dir": "~/.claudewheel/profiles/newprof"})
-
-    def test_add_option_with_mock(self) -> None:
-        """Verify add_option and set_option_metadata are called with correct args."""
-        result = _make_result(name="mocked")
-        with mock.patch.object(self.cfg, "add_option") as mock_add, \
-             mock.patch.object(self.cfg, "set_option_metadata") as mock_meta:
-            create_profile(result, self.cfg)
-            mock_add.assert_called_once_with("profile", "mocked")
-            mock_meta.assert_called_once_with(
-                "profile", "mocked", {"config_dir": "~/.claudewheel/profiles/mocked"}
-            )
+        self.assertNotIn("newprof", options["profile"].get("metadata", {}))
 
 
 class SummaryLinesTests(CreateProfileTestBase):
@@ -2159,33 +2122,11 @@ class OnboardingFlagTests(CreateProfileTestBase):
         self.assertTrue(cj.get("hasCompletedOnboarding"),
                         ".claude.json must contain hasCompletedOnboarding: true")
 
-    def test_create_profile_preserves_existing_claude_json(self) -> None:
-        """If .claude.json already exists (e.g. from a prior CC run),
-        create_profile merges without clobbering other keys."""
-        profile_dir = self._profile_dir("merge")
-        profile_dir.mkdir(parents=True)
-        existing = {"machineID": "abc123", "cachedGrowthBookFeatures": {"x": True}}
-        (profile_dir / ".claude.json").write_text(json.dumps(existing))
-
-        result = _make_result(name="merge")
-        create_profile(result, self.cfg)
-
-        cj = self._read_claude_json("merge")
-        self.assertTrue(cj.get("hasCompletedOnboarding"))
-        self.assertEqual(cj["machineID"], "abc123")
-        self.assertEqual(cj["cachedGrowthBookFeatures"], {"x": True})
-
-    def test_create_profile_handles_corrupt_claude_json(self) -> None:
-        """Corrupt .claude.json is overwritten with just the flag."""
-        profile_dir = self._profile_dir("corrupt")
-        profile_dir.mkdir(parents=True)
-        (profile_dir / ".claude.json").write_text("NOT VALID JSON{{{")
-
-        result = _make_result(name="corrupt")
-        create_profile(result, self.cfg)
-
-        cj = self._read_claude_json("corrupt")
-        self.assertTrue(cj.get("hasCompletedOnboarding"))
+    # NOTE: the "preserve existing .claude.json" and "corrupt .claude.json"
+    # cases pre-created the profile directory, which ProfileStore.create now
+    # refuses (FileExistsError). create() always writes onboarding into a fresh
+    # dir; the merge/tolerance behavior of _set_onboarding_flag remains exercised
+    # via run_auth_flow (OnboardingFlagAuthTests) where .claude.json may pre-exist.
 
 
 class OnboardingFlagAuthTests(AuthFlowTestBase):

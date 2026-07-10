@@ -14,6 +14,7 @@ from .segment import DiscoveryResult, Segment, build_segment_bar, evaluate_requi
 from .terminal import Terminal, detect_mode2031_support
 from .theme import parse_theme
 from .renderer import Renderer
+from .workspace import Workspace
 
 
 # ---------------------------------------------------------------------------
@@ -882,11 +883,13 @@ class App:
         and updates auth status. Returns the auth flow outcome:
         "authenticated", "unverified", "skip", "cancel", or "failed".
         """
+        from .profile_info import config_dir_for
         from .wizard import run_auth_flow
 
         profile_name = seg.value
-        meta = seg.state.metadata.get(profile_name, {})
-        config_dir = meta.get("config_dir", "")
+        # config_dir is derived from the profile name, never from persisted
+        # metadata (which no longer carries it).
+        config_dir = str(config_dir_for(profile_name))
 
         outcome = run_auth_flow(config_dir, profile_name,
                                 self.theme, self.terminal,
@@ -928,11 +931,11 @@ class App:
         Profiles holding REAL data at shared-dir names are hard-blocked
         with a fullscreen page pointing at the CLI escape hatch -- the TUI
         offers no override. Otherwise an informed two-option confirm runs
-        (Cancel default-focused), then delete_profile_core() without any
-        force flags; refusals surface as a flash.
+        (Cancel default-focused). The running check stays CLI/TUI policy;
+        the actual deletion goes through ProfileStore.delete (no force
+        flags). Store refusals raise ValueError, surfaced as a flash.
         """
         from .profile_info import _format_size, gather_profile_info
-        from .profile_ops import delete_profile_core
         from .ui import run_selection, show_page
 
         name = seg.value
@@ -972,23 +975,18 @@ class App:
         if choice != "delete":
             return
 
-        result = delete_profile_core(name)
-        if not result.ok:
-            flashes = {
-                "running": f"Not deleted: '{name}' has active sessions",
-                "default-profile":
-                    "Not deleted: 'default' is Claude Code's built-in ~/.claude",
-                "data-destruction":
-                    "Not deleted: real data at "
-                    f"{', '.join(result.at_risk_dirs)}",
-                "not-found": f"Not deleted: profile '{name}' not found",
-            }
-            self._flash = flashes.get(
-                result.refusal_reason,
-                f"Not deleted: {result.refusal_reason}")
+        # Running check is TUI policy (ProfileStore.delete does not enforce it).
+        if report.active_sessions > 0:
+            self._flash = f"Not deleted: '{name}' has active sessions"
             return
 
-        # In-memory cleanup. The core already purged last_config["profile"]
+        try:
+            Workspace.default().profiles.delete(name)
+        except ValueError as e:
+            self._flash = f"Not deleted: {e}"
+            return
+
+        # In-memory cleanup. The store already purged last_config["profile"]
         # from state.json on disk; drop it from the in-memory state too so
         # the app's later wholesale save_state() doesn't resurrect it.
         last = self.cfg.state.get("last_config", {})

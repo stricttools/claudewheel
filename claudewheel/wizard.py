@@ -11,19 +11,22 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from . import auth
+from .appdata import OptionsFile, StateFile
 from .constants import (
     CLAUDE_SYMLINK,
-    PROFILES_DIR, PROFILE_SHARED_DIRS, SCRIPTS_DIR,
-    SHARED_DIR, SHARED_SETTINGS_FILE, SKILLS_DIR,
+    OPTIONS_FILE, PROFILES_DIR, SCRIPTS_DIR, STATE_FILE,
+    SHARED_DIR, SHARED_SETTINGS_FILE, SKILLS_DIR, TOKENS_FILE,
 )
 from .config import ConfigManager
 from .defaults import DISALLOWED_TOOLS, build_canonical_shared_settings
 from .discovery import detect_browsers
 from .fsutil import write_json_atomic
 from .patch_profiles import merge_hooks
+from .profile_store import ProfileStore
 from .pty_runner import run_under_pty
+from .shared_store import SharedStore
 from .state import AUTH_BROWSER_KEY, load_state_value, save_state_value
-from .tokens import add_token, store_tier
+from .tokens import TokenStore, add_token, store_tier
 from .ui import FormField, get_field, run_form, run_selection
 
 # The 6 advanced checkboxes: (field key, display label). Keys match the
@@ -185,12 +188,17 @@ def _set_onboarding_flag(config_dir: str) -> None:
 def create_profile(result: WizardResult, cfg: ConfigManager) -> list[str]:
     """Execute the profile creation based on wizard results.
 
+    Assembles the final settings dict (clone/defaults/checkbox overrides/hooks)
+    then delegates all durable mechanics to :meth:`ProfileStore.create` --
+    atomic settings.json write, onboarding flag, shared-store symlinks, and
+    options.json (pinned) registration. No config_dir metadata is persisted.
+
+    *cfg* is retained for the historical signature (callers still pass it) but
+    is no longer consulted: registration lands via the store's OptionsFile.
+
     Returns the summary lines describing what was created; presentation is
     the caller's job (the TUI shows a fullscreen page, the CLI prints them).
     """
-    config_dir = Path(result.config_dir).expanduser()
-    config_dir.mkdir(parents=True, exist_ok=True)
-
     # Load shared settings once -- used for profileDefaults and hooks/disallowedTools
     shared = _load_shared_settings()
 
@@ -239,31 +247,18 @@ def create_profile(result: WizardResult, cfg: ConfigManager) -> list[str]:
         else:
             settings["hooks"] = canonical_hooks
 
-    # Write settings.json
-    settings_path = config_dir / "settings.json"
-    settings_path.write_text(json.dumps(settings, indent=2) + "\n")
-
-    # Mark onboarding complete so CC skips the login/onboarding screen
-    # when launched with a token injected via CLAUDE_CODE_OAUTH_TOKEN
-    _set_onboarding_flag(result.config_dir)
-
-    # Symlink shared dirs
-    if result.symlink_shared:
-        for dirname in PROFILE_SHARED_DIRS:
-            link = config_dir / dirname
-            target = SHARED_DIR / dirname
-            if link.exists() or link.is_symlink():
-                continue
-            target.mkdir(parents=True, exist_ok=True)
-            link.symlink_to(target)
-        # Skills -> shared skills directory
-        skills_link = config_dir / "skills"
-        if SKILLS_DIR.is_dir() and not skills_link.exists() and not skills_link.is_symlink():
-            skills_link.symlink_to(SKILLS_DIR)
-
-    # Register in options.json: add value and metadata
-    cfg.add_option("profile", result.name)
-    cfg.set_option_metadata("profile", result.name, {"config_dir": result.config_dir})
+    # Land the finished settings durably. ProfileStore.create performs the
+    # atomic settings.json write, sets the onboarding flag, symlinks the six
+    # shared-store subdirs (+ skills), and registers the profile in
+    # options.json (pinned). The old non-atomic write_text lived here.
+    store = ProfileStore(
+        PROFILES_DIR, Path.home() / ".claude", TokenStore(TOKENS_FILE),
+        shared=SharedStore(SHARED_DIR, SKILLS_DIR),
+        options=OptionsFile(OPTIONS_FILE),
+        state=StateFile(STATE_FILE),
+    )
+    store.create(result.name, settings)
+    config_dir = store.path_for(result.name)
 
     return [
         f"Created profile '{result.name}':",
