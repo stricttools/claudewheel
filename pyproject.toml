@@ -36,3 +36,8 @@ Repository = "https://github.com/smm-h/claudewheel"
 
 [tool.hatch.build.targets.wheel]
 packages = ["claudewheel"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
