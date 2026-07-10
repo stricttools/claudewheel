@@ -23,11 +23,28 @@ from __future__ import annotations
 import json
 import sys
 from dataclasses import dataclass, field
+from pathlib import Path
 
-from .constants import SHARED_SETTINGS_FILE
-from .discovery import discover_profiles
+from .constants import PROFILES_DIR, SHARED_SETTINGS_FILE, TOKENS_FILE
 from .guardrail import ALLOW_CONFLICTS, canonical_ask_rules, canonical_deny_rules
 from .permission import add_rule, load_settings, remove_rule, save_settings
+from .profile_store import Profile, ProfileStore
+from .tokens import TokenStore, TokenStoreError
+
+
+def _discovered_profiles() -> list[Profile]:
+    """Enumerate profiles via ProfileStore, tolerating a corrupt tokens.json.
+
+    Built at call time from this module's path constants (patched by tests) plus
+    Claude Code's built-in ``~/.claude``. A corrupt tokens.json is swallowed to
+    ``{}`` -- reconciliation touches permissions, not tokens.
+    """
+    store = ProfileStore(PROFILES_DIR, Path.home() / ".claude", TokenStore(TOKENS_FILE))
+    try:
+        tokens = store.token_store.load()
+    except TokenStoreError:
+        tokens = {}
+    return store.enumerate(tokens)
 
 
 @dataclass
@@ -159,7 +176,7 @@ def run_reconcile(dry_run: bool, profile: str | None) -> int:
     targets_changed = 0
 
     # 1. Profiles.
-    profiles = discover_profiles()
+    profiles = _discovered_profiles()
     if only_one:
         profiles = [p for p in profiles if p.name == profile]
         if not profiles:

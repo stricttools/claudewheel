@@ -42,8 +42,9 @@ class _ReconcileTestCase(unittest.TestCase):
 
         patches = [
             patch("claudewheel.reconcile.SHARED_SETTINGS_FILE", self.shared_settings),
-            patch("claudewheel.discovery.PROFILES_DIR", self.profiles_dir),
-            patch("claudewheel.discovery.TOKENS_FILE", self.tokens_file),
+            # reconcile builds a ProfileStore from its own module constants.
+            patch("claudewheel.reconcile.PROFILES_DIR", self.profiles_dir),
+            patch("claudewheel.reconcile.TOKENS_FILE", self.tokens_file),
         ]
         for p in patches:
             p.start()
