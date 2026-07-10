@@ -45,14 +45,14 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 - **claudewheel.profile** (`claudewheel/profile.py`): Resolve a profile name to CLAUDE_CONFIG_DIR and OAuth token env vars.
 - **claudewheel.profile_info** (`claudewheel/profile_info.py`): Gather and format a detailed inspection report for a single profile.
 - **claudewheel.profile_ops** (`claudewheel/profile_ops.py`): Profile auth-shadow repair and running-state detection.
-- **claudewheel.profile_store** (`claudewheel/profile_store.py`): Path-injected profile enumeration and env resolution beside discovery.
+- **claudewheel.profile_store** (`claudewheel/profile_store.py`): The profile store: enumerate, resolve, create, delete, and rename profiles.
 - **claudewheel.pty_runner** (`claudewheel/pty_runner.py`): Run a child process under a PTY, proxying the real terminal and capturing its output.
 - **claudewheel.reconcile** (`claudewheel/reconcile.py`): Reconcile profile and shared-settings permissions toward the canonical model.
 - **claudewheel.renderer** (`claudewheel/renderer.py`): Draw the segment bar, fan-out options, minimap, and scroll arrows.
 - **claudewheel.segment** (`claudewheel/segment.py`): Segment and SegmentBar dataclasses, option discovery, and cross-segment constraints.
 - **claudewheel.session** (`claudewheel/session.py`): Session lookup: locate session JSONL files and extract metadata.
 - **claudewheel.shared_store** (`claudewheel/shared_store.py`): Thin path owner for the ~/.claudewheel/shared store layout.
-- **claudewheel.state** (`claudewheel/state.py`): Save selections, launch count, and recent directories to state.json.
+- **claudewheel.state** (`claudewheel/state.py`): Persist launch state (selections, counts, recent dirs) and project inodes.
 - **claudewheel.stats** (`claudewheel/stats.py`): Report shared-store statistics and clean up legacy data.
 - **claudewheel.terminal** (`claudewheel/terminal.py`): Raw terminal I/O: cbreak mode, escape sequence decoding, and alt screen.
 - **claudewheel.theme** (`claudewheel/theme.py`): Parse hex color themes into pre-computed ANSI escape sequences.
