@@ -19,7 +19,9 @@ from claudewheel.defaults import (
     DEFAULT_THEME_DARK,
 )
 from tests.wheelhelpers import (
+    SandboxHomeTestCase,
     setup_temp_config_dir as _setup_temp_config_dir,
+    write_json,
     write_json as _write_json,
 )
 
@@ -261,62 +263,174 @@ class VersionedMigrationTests(unittest.TestCase):
         on_disk = _read_json(paths["CONFIG_FILE"])
         self.assertGreaterEqual(on_disk["_schema_version"], 1)
 
-    def test_migration_v2_rewrites_old_profile_paths(self) -> None:
-        """Migration v2 rewrites ~/.claude-<name> metadata paths to ~/.claudewheel/profiles/<name>."""
-        config = {**DEFAULT_CONFIG, "_schema_version": 1}
-        options = {
+# NOTE: the former ``test_migration_v2_*`` tests asserted that migration 2
+# rewrote the profile-metadata config_dir strings. Migration 4 now deletes the
+# entire profile-metadata block, so migration 2's output is unobservable after
+# a full forward migration. Those tests are superseded by Migration4Tests
+# below, which pins the stronger contract: profile metadata is removed while
+# every other segment's metadata and all values/pinned survive.
+
+
+# ---------------------------------------------------------------------------
+# 3b. Migration4Tests -- drop the legacy profile-metadata block
+# ---------------------------------------------------------------------------
+
+
+class Migration4Tests(unittest.TestCase):
+    """Test migration 4: the profile ``metadata`` block is dropped, nothing else."""
+
+    def setUp(self) -> None:
+        self._tmp_obj = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._tmp_obj.name)
+
+    def tearDown(self) -> None:
+        self._tmp_obj.cleanup()
+
+    def _make_cm(self, paths: dict[str, Path]) -> AppConfigStore:
+        return _appconfig(paths)
+
+    def _old_shape_options(self) -> dict:
+        """Options with legacy profile metadata AND surviving model metadata."""
+        return {
             **DEFAULT_OPTIONS,
             "profile": {
-                **DEFAULT_OPTIONS.get("profile", {}),
+                "values": ["work", "personal"],
+                "pinned": ["work"],
+                "discovery": {"type": "claude_config_scan", "base_dir": "~"},
                 "metadata": {
                     "work": {"config_dir": "~/.claude-work"},
-                    "personal": {"config_dir": "~/.claude-personal"},
+                    "personal": {"config_dir": "~/.claudewheel/profiles/personal"},
                 },
             },
+            "model": {
+                "values": ["claude-opus-4-8", "my-custom"],
+                "pinned": ["my-custom"],
+                "metadata": {"my-custom": {"model_id": "custom-123"}},
+            },
         }
+
+    def test_profile_metadata_removed_others_intact(self) -> None:
+        """Old-shape fixture: profile metadata gone; model metadata + values/pinned intact."""
+        config = {**DEFAULT_CONFIG, "_schema_version": 3}
+        options = self._old_shape_options()
         paths = _setup_temp_config_dir(self.tmp, config=config, options=options)
         cm = self._make_cm(paths)
 
-        metadata = cm.options_def["profile"]["metadata"]
-        self.assertEqual(metadata["work"]["config_dir"], "~/.claudewheel/profiles/work")
-        self.assertEqual(metadata["personal"]["config_dir"], "~/.claudewheel/profiles/personal")
-        self.assertGreaterEqual(cm.config["_schema_version"], 2)
+        # Profile metadata is gone; profile values/pinned survive.
+        self.assertNotIn("metadata", cm.options_def["profile"])
+        self.assertEqual(cm.options_def["profile"]["values"], ["work", "personal"])
+        self.assertEqual(cm.options_def["profile"]["pinned"], ["work"])
 
-    def test_migration_v2_leaves_already_migrated_paths(self) -> None:
-        """Migration v2 does not alter paths already under ~/.claudewheel/profiles/."""
-        config = {**DEFAULT_CONFIG, "_schema_version": 1}
+        # Model metadata (model_id) survives untouched.
+        self.assertEqual(
+            cm.options_def["model"]["metadata"]["my-custom"]["model_id"], "custom-123"
+        )
+        self.assertIn("my-custom", cm.options_def["model"]["values"])
+        self.assertIn("my-custom", cm.options_def["model"]["pinned"])
+
+        self.assertGreaterEqual(cm.config["_schema_version"], 4)
+
+    def test_profile_metadata_removed_on_disk(self) -> None:
+        """The metadata deletion is persisted to options.json on disk."""
+        config = {**DEFAULT_CONFIG, "_schema_version": 3}
+        options = self._old_shape_options()
+        paths = _setup_temp_config_dir(self.tmp, config=config, options=options)
+        self._make_cm(paths)
+
+        on_disk = _read_json(paths["OPTIONS_FILE"])
+        self.assertNotIn("metadata", on_disk["profile"])
+        self.assertIn("metadata", on_disk["model"])  # model metadata survives
+
+    def test_forward_from_each_historical_version(self) -> None:
+        """Fixtures at _schema_version 0..3 all migrate forward to 4 with metadata dropped."""
+        for start in (0, 1, 2, 3):
+            with self.subTest(start=start):
+                tmp_obj = tempfile.TemporaryDirectory()
+                self.addCleanup(tmp_obj.cleanup)
+                tmp = Path(tmp_obj.name)
+                config = {**DEFAULT_CONFIG, "_schema_version": start}
+                options = self._old_shape_options()
+                paths = _setup_temp_config_dir(tmp, config=config, options=options)
+                cm = _appconfig(paths)
+                self.assertNotIn("metadata", cm.options_def["profile"])
+                self.assertEqual(cm.config["_schema_version"], 4)
+                # Model metadata survives regardless of start version.
+                self.assertEqual(
+                    cm.options_def["model"]["metadata"]["my-custom"]["model_id"],
+                    "custom-123",
+                )
+
+    def test_reconstruction_after_migration_is_noop(self) -> None:
+        """A second appconfig() over the migrated root writes nothing new (mtime snapshot)."""
+        config = {**DEFAULT_CONFIG, "_schema_version": 3}
+        options = self._old_shape_options()
+        paths = _setup_temp_config_dir(self.tmp, config=config, options=options)
+        ws = Workspace.open(paths["CONFIG_DIR"])
+        ws.appconfig()  # first construction migrates + drops profile metadata
+
+        before = _snapshot(paths["CONFIG_DIR"])
+        ws.appconfig()  # second construction must be a pure no-op
+        after = _snapshot(paths["CONFIG_DIR"])
+        self.assertEqual(after, before, "reopen mutated files after migration 4")
+
+    def test_no_profile_metadata_key_is_safe(self) -> None:
+        """A profile segment without a metadata block migrates without error."""
+        config = {**DEFAULT_CONFIG, "_schema_version": 3}
         options = {
             **DEFAULT_OPTIONS,
-            "profile": {
-                **DEFAULT_OPTIONS.get("profile", {}),
-                "metadata": {
-                    "work": {"config_dir": "~/.claudewheel/profiles/work"},
-                },
-            },
+            "profile": {"values": ["work"], "pinned": []},
         }
         paths = _setup_temp_config_dir(self.tmp, config=config, options=options)
         cm = self._make_cm(paths)
+        self.assertNotIn("metadata", cm.options_def["profile"])
+        self.assertEqual(cm.options_def["profile"]["values"], ["work"])
 
-        metadata = cm.options_def["profile"]["metadata"]
-        self.assertEqual(metadata["work"]["config_dir"], "~/.claudewheel/profiles/work")
 
-    def test_migration_v2_leaves_bare_default_path(self) -> None:
-        """Migration v2 does not alter the bare ~/.claude default profile path."""
-        config = {**DEFAULT_CONFIG, "_schema_version": 1}
-        options = {
-            **DEFAULT_OPTIONS,
-            "profile": {
-                **DEFAULT_OPTIONS.get("profile", {}),
-                "metadata": {
-                    "default": {"config_dir": "~/.claude"},
+class Migration4LaunchResolutionTests(SandboxHomeTestCase):
+    """End-to-end: a pre-migration workspace still launch-resolves after migration 4."""
+
+    def test_launch_resolves_after_metadata_dropped(self) -> None:
+        """Profile identity comes from the dir; the deleted metadata is irrelevant.
+
+        Seed a sandbox workspace whose options.json carries the legacy profile
+        metadata block and a stale config_dir. Construct the app config (runs
+        migration 4, which deletes the metadata), then resolve the profile's
+        launch env -- it must point at the directory-derived config dir, not the
+        deleted metadata's config_dir.
+        """
+        # A real profile dir on disk with credentials + a token entry.
+        pdir = self.make_profile("work", credentials=True)
+        write_json(self.sandbox_paths["TOKENS_FILE"], {"work": "tok-work"})
+
+        # Legacy options.json: profile metadata present with a stale config_dir.
+        write_json(
+            self.sandbox_paths["OPTIONS_FILE"],
+            {
+                **DEFAULT_OPTIONS,
+                "profile": {
+                    "values": ["work"],
+                    "pinned": ["work"],
+                    "discovery": {"type": "claude_config_scan", "base_dir": "~"},
+                    "metadata": {"work": {"config_dir": "~/.claude-STALE-WRONG"}},
                 },
             },
-        }
-        paths = _setup_temp_config_dir(self.tmp, config=config, options=options)
-        cm = self._make_cm(paths)
+        )
+        # Pin an old schema version so the versioned migrations run.
+        cfg = _read_json(self.sandbox_paths["CONFIG_FILE"])
+        cfg["_schema_version"] = 1
+        write_json(self.sandbox_paths["CONFIG_FILE"], cfg)
 
-        metadata = cm.options_def["profile"]["metadata"]
-        self.assertEqual(metadata["default"]["config_dir"], "~/.claude")
+        ws = Workspace.open(self.launcher_dir, claude_dir=self.home / ".claude")
+        store = ws.appconfig()
+
+        # Migration 4 dropped the profile metadata block.
+        self.assertNotIn("metadata", store.options_def["profile"])
+
+        # Launch env resolves the profile from the directory, ignoring the
+        # (now deleted) stale metadata config_dir.
+        env = ws.profiles.env("work")
+        self.assertEqual(env["CLAUDE_CONFIG_DIR"], str(pdir))
+        self.assertEqual(env["CLAUDE_CODE_OAUTH_TOKEN"], "tok-work")
 
 
 # ---------------------------------------------------------------------------

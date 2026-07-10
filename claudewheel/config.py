@@ -83,7 +83,15 @@ def _migration_1_github_optional(
 def _migration_2_profile_paths(
     config: dict, segments_def: list[dict], theme: dict, options_def: dict,
 ) -> None:
-    """Rewrite profile metadata config_dir from ~/.claude-<name> to ~/.claudewheel/profiles/<name>."""
+    """Rewrite profile metadata config_dir from ~/.claude-<name> to ~/.claudewheel/profiles/<name>.
+
+    Knowingly vestigial post-strip: profile locations are no longer persisted
+    (derived from the profile directory instead), and migration 4 deletes the
+    entire profile metadata block this migration rewrites. It is kept solely so
+    the versioned-migration replay order stays stable for configs that migrate
+    forward from an old ``_schema_version`` -- migration 2 still runs, then
+    migration 4 removes its output in the same forward pass.
+    """
     import re
     metadata = options_def.get("profile", {}).get("metadata", {})
     for name, meta in metadata.items():
@@ -140,6 +148,22 @@ def _migration_3_classify_pinned(
         # Keep "values" as-is for backward compat with code that still reads it
 
 
+def _migration_4_drop_profile_metadata(
+    config: dict, segments_def: list[dict], theme: dict, options_def: dict,
+) -> None:
+    """Remove the legacy ``metadata`` block from the ``profile`` segment only.
+
+    Profile locations are no longer stored -- they are always derived from the
+    profile directory via ``ProfileStore.path_for``. This deletes only the
+    ``profile`` segment's ``metadata`` dict; every other segment's metadata
+    (e.g. the model segment's ``model_id`` entries) and every segment's
+    ``values``/``pinned`` lists are left untouched.
+    """
+    profile_seg = options_def.get("profile")
+    if isinstance(profile_seg, dict):
+        profile_seg.pop("metadata", None)
+
+
 _MIGRATIONS: list[dict] = [
     {
         "version": 1,
@@ -155,6 +179,11 @@ _MIGRATIONS: list[dict] = [
         "version": 3,
         "description": "Classify option values into pinned vs defaults",
         "apply": _migration_3_classify_pinned,
+    },
+    {
+        "version": 4,
+        "description": "Drop the legacy profile-metadata block (locations derived from dir)",
+        "apply": _migration_4_drop_profile_metadata,
     },
 ]
 
