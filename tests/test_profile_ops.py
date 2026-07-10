@@ -32,17 +32,10 @@ class _ProfileOpsTestCase(unittest.TestCase):
         self.launcher_dir.mkdir()
         self.tokens_file = self.launcher_dir / "tokens.json"
         self.profiles_dir = self.launcher_dir / "profiles"
-
-        self._patchers = [
-            patch.object(profile_ops, "TOKENS_FILE", self.tokens_file),
-            patch.object(profile_ops, "PROFILES_DIR", self.profiles_dir),
-        ]
-        for p in self._patchers:
-            p.start()
+        from claudewheel.workspace import Workspace
+        self.ws = Workspace.open(self.launcher_dir, claude_dir=self.home / ".claude")
 
     def tearDown(self) -> None:
-        for p in reversed(self._patchers):
-            p.stop()
         self._patcher_home.stop()
         self._tmp.cleanup()
 
@@ -67,14 +60,14 @@ class IsProfileRunningTests(_ProfileOpsTestCase):
 
     def test_no_sessions_dir_not_running(self) -> None:
         self._make_profile_dir("idle")
-        self.assertFalse(profile_ops._is_profile_running("idle"))
+        self.assertFalse(profile_ops._is_profile_running(self.ws, "idle"))
 
     def test_live_pid_is_running(self) -> None:
         pdir = self._make_profile_dir("busy")
         sessions = pdir / "sessions"
         sessions.mkdir()
         (sessions / "sess.pid").write_text(str(os.getpid()))
-        self.assertTrue(profile_ops._is_profile_running("busy"))
+        self.assertTrue(profile_ops._is_profile_running(self.ws, "busy"))
 
     def test_stale_pid_not_running(self) -> None:
         pdir = self._make_profile_dir("stale")
@@ -82,10 +75,10 @@ class IsProfileRunningTests(_ProfileOpsTestCase):
         sessions.mkdir()
         # A PID that is almost certainly not alive.
         (sessions / "sess.pid").write_text("999999")
-        self.assertFalse(profile_ops._is_profile_running("stale"))
+        self.assertFalse(profile_ops._is_profile_running(self.ws, "stale"))
 
     def test_missing_profile_not_running(self) -> None:
-        self.assertFalse(profile_ops._is_profile_running("nonexistent"))
+        self.assertFalse(profile_ops._is_profile_running(self.ws, "nonexistent"))
 
 
 # ---------------------------------------------------------------------------
@@ -105,7 +98,7 @@ class FixAuthShadowTests(_ProfileOpsTestCase):
         """When tokens.json has no entry for the profile, reason is 'no-token'."""
         self._make_profile_dir("orphan")
         self._write_tokens({})
-        result = profile_ops.fix_auth_shadow("orphan")
+        result = profile_ops.fix_auth_shadow(self.ws, "orphan")
         self.assertFalse(result.ok)
         self.assertEqual(result.reason, "no-token")
 
@@ -114,7 +107,7 @@ class FixAuthShadowTests(_ProfileOpsTestCase):
         pdir = self._make_profile_dir("clean")
         (pdir / ".credentials.json").unlink()
         self._write_tokens({"clean": {"token": "tok-abc"}})
-        result = profile_ops.fix_auth_shadow("clean")
+        result = profile_ops.fix_auth_shadow(self.ws, "clean")
         self.assertFalse(result.ok)
         self.assertEqual(result.reason, "no-shadow")
 
@@ -123,7 +116,7 @@ class FixAuthShadowTests(_ProfileOpsTestCase):
         pdir = self._make_profile_dir("noshadow")
         self._write_credentials(pdir, {"mcpOAuth": {"x": "y"}})
         self._write_tokens({"noshadow": {"token": "tok-ns"}})
-        result = profile_ops.fix_auth_shadow("noshadow")
+        result = profile_ops.fix_auth_shadow(self.ws, "noshadow")
         self.assertFalse(result.ok)
         self.assertEqual(result.reason, "no-shadow")
 
@@ -132,7 +125,7 @@ class FixAuthShadowTests(_ProfileOpsTestCase):
         pdir = self._make_profile_dir("corrupt")
         (pdir / ".credentials.json").write_text("{not json at all")
         self._write_tokens({"corrupt": {"token": "tok-c"}})
-        result = profile_ops.fix_auth_shadow("corrupt")
+        result = profile_ops.fix_auth_shadow(self.ws, "corrupt")
         self.assertFalse(result.ok)
         self.assertEqual(result.reason, "unreadable-creds")
 
@@ -149,7 +142,7 @@ class FixAuthShadowTests(_ProfileOpsTestCase):
         })
         self._write_tokens({"work": {"token": "tok-work"}})
 
-        result = profile_ops.fix_auth_shadow("work")
+        result = profile_ops.fix_auth_shadow(self.ws, "work")
 
         self.assertTrue(result.ok)
         self.assertIsNone(result.reason)
@@ -173,7 +166,7 @@ class FixAuthShadowTests(_ProfileOpsTestCase):
         })
         self._write_tokens({"notier": {"token": "tok-nt"}})
 
-        result = profile_ops.fix_auth_shadow("notier")
+        result = profile_ops.fix_auth_shadow(self.ws, "notier")
 
         self.assertTrue(result.ok)
         self.assertIsNone(result.tier_saved)
@@ -196,7 +189,7 @@ class FixAuthShadowTests(_ProfileOpsTestCase):
         })
         self._write_tokens({"legacy": "bare-tok-string"})
 
-        result = profile_ops.fix_auth_shadow("legacy")
+        result = profile_ops.fix_auth_shadow(self.ws, "legacy")
 
         self.assertTrue(result.ok)
         self.assertEqual(result.tier_saved, "tier_max")
@@ -216,7 +209,7 @@ class FixAuthShadowTests(_ProfileOpsTestCase):
         creds_path.chmod(0o600)
         self._write_tokens({"perms": {"token": "tok-p"}})
 
-        profile_ops.fix_auth_shadow("perms")
+        profile_ops.fix_auth_shadow(self.ws, "perms")
 
         mode = creds_path.stat().st_mode & 0o777
         self.assertEqual(mode, 0o600)

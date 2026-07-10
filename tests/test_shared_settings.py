@@ -25,21 +25,11 @@ class _HomeDirTestCase(unittest.TestCase):
         self._shared_settings = self.home / ".claudewheel" / "shared-settings.json"
         self._scripts_dir = self.home / ".claudewheel" / "scripts"
         self._tokens_file = self.home / ".claudewheel" / "tokens.json"
-        self._dir_patches = [
-            patch("claudewheel.health.PROFILES_DIR", self._profiles_dir),
-            patch("claudewheel.health.SHARED_SETTINGS_FILE", self._shared_settings),
-            # health enumerates through a ProfileStore + TokenStore built from
-            # its own module constants; pin TOKENS_FILE into the temp home so it
-            # never reads the real ~/.claudewheel/tokens.json.
-            patch("claudewheel.health.TOKENS_FILE", self._tokens_file),
-            patch("claudewheel.discovery.PROFILES_DIR", self._profiles_dir),
-        ]
-        for p in self._dir_patches:
-            p.start()
+        from claudewheel.workspace import Workspace
+        self.ws = Workspace.open(self.home / ".claudewheel",
+                                 claude_dir=self.home / ".claude")
 
     def tearDown(self) -> None:
-        for p in self._dir_patches:
-            p.stop()
         self._patcher.stop()
         self._tmp.cleanup()
 
@@ -70,7 +60,7 @@ class _HomeDirTestCase(unittest.TestCase):
 
 
 class CheckSharedSettingsDriftTests(_HomeDirTestCase):
-    """Tests for check_shared_settings_drift()."""
+    """Tests for check_shared_settings_drift(self.ws)."""
 
     def test_all_profiles_in_sync(self) -> None:
         """Returns OK when all profiles match shared-settings.json exactly."""
@@ -88,7 +78,7 @@ class CheckSharedSettingsDriftTests(_HomeDirTestCase):
             "claudewheel": {"disallowedTools": canonical["disallowedTools"]},
         })
 
-        result = check_shared_settings_drift()
+        result = check_shared_settings_drift(self.ws)
         self.assertTrue(result.ok)
         self.assertIn("2 profiles in sync", result.detail)
 
@@ -114,7 +104,7 @@ class CheckSharedSettingsDriftTests(_HomeDirTestCase):
             "claudewheel": {"disallowedTools": canonical["disallowedTools"]},
         })
 
-        result = check_shared_settings_drift()
+        result = check_shared_settings_drift(self.ws)
         self.assertFalse(result.ok)
         self.assertIn("drifted", result.detail)
 
@@ -141,7 +131,7 @@ class CheckSharedSettingsDriftTests(_HomeDirTestCase):
             "claudewheel": {"disallowedTools": canonical["disallowedTools"]},
         })
 
-        result = check_shared_settings_drift()
+        result = check_shared_settings_drift(self.ws)
         self.assertFalse(result.ok)
         self.assertIn("extra", result.detail)
 
@@ -158,7 +148,7 @@ class CheckSharedSettingsDriftTests(_HomeDirTestCase):
             "claudewheel": {"disallowedTools": partial_tools},
         })
 
-        result = check_shared_settings_drift()
+        result = check_shared_settings_drift(self.ws)
         self.assertFalse(result.ok)
         self.assertIn("tools-off", result.detail)
         self.assertIn("missing", result.detail)
@@ -167,7 +157,7 @@ class CheckSharedSettingsDriftTests(_HomeDirTestCase):
         """Handles gracefully when shared-settings.json doesn't exist."""
         self._make_profile("lonely")
 
-        result = check_shared_settings_drift()
+        result = check_shared_settings_drift(self.ws)
         self.assertTrue(result.ok)
         self.assertIn("not found", result.detail)
 
@@ -176,7 +166,7 @@ class CheckSharedSettingsDriftTests(_HomeDirTestCase):
         canonical = self._canonical()
         self._write_shared_settings(canonical)
 
-        result = check_shared_settings_drift()
+        result = check_shared_settings_drift(self.ws)
         self.assertTrue(result.ok)
         self.assertIn("no profiles found", result.detail)
 
@@ -186,7 +176,7 @@ class CheckSharedSettingsDriftTests(_HomeDirTestCase):
         self._write_shared_settings(canonical)
         self._make_profile("bare")
 
-        result = check_shared_settings_drift()
+        result = check_shared_settings_drift(self.ws)
         self.assertFalse(result.ok)
         self.assertIn("bare: no settings.json", result.detail)
 
@@ -202,7 +192,7 @@ class CheckSharedSettingsDriftTests(_HomeDirTestCase):
             "claudewheel": {"disallowedTools": extra_tools},
         })
 
-        result = check_shared_settings_drift()
+        result = check_shared_settings_drift(self.ws)
         self.assertFalse(result.ok)
         self.assertIn("surplus", result.detail)
         self.assertIn("ExtraTool", result.detail)
@@ -213,7 +203,7 @@ class CheckSharedSettingsDriftTests(_HomeDirTestCase):
         self._shared_settings.write_text("not valid json{{{")
         self._make_profile("victim")
 
-        result = check_shared_settings_drift()
+        result = check_shared_settings_drift(self.ws)
         self.assertFalse(result.ok)
         self.assertIn("unreadable", result.detail)
 

@@ -1,4 +1,4 @@
-"""Tests for create_profile() and run_profile_wizard() in claudewheel.wizard."""
+"""Tests for create_profile(self.ws, ) and run_profile_wizard() in claudewheel.wizard."""
 
 from __future__ import annotations
 
@@ -74,14 +74,14 @@ def _init_launcher_dir(launcher_dir: Path) -> None:
 
 
 class CreateProfileTestBase(unittest.TestCase):
-    """Base class that sets up an isolated home dir for create_profile()."""
+    """Base class that sets up an isolated home dir for create_profile(self.ws, )."""
 
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
         self.fake_home = Path(self._tmp.name)
 
-        # Suppress create_profile() print output
+        # Suppress create_profile(self.ws, ) print output
         self._stdout_trap = contextlib.redirect_stdout(io.StringIO())
         self._stdout_trap.__enter__()
         self.addCleanup(self._stdout_trap.__exit__, None, None, None)
@@ -95,30 +95,16 @@ class CreateProfileTestBase(unittest.TestCase):
         os.environ["HOME"] = str(self.fake_home)
         self.addCleanup(self._restore_home)
 
-        # create_profile() no longer consults an AppConfigStore; it builds a
-        # ProfileStore from wizard.py's own module-level path constants. Those
-        # were captured against the real home at import, so redirect them (plus
-        # profile_ops.PROFILES_DIR) at the sandbox launcher dir.
+        # create_profile(self.ws, ) takes an explicit workspace; build one rooted at the
+        # sandbox launcher dir.
         self.launcher_dir = self.fake_home / ".claudewheel"
         _init_launcher_dir(self.launcher_dir)
 
-        self._scripts_dir = self.launcher_dir / "scripts"
-        self._shared_settings_file = self.launcher_dir / "shared-settings.json"
-        self._patches = [
-            mock.patch.object(profile_ops_mod, "PROFILES_DIR", self.launcher_dir / "profiles"),
-            # wizard.create_profile builds a ProfileStore from these constants.
-            mock.patch.object(wizard_mod, "PROFILES_DIR", self.launcher_dir / "profiles"),
-            mock.patch.object(wizard_mod, "SCRIPTS_DIR", self._scripts_dir),
-            mock.patch.object(wizard_mod, "SHARED_SETTINGS_FILE", self._shared_settings_file),
-            mock.patch.object(wizard_mod, "SHARED_DIR", self.fake_home / ".claudewheel" / "shared"),
-            mock.patch.object(wizard_mod, "SKILLS_DIR", self.fake_home / ".claudewheel" / "skills"),
-            mock.patch.object(wizard_mod, "OPTIONS_FILE", self.launcher_dir / "options.json"),
-            mock.patch.object(wizard_mod, "STATE_FILE", self.launcher_dir / "state.json"),
-            mock.patch.object(wizard_mod, "TOKENS_FILE", self.launcher_dir / "tokens.json"),
-        ]
-        for p in self._patches:
-            p.start()
-            self.addCleanup(p.stop)
+        from claudewheel.workspace import Workspace
+        self.ws = Workspace.open(self.launcher_dir,
+                                 claude_dir=self.fake_home / ".claude")
+        self._scripts_dir = self.ws.scripts_dir
+        self._shared_settings_file = self.ws.shared_settings_file
 
     def _restore_home(self) -> None:
         if self._orig_home is None:
@@ -143,13 +129,13 @@ class DirectoryCreationTests(CreateProfileTestBase):
     def test_creates_config_dir(self) -> None:
         result = _make_result(name="myprofile")
         self.assertFalse(self._profile_dir("myprofile").exists())
-        create_profile(result)
+        create_profile(self.ws, result)
         self.assertTrue(self._profile_dir("myprofile").is_dir())
 
     def test_creates_nested_parents(self) -> None:
         """The dir is created with parents=True so intermediate dirs are fine."""
         result = _make_result(name="deep")
-        create_profile(result)
+        create_profile(self.ws, result)
         self.assertTrue(self._profile_dir("deep").is_dir())
 
 
@@ -162,7 +148,7 @@ class SettingsFromDefaultsTests(CreateProfileTestBase):
         self._shared_settings_file.write_text(json.dumps(shared))
 
         result = _make_result(clone_from=None)
-        create_profile(result)
+        create_profile(self.ws, result)
 
         settings = self._read_settings()
         self.assertEqual(settings["someKey"], "someValue")
@@ -172,7 +158,7 @@ class SettingsFromDefaultsTests(CreateProfileTestBase):
         """When shared-settings.json is missing, profileDefaults from
         build_canonical_shared_settings are used."""
         result = _make_result(clone_from=None)
-        create_profile(result)
+        create_profile(self.ws, result)
 
         settings = self._read_settings()
         # profileDefaults includes permissions with deny/ask rules
@@ -191,7 +177,7 @@ class SettingsFromDefaultsTests(CreateProfileTestBase):
         self._shared_settings_file.write_text("NOT VALID JSON{{{")
 
         result = _make_result(clone_from=None)
-        create_profile(result)
+        create_profile(self.ws, result)
 
         settings = self._read_settings()
         # Should have profileDefaults from canonical
@@ -211,7 +197,7 @@ class SettingsFromCloneTests(CreateProfileTestBase):
         (source_dir / "settings.json").write_text(json.dumps(source_settings))
 
         result = _make_result(name="cloned", clone_from="source")
-        create_profile(result)
+        create_profile(self.ws, result)
 
         settings = self._read_settings("cloned")
         self.assertEqual(settings["clonedKey"], True)
@@ -225,7 +211,7 @@ class SettingsFromCloneTests(CreateProfileTestBase):
         # No settings.json written
 
         result = _make_result(name="cloned2", clone_from="source")
-        create_profile(result)
+        create_profile(self.ws, result)
 
         settings = self._read_settings("cloned2")
         expected = {
@@ -240,24 +226,24 @@ class CheckboxOverridesTests(CreateProfileTestBase):
 
     def test_disable_recap_sets_away_summary(self) -> None:
         result = _make_result(disable_recap=True)
-        create_profile(result)
+        create_profile(self.ws, result)
         self.assertFalse(self._read_settings()["awaySummaryEnabled"])
 
     def test_cleanup_10y_sets_period(self) -> None:
         result = _make_result(cleanup_10y=True)
-        create_profile(result)
+        create_profile(self.ws, result)
         self.assertEqual(self._read_settings()["cleanupPeriodDays"], 3650)
 
     def test_disable_memory_sets_auto_memory(self) -> None:
         result = _make_result(disable_memory=True)
-        create_profile(result)
+        create_profile(self.ws, result)
         self.assertFalse(self._read_settings()["autoMemoryEnabled"])
 
     def test_all_overrides_combined(self) -> None:
         result = _make_result(
             disable_recap=True, cleanup_10y=True, disable_memory=True
         )
-        create_profile(result)
+        create_profile(self.ws, result)
         settings = self._read_settings()
         self.assertFalse(settings["awaySummaryEnabled"])
         self.assertEqual(settings["cleanupPeriodDays"], 3650)
@@ -269,7 +255,7 @@ class CheckboxOverridesTests(CreateProfileTestBase):
         result = _make_result(
             disable_recap=False, cleanup_10y=False, disable_memory=False
         )
-        create_profile(result)
+        create_profile(self.ws, result)
         settings = self._read_settings()
         # profileDefaults already set these; checkboxes being off means
         # the wizard doesn't override them, so the profileDefaults values remain
@@ -286,7 +272,7 @@ class CheckboxOverridesTests(CreateProfileTestBase):
         self._shared_settings_file.write_text(json.dumps(shared))
 
         result = _make_result(disable_recap=True)
-        create_profile(result)
+        create_profile(self.ws, result)
 
         settings = self._read_settings()
         # Override applied
@@ -300,14 +286,14 @@ class HooksWiringTests(CreateProfileTestBase):
 
     def test_hooks_written_when_enabled(self) -> None:
         result = _make_result(wire_hooks=True)
-        create_profile(result)
+        create_profile(self.ws, result)
         settings = self._read_settings()
         self.assertIn("hooks", settings)
         self.assertEqual(settings["hooks"], self._expected_hooks())
 
     def test_no_hooks_when_disabled(self) -> None:
         result = _make_result(wire_hooks=False)
-        create_profile(result)
+        create_profile(self.ws, result)
         settings = self._read_settings()
         self.assertNotIn("hooks", settings)
 
@@ -335,7 +321,7 @@ class HookMergeTests(CreateProfileTestBase):
         (source_dir / "settings.json").write_text(json.dumps(existing_hooks))
 
         result = _make_result(name="merged", clone_from="src", wire_hooks=True)
-        create_profile(result)
+        create_profile(self.ws, result)
 
         expected_hooks = self._expected_hooks()
         settings = self._read_settings("merged")
@@ -368,7 +354,7 @@ class HookMergeTests(CreateProfileTestBase):
         (source_dir / "settings.json").write_text(json.dumps(existing_hooks))
 
         result = _make_result(name="nodedup", clone_from="dup", wire_hooks=True)
-        create_profile(result)
+        create_profile(self.ws, result)
 
         settings = self._read_settings("nodedup")
         hooks_list = settings["hooks"]["UserPromptSubmit"][0]["hooks"]
@@ -383,7 +369,7 @@ class HookMergeTests(CreateProfileTestBase):
         (source_dir / "settings.json").write_text(json.dumps({"someKey": 1}))
 
         result = _make_result(name="fresh", clone_from="nohooks", wire_hooks=True)
-        create_profile(result)
+        create_profile(self.ws, result)
 
         settings = self._read_settings("fresh")
         self.assertEqual(settings["hooks"], self._expected_hooks())
@@ -396,7 +382,7 @@ class SymlinkCreationTests(CreateProfileTestBase):
 
     def test_symlinks_created(self) -> None:
         result = _make_result(symlink_shared=True)
-        create_profile(result)
+        create_profile(self.ws, result)
 
         profile_dir = self._profile_dir()
         shared_base = self.fake_home / ".claudewheel" / "shared"
@@ -409,7 +395,7 @@ class SymlinkCreationTests(CreateProfileTestBase):
     def test_shared_target_dirs_created(self) -> None:
         """The target directories under ~/.claudewheel/shared/ are created."""
         result = _make_result(symlink_shared=True)
-        create_profile(result)
+        create_profile(self.ws, result)
 
         shared_base = self.fake_home / ".claudewheel" / "shared"
         for dirname in PROFILE_SHARED_DIRS:
@@ -424,7 +410,7 @@ class SymlinkCreationTests(CreateProfileTestBase):
     def test_no_symlinks_when_checkbox_off(self) -> None:
         """symlink_shared=False threads through create_profile: no links created."""
         result = _make_result(symlink_shared=False)
-        create_profile(result)
+        create_profile(self.ws, result)
 
         profile_dir = self._profile_dir()
         for dirname in PROFILE_SHARED_DIRS:
@@ -448,7 +434,7 @@ class OptionsRegistrationTests(CreateProfileTestBase):
     def test_add_option_called(self) -> None:
         """The profile name is added to the 'profile' segment pinned list."""
         result = _make_result(name="newprof")
-        create_profile(result)
+        create_profile(self.ws, result)
 
         # Reload options from disk to verify persistence
         options = json.loads((self.launcher_dir / "options.json").read_text())
@@ -457,7 +443,7 @@ class OptionsRegistrationTests(CreateProfileTestBase):
     def test_no_config_dir_metadata_written(self) -> None:
         """config_dir is never persisted -- no metadata entry is created."""
         result = _make_result(name="newprof")
-        create_profile(result)
+        create_profile(self.ws, result)
 
         options = json.loads((self.launcher_dir / "options.json").read_text())
         self.assertNotIn("newprof", options["profile"].get("metadata", {}))
@@ -468,7 +454,7 @@ class SummaryLinesTests(CreateProfileTestBase):
 
     def test_summary_lines_returned(self) -> None:
         result = _make_result(name="sumtest", wire_hooks=True)
-        lines = create_profile(result)
+        lines = create_profile(self.ws, result)
         self.assertEqual(lines[0], "Created profile 'sumtest':")
         joined = "\n".join(lines)
         self.assertIn("Config dir:", joined)
@@ -480,13 +466,13 @@ class SummaryLinesTests(CreateProfileTestBase):
         source_dir = self.fake_home / ".claudewheel" / "profiles" / "src"
         source_dir.mkdir(parents=True)
         result = _make_result(name="cloned", clone_from="src")
-        lines = create_profile(result)
+        lines = create_profile(self.ws, result)
         self.assertIn("Settings from:  src", "\n".join(lines))
 
     def test_nothing_printed(self) -> None:
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):
-            create_profile(_make_result(name="quiet"))
+            create_profile(self.ws, _make_result(name="quiet"))
         self.assertEqual(buf.getvalue(), "")
 
 
@@ -543,12 +529,11 @@ class WizardTUITestBase(unittest.TestCase):
         self.fake_profiles_dir = Path(self._tmp.name) / "profiles"
         self.fake_profiles_dir.mkdir(parents=True)
 
-        # Patch PROFILES_DIR so _validate_name checks our temp dir
-        self._profiles_patch = mock.patch.object(
-            wizard_mod, "PROFILES_DIR", self.fake_profiles_dir
-        )
-        self._profiles_patch.start()
-        self.addCleanup(self._profiles_patch.stop)
+        # Workspace rooted so ws.profiles_dir == fake_profiles_dir; _validate_name
+        # checks against it.
+        from claudewheel.workspace import Workspace
+        self.ws = Workspace.open(Path(self._tmp.name),
+                                 claude_dir=Path(self._tmp.name) / ".claude")
 
         # Patch signal.signal to avoid SIGWINCH issues in test
         self._signal_patch = mock.patch(
@@ -565,7 +550,7 @@ class WizardTUITestBase(unittest.TestCase):
         if existing_profiles is None:
             existing_profiles = []
         self.fake_term = FakeTerminal(keys)
-        return run_profile_wizard(existing_profiles, THEME, self.fake_term)
+        return run_profile_wizard(self.ws, existing_profiles, THEME, self.fake_term)
 
 
 class EnterFromNameSubmitsTests(WizardTUITestBase):
@@ -967,7 +952,7 @@ class KeyExhaustionSafetyTests(WizardTUITestBase):
 
 
 class AuthFlowTestBase(unittest.TestCase):
-    """Shared setup for run_auth_flow() tests.
+    """Shared setup for run_auth_flow(self.ws, self.locator, ) tests.
 
     Patches detect_browsers to a fixed single-browser list so the browser
     selection form (shown after picking session/token) is deterministic and
@@ -1008,14 +993,17 @@ class AuthFlowTestBase(unittest.TestCase):
         # mocked in these tests, so a MagicMock terminal suffices.
         self.term = mock.MagicMock()
 
-        # Isolate the auth flow's browser-choice persistence from the real
-        # state.json. load_state_value/save_state_value read STATE_FILE from
-        # the state module's globals, so patching there covers wizard.py too.
-        self.state_file = self.fake_home / "state.json"
-        self._state_patch = mock.patch(
-            "claudewheel.state.STATE_FILE", self.state_file)
-        self._state_patch.start()
-        self.addCleanup(self._state_patch.stop)
+        # A workspace rooted at the sandbox home. run_auth_flow persists the
+        # browser choice via StateFile(ws.state_file) and saves tokens via
+        # ws.tokens, so ws.state_file == self.state_file and ws.tokens_file stay
+        # inside the sandbox.
+        from claudewheel.workspace import Workspace
+        from claudewheel.binaries import BinaryLocator
+        (self.fake_home / ".claudewheel").mkdir(parents=True, exist_ok=True)
+        self.ws = Workspace.open(self.fake_home / ".claudewheel",
+                                 claude_dir=self.fake_home / ".claude")
+        self.locator = BinaryLocator.default()
+        self.state_file = self.ws.state_file
 
     def _restore_home(self) -> None:
         if self._orig_home is None:
@@ -1040,7 +1028,7 @@ class AuthFlowTestBase(unittest.TestCase):
 
 
 class AuthFlowTests(AuthFlowTestBase):
-    """Tests for run_auth_flow() post-wizard auth setup.
+    """Tests for run_auth_flow(self.ws, self.locator, ) post-wizard auth setup.
 
     run_auth_flow presents its menu via ui.run_selection (mocked here) and
     returns one of four outcome strings: "authenticated", "skip", "cancel",
@@ -1055,14 +1043,14 @@ class AuthFlowTests(AuthFlowTestBase):
         """Choosing the skip option returns 'skip'."""
         from claudewheel.wizard import run_auth_flow
         with mock.patch("claudewheel.wizard.run_selection", autospec=True, return_value="skip"):
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test", THEME, self.term)
+            result = run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test", THEME, self.term)
         self.assertEqual(result, "skip")
 
     def test_form_cancel_returns_cancel(self) -> None:
         """Esc/Ctrl-C on the selection form (None) returns 'cancel', not 'skip'."""
         from claudewheel.wizard import run_auth_flow
         with mock.patch("claudewheel.wizard.run_selection", autospec=True, return_value=None):
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test", THEME, self.term)
+            result = run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test", THEME, self.term)
         self.assertEqual(result, "cancel")
 
     def test_selection_options_and_flags(self) -> None:
@@ -1074,7 +1062,7 @@ class AuthFlowTests(AuthFlowTestBase):
         from claudewheel.wizard import run_auth_flow
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         return_value=None) as mock_sel:
-            run_auth_flow("~/.claudewheel/profiles/test", "test", THEME, self.term)
+            run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test", THEME, self.term)
         mock_sel.assert_called_once()
         args, kwargs = mock_sel.call_args
         self.assertEqual(args[0], "Authenticate profile 'test'")
@@ -1089,7 +1077,7 @@ class AuthFlowTests(AuthFlowTestBase):
         from claudewheel.wizard import run_auth_flow
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         return_value="skip") as mock_sel:
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test",
+            result = run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test",
                                    THEME, self.term,
                                    skip_label="Launch without auth")
         self.assertEqual(result, "skip")
@@ -1100,9 +1088,9 @@ class AuthFlowTests(AuthFlowTestBase):
         """Session login returns 'failed' when Claude binary is missing."""
         from claudewheel.wizard import run_auth_flow
         with mock.patch("claudewheel.wizard.run_selection", autospec=True, side_effect=["session", "copy"]), \
-             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", Path("/nonexistent/claude")), \
+             mock.patch("claudewheel.wizard._find_claude_binary", return_value=None), \
              mock.patch("claudewheel.wizard.shutil.which", return_value=None):
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test", THEME, self.term)
+            result = run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test", THEME, self.term)
         self.assertEqual(result, "failed")
         self.assertIn("not found", self._stdout_buf.getvalue())
 
@@ -1122,9 +1110,9 @@ class AuthFlowTests(AuthFlowTestBase):
             return subprocess.CompletedProcess(cmd, 0)
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True, side_effect=["session", "copy"]), \
-             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard._find_claude_binary", return_value=str(fake_binary)), \
              mock.patch("claudewheel.wizard.subprocess.run", side_effect=fake_run):
-            result = run_auth_flow(config_dir_str, "authtest", THEME, self.term)
+            result = run_auth_flow(self.ws, self.locator, config_dir_str, "authtest", THEME, self.term)
         self.assertEqual(result, "authenticated")
         self.assertIn("successful", self._stdout_buf.getvalue())
 
@@ -1139,10 +1127,10 @@ class AuthFlowTests(AuthFlowTestBase):
         fake_binary = self._make_fake_binary()
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True, side_effect=["session", "copy"]), \
-             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard._find_claude_binary", return_value=str(fake_binary)), \
              mock.patch("claudewheel.wizard.subprocess.run",
                         return_value=subprocess.CompletedProcess([], 0)):
-            result = run_auth_flow(config_dir_str, "nocred", THEME, self.term)
+            result = run_auth_flow(self.ws, self.locator, config_dir_str, "nocred", THEME, self.term)
         self.assertEqual(result, "failed")
         self.assertIn("not complete", self._stdout_buf.getvalue())
 
@@ -1153,10 +1141,10 @@ class AuthFlowTests(AuthFlowTestBase):
         fake_binary = self._make_fake_binary()
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True, side_effect=["session", "copy"]), \
-             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard._find_claude_binary", return_value=str(fake_binary)), \
              mock.patch("claudewheel.wizard.subprocess.run",
                         return_value=subprocess.CompletedProcess([], 1)):
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test", THEME, self.term)
+            result = run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test", THEME, self.term)
         self.assertEqual(result, "failed")
 
     def test_long_lived_token_success(self) -> None:
@@ -1171,13 +1159,13 @@ class AuthFlowTests(AuthFlowTestBase):
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True, side_effect=["token", "copy"]), \
              mock.patch("builtins.input", side_effect=AssertionError("no paste prompt expected")) as mock_input, \
-             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard._find_claude_binary", return_value=str(fake_binary)), \
              mock.patch("claudewheel.wizard.run_under_pty", autospec=True,
                         return_value=(0, CAPTURED_OUTPUT)), \
              mock.patch("claudewheel.auth.validate_token", autospec=True,
                         return_value=auth.VALID) as mock_probe, \
-             mock.patch("claudewheel.wizard.add_token") as mock_add:
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test", THEME, self.term)
+             mock.patch("claudewheel.tokens.TokenStore.add") as mock_add:
+            result = run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test", THEME, self.term)
         self.assertEqual(result, "authenticated")
         mock_add.assert_called_once_with("test", CAPTURED_TOKEN)
         mock_probe.assert_called_once_with(CAPTURED_TOKEN)
@@ -1187,9 +1175,9 @@ class AuthFlowTests(AuthFlowTestBase):
         """Long-lived token returns 'failed' when Claude binary is missing."""
         from claudewheel.wizard import run_auth_flow
         with mock.patch("claudewheel.wizard.run_selection", autospec=True, side_effect=["token", "copy"]), \
-             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", Path("/nonexistent/claude")), \
+             mock.patch("claudewheel.wizard._find_claude_binary", return_value=None), \
              mock.patch("claudewheel.wizard.shutil.which", return_value=None):
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test", THEME, self.term)
+            result = run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test", THEME, self.term)
         self.assertEqual(result, "failed")
 
     def test_long_lived_token_subprocess_error(self) -> None:
@@ -1199,10 +1187,10 @@ class AuthFlowTests(AuthFlowTestBase):
         fake_binary = self._make_fake_binary()
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True, side_effect=["token", "copy"]), \
-             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard._find_claude_binary", return_value=str(fake_binary)), \
              mock.patch("claudewheel.wizard.run_under_pty", autospec=True,
                         return_value=(1, b"")):
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test", THEME, self.term)
+            result = run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test", THEME, self.term)
         self.assertEqual(result, "failed")
 
     def test_long_lived_token_pty_error(self) -> None:
@@ -1212,10 +1200,10 @@ class AuthFlowTests(AuthFlowTestBase):
         fake_binary = self._make_fake_binary()
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True, side_effect=["token", "copy"]), \
-             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard._find_claude_binary", return_value=str(fake_binary)), \
              mock.patch("claudewheel.wizard.run_under_pty", autospec=True,
                         side_effect=RuntimeError("cannot open /dev/tty")):
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test", THEME, self.term)
+            result = run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test", THEME, self.term)
         self.assertEqual(result, "failed")
         self.assertIn("Error running claude setup-token",
                       self._stdout_buf.getvalue())
@@ -1228,11 +1216,11 @@ class AuthFlowTests(AuthFlowTestBase):
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True, side_effect=["token", "copy"]), \
              mock.patch("builtins.input", return_value=""), \
-             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard._find_claude_binary", return_value=str(fake_binary)), \
              mock.patch("claudewheel.wizard.run_under_pty", autospec=True,
                         return_value=(0, b"no token in this output")), \
-             mock.patch("claudewheel.wizard.add_token") as mock_add:
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test", THEME, self.term)
+             mock.patch("claudewheel.tokens.TokenStore.add") as mock_add:
+            result = run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test", THEME, self.term)
         self.assertEqual(result, "failed")
         mock_add.assert_not_called()
         self.assertIn("No token", self._stdout_buf.getvalue())
@@ -1251,13 +1239,13 @@ class AuthFlowTests(AuthFlowTestBase):
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True, side_effect=["token", "copy"]), \
              mock.patch("builtins.input", return_value="some-other-token"), \
-             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard._find_claude_binary", return_value=str(fake_binary)), \
              mock.patch("claudewheel.wizard.run_under_pty", autospec=True,
                         return_value=(0, b"nothing to extract")), \
              mock.patch("claudewheel.auth.validate_token", autospec=True,
                         return_value=auth.VALID) as mock_probe, \
-             mock.patch("claudewheel.wizard.add_token") as mock_add:
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test", THEME, self.term)
+             mock.patch("claudewheel.tokens.TokenStore.add") as mock_add:
+            result = run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test", THEME, self.term)
         self.assertEqual(result, "authenticated")
         self.assertNotIn("Warning", self._stdout_buf.getvalue())
         mock_probe.assert_called_once_with("some-other-token")
@@ -1271,11 +1259,11 @@ class AuthFlowTests(AuthFlowTestBase):
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True, side_effect=["token", "copy"]), \
              mock.patch("builtins.input", side_effect=KeyboardInterrupt), \
-             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard._find_claude_binary", return_value=str(fake_binary)), \
              mock.patch("claudewheel.wizard.run_under_pty", autospec=True,
                         return_value=(0, b"nothing to extract")), \
-             mock.patch("claudewheel.wizard.add_token") as mock_add:
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test", THEME, self.term)
+             mock.patch("claudewheel.tokens.TokenStore.add") as mock_add:
+            result = run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test", THEME, self.term)
         self.assertEqual(result, "failed")
         mock_add.assert_not_called()
 
@@ -1287,14 +1275,14 @@ class AuthFlowTests(AuthFlowTestBase):
         fake_binary = self._make_fake_binary()
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True, side_effect=["token", "copy"]), \
-             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard._find_claude_binary", return_value=str(fake_binary)), \
              mock.patch("claudewheel.wizard.run_under_pty", autospec=True,
                         return_value=(0, CAPTURED_OUTPUT)), \
              mock.patch("claudewheel.auth.validate_token", autospec=True,
                         return_value=auth.VALID), \
-             mock.patch("claudewheel.wizard.add_token",
+             mock.patch("claudewheel.tokens.TokenStore.add",
                         side_effect=OSError("disk full")):
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test", THEME, self.term)
+            result = run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test", THEME, self.term)
         self.assertEqual(result, "failed")
         self.assertIn("Error saving token", self._stdout_buf.getvalue())
 
@@ -1305,10 +1293,10 @@ class AuthFlowTests(AuthFlowTestBase):
         fake_binary = self._make_fake_binary()
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True, side_effect=["session", "copy"]), \
-             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard._find_claude_binary", return_value=str(fake_binary)), \
              mock.patch("claudewheel.wizard.subprocess.run",
                         side_effect=OSError("exec failed")):
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test", THEME, self.term)
+            result = run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test", THEME, self.term)
         self.assertEqual(result, "failed")
         self.assertIn("Error running", self._stdout_buf.getvalue())
 
@@ -1316,18 +1304,16 @@ class AuthFlowTests(AuthFlowTestBase):
         """When CLAUDE_SYMLINK doesn't exist, falls back to shutil.which."""
         from claudewheel.wizard import _find_claude_binary
 
-        with mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", Path("/nonexistent/claude")), \
-             mock.patch("claudewheel.wizard.shutil.which", return_value="/usr/bin/claude"):
-            result = _find_claude_binary()
+        with mock.patch("claudewheel.wizard.shutil.which", return_value="/usr/bin/claude"):
+            result = _find_claude_binary(self.locator)
         self.assertEqual(result, "/usr/bin/claude")
 
     def test_find_claude_binary_returns_none_when_nothing_found(self) -> None:
         """Returns None when both CLAUDE_SYMLINK and which() fail."""
         from claudewheel.wizard import _find_claude_binary
 
-        with mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", Path("/nonexistent/claude")), \
-             mock.patch("claudewheel.wizard.shutil.which", return_value=None):
-            result = _find_claude_binary()
+        with mock.patch("claudewheel.wizard.shutil.which", return_value=None):
+            result = _find_claude_binary(self.locator)
         self.assertIsNone(result)
 
 
@@ -1342,10 +1328,10 @@ class BrowserSelectionTests(AuthFlowTestBase):
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         side_effect=["session", "/usr/bin/firefox"]) as mock_sel, \
-             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard._find_claude_binary", return_value=str(fake_binary)), \
              mock.patch("claudewheel.wizard.subprocess.run",
                         return_value=subprocess.CompletedProcess([], 1)):
-            run_auth_flow("~/.claudewheel/profiles/test", "test", THEME, self.term)
+            run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test", THEME, self.term)
 
         self.assertEqual(mock_sel.call_count, 2)
         args, kwargs = mock_sel.call_args_list[1]
@@ -1362,10 +1348,10 @@ class BrowserSelectionTests(AuthFlowTestBase):
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         side_effect=["token", "copy"]) as mock_sel, \
-             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard._find_claude_binary", return_value=str(fake_binary)), \
              mock.patch("claudewheel.wizard.run_under_pty", autospec=True,
                         return_value=(1, b"")):
-            run_auth_flow("~/.claudewheel/profiles/test", "test", THEME, self.term)
+            run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test", THEME, self.term)
 
         self.assertEqual(mock_sel.call_count, 2)
         args, _kwargs = mock_sel.call_args_list[1]
@@ -1377,7 +1363,7 @@ class BrowserSelectionTests(AuthFlowTestBase):
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         side_effect=["skip"]) as mock_sel:
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test", THEME, self.term)
+            result = run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test", THEME, self.term)
 
         self.assertEqual(result, "skip")
         self.assertEqual(mock_sel.call_count, 1)
@@ -1388,7 +1374,7 @@ class BrowserSelectionTests(AuthFlowTestBase):
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         side_effect=[None]) as mock_sel:
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test", THEME, self.term)
+            result = run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test", THEME, self.term)
 
         self.assertEqual(result, "cancel")
         self.assertEqual(mock_sel.call_count, 1)
@@ -1400,7 +1386,7 @@ class BrowserSelectionTests(AuthFlowTestBase):
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         side_effect=["session", None]), \
              mock.patch("claudewheel.wizard.subprocess.run") as mock_run:
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test", THEME, self.term)
+            result = run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test", THEME, self.term)
 
         self.assertEqual(result, "cancel")
         mock_run.assert_not_called()
@@ -1413,7 +1399,7 @@ class BrowserSelectionTests(AuthFlowTestBase):
                         return_value=[]), \
              mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         side_effect=["session", None]) as mock_sel:
-            run_auth_flow("~/.claudewheel/profiles/test", "test", THEME, self.term)
+            run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test", THEME, self.term)
 
         args, _kwargs = mock_sel.call_args_list[1]
         self.assertEqual(args[1], [("copy", "Copy URL instead")])
@@ -1426,10 +1412,10 @@ class BrowserSelectionTests(AuthFlowTestBase):
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         side_effect=["session", "/usr/bin/firefox"]), \
-             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard._find_claude_binary", return_value=str(fake_binary)), \
              mock.patch("claudewheel.wizard.subprocess.run",
                         return_value=subprocess.CompletedProcess([], 1)) as mock_run:
-            run_auth_flow("~/.claudewheel/profiles/test", "test", THEME, self.term)
+            run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test", THEME, self.term)
 
         env = mock_run.call_args.kwargs["env"]
         self.assertEqual(env["BROWSER"], "/usr/bin/firefox")
@@ -1442,10 +1428,10 @@ class BrowserSelectionTests(AuthFlowTestBase):
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         side_effect=["session", "copy"]), \
-             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard._find_claude_binary", return_value=str(fake_binary)), \
              mock.patch("claudewheel.wizard.subprocess.run",
                         return_value=subprocess.CompletedProcess([], 1)) as mock_run:
-            run_auth_flow("~/.claudewheel/profiles/test", "test", THEME, self.term)
+            run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test", THEME, self.term)
 
         env = mock_run.call_args.kwargs["env"]
         self.assertEqual(env["BROWSER"], "false")
@@ -1459,10 +1445,10 @@ class BrowserSelectionTests(AuthFlowTestBase):
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         side_effect=["token", "/usr/bin/firefox"]), \
-             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard._find_claude_binary", return_value=str(fake_binary)), \
              mock.patch("claudewheel.wizard.run_under_pty", autospec=True,
                         return_value=(1, b"")) as mock_pty:
-            run_auth_flow("~/.claudewheel/profiles/test", "test", THEME, self.term)
+            run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test", THEME, self.term)
 
         argv, env = mock_pty.call_args.args
         self.assertEqual(argv[1], "setup-token")
@@ -1476,10 +1462,10 @@ class BrowserSelectionTests(AuthFlowTestBase):
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         side_effect=["token", "copy"]), \
-             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard._find_claude_binary", return_value=str(fake_binary)), \
              mock.patch("claudewheel.wizard.run_under_pty", autospec=True,
                         return_value=(1, b"")) as mock_pty:
-            run_auth_flow("~/.claudewheel/profiles/test", "test", THEME, self.term)
+            run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test", THEME, self.term)
 
         _argv, env = mock_pty.call_args.args
         self.assertEqual(env["BROWSER"], "false")
@@ -1507,9 +1493,9 @@ class AuthBrowserPersistenceTests(AuthFlowTestBase):
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         side_effect=["session", browser_choice]), \
-             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard._find_claude_binary", return_value=str(fake_binary)), \
              mock.patch("claudewheel.wizard.subprocess.run", side_effect=fake_run):
-            return run_auth_flow(str(config_dir), "authtest", THEME, self.term)
+            return run_auth_flow(self.ws, self.locator, str(config_dir), "authtest", THEME, self.term)
 
     def test_browser_persisted_after_successful_session_auth(self) -> None:
         """A successful session auth writes the browser path to state.json."""
@@ -1533,13 +1519,13 @@ class AuthBrowserPersistenceTests(AuthFlowTestBase):
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         side_effect=["token", "/usr/bin/firefox"]), \
-             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard._find_claude_binary", return_value=str(fake_binary)), \
              mock.patch("claudewheel.wizard.run_under_pty", autospec=True,
                         return_value=(0, CAPTURED_OUTPUT)), \
              mock.patch("claudewheel.auth.validate_token", autospec=True,
                         return_value=auth.VALID), \
-             mock.patch("claudewheel.wizard.add_token"):
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test", THEME, self.term)
+             mock.patch("claudewheel.tokens.TokenStore.add"):
+            result = run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test", THEME, self.term)
 
         self.assertEqual(result, "authenticated")
         self.assertEqual(self._read_state().get("auth_browser"),
@@ -1558,13 +1544,13 @@ class AuthBrowserPersistenceTests(AuthFlowTestBase):
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         side_effect=["token", "/usr/bin/firefox", "save"]), \
-             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard._find_claude_binary", return_value=str(fake_binary)), \
              mock.patch("claudewheel.wizard.run_under_pty", autospec=True,
                         return_value=(0, CAPTURED_OUTPUT)), \
              mock.patch("claudewheel.auth.validate_token", autospec=True,
                         return_value=auth.UNREACHABLE), \
-             mock.patch("claudewheel.wizard.add_token"):
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test", THEME, self.term)
+             mock.patch("claudewheel.tokens.TokenStore.add"):
+            result = run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test", THEME, self.term)
 
         self.assertEqual(result, "unverified")
         self.assertEqual(self._read_state().get("auth_browser"),
@@ -1578,10 +1564,10 @@ class AuthBrowserPersistenceTests(AuthFlowTestBase):
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         side_effect=["session", "/usr/bin/firefox"]), \
-             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard._find_claude_binary", return_value=str(fake_binary)), \
              mock.patch("claudewheel.wizard.subprocess.run",
                         return_value=subprocess.CompletedProcess([], 1)):
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test", THEME, self.term)
+            result = run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test", THEME, self.term)
 
         self.assertEqual(result, "failed")
         self.assertNotIn("auth_browser", self._read_state())
@@ -1592,7 +1578,7 @@ class AuthBrowserPersistenceTests(AuthFlowTestBase):
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         side_effect=["session", None]):
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test", THEME, self.term)
+            result = run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test", THEME, self.term)
 
         self.assertEqual(result, "cancel")
         self.assertNotIn("auth_browser", self._read_state())
@@ -1603,7 +1589,7 @@ class AuthBrowserPersistenceTests(AuthFlowTestBase):
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         return_value="skip"):
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test", THEME, self.term)
+            result = run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test", THEME, self.term)
 
         self.assertEqual(result, "skip")
         self.assertNotIn("auth_browser", self._read_state())
@@ -1617,7 +1603,7 @@ class AuthBrowserPersistenceTests(AuthFlowTestBase):
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         side_effect=["session", None]) as mock_sel:
-            run_auth_flow("~/.claudewheel/profiles/test", "test", THEME, self.term)
+            run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test", THEME, self.term)
 
         _args, kwargs = mock_sel.call_args_list[1]
         self.assertEqual(kwargs.get("initial_key"), "/usr/bin/firefox")
@@ -1628,7 +1614,7 @@ class AuthBrowserPersistenceTests(AuthFlowTestBase):
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         side_effect=["session", None]) as mock_sel:
-            run_auth_flow("~/.claudewheel/profiles/test", "test", THEME, self.term)
+            run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test", THEME, self.term)
 
         _args, kwargs = mock_sel.call_args_list[1]
         self.assertIsNone(kwargs.get("initial_key"))
@@ -1641,7 +1627,7 @@ class AuthBrowserPersistenceTests(AuthFlowTestBase):
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         side_effect=["session", None]) as mock_sel:
-            run_auth_flow("~/.claudewheel/profiles/test", "test", THEME, self.term)
+            run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test", THEME, self.term)
 
         _args, kwargs = mock_sel.call_args_list[1]
         self.assertIsNone(kwargs.get("initial_key"))
@@ -1659,7 +1645,7 @@ class AuthBrowserPersistenceTests(AuthFlowTestBase):
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         side_effect=["session", None]) as mock_sel:
-            run_auth_flow("~/.claudewheel/profiles/test", "test", THEME, self.term)
+            run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test", THEME, self.term)
 
         args, kwargs = mock_sel.call_args_list[1]
         self.assertEqual(kwargs.get("initial_key"),
@@ -1709,9 +1695,9 @@ class CookedWindowTests(AuthFlowTestBase):
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         side_effect=["session", "copy"]), \
-             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard._find_claude_binary", return_value=str(fake_binary)), \
              mock.patch("claudewheel.wizard.subprocess.run", side_effect=fake_run):
-            run_auth_flow("~/.claudewheel/profiles/test", "test", THEME, self.term)
+            run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test", THEME, self.term)
 
         self.assertEqual(events, ["enter", "subprocess", "exit"])
 
@@ -1730,13 +1716,13 @@ class CookedWindowTests(AuthFlowTestBase):
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         side_effect=["token", "copy"]), \
-             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard._find_claude_binary", return_value=str(fake_binary)), \
              mock.patch("claudewheel.wizard.run_under_pty", autospec=True,
                         side_effect=fake_pty), \
              mock.patch("claudewheel.auth.validate_token", autospec=True,
                         return_value=auth.VALID), \
-             mock.patch("claudewheel.wizard.add_token"):
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test",
+             mock.patch("claudewheel.tokens.TokenStore.add"):
+            result = run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test",
                                    THEME, self.term)
 
         self.assertEqual(result, "authenticated")
@@ -1757,13 +1743,13 @@ class CookedWindowTests(AuthFlowTestBase):
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         side_effect=["token", "copy"]), \
              mock.patch("builtins.input", side_effect=fake_input), \
-             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard._find_claude_binary", return_value=str(fake_binary)), \
              mock.patch("claudewheel.wizard.run_under_pty", autospec=True,
                         return_value=(0, b"nothing to extract")), \
              mock.patch("claudewheel.auth.validate_token", autospec=True,
                         return_value=auth.VALID), \
-             mock.patch("claudewheel.wizard.add_token"):
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test",
+             mock.patch("claudewheel.tokens.TokenStore.add"):
+            result = run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test",
                                    THEME, self.term)
 
         self.assertEqual(result, "authenticated")
@@ -1789,12 +1775,12 @@ class CookedWindowTests(AuthFlowTestBase):
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         side_effect=fake_selection), \
-             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard._find_claude_binary", return_value=str(fake_binary)), \
              mock.patch("claudewheel.wizard.run_under_pty", autospec=True,
                         return_value=(0, CAPTURED_OUTPUT)), \
              mock.patch("claudewheel.auth.validate_token", autospec=True,
                         return_value=auth.UNREACHABLE):
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test",
+            result = run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test",
                                    THEME, self.term)
 
         self.assertEqual(result, "failed")
@@ -1806,7 +1792,7 @@ class CookedWindowTests(AuthFlowTestBase):
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         return_value="skip"):
-            run_auth_flow("~/.claudewheel/profiles/test", "test", THEME, self.term)
+            run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test", THEME, self.term)
 
         self.term.cooked.assert_not_called()
 
@@ -1816,9 +1802,9 @@ class CookedWindowTests(AuthFlowTestBase):
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         side_effect=["session", "copy"]), \
-             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", Path("/nonexistent/claude")), \
+             mock.patch("claudewheel.wizard._find_claude_binary", return_value=None), \
              mock.patch("claudewheel.wizard.shutil.which", return_value=None):
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test",
+            result = run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test",
                                    THEME, self.term)
 
         self.assertEqual(result, "failed")
@@ -1866,9 +1852,9 @@ class TokenValidationRedGreenTests(AuthFlowTestBase):
                         return_value=auth.INVALID), \
              mock.patch("builtins.input",
                         return_value="sk-ant-oat01-TRUNCATED"), \
-             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
-             mock.patch("claudewheel.wizard.add_token") as mock_add:
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test",
+             mock.patch("claudewheel.wizard._find_claude_binary", return_value=str(fake_binary)), \
+             mock.patch("claudewheel.tokens.TokenStore.add") as mock_add:
+            result = run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test",
                                    THEME, self.term)
 
         mock_add.assert_not_called()
@@ -1899,13 +1885,13 @@ class TokenRecoveryPasteTests(AuthFlowTestBase):
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         side_effect=["token", "copy"]), \
              mock.patch("builtins.input", return_value=pasted), \
-             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard._find_claude_binary", return_value=str(fake_binary)), \
              mock.patch("claudewheel.wizard.run_under_pty", autospec=True,
                         return_value=(0, b"nothing extractable here")), \
              mock.patch("claudewheel.auth.validate_token", autospec=True,
                         return_value=probe_result), \
-             mock.patch("claudewheel.wizard.add_token") as mock_add:
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test", THEME, self.term)
+             mock.patch("claudewheel.tokens.TokenStore.add") as mock_add:
+            result = run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test", THEME, self.term)
         return result, mock_add
 
     def test_embedded_whitespace_removed(self) -> None:
@@ -1962,13 +1948,13 @@ class TokenValidationOutcomeTests(AuthFlowTestBase):
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         side_effect=selections) as mock_sel, \
              mock.patch("builtins.input", return_value=reprompt) as mock_input, \
-             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard._find_claude_binary", return_value=str(fake_binary)), \
              mock.patch("claudewheel.wizard.run_under_pty", autospec=True,
                         return_value=(0, captured)), \
              mock.patch("claudewheel.auth.validate_token", autospec=True,
                         side_effect=probe_results) as mock_probe, \
-             mock.patch("claudewheel.wizard.add_token") as mock_add:
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test",
+             mock.patch("claudewheel.tokens.TokenStore.add") as mock_add:
+            result = run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test",
                                    THEME, self.term)
         return result, mock_add, mock_probe, mock_input, mock_sel
 
@@ -2079,14 +2065,14 @@ class TokenValidationOutcomeTests(AuthFlowTestBase):
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         side_effect=["token", "copy", "save"]), \
-             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard._find_claude_binary", return_value=str(fake_binary)), \
              mock.patch("claudewheel.wizard.run_under_pty", autospec=True,
                         return_value=(0, CAPTURED_OUTPUT)), \
              mock.patch("claudewheel.auth.validate_token", autospec=True,
                         return_value=auth.UNREACHABLE), \
-             mock.patch("claudewheel.wizard.add_token",
+             mock.patch("claudewheel.tokens.TokenStore.add",
                         side_effect=OSError("disk full")):
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test",
+            result = run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test",
                                    THEME, self.term)
         self.assertEqual(result, "failed")
         self.assertIn("Error saving token", self._stdout_buf.getvalue())
@@ -2103,7 +2089,7 @@ class TokenValidationOutcomeTests(AuthFlowTestBase):
 
 
 class OnboardingFlagTests(CreateProfileTestBase):
-    """create_profile() must write .claude.json with hasCompletedOnboarding: true."""
+    """create_profile(self.ws, ) must write .claude.json with hasCompletedOnboarding: true."""
 
     def _read_claude_json(self, name: str = "test") -> dict:
         path = self._profile_dir(name) / ".claude.json"
@@ -2114,7 +2100,7 @@ class OnboardingFlagTests(CreateProfileTestBase):
     def test_create_profile_writes_onboarding_flag(self) -> None:
         """A freshly created profile has .claude.json with hasCompletedOnboarding."""
         result = _make_result(name="onboard")
-        create_profile(result)
+        create_profile(self.ws, result)
         cj = self._read_claude_json("onboard")
         self.assertTrue(cj.get("hasCompletedOnboarding"),
                         ".claude.json must contain hasCompletedOnboarding: true")
@@ -2127,7 +2113,7 @@ class OnboardingFlagTests(CreateProfileTestBase):
 
 
 class OnboardingFlagAuthTests(AuthFlowTestBase):
-    """run_auth_flow() must write .claude.json with hasCompletedOnboarding
+    """run_auth_flow(self.ws, self.locator, ) must write .claude.json with hasCompletedOnboarding
     after successful auth (authenticated or unverified)."""
 
     def _read_claude_json(self, config_dir: str) -> dict:
@@ -2151,9 +2137,9 @@ class OnboardingFlagAuthTests(AuthFlowTestBase):
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         side_effect=["session", "copy"]), \
-             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard._find_claude_binary", return_value=str(fake_binary)), \
              mock.patch("claudewheel.wizard.subprocess.run", side_effect=fake_run):
-            result = run_auth_flow(config_dir_str, "authonboard", THEME, self.term)
+            result = run_auth_flow(self.ws, self.locator, config_dir_str, "authonboard", THEME, self.term)
 
         self.assertEqual(result, "authenticated")
         cj = self._read_claude_json(config_dir_str)
@@ -2172,13 +2158,13 @@ class OnboardingFlagAuthTests(AuthFlowTestBase):
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         side_effect=["token", "copy"]), \
-             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard._find_claude_binary", return_value=str(fake_binary)), \
              mock.patch("claudewheel.wizard.run_under_pty", autospec=True,
                         return_value=(0, CAPTURED_OUTPUT)), \
              mock.patch("claudewheel.auth.validate_token", autospec=True,
                         return_value=auth.VALID), \
-             mock.patch("claudewheel.wizard.add_token"):
-            result = run_auth_flow(config_dir_str, "tokenonboard", THEME, self.term)
+             mock.patch("claudewheel.tokens.TokenStore.add"):
+            result = run_auth_flow(self.ws, self.locator, config_dir_str, "tokenonboard", THEME, self.term)
 
         self.assertEqual(result, "authenticated")
         cj = self._read_claude_json(config_dir_str)
@@ -2197,13 +2183,13 @@ class OnboardingFlagAuthTests(AuthFlowTestBase):
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         side_effect=["token", "copy", "save"]), \
-             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard._find_claude_binary", return_value=str(fake_binary)), \
              mock.patch("claudewheel.wizard.run_under_pty", autospec=True,
                         return_value=(0, CAPTURED_OUTPUT)), \
              mock.patch("claudewheel.auth.validate_token", autospec=True,
                         return_value=auth.UNREACHABLE), \
-             mock.patch("claudewheel.wizard.add_token"):
-            result = run_auth_flow(config_dir_str, "unverified", THEME, self.term)
+             mock.patch("claudewheel.tokens.TokenStore.add"):
+            result = run_auth_flow(self.ws, self.locator, config_dir_str, "unverified", THEME, self.term)
 
         self.assertEqual(result, "unverified")
         cj = self._read_claude_json(config_dir_str)
@@ -2221,10 +2207,10 @@ class OnboardingFlagAuthTests(AuthFlowTestBase):
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         side_effect=["session", "copy"]), \
-             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard._find_claude_binary", return_value=str(fake_binary)), \
              mock.patch("claudewheel.wizard.subprocess.run",
                         return_value=subprocess.CompletedProcess([], 1)):
-            result = run_auth_flow(config_dir_str, "failauth", THEME, self.term)
+            result = run_auth_flow(self.ws, self.locator, config_dir_str, "failauth", THEME, self.term)
 
         self.assertEqual(result, "failed")
         cj = self._read_claude_json(config_dir_str)
@@ -2245,13 +2231,13 @@ class OnboardingFlagAuthTests(AuthFlowTestBase):
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         side_effect=["token", "copy"]), \
-             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard._find_claude_binary", return_value=str(fake_binary)), \
              mock.patch("claudewheel.wizard.run_under_pty", autospec=True,
                         return_value=(0, CAPTURED_OUTPUT)), \
              mock.patch("claudewheel.auth.validate_token", autospec=True,
                         return_value=auth.VALID), \
-             mock.patch("claudewheel.wizard.add_token"):
-            result = run_auth_flow(config_dir_str, "mergeauth", THEME, self.term)
+             mock.patch("claudewheel.tokens.TokenStore.add"):
+            result = run_auth_flow(self.ws, self.locator, config_dir_str, "mergeauth", THEME, self.term)
 
         self.assertEqual(result, "authenticated")
         cj = self._read_claude_json(config_dir_str)
@@ -2291,10 +2277,10 @@ class TierCaptureTests(AuthFlowTestBase):
         from claudewheel import tokens as tokens_mod
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         side_effect=["session", "copy"]), \
-             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard._find_claude_binary", return_value=str(fake_binary)), \
              mock.patch("claudewheel.wizard.subprocess.run", side_effect=fake_run), \
              mock.patch.object(tokens_mod, "TOKENS_FILE", tokens_file):
-            result = run_auth_flow(config_dir_str, "tiertest", THEME, self.term)
+            result = run_auth_flow(self.ws, self.locator, config_dir_str, "tiertest", THEME, self.term)
 
         self.assertEqual(result, "authenticated")
         tokens = json.loads(tokens_file.read_text())
@@ -2324,10 +2310,10 @@ class TierCaptureTests(AuthFlowTestBase):
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         side_effect=["session", "copy"]), \
-             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard._find_claude_binary", return_value=str(fake_binary)), \
              mock.patch("claudewheel.wizard.subprocess.run", side_effect=fake_run), \
-             mock.patch("claudewheel.wizard.store_tier") as mock_store:
-            result = run_auth_flow(config_dir_str, "notier", THEME, self.term)
+             mock.patch("claudewheel.tokens.TokenStore.set_tier") as mock_store:
+            result = run_auth_flow(self.ws, self.locator, config_dir_str, "notier", THEME, self.term)
 
         self.assertEqual(result, "authenticated")
         mock_store.assert_not_called()
@@ -2348,10 +2334,10 @@ class TierCaptureTests(AuthFlowTestBase):
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         side_effect=["session", "copy"]), \
-             mock.patch.object(wizard_mod, "CLAUDE_SYMLINK", fake_binary), \
+             mock.patch("claudewheel.wizard._find_claude_binary", return_value=str(fake_binary)), \
              mock.patch("claudewheel.wizard.subprocess.run", side_effect=fake_run), \
-             mock.patch("claudewheel.wizard.store_tier") as mock_store:
-            result = run_auth_flow(config_dir_str, "corrupt", THEME, self.term)
+             mock.patch("claudewheel.tokens.TokenStore.set_tier") as mock_store:
+            result = run_auth_flow(self.ws, self.locator, config_dir_str, "corrupt", THEME, self.term)
 
         # Auth succeeds (credentials file exists) despite corrupt JSON
         self.assertEqual(result, "authenticated")
@@ -2397,7 +2383,7 @@ class HookMergeGapTests(CreateProfileTestBase):
 
         result = _make_result(name="mergegap", clone_from="onlyups",
                               wire_hooks=True)
-        create_profile(result)
+        create_profile(self.ws, result)
 
         settings = self._read_settings("mergegap")
         self._assert_all_wirings(settings["hooks"])
@@ -2420,7 +2406,7 @@ class HookMergeGapTests(CreateProfileTestBase):
 
         result = _make_result(name="custmerge", clone_from="custom",
                               wire_hooks=True)
-        create_profile(result)
+        create_profile(self.ws, result)
 
         settings = self._read_settings("custmerge")
         self._assert_all_wirings(settings["hooks"])
@@ -2433,7 +2419,7 @@ class HookMergeGapTests(CreateProfileTestBase):
         from the guardrail model and all four hook wirings."""
         from claudewheel import guardrail
         result = _make_result(name="freshcanon", wire_hooks=True)
-        create_profile(result)
+        create_profile(self.ws, result)
 
         settings = self._read_settings("freshcanon")
         self._assert_all_wirings(settings["hooks"])
@@ -2461,8 +2447,8 @@ class PasteTokenTests(AuthFlowTestBase):
              mock.patch("builtins.input", return_value="sk-ant-oat01-GOODTOKEN123"), \
              mock.patch("claudewheel.auth.validate_token", autospec=True,
                         return_value=auth.VALID) as mock_probe, \
-             mock.patch("claudewheel.wizard.add_token") as mock_add:
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test",
+             mock.patch("claudewheel.tokens.TokenStore.add") as mock_add:
+            result = run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test",
                                    THEME, self.term)
 
         self.assertEqual(result, "authenticated")
@@ -2480,8 +2466,8 @@ class PasteTokenTests(AuthFlowTestBase):
                         side_effect=["sk-ant-bad", "sk-ant-good"]), \
              mock.patch("claudewheel.auth.validate_token", autospec=True,
                         side_effect=[auth.INVALID, auth.VALID]) as mock_probe, \
-             mock.patch("claudewheel.wizard.add_token") as mock_add:
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test",
+             mock.patch("claudewheel.tokens.TokenStore.add") as mock_add:
+            result = run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test",
                                    THEME, self.term)
 
         self.assertEqual(result, "authenticated")
@@ -2501,8 +2487,8 @@ class PasteTokenTests(AuthFlowTestBase):
                         side_effect=["sk-ant-bad1", "sk-ant-bad2"]), \
              mock.patch("claudewheel.auth.validate_token", autospec=True,
                         side_effect=[auth.INVALID, auth.INVALID]), \
-             mock.patch("claudewheel.wizard.add_token") as mock_add:
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test",
+             mock.patch("claudewheel.tokens.TokenStore.add") as mock_add:
+            result = run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test",
                                    THEME, self.term)
 
         self.assertEqual(result, "failed")
@@ -2518,8 +2504,8 @@ class PasteTokenTests(AuthFlowTestBase):
              mock.patch("builtins.input", return_value="sk-ant-token"), \
              mock.patch("claudewheel.auth.validate_token", autospec=True,
                         return_value=auth.UNREACHABLE), \
-             mock.patch("claudewheel.wizard.add_token") as mock_add:
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test",
+             mock.patch("claudewheel.tokens.TokenStore.add") as mock_add:
+            result = run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test",
                                    THEME, self.term)
 
         self.assertEqual(result, "unverified")
@@ -2538,8 +2524,8 @@ class PasteTokenTests(AuthFlowTestBase):
              mock.patch("builtins.input", return_value="sk-ant-token"), \
              mock.patch("claudewheel.auth.validate_token", autospec=True,
                         return_value=auth.UNREACHABLE), \
-             mock.patch("claudewheel.wizard.add_token") as mock_add:
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test",
+             mock.patch("claudewheel.tokens.TokenStore.add") as mock_add:
+            result = run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test",
                                    THEME, self.term)
 
         self.assertEqual(result, "failed")
@@ -2552,8 +2538,8 @@ class PasteTokenTests(AuthFlowTestBase):
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         return_value="paste"), \
              mock.patch("builtins.input", return_value=""), \
-             mock.patch("claudewheel.wizard.add_token") as mock_add:
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test",
+             mock.patch("claudewheel.tokens.TokenStore.add") as mock_add:
+            result = run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test",
                                    THEME, self.term)
 
         self.assertEqual(result, "cancel")
@@ -2569,8 +2555,8 @@ class PasteTokenTests(AuthFlowTestBase):
              mock.patch("builtins.input", return_value="sk-ant-token"), \
              mock.patch("claudewheel.auth.validate_token", autospec=True,
                         return_value=auth.VALID), \
-             mock.patch("claudewheel.wizard.add_token"):
-            run_auth_flow("~/.claudewheel/profiles/test", "test",
+             mock.patch("claudewheel.tokens.TokenStore.add"):
+            run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test",
                           THEME, self.term)
 
         # Only one run_selection call: the auth method choice.
@@ -2589,8 +2575,8 @@ class PasteTokenTests(AuthFlowTestBase):
              mock.patch("builtins.input", return_value="sk-ant-token"), \
              mock.patch("claudewheel.auth.validate_token", autospec=True,
                         return_value=auth.VALID), \
-             mock.patch("claudewheel.wizard.add_token"):
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test",
+             mock.patch("claudewheel.tokens.TokenStore.add"):
+            result = run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test",
                                    THEME, self.term)
 
         self.assertEqual(result, "authenticated")
@@ -2610,8 +2596,8 @@ class PasteTokenTests(AuthFlowTestBase):
              mock.patch("builtins.input", return_value="sk-ant-token"), \
              mock.patch("claudewheel.auth.validate_token", autospec=True,
                         return_value=auth.VALID), \
-             mock.patch("claudewheel.wizard.add_token"):
-            result = run_auth_flow(config_dir_str, "pasteonboard",
+             mock.patch("claudewheel.tokens.TokenStore.add"):
+            result = run_auth_flow(self.ws, self.locator, config_dir_str, "pasteonboard",
                                    THEME, self.term)
 
         self.assertEqual(result, "authenticated")
@@ -2626,7 +2612,7 @@ class PasteTokenTests(AuthFlowTestBase):
 
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         return_value=None) as mock_sel:
-            run_auth_flow("~/.claudewheel/profiles/test", "test",
+            run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test",
                           THEME, self.term)
 
         mock_sel.assert_called_once()
@@ -2644,8 +2630,8 @@ class PasteTokenTests(AuthFlowTestBase):
              mock.patch("builtins.input", return_value="sk-ant-token"), \
              mock.patch("claudewheel.auth.validate_token", autospec=True,
                         return_value=auth.INDETERMINATE), \
-             mock.patch("claudewheel.wizard.add_token") as mock_add:
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test",
+             mock.patch("claudewheel.tokens.TokenStore.add") as mock_add:
+            result = run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test",
                                    THEME, self.term)
 
         self.assertEqual(result, "unverified")
@@ -2663,9 +2649,9 @@ class PasteTokenTests(AuthFlowTestBase):
              mock.patch("builtins.input", return_value="sk-ant-token"), \
              mock.patch("claudewheel.auth.validate_token", autospec=True,
                         return_value=auth.VALID), \
-             mock.patch("claudewheel.wizard.add_token",
+             mock.patch("claudewheel.tokens.TokenStore.add",
                         side_effect=OSError("disk full")):
-            result = run_auth_flow("~/.claudewheel/profiles/test", "test",
+            result = run_auth_flow(self.ws, self.locator, "~/.claudewheel/profiles/test", "test",
                                    THEME, self.term)
 
         self.assertEqual(result, "failed")

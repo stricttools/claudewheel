@@ -9,116 +9,26 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from claudewheel.appdata import StateFile
+from claudewheel.shared_store import SharedStore
 from claudewheel.state import (
     AUTH_BROWSER_KEY,
-    load_state_value,
     record_inode,
     save_launch_state,
-    save_state_value,
 )
 
 
 class StateFileTestCase(unittest.TestCase):
-    """Base class providing a temp directory and patched STATE_FILE."""
+    """Base class providing a temp directory and a state.json path."""
 
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
         self.tmp_path = Path(self._tmp.name)
         self.state_file = self.tmp_path / "state.json"
-        self._patch = patch("claudewheel.state.STATE_FILE", self.state_file)
-        self._patch.start()
-        self.addCleanup(self._patch.stop)
 
     def _read(self) -> dict:
         return json.loads(self.state_file.read_text())
-
-
-# ---------------------------------------------------------------------------
-# load_state_value / save_state_value
-# ---------------------------------------------------------------------------
-
-
-class LoadStateValueTests(StateFileTestCase):
-    """Tests for state.load_state_value()."""
-
-    def test_missing_file_returns_none(self) -> None:
-        self.assertIsNone(load_state_value("anything"))
-
-    def test_missing_key_returns_none(self) -> None:
-        self.state_file.write_text(json.dumps({"other": 1}))
-        self.assertIsNone(load_state_value("anything"))
-
-    def test_reads_existing_key(self) -> None:
-        self.state_file.write_text(json.dumps({"auth_browser": "/usr/bin/ff"}))
-        self.assertEqual(load_state_value("auth_browser"), "/usr/bin/ff")
-
-    def test_corrupt_json_returns_none(self) -> None:
-        self.state_file.write_text("{not json")
-        self.assertIsNone(load_state_value("anything"))
-
-    def test_non_dict_json_returns_none(self) -> None:
-        self.state_file.write_text(json.dumps(["a", "list"]))
-        self.assertIsNone(load_state_value("anything"))
-
-    def test_reads_fresh_from_disk(self) -> None:
-        """Each call re-reads the file -- no in-memory caching."""
-        self.state_file.write_text(json.dumps({"k": "v1"}))
-        self.assertEqual(load_state_value("k"), "v1")
-        self.state_file.write_text(json.dumps({"k": "v2"}))
-        self.assertEqual(load_state_value("k"), "v2")
-
-
-class SaveStateValueTests(StateFileTestCase):
-    """Tests for state.save_state_value()."""
-
-    def test_creates_file_and_parents(self) -> None:
-        nested = self.tmp_path / "deep" / "state.json"
-        with patch("claudewheel.state.STATE_FILE", nested):
-            save_state_value("k", "v")
-        self.assertEqual(json.loads(nested.read_text()), {"k": "v"})
-
-    def test_roundtrip(self) -> None:
-        save_state_value("auth_browser", "copy")
-        self.assertEqual(load_state_value("auth_browser"), "copy")
-
-    def test_preserves_other_keys(self) -> None:
-        self.state_file.write_text(
-            json.dumps({"launch_count": 3, "recent_dirs": ["/x"]}))
-        save_state_value("auth_browser", "/usr/bin/ff")
-        self.assertEqual(self._read(), {
-            "launch_count": 3,
-            "recent_dirs": ["/x"],
-            "auth_browser": "/usr/bin/ff",
-        })
-
-    def test_overwrites_existing_value(self) -> None:
-        save_state_value("k", "old")
-        save_state_value("k", "new")
-        self.assertEqual(self._read(), {"k": "new"})
-
-    def test_corrupt_file_starts_fresh(self) -> None:
-        self.state_file.write_text("{not json")
-        save_state_value("k", "v")
-        self.assertEqual(self._read(), {"k": "v"})
-
-    def test_no_tmp_file_left_behind(self) -> None:
-        save_state_value("k", "v")
-        self.assertFalse((self.tmp_path / "state.tmp").exists())
-
-    def test_preserves_target_file_mode(self) -> None:
-        """The atomic tmp-swap must preserve the existing file's permissions
-        (the tmp file is created with umask-default perms and its mode wins
-        after rename). Regression test for the tmp-swap perms bug."""
-        old_umask = os.umask(0o022)  # pin umask so the tmp file defaults 0644
-        self.addCleanup(os.umask, old_umask)
-        self.state_file.write_text(json.dumps({"k": "old"}))
-        self.state_file.chmod(0o640)
-
-        save_state_value("k", "new")
-
-        mode = self.state_file.stat().st_mode & 0o777
-        self.assertEqual(mode, 0o640)
 
 
 # ---------------------------------------------------------------------------
@@ -143,10 +53,10 @@ class RecordInodePermissionTests(unittest.TestCase):
             project_dir = Path(tmp) / "proj"
             project_dir.mkdir()
 
-            # record_inode derives the inodes file from SharedStore(SHARED_DIR),
-            # so patch state.SHARED_DIR -> store.inodes_file == inodes_file.
-            with patch("claudewheel.state.SHARED_DIR", Path(tmp)):
-                record_inode(str(project_dir))
+            # record_inode derives the inodes file from the SharedStore's
+            # shared_dir (inodes.json lives in the shared store).
+            store = SharedStore(Path(tmp), Path(tmp) / "skills")
+            record_inode(store, str(project_dir))
 
             # The write happened (new mapping recorded) ...
             data = json.loads(inodes_file.read_text())
@@ -218,7 +128,7 @@ class SaveLaunchStateTests(StateFileTestCase):
         while the TUI holds a stale in-memory state; save_launch_state must
         not clobber it."""
         cfg = self._cfg({"launch_count": 0})  # in-memory state predates the write
-        save_state_value(AUTH_BROWSER_KEY, "/usr/bin/ff")
+        StateFile(self.state_file).set_value(AUTH_BROWSER_KEY, "/usr/bin/ff")
         save_launch_state(cfg, {"model": "opus"})
         self.assertEqual(self._read()[AUTH_BROWSER_KEY], "/usr/bin/ff")
 

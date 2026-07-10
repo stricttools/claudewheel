@@ -40,15 +40,8 @@ class _ReconcileTestCase(unittest.TestCase):
         self.tokens_file = cw / "tokens.json"
         cw.mkdir(parents=True, exist_ok=True)
 
-        patches = [
-            patch("claudewheel.reconcile.SHARED_SETTINGS_FILE", self.shared_settings),
-            # reconcile builds a ProfileStore from its own module constants.
-            patch("claudewheel.reconcile.PROFILES_DIR", self.profiles_dir),
-            patch("claudewheel.reconcile.TOKENS_FILE", self.tokens_file),
-        ]
-        for p in patches:
-            p.start()
-            self.addCleanup(p.stop)
+        from claudewheel.workspace import Workspace
+        self.ws = Workspace.open(cw, claude_dir=self.home / ".claude")
 
     # -- fixture helpers ---------------------------------------------------
 
@@ -125,7 +118,7 @@ class _ReconcileTestCase(unittest.TestCase):
     def _run(self, dry_run: bool, profile: str | None = None) -> str:
         out = io.StringIO()
         with redirect_stdout(out), redirect_stderr(io.StringIO()):
-            rc = run_reconcile(dry_run=dry_run, profile=profile)
+            rc = run_reconcile(self.ws, dry_run=dry_run, profile=profile)
         self.assertEqual(rc, 0)
         return out.getvalue()
 
@@ -313,7 +306,7 @@ class RunReconcileTests(_ReconcileTestCase):
         out = io.StringIO()
         err = io.StringIO()
         with redirect_stdout(out), redirect_stderr(err):
-            rc = run_reconcile(dry_run=True, profile="nope")
+            rc = run_reconcile(self.ws, dry_run=True, profile="nope")
         self.assertEqual(rc, 1)
         self.assertIn("not found", err.getvalue())
 

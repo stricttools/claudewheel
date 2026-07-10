@@ -33,16 +33,9 @@ class ProfileInfoFixture(unittest.TestCase):
         for d in PROFILE_SHARED_DIRS:
             (self.shared_dir / d).mkdir()
 
-        patches = [
-            mock.patch.object(profile_info, "PROFILES_DIR", self.profiles_dir),
-            mock.patch.object(profile_info, "TOKENS_FILE", self.tokens_file),
-            mock.patch.object(profile_info, "OPTIONS_FILE", self.options_file),
-            mock.patch("claudewheel.discovery.SHARED_DIR", self.shared_dir),
-            mock.patch("claudewheel.discovery.SKILLS_DIR", self.skills_dir),
-        ]
-        for p in patches:
-            p.start()
-            self.addCleanup(p.stop)
+        from claudewheel.workspace import Workspace
+        self.ws = Workspace.open(root / ".claudewheel",
+                                 claude_dir=Path.home() / ".claude")
 
     def _link_all(self) -> None:
         """Create intact shared-store symlinks in the profile dir."""
@@ -62,7 +55,7 @@ class GatherAuthTests(ProfileInfoFixture):
     """Auth state: credentials file, token entry, expiry math."""
 
     def test_no_credentials_no_token(self) -> None:
-        report = profile_info.gather_profile_info("work")
+        report = profile_info.gather_profile_info(self.ws, "work")
         self.assertTrue(report.exists)
         self.assertFalse(report.has_credentials)
         self.assertFalse(report.has_token)
@@ -70,7 +63,7 @@ class GatherAuthTests(ProfileInfoFixture):
 
     def test_credentials_present(self) -> None:
         (self.profile / ".credentials.json").write_text("{}")
-        report = profile_info.gather_profile_info("work")
+        report = profile_info.gather_profile_info(self.ws, "work")
         self.assertTrue(report.has_credentials)
 
     def test_token_expiry_math(self) -> None:
@@ -81,7 +74,7 @@ class GatherAuthTests(ProfileInfoFixture):
             "created": created.isoformat(),
             "expires_at": expires.isoformat(),
         }})
-        report = profile_info.gather_profile_info("work")
+        report = profile_info.gather_profile_info(self.ws, "work")
         self.assertTrue(report.has_token)
         assert report.token_expiry is not None
         self.assertEqual(report.token_expiry.created, created)
@@ -90,7 +83,7 @@ class GatherAuthTests(ProfileInfoFixture):
 
     def test_token_for_other_profile_not_picked_up(self) -> None:
         self._write_tokens({"other": {"token": "tok"}})
-        report = profile_info.gather_profile_info("work")
+        report = profile_info.gather_profile_info(self.ws, "work")
         self.assertFalse(report.has_token)
         self.assertIsNone(report.token_expiry)
 
@@ -100,18 +93,18 @@ class GatherRegistrationTests(ProfileInfoFixture):
 
     def test_registered_and_pinned(self) -> None:
         self._write_options(values=["work"], pinned=["work"])
-        report = profile_info.gather_profile_info("work")
+        report = profile_info.gather_profile_info(self.ws, "work")
         self.assertTrue(report.registered)
         self.assertTrue(report.pinned)
 
     def test_registered_only(self) -> None:
         self._write_options(values=["work"], pinned=[])
-        report = profile_info.gather_profile_info("work")
+        report = profile_info.gather_profile_info(self.ws, "work")
         self.assertTrue(report.registered)
         self.assertFalse(report.pinned)
 
     def test_missing_options_file_tolerated(self) -> None:
-        report = profile_info.gather_profile_info("work")
+        report = profile_info.gather_profile_info(self.ws, "work")
         self.assertFalse(report.registered)
         self.assertFalse(report.pinned)
 
@@ -121,7 +114,7 @@ class GatherSharedDirTests(ProfileInfoFixture):
 
     def test_all_intact_no_danger(self) -> None:
         self._link_all()
-        report = profile_info.gather_profile_info("work")
+        report = profile_info.gather_profile_info(self.ws, "work")
         self.assertFalse(report.danger)
         for name in PROFILE_SHARED_DIRS + ["skills"]:
             self.assertEqual(report.shared_dirs[name], "intact", name)
@@ -130,7 +123,7 @@ class GatherSharedDirTests(ProfileInfoFixture):
         self._link_all()
         (self.profile / "todos").unlink()
         (self.profile / "todos").mkdir()
-        report = profile_info.gather_profile_info("work")
+        report = profile_info.gather_profile_info(self.ws, "work")
         self.assertTrue(report.danger)
         self.assertEqual(report.shared_dirs["todos"], "real-dir")
 
@@ -140,7 +133,7 @@ class GatherSharedDirTests(ProfileInfoFixture):
         elsewhere.mkdir()
         (self.profile / "projects").unlink()
         (self.profile / "projects").symlink_to(elsewhere)
-        report = profile_info.gather_profile_info("work")
+        report = profile_info.gather_profile_info(self.ws, "work")
         self.assertFalse(report.danger)
         self.assertEqual(report.shared_dirs["projects"], "wrong-target")
 
@@ -154,7 +147,7 @@ class GatherSettingsTests(ProfileInfoFixture):
             "awaySummaryEnabled": False,
             "cleanupPeriodDays": 3650,
         }))
-        report = profile_info.gather_profile_info("work")
+        report = profile_info.gather_profile_info(self.ws, "work")
         self.assertTrue(report.settings_found)
         self.assertEqual(report.permission_counts,
                          {"allow": 2, "deny": 1, "ask": 0})
@@ -163,7 +156,7 @@ class GatherSettingsTests(ProfileInfoFixture):
         self.assertIsNone(report.auto_memory_enabled)  # missing key tolerated
 
     def test_missing_settings_file_tolerated(self) -> None:
-        report = profile_info.gather_profile_info("work")
+        report = profile_info.gather_profile_info(self.ws, "work")
         self.assertFalse(report.settings_found)
         self.assertEqual(report.permission_counts, {})
         self.assertIsNone(report.away_summary_enabled)
@@ -172,7 +165,7 @@ class GatherSettingsTests(ProfileInfoFixture):
 
     def test_corrupt_settings_file_tolerated(self) -> None:
         (self.profile / "settings.json").write_text("{not json")
-        report = profile_info.gather_profile_info("work")
+        report = profile_info.gather_profile_info(self.ws, "work")
         self.assertFalse(report.settings_found)
 
 
@@ -193,11 +186,11 @@ class GatherSessionsTests(ProfileInfoFixture):
 
         with mock.patch("claudewheel.profile_info.os.kill",
                         side_effect=fake_kill):
-            report = profile_info.gather_profile_info("work")
+            report = profile_info.gather_profile_info(self.ws, "work")
         self.assertEqual(report.active_sessions, 1)
 
     def test_no_sessions_dir(self) -> None:
-        report = profile_info.gather_profile_info("work")
+        report = profile_info.gather_profile_info(self.ws, "work")
         self.assertEqual(report.active_sessions, 0)
 
 
@@ -217,7 +210,7 @@ class GatherDiskUsageTests(ProfileInfoFixture):
         # A symlinked file is also excluded.
         (self.profile / "link.bin").symlink_to(big / "huge.bin")
 
-        report = profile_info.gather_profile_info("work")
+        report = profile_info.gather_profile_info(self.ws, "work")
         self.assertEqual(report.disk_usage_bytes, 150)
 
 
@@ -225,7 +218,7 @@ class GatherUnknownAndDefaultTests(ProfileInfoFixture):
     """Unknown profile flags and the "default" config-dir special case."""
 
     def test_unknown_profile(self) -> None:
-        report = profile_info.gather_profile_info("nope")
+        report = profile_info.gather_profile_info(self.ws, "nope")
         self.assertFalse(report.exists)
         self.assertFalse(report.registered)
         self.assertFalse(report.has_token)
@@ -236,11 +229,11 @@ class GatherUnknownAndDefaultTests(ProfileInfoFixture):
     def test_default_config_dir(self) -> None:
         # Name->dir resolution now lives in ProfileStore.path_for; profile_info
         # builds the store from its patched module constants at call time.
-        store = profile_info._profile_store()
+        store = self.ws.profiles
         self.assertEqual(store.path_for("default"), Path.home() / ".claude")
 
     def test_named_config_dir(self) -> None:
-        store = profile_info._profile_store()
+        store = self.ws.profiles
         self.assertEqual(store.path_for("work"), self.profiles_dir / "work")
 
 
@@ -253,13 +246,13 @@ class GatherTierTests(ProfileInfoFixture):
             "rateLimitTier": "default_claude_pro",
             "subscriptionType": "claude_pro",
         }})
-        report = profile_info.gather_profile_info("work")
+        report = profile_info.gather_profile_info(self.ws, "work")
         self.assertEqual(report.rate_limit_tier, "default_claude_pro")
         self.assertEqual(report.subscription_type, "claude_pro")
 
     def test_no_tier_returns_none(self) -> None:
         self._write_tokens({"work": {"token": "tok"}})
-        report = profile_info.gather_profile_info("work")
+        report = profile_info.gather_profile_info(self.ws, "work")
         self.assertIsNone(report.rate_limit_tier)
         self.assertIsNone(report.subscription_type)
 
@@ -269,14 +262,14 @@ class GatherTierTests(ProfileInfoFixture):
             "rateLimitTier": "default_claude_max_5x",
             "subscriptionType": "claude_max_5x",
         }})
-        report = profile_info.gather_profile_info("work")
+        report = profile_info.gather_profile_info(self.ws, "work")
         self.assertTrue(report.has_token)  # entry exists
         self.assertEqual(report.rate_limit_tier, "default_claude_max_5x")
 
     def test_bare_string_entry_no_tier(self) -> None:
         """Legacy bare-string entries have no tier fields."""
         self._write_tokens({"work": "tok-legacy"})
-        report = profile_info.gather_profile_info("work")
+        report = profile_info.gather_profile_info(self.ws, "work")
         self.assertIsNone(report.rate_limit_tier)
         self.assertIsNone(report.subscription_type)
 
@@ -290,7 +283,7 @@ class GatherAuthShadowTests(ProfileInfoFixture):
             json.dumps({"claudeAiOauth": {"accessToken": "short-lived"}})
         )
         self._write_tokens({"work": {"token": "tok-long-lived"}})
-        report = profile_info.gather_profile_info("work")
+        report = profile_info.gather_profile_info(self.ws, "work")
         self.assertTrue(report.has_auth_shadow)
 
     def test_no_shadow_when_only_token(self) -> None:
@@ -299,7 +292,7 @@ class GatherAuthShadowTests(ProfileInfoFixture):
             json.dumps({"mcpOAuth": {"x": "y"}})
         )
         self._write_tokens({"work": {"token": "tok-long"}})
-        report = profile_info.gather_profile_info("work")
+        report = profile_info.gather_profile_info(self.ws, "work")
         self.assertFalse(report.has_auth_shadow)
 
     def test_no_shadow_when_only_credentials(self) -> None:
@@ -308,13 +301,13 @@ class GatherAuthShadowTests(ProfileInfoFixture):
             json.dumps({"claudeAiOauth": {"accessToken": "x"}})
         )
         # No entry in tokens.json
-        report = profile_info.gather_profile_info("work")
+        report = profile_info.gather_profile_info(self.ws, "work")
         self.assertFalse(report.has_auth_shadow)
 
     def test_no_shadow_when_no_credentials_file(self) -> None:
         """has_auth_shadow is False when .credentials.json doesn't exist."""
         self._write_tokens({"work": {"token": "tok"}})
-        report = profile_info.gather_profile_info("work")
+        report = profile_info.gather_profile_info(self.ws, "work")
         self.assertFalse(report.has_auth_shadow)
 
     def test_shadow_shown_in_format_report(self) -> None:
@@ -323,7 +316,7 @@ class GatherAuthShadowTests(ProfileInfoFixture):
             json.dumps({"claudeAiOauth": {"accessToken": "short"}})
         )
         self._write_tokens({"work": {"token": "tok"}})
-        report = profile_info.gather_profile_info("work")
+        report = profile_info.gather_profile_info(self.ws, "work")
         lines = profile_info.format_report(report)
         text = "\n".join(lines)
         self.assertIn("Auth shadow: yes", text)
@@ -331,7 +324,7 @@ class GatherAuthShadowTests(ProfileInfoFixture):
 
     def test_no_shadow_line_when_not_shadowed(self) -> None:
         """format_report omits the auth shadow line when has_auth_shadow is False."""
-        report = profile_info.gather_profile_info("work")
+        report = profile_info.gather_profile_info(self.ws, "work")
         lines = profile_info.format_report(report)
         text = "\n".join(lines)
         self.assertNotIn("Auth shadow", text)
@@ -358,7 +351,7 @@ class FormatReportTests(ProfileInfoFixture):
         }})
         self._write_options(values=["work"], pinned=["work"])
 
-        report = profile_info.gather_profile_info("work")
+        report = profile_info.gather_profile_info(self.ws, "work")
         lines = profile_info.format_report(report)
         text = "\n".join(lines)
 
@@ -379,7 +372,7 @@ class FormatReportTests(ProfileInfoFixture):
         self.assertIn("Tier: unknown", text)
 
     def test_minimal_report_lines(self) -> None:
-        report = profile_info.gather_profile_info("nope")
+        report = profile_info.gather_profile_info(self.ws, "nope")
         text = "\n".join(profile_info.format_report(report))
         self.assertIn("(missing)", text)
         self.assertIn("Registered: no", text)
@@ -394,7 +387,7 @@ class FormatReportTests(ProfileInfoFixture):
             "rateLimitTier": "default_claude_pro",
             "subscriptionType": "claude_pro",
         }})
-        report = profile_info.gather_profile_info("work")
+        report = profile_info.gather_profile_info(self.ws, "work")
         lines = profile_info.format_report(report)
         text = "\n".join(lines)
         self.assertIn("Tier: default_claude_pro (claude_pro)", text)
@@ -405,7 +398,7 @@ class FormatReportTests(ProfileInfoFixture):
             "token": "tok",
             "rateLimitTier": "default_claude_max_20x",
         }})
-        report = profile_info.gather_profile_info("work")
+        report = profile_info.gather_profile_info(self.ws, "work")
         lines = profile_info.format_report(report)
         text = "\n".join(lines)
         self.assertIn("Tier: default_claude_max_20x", text)

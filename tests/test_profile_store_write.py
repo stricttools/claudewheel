@@ -235,7 +235,7 @@ class CreateTests(_WriteBase):
             disable_memory=False,
             disable_attribution=False,
         )
-        wiz.create_profile(result)
+        wiz.create_profile(self.ws, result)
         wiz_dir = self.profiles_dir / "wizprof"
         final_settings = json.loads((wiz_dir / "settings.json").read_text())
 

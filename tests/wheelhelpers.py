@@ -160,6 +160,12 @@ class SandboxHomeTestCase(unittest.TestCase):
 
         self._build_sandbox()
 
+        # A workspace rooted at the sandbox. Because Path.home is poisoned below,
+        # Workspace.default() would resolve here too, but the explicit open() is
+        # clearer and independent of env state.
+        from claudewheel.workspace import Workspace
+        self.ws = Workspace.open(self.launcher_dir, claude_dir=self.home / ".claude")
+
         # HOME env var (affects os.path.expanduser)
         self._orig_home = os.environ.get("HOME")
         os.environ["HOME"] = str(self.home)

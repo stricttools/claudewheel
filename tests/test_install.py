@@ -12,6 +12,7 @@ from pathlib import Path
 from unittest import mock
 
 from claudewheel import install
+from claudewheel.binaries import BinaryLocator
 
 
 class DetectPlatformTests(unittest.TestCase):
@@ -76,10 +77,11 @@ class InstallVersionTests(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
         self.versions_dir = Path(self._tmp.name) / "versions"
-        # Redirect VERSIONS_DIR to a tmp path -- avoids touching ~/.local/share
-        self._patcher = mock.patch.object(install, "VERSIONS_DIR", self.versions_dir)
-        self._patcher.start()
-        self.addCleanup(self._patcher.stop)
+        # Locator points versions_dir at a tmp path -- avoids touching ~/.local/share
+        self.locator = BinaryLocator(
+            versions_dir=self.versions_dir,
+            claude_symlink=Path(self._tmp.name) / "claude",
+        )
 
     def _patch_urlopen_returning(self, manifest_payload: bytes,
                                  binary_payload: bytes) -> mock._patch:
@@ -114,7 +116,7 @@ class InstallVersionTests(unittest.TestCase):
         manifest_bytes = json.dumps(manifest).encode("utf-8")
 
         with self._patch_urlopen_returning(manifest_bytes, binary_bytes):
-            dest = install.install_version("2.1.999")
+            dest = install.install_version(self.locator, "2.1.999")
 
         self.assertEqual(dest, self.versions_dir / "2.1.999")
         self.assertTrue(dest.is_file())
@@ -144,7 +146,7 @@ class InstallVersionTests(unittest.TestCase):
 
         with self._patch_urlopen_returning(manifest_bytes, binary_bytes):
             with self.assertRaises(OSError) as ctx:
-                install.install_version("2.1.999")
+                install.install_version(self.locator, "2.1.999")
 
         self.assertIn("Checksum mismatch", str(ctx.exception))
         # Partial download must be cleaned up
@@ -170,7 +172,7 @@ class InstallVersionTests(unittest.TestCase):
             return_value=_FakeResponse(manifest_bytes),
         ):
             with self.assertRaises(OSError) as ctx:
-                install.install_version("2.1.999")
+                install.install_version(self.locator, "2.1.999")
         msg = str(ctx.exception)
         self.assertIn("not available", msg)
         self.assertIn("made-up-platform", msg)

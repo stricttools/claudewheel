@@ -7,30 +7,25 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+
+from claudewheel.workspace import Workspace
 
 
 class InodeTestCase(unittest.TestCase):
-    """Base class providing a temp directory and patched INODES_FILE."""
+    """Base class providing a temp workspace whose inodes.json is under test."""
 
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
         self.tmp_path = Path(self._tmp.name)
-        self._inodes_file = self.tmp_path / "inodes.json"
-        # state.record_inode derives the inodes file from SharedStore's shared_dir
-        # (inodes.json belongs to the shared store), so patch state.SHARED_DIR to
-        # the temp dir -> store.inodes_file == self._inodes_file. health.py still
-        # reads its own INODES_FILE constant this wave, so patch that directly.
-        self._patches = [
-            patch("claudewheel.state.SHARED_DIR", self.tmp_path),
-            patch("claudewheel.health.INODES_FILE", self._inodes_file),
-        ]
-        for p in self._patches:
-            p.start()
+        # Build a workspace rooted in the temp dir; record_inode uses ws.shared
+        # and check_inode_renames uses ws (both target ws.inodes_file, which
+        # lives under the shared store: <root>/shared/inodes.json).
+        self.ws = Workspace.open(self.tmp_path / "cw",
+                                 claude_dir=self.tmp_path / "claude")
+        self._inodes_file = self.ws.inodes_file
+        self._inodes_file.parent.mkdir(parents=True, exist_ok=True)
 
     def tearDown(self) -> None:
-        for p in self._patches:
-            p.stop()
         self._tmp.cleanup()
 
 
@@ -47,7 +42,7 @@ class RecordInodeTests(InodeTestCase):
         from claudewheel.state import record_inode
         d = self.tmp_path / "project_a"
         d.mkdir()
-        record_inode(str(d))
+        record_inode(self.ws.shared, str(d))
         data = json.loads(self._inodes_file.read_text())
         abspath = str(d.resolve())
         self.assertIn(abspath, data)
@@ -58,9 +53,9 @@ class RecordInodeTests(InodeTestCase):
         from claudewheel.state import record_inode
         d = self.tmp_path / "project_b"
         d.mkdir()
-        record_inode(str(d))
+        record_inode(self.ws.shared, str(d))
         mtime1 = self._inodes_file.stat().st_mtime_ns
-        record_inode(str(d))
+        record_inode(self.ws.shared, str(d))
         # File should not have been rewritten
         mtime2 = self._inodes_file.stat().st_mtime_ns
         self.assertEqual(mtime1, mtime2)
@@ -70,12 +65,12 @@ class RecordInodeTests(InodeTestCase):
         from claudewheel.state import record_inode
         d = self.tmp_path / "old_name"
         d.mkdir()
-        record_inode(str(d))
+        record_inode(self.ws.shared, str(d))
         inode = os.stat(str(d)).st_ino
         # Rename the directory
         new = self.tmp_path / "new_name"
         d.rename(new)
-        record_inode(str(new))
+        record_inode(self.ws.shared, str(new))
         data = json.loads(self._inodes_file.read_text())
         _ = str(d.resolve()) if d.exists() else os.path.abspath(str(d))  # verify no crash
         new_abs = str(new.resolve())
@@ -90,7 +85,7 @@ class RecordInodeTests(InodeTestCase):
     def test_nonexistent_dir(self) -> None:
         """Recording a nonexistent directory is a no-op."""
         from claudewheel.state import record_inode
-        record_inode(str(self.tmp_path / "does_not_exist"))
+        record_inode(self.ws.shared, str(self.tmp_path / "does_not_exist"))
         self.assertFalse(self._inodes_file.exists())
 
 
@@ -100,12 +95,12 @@ class RecordInodeTests(InodeTestCase):
 
 
 class CheckInodeRenamesTests(InodeTestCase):
-    """Tests for health.check_inode_renames()."""
+    """Tests for health.check_inode_renames(self.ws)."""
 
     def test_no_data(self) -> None:
         """Returns OK when inodes.json does not exist."""
         from claudewheel.health import check_inode_renames
-        result = check_inode_renames()
+        result = check_inode_renames(self.ws)
         self.assertTrue(result.ok)
         self.assertIn("no inode data", result.detail)
 
@@ -116,7 +111,7 @@ class CheckInodeRenamesTests(InodeTestCase):
         d.mkdir()
         inode = os.stat(str(d)).st_ino
         self._inodes_file.write_text(json.dumps({str(d.resolve()): inode}))
-        result = check_inode_renames()
+        result = check_inode_renames(self.ws)
         self.assertTrue(result.ok)
         self.assertIn("no renames detected", result.detail)
 
@@ -134,7 +129,7 @@ class CheckInodeRenamesTests(InodeTestCase):
         new_abs = str(new.resolve())
         # Write both entries (simulating record_inode from old + new paths)
         self._inodes_file.write_text(json.dumps({old_abs: inode, new_abs: inode}))
-        result = check_inode_renames()
+        result = check_inode_renames(self.ws)
         self.assertFalse(result.ok)
         self.assertIn("original", result.detail)
         self.assertIn("renamed", result.detail)
@@ -146,7 +141,7 @@ class CheckInodeRenamesTests(InodeTestCase):
         gone_path = str(self.tmp_path / "gone_forever")
         # Write an entry for a path that doesn't exist with a unique inode
         self._inodes_file.write_text(json.dumps({gone_path: 999999999}))
-        result = check_inode_renames()
+        result = check_inode_renames(self.ws)
         self.assertTrue(result.ok)
         self.assertIn("cleaned", result.detail)
         # Verify the entry was removed
@@ -177,7 +172,7 @@ class CheckInodeRenamesTests(InodeTestCase):
             old1_abs: inode1, new1_abs: inode1,
             old2_abs: inode2, new2_abs: inode2,
         }))
-        result = check_inode_renames()
+        result = check_inode_renames(self.ws)
         self.assertFalse(result.ok)
         # Both renames should be mentioned
         self.assertIn("proj1", result.detail)

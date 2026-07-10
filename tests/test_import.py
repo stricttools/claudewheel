@@ -11,6 +11,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from claudewheel.constants import encode_path
+from claudewheel.shared_store import SharedStore
 from claudewheel.import_ import (
     ImportResult,
     _apply_rewrites,
@@ -548,6 +549,7 @@ class CollisionTests(unittest.TestCase):
 
         # Shared store
         self.shared = self.root / "shared"
+        self.store = SharedStore(self.shared, self.shared / "skills")
         self.shared.mkdir()
         self.shared_projects = self.shared / "projects"
         self.shared_projects.mkdir()
@@ -566,9 +568,9 @@ class CollisionTests(unittest.TestCase):
         """When no collisions exist, sessions are imported."""
         self._write_source_session(UUID_A)
 
-        with patch("claudewheel.import_.SHARED_DIR", self.shared), \
-             patch("claudewheel.import_.get_session_cwd", return_value="/test"):
+        with patch("claudewheel.import_.get_session_cwd", return_value="/test"):
             result = run_import(
+                self.store,
                 str(self.source),
                 mappings=[("/test", "/local/test")],
             )
@@ -584,9 +586,9 @@ class CollisionTests(unittest.TestCase):
         target_dir.mkdir(parents=True)
         (target_dir / f"{UUID_A}.jsonl").write_text("{}\n")
 
-        with patch("claudewheel.import_.SHARED_DIR", self.shared), \
-             patch("claudewheel.import_.get_session_cwd", return_value="/test"):
+        with patch("claudewheel.import_.get_session_cwd", return_value="/test"):
             result = run_import(
+                self.store,
                 str(self.source),
                 mappings=[("/test", "/local/test")],
                 reid=False,
@@ -603,9 +605,9 @@ class CollisionTests(unittest.TestCase):
         target_dir.mkdir(parents=True)
         (target_dir / f"{UUID_A}.jsonl").write_text("{}\n")
 
-        with patch("claudewheel.import_.SHARED_DIR", self.shared), \
-             patch("claudewheel.import_.get_session_cwd", return_value="/test"):
+        with patch("claudewheel.import_.get_session_cwd", return_value="/test"):
             result = run_import(
+                self.store,
                 str(self.source),
                 mappings=[("/test", "/local/test")],
                 reid=True,
@@ -627,9 +629,9 @@ class CollisionTests(unittest.TestCase):
         target_dir.mkdir(parents=True)
         (target_dir / UUID_A).mkdir()  # companion dir collision
 
-        with patch("claudewheel.import_.SHARED_DIR", self.shared), \
-             patch("claudewheel.import_.get_session_cwd", return_value="/test"):
+        with patch("claudewheel.import_.get_session_cwd", return_value="/test"):
             result = run_import(
+                self.store,
                 str(self.source),
                 mappings=[("/test", "/local/test")],
                 reid=False,
@@ -656,6 +658,7 @@ class MappingValidationTests(unittest.TestCase):
         (self.source / "projects" / "proj").mkdir(parents=True)
 
         self.shared = self.root / "shared"
+        self.store = SharedStore(self.shared, self.shared / "skills")
         self.shared.mkdir()
         (self.shared / "projects").mkdir()
 
@@ -669,9 +672,9 @@ class MappingValidationTests(unittest.TestCase):
             _make_session_jsonl("/test", UUID_A)
         )
 
-        with patch("claudewheel.import_.SHARED_DIR", self.shared), \
-             patch("claudewheel.import_.get_session_cwd", return_value="/test"):
+        with patch("claudewheel.import_.get_session_cwd", return_value="/test"):
             result = run_import(
+                self.store,
                 str(self.source),
                 mappings=[("/test", "/local/test")],
             )
@@ -684,10 +687,10 @@ class MappingValidationTests(unittest.TestCase):
             _make_session_jsonl("/unmapped", UUID_A)
         )
 
-        with patch("claudewheel.import_.SHARED_DIR", self.shared), \
-             patch("claudewheel.import_.get_session_cwd", return_value="/unmapped"):
+        with patch("claudewheel.import_.get_session_cwd", return_value="/unmapped"):
             with self.assertRaises(ValueError) as ctx:
                 run_import(
+                    self.store,
                     str(self.source),
                     mappings=[("/other", "/local/other")],
                 )
@@ -712,9 +715,9 @@ class MappingValidationTests(unittest.TestCase):
                 return "/path-a"
             return "/path-b"
 
-        with patch("claudewheel.import_.SHARED_DIR", self.shared), \
-             patch("claudewheel.import_.get_session_cwd", side_effect=mock_cwd):
+        with patch("claudewheel.import_.get_session_cwd", side_effect=mock_cwd):
             result = run_import(
+                self.store,
                 str(self.source),
                 mappings=[
                     ("/path-a", "/local/merged"),
@@ -730,10 +733,10 @@ class MappingValidationTests(unittest.TestCase):
             _make_session_jsonl("C:\\Users\\m\\", UUID_A)
         )
 
-        with patch("claudewheel.import_.SHARED_DIR", self.shared), \
-             patch("claudewheel.import_.get_session_cwd", return_value="C:\\Users\\m\\"):
+        with patch("claudewheel.import_.get_session_cwd", return_value="C:\\Users\\m\\"):
             # Mapping uses lowercase drive letter without trailing slash
             result = run_import(
+                self.store,
                 str(self.source),
                 mappings=[("c:\\Users\\m", "/home/m")],
             )
@@ -745,9 +748,8 @@ class MappingValidationTests(unittest.TestCase):
         no_projects = self.root / "empty-source"
         no_projects.mkdir()
 
-        with patch("claudewheel.import_.SHARED_DIR", self.shared):
-            with self.assertRaises(FileNotFoundError):
-                run_import(str(no_projects), mappings=[])
+        with self.assertRaises(FileNotFoundError):
+            run_import(self.store, str(no_projects), mappings=[])
 
 
 # ---------------------------------------------------------------------------
@@ -806,6 +808,7 @@ class IntegrationTests(unittest.TestCase):
 
         # Shared store
         self.shared = self.root / "shared"
+        self.store = SharedStore(self.shared, self.shared / "skills")
         self.shared.mkdir()
         (self.shared / "projects").mkdir()
 
@@ -815,12 +818,12 @@ class IntegrationTests(unittest.TestCase):
 
     def test_full_import(self) -> None:
         """Complete import: JSONL rewritten, companions copied, artifacts moved."""
-        with patch("claudewheel.import_.SHARED_DIR", self.shared), \
-             patch(
+        with patch(
                  "claudewheel.import_.get_session_cwd",
                  return_value="c:/Users/m/test",
              ):
             result = run_import(
+                self.store,
                 str(self.source),
                 mappings=[("c:/Users/m/test", "/home/m/test")],
             )
@@ -871,12 +874,12 @@ class IntegrationTests(unittest.TestCase):
             _make_jsonl_line(cwd="c:/Users/m/test", sessionId=UUID_A) + "\n"
         )
 
-        with patch("claudewheel.import_.SHARED_DIR", self.shared), \
-             patch(
+        with patch(
                  "claudewheel.import_.get_session_cwd",
                  return_value="c:/Users/m/test",
              ):
             run_import(
+                self.store,
                 str(self.source),
                 mappings=[("c:/Users/m/test", "/home/m/test")],
             )
@@ -894,12 +897,12 @@ class IntegrationTests(unittest.TestCase):
             _make_session_jsonl("/old/project", UUID_A)
         )
 
-        with patch("claudewheel.import_.SHARED_DIR", self.shared), \
-             patch(
+        with patch(
                  "claudewheel.import_.get_session_cwd",
                  return_value="/old/project",
              ):
             result = run_import(
+                self.store,
                 str(self.source),
                 mappings=[("/old/project", "/new/project")],
             )
@@ -918,11 +921,11 @@ class IntegrationTests(unittest.TestCase):
         empty_source = self.root / "empty"
         (empty_source / "projects" / "proj").mkdir(parents=True)
 
-        with patch("claudewheel.import_.SHARED_DIR", self.shared):
-            result = run_import(
-                str(empty_source),
-                mappings=[("/test", "/test2")],
-            )
+        result = run_import(
+            self.store,
+            str(empty_source),
+            mappings=[("/test", "/test2")],
+        )
 
         self.assertEqual(result.sessions_imported, 0)
 
@@ -961,6 +964,7 @@ class DryRunTests(unittest.TestCase):
         (paste / "hash1.txt").write_text("pasted")
 
         self.shared = self.root / "shared"
+        self.store = SharedStore(self.shared, self.shared / "skills")
         self.shared.mkdir()
         (self.shared / "projects").mkdir()
 
@@ -970,12 +974,12 @@ class DryRunTests(unittest.TestCase):
 
     def test_dry_run_counts_correct(self) -> None:
         """Dry run reports the expected session and artifact counts."""
-        with patch("claudewheel.import_.SHARED_DIR", self.shared), \
-             patch(
+        with patch(
                  "claudewheel.import_.get_session_cwd",
                  return_value="c:/Users/m/test",
              ):
             result = run_import(
+                self.store,
                 str(self.source),
                 mappings=[("c:/Users/m/test", "/home/m/test")],
                 dry_run=True,
@@ -988,12 +992,12 @@ class DryRunTests(unittest.TestCase):
 
     def test_dry_run_no_files_created(self) -> None:
         """Dry run does not create any files in the shared store."""
-        with patch("claudewheel.import_.SHARED_DIR", self.shared), \
-             patch(
+        with patch(
                  "claudewheel.import_.get_session_cwd",
                  return_value="c:/Users/m/test",
              ):
             run_import(
+                self.store,
                 str(self.source),
                 mappings=[("c:/Users/m/test", "/home/m/test")],
                 dry_run=True,
@@ -1021,9 +1025,9 @@ class DryRunTests(unittest.TestCase):
                 return "c:/Users/m/test"
             return "/test2"
 
-        with patch("claudewheel.import_.SHARED_DIR", self.shared), \
-             patch("claudewheel.import_.get_session_cwd", side_effect=mock_cwd):
+        with patch("claudewheel.import_.get_session_cwd", side_effect=mock_cwd):
             result = run_import(
+                self.store,
                 str(self.source),
                 mappings=[
                     ("c:/Users/m/test", "/home/m/test"),
@@ -1097,6 +1101,7 @@ class ReidCompanionDirTests(unittest.TestCase):
 
         # Shared store with pre-existing collision
         self.shared = self.root / "shared"
+        self.store = SharedStore(self.shared, self.shared / "skills")
         (self.shared / "projects").mkdir(parents=True)
         target_dir = self.shared / "projects" / encode_path("/local/test")
         target_dir.mkdir(parents=True)
@@ -1108,9 +1113,9 @@ class ReidCompanionDirTests(unittest.TestCase):
 
     def test_companion_dir_copied_under_new_uuid(self) -> None:
         """Companion dir uses the new UUID, not the old one."""
-        with patch("claudewheel.import_.SHARED_DIR", self.shared), \
-             patch("claudewheel.import_.get_session_cwd", return_value="/test"):
+        with patch("claudewheel.import_.get_session_cwd", return_value="/test"):
             result = run_import(
+                self.store,
                 str(self.source),
                 mappings=[("/test", "/local/test")],
                 reid=True,
@@ -1138,9 +1143,9 @@ class ReidCompanionDirTests(unittest.TestCase):
 
     def test_agent_jsonl_session_id_rewritten(self) -> None:
         """Agent JSONL inside the companion dir has the new sessionId."""
-        with patch("claudewheel.import_.SHARED_DIR", self.shared), \
-             patch("claudewheel.import_.get_session_cwd", return_value="/test"):
+        with patch("claudewheel.import_.get_session_cwd", return_value="/test"):
             run_import(
+                self.store,
                 str(self.source),
                 mappings=[("/test", "/local/test")],
                 reid=True,
@@ -1161,9 +1166,9 @@ class ReidCompanionDirTests(unittest.TestCase):
 
     def test_main_jsonl_has_new_uuid_filename_and_session_id(self) -> None:
         """The session JSONL file has the new UUID as filename and updated sessionId."""
-        with patch("claudewheel.import_.SHARED_DIR", self.shared), \
-             patch("claudewheel.import_.get_session_cwd", return_value="/test"):
+        with patch("claudewheel.import_.get_session_cwd", return_value="/test"):
             run_import(
+                self.store,
                 str(self.source),
                 mappings=[("/test", "/local/test")],
                 reid=True,
@@ -1218,6 +1223,7 @@ class ReidSimpleArtifactsTests(unittest.TestCase):
 
         # Shared store with collision
         self.shared = self.root / "shared"
+        self.store = SharedStore(self.shared, self.shared / "skills")
         (self.shared / "projects").mkdir(parents=True)
         target_dir = self.shared / "projects" / encode_path("/local/test")
         target_dir.mkdir(parents=True)
@@ -1229,9 +1235,9 @@ class ReidSimpleArtifactsTests(unittest.TestCase):
 
     def test_todos_file_renamed_with_new_uuid(self) -> None:
         """Todos file has both UUID positions replaced with the new UUID."""
-        with patch("claudewheel.import_.SHARED_DIR", self.shared), \
-             patch("claudewheel.import_.get_session_cwd", return_value="/test"):
+        with patch("claudewheel.import_.get_session_cwd", return_value="/test"):
             result = run_import(
+                self.store,
                 str(self.source),
                 mappings=[("/test", "/local/test")],
                 reid=True,
@@ -1257,9 +1263,9 @@ class ReidSimpleArtifactsTests(unittest.TestCase):
 
     def test_session_env_dir_renamed_to_new_uuid(self) -> None:
         """Session-env directory is renamed to the new UUID."""
-        with patch("claudewheel.import_.SHARED_DIR", self.shared), \
-             patch("claudewheel.import_.get_session_cwd", return_value="/test"):
+        with patch("claudewheel.import_.get_session_cwd", return_value="/test"):
             run_import(
+                self.store,
                 str(self.source),
                 mappings=[("/test", "/local/test")],
                 reid=True,
@@ -1311,6 +1317,7 @@ class PasteCacheDedupTests(unittest.TestCase):
 
         # Shared store with pre-existing paste-cache file
         self.shared = self.root / "shared"
+        self.store = SharedStore(self.shared, self.shared / "skills")
         (self.shared / "projects").mkdir(parents=True)
         paste_dst = self.shared / "paste-cache"
         paste_dst.mkdir(parents=True)
@@ -1322,9 +1329,9 @@ class PasteCacheDedupTests(unittest.TestCase):
 
     def test_paste_files_copied_counts_only_new(self) -> None:
         """paste_files_copied reflects only newly copied files."""
-        with patch("claudewheel.import_.SHARED_DIR", self.shared), \
-             patch("claudewheel.import_.get_session_cwd", return_value="/test"):
+        with patch("claudewheel.import_.get_session_cwd", return_value="/test"):
             result = run_import(
+                self.store,
                 str(self.source),
                 mappings=[("/test", "/local/test")],
             )
@@ -1334,9 +1341,9 @@ class PasteCacheDedupTests(unittest.TestCase):
 
     def test_preexisting_paste_file_not_overwritten(self) -> None:
         """The pre-existing paste-cache file retains its original content."""
-        with patch("claudewheel.import_.SHARED_DIR", self.shared), \
-             patch("claudewheel.import_.get_session_cwd", return_value="/test"):
+        with patch("claudewheel.import_.get_session_cwd", return_value="/test"):
             run_import(
+                self.store,
                 str(self.source),
                 mappings=[("/test", "/local/test")],
             )
@@ -1424,6 +1431,7 @@ class ReidNonJsonlPathTests(unittest.TestCase):
 
         # Shared store with collision
         self.shared = self.root / "shared"
+        self.store = SharedStore(self.shared, self.shared / "skills")
         (self.shared / "projects").mkdir(parents=True)
         target_dir = self.shared / "projects" / encode_path("/local/test")
         target_dir.mkdir(parents=True)
@@ -1435,9 +1443,9 @@ class ReidNonJsonlPathTests(unittest.TestCase):
 
     def test_non_jsonl_copied_under_new_uuid_path(self) -> None:
         """Non-JSONL file with UUID in relative path gets the UUID replaced."""
-        with patch("claudewheel.import_.SHARED_DIR", self.shared), \
-             patch("claudewheel.import_.get_session_cwd", return_value="/test"):
+        with patch("claudewheel.import_.get_session_cwd", return_value="/test"):
             result = run_import(
+                self.store,
                 str(self.source),
                 mappings=[("/test", "/local/test")],
                 reid=True,

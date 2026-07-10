@@ -18,11 +18,15 @@ class DeployHooksTests(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
-        self.scripts_dir = Path(self._tmp.name) / "scripts"
-        # Patch SCRIPTS_DIR in both cli and hook_scripts modules
-        self._patch_cli = mock.patch.object(cli, "SCRIPTS_DIR", self.scripts_dir)
-        self._patch_cli.start()
-        self.addCleanup(self._patch_cli.stop)
+        # main() builds Workspace.default(), which reads CLAUDEWHEEL_CONFIG_DIR;
+        # point it at a sandbox so the deploy-hooks handler writes ws.scripts_dir
+        # under the tmp root, never the real ~/.claudewheel.
+        self._launcher = Path(self._tmp.name) / "cw"
+        self.scripts_dir = self._launcher / "scripts"
+        self._env_patch = mock.patch.dict(
+            "os.environ", {"CLAUDEWHEEL_CONFIG_DIR": str(self._launcher)})
+        self._env_patch.start()
+        self.addCleanup(self._env_patch.stop)
 
     def _run_deploy(self, argv: list[str]) -> tuple[str, str, bool]:
         """Run deploy-hooks with the given argv.
@@ -253,15 +257,16 @@ class HookBlockUnsafeCommandsTests(unittest.TestCase):
         """deploy-hooks --all creates the hook-block-unsafe-commands script."""
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
-        scripts_dir = Path(tmp.name) / "scripts"
-        with mock.patch.object(cli, "SCRIPTS_DIR", scripts_dir):
-            out = io.StringIO()
-            with mock.patch("sys.argv", ["c", "deploy-hooks", "--all"]), \
-                 redirect_stdout(out), redirect_stderr(io.StringIO()):
-                try:
-                    cli.main()
-                except SystemExit:
-                    pass
+        launcher = Path(tmp.name) / "cw"
+        scripts_dir = launcher / "scripts"
+        out = io.StringIO()
+        with mock.patch.dict("os.environ", {"CLAUDEWHEEL_CONFIG_DIR": str(launcher)}), \
+             mock.patch("sys.argv", ["c", "deploy-hooks", "--all"]), \
+             redirect_stdout(out), redirect_stderr(io.StringIO()):
+            try:
+                cli.main()
+            except SystemExit:
+                pass
         dest = scripts_dir / "hook-block-unsafe-commands"
         self.assertTrue(dest.exists(), "hook-block-unsafe-commands should be deployed by --all")
         self.assertEqual(dest.read_text(), HOOK_SCRIPTS["hook-block-unsafe-commands"])
@@ -322,15 +327,16 @@ class HookAdviseCommandsTests(unittest.TestCase):
     def test_script_deployed_by_all(self) -> None:
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
-        scripts_dir = Path(tmp.name) / "scripts"
-        with mock.patch.object(cli, "SCRIPTS_DIR", scripts_dir):
-            out = io.StringIO()
-            with mock.patch("sys.argv", ["c", "deploy-hooks", "--all"]), \
-                 redirect_stdout(out), redirect_stderr(io.StringIO()):
-                try:
-                    cli.main()
-                except SystemExit:
-                    pass
+        launcher = Path(tmp.name) / "cw"
+        scripts_dir = launcher / "scripts"
+        out = io.StringIO()
+        with mock.patch.dict("os.environ", {"CLAUDEWHEEL_CONFIG_DIR": str(launcher)}), \
+             mock.patch("sys.argv", ["c", "deploy-hooks", "--all"]), \
+             redirect_stdout(out), redirect_stderr(io.StringIO()):
+            try:
+                cli.main()
+            except SystemExit:
+                pass
         dest = scripts_dir / "hook-advise-commands"
         self.assertTrue(dest.exists(), "hook-advise-commands should be deployed by --all")
         self.assertEqual(dest.read_text(), HOOK_SCRIPTS["hook-advise-commands"])

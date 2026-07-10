@@ -28,13 +28,10 @@ class DoUninstallTests(unittest.TestCase):
         # Sibling path the symlink can live at, kept off the real filesystem
         self.symlink_path = Path(self._tmp.name) / "claude"
 
-        # Redirect VERSIONS_DIR and CLAUDE_SYMLINK to tmp paths
-        self._patch_versions = mock.patch.object(cli, "VERSIONS_DIR", self.versions_dir)
-        self._patch_symlink = mock.patch.object(cli, "CLAUDE_SYMLINK", self.symlink_path)
-        self._patch_versions.start()
-        self._patch_symlink.start()
-        self.addCleanup(self._patch_versions.stop)
-        self.addCleanup(self._patch_symlink.stop)
+        # A locator pointing at the tmp version/symlink paths.
+        from claudewheel.binaries import BinaryLocator
+        self.locator = BinaryLocator(
+            versions_dir=self.versions_dir, claude_symlink=self.symlink_path)
 
     def test_uninstall_removes_file(self) -> None:
         """A non-symlinked installed version is deleted and exit code is 0."""
@@ -44,7 +41,7 @@ class DoUninstallTests(unittest.TestCase):
 
         buf = io.StringIO()
         with redirect_stdout(buf):
-            rc = cli._do_uninstall("2.1.999")
+            rc = cli._do_uninstall(self.locator, "2.1.999")
 
         self.assertEqual(rc, 0)
         self.assertFalse(target.exists())
@@ -59,7 +56,7 @@ class DoUninstallTests(unittest.TestCase):
 
         err = io.StringIO()
         with redirect_stderr(err):
-            rc = cli._do_uninstall("2.1.999")
+            rc = cli._do_uninstall(self.locator, "2.1.999")
 
         self.assertNotEqual(rc, 0)
         self.assertTrue(target.exists(), "file should not be deleted when symlink points to it")
@@ -71,7 +68,7 @@ class DoUninstallTests(unittest.TestCase):
         """Uninstalling a version that doesn't exist returns non-zero with stderr message."""
         err = io.StringIO()
         with redirect_stderr(err):
-            rc = cli._do_uninstall("0.0.0")
+            rc = cli._do_uninstall(self.locator, "0.0.0")
 
         self.assertNotEqual(rc, 0)
         msg = err.getvalue()
@@ -87,7 +84,7 @@ class DoUninstallTests(unittest.TestCase):
         os.symlink(keeper, self.symlink_path)
 
         with redirect_stdout(io.StringIO()):
-            rc = cli._do_uninstall("2.1.998")
+            rc = cli._do_uninstall(self.locator, "2.1.998")
 
         self.assertEqual(rc, 0)
         self.assertFalse(victim.exists())
@@ -98,11 +95,10 @@ class DoResetOptionsTests(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
-        self.options_file = Path(self._tmp.name) / "options.json"
-
-        self._patch = mock.patch.object(cli, "OPTIONS_FILE", self.options_file)
-        self._patch.start()
-        self.addCleanup(self._patch.stop)
+        from claudewheel.workspace import Workspace
+        self.ws = Workspace.open(Path(self._tmp.name),
+                                 claude_dir=Path(self._tmp.name) / ".claude")
+        self.options_file = self.ws.options_file
 
     def test_reset_options_deletes_file(self) -> None:
         """An existing options.json is deleted and rc is 0."""
@@ -111,7 +107,7 @@ class DoResetOptionsTests(unittest.TestCase):
 
         buf = io.StringIO()
         with redirect_stdout(buf):
-            rc = cli._do_reset_options()
+            rc = cli._do_reset_options(self.ws)
 
         self.assertEqual(rc, 0)
         self.assertFalse(self.options_file.exists())
@@ -123,7 +119,7 @@ class DoResetOptionsTests(unittest.TestCase):
 
         buf = io.StringIO()
         with redirect_stdout(buf):
-            rc = cli._do_reset_options()
+            rc = cli._do_reset_options(self.ws)
 
         self.assertEqual(rc, 0)
         self.assertIn("does not exist", buf.getvalue())
@@ -302,7 +298,7 @@ class PrintModeTests(unittest.TestCase):
             last_config=self.FULL_LAST_CONFIG,
         )
         launch_mock.assert_called_once()
-        merged = launch_mock.call_args[1].get("selections") or launch_mock.call_args[0][1]
+        merged = launch_mock.call_args[1].get("selections") or launch_mock.call_args[0][3]
 
         # print_mode: True segments must be present
         for key in ("profile", "version", "model", "directory"):
@@ -467,7 +463,7 @@ class LaunchCorruptTokensTests(unittest.TestCase):
             mock.patch("sys.argv", ["c", "--profile", "work", "-p", "hi"]),
             mock.patch("claudewheel.config.AppConfigStore", return_value=fake_cfg),
             mock.patch("claudewheel.hooks.run_hooks", return_value=True),
-            mock.patch.object(cli, "TOKENS_FILE", tokens_file),
+            mock.patch.dict("os.environ", {"CLAUDEWHEEL_CONFIG_DIR": str(Path(tmp.name))}),
             mock.patch("os.getcwd", return_value="/test/dir"),
             redirect_stderr(err),
         ):
@@ -522,8 +518,7 @@ class LaunchStaleProfileTests(unittest.TestCase):
             mock.patch("sys.argv", ["c", "--profile", "work", "-p", "hi"]),
             mock.patch("claudewheel.config.AppConfigStore", return_value=fake_cfg),
             mock.patch("claudewheel.hooks.run_hooks", return_value=True),
-            mock.patch.object(cli, "PROFILES_DIR", profiles_dir),
-            mock.patch.object(cli, "TOKENS_FILE", tokens_file),
+            mock.patch.dict("os.environ", {"CLAUDEWHEEL_CONFIG_DIR": str(Path(tmp.name))}),
             mock.patch("os.getcwd", return_value="/test/dir"),
             redirect_stderr(err),
         ):
@@ -548,8 +543,10 @@ class BuildAppTests(unittest.TestCase):
 
     def test_build_app_constructs_without_error(self) -> None:
         from strictcli import App
+        from claudewheel.workspace import Workspace
+        from claudewheel.binaries import BinaryLocator
 
-        app = cli._build_app()
+        app = cli._build_app(Workspace.default(), BinaryLocator.default())
         self.assertIsInstance(app, App)
 
 
@@ -800,13 +797,12 @@ class CheckResumeSessionTests(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
-        self.shared_dir = Path(self._tmp.name) / "shared"
+        from claudewheel.workspace import Workspace
+        self.ws = Workspace.open(Path(self._tmp.name),
+                                 claude_dir=Path(self._tmp.name) / ".claude")
+        self.shared_dir = self.ws.shared_dir
         self.shared_dir.mkdir()
         (self.shared_dir / "projects").mkdir()
-
-        self._patch_shared = mock.patch.object(cli, "SHARED_DIR", self.shared_dir)
-        self._patch_shared.start()
-        self.addCleanup(self._patch_shared.stop)
 
     # -- 5.1a: Session exists under current dir -> no interception --
 
@@ -825,7 +821,7 @@ class CheckResumeSessionTests(unittest.TestCase):
         (project_dir / f"{session_id}.jsonl").write_text('{"cwd":"/home/user/my-project"}\n')
 
         with mock.patch("claudewheel.session.find_session") as mock_find:
-            cli._check_resume_session(session_id, current_dir)
+            cli._check_resume_session(self.ws, session_id, current_dir)
 
         mock_find.assert_not_called()
 
@@ -864,7 +860,7 @@ class CheckResumeSessionTests(unittest.TestCase):
             redirect_stdout(io.StringIO()),
         ):
             # Should return normally (no sys.exit)
-            cli._check_resume_session(session_id, current_dir)
+            cli._check_resume_session(self.ws, session_id, current_dir)
 
         self.assertEqual(mock_mv.call_count, 2)
         # First call: dry_run=True
@@ -905,7 +901,7 @@ class CheckResumeSessionTests(unittest.TestCase):
             redirect_stdout(io.StringIO()),
         ):
             with self.assertRaises(SystemExit) as ctx:
-                cli._check_resume_session(session_id, current_dir)
+                cli._check_resume_session(self.ws, session_id, current_dir)
             self.assertEqual(ctx.exception.code, 1)
 
         mock_mv.assert_not_called()
@@ -945,7 +941,7 @@ class CheckResumeSessionTests(unittest.TestCase):
             redirect_stdout(io.StringIO()),
         ):
             with self.assertRaises(SystemExit) as ctx:
-                cli._check_resume_session(session_id, current_dir)
+                cli._check_resume_session(self.ws, session_id, current_dir)
             self.assertEqual(ctx.exception.code, 1)
 
         # run_mv called once for dry-run only
@@ -967,7 +963,7 @@ class CheckResumeSessionTests(unittest.TestCase):
             redirect_stderr(err),
         ):
             with self.assertRaises(SystemExit) as ctx:
-                cli._check_resume_session(session_id, current_dir)
+                cli._check_resume_session(self.ws, session_id, current_dir)
             self.assertEqual(ctx.exception.code, 1)
 
         self.assertIn(session_id, err.getvalue())
@@ -997,7 +993,7 @@ class CheckResumeSessionTests(unittest.TestCase):
             redirect_stderr(err),
         ):
             with self.assertRaises(SystemExit) as ctx:
-                cli._check_resume_session(session_id, current_dir)
+                cli._check_resume_session(self.ws, session_id, current_dir)
             self.assertEqual(ctx.exception.code, 1)
 
         msg = err.getvalue()
@@ -1058,13 +1054,12 @@ class CheckContSessionTests(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
-        self.shared_dir = Path(self._tmp.name) / "shared"
+        from claudewheel.workspace import Workspace
+        self.ws = Workspace.open(Path(self._tmp.name),
+                                 claude_dir=Path(self._tmp.name) / ".claude")
+        self.shared_dir = self.ws.shared_dir
         self.shared_dir.mkdir()
         (self.shared_dir / "projects").mkdir()
-
-        self._patch_shared = mock.patch.object(cli, "SHARED_DIR", self.shared_dir)
-        self._patch_shared.start()
-        self.addCleanup(self._patch_shared.stop)
 
     def _create_project(self, encoded_cwd: str, session_count: int = 1,
                         cwd: str = "/home/user/my-project") -> Path:
@@ -1087,7 +1082,7 @@ class CheckContSessionTests(unittest.TestCase):
         self._create_project(encoded, session_count=2, cwd=current_dir)
 
         with mock.patch("claudewheel.session.find_orphaned_project_dirs") as mock_find:
-            cli._check_cont_session(current_dir)
+            cli._check_cont_session(self.ws, current_dir)
 
         mock_find.assert_not_called()
 
@@ -1122,7 +1117,7 @@ class CheckContSessionTests(unittest.TestCase):
             mock.patch("builtins.input", side_effect=["y", "y"]),
             redirect_stdout(io.StringIO()),
         ):
-            cli._check_cont_session(current_dir)
+            cli._check_cont_session(self.ws, current_dir)
 
         self.assertEqual(mock_mv.call_count, 2)
         # First call: dry_run=True
@@ -1154,7 +1149,7 @@ class CheckContSessionTests(unittest.TestCase):
             redirect_stdout(io.StringIO()),
         ):
             # Should return normally (no sys.exit)
-            cli._check_cont_session(current_dir)
+            cli._check_cont_session(self.ws, current_dir)
 
         mock_mv.assert_not_called()
 
@@ -1169,7 +1164,7 @@ class CheckContSessionTests(unittest.TestCase):
             mock.patch("claudewheel.mv.run_mv") as mock_mv,
             mock.patch("builtins.input") as mock_input,
         ):
-            cli._check_cont_session(current_dir)
+            cli._check_cont_session(self.ws, current_dir)
 
         mock_mv.assert_not_called()
         mock_input.assert_not_called()
@@ -1211,12 +1206,13 @@ class CheckContSessionTests(unittest.TestCase):
             mock.patch("builtins.input", side_effect=["2", "y"]),
             redirect_stdout(io.StringIO()),
         ):
-            cli._check_cont_session(current_dir)
+            cli._check_cont_session(self.ws, current_dir)
 
         self.assertEqual(mock_mv.call_count, 2)
-        # Verify the selected orphan (orphan2) was passed to run_mv
+        # Verify the selected orphan (orphan2) was passed to run_mv (arg 0 is
+        # the threaded workspace; the old_cwd is arg 1).
         args1, _ = mock_mv.call_args_list[0]
-        self.assertEqual(args1[0], "/home/user/beta")
+        self.assertEqual(args1[1], "/home/user/beta")
 
 
 class MvPostHocFlagTests(unittest.TestCase):
@@ -1259,6 +1255,16 @@ class NewProfileFlowTests(unittest.TestCase):
 
     def setUp(self) -> None:
         from claudewheel.defaults import DEFAULT_THEME_DARK
+        from claudewheel.workspace import Workspace
+        from claudewheel.binaries import BinaryLocator
+
+        self._ws_tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._ws_tmp.cleanup)
+        # Empty sandbox workspace -> enumerate() yields no profiles; claude_dir
+        # points off the real home so no "default" profile leaks in.
+        self.ws = Workspace.open(Path(self._ws_tmp.name),
+                                 claude_dir=Path(self._ws_tmp.name) / "claude")
+        self.locator = BinaryLocator.default()
 
         self.terminal = mock.MagicMock()
         self.terminal._in_raw = False
@@ -1300,7 +1306,7 @@ class NewProfileFlowTests(unittest.TestCase):
     def _run(self) -> tuple[int, str]:
         buf = io.StringIO()
         with redirect_stdout(buf):
-            rc = cli._handle_new_profile()
+            rc = cli._handle_new_profile(self.ws, self.locator)
         return rc, buf.getvalue()
 
     def test_terminal_enters_alt_screen_raw_session(self) -> None:
@@ -1311,9 +1317,11 @@ class NewProfileFlowTests(unittest.TestCase):
 
     def test_wizard_gets_theme_and_cli_terminal(self) -> None:
         self._run()
+        # run_profile_wizard(ws, existing, theme, terminal)
         args = self.mocks["wizard"].call_args.args
-        self.assertEqual(args[0], [])
-        self.assertIs(args[2], self.terminal)
+        self.assertIs(args[0], self.ws)
+        self.assertEqual(args[1], [])
+        self.assertIs(args[3], self.terminal)
 
     def test_summary_page_shown_then_summary_printed(self) -> None:
         rc, out = self._run()
@@ -1410,9 +1418,9 @@ class ShowProfileCommandTests(unittest.TestCase):
         with mock.patch("claudewheel.profile_info.gather_profile_info",
                         return_value=report) as mock_gather, \
                 redirect_stdout(buf):
-            rc = cli._handle_show_profile("work")
+            rc = cli._handle_show_profile(mock.MagicMock(), "work")
         self.assertEqual(rc, 0)
-        mock_gather.assert_called_once_with("work")
+        mock_gather.assert_called_once_with(mock.ANY, "work")
         out = buf.getvalue()
         self.assertIn("Profile: work", out)
         self.assertIn("Credentials file: present", out)
@@ -1425,7 +1433,7 @@ class ShowProfileCommandTests(unittest.TestCase):
                         return_value=report), \
                 redirect_stderr(err):
             with self.assertRaises(SystemExit) as ctx:
-                cli._handle_show_profile("work")
+                cli._handle_show_profile(mock.MagicMock(), "work")
         self.assertEqual(ctx.exception.code, 1)
         self.assertIn("not found", err.getvalue())
 
@@ -1437,9 +1445,25 @@ class ShowProfileCommandTests(unittest.TestCase):
         with mock.patch("claudewheel.profile_info.gather_profile_info",
                         return_value=report), \
                 redirect_stdout(buf):
-            rc = cli._handle_show_profile("work")
+            rc = cli._handle_show_profile(mock.MagicMock(), "work")
         self.assertEqual(rc, 0)
         self.assertIn("Profile: work", buf.getvalue())
+
+    def test_corrupt_tokens_clean_error_no_traceback(self) -> None:
+        """A corrupt tokens.json makes 'profile show' fail cleanly: nonzero exit,
+        actionable message on stderr, no traceback (mirrors check-tokens)."""
+        from claudewheel.tokens import TokenStoreError
+        err = io.StringIO()
+        with mock.patch(
+            "claudewheel.profile_info.gather_profile_info",
+            side_effect=TokenStoreError("/x/tokens.json is corrupt; retry."),
+        ), redirect_stderr(err):
+            with self.assertRaises(SystemExit) as ctx:
+                cli._handle_show_profile(mock.MagicMock(), "work")
+        self.assertEqual(ctx.exception.code, 1)
+        msg = err.getvalue()
+        self.assertIn("corrupt", msg)
+        self.assertNotIn("Traceback", msg)
 
 
 class DeleteProfileHandlerTests(unittest.TestCase):
@@ -1458,11 +1482,12 @@ class DeleteProfileHandlerTests(unittest.TestCase):
         allow_data_destruction on ProfileStore.delete."""
         mock_store = mock.MagicMock()
         mock_store.delete.return_value = self._ok_result()
-        with mock.patch.object(cli, "_profile_store", return_value=mock_store), \
-             mock.patch("claudewheel.profile_ops._is_profile_running") as mock_run, \
+        ws = mock.MagicMock()
+        ws.profiles = mock_store
+        with mock.patch("claudewheel.profile_ops._is_profile_running") as mock_run, \
              redirect_stdout(io.StringIO()):
             rc = cli._handle_delete_profile(
-                "work", force_delete=True, force_delete_data=True)
+                ws, "work", force_delete=True, force_delete_data=True)
         self.assertEqual(rc, 0)
         mock_run.assert_not_called()  # force-delete skips the running check
         mock_store.delete.assert_called_once_with(
@@ -1472,14 +1497,15 @@ class DeleteProfileHandlerTests(unittest.TestCase):
         """No force flags: running check runs, allow_data_destruction is False."""
         mock_store = mock.MagicMock()
         mock_store.delete.return_value = self._ok_result()
-        with mock.patch.object(cli, "_profile_store", return_value=mock_store), \
-             mock.patch("claudewheel.profile_ops._is_profile_running",
+        ws = mock.MagicMock()
+        ws.profiles = mock_store
+        with mock.patch("claudewheel.profile_ops._is_profile_running",
                         return_value=False) as mock_run, \
              redirect_stdout(io.StringIO()):
             rc = cli._handle_delete_profile(
-                "work", force_delete=False, force_delete_data=False)
+                ws, "work", force_delete=False, force_delete_data=False)
         self.assertEqual(rc, 0)
-        mock_run.assert_called_once_with("work")
+        mock_run.assert_called_once_with(ws, "work")
         mock_store.delete.assert_called_once_with(
             "work", allow_data_destruction=False)
 
@@ -1487,13 +1513,14 @@ class DeleteProfileHandlerTests(unittest.TestCase):
         """A running profile is refused (CLI policy) unless --force-delete."""
         mock_store = mock.MagicMock()
         err = io.StringIO()
-        with mock.patch.object(cli, "_profile_store", return_value=mock_store), \
-             mock.patch("claudewheel.profile_ops._is_profile_running",
+        ws = mock.MagicMock()
+        ws.profiles = mock_store
+        with mock.patch("claudewheel.profile_ops._is_profile_running",
                         return_value=True), \
              redirect_stderr(err):
             with self.assertRaises(SystemExit) as ctx:
                 cli._handle_delete_profile(
-                    "work", force_delete=False, force_delete_data=False)
+                    ws, "work", force_delete=False, force_delete_data=False)
         self.assertEqual(ctx.exception.code, 1)
         self.assertIn("active sessions", err.getvalue())
         mock_store.delete.assert_not_called()
@@ -1503,13 +1530,14 @@ class DeleteProfileHandlerTests(unittest.TestCase):
         mock_store = mock.MagicMock()
         mock_store.delete.side_effect = ValueError("Profile 'work' not found")
         err = io.StringIO()
-        with mock.patch.object(cli, "_profile_store", return_value=mock_store), \
-             mock.patch("claudewheel.profile_ops._is_profile_running",
+        ws = mock.MagicMock()
+        ws.profiles = mock_store
+        with mock.patch("claudewheel.profile_ops._is_profile_running",
                         return_value=False), \
              redirect_stderr(err):
             with self.assertRaises(SystemExit) as ctx:
                 cli._handle_delete_profile(
-                    "work", force_delete=False, force_delete_data=False)
+                    ws, "work", force_delete=False, force_delete_data=False)
         self.assertEqual(ctx.exception.code, 1)
         self.assertIn("not found", err.getvalue())
 
@@ -1614,6 +1642,9 @@ class FixAuthTests(unittest.TestCase):
         self.profiles_dir = self.home / ".claudewheel" / "profiles"
         self.profiles_dir.mkdir(parents=True)
         self.tokens_file = self.home / ".claudewheel" / "tokens.json"
+        from claudewheel.workspace import Workspace
+        self.ws = Workspace.open(self.home / ".claudewheel",
+                                 claude_dir=self.home / ".claude")
 
     def _make_profile(self, name: str) -> Path:
         pdir = self.profiles_dir / name
@@ -1637,19 +1668,9 @@ class FixAuthTests(unittest.TestCase):
         out = io.StringIO()
         err = io.StringIO()
         rc = None
-        with (
-            mock.patch("claudewheel.constants.TOKENS_FILE", self.tokens_file),
-            mock.patch("claudewheel.profile_ops.TOKENS_FILE", self.tokens_file),
-            # fix_auth_shadow now resolves the profile dir via profile_ops's own
-            # ProfileStore (built from profile_ops.PROFILES_DIR), replacing the
-            # deleted profile_info.config_dir_for.
-            mock.patch("claudewheel.profile_ops.PROFILES_DIR", self.profiles_dir),
-            mock.patch("claudewheel.profile_info.PROFILES_DIR", self.profiles_dir),
-            redirect_stdout(out),
-            redirect_stderr(err),
-        ):
+        with redirect_stdout(out), redirect_stderr(err):
             try:
-                rc = cli._handle_fix_auth(name)
+                rc = cli._handle_fix_auth(self.ws, name)
             except SystemExit as e:
                 rc = e.code
         return rc, out.getvalue(), err.getvalue()
@@ -1736,10 +1757,8 @@ class WriteTierStubTests(unittest.TestCase):
         self.config_dir = self.root / "profiles" / "work"
         self.config_dir.mkdir(parents=True)
 
-        # _write_tier_stub imports TOKENS_FILE from .constants at call time
-        self._patch_tokens = mock.patch("claudewheel.constants.TOKENS_FILE", self.tokens_file)
-        self._patch_tokens.start()
-        self.addCleanup(self._patch_tokens.stop)
+        from claudewheel.workspace import Workspace
+        self.ws = Workspace.open(self.root, claude_dir=self.root / ".claude")
 
     def _write_tokens(self, data: dict) -> None:
         import json
@@ -1758,7 +1777,7 @@ class WriteTierStubTests(unittest.TestCase):
             "subscriptionType": "claude_pro",
         }})
 
-        cli._write_tier_stub("work", str(self.config_dir))
+        cli._write_tier_stub(self.ws, "work", str(self.config_dir))
 
         creds = self._read_creds()
         self.assertEqual(creds["claudeAiOauth"]["rateLimitTier"], "default_claude_pro")
@@ -1768,7 +1787,7 @@ class WriteTierStubTests(unittest.TestCase):
         """When tokens.json has no tier field, .credentials.json is not created."""
         self._write_tokens({"work": {"token": "tok-2"}})
 
-        cli._write_tier_stub("work", str(self.config_dir))
+        cli._write_tier_stub(self.ws, "work", str(self.config_dir))
 
         self.assertFalse((self.config_dir / ".credentials.json").exists())
 
@@ -1789,7 +1808,7 @@ class WriteTierStubTests(unittest.TestCase):
         import time
         time.sleep(0.01)  # ensure timestamp differs if rewritten
 
-        cli._write_tier_stub("work", str(self.config_dir))
+        cli._write_tier_stub(self.ws, "work", str(self.config_dir))
 
         # File should not have been rewritten
         self.assertEqual(creds_path.stat().st_mtime, original_mtime)
@@ -1806,7 +1825,7 @@ class WriteTierStubTests(unittest.TestCase):
             "claudeAiOauth": {"rateLimitTier": "default_claude_pro"}
         }))
 
-        cli._write_tier_stub("work", str(self.config_dir))
+        cli._write_tier_stub(self.ws, "work", str(self.config_dir))
 
         creds = self._read_creds()
         self.assertEqual(creds["claudeAiOauth"]["rateLimitTier"], "default_claude_max_5x")
@@ -1818,7 +1837,7 @@ class WriteTierStubTests(unittest.TestCase):
             "rateLimitTier": "default_claude_pro",
         }})
 
-        cli._write_tier_stub(None, str(self.config_dir))
+        cli._write_tier_stub(self.ws, None, str(self.config_dir))
 
         self.assertFalse((self.config_dir / ".credentials.json").exists())
 
@@ -1829,7 +1848,7 @@ class WriteTierStubTests(unittest.TestCase):
             "rateLimitTier": "default_claude_pro",
         }})
 
-        cli._write_tier_stub("work", None)
+        cli._write_tier_stub(self.ws, "work", None)
 
     def test_merges_into_existing_credentials(self) -> None:
         """Existing keys in .credentials.json are preserved."""
@@ -1841,7 +1860,7 @@ class WriteTierStubTests(unittest.TestCase):
         creds_path = self.config_dir / ".credentials.json"
         creds_path.write_text(json.dumps({"otherKey": "preserved"}))
 
-        cli._write_tier_stub("work", str(self.config_dir))
+        cli._write_tier_stub(self.ws, "work", str(self.config_dir))
 
         creds = self._read_creds()
         self.assertEqual(creds["otherKey"], "preserved")
@@ -1850,7 +1869,7 @@ class WriteTierStubTests(unittest.TestCase):
     def test_missing_tokens_file_no_crash(self) -> None:
         """When tokens.json doesn't exist, function silently returns."""
         self.assertFalse(self.tokens_file.exists())
-        cli._write_tier_stub("work", str(self.config_dir))
+        cli._write_tier_stub(self.ws, "work", str(self.config_dir))
         self.assertFalse((self.config_dir / ".credentials.json").exists())
 
 
@@ -2039,15 +2058,14 @@ class CheckTokensTests(unittest.TestCase):
         actionable message on stderr, no traceback (mirrors the launch path)."""
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
-        tokens_file = Path(tmp.name) / "tokens.json"
+        from claudewheel.workspace import Workspace
+        ws = Workspace.open(Path(tmp.name), claude_dir=Path(tmp.name) / ".claude")
+        tokens_file = ws.tokens_file
         tokens_file.write_text("{ not valid json")
 
         err = io.StringIO()
-        with (
-            mock.patch("claudewheel.constants.TOKENS_FILE", tokens_file),
-            redirect_stderr(err),
-        ):
-            rc = cli._handle_check_tokens()
+        with redirect_stderr(err):
+            rc = cli._handle_check_tokens(ws)
 
         self.assertNotEqual(rc, 0)
         msg = err.getvalue()
@@ -2060,17 +2078,15 @@ class CheckTokensTests(unittest.TestCase):
         import json
 
         buf = io.StringIO()
-        tokens_json = json.dumps(tokens_data)
-        fake_tokens_file = mock.MagicMock()
-        fake_tokens_file.read_text.return_value = tokens_json
+        ws = mock.MagicMock()
+        ws.tokens.load.return_value = tokens_data
+        ws.profiles.enumerate.return_value = profiles
 
         with (
-            mock.patch("claudewheel.discovery.discover_profiles", return_value=profiles),
             mock.patch("claudewheel.auth.validate_token", side_effect=validate_fn),
-            mock.patch("claudewheel.constants.TOKENS_FILE", fake_tokens_file),
             redirect_stdout(buf),
         ):
-            rc = cli._handle_check_tokens()
+            rc = cli._handle_check_tokens(ws)
 
         return rc, buf.getvalue()
 
@@ -2108,23 +2124,9 @@ class RenameProfileHandlerTests(unittest.TestCase):
         self.profiles_dir.mkdir(parents=True)
         self.options_file = self.home / ".claudewheel" / "options.json"
         self.tokens_file = self.home / ".claudewheel" / "tokens.json"
-
-        self._patches = [
-            mock.patch.object(cli, "OPTIONS_FILE", self.options_file),
-            # _handle_rename_profile does `from .constants import TOKENS_FILE`
-            # at call time, so it reads constants.TOKENS_FILE (unpatched here it
-            # hits the real ~/.claudewheel/tokens.json). Contain it, and contain
-            # profile_ops' PROFILES_DIR used by _is_profile_running/rename.
-            mock.patch("claudewheel.constants.TOKENS_FILE", self.tokens_file),
-            mock.patch("claudewheel.profile_ops.PROFILES_DIR", self.profiles_dir),
-        ]
-        for p in self._patches:
-            p.start()
-        self.addCleanup(self._stop_patches)
-
-    def _stop_patches(self) -> None:
-        for p in reversed(self._patches):
-            p.stop()
+        from claudewheel.workspace import Workspace
+        self.ws = Workspace.open(self.home / ".claudewheel",
+                                 claude_dir=self.home / ".claude")
 
     def _write_options(self, values: list[str], pinned: list[str] | None = None) -> None:
         data = {"profile": {"values": values}}
@@ -2135,36 +2137,27 @@ class RenameProfileHandlerTests(unittest.TestCase):
     def test_old_not_found_exits(self) -> None:
         self._write_options([])
         with (
-            mock.patch("claudewheel.cli.PROFILES_DIR",
-                       self.profiles_dir, create=True),
-            mock.patch("claudewheel.constants.PROFILES_DIR", self.profiles_dir),
             self.assertRaises(SystemExit) as ctx,
         ):
-            cli._handle_rename_profile("ghost", "newname")
+            cli._handle_rename_profile(self.ws, "ghost", "newname")
         self.assertEqual(ctx.exception.code, 1)
 
     def test_bad_chars_exits(self) -> None:
         (self.profiles_dir / "old").mkdir()
         self._write_options(["old"])
         with (
-            mock.patch("claudewheel.cli.PROFILES_DIR",
-                       self.profiles_dir, create=True),
-            mock.patch("claudewheel.constants.PROFILES_DIR", self.profiles_dir),
             self.assertRaises(SystemExit) as ctx,
         ):
-            cli._handle_rename_profile("old", "UPPER")
+            cli._handle_rename_profile(self.ws, "old", "UPPER")
         self.assertEqual(ctx.exception.code, 1)
 
     def test_default_name_rejected(self) -> None:
         (self.profiles_dir / "old").mkdir()
         self._write_options(["old"])
         with (
-            mock.patch("claudewheel.cli.PROFILES_DIR",
-                       self.profiles_dir, create=True),
-            mock.patch("claudewheel.constants.PROFILES_DIR", self.profiles_dir),
             self.assertRaises(SystemExit) as ctx,
         ):
-            cli._handle_rename_profile("old", "default")
+            cli._handle_rename_profile(self.ws, "old", "default")
         self.assertEqual(ctx.exception.code, 1)
 
     def test_target_exists_exits(self) -> None:
@@ -2172,12 +2165,9 @@ class RenameProfileHandlerTests(unittest.TestCase):
         (self.profiles_dir / "dst").mkdir()
         self._write_options(["src", "dst"])
         with (
-            mock.patch("claudewheel.cli.PROFILES_DIR",
-                       self.profiles_dir, create=True),
-            mock.patch("claudewheel.constants.PROFILES_DIR", self.profiles_dir),
             self.assertRaises(SystemExit) as ctx,
         ):
-            cli._handle_rename_profile("src", "dst")
+            cli._handle_rename_profile(self.ws, "src", "dst")
         self.assertEqual(ctx.exception.code, 1)
 
     def test_running_profile_exits(self) -> None:
@@ -2185,13 +2175,10 @@ class RenameProfileHandlerTests(unittest.TestCase):
         self._write_options(["active"])
         self.tokens_file.write_text("{}")
         with (
-            mock.patch("claudewheel.cli.PROFILES_DIR",
-                       self.profiles_dir, create=True),
-            mock.patch("claudewheel.constants.PROFILES_DIR", self.profiles_dir),
             mock.patch("claudewheel.profile_ops._is_profile_running", return_value=True),
             self.assertRaises(SystemExit) as ctx,
         ):
-            cli._handle_rename_profile("active", "newname")
+            cli._handle_rename_profile(self.ws, "active", "newname")
         self.assertEqual(ctx.exception.code, 1)
 
     def test_success_calls_store_rename(self) -> None:
@@ -2199,18 +2186,14 @@ class RenameProfileHandlerTests(unittest.TestCase):
         self._write_options(["old"])
         self.tokens_file.write_text("{}")
         buf = io.StringIO()
-        mock_store = mock.MagicMock()
         with (
-            mock.patch("claudewheel.cli.PROFILES_DIR",
-                       self.profiles_dir, create=True),
-            mock.patch("claudewheel.constants.PROFILES_DIR", self.profiles_dir),
             mock.patch("claudewheel.profile_ops._is_profile_running", return_value=False),
-            mock.patch.object(cli, "_profile_store", return_value=mock_store),
+            mock.patch("claudewheel.profile_store.ProfileStore.rename") as mock_rename,
             redirect_stdout(buf),
         ):
-            rc = cli._handle_rename_profile("old", "new-name")
+            rc = cli._handle_rename_profile(self.ws, "old", "new-name")
         self.assertEqual(rc, 0)
-        mock_store.rename.assert_called_once_with("old", "new-name")
+        mock_rename.assert_called_once_with("old", "new-name")
         self.assertIn("Renamed", buf.getvalue())
 
     def test_token_conflict_exits(self) -> None:
@@ -2218,12 +2201,9 @@ class RenameProfileHandlerTests(unittest.TestCase):
         self._write_options(["src"])
         self.tokens_file.write_text(json.dumps({"dst": "tok-conflict"}))
         with (
-            mock.patch("claudewheel.cli.PROFILES_DIR",
-                       self.profiles_dir, create=True),
-            mock.patch("claudewheel.constants.PROFILES_DIR", self.profiles_dir),
             self.assertRaises(SystemExit) as ctx,
         ):
-            cli._handle_rename_profile("src", "dst")
+            cli._handle_rename_profile(self.ws, "src", "dst")
         self.assertEqual(ctx.exception.code, 1)
 
 

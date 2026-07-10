@@ -281,10 +281,11 @@ class MigrateSessionsTests(unittest.TestCase):
         (todos / f"{UUID_A}-agent-cleanup.json").write_text("{}")
 
     def _run_migrate(self, *args, **kwargs):
-        """Run migrate_sessions with patched constants."""
-        profiles = self.home / ".claudewheel" / "profiles"
-        with patch.object(migrate_mod, "PROFILES_DIR", profiles):
-            return migrate_sessions(*args, **kwargs)
+        """Run migrate_sessions against a sandbox workspace."""
+        from claudewheel.workspace import Workspace
+        ws = Workspace.open(self.home / ".claudewheel",
+                            claude_dir=self.home / ".claude")
+        return migrate_sessions(ws, *args, **kwargs)
 
     def test_moves_non_shared(self) -> None:
         """In non-shared mode, artifacts are moved to the destination."""
@@ -347,15 +348,15 @@ class MigrateSessionsTests(unittest.TestCase):
         self.assertTrue(orig_jsonl.exists())
 
     def _run_migrate_with_default(self, *args, **kwargs):
-        """Run migrate_sessions with PROFILES_DIR and Path.home patched.
+        """Run migrate_sessions with the sandbox's ~/.claude as the default dir.
 
-        The Path.home patch makes path_for("default") resolve to the sandbox's
-        ~/.claude rather than the real home.
+        The workspace's claude_dir is set to the sandbox home's ~/.claude so
+        path_for("default") resolves there rather than the real home.
         """
-        profiles = self.home / ".claudewheel" / "profiles"
-        with patch.object(migrate_mod, "PROFILES_DIR", profiles), \
-             patch.object(Path, "home", return_value=self.home):
-            return migrate_sessions(*args, **kwargs)
+        from claudewheel.workspace import Workspace
+        ws = Workspace.open(self.home / ".claudewheel",
+                            claude_dir=self.home / ".claude")
+        return migrate_sessions(ws, *args, **kwargs)
 
     def test_migrate_to_default(self) -> None:
         """Session data migrates INTO the ~/.claude default profile."""

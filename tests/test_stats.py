@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from claudewheel import stats
+from claudewheel.shared_store import SharedStore
 from claudewheel.stats import run_stats
 
 
@@ -25,6 +25,7 @@ class RunStatsTests(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory()
         self.shared = Path(self._tmp.name) / "shared"
         self.shared.mkdir()
+        self.store = SharedStore(self.shared, self.shared / "skills")
         self._stdout_trap = contextlib.redirect_stdout(io.StringIO())
         self._stdout_trap.__enter__()
 
@@ -37,8 +38,7 @@ class RunStatsTests(unittest.TestCase):
         sentinels.mkdir()
         (sentinels / "some-file").write_text("")
 
-        with patch.object(stats, "SHARED_DIR", self.shared):
-            run_stats(dry_run=False)
+        run_stats(self.store, dry_run=False)
 
         self.assertFalse(sentinels.exists())
 
@@ -47,16 +47,14 @@ class RunStatsTests(unittest.TestCase):
         sentinels.mkdir()
         (sentinels / "some-file").write_text("")
 
-        with patch.object(stats, "SHARED_DIR", self.shared):
-            run_stats(dry_run=True)
+        run_stats(self.store, dry_run=True)
 
         self.assertTrue(sentinels.exists())
         self.assertTrue((sentinels / "some-file").exists())
 
     def test_idempotent_when_no_sentinels_dir(self) -> None:
         # No sentinels directory at all -- should not raise.
-        with patch.object(stats, "SHARED_DIR", self.shared):
-            run_stats(dry_run=False)
+        run_stats(self.store, dry_run=False)
 
     def test_reports_shared_stats(self) -> None:
         # Create a subdirectory with a file so _report_shared_stats has output.
@@ -65,9 +63,8 @@ class RunStatsTests(unittest.TestCase):
         (subdir / "data.json").write_text("{}")
 
         buf = io.StringIO()
-        with patch.object(stats, "SHARED_DIR", self.shared), \
-             contextlib.redirect_stdout(buf):
-            run_stats(dry_run=False)
+        with contextlib.redirect_stdout(buf):
+            run_stats(self.store, dry_run=False)
 
         output = buf.getvalue()
         self.assertIn("sessions", output)

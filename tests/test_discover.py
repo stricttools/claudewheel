@@ -26,6 +26,15 @@ from claudewheel.segment import (
 )
 
 
+
+def _mock_ws(profiles):
+    """A workspace stand-in whose profiles.enumerate() returns *profiles*."""
+    from unittest.mock import MagicMock
+    ws = MagicMock()
+    ws.profiles.enumerate.return_value = profiles
+    return ws
+
+
 class DirectoryListingDiscoveryTests(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
@@ -41,7 +50,7 @@ class DirectoryListingDiscoveryTests(unittest.TestCase):
             "values": [],
             "discovery": {"type": "directory_listing", "path": str(self.tmp)},
         }
-        result = _discover_directory_listing(config, state={})
+        result = _discover_directory_listing(config, state={}, ws=None)
         # 1.0.10 must come before 1.0.2 (numeric, not alphabetical)
         self.assertEqual(result.values, ["1.0.10", "1.0.2", "1.0.0"])
 
@@ -54,7 +63,7 @@ class DirectoryListingDiscoveryTests(unittest.TestCase):
                 "path": str(self.tmp / "nope"),
             },
         }
-        result = _discover_directory_listing(config, state={})
+        result = _discover_directory_listing(config, state={}, ws=None)
         self.assertEqual(result.values, [])
 
     def test_empty_directory_returns_empty(self) -> None:
@@ -63,7 +72,7 @@ class DirectoryListingDiscoveryTests(unittest.TestCase):
             "values": ["static-a"],
             "discovery": {"type": "directory_listing", "path": str(self.tmp)},
         }
-        result = _discover_directory_listing(config, state={})
+        result = _discover_directory_listing(config, state={}, ws=None)
         self.assertEqual(result.values, [])
 
     def test_directories_inside_path_are_excluded(self) -> None:
@@ -75,7 +84,7 @@ class DirectoryListingDiscoveryTests(unittest.TestCase):
             "values": [],
             "discovery": {"type": "directory_listing", "path": str(self.tmp)},
         }
-        result = _discover_directory_listing(config, state={})
+        result = _discover_directory_listing(config, state={}, ws=None)
         self.assertEqual(result.values, ["1.0.0"])
         self.assertNotIn("subdir", result.values)
 
@@ -101,7 +110,7 @@ class DirectoryScanDiscoveryTests(unittest.TestCase):
                 "parents": [str(self.parent)],
             },
         }
-        result = _discover_directory_scan(config, state={})
+        result = _discover_directory_scan(config, state={}, ws=None)
         names = [Path(p).name for p in result.values]
         self.assertEqual(names, ["proj-a", "proj-b"])
         self.assertNotIn(".hidden", names)
@@ -124,7 +133,7 @@ class DirectoryScanDiscoveryTests(unittest.TestCase):
             },
         }
         state = {"recent_dirs": [str(recent_dir)]}
-        result = _discover_directory_scan(config, state)
+        result = _discover_directory_scan(config, state, ws=None)
         # recent first
         self.assertEqual(result.values[0], str(recent_dir))
         # static values are NOT in the result (handled by SegmentState.defaults)
@@ -150,7 +159,7 @@ class DirectoryScanDiscoveryTests(unittest.TestCase):
             },
         }
         state = {"recent_dirs": [str(real_dir), "/nonexistent/path/abc123"]}
-        result = _discover_directory_scan(config, state)
+        result = _discover_directory_scan(config, state, ws=None)
         self.assertIn(str(real_dir), result.values)
         self.assertNotIn("/nonexistent/path/abc123", result.values)
 
@@ -168,7 +177,7 @@ class DirectoryScanDiscoveryTests(unittest.TestCase):
             },
         }
         state = {"recent_dirs": [str(real_dir), "/stale/gone/path"]}
-        _discover_directory_scan(config, state)
+        _discover_directory_scan(config, state, ws=None)
         # State should be pruned to only the valid dir
         self.assertEqual(state["recent_dirs"], [str(real_dir)])
 
@@ -188,7 +197,7 @@ class DirectoryScanDiscoveryTests(unittest.TestCase):
             },
         }
         state = {"recent_dirs": [discovered_path]}
-        result = _discover_directory_scan(config, state)
+        result = _discover_directory_scan(config, state, ws=None)
         self.assertEqual(result.values.count(discovered_path), 1)
 
     def test_no_state_field_means_no_recent_dirs(self) -> None:
@@ -206,7 +215,7 @@ class DirectoryScanDiscoveryTests(unittest.TestCase):
             },
         }
         result = _discover_directory_scan(
-            config, state={"recent_dirs": ["/should-not-appear"]},
+            config, state={"recent_dirs": ["/should-not-appear"]}, ws=None,
         )
         self.assertNotIn("/should-not-appear", result.values)
         # Only scanned dirs
@@ -222,7 +231,7 @@ class DirectoryScanDiscoveryTests(unittest.TestCase):
                 "state_field": "recent_dirs",
             },
         }
-        result = _discover_directory_scan(config, state={})
+        result = _discover_directory_scan(config, state={}, ws=None)
         # Static values no longer appear in discovery result
         self.assertEqual(result.values, [])
 
@@ -240,7 +249,7 @@ class DirectoryScanDiscoveryTests(unittest.TestCase):
                 "state_field": "recent_dirs",
             },
         }
-        result = _discover_directory_scan(config, state={})
+        result = _discover_directory_scan(config, state={}, ws=None)
         self.assertNotIn("/my/static/dir", result.values)
         self.assertNotIn("/another/static", result.values)
 
@@ -253,7 +262,7 @@ class StateFieldDiscoveryTests(unittest.TestCase):
             "discovery": {"type": "state_field", "field": "recent_dirs"},
         }
         state = {"recent_dirs": ["~/foo", "~/bar"]}
-        result = _discover_state_field(config, state)
+        result = _discover_state_field(config, state, ws=None)
         self.assertEqual(result.values, ["~/foo", "~/bar", "~/baz"])
 
     def test_dedup_when_static_overlaps_state(self) -> None:
@@ -263,7 +272,7 @@ class StateFieldDiscoveryTests(unittest.TestCase):
             "discovery": {"type": "state_field", "field": "recent_dirs"},
         }
         state = {"recent_dirs": ["~/foo", "~/bar"]}
-        result = _discover_state_field(config, state)
+        result = _discover_state_field(config, state, ws=None)
         self.assertEqual(result.values, ["~/foo", "~/bar", "~/baz"])
 
     def test_missing_state_field_uses_static_only(self) -> None:
@@ -272,7 +281,7 @@ class StateFieldDiscoveryTests(unittest.TestCase):
             "values": ["~/baz"],
             "discovery": {"type": "state_field", "field": "recent_dirs"},
         }
-        result = _discover_state_field(config, state={})
+        result = _discover_state_field(config, state={}, ws=None)
         self.assertEqual(result.values, ["~/baz"])
 
     def test_empty_state_and_empty_static_yields_empty(self) -> None:
@@ -281,7 +290,7 @@ class StateFieldDiscoveryTests(unittest.TestCase):
             "values": [],
             "discovery": {"type": "state_field", "field": "recent_dirs"},
         }
-        result = _discover_state_field(config, state={"recent_dirs": []})
+        result = _discover_state_field(config, state={"recent_dirs": []}, ws=None)
         self.assertEqual(result.values, [])
 
     def test_state_values_come_before_static(self) -> None:
@@ -291,7 +300,7 @@ class StateFieldDiscoveryTests(unittest.TestCase):
             "discovery": {"type": "state_field", "field": "recent_dirs"},
         }
         state = {"recent_dirs": ["~/a-state"]}
-        result = _discover_state_field(config, state)
+        result = _discover_state_field(config, state, ws=None)
         self.assertEqual(result.values, ["~/a-state", "~/z-static"])
         self.assertEqual(result.values[0], "~/a-state")
 
@@ -313,9 +322,8 @@ class ClaudeConfigScanDiscoveryTests(unittest.TestCase):
             "values": ["stale-profile"],
             "discovery": {"type": "claude_config_scan"},
         }
-        with patch("claudewheel.segment.ProfileStore") as MockStore:
-            MockStore.return_value.enumerate.return_value = mock_profiles
-            result = _discover_profiles(config, state={})
+        mock_ws = _mock_ws(mock_profiles)
+        result = _discover_profiles(config, state={}, ws=mock_ws)
         self.assertEqual(result.values, ["work", "personal"])
 
     def test_empty_when_no_profiles_found(self) -> None:
@@ -326,9 +334,8 @@ class ClaudeConfigScanDiscoveryTests(unittest.TestCase):
             "values": ["stale-profile"],
             "discovery": {"type": "claude_config_scan"},
         }
-        with patch("claudewheel.segment.ProfileStore") as MockStore:
-            MockStore.return_value.enumerate.return_value = []
-            result = _discover_profiles(config, state={})
+        mock_ws = _mock_ws([])
+        result = _discover_profiles(config, state={}, ws=mock_ws)
         self.assertEqual(result.values, [])
 
     def test_metadata_carries_auth_fields_only(self) -> None:
@@ -346,9 +353,8 @@ class ClaudeConfigScanDiscoveryTests(unittest.TestCase):
             "values": [],
             "discovery": {"type": "claude_config_scan"},
         }
-        with patch("claudewheel.segment.ProfileStore") as MockStore:
-            MockStore.return_value.enumerate.return_value = mock_profiles
-            result = _discover_profiles(config, state={})
+        mock_ws = _mock_ws(mock_profiles)
+        result = _discover_profiles(config, state={}, ws=mock_ws)
         self.assertNotIn("config_dir", result.metadata["default"])
         self.assertNotIn("config_dir", result.metadata["myprof"])
         self.assertEqual(result.metadata["default"]["has_credentials"], True)
@@ -374,7 +380,7 @@ class GhAuthDiscoveryTests(unittest.TestCase):
             "discovery": {"type": "gh_auth"},
         }
         with patch("claudewheel.segment.subprocess.run", return_value=mock_result):
-            result = _discover_gh_accounts(config, state={})
+            result = _discover_gh_accounts(config, state={}, ws=None)
         self.assertEqual(result.values, ["static-acct", "ghuser1"])
 
     def test_multiple_accounts_appended(self) -> None:
@@ -394,7 +400,7 @@ class GhAuthDiscoveryTests(unittest.TestCase):
             "discovery": {"type": "gh_auth"},
         }
         with patch("claudewheel.segment.subprocess.run", return_value=mock_result):
-            result = _discover_gh_accounts(config, state={})
+            result = _discover_gh_accounts(config, state={}, ws=None)
         self.assertEqual(result.values, ["preset", "alice", "bob"])
 
     def test_duplicate_accounts_deduplicated(self) -> None:
@@ -414,7 +420,7 @@ class GhAuthDiscoveryTests(unittest.TestCase):
             "discovery": {"type": "gh_auth"},
         }
         with patch("claudewheel.segment.subprocess.run", return_value=mock_result):
-            result = _discover_gh_accounts(config, state={})
+            result = _discover_gh_accounts(config, state={}, ws=None)
         self.assertEqual(result.values, ["alice"])
 
     def test_no_accounts_preserves_static(self) -> None:
@@ -431,7 +437,7 @@ class GhAuthDiscoveryTests(unittest.TestCase):
             "discovery": {"type": "gh_auth"},
         }
         with patch("claudewheel.segment.subprocess.run", return_value=mock_result):
-            result = _discover_gh_accounts(config, state={})
+            result = _discover_gh_accounts(config, state={}, ws=None)
         self.assertEqual(result.values, ["fallback"])
 
     def test_gh_not_installed_preserves_static(self) -> None:
@@ -443,7 +449,7 @@ class GhAuthDiscoveryTests(unittest.TestCase):
             "discovery": {"type": "gh_auth"},
         }
         with patch("claudewheel.segment.subprocess.run", side_effect=FileNotFoundError):
-            result = _discover_gh_accounts(config, state={})
+            result = _discover_gh_accounts(config, state={}, ws=None)
         self.assertEqual(result.values, ["preset"])
 
 
@@ -474,7 +480,7 @@ class NpmAndLocalCachedDiscoveryTests(unittest.TestCase):
                 "versions": ["1.0.0", "1.0.1", "1.0.2"],
             }
         }
-        result = _discover_npm_and_local_cached(config, state)
+        result = _discover_npm_and_local_cached(config, state, ws=None)
         self.assertIn("1.0.3", result.values)
         self.assertIn("1.0.2", result.values)
         self.assertIn("1.0.1", result.values)
@@ -503,7 +509,7 @@ class NpmAndLocalCachedDiscoveryTests(unittest.TestCase):
                 "versions": ["1.0.0", "1.0.1", "1.0.2"],
             }
         }
-        result = _discover_npm_and_local_cached(config, state)
+        result = _discover_npm_and_local_cached(config, state, ws=None)
         self.assertEqual(result.values[0], "99.0.0")
 
     def test_installed_set_populated(self) -> None:
@@ -524,7 +530,7 @@ class NpmAndLocalCachedDiscoveryTests(unittest.TestCase):
                 "versions": ["1.0.0"],
             }
         }
-        result = _discover_npm_and_local_cached(config, state)
+        result = _discover_npm_and_local_cached(config, state, ws=None)
         self.assertEqual(result.installed, {"1.0.0"})
 
     def test_empty_npm_and_empty_local_yields_empty(self) -> None:
@@ -541,7 +547,7 @@ class NpmAndLocalCachedDiscoveryTests(unittest.TestCase):
             },
         }
         state = {}
-        result = _discover_npm_and_local_cached(config, state)
+        result = _discover_npm_and_local_cached(config, state, ws=None)
         self.assertEqual(result.values, [])
 
     def test_stale_cache_uses_empty_npm_list(self) -> None:
@@ -563,7 +569,7 @@ class NpmAndLocalCachedDiscoveryTests(unittest.TestCase):
                 "versions": ["2.0.0"],
             }
         }
-        result = _discover_npm_and_local_cached(config, state)
+        result = _discover_npm_and_local_cached(config, state, ws=None)
         # Only local version should appear (stale npm cache is ignored)
         self.assertEqual(result.values, ["1.0.0"])
         self.assertEqual(result.installed, {"1.0.0"})

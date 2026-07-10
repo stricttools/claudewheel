@@ -176,6 +176,9 @@ class RunMvValidationTests(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
         self.tmp_path = Path(self._tmp.name)
+        from claudewheel.workspace import Workspace
+        self.ws = Workspace.open(self.tmp_path / ".claudewheel",
+                                 claude_dir=self.tmp_path / ".claude")
         self._stdout_trap = contextlib.redirect_stdout(io.StringIO())
         self._stdout_trap.__enter__()
 
@@ -192,7 +195,7 @@ class RunMvValidationTests(unittest.TestCase):
         old.mkdir()
 
         with patch("claudewheel.mv._discover_profile_dirs", return_value=[]):
-            run_mv(str(old), str(new))  # should not raise
+            run_mv(self.ws, str(old), str(new))  # should not raise
 
     def test_default_old_not_exists(self) -> None:
         """Default mode raises FileNotFoundError when old does not exist."""
@@ -201,7 +204,7 @@ class RunMvValidationTests(unittest.TestCase):
         # Neither exists
 
         with self.assertRaises(FileNotFoundError):
-            run_mv(str(old), str(new))
+            run_mv(self.ws, str(old), str(new))
 
     def test_default_new_already_exists(self) -> None:
         """Default mode raises FileExistsError when new already exists."""
@@ -211,7 +214,7 @@ class RunMvValidationTests(unittest.TestCase):
         new.mkdir()
 
         with self.assertRaises(FileExistsError):
-            run_mv(str(old), str(new))
+            run_mv(self.ws, str(old), str(new))
 
     # -- Post-hoc mode (session-only migration) --
 
@@ -222,7 +225,7 @@ class RunMvValidationTests(unittest.TestCase):
         new.mkdir()
 
         with patch("claudewheel.mv._discover_profile_dirs", return_value=[]):
-            run_mv(str(old), str(new), post_hoc=True)  # should not raise
+            run_mv(self.ws, str(old), str(new), post_hoc=True)  # should not raise
 
     def test_post_hoc_old_still_exists(self) -> None:
         """Post-hoc mode raises FileExistsError when old still exists."""
@@ -232,7 +235,7 @@ class RunMvValidationTests(unittest.TestCase):
         new.mkdir()
 
         with self.assertRaises(FileExistsError):
-            run_mv(str(old), str(new), post_hoc=True)
+            run_mv(self.ws, str(old), str(new), post_hoc=True)
 
     def test_post_hoc_new_not_exists(self) -> None:
         """Post-hoc mode raises FileNotFoundError when new does not exist."""
@@ -241,7 +244,7 @@ class RunMvValidationTests(unittest.TestCase):
         # Neither exists
 
         with self.assertRaises(FileNotFoundError):
-            run_mv(str(old), str(new), post_hoc=True)
+            run_mv(self.ws, str(old), str(new), post_hoc=True)
 
     # -- Same path --
 
@@ -251,7 +254,7 @@ class RunMvValidationTests(unittest.TestCase):
         old.mkdir()
 
         with self.assertRaises(ValueError):
-            run_mv(str(old), str(old))
+            run_mv(self.ws, str(old), str(old))
 
 
 class RunMvIntegrationTests(unittest.TestCase):
@@ -261,6 +264,9 @@ class RunMvIntegrationTests(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory()
         self.home = Path(self._tmp.name) / "home"
         self.home.mkdir()
+        from claudewheel.workspace import Workspace
+        self.ws = Workspace.open(self.home / ".claudewheel",
+                                 claude_dir=self.home / ".claude")
 
         self._stdout_trap = contextlib.redirect_stdout(io.StringIO())
         self._stdout_trap.__enter__()
@@ -316,6 +322,7 @@ class RunMvIntegrationTests(unittest.TestCase):
                  return_value=[self.profile],
              ):
             return run_mv(
+                self.ws,
                 str(self.old_dir), str(self.new_dir),
                 dry_run=dry_run, post_hoc=True,
             )
@@ -394,12 +401,11 @@ class RunMvIntegrationTests(unittest.TestCase):
         shared_json.write_text(json.dumps({"projects": {self.old_resolved: {"x": 1}}}))
 
         with patch("claudewheel.mv.Path.home", return_value=self.home), \
-             patch("claudewheel.mv.SHARED_DIR", shared), \
              patch(
                  "claudewheel.mv._discover_profile_dirs",
                  return_value=[self.profile, shared],
              ):
-            result = run_mv(str(self.old_dir), str(self.new_dir), post_hoc=True)
+            result = run_mv(self.ws, str(self.old_dir), str(self.new_dir), post_hoc=True)
 
         # Only the profile's .claude.json was updated, not shared's
         self.assertEqual(result.project_keys_updated, 1)
@@ -420,6 +426,9 @@ class MergeDirsTests(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory()
         self.home = Path(self._tmp.name) / "home"
         self.home.mkdir()
+        from claudewheel.workspace import Workspace
+        self.ws = Workspace.open(self.home / ".claudewheel",
+                                 claude_dir=self.home / ".claude")
 
         self._stdout_trap = contextlib.redirect_stdout(io.StringIO())
         self._stdout_trap.__enter__()
@@ -467,6 +476,7 @@ class MergeDirsTests(unittest.TestCase):
                  return_value=[self.profile],
              ):
             return run_mv(
+                self.ws,
                 str(self.old_dir), str(self.new_dir),
                 dry_run=dry_run, post_hoc=True,
             )
@@ -604,6 +614,9 @@ class RenameModeTests(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
         self.tmp_path = Path(self._tmp.name)
+        from claudewheel.workspace import Workspace
+        self.ws = Workspace.open(self.tmp_path / ".claudewheel",
+                                 claude_dir=self.tmp_path / ".claude")
         self._stdout_trap = contextlib.redirect_stdout(io.StringIO())
         self._stdout_trap.__enter__()
 
@@ -619,7 +632,7 @@ class RenameModeTests(unittest.TestCase):
         (old / "file.txt").write_text("content")
 
         with patch("claudewheel.mv._discover_profile_dirs", return_value=[]):
-            run_mv(str(old), str(new))
+            run_mv(self.ws, str(old), str(new))
 
         self.assertFalse(old.exists())
         self.assertTrue(new.is_dir())
@@ -650,7 +663,7 @@ class RenameModeTests(unittest.TestCase):
         )
 
         with patch("claudewheel.mv._discover_profile_dirs", return_value=[profile]):
-            result = run_mv(str(old), str(new))
+            result = run_mv(self.ws, str(old), str(new))
 
         # Directory renamed
         self.assertFalse(old.exists())
@@ -675,7 +688,7 @@ class RenameModeTests(unittest.TestCase):
         (old / "file.txt").write_text("content")
 
         with patch("claudewheel.mv._discover_profile_dirs", return_value=[]):
-            run_mv(str(old), str(new), dry_run=True)
+            run_mv(self.ws, str(old), str(new), dry_run=True)
 
         self.assertTrue(old.is_dir())
         self.assertFalse(new.exists())
@@ -693,7 +706,7 @@ class RenameModeTests(unittest.TestCase):
             side_effect=OSError(errno.EXDEV, "Invalid cross-device link"),
         ):
             with self.assertRaises(OSError) as ctx:
-                run_mv(str(old), str(new))
+                run_mv(self.ws, str(old), str(new))
 
         self.assertIn("failed to rename directory", str(ctx.exception))
 

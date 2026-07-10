@@ -39,21 +39,11 @@ class _HomeDirTestCase(unittest.TestCase):
         self._skills_dir = self.home / ".claudewheel" / "skills"
         self._profiles_dir = self.home / ".claudewheel" / "profiles"
         self._tokens_file = self.home / ".claudewheel" / "tokens.json"
-        self._dir_patches = [
-            patch("claudewheel.health.SKILLS_DIR", self._skills_dir),
-            patch("claudewheel.health.PROFILES_DIR", self._profiles_dir),
-            # health builds a ProfileStore + TokenStore from its own module
-            # constants; without this the store hits the real
-            # ~/.claudewheel/tokens.json.
-            patch("claudewheel.health.TOKENS_FILE", self._tokens_file),
-            patch("claudewheel.discovery.SHARED_DIR", self._shared_dir),
-            patch("claudewheel.discovery.SKILLS_DIR", self._skills_dir),
-            patch("claudewheel.discovery.PROFILES_DIR", self._profiles_dir),
-            patch("claudewheel.discovery.TOKENS_FILE", self._tokens_file),
-            patch("claudewheel.profile_info.PROFILES_DIR", self._profiles_dir),
-        ]
-        for p in self._dir_patches:
-            p.start()
+        # Health now takes an explicit workspace; build one rooted at the sandbox.
+        from claudewheel.workspace import Workspace
+        self.ws = Workspace.open(self.home / ".claudewheel",
+                                 claude_dir=self.home / ".claude")
+        self._dir_patches = []
 
     def tearDown(self) -> None:
         for p in self._dir_patches:
@@ -75,13 +65,13 @@ class _HomeDirTestCase(unittest.TestCase):
 
 
 class DiscoverProfilesTests(_HomeDirTestCase):
-    """Tests for _discover_profiles()."""
+    """Tests for _discover_profiles(self.ws)."""
 
     def test_finds_dirs_with_credentials(self) -> None:
         """Profiles with .credentials.json are discovered."""
         self._make_profile("alpha")
         self._make_profile("beta")
-        result = _discover_profiles()
+        result = _discover_profiles(self.ws)
         names = [p.name for p in result]
         self.assertEqual(names, ["alpha", "beta"])
 
@@ -92,7 +82,7 @@ class DiscoverProfilesTests(_HomeDirTestCase):
         # Missing both markers
         fake = self._profiles_dir / "fake"
         fake.mkdir(parents=True, exist_ok=True)
-        result = _discover_profiles()
+        result = _discover_profiles(self.ws)
         names = [p.name for p in result]
         self.assertEqual(names, ["real"])
 
@@ -101,7 +91,7 @@ class DiscoverProfilesTests(_HomeDirTestCase):
         self._make_profile("zeta")
         self._make_profile("alpha")
         self._make_profile("mid")
-        result = _discover_profiles()
+        result = _discover_profiles(self.ws)
         names = [p.name for p in result]
         self.assertEqual(names, ["alpha", "mid", "zeta"])
 
@@ -115,7 +105,7 @@ class DiscoverProfilesTests(_HomeDirTestCase):
         tokens_file = tokens_dir / "tokens.json"
         tokens_file.write_text(json.dumps({"work": "tok-abc"}))
         with patch("claudewheel.discovery.TOKENS_FILE", tokens_file):
-            result = _discover_profiles()
+            result = _discover_profiles(self.ws)
         names = [p.name for p in result]
         self.assertIn("work", names)
 
@@ -128,13 +118,13 @@ class DiscoverProfilesTests(_HomeDirTestCase):
         tokens_file = tokens_dir / "tokens.json"
         tokens_file.write_text(json.dumps({"alpha": "tok-a"}))
         with patch("claudewheel.discovery.TOKENS_FILE", tokens_file):
-            result = _discover_profiles()
+            result = _discover_profiles(self.ws)
         names = [p.name for p in result]
         self.assertEqual(names, ["alpha", "beta"])
 
     def test_returns_empty_when_no_profiles(self) -> None:
         """Returns empty list when no .claude-* dirs exist."""
-        result = _discover_profiles()
+        result = _discover_profiles(self.ws)
         self.assertEqual(result, [])
 
 
@@ -144,7 +134,7 @@ class DiscoverProfilesTests(_HomeDirTestCase):
 
 
 class CheckSharedSymlinksTests(_HomeDirTestCase):
-    """Tests for check_shared_symlinks()."""
+    """Tests for check_shared_symlinks(self.ws)."""
 
     EXPECTED_DIRS = ["projects", "session-env", "file-history", "tasks", "todos", "paste-cache"]
 
@@ -168,7 +158,7 @@ class CheckSharedSymlinksTests(_HomeDirTestCase):
         pdir = self._make_profile("good")
         self._link_profile(pdir, shared)
 
-        result = check_shared_symlinks()
+        result = check_shared_symlinks(self.ws)
         self.assertTrue(result.ok)
         self.assertIn("1 profiles OK", result.detail)
 
@@ -184,7 +174,7 @@ class CheckSharedSymlinksTests(_HomeDirTestCase):
         (pdir / "projects").unlink()
         (pdir / "projects").symlink_to(wrong_target)
 
-        result = check_shared_symlinks()
+        result = check_shared_symlinks(self.ws)
         self.assertFalse(result.ok)
         self.assertIn("bad/projects", result.detail)
 
@@ -197,13 +187,13 @@ class CheckSharedSymlinksTests(_HomeDirTestCase):
         (pdir / "todos").unlink()
         (pdir / "todos").mkdir()
 
-        result = check_shared_symlinks()
+        result = check_shared_symlinks(self.ws)
         self.assertFalse(result.ok)
         self.assertIn("nolink/todos", result.detail)
 
     def test_ok_no_profiles(self) -> None:
         """Returns OK with detail message when no profiles exist."""
-        result = check_shared_symlinks()
+        result = check_shared_symlinks(self.ws)
         self.assertTrue(result.ok)
         self.assertIn("no profiles found", result.detail)
 
@@ -214,7 +204,7 @@ class CheckSharedSymlinksTests(_HomeDirTestCase):
 
 
 class CheckHooksWiredTests(_HomeDirTestCase):
-    """Tests for check_hooks_wired()."""
+    """Tests for check_hooks_wired(self.ws)."""
 
     def _write_settings(self, pdir: Path, settings: dict) -> None:
         """Write settings.json into a profile directory."""
@@ -267,7 +257,7 @@ class CheckHooksWiredTests(_HomeDirTestCase):
         pdir = self._make_profile("hooked")
         self._write_settings(pdir, self._good_settings())
 
-        result = check_hooks_wired()
+        result = check_hooks_wired(self.ws)
         self.assertTrue(result.ok)
         self.assertIn("1 profiles OK", result.detail)
 
@@ -276,7 +266,7 @@ class CheckHooksWiredTests(_HomeDirTestCase):
         pdir = self._make_profile("three-only")
         self._write_settings(pdir, self._three_hook_settings())
 
-        result = check_hooks_wired()
+        result = check_hooks_wired(self.ws)
         self.assertFalse(result.ok)
         self.assertIn("PostToolUse", result.detail)
         self.assertIn("hook-advise-commands", result.detail)
@@ -297,7 +287,7 @@ class CheckHooksWiredTests(_HomeDirTestCase):
         }
         self._write_settings(pdir, settings)
 
-        result = check_hooks_wired()
+        result = check_hooks_wired(self.ws)
         self.assertFalse(result.ok)
         self.assertIn("hook-timestamp", result.detail)
 
@@ -325,7 +315,7 @@ class CheckHooksWiredTests(_HomeDirTestCase):
         }
         self._write_settings(pdir, settings)
 
-        result = check_hooks_wired()
+        result = check_hooks_wired(self.ws)
         self.assertFalse(result.ok)
         self.assertIn("hook-block-unsafe-commands", result.detail)
 
@@ -333,13 +323,13 @@ class CheckHooksWiredTests(_HomeDirTestCase):
         """Returns WARN when settings.json does not exist."""
         self._make_profile("bare")
 
-        result = check_hooks_wired()
+        result = check_hooks_wired(self.ws)
         self.assertFalse(result.ok)
         self.assertIn("no settings.json", result.detail)
 
     def test_ok_no_profiles(self) -> None:
         """Returns OK when no profiles exist."""
-        result = check_hooks_wired()
+        result = check_hooks_wired(self.ws)
         self.assertTrue(result.ok)
         self.assertIn("no profiles found", result.detail)
 
@@ -350,7 +340,7 @@ class CheckHooksWiredTests(_HomeDirTestCase):
 
 
 class CheckSettingsDefaultsTests(_HomeDirTestCase):
-    """Tests for check_settings_defaults()."""
+    """Tests for check_settings_defaults(self.ws)."""
 
     def _write_settings(self, pdir: Path, settings: dict) -> None:
         (pdir / "settings.json").write_text(json.dumps(settings))
@@ -376,7 +366,7 @@ class CheckSettingsDefaultsTests(_HomeDirTestCase):
         pdir = self._make_profile("correct")
         self._write_settings(pdir, self._good_settings())
 
-        result = check_settings_defaults()
+        result = check_settings_defaults(self.ws)
         self.assertTrue(result.ok)
         self.assertIn("1 profiles OK", result.detail)
 
@@ -391,7 +381,7 @@ class CheckSettingsDefaultsTests(_HomeDirTestCase):
         }
         self._write_settings(pdir, settings)
 
-        result = check_settings_defaults()
+        result = check_settings_defaults(self.ws)
         self.assertTrue(result.ok)
 
     def test_warn_when_auto_mode_not_disabled(self) -> None:
@@ -401,7 +391,7 @@ class CheckSettingsDefaultsTests(_HomeDirTestCase):
         settings["permissions"] = {"deny": [], "ask": []}
         self._write_settings(pdir, settings)
 
-        result = check_settings_defaults()
+        result = check_settings_defaults(self.ws)
         self.assertFalse(result.ok)
         self.assertIn("auto mode not disabled", result.detail)
 
@@ -412,7 +402,7 @@ class CheckSettingsDefaultsTests(_HomeDirTestCase):
         settings["awaySummaryEnabled"] = True
         self._write_settings(pdir, settings)
 
-        result = check_settings_defaults()
+        result = check_settings_defaults(self.ws)
         self.assertFalse(result.ok)
         self.assertIn("awaySummaryEnabled != false", result.detail)
 
@@ -423,7 +413,7 @@ class CheckSettingsDefaultsTests(_HomeDirTestCase):
         settings["cleanupPeriodDays"] = 30
         self._write_settings(pdir, settings)
 
-        result = check_settings_defaults()
+        result = check_settings_defaults(self.ws)
         self.assertFalse(result.ok)
         self.assertIn("cleanupPeriodDays < 365", result.detail)
 
@@ -434,7 +424,7 @@ class CheckSettingsDefaultsTests(_HomeDirTestCase):
         del settings["cleanupPeriodDays"]
         self._write_settings(pdir, settings)
 
-        result = check_settings_defaults()
+        result = check_settings_defaults(self.ws)
         self.assertFalse(result.ok)
         self.assertIn("cleanupPeriodDays < 365", result.detail)
 
@@ -445,7 +435,7 @@ class CheckSettingsDefaultsTests(_HomeDirTestCase):
         settings["autoMemoryEnabled"] = True
         self._write_settings(pdir, settings)
 
-        result = check_settings_defaults()
+        result = check_settings_defaults(self.ws)
         self.assertFalse(result.ok)
         self.assertIn("autoMemoryEnabled != false", result.detail)
 
@@ -456,7 +446,7 @@ class CheckSettingsDefaultsTests(_HomeDirTestCase):
         del settings["claudewheel"]
         self._write_settings(pdir, settings)
 
-        result = check_settings_defaults()
+        result = check_settings_defaults(self.ws)
         self.assertFalse(result.ok)
         self.assertIn("missing disallowedTools", result.detail)
 
@@ -468,7 +458,7 @@ class CheckSettingsDefaultsTests(_HomeDirTestCase):
         settings["disallowedTools"] = DISALLOWED_TOOLS[:]
         self._write_settings(pdir, settings)
 
-        result = check_settings_defaults()
+        result = check_settings_defaults(self.ws)
         self.assertFalse(result.ok)
         self.assertIn("inert top-level disallowedTools", result.detail)
 
@@ -480,12 +470,12 @@ class CheckSettingsDefaultsTests(_HomeDirTestCase):
         settings.pop("disallowedTools", None)
         self._write_settings(pdir, settings)
 
-        result = check_settings_defaults()
+        result = check_settings_defaults(self.ws)
         self.assertTrue(result.ok)
 
     def test_ok_no_profiles(self) -> None:
         """Returns OK when no profiles exist."""
-        result = check_settings_defaults()
+        result = check_settings_defaults(self.ws)
         self.assertTrue(result.ok)
         self.assertIn("no profiles found", result.detail)
 
@@ -496,19 +486,13 @@ class CheckSettingsDefaultsTests(_HomeDirTestCase):
 
 
 class CheckTokensTests(_HomeDirTestCase):
-    """Tests for check_tokens()."""
+    """Tests for check_tokens(self.ws)."""
 
     def setUp(self) -> None:
         super().setUp()
-        # check_tokens() uses the module-level TOKENS_FILE constant (computed at
+        # check_tokens(self.ws) uses the module-level TOKENS_FILE constant (computed at
         # import time), so we redirect it at the temp home's .claudewheel/tokens.json.
         self._tokens_file = self.home / ".claudewheel" / "tokens.json"
-        self._tokens_patcher = patch("claudewheel.health.TOKENS_FILE", self._tokens_file)
-        self._tokens_patcher.start()
-
-    def tearDown(self) -> None:
-        self._tokens_patcher.stop()
-        super().tearDown()
 
     def _write_tokens(self, tokens: dict) -> None:
         """Write tokens.json in the temp home's .claudewheel/ dir."""
@@ -521,7 +505,7 @@ class CheckTokensTests(_HomeDirTestCase):
         self._make_profile("beta")
         self._write_tokens({"alpha": "tok-aaa", "beta": "tok-bbb"})
 
-        result = check_tokens()
+        result = check_tokens(self.ws)
         self.assertTrue(result.ok)
         self.assertIn("2 profiles OK", result.detail)
 
@@ -531,7 +515,7 @@ class CheckTokensTests(_HomeDirTestCase):
         self._make_profile("beta")
         self._write_tokens({"alpha": "tok-aaa"})
 
-        result = check_tokens()
+        result = check_tokens(self.ws)
         self.assertFalse(result.ok)
         self.assertIn("beta", result.detail)
 
@@ -539,13 +523,13 @@ class CheckTokensTests(_HomeDirTestCase):
         """Returns OK when tokens.json does not exist (nothing to check against)."""
         self._make_profile("lonely")
 
-        result = check_tokens()
+        result = check_tokens(self.ws)
         self.assertTrue(result.ok)
         self.assertIn("tokens.json not found", result.detail)
 
     def test_ok_no_profiles_no_tokens(self) -> None:
         """Returns OK when neither profiles nor tokens.json exist."""
-        result = check_tokens()
+        result = check_tokens(self.ws)
         self.assertTrue(result.ok)
 
     def test_warn_when_token_value_empty(self) -> None:
@@ -553,7 +537,7 @@ class CheckTokensTests(_HomeDirTestCase):
         self._make_profile("empty")
         self._write_tokens({"empty": ""})
 
-        result = check_tokens()
+        result = check_tokens(self.ws)
         self.assertFalse(result.ok)
         self.assertIn("empty", result.detail)
 
@@ -562,7 +546,7 @@ class CheckTokensTests(_HomeDirTestCase):
         self._make_profile("numeric")
         self._write_tokens({"numeric": 12345})
 
-        result = check_tokens()
+        result = check_tokens(self.ws)
         self.assertFalse(result.ok)
         self.assertIn("numeric", result.detail)
 
@@ -575,7 +559,7 @@ class CheckTokensTests(_HomeDirTestCase):
         # Tokens file exists but has no entry for "newprof"
         self._write_tokens({})
 
-        result = check_tokens()
+        result = check_tokens(self.ws)
         self.assertTrue(result.ok)
         self.assertNotIn("newprof", result.detail)
 
@@ -586,7 +570,7 @@ class CheckTokensTests(_HomeDirTestCase):
 
 
 class CheckOrphanProfilesTests(_HomeDirTestCase):
-    """Tests for check_orphan_profiles()."""
+    """Tests for check_orphan_profiles(self.ws)."""
 
     def _write_options(self, profile_values: list[str]) -> None:
         """Write a minimal options.json with the given profile values."""
@@ -599,9 +583,8 @@ class CheckOrphanProfilesTests(_HomeDirTestCase):
         """Returns OK when all profile dirs are registered profiles."""
         self._make_profile("alpha")
         self._write_options(["alpha"])
-        with patch("claudewheel.health.OPTIONS_FILE",
-                    self.home / ".claudewheel" / "options.json"):
-            result = check_orphan_profiles()
+        with patch.object(health, "print_health_report", health.print_health_report):
+            result = check_orphan_profiles(self.ws)
         self.assertTrue(result.ok)
         self.assertIn("no orphan", result.detail)
 
@@ -612,9 +595,8 @@ class CheckOrphanProfilesTests(_HomeDirTestCase):
         orphan = self._profiles_dir / "stale"
         orphan.mkdir(parents=True, exist_ok=True)
         self._write_options(["known"])
-        with patch("claudewheel.health.OPTIONS_FILE",
-                    self.home / ".claudewheel" / "options.json"):
-            result = check_orphan_profiles()
+        with patch.object(health, "print_health_report", health.print_health_report):
+            result = check_orphan_profiles(self.ws)
         self.assertFalse(result.ok)
         self.assertIn("stale", result.detail)
 
@@ -623,9 +605,8 @@ class CheckOrphanProfilesTests(_HomeDirTestCase):
         # Dir exists but has no .credentials.json
         (self._profiles_dir / "pending").mkdir(parents=True, exist_ok=True)
         self._write_options(["pending"])
-        with patch("claudewheel.health.OPTIONS_FILE",
-                    self.home / ".claudewheel" / "options.json"):
-            result = check_orphan_profiles()
+        with patch.object(health, "print_health_report", health.print_health_report):
+            result = check_orphan_profiles(self.ws)
         self.assertTrue(result.ok)
 
     def test_flags_broken_symlinks(self) -> None:
@@ -635,9 +616,8 @@ class CheckOrphanProfilesTests(_HomeDirTestCase):
         # Create a broken symlink inside
         (orphan / "projects").symlink_to(self.home / "nonexistent")
         self._write_options([])
-        with patch("claudewheel.health.OPTIONS_FILE",
-                    self.home / ".claudewheel" / "options.json"):
-            result = check_orphan_profiles()
+        with patch.object(health, "print_health_report", health.print_health_report):
+            result = check_orphan_profiles(self.ws)
         self.assertFalse(result.ok)
         self.assertIn("broken", result.detail.lower())
         self.assertIn("projects", result.detail)
@@ -646,9 +626,8 @@ class CheckOrphanProfilesTests(_HomeDirTestCase):
         """A dir with .credentials.json (registered profile) is never orphan."""
         self._make_profile("real")
         self._write_options([])  # not in options, but has credentials
-        with patch("claudewheel.health.OPTIONS_FILE",
-                    self.home / ".claudewheel" / "options.json"):
-            result = check_orphan_profiles()
+        with patch.object(health, "print_health_report", health.print_health_report):
+            result = check_orphan_profiles(self.ws)
         self.assertTrue(result.ok)
 
     def test_dir_in_tokens_not_orphan(self) -> None:
@@ -658,19 +637,17 @@ class CheckOrphanProfilesTests(_HomeDirTestCase):
         tokens_dir = self.home / ".claudewheel"
         tokens_dir.mkdir(parents=True, exist_ok=True)
         (tokens_dir / "tokens.json").write_text(json.dumps({"work": "tok-abc123"}))
-        with patch("claudewheel.health.OPTIONS_FILE",
-                    self.home / ".claudewheel" / "options.json"), \
+        with patch.object(health, "print_health_report", health.print_health_report), \
              patch("claudewheel.discovery.TOKENS_FILE",
                     self.home / ".claudewheel" / "tokens.json"):
-            result = check_orphan_profiles()
+            result = check_orphan_profiles(self.ws)
         self.assertTrue(result.ok)
 
     def test_ok_when_no_profiles_dir(self) -> None:
         """Returns OK when ~/.claudewheel/profiles/ does not exist."""
         # Don't create profiles dir
-        with patch("claudewheel.health.PROFILES_DIR",
-                    self.home / ".claudewheel" / "profiles"):
-            result = check_orphan_profiles()
+        with patch.object(health, "print_health_report", health.print_health_report):
+            result = check_orphan_profiles(self.ws)
         self.assertTrue(result.ok)
         self.assertIn("no profiles dir", result.detail)
 
@@ -688,9 +665,8 @@ class CheckOrphanProfilesTests(_HomeDirTestCase):
         options = {"profile": {"values": [], "pinned": ["wizard-prof"]}}
         (options_dir / "options.json").write_text(json.dumps(options))
 
-        with patch("claudewheel.health.OPTIONS_FILE",
-                    self.home / ".claudewheel" / "options.json"):
-            result = check_orphan_profiles()
+        with patch.object(health, "print_health_report", health.print_health_report):
+            result = check_orphan_profiles(self.ws)
         self.assertTrue(result.ok)
         self.assertIn("no orphan", result.detail)
 
@@ -701,21 +677,11 @@ class CheckOrphanProfilesTests(_HomeDirTestCase):
 
 
 class CheckAuthShadowTests(_HomeDirTestCase):
-    """Tests for check_auth_shadow()."""
+    """Tests for check_auth_shadow(self.ws)."""
 
     def setUp(self) -> None:
         super().setUp()
         self._tokens_file = self.home / ".claudewheel" / "tokens.json"
-        self._tokens_patcher = patch("claudewheel.health.TOKENS_FILE", self._tokens_file)
-        self._tokens_patcher.start()
-        # detect_auth_shadow (in profile_info) reads TOKENS_FILE from its own module
-        self._pi_tokens_patcher = patch("claudewheel.profile_info.TOKENS_FILE", self._tokens_file)
-        self._pi_tokens_patcher.start()
-
-    def tearDown(self) -> None:
-        self._pi_tokens_patcher.stop()
-        self._tokens_patcher.stop()
-        super().tearDown()
 
     def _write_tokens(self, tokens: dict) -> None:
         self._tokens_file.parent.mkdir(parents=True, exist_ok=True)
@@ -730,7 +696,7 @@ class CheckAuthShadowTests(_HomeDirTestCase):
         self._write_tokens({"work": {"token": "tok-xxx", "created": "2025-01-01", "expires_at": "2026-01-01"}})
         self._write_credentials(pdir, {"claudeAiOauth": {"accessToken": "short-lived"}})
 
-        result = check_auth_shadow()
+        result = check_auth_shadow(self.ws)
         self.assertFalse(result.ok)
         self.assertIn("work", result.detail)
         self.assertIn("shadowed", result.detail)
@@ -741,7 +707,7 @@ class CheckAuthShadowTests(_HomeDirTestCase):
         self._write_tokens({"clean": "tok-abc"})
         self._write_credentials(pdir, {"mcpOAuth": {"some": "data"}})
 
-        result = check_auth_shadow()
+        result = check_auth_shadow(self.ws)
         self.assertTrue(result.ok)
         self.assertIn("no auth shadow", result.detail)
 
@@ -751,7 +717,7 @@ class CheckAuthShadowTests(_HomeDirTestCase):
         self._write_tokens({})  # no entry for "session-only"
         self._write_credentials(pdir, {"claudeAiOauth": {"accessToken": "x"}})
 
-        result = check_auth_shadow()
+        result = check_auth_shadow(self.ws)
         self.assertTrue(result.ok)
         self.assertIn("no auth shadow", result.detail)
 
@@ -761,14 +727,14 @@ class CheckAuthShadowTests(_HomeDirTestCase):
         self._write_tokens({"mcp-only": "tok-mcp"})
         self._write_credentials(pdir, {"mcpOAuth": {"provider": "github"}})
 
-        result = check_auth_shadow()
+        result = check_auth_shadow(self.ws)
         self.assertTrue(result.ok)
         self.assertIn("no auth shadow", result.detail)
 
     def test_no_tokens_file(self) -> None:
         """Returns OK when tokens.json does not exist (no shadow possible)."""
         self._make_profile("any")
-        result = check_auth_shadow()
+        result = check_auth_shadow(self.ws)
         self.assertTrue(result.ok)
         self.assertIn("no auth shadow", result.detail)
 
@@ -776,7 +742,7 @@ class CheckAuthShadowTests(_HomeDirTestCase):
         """Returns OK when no profiles are discovered."""
         self._tokens_file.parent.mkdir(parents=True, exist_ok=True)
         self._tokens_file.write_text("{}")
-        result = check_auth_shadow()
+        result = check_auth_shadow(self.ws)
         self.assertTrue(result.ok)
         self.assertIn("no profiles found", result.detail)
 
@@ -899,19 +865,13 @@ class CheckTmpClaudeSizeTests(unittest.TestCase):
 
 
 class CheckCanonicalPermissionsDriftTests(_HomeDirTestCase):
-    """Tests for check_canonical_permissions_drift()."""
+    """Tests for check_canonical_permissions_drift(self.ws)."""
 
     def setUp(self) -> None:
         super().setUp()
         # The check reads the module-level SHARED_SETTINGS_FILE constant, so
         # redirect it into the temp home.
         self._shared_settings_file = self.home / ".claudewheel" / "shared-settings.json"
-        self._ss_patcher = patch("claudewheel.health.SHARED_SETTINGS_FILE", self._shared_settings_file)
-        self._ss_patcher.start()
-
-    def tearDown(self) -> None:
-        self._ss_patcher.stop()
-        super().tearDown()
 
     def _canonical_perms(self) -> dict:
         """A permissions block that exactly matches the canonical guardrail model."""
@@ -937,7 +897,7 @@ class CheckCanonicalPermissionsDriftTests(_HomeDirTestCase):
         self._write_settings(pdir, self._canonical_perms())
         self._write_shared(self._canonical_perms())
 
-        result = check_canonical_permissions_drift()
+        result = check_canonical_permissions_drift(self.ws)
         self.assertTrue(result.ok)
         self.assertIn("match canonical", result.detail)
 
@@ -949,7 +909,7 @@ class CheckCanonicalPermissionsDriftTests(_HomeDirTestCase):
         perms["deny"] = [d for d in perms["deny"] if d not in ("Bash(rm:*)", "Bash(git stash:*)")]
         self._write_settings(pdir, perms)
 
-        result = check_canonical_permissions_drift()
+        result = check_canonical_permissions_drift(self.ws)
         self.assertFalse(result.ok)
         self.assertIn("missingDeny", result.detail)
         self.assertIn("missing", result.detail)
@@ -963,7 +923,7 @@ class CheckCanonicalPermissionsDriftTests(_HomeDirTestCase):
         perms["ask"] = perms["ask"] + ["Bash(kill:*)"]
         self._write_settings(pdir, perms)
 
-        result = check_canonical_permissions_drift()
+        result = check_canonical_permissions_drift(self.ws)
         self.assertFalse(result.ok)
         self.assertIn("extraAsk", result.detail)
         self.assertIn("extra", result.detail)
@@ -976,7 +936,7 @@ class CheckCanonicalPermissionsDriftTests(_HomeDirTestCase):
         perms["allow"] = ["Bash(git rm:*)", "Bash(git stash:*)"]
         self._write_settings(pdir, perms)
 
-        result = check_canonical_permissions_drift()
+        result = check_canonical_permissions_drift(self.ws)
         self.assertFalse(result.ok)
         self.assertIn("conflictAllow", result.detail)
         self.assertIn("dead/conflicting", result.detail)
@@ -988,14 +948,14 @@ class CheckCanonicalPermissionsDriftTests(_HomeDirTestCase):
         stale["deny"] = [d for d in stale["deny"] if d != "Bash(git restore:*)"]
         self._write_shared(stale)
 
-        result = check_canonical_permissions_drift()
+        result = check_canonical_permissions_drift(self.ws)
         self.assertFalse(result.ok)
         self.assertIn("profileDefaults", result.detail)
         self.assertIn("Bash(git restore:*)", result.detail)
 
     def test_ok_no_profiles_no_shared(self) -> None:
         """OK when there are no profiles and no shared-settings.json."""
-        result = check_canonical_permissions_drift()
+        result = check_canonical_permissions_drift(self.ws)
         self.assertTrue(result.ok)
 
 
@@ -1005,7 +965,7 @@ class CheckCanonicalPermissionsDriftTests(_HomeDirTestCase):
 
 
 class CheckDeployedHookDriftTests(unittest.TestCase):
-    """Tests for check_deployed_hook_drift().
+    """Tests for check_deployed_hook_drift(self.ws).
 
     The check byte-compares each deployed hook script under SCRIPTS_DIR against
     the HOOK_SCRIPTS model. Warn-only; absence (no dir / not deployed) is OK.
@@ -1019,9 +979,11 @@ class CheckDeployedHookDriftTests(unittest.TestCase):
 
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
-        self._scripts_dir = Path(self._tmp.name) / "scripts"
+        from claudewheel.workspace import Workspace
+        self.ws = Workspace.open(Path(self._tmp.name),
+                                 claude_dir=Path(self._tmp.name) / ".claude")
+        self._scripts_dir = self.ws.scripts_dir
         self._patches = [
-            patch("claudewheel.health.SCRIPTS_DIR", self._scripts_dir),
             patch("claudewheel.health.HOOK_SCRIPTS", self.MODEL),
         ]
         for p in self._patches:
@@ -1041,7 +1003,7 @@ class CheckDeployedHookDriftTests(unittest.TestCase):
         for name, content in self.MODEL.items():
             self._deploy(name, content)
 
-        result = check_deployed_hook_drift()
+        result = check_deployed_hook_drift(self.ws)
         self.assertTrue(result.ok)
         self.assertEqual(result.label, "hook-drift")
         self.assertIn("2 deployed hook scripts match model", result.detail)
@@ -1052,7 +1014,7 @@ class CheckDeployedHookDriftTests(unittest.TestCase):
         # Mutate hook-beta on disk so it no longer matches the model.
         self._deploy("hook-beta", "#!/usr/bin/env bash\necho TAMPERED\n")
 
-        result = check_deployed_hook_drift()
+        result = check_deployed_hook_drift(self.ws)
         self.assertFalse(result.ok)
         self.assertIn("hook-beta", result.detail)
         self.assertNotIn("hook-alpha", result.detail)
@@ -1061,7 +1023,7 @@ class CheckDeployedHookDriftTests(unittest.TestCase):
     def test_ok_when_scripts_dir_absent(self) -> None:
         """OK (skip) when SCRIPTS_DIR does not exist -- CI / fresh machines."""
         # Do not create the scripts dir at all.
-        result = check_deployed_hook_drift()
+        result = check_deployed_hook_drift(self.ws)
         self.assertTrue(result.ok)
         self.assertIn("not deployed", result.detail)
 
@@ -1070,7 +1032,7 @@ class CheckDeployedHookDriftTests(unittest.TestCase):
         # Only deploy one of the two model scripts.
         self._deploy("hook-alpha", self.MODEL["hook-alpha"])
 
-        result = check_deployed_hook_drift()
+        result = check_deployed_hook_drift(self.ws)
         self.assertTrue(result.ok)
         self.assertIn("1 deployed hook scripts match model", result.detail)
 
@@ -1079,7 +1041,7 @@ class CheckDeployedHookDriftTests(unittest.TestCase):
         self._scripts_dir.mkdir(parents=True, exist_ok=True)
         (self._scripts_dir / "unrelated-tool").write_text("x")
 
-        result = check_deployed_hook_drift()
+        result = check_deployed_hook_drift(self.ws)
         self.assertTrue(result.ok)
         self.assertIn("no model hook scripts deployed", result.detail)
 
@@ -1097,24 +1059,15 @@ class HealthRunCorruptTokensTests(_HomeDirTestCase):
         super().setUp()
         cw = self.home / ".claudewheel"
         cw.mkdir(parents=True, exist_ok=True)
-        # Redirect the remaining real-filesystem constants into the temp home so
-        # the full run stays hermetic (no reads/writes of the real store).
-        extra = [
-            patch("claudewheel.health.INODES_FILE", cw / "shared" / "inodes.json"),
-            patch("claudewheel.health.SHARED_SETTINGS_FILE", cw / "shared-settings.json"),
-            patch("claudewheel.health.OPTIONS_FILE", cw / "options.json"),
-            patch("claudewheel.health.SCRIPTS_DIR", cw / "scripts"),
-        ]
-        for p in extra:
-            p.start()
-            self.addCleanup(p.stop)
+        # All health paths now derive from self.ws (built in the base setUp),
+        # which is rooted at cw -- so the full run stays hermetic.
 
     def test_corrupt_tokens_fails_token_checks_but_run_completes(self) -> None:
         self._make_profile("work")
         self._tokens_file.parent.mkdir(parents=True, exist_ok=True)
         self._tokens_file.write_text("not valid json{{{")
 
-        results = run_health_check()
+        results = run_health_check(self.ws)
 
         # Every check is reported -- nothing crashed or was skipped.
         self.assertEqual(len(results), 15)
@@ -1140,7 +1093,7 @@ class HealthRunCorruptTokensTests(_HomeDirTestCase):
         self._tokens_file.parent.mkdir(parents=True, exist_ok=True)
         self._tokens_file.write_text("{not json")
 
-        result = check_tokens()
+        result = check_tokens(self.ws)
         self.assertFalse(result.ok)
         self.assertIn("corrupt", result.detail)
 
@@ -1151,19 +1104,12 @@ class HealthRunCorruptTokensTests(_HomeDirTestCase):
 
 
 class CheckRelocatedHookPathsTests(_HomeDirTestCase):
-    """Tests for check_relocated_hook_paths() -- the relocation blind-spot check."""
+    """Tests for check_relocated_hook_paths(self.ws) -- the relocation blind-spot check."""
 
     def setUp(self) -> None:
         super().setUp()
         self._scripts_dir = self.home / ".claudewheel" / "scripts"
         self._shared_settings = self.home / ".claudewheel" / "shared-settings.json"
-        extra = [
-            patch("claudewheel.health.SCRIPTS_DIR", self._scripts_dir),
-            patch("claudewheel.health.SHARED_SETTINGS_FILE", self._shared_settings),
-        ]
-        for p in extra:
-            p.start()
-            self.addCleanup(p.stop)
 
     def _write_settings(self, pdir: Path, settings: dict) -> None:
         (pdir / "settings.json").write_text(json.dumps(settings))
@@ -1182,7 +1128,7 @@ class CheckRelocatedHookPathsTests(_HomeDirTestCase):
         pdir = self._make_profile("current")
         self._write_settings(pdir, {"hooks": self._timestamp_hooks(self._scripts_dir)})
 
-        result = check_relocated_hook_paths()
+        result = check_relocated_hook_paths(self.ws)
         self.assertTrue(result.ok)
         self.assertIn("current scripts dir", result.detail)
 
@@ -1192,7 +1138,7 @@ class CheckRelocatedHookPathsTests(_HomeDirTestCase):
             pdir, {"hooks": self._timestamp_hooks("/old/home/.claudewheel/scripts")}
         )
 
-        result = check_relocated_hook_paths()
+        result = check_relocated_hook_paths(self.ws)
         self.assertFalse(result.ok)
         self.assertIn("relocated", result.detail)
         self.assertIn("/old/home/.claudewheel/scripts/hook-timestamp", result.detail)
@@ -1202,7 +1148,7 @@ class CheckRelocatedHookPathsTests(_HomeDirTestCase):
         pdir = self._make_profile("nohooks")
         self._write_settings(pdir, {"permissions": {}})
 
-        result = check_relocated_hook_paths()
+        result = check_relocated_hook_paths(self.ws)
         self.assertTrue(result.ok)
 
     def test_user_custom_hook_under_other_dir_passes(self) -> None:
@@ -1216,7 +1162,7 @@ class CheckRelocatedHookPathsTests(_HomeDirTestCase):
         ]}}
         self._write_settings(pdir, settings)
 
-        result = check_relocated_hook_paths()
+        result = check_relocated_hook_paths(self.ws)
         self.assertTrue(result.ok)
 
     def test_shared_settings_stale_root_flagged(self) -> None:
@@ -1225,7 +1171,7 @@ class CheckRelocatedHookPathsTests(_HomeDirTestCase):
             json.dumps({"hooks": self._timestamp_hooks("/stale/scripts")})
         )
 
-        result = check_relocated_hook_paths()
+        result = check_relocated_hook_paths(self.ws)
         self.assertFalse(result.ok)
         self.assertIn("shared-settings.json", result.detail)
         self.assertIn("/stale/scripts/hook-timestamp", result.detail)

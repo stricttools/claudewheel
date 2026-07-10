@@ -11,7 +11,8 @@ from pathlib import Path
 from unittest import mock
 
 from claudewheel.segment import DiscoveryResult, Segment, SegmentBar
-from claudewheel.state import AUTH_BROWSER_KEY, save_state_value
+from claudewheel.appdata import StateFile
+from claudewheel.state import AUTH_BROWSER_KEY
 from claudewheel import app as app_mod
 
 
@@ -58,6 +59,8 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
     def _run_wizard_on_app(self, seg, wizard_result, fresh_result, mock_auth=True):
         """Run _launch_profile_wizard with all necessary mocks."""
         app = object.__new__(app_mod.App)
+        app.workspace = mock.MagicMock()
+        app.workspace.profiles.enumerate.return_value = []
         app.terminal = mock.MagicMock()
         app.theme = mock.MagicMock()
         app.cfg = mock.MagicMock()
@@ -105,6 +108,8 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
         wizard_result.config_dir = "~/.claudewheel/profiles/newprof"
 
         app = object.__new__(app_mod.App)
+        app.workspace = mock.MagicMock()
+        app.workspace.profiles.enumerate.return_value = []
         app.terminal = mock.MagicMock()
         app.theme = mock.MagicMock()
         app.cfg = mock.MagicMock()
@@ -118,7 +123,7 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
              mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True, return_value=wizard_result):
             app._launch_profile_wizard(seg)
 
-        mock_disc.assert_called_once_with({}, {})
+        mock_disc.assert_called_once_with({}, {}, app.workspace)
         mock_auth.assert_called_once_with(seg)
 
     def test_discovered_values_updated_after_wizard(self) -> None:
@@ -140,6 +145,8 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
         wizard_result.config_dir = "~/.claudewheel/profiles/brand-new"
 
         app = object.__new__(app_mod.App)
+        app.workspace = mock.MagicMock()
+        app.workspace.profiles.enumerate.return_value = []
         app.terminal = mock.MagicMock()
         app.theme = mock.MagicMock()
         app.cfg = mock.MagicMock()
@@ -176,6 +183,8 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
         wizard_result.config_dir = "~/.claudewheel/profiles/newprof"
 
         app = object.__new__(app_mod.App)
+        app.workspace = mock.MagicMock()
+        app.workspace.profiles.enumerate.return_value = []
         app.terminal = mock.MagicMock()
         app.theme = mock.MagicMock()
         app.cfg = mock.MagicMock()
@@ -214,6 +223,8 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
         wizard_result.config_dir = "~/.claudewheel/profiles/fresh"
 
         app = object.__new__(app_mod.App)
+        app.workspace = mock.MagicMock()
+        app.workspace.profiles.enumerate.return_value = []
         app.terminal = mock.MagicMock()
         app.theme = mock.MagicMock()
         app.cfg = mock.MagicMock()
@@ -252,6 +263,8 @@ class WizardRefreshAuthTests(unittest.TestCase):
         wizard_result.config_dir = "~/.claudewheel/profiles/authed"
 
         app = object.__new__(app_mod.App)
+        app.workspace = mock.MagicMock()
+        app.workspace.profiles.enumerate.return_value = []
         app.terminal = mock.MagicMock()
         app.theme = mock.MagicMock()
         app.cfg = mock.MagicMock()
@@ -289,6 +302,8 @@ class WizardRefreshAuthTests(unittest.TestCase):
         wizard_result.config_dir = "~/.claudewheel/profiles/noauth"
 
         app = object.__new__(app_mod.App)
+        app.workspace = mock.MagicMock()
+        app.workspace.profiles.enumerate.return_value = []
         app.terminal = mock.MagicMock()
         app.theme = mock.MagicMock()
         app.cfg = mock.MagicMock()
@@ -317,6 +332,8 @@ class WizardCancelledTests(unittest.TestCase):
         wizard_result.cancelled = True
 
         app = object.__new__(app_mod.App)
+        app.workspace = mock.MagicMock()
+        app.workspace.profiles.enumerate.return_value = []
         app.terminal = mock.MagicMock()
         app.theme = mock.MagicMock()
         app.cfg = mock.MagicMock()
@@ -359,7 +376,10 @@ class AuthInterceptTests(unittest.TestCase):
         seg.state.set_authenticated(auth_set)
         seg.select_value(profile_name)
 
+        from claudewheel.workspace import Workspace
         app = object.__new__(app_mod.App)
+        # Real workspace so path_for("noauth") is deterministic for assertions.
+        app.workspace = Workspace.default()
         app.terminal = mock.MagicMock()
         app.theme = mock.MagicMock()
         app.cfg = mock.MagicMock()
@@ -421,12 +441,14 @@ class AuthInterceptTests(unittest.TestCase):
 
         self.assertEqual(outcome, "authenticated")
         # config_dir is derived from the profile name via ProfileStore.path_for.
-        expected_dir = str(Workspace.default().profiles.path_for("noauth"))
+        from claudewheel.binaries import BinaryLocator
+        expected_dir = str(app.workspace.profiles.path_for("noauth"))
         mock_flow.assert_called_once_with(
+            app.workspace, BinaryLocator.default(),
             expected_dir, "noauth",
             app.theme, app.terminal,
             skip_label="Launch without auth")
-        mock_disc.assert_called_once_with({}, {})
+        mock_disc.assert_called_once_with({}, {}, app.workspace)
         mock_auth_update.assert_called_once_with(seg)
         # The terminal stays raw: the auth forms render borrowed
         app.terminal.exit_raw.assert_not_called()
@@ -453,7 +475,7 @@ class AuthInterceptTests(unittest.TestCase):
             outcome = app._intercept_unauth(seg)
 
         self.assertEqual(outcome, "failed")
-        mock_disc.assert_called_once_with({}, {})
+        mock_disc.assert_called_once_with({}, {}, app.workspace)
         mock_auth_update.assert_called_once_with(seg)
 
     def test_intercept_skips_discovery_on_skip(self):
@@ -579,7 +601,7 @@ class AuthInterceptTests(unittest.TestCase):
             outcome = app._intercept_unauth(seg)
 
         self.assertEqual(outcome, "unverified")
-        mock_disc.assert_called_once_with({}, {})
+        mock_disc.assert_called_once_with({}, {}, app.workspace)
         mock_auth_update.assert_called_once_with(seg)
 
     def test_authenticated_profile_launches_without_intercept_or_flash(self):
@@ -623,6 +645,8 @@ class AuthInterceptTests(unittest.TestCase):
         # No auth status set -- has_auth_status is False
 
         app = object.__new__(app_mod.App)
+        app.workspace = mock.MagicMock()
+        app.workspace.profiles.enumerate.return_value = []
         app.terminal = mock.MagicMock()
         app.theme = mock.MagicMock()
         app.cfg = mock.MagicMock()
@@ -647,6 +671,8 @@ class ContinuousSessionTests(unittest.TestCase):
 
     def _make_app(self):
         app = object.__new__(app_mod.App)
+        app.workspace = mock.MagicMock()
+        app.workspace.profiles.enumerate.return_value = []
         app.terminal = mock.MagicMock()
         app.theme = mock.MagicMock()
         app.cfg = mock.MagicMock()
@@ -729,6 +755,8 @@ class InstallFlowFormTests(unittest.TestCase):
     def _make_app_with_uninstalled(self, version: str = "1.2.3"):
         """Build a minimal App where ENTER triggers the install flow."""
         app = object.__new__(app_mod.App)
+        app.workspace = mock.MagicMock()
+        app.workspace.profiles.enumerate.return_value = []
         app.terminal = mock.MagicMock()
         app.theme = mock.MagicMock()
         app.cfg = mock.MagicMock()
@@ -858,13 +886,12 @@ class ApplySlowDiscoverySaveStateTests(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
         self.state_file = Path(self._tmp.name) / "state.json"
-        patcher = mock.patch("claudewheel.state.STATE_FILE", self.state_file)
-        patcher.start()
-        self.addCleanup(patcher.stop)
 
     def _make_app(self) -> app_mod.App:
         """Build a minimal App poised to run _apply_slow_discovery's save path."""
         app = object.__new__(app_mod.App)
+        app.workspace = mock.MagicMock()
+        app.workspace.profiles.enumerate.return_value = []
         state_file = self.state_file
 
         class _StubCfg:
@@ -900,7 +927,7 @@ class ApplySlowDiscoverySaveStateTests(unittest.TestCase):
         app = self._make_app()
         # Auth wizard persists the browser choice to disk mid-session, after
         # the app's in-memory state was loaded.
-        save_state_value(AUTH_BROWSER_KEY, "/usr/bin/ff")
+        StateFile(self.state_file).set_value(AUTH_BROWSER_KEY, "/usr/bin/ff")
 
         app._apply_slow_discovery()
 
@@ -920,6 +947,8 @@ class ProfileInspectKeyTests(unittest.TestCase):
     def _make_app(self, seg: Segment) -> app_mod.App:
         """Minimal App with a real _handle_key bound and *seg* focused."""
         app = object.__new__(app_mod.App)
+        app.workspace = mock.MagicMock()
+        app.workspace.profiles.enumerate.return_value = []
         app.terminal = mock.MagicMock()
         app.theme = mock.MagicMock()
         app.cfg = mock.MagicMock()
@@ -949,9 +978,22 @@ class ProfileInspectKeyTests(unittest.TestCase):
         gather, fmt, page = self._inspect_mocks()
         with gather as mock_gather, fmt, page as mock_page:
             app._handle_key("i")
-        mock_gather.assert_called_once_with("work")
+        mock_gather.assert_called_once_with(app.workspace, "work")
         mock_page.assert_called_once()
         self.assertIn("work", mock_page.call_args[0][0])
+
+    def test_i_corrupt_tokens_flashes_no_page(self) -> None:
+        """A corrupt tokens.json surfaces as a flash, not a crash or page."""
+        from claudewheel.tokens import TokenStoreError
+        seg = _make_profile_segment(discovered=["work"])
+        seg.select_value("work")
+        app = self._make_app(seg)
+        with mock.patch("claudewheel.profile_info.gather_profile_info",
+                        side_effect=TokenStoreError("tokens.json is corrupt")), \
+                mock.patch("claudewheel.ui.show_page") as mock_page:
+            app._show_profile_inspect(seg)
+        mock_page.assert_not_called()
+        self.assertIn("corrupt", app._flash)
 
     def test_i_guarded_on_plus_sentinel(self) -> None:
         seg = _make_profile_segment(discovered=["work"])
@@ -1010,6 +1052,8 @@ class InspectAuthShadowFixTests(unittest.TestCase):
 
     def _make_app(self, seg: Segment) -> app_mod.App:
         app = object.__new__(app_mod.App)
+        app.workspace = mock.MagicMock()
+        app.workspace.profiles.enumerate.return_value = []
         app.terminal = mock.MagicMock()
         app.theme = mock.MagicMock()
         app.cfg = mock.MagicMock()
@@ -1039,7 +1083,7 @@ class InspectAuthShadowFixTests(unittest.TestCase):
                        return_value=FixAuthResult(ok=True)) as mock_fix,
         ):
             app._show_profile_inspect(seg)
-        mock_fix.assert_called_once_with("work")
+        mock_fix.assert_called_once_with(app.workspace, "work")
         self.assertEqual(app._flash, "Auth shadow fixed")
         # Verify hint shows the fix option
         _, kwargs = mock_page.call_args
@@ -1090,6 +1134,8 @@ class ProfileDeleteKeyTests(unittest.TestCase):
                   state: dict | None = None) -> app_mod.App:
         """Minimal App with a real _handle_key bound and *seg* focused."""
         app = object.__new__(app_mod.App)
+        app.workspace = mock.MagicMock()
+        app.workspace.profiles.enumerate.return_value = []
         app.terminal = mock.MagicMock()
         app.theme = mock.MagicMock()
         app.cfg = mock.MagicMock()
@@ -1116,14 +1162,17 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         report.active_sessions = 0
         return report
 
-    def _flow_mocks(self, report=None, selection="cancel", result=None,
+    def _flow_mocks(self, app, report=None, selection="cancel", result=None,
                     raises=None):
-        """Patch the lazy imports + Workspace inside _delete_profile_flow.
+        """Patch the lazy imports inside _delete_profile_flow.
 
-        Returns (gather, workspace, run_selection, show_page) patchers. The
-        mock ProfileStore is exposed as ``self._store`` so tests can assert on
-        ``self._store.delete``.
+        The delete goes through the injected ``app.workspace.profiles`` store, so
+        we wire that directly to ``self._store`` (exposed for assertions on
+        ``self._store.delete``). Returns (gather, nullcontext, run_selection,
+        show_page) -- the second slot preserves the 4-tuple shape used by every
+        call site.
         """
+        import contextlib
         from claudewheel.profile_store import DeletionResult
         if report is None:
             report = self._report()
@@ -1140,13 +1189,13 @@ class ProfileDeleteKeyTests(unittest.TestCase):
                 )
             self._store.delete.return_value = result
 
-        fake_ws_cls = mock.MagicMock()
-        fake_ws_cls.default.return_value.profiles = self._store
+        # The flow now deletes via the injected workspace, not Workspace.default().
+        app.workspace.profiles = self._store
 
         return (
             mock.patch("claudewheel.profile_info.gather_profile_info",
                        return_value=report),
-            mock.patch.object(app_mod, "Workspace", new=fake_ws_cls),
+            contextlib.nullcontext(),
             mock.patch("claudewheel.ui.run_selection",
                        return_value=selection),
             mock.patch("claudewheel.ui.show_page"),
@@ -1158,7 +1207,7 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         seg = _make_profile_segment(discovered=["work"])
         seg.selected_value = "+"
         app = self._make_app(seg)
-        gather, ws, sel, page = self._flow_mocks()
+        gather, ws, sel, page = self._flow_mocks(app, )
         with gather as mock_gather, ws, sel, page:
             app._handle_key("CTRL_D")
         mock_gather.assert_not_called()
@@ -1168,7 +1217,7 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         seg = _make_profile_segment(discovered=["work"])
         seg.selected_value = None
         app = self._make_app(seg)
-        gather, ws, sel, page = self._flow_mocks()
+        gather, ws, sel, page = self._flow_mocks(app, )
         with gather as mock_gather, ws, sel, page:
             app._handle_key("DELETE")
         mock_gather.assert_not_called()
@@ -1180,7 +1229,7 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         seg.searchable = True
         seg.search_buffer = "wo"
         app = self._make_app(seg)
-        gather, ws, sel, page = self._flow_mocks()
+        gather, ws, sel, page = self._flow_mocks(app, )
         with gather as mock_gather, ws, sel, page:
             app._handle_key("CTRL_D")
         mock_gather.assert_not_called()
@@ -1191,7 +1240,7 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         seg = Segment(key="model", label="Model", options=["opus", "sonnet"])
         seg.select_value("opus")
         app = self._make_app(seg)
-        gather, ws, sel, page = self._flow_mocks()
+        gather, ws, sel, page = self._flow_mocks(app, )
         with gather as mock_gather, ws, sel, page:
             result = app._handle_key("CTRL_D")
         mock_gather.assert_not_called()
@@ -1202,10 +1251,10 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         seg = _make_profile_segment(discovered=["work"])
         seg.select_value("work")
         app = self._make_app(seg)
-        gather, ws, sel, page = self._flow_mocks(selection="cancel")
+        gather, ws, sel, page = self._flow_mocks(app, selection="cancel")
         with gather as mock_gather, ws, sel, page:
             app._handle_key("DELETE")
-        mock_gather.assert_called_once_with("work")
+        mock_gather.assert_called_once_with(app.workspace, "work")
 
     # -- danger hard-block ---------------------------------------------------
 
@@ -1216,7 +1265,7 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         report = self._report(danger=True,
                               shared_dirs={"projects": "real-dir",
                                            "todos": "intact"})
-        gather, ws, sel, page = self._flow_mocks(report=report)
+        gather, ws, sel, page = self._flow_mocks(app, report=report)
         with gather, ws, sel as mock_sel, page as mock_page:
             app._handle_key("CTRL_D")
         self._store.delete.assert_not_called()
@@ -1235,7 +1284,7 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         seg = _make_profile_segment(discovered=["work"])
         seg.select_value("work")
         app = self._make_app(seg)
-        gather, ws, sel, page = self._flow_mocks(selection="cancel")
+        gather, ws, sel, page = self._flow_mocks(app, selection="cancel")
         with gather, ws, sel, page:
             app._handle_key("CTRL_D")
         self._store.delete.assert_not_called()
@@ -1245,7 +1294,7 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         seg = _make_profile_segment(discovered=["work"])
         seg.select_value("work")
         app = self._make_app(seg)
-        gather, ws, sel, page = self._flow_mocks(selection=None)
+        gather, ws, sel, page = self._flow_mocks(app, selection=None)
         with gather, ws, sel, page:
             app._handle_key("CTRL_D")
         self._store.delete.assert_not_called()
@@ -1255,7 +1304,7 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         seg = _make_profile_segment(discovered=["work"])
         seg.select_value("work")
         app = self._make_app(seg)
-        gather, ws, sel, page = self._flow_mocks(selection="cancel")
+        gather, ws, sel, page = self._flow_mocks(app, selection="cancel")
         with gather, ws, sel as mock_sel, page:
             app._handle_key("CTRL_D")
         args, kwargs = mock_sel.call_args
@@ -1269,7 +1318,7 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         seg = _make_profile_segment(discovered=["work"])
         seg.select_value("work")
         app = self._make_app(seg)
-        gather, ws, sel, page = self._flow_mocks(selection="delete")
+        gather, ws, sel, page = self._flow_mocks(app, selection="delete")
         with gather, ws, sel, page:
             app._handle_key("CTRL_D")
         # TUI never forces: no allow_data_destruction, running is pre-checked.
@@ -1283,7 +1332,7 @@ class ProfileDeleteKeyTests(unittest.TestCase):
                               "other": {"has_token": True}}
         state = {"last_config": {"profile": "work", "model": "opus"}}
         app = self._make_app(seg, state=state)
-        gather, ws, sel, page = self._flow_mocks(selection="delete")
+        gather, ws, sel, page = self._flow_mocks(app, selection="delete")
         with gather, ws, sel, page:
             app._handle_key("CTRL_D")
         # 1. last_config purged in memory (disk purge happened in the store)
@@ -1307,7 +1356,7 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         seg.select_value("work")
         state = {"last_config": {"profile": "other"}}
         app = self._make_app(seg, state=state)
-        gather, ws, sel, page = self._flow_mocks(selection="delete")
+        gather, ws, sel, page = self._flow_mocks(app, selection="delete")
         with gather, ws, sel, page:
             app._handle_key("CTRL_D")
         self.assertEqual(state["last_config"]["profile"], "other")
@@ -1321,7 +1370,7 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         seg.select_value("work")
         state = {"last_config": {"profile": "work", "model": "opus"}}
         app = self._make_app(seg, state=state)
-        gather, ws, sel, page = self._flow_mocks(selection="delete")
+        gather, ws, sel, page = self._flow_mocks(app, selection="delete")
         with gather, ws, sel, page:
             app._handle_key("CTRL_D")
 
@@ -1343,7 +1392,7 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         app = self._make_app(seg, state=state)
         report = self._report()
         report.active_sessions = 1
-        gather, ws, sel, page = self._flow_mocks(report=report,
+        gather, ws, sel, page = self._flow_mocks(app, report=report,
                                                  selection="delete")
         with gather, ws, sel, page:
             app._handle_key("CTRL_D")
@@ -1360,7 +1409,7 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         seg.select_value("work")
         state = {"last_config": {"profile": "work"}}
         app = self._make_app(seg, state=state)
-        gather, ws, sel, page = self._flow_mocks(
+        gather, ws, sel, page = self._flow_mocks(app, 
             selection="delete",
             raises=ValueError("Profile 'work' holds REAL data at: projects"))
         with gather, ws, sel, page:

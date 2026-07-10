@@ -8,6 +8,7 @@ import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
+import contextlib
 from unittest import mock
 
 from claudewheel import permission, cli
@@ -220,30 +221,32 @@ class ResolveProfilesTests(unittest.TestCase):
             ProfileInfo(name="personal", path=Path("/fake/personal"), has_credentials=True, has_token=False),
         ]
 
-    @mock.patch.object(permission, "_enumerate_profiles")
-    def test_resolve_single_profile(self, mock_discover: mock.MagicMock) -> None:
-        mock_discover.return_value = self._make_profiles()
-        result = permission.resolve_profiles("work", False)
+    def _ws_with(self, profiles) -> mock.MagicMock:
+        ws = mock.MagicMock()
+        ws.profiles.enumerate.return_value = profiles
+        return ws
+
+    def test_resolve_single_profile(self) -> None:
+        ws = self._ws_with(self._make_profiles())
+        result = permission.resolve_profiles(ws, "work", False)
         self.assertEqual(len(result), 1)
         name, settings_path = result[0]
         self.assertEqual(name, "work")
         self.assertEqual(settings_path, Path("/fake/work/settings.json"))
 
-    @mock.patch.object(permission, "_enumerate_profiles")
-    def test_resolve_all_profiles(self, mock_discover: mock.MagicMock) -> None:
-        mock_discover.return_value = self._make_profiles()
-        result = permission.resolve_profiles(None, True)
+    def test_resolve_all_profiles(self) -> None:
+        ws = self._ws_with(self._make_profiles())
+        result = permission.resolve_profiles(ws, None, True)
         self.assertEqual(len(result), 2)
         names = [n for n, _ in result]
         self.assertIn("work", names)
         self.assertIn("personal", names)
 
-    @mock.patch.object(permission, "_enumerate_profiles")
-    def test_resolve_unknown_profile_exits(self, mock_discover: mock.MagicMock) -> None:
-        mock_discover.return_value = self._make_profiles()
+    def test_resolve_unknown_profile_exits(self) -> None:
+        ws = self._ws_with(self._make_profiles())
         err = io.StringIO()
         with redirect_stderr(err), self.assertRaises(SystemExit) as ctx:
-            permission.resolve_profiles("nonexistent", False)
+            permission.resolve_profiles(ws, "nonexistent", False)
         self.assertEqual(ctx.exception.code, 1)
         self.assertIn("nonexistent", err.getvalue())
 
@@ -262,6 +265,7 @@ class _PermissionCLIBase(unittest.TestCase):
         self.profile_dir = Path(self._tmp.name) / "profiles" / "testprofile"
         self.profile_dir.mkdir(parents=True)
         self.settings_path = self.profile_dir / "settings.json"
+        self.ws = mock.MagicMock()
 
     def _write_settings(self, data: dict) -> None:
         self.settings_path.write_text(json.dumps(data, indent=2) + "\n")
@@ -283,10 +287,11 @@ class _PermissionCLIBase(unittest.TestCase):
 class PermissionCLIAddTests(_PermissionCLIBase):
     def test_add_permission(self) -> None:
         self._write_settings({"permissions": {"allow": []}})
-        with mock.patch.object(permission, "_enumerate_profiles", return_value=self._fake_profiles()):
+        self.ws.profiles.enumerate.return_value = self._fake_profiles()
+        with contextlib.nullcontext():
             buf = io.StringIO()
             with redirect_stdout(buf):
-                rc = cli._handle_permission_add("allow", "Bash", "testprofile", False)
+                rc = cli._handle_permission_add(self.ws, "allow", "Bash", "testprofile", False)
         self.assertEqual(rc, 0)
         self.assertIn("added", buf.getvalue())
         data = self._read_settings()
@@ -303,10 +308,11 @@ class PermissionCLIAddTests(_PermissionCLIBase):
         profiles = self._fake_profiles() + [
             ProfileInfo(name="second", path=second_dir, has_credentials=True, has_token=False),
         ]
-        with mock.patch.object(permission, "_enumerate_profiles", return_value=profiles):
+        self.ws.profiles.enumerate.return_value = profiles
+        with contextlib.nullcontext():
             buf = io.StringIO()
             with redirect_stdout(buf):
-                rc = cli._handle_permission_add("allow", "Read", None, True)
+                rc = cli._handle_permission_add(self.ws, "allow", "Read", None, True)
 
         self.assertEqual(rc, 0)
         out = buf.getvalue()
@@ -320,10 +326,11 @@ class PermissionCLIAddTests(_PermissionCLIBase):
 
     def test_add_duplicate_permission(self) -> None:
         self._write_settings({"permissions": {"allow": ["Bash"]}})
-        with mock.patch.object(permission, "_enumerate_profiles", return_value=self._fake_profiles()):
+        self.ws.profiles.enumerate.return_value = self._fake_profiles()
+        with contextlib.nullcontext():
             buf = io.StringIO()
             with redirect_stdout(buf):
-                rc = cli._handle_permission_add("allow", "Bash", "testprofile", False)
+                rc = cli._handle_permission_add(self.ws, "allow", "Bash", "testprofile", False)
         self.assertEqual(rc, 0)
         self.assertIn("already", buf.getvalue())
 
@@ -331,10 +338,11 @@ class PermissionCLIAddTests(_PermissionCLIBase):
 class PermissionCLIRemoveTests(_PermissionCLIBase):
     def test_remove_permission(self) -> None:
         self._write_settings({"permissions": {"allow": ["Bash", "Read"]}})
-        with mock.patch.object(permission, "_enumerate_profiles", return_value=self._fake_profiles()):
+        self.ws.profiles.enumerate.return_value = self._fake_profiles()
+        with contextlib.nullcontext():
             buf = io.StringIO()
             with redirect_stdout(buf):
-                rc = cli._handle_permission_remove("allow", "Bash", "testprofile", False)
+                rc = cli._handle_permission_remove(self.ws, "allow", "Bash", "testprofile", False)
         self.assertEqual(rc, 0)
         self.assertIn("removed", buf.getvalue())
         data = self._read_settings()
@@ -343,10 +351,11 @@ class PermissionCLIRemoveTests(_PermissionCLIBase):
 
     def test_remove_nonexistent(self) -> None:
         self._write_settings({"permissions": {"allow": ["Read"]}})
-        with mock.patch.object(permission, "_enumerate_profiles", return_value=self._fake_profiles()):
+        self.ws.profiles.enumerate.return_value = self._fake_profiles()
+        with contextlib.nullcontext():
             buf = io.StringIO()
             with redirect_stdout(buf):
-                rc = cli._handle_permission_remove("allow", "Bash", "testprofile", False)
+                rc = cli._handle_permission_remove(self.ws, "allow", "Bash", "testprofile", False)
         self.assertEqual(rc, 0)
         self.assertIn("not found", buf.getvalue())
 
@@ -356,10 +365,11 @@ class PermissionCLIListTests(_PermissionCLIBase):
         self._write_settings({
             "permissions": {"allow": ["Bash", "Read"], "deny": ["WebSearch"], "ask": []},
         })
-        with mock.patch.object(permission, "_enumerate_profiles", return_value=self._fake_profiles()):
+        self.ws.profiles.enumerate.return_value = self._fake_profiles()
+        with contextlib.nullcontext():
             buf = io.StringIO()
             with redirect_stdout(buf):
-                rc = cli._handle_permission_list("testprofile", False, format="grouped", category="")
+                rc = cli._handle_permission_list(self.ws, "testprofile", False, format="grouped", category="")
         self.assertEqual(rc, 0)
         out = buf.getvalue()
         self.assertIn("allow:", out)
@@ -372,10 +382,11 @@ class PermissionCLIListTests(_PermissionCLIBase):
         self._write_settings({
             "permissions": {"allow": ["Bash"], "deny": ["WebSearch"], "ask": []},
         })
-        with mock.patch.object(permission, "_enumerate_profiles", return_value=self._fake_profiles()):
+        self.ws.profiles.enumerate.return_value = self._fake_profiles()
+        with contextlib.nullcontext():
             buf = io.StringIO()
             with redirect_stdout(buf):
-                rc = cli._handle_permission_list("testprofile", False, format="flat", category="")
+                rc = cli._handle_permission_list(self.ws, "testprofile", False, format="flat", category="")
         self.assertEqual(rc, 0)
         out = buf.getvalue()
         # Flat format: category<tab>rule
@@ -386,10 +397,11 @@ class PermissionCLIListTests(_PermissionCLIBase):
         self._write_settings({
             "permissions": {"allow": ["Bash"], "deny": [], "ask": []},
         })
-        with mock.patch.object(permission, "_enumerate_profiles", return_value=self._fake_profiles()):
+        self.ws.profiles.enumerate.return_value = self._fake_profiles()
+        with contextlib.nullcontext():
             buf = io.StringIO()
             with redirect_stdout(buf):
-                rc = cli._handle_permission_list("testprofile", False, format="json", category="")
+                rc = cli._handle_permission_list(self.ws, "testprofile", False, format="json", category="")
         self.assertEqual(rc, 0)
         parsed = json.loads(buf.getvalue())
         self.assertIn("allow", parsed)
@@ -399,10 +411,11 @@ class PermissionCLIListTests(_PermissionCLIBase):
         self._write_settings({
             "permissions": {"allow": ["Bash", "Read"], "deny": ["WebSearch"], "ask": []},
         })
-        with mock.patch.object(permission, "_enumerate_profiles", return_value=self._fake_profiles()):
+        self.ws.profiles.enumerate.return_value = self._fake_profiles()
+        with contextlib.nullcontext():
             buf = io.StringIO()
             with redirect_stdout(buf):
-                rc = cli._handle_permission_list("testprofile", False, format="grouped", category="deny")
+                rc = cli._handle_permission_list(self.ws, "testprofile", False, format="grouped", category="deny")
         self.assertEqual(rc, 0)
         out = buf.getvalue()
         self.assertIn("deny:", out)
@@ -413,16 +426,18 @@ class PermissionCLIListTests(_PermissionCLIBase):
 
     def test_malformed_settings_json_errors(self) -> None:
         self.settings_path.write_text("{broken json")
-        with mock.patch.object(permission, "_enumerate_profiles", return_value=self._fake_profiles()):
+        self.ws.profiles.enumerate.return_value = self._fake_profiles()
+        with contextlib.nullcontext():
             with self.assertRaises(json.JSONDecodeError):
-                cli._handle_permission_list("testprofile", False, format="grouped", category="")
+                cli._handle_permission_list(self.ws, "testprofile", False, format="grouped", category="")
 
     def test_unknown_profile_errors(self) -> None:
         profiles = self._fake_profiles()
-        with mock.patch.object(permission, "_enumerate_profiles", return_value=profiles):
+        self.ws.profiles.enumerate.return_value = profiles
+        with contextlib.nullcontext():
             err = io.StringIO()
             with redirect_stderr(err), self.assertRaises(SystemExit) as ctx:
-                cli._handle_permission_add("allow", "Bash", "nonexistent", False)
+                cli._handle_permission_add(self.ws, "allow", "Bash", "nonexistent", False)
             self.assertEqual(ctx.exception.code, 1)
             self.assertIn("nonexistent", err.getvalue())
 

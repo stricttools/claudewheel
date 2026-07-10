@@ -48,16 +48,8 @@ class _PatchProfilesTestCase(unittest.TestCase):
         self.shared_settings = cw / "shared-settings.json"
         self.tokens_file = cw / "tokens.json"
 
-        patches = [
-            patch("claudewheel.patch_profiles.SCRIPTS_DIR", self.scripts_dir),
-            patch("claudewheel.patch_profiles.SHARED_SETTINGS_FILE", self.shared_settings),
-            # patch_profiles builds a ProfileStore from its own module constants.
-            patch("claudewheel.patch_profiles.PROFILES_DIR", self.profiles_dir),
-            patch("claudewheel.patch_profiles.TOKENS_FILE", self.tokens_file),
-        ]
-        for p in patches:
-            p.start()
-            self.addCleanup(p.stop)
+        from claudewheel.workspace import Workspace
+        self.ws = Workspace.open(cw, claude_dir=self.home / ".claude")
 
     # -- fixture helpers ---------------------------------------------------
 
@@ -99,7 +91,7 @@ class _PatchProfilesTestCase(unittest.TestCase):
     def _run_patch(self, dry_run: bool = False) -> str:
         out = io.StringIO()
         with redirect_stdout(out), redirect_stderr(io.StringIO()):
-            rc = run_patch_profiles(dry_run=dry_run)
+            rc = run_patch_profiles(self.ws, dry_run=dry_run)
         self.assertEqual(rc, 0)
         return out.getvalue()
 
@@ -347,19 +339,7 @@ class RunPatchProfilesTests(_PatchProfilesTestCase):
         self.shared_settings.write_text(json.dumps(self.canonical(), indent=2) + "\n")
         self.make_profile("work", settings)
 
-        # The relocation health check reads health's own module constants; pin
-        # them at the same temp paths so it inspects this fixture.
-        for target, value in (
-            ("claudewheel.health.SCRIPTS_DIR", self.scripts_dir),
-            ("claudewheel.health.SHARED_SETTINGS_FILE", self.shared_settings),
-            ("claudewheel.health.PROFILES_DIR", self.profiles_dir),
-            ("claudewheel.health.TOKENS_FILE", self.tokens_file),
-        ):
-            p = patch(target, value)
-            p.start()
-            self.addCleanup(p.stop)
-
-        before = check_relocated_hook_paths()
+        before = check_relocated_hook_paths(self.ws)
         self.assertFalse(before.ok)
         self.assertIn(old_scripts, before.detail)
 
@@ -374,7 +354,7 @@ class RunPatchProfilesTests(_PatchProfilesTestCase):
         cmds = [h["command"] for h in s["hooks"]["UserPromptSubmit"][0]["hooks"]]
         self.assertIn("/opt/mine/custom", cmds)
 
-        after = check_relocated_hook_paths()
+        after = check_relocated_hook_paths(self.ws)
         self.assertTrue(after.ok)
 
 

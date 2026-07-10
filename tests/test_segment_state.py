@@ -547,7 +547,7 @@ class DiscoverProfilesMetadataTests(unittest.TestCase):
 
     def test_metadata_includes_auth_fields(self) -> None:
         """Metadata dicts from profile discovery include has_token and has_credentials."""
-        from unittest.mock import patch
+        from unittest.mock import MagicMock
         from claudewheel.profile_store import Profile
         from claudewheel.segment import _discover_profiles
 
@@ -556,9 +556,9 @@ class DiscoverProfilesMetadataTests(unittest.TestCase):
             Profile(name="work", path="/home/.claudewheel/profiles/work", has_credentials=True, has_token=False),
             Profile(name="new", path="/home/.claudewheel/profiles/new", has_credentials=False, has_token=False),
         ]
-        with patch("claudewheel.segment.ProfileStore") as MockStore:
-            MockStore.return_value.enumerate.return_value = mock_profiles
-            result = _discover_profiles({}, {})
+        mock_ws = MagicMock()
+        mock_ws.profiles.enumerate.return_value = mock_profiles
+        result = _discover_profiles({}, {}, mock_ws)
 
         self.assertIn("has_token", result.metadata["default"])
         self.assertIn("has_credentials", result.metadata["default"])
