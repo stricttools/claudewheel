@@ -10,6 +10,7 @@ from contextlib import redirect_stdout
 from pathlib import Path
 from unittest import mock
 
+from claudewheel.binaries import BinaryLocator
 from claudewheel.segment import DiscoveryResult, Segment, SegmentBar
 from claudewheel.appdata import StateFile
 from claudewheel.state import AUTH_BROWSER_KEY
@@ -46,7 +47,6 @@ def _wizard_mocks(wizard_result, fresh_result=None):
         mock.patch("claudewheel.wizard.create_profile"),
         mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"),
         mock.patch("claudewheel.ui.show_page"),
-        mock.patch("claudewheel.discovery.discover_profiles", return_value=[]),
     ]
     if fresh_result is not None:
         patches.append(mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result))
@@ -59,6 +59,7 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
     def _run_wizard_on_app(self, seg, wizard_result, fresh_result, mock_auth=True):
         """Run _launch_profile_wizard with all necessary mocks."""
         app = object.__new__(app_mod.App)
+        app._locator = BinaryLocator.default()
         app.workspace = mock.MagicMock()
         app.workspace.profiles.enumerate.return_value = []
         app.terminal = mock.MagicMock()
@@ -70,7 +71,6 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
             mock.patch("claudewheel.wizard.create_profile"),
             mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"),
             mock.patch("claudewheel.ui.show_page"),
-            mock.patch("claudewheel.discovery.discover_profiles", return_value=[]),
         ]
         if mock_auth:
             patches.append(mock.patch.object(app_mod, "_update_auth_from_metadata"))
@@ -108,6 +108,7 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
         wizard_result.config_dir = "~/.claudewheel/profiles/newprof"
 
         app = object.__new__(app_mod.App)
+        app._locator = BinaryLocator.default()
         app.workspace = mock.MagicMock()
         app.workspace.profiles.enumerate.return_value = []
         app.terminal = mock.MagicMock()
@@ -119,7 +120,6 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
              mock.patch("claudewheel.wizard.create_profile"), \
              mock.patch("claudewheel.ui.show_page"), \
              mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
-             mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
              mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True, return_value=wizard_result):
             app._launch_profile_wizard(seg)
 
@@ -145,6 +145,7 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
         wizard_result.config_dir = "~/.claudewheel/profiles/brand-new"
 
         app = object.__new__(app_mod.App)
+        app._locator = BinaryLocator.default()
         app.workspace = mock.MagicMock()
         app.workspace.profiles.enumerate.return_value = []
         app.terminal = mock.MagicMock()
@@ -156,7 +157,6 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
              mock.patch("claudewheel.wizard.create_profile"), \
              mock.patch("claudewheel.ui.show_page"), \
              mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
-             mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
              mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True, return_value=wizard_result):
             app._launch_profile_wizard(seg)
 
@@ -183,6 +183,7 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
         wizard_result.config_dir = "~/.claudewheel/profiles/newprof"
 
         app = object.__new__(app_mod.App)
+        app._locator = BinaryLocator.default()
         app.workspace = mock.MagicMock()
         app.workspace.profiles.enumerate.return_value = []
         app.terminal = mock.MagicMock()
@@ -194,7 +195,6 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
              mock.patch("claudewheel.wizard.create_profile"), \
              mock.patch("claudewheel.ui.show_page"), \
              mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
-             mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
              mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True, return_value=wizard_result):
             app._launch_profile_wizard(seg)
 
@@ -223,6 +223,7 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
         wizard_result.config_dir = "~/.claudewheel/profiles/fresh"
 
         app = object.__new__(app_mod.App)
+        app._locator = BinaryLocator.default()
         app.workspace = mock.MagicMock()
         app.workspace.profiles.enumerate.return_value = []
         app.terminal = mock.MagicMock()
@@ -234,7 +235,6 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
              mock.patch("claudewheel.wizard.create_profile"), \
              mock.patch("claudewheel.ui.show_page"), \
              mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
-             mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
              mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True, return_value=wizard_result):
             app._launch_profile_wizard(seg)
 
@@ -263,6 +263,7 @@ class WizardRefreshAuthTests(unittest.TestCase):
         wizard_result.config_dir = "~/.claudewheel/profiles/authed"
 
         app = object.__new__(app_mod.App)
+        app._locator = BinaryLocator.default()
         app.workspace = mock.MagicMock()
         app.workspace.profiles.enumerate.return_value = []
         app.terminal = mock.MagicMock()
@@ -274,7 +275,6 @@ class WizardRefreshAuthTests(unittest.TestCase):
              mock.patch("claudewheel.wizard.create_profile"), \
              mock.patch("claudewheel.ui.show_page"), \
              mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
-             mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
              mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True, return_value=wizard_result):
             app._launch_profile_wizard(seg)
 
@@ -302,6 +302,7 @@ class WizardRefreshAuthTests(unittest.TestCase):
         wizard_result.config_dir = "~/.claudewheel/profiles/noauth"
 
         app = object.__new__(app_mod.App)
+        app._locator = BinaryLocator.default()
         app.workspace = mock.MagicMock()
         app.workspace.profiles.enumerate.return_value = []
         app.terminal = mock.MagicMock()
@@ -312,7 +313,6 @@ class WizardRefreshAuthTests(unittest.TestCase):
              mock.patch("claudewheel.wizard.create_profile"), \
              mock.patch("claudewheel.ui.show_page"), \
              mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
-             mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
              mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True, return_value=wizard_result):
             app._launch_profile_wizard(seg)
 
@@ -332,6 +332,7 @@ class WizardCancelledTests(unittest.TestCase):
         wizard_result.cancelled = True
 
         app = object.__new__(app_mod.App)
+        app._locator = BinaryLocator.default()
         app.workspace = mock.MagicMock()
         app.workspace.profiles.enumerate.return_value = []
         app.terminal = mock.MagicMock()
@@ -343,7 +344,6 @@ class WizardCancelledTests(unittest.TestCase):
              mock.patch("claudewheel.wizard.create_profile"), \
              mock.patch("claudewheel.ui.show_page"), \
              mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
-             mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
              mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True, return_value=wizard_result):
             app._launch_profile_wizard(seg)
 
@@ -378,6 +378,7 @@ class AuthInterceptTests(unittest.TestCase):
 
         from claudewheel.workspace import Workspace
         app = object.__new__(app_mod.App)
+        app._locator = BinaryLocator.default()
         # Real workspace so path_for("noauth") is deterministic for assertions.
         app.workspace = Workspace.default()
         app.terminal = mock.MagicMock()
@@ -441,7 +442,6 @@ class AuthInterceptTests(unittest.TestCase):
 
         self.assertEqual(outcome, "authenticated")
         # config_dir is derived from the profile name via ProfileStore.path_for.
-        from claudewheel.binaries import BinaryLocator
         expected_dir = str(app.workspace.profiles.path_for("noauth"))
         mock_flow.assert_called_once_with(
             app.workspace, BinaryLocator.default(),
@@ -645,6 +645,7 @@ class AuthInterceptTests(unittest.TestCase):
         # No auth status set -- has_auth_status is False
 
         app = object.__new__(app_mod.App)
+        app._locator = BinaryLocator.default()
         app.workspace = mock.MagicMock()
         app.workspace.profiles.enumerate.return_value = []
         app.terminal = mock.MagicMock()
@@ -671,6 +672,7 @@ class ContinuousSessionTests(unittest.TestCase):
 
     def _make_app(self):
         app = object.__new__(app_mod.App)
+        app._locator = BinaryLocator.default()
         app.workspace = mock.MagicMock()
         app.workspace.profiles.enumerate.return_value = []
         app.terminal = mock.MagicMock()
@@ -695,7 +697,6 @@ class ContinuousSessionTests(unittest.TestCase):
              mock.patch("claudewheel.wizard.create_profile"), \
              mock.patch("claudewheel.ui.show_page"), \
              mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
-             mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
              mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True,
                         return_value=self._wizard_result()):
             app._launch_profile_wizard(seg)
@@ -717,7 +718,6 @@ class ContinuousSessionTests(unittest.TestCase):
              mock.patch("claudewheel.ui.show_page") as mock_page, \
              mock.patch("claudewheel.wizard.run_auth_flow", autospec=True,
                         return_value="skip") as mock_auth, \
-             mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
              mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True,
                         return_value=self._wizard_result()):
             manager.attach_mock(mock_auth, "run_auth_flow")
@@ -739,7 +739,6 @@ class ContinuousSessionTests(unittest.TestCase):
         with mock.patch("claudewheel.wizard.create_profile") as mock_create, \
              mock.patch("claudewheel.ui.show_page") as mock_page, \
              mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
-             mock.patch("claudewheel.discovery.discover_profiles", return_value=[]), \
              mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True,
                         return_value=self._wizard_result(cancelled=True)):
             app._launch_profile_wizard(seg)
@@ -755,6 +754,7 @@ class InstallFlowFormTests(unittest.TestCase):
     def _make_app_with_uninstalled(self, version: str = "1.2.3"):
         """Build a minimal App where ENTER triggers the install flow."""
         app = object.__new__(app_mod.App)
+        app._locator = BinaryLocator.default()
         app.workspace = mock.MagicMock()
         app.workspace.profiles.enumerate.return_value = []
         app.terminal = mock.MagicMock()
@@ -890,6 +890,7 @@ class ApplySlowDiscoverySaveStateTests(unittest.TestCase):
     def _make_app(self) -> app_mod.App:
         """Build a minimal App poised to run _apply_slow_discovery's save path."""
         app = object.__new__(app_mod.App)
+        app._locator = BinaryLocator.default()
         app.workspace = mock.MagicMock()
         app.workspace.profiles.enumerate.return_value = []
         state_file = self.state_file
@@ -947,6 +948,7 @@ class ProfileInspectKeyTests(unittest.TestCase):
     def _make_app(self, seg: Segment) -> app_mod.App:
         """Minimal App with a real _handle_key bound and *seg* focused."""
         app = object.__new__(app_mod.App)
+        app._locator = BinaryLocator.default()
         app.workspace = mock.MagicMock()
         app.workspace.profiles.enumerate.return_value = []
         app.terminal = mock.MagicMock()
@@ -1052,6 +1054,7 @@ class InspectAuthShadowFixTests(unittest.TestCase):
 
     def _make_app(self, seg: Segment) -> app_mod.App:
         app = object.__new__(app_mod.App)
+        app._locator = BinaryLocator.default()
         app.workspace = mock.MagicMock()
         app.workspace.profiles.enumerate.return_value = []
         app.terminal = mock.MagicMock()
@@ -1134,6 +1137,7 @@ class ProfileDeleteKeyTests(unittest.TestCase):
                   state: dict | None = None) -> app_mod.App:
         """Minimal App with a real _handle_key bound and *seg* focused."""
         app = object.__new__(app_mod.App)
+        app._locator = BinaryLocator.default()
         app.workspace = mock.MagicMock()
         app.workspace.profiles.enumerate.return_value = []
         app.terminal = mock.MagicMock()

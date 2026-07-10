@@ -8,8 +8,12 @@ import sys
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from .config import AppConfigStore, resolve_theme_name
+
+if TYPE_CHECKING:
+    from .binaries import BinaryLocator
 from .segment import DiscoveryResult, Segment, build_segment_bar, evaluate_requires, merge_slow_results, run_slow_discovery_via_registry, _discover_profiles, _update_auth_from_metadata
 from .terminal import Terminal, detect_mode2031_support
 from .theme import parse_theme
@@ -56,8 +60,16 @@ class App:
     """TUI application managing the event loop, keyboard handling, and segment interaction."""
 
     def __init__(self, workspace: Workspace, cfg: AppConfigStore | None = None,
-                 overrides: dict[str, str] | None = None):
+                 overrides: dict[str, str] | None = None,
+                 locator: "BinaryLocator | None" = None):
         self.workspace = workspace
+        # The binary locator is threaded from the dispatch boundary (cli.main)
+        # so the auth paths never re-derive it. It defaults to the standard
+        # locator only when constructed outside the CLI (e.g. bare tests).
+        if locator is None:
+            from .binaries import BinaryLocator
+            locator = BinaryLocator.default()
+        self._locator = locator
         self.cfg = cfg if cfg is not None else workspace.appconfig()
         self.bar = build_segment_bar(self.cfg, skip_slow=True)
         # Apply CLI arg overrides (after last_config pre-fill, before TUI)
@@ -879,15 +891,13 @@ class App:
         """
         from .wizard import run_auth_flow
 
-        from .binaries import BinaryLocator
-
         profile_name = seg.value
         # config_dir is derived from the profile name via the ProfileStore's
         # single path_for convention, never from persisted metadata (which no
         # longer carries it).
         config_dir = str(self.workspace.profiles.path_for(profile_name))
 
-        outcome = run_auth_flow(self.workspace, BinaryLocator.default(),
+        outcome = run_auth_flow(self.workspace, self._locator,
                                 config_dir, profile_name,
                                 self.theme, self.terminal,
                                 skip_label="Launch without auth")
@@ -1018,14 +1028,13 @@ class App:
         existing alt screen (subprocess steps open cooked windows inside
         the auth flow). The main TUI repaints on return.
         """
-        from .binaries import BinaryLocator
         from .ui import show_page
         from .wizard import run_profile_wizard, create_profile, run_auth_flow
         existing = [p.name for p in self.workspace.profiles.enumerate()]
         result = run_profile_wizard(self.workspace, existing, self.theme, self.terminal)
         if not result.cancelled:
             summary = create_profile(self.workspace, result)
-            run_auth_flow(self.workspace, BinaryLocator.default(),
+            run_auth_flow(self.workspace, self._locator,
                           result.config_dir, result.name,
                           self.theme, self.terminal,
                           skip_label="Skip for now")

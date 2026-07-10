@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from claudewheel.constants import encode_path
+from claudewheel.shared_store import SharedStore
 from claudewheel.mv import (
     MvResult,
     _rewrite_jsonl_file,
@@ -28,19 +28,19 @@ class EncodePathTests(unittest.TestCase):
     """Slash-and-dot-to-dash encoding used by Claude Code for project directory names."""
 
     def test_replaces_slashes_with_dashes(self) -> None:
-        self.assertEqual(encode_path("/home/m/Projects/Foo"), "-home-m-Projects-Foo")
+        self.assertEqual(SharedStore.encode_path("/home/m/Projects/Foo"), "-home-m-Projects-Foo")
 
     def test_replaces_dots_with_dashes(self) -> None:
-        self.assertEqual(encode_path("/home/m/Projects/foo.bar"), "-home-m-Projects-foo-bar")
+        self.assertEqual(SharedStore.encode_path("/home/m/Projects/foo.bar"), "-home-m-Projects-foo-bar")
 
     def test_replaces_both_slashes_and_dots(self) -> None:
-        self.assertEqual(encode_path("/home/m/.config/app"), "-home-m--config-app")
+        self.assertEqual(SharedStore.encode_path("/home/m/.config/app"), "-home-m--config-app")
 
     def test_empty_string(self) -> None:
-        self.assertEqual(encode_path(""), "")
+        self.assertEqual(SharedStore.encode_path(""), "")
 
     def test_no_slashes_or_dots(self) -> None:
-        self.assertEqual(encode_path("plain"), "plain")
+        self.assertEqual(SharedStore.encode_path("plain"), "plain")
 
 
 # ---------------------------------------------------------------------------
@@ -282,8 +282,8 @@ class RunMvIntegrationTests(unittest.TestCase):
         self.new_resolved = str(self.new_dir)
 
         # Encoded directory names
-        self.old_encoded = encode_path(self.old_resolved)
-        self.new_encoded = encode_path(self.new_resolved)
+        self.old_encoded = SharedStore.encode_path(self.old_resolved)
+        self.new_encoded = SharedStore.encode_path(self.new_resolved)
 
         # Profile dir with projects/ and .claude.json
         self.profile = self.home / ".claudewheel" / "profiles" / "personal"
@@ -444,8 +444,8 @@ class MergeDirsTests(unittest.TestCase):
         self.new_resolved = str(self.new_dir)
 
         # Encoded directory names
-        self.old_encoded = encode_path(self.old_resolved)
-        self.new_encoded = encode_path(self.new_resolved)
+        self.old_encoded = SharedStore.encode_path(self.old_resolved)
+        self.new_encoded = SharedStore.encode_path(self.new_resolved)
 
         # Profile dir
         self.profile = self.home / ".claudewheel" / "profiles" / "personal"
@@ -647,8 +647,8 @@ class RenameModeTests(unittest.TestCase):
 
         old_resolved = str(old.resolve())
         new_resolved = str(new.resolve())
-        old_encoded = encode_path(old_resolved)
-        new_encoded = encode_path(new_resolved)
+        old_encoded = SharedStore.encode_path(old_resolved)
+        new_encoded = SharedStore.encode_path(new_resolved)
 
         # Create a fake profile with session data under old_encoded
         profile = self.tmp_path / "profile"

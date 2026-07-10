@@ -18,8 +18,8 @@ class SharedStore:
     skills_dir: Path
 
     # Directories inside each profile that are symlinked to the shared store.
-    # Copied verbatim from constants.PROFILE_SHARED_DIRS -- this module must
-    # NOT import from constants (it is the codec/layout's new canonical home).
+    # This module is the canonical home of the shared-store layout -- it must
+    # NOT import from constants (constants is now ANSI/terminal-only).
     SHARED_SUBDIRS = ("projects", "session-env", "file-history", "tasks", "todos", "paste-cache")
 
     @property

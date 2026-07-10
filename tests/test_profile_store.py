@@ -25,8 +25,13 @@ def _tree_mode(root, dir_mode: int, file_mode: int) -> None:
         os.chmod(d, dir_mode)
 
 
-class ProfileStoreParityTests(SandboxHomeTestCase):
-    """ProfileStore.enumerate() must match discovery.discover_profiles() tuple-for-tuple."""
+class ProfileStoreEnumerateTests(SandboxHomeTestCase):
+    """ProfileStore.enumerate() against pinned expectations for every fixture case.
+
+    These were formerly parity tests comparing against the (now deleted)
+    ``discovery.discover_profiles``; the enumeration rules are now pinned by the
+    explicit (name, path, has_credentials, has_token) tuples asserted inline.
+    """
 
     def _store(self) -> ProfileStore:
         return ProfileStore(
@@ -38,26 +43,12 @@ class ProfileStoreParityTests(SandboxHomeTestCase):
     def _tuples(self, profiles) -> list[tuple]:
         return [(p.name, p.path, p.has_credentials, p.has_token) for p in profiles]
 
-    def _assert_parity(self) -> None:
-        """Run both engines against the current sandbox fixtures; assert identical."""
-        import claudewheel.discovery as disc
-
-        # Rebind discovery's import-time path constants at the sandbox. Path.home
-        # is already poisoned by the base class, so ~/.claude resolves in-sandbox.
-        self.patch_constants_across(
-            [disc], ["PROFILES_DIR", "TOKENS_FILE", "SHARED_DIR", "SKILLS_DIR"]
-        )
-        discovery_tuples = self._tuples(disc.discover_profiles())
-        store_tuples = self._tuples(self._store().enumerate())
-        self.assertEqual(store_tuples, discovery_tuples)
-
     # --- default profile variants ---------------------------------------
 
     def test_default_with_credentials(self) -> None:
         d = self.home / ".claude"
         d.mkdir(parents=True, exist_ok=True)
         (d / ".credentials.json").write_text("{}")
-        self._assert_parity()
         store = self._store().enumerate()
         self.assertEqual(
             self._tuples(store),
@@ -67,7 +58,6 @@ class ProfileStoreParityTests(SandboxHomeTestCase):
     def test_default_dir_without_credentials_and_no_token_is_invisible(self) -> None:
         d = self.home / ".claude"
         d.mkdir(parents=True, exist_ok=True)  # dir exists, no credentials, no token
-        self._assert_parity()
         self.assertEqual(self._store().enumerate(), [])
 
     def test_default_token_only(self) -> None:
@@ -75,7 +65,6 @@ class ProfileStoreParityTests(SandboxHomeTestCase):
         d = self.home / ".claude"
         d.mkdir(parents=True, exist_ok=True)
         write_json(self.sandbox_paths["TOKENS_FILE"], {"default": "tok-default"})
-        self._assert_parity()
         self.assertEqual(
             self._tuples(self._store().enumerate()),
             [("default", self.home / ".claude", False, True)],
@@ -87,7 +76,6 @@ class ProfileStoreParityTests(SandboxHomeTestCase):
         p = self.sandbox_paths["PROFILES_DIR"] / "alpha"
         p.mkdir(parents=True, exist_ok=True)
         (p / "settings.json").write_text("{}")
-        self._assert_parity()
         self.assertEqual(
             self._tuples(self._store().enumerate()),
             [("alpha", p, False, False)],
@@ -95,7 +83,6 @@ class ProfileStoreParityTests(SandboxHomeTestCase):
 
     def test_profile_credentials_only(self) -> None:
         p = self.make_profile("beta", credentials=True)  # writes .credentials.json
-        self._assert_parity()
         self.assertEqual(
             self._tuples(self._store().enumerate()),
             [("beta", p, True, False)],
@@ -106,7 +93,6 @@ class ProfileStoreParityTests(SandboxHomeTestCase):
         p.mkdir(parents=True, exist_ok=True)
         (p / ".credentials.json").write_text("{}")
         (p / "settings.json").write_text("{}")
-        self._assert_parity()
         self.assertEqual(
             self._tuples(self._store().enumerate()),
             [("gamma", p, True, False)],
@@ -114,7 +100,6 @@ class ProfileStoreParityTests(SandboxHomeTestCase):
 
     def test_empty_profile_dir_is_invisible(self) -> None:
         (self.sandbox_paths["PROFILES_DIR"] / "empty").mkdir(parents=True, exist_ok=True)
-        self._assert_parity()
         self.assertEqual(self._store().enumerate(), [])
 
     # --- token entry variants -------------------------------------------
@@ -123,7 +108,6 @@ class ProfileStoreParityTests(SandboxHomeTestCase):
         p = self.sandbox_paths["PROFILES_DIR"] / "delta"
         p.mkdir(parents=True, exist_ok=True)  # empty dir, no cred/settings
         write_json(self.sandbox_paths["TOKENS_FILE"], {"delta": "tok-delta"})
-        self._assert_parity()
         self.assertEqual(
             self._tuples(self._store().enumerate()),
             [("delta", p, False, True)],
@@ -131,13 +115,11 @@ class ProfileStoreParityTests(SandboxHomeTestCase):
 
     def test_token_entry_without_dir_is_invisible(self) -> None:
         write_json(self.sandbox_paths["TOKENS_FILE"], {"ghost": "tok-ghost"})
-        self._assert_parity()
         self.assertEqual(self._store().enumerate(), [])
 
     def test_token_marking_on_credentialed_profile(self) -> None:
         p = self.make_profile("epsilon", credentials=True)
         write_json(self.sandbox_paths["TOKENS_FILE"], {"epsilon": "tok-eps"})
-        self._assert_parity()
         self.assertEqual(
             self._tuples(self._store().enumerate()),
             [("epsilon", p, True, True)],
@@ -157,7 +139,6 @@ class ProfileStoreParityTests(SandboxHomeTestCase):
         tp = self.sandbox_paths["PROFILES_DIR"] / "beta"
         tp.mkdir(parents=True, exist_ok=True)
         write_json(self.sandbox_paths["TOKENS_FILE"], {"beta": "tok-beta"})
-        self._assert_parity()
         names = [p.name for p in self._store().enumerate()]
         self.assertEqual(names, ["alpha", "beta", "default", "mu", "zeta"])
 

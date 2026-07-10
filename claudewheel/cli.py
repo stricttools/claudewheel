@@ -1099,7 +1099,7 @@ def _handle_launch(
             return 0
 
         # Otherwise show the TUI (pre-filled from last_config + arg overrides)
-        app = TuiApp(ws, cfg=cfg, overrides=segment_overrides)
+        app = TuiApp(ws, cfg=cfg, overrides=segment_overrides, locator=locator)
         selections = app.run_tui()
         if selections is None:
             return 0

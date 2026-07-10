@@ -1,126 +1,14 @@
-"""Scan the filesystem for Claude Code profiles and their credentials."""
+"""Detect installed web browsers across native, flatpak, and snap sources.
+
+Profile enumeration and shared-store classification now live on
+``ProfileStore`` (workspace layer); this module is the browser/binary
+detection module used by the profile-creation wizard.
+"""
 
 from __future__ import annotations
 
-import json
 import shutil
-from dataclasses import dataclass
 from pathlib import Path
-
-from .constants import PROFILES_DIR, PROFILE_SHARED_DIRS, SHARED_DIR, SKILLS_DIR, TOKENS_FILE
-
-
-@dataclass
-class ProfileInfo:
-    """A profile's name, path, and credential/token presence."""
-
-    name: str
-    path: Path
-    has_credentials: bool
-    has_token: bool
-
-
-def discover_profiles() -> list[ProfileInfo]:
-    """Discover all Claude Code profiles on this machine.
-
-    Scans ~/.claudewheel/profiles/ for subdirectories. Also checks bare
-    ~/.claude/ as the "default" profile (Claude Code's built-in default,
-    not a claudewheel profile). A directory qualifies as a profile if it
-    has .credentials.json, settings.json, or has a matching entry in
-    tokens.json.
-
-    Returns a sorted list of ProfileInfo.
-    """
-    home = Path.home()
-    profiles: list[ProfileInfo] = []
-    found_names: set[str] = set()
-
-    # Check bare ~/.claude/ as "default" profile
-    default_dir = home / ".claude"
-    if default_dir.is_dir() and (default_dir / ".credentials.json").exists():
-        profiles.append(ProfileInfo(
-            name="default", path=default_dir,
-            has_credentials=True, has_token=False,
-        ))
-        found_names.add("default")
-
-    # Scan ~/.claudewheel/profiles/ subdirectories
-    if PROFILES_DIR.is_dir():
-        for entry in sorted(PROFILES_DIR.iterdir()):
-            if not entry.is_dir():
-                continue
-            name = entry.name
-            if not name:
-                continue
-            has_credentials = (entry / ".credentials.json").exists()
-            has_settings = (entry / "settings.json").exists()
-            if has_credentials or has_settings:
-                profiles.append(ProfileInfo(
-                    name=name, path=entry,
-                    has_credentials=has_credentials, has_token=False,
-                ))
-                found_names.add(name)
-
-    # Check tokens.json for profiles with dirs but no .credentials.json
-    try:
-        tokens = json.loads(TOKENS_FILE.read_text())
-        for key in tokens:
-            if key not in found_names:
-                if key == "default":
-                    pdir = home / ".claude"
-                else:
-                    pdir = PROFILES_DIR / key
-                if pdir.is_dir():
-                    profiles.append(ProfileInfo(
-                        name=key, path=pdir,
-                        has_credentials=False, has_token=True,
-                    ))
-                    found_names.add(key)
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
-        pass
-
-    # Mark token presence on credential-discovered profiles
-    try:
-        tokens = json.loads(TOKENS_FILE.read_text())
-        for p in profiles:
-            if p.name in tokens and not p.has_token:
-                p.has_token = True
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
-        pass
-
-    profiles.sort(key=lambda p: p.name)
-    return profiles
-
-
-def classify_shared_dirs(profile_path: Path) -> dict[str, str]:
-    """Classify each shared-store entry in a profile dir into one of four states.
-
-    Covers PROFILE_SHARED_DIRS (targets under SHARED_DIR) plus "skills"
-    (target SKILLS_DIR). States:
-
-    - "intact": a symlink pointing at the shared-store target
-    - "wrong-target": a symlink pointing elsewhere (safe to unlink)
-    - "real-dir": a real directory OR a real file at that name (deleting it
-      would destroy data; files get the same state because the danger is
-      identical -- the entry holds real data, not a link)
-    - "missing": no entry at that name (not a danger; some profiles were
-      created without symlinks)
-    """
-    states: dict[str, str] = {}
-    entries = [(d, SHARED_DIR / d) for d in PROFILE_SHARED_DIRS]
-    entries.append(("skills", SKILLS_DIR))
-    for name, target in entries:
-        link = profile_path / name
-        if link.is_symlink():
-            if link.resolve() == target.resolve():
-                states[name] = "intact"
-            else:
-                states[name] = "wrong-target"
-        elif link.exists():
-            states[name] = "real-dir"
-        else:
-            states[name] = "missing"
-    return states
 
 
 # Native browser binaries searched on PATH, in priority order.

@@ -50,8 +50,8 @@ class OptionsFile:
     def rename_value(self, segment_key: str, old: str, new: str, default: dict) -> dict:
         """Swap ``old`` -> ``new`` in a segment's values, pinned, and metadata key.
 
-        Replicates ``profile_ops._update_options_rename``'s disk semantics for
-        the values list and pinned list (in-place index swap, order preserved).
+        Swaps ``old`` -> ``new`` in the values list and pinned list (in-place
+        index swap, order preserved).
         The metadata key is moved verbatim (``old`` -> ``new``) with NO
         ``config_dir`` rewrite -- config_dir is never persisted going forward,
         but the legacy metadata dict may still exist on disk, so re-keying it
@@ -86,9 +86,9 @@ class OptionsFile:
     def remove_value(self, segment_key: str, name: str, default: dict) -> dict:
         """Remove ``name`` from a segment's values, pinned, and metadata.
 
-        Replicates ``profile_ops._remove_from_options``'s disk semantics: drop
-        from the values list, the pinned list, and the metadata dict. Fresh
-        read, atomic write only when something was removed, returns the dict.
+        Drops ``name`` from the values list, the pinned list, and the metadata
+        dict. Fresh read, atomic write only when something was removed, returns
+        the dict.
         """
         options = self.load(default)
         seg = options.get(segment_key)

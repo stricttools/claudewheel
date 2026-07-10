@@ -113,17 +113,12 @@ class _FakeHomeMixin:
         *detect* is the replacement for config.detect_terminal_background
         (a return_value string, or a Mock whose call should never happen).
         """
-        cw = home / ".claudewheel"
         import claudewheel.config as cfg_mod
-        import claudewheel.discovery as disc_mod
 
         # resolve_profile resolves via Workspace.default(), which derives every
         # path from Path.home()/.claudewheel -- so poisoning Path.home + $HOME
-        # is the whole redirection. The discovery-module constants are patched
-        # defensively (some helpers still reference them).
+        # is the whole redirection.
         patches = [patch_obj for patch_obj in (
-            mock.patch.object(disc_mod, "PROFILES_DIR", cw / "profiles"),
-            mock.patch.object(disc_mod, "TOKENS_FILE", cw / "tokens.json"),
             mock.patch.object(Path, "home", classmethod(lambda cls: home)),
             mock.patch.dict(os.environ, {"HOME": str(home)}),
         )]

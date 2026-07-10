@@ -12,7 +12,7 @@ import contextlib
 from unittest import mock
 
 from claudewheel import permission, cli
-from claudewheel.discovery import ProfileInfo
+from claudewheel.profile_store import Profile
 
 
 # ---------------------------------------------------------------------------
@@ -215,10 +215,10 @@ class SaveSettingsTests(unittest.TestCase):
 
 
 class ResolveProfilesTests(unittest.TestCase):
-    def _make_profiles(self) -> list[ProfileInfo]:
+    def _make_profiles(self) -> list[Profile]:
         return [
-            ProfileInfo(name="work", path=Path("/fake/work"), has_credentials=True, has_token=False),
-            ProfileInfo(name="personal", path=Path("/fake/personal"), has_credentials=True, has_token=False),
+            Profile(name="work", path=Path("/fake/work"), has_credentials=True, has_token=False),
+            Profile(name="personal", path=Path("/fake/personal"), has_credentials=True, has_token=False),
         ]
 
     def _ws_with(self, profiles) -> mock.MagicMock:
@@ -273,9 +273,9 @@ class _PermissionCLIBase(unittest.TestCase):
     def _read_settings(self) -> dict:
         return json.loads(self.settings_path.read_text())
 
-    def _fake_profiles(self) -> list[ProfileInfo]:
+    def _fake_profiles(self) -> list[Profile]:
         return [
-            ProfileInfo(
+            Profile(
                 name="testprofile",
                 path=self.profile_dir,
                 has_credentials=True,
@@ -306,7 +306,7 @@ class PermissionCLIAddTests(_PermissionCLIBase):
         second_settings.write_text(json.dumps({"permissions": {"allow": []}}, indent=2) + "\n")
 
         profiles = self._fake_profiles() + [
-            ProfileInfo(name="second", path=second_dir, has_credentials=True, has_token=False),
+            Profile(name="second", path=second_dir, has_credentials=True, has_token=False),
         ]
         self.ws.profiles.enumerate.return_value = profiles
         with contextlib.nullcontext():

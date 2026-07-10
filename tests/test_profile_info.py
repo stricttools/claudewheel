@@ -11,7 +11,7 @@ from pathlib import Path
 from unittest import mock
 
 from claudewheel import profile_info
-from claudewheel.constants import PROFILE_SHARED_DIRS
+from claudewheel.shared_store import SharedStore
 
 
 class ProfileInfoFixture(unittest.TestCase):
@@ -30,7 +30,7 @@ class ProfileInfoFixture(unittest.TestCase):
         self.profile.mkdir(parents=True)
         self.shared_dir.mkdir(parents=True)
         self.skills_dir.mkdir(parents=True)
-        for d in PROFILE_SHARED_DIRS:
+        for d in SharedStore.SHARED_SUBDIRS:
             (self.shared_dir / d).mkdir()
 
         from claudewheel.workspace import Workspace
@@ -39,7 +39,7 @@ class ProfileInfoFixture(unittest.TestCase):
 
     def _link_all(self) -> None:
         """Create intact shared-store symlinks in the profile dir."""
-        for d in PROFILE_SHARED_DIRS:
+        for d in SharedStore.SHARED_SUBDIRS:
             (self.profile / d).symlink_to(self.shared_dir / d)
         (self.profile / "skills").symlink_to(self.skills_dir)
 
@@ -116,7 +116,7 @@ class GatherSharedDirTests(ProfileInfoFixture):
         self._link_all()
         report = profile_info.gather_profile_info(self.ws, "work")
         self.assertFalse(report.danger)
-        for name in PROFILE_SHARED_DIRS + ["skills"]:
+        for name in list(SharedStore.SHARED_SUBDIRS) + ["skills"]:
             self.assertEqual(report.shared_dirs[name], "intact", name)
 
     def test_real_dir_sets_danger(self) -> None:

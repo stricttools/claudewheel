@@ -5,14 +5,12 @@ This module centralizes the two things every filesystem-touching test needs:
 1. A sandboxed fake ``$HOME`` (``SandboxHomeTestCase``) that both sets the
    ``HOME`` environment variable AND patches ``pathlib.Path.home`` so any
    runtime ``Path.home()`` call in production code resolves into a tmpdir,
-   never the real home. Import-time path constants (``constants.PROFILES_DIR``
-   et al.) were captured against the *real* home when their module was first
-   imported, so poisoning ``Path.home`` alone does not redirect them -- use
-   :meth:`SandboxHomeTestCase.patch_constants_across` to rebind those
-   per-module copies at the sandbox for the duration of a test.
+   never the real home. A few modules still hold import-time path copies
+   captured against the *real* home, so poisoning ``Path.home`` alone does not
+   redirect them -- use :meth:`SandboxHomeTestCase.patch_constants_across` to
+   rebind those per-module copies at the sandbox for the duration of a test.
 
-2. A config-dir builder (``setup_temp_config_dir``) plus a config-module
-   constant patcher (``patch_config_constants``) shared by the migration and
+2. A config-dir builder (``setup_temp_config_dir``) shared by the migration and
    theme-auto tests.
 
 Naming note: this file is deliberately named ``wheelhelpers.py`` (not
@@ -28,7 +26,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from claudewheel.constants import PROFILE_SHARED_DIRS
+from claudewheel.shared_store import SharedStore
 from claudewheel.defaults import (
     DEFAULT_CONFIG,
     DEFAULT_OPTIONS,
@@ -67,8 +65,8 @@ def setup_temp_config_dir(
 ) -> dict[str, Path]:
     """Create a ``~/.claudewheel``-shaped config dir under *tmp*.
 
-    Returns a dict mapping ``claudewheel.config`` module constant names to the
-    paths inside *tmp*, suitable for :func:`patch_config_constants`. Any
+    Returns a dict mapping path-constant names to the paths inside *tmp*,
+    suitable for constructing a ``Workspace`` rooted at ``CONFIG_DIR``. Any
     parameter left as ``None`` gets a sensible default that will not cause
     ``AppConfigStore.__post_init__`` to error. Both ``dark.json`` and
     ``light.json`` are always written so theme resolution (auto/light/dark)
@@ -110,17 +108,6 @@ def setup_temp_config_dir(
     }
 
 
-def patch_config_constants(paths: dict[str, Path]) -> list:
-    """Return a list of ``patch.object`` contexts for ``config`` constants.
-
-    Each entry rebinds a named constant on the ``claudewheel.config`` module to
-    the corresponding path in *paths*. The caller starts/stops them.
-    """
-    import claudewheel.config as cfg_mod
-
-    return [patch.object(cfg_mod, name, value) for name, value in paths.items()]
-
-
 # ---------------------------------------------------------------------------
 # Sandbox home base class
 # ---------------------------------------------------------------------------
@@ -132,7 +119,7 @@ class SandboxHomeTestCase(unittest.TestCase):
     On :meth:`setUp` it:
 
     - creates ``<tmp_home>/.claudewheel`` with ``profiles/``, ``shared/``
-      (plus the ``PROFILE_SHARED_DIRS`` subdirs), ``skills/``, ``themes/``,
+      (plus the ``SharedStore.SHARED_SUBDIRS`` subdirs), ``skills/``, ``themes/``,
       ``scripts/``, ``hooks/`` and minimal valid ``config.json``,
       ``state.json``, ``options.json``, ``segments.json``, ``tokens.json``,
       ``shared-settings.json``, and ``themes/{dark,light}.json``;
@@ -193,7 +180,7 @@ class SandboxHomeTestCase(unittest.TestCase):
         hooks_dir = ld / "hooks"
         for d in (profiles_dir, shared_dir, skills_dir, themes_dir, scripts_dir, hooks_dir):
             d.mkdir(parents=True, exist_ok=True)
-        for sub in PROFILE_SHARED_DIRS:
+        for sub in SharedStore.SHARED_SUBDIRS:
             (shared_dir / sub).mkdir(parents=True, exist_ok=True)
 
         write_json(ld / "config.json", DEFAULT_CONFIG)

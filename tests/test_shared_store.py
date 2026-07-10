@@ -1,11 +1,10 @@
-"""Tests for the SharedStore path owner and its path codec parity with constants."""
+"""Tests for the SharedStore path owner and its path codec."""
 
 from __future__ import annotations
 
 import unittest
 from pathlib import Path
 
-from claudewheel import constants
 from claudewheel.shared_store import SharedStore
 
 
@@ -26,25 +25,43 @@ _CODEC_CASES = [
 ]
 
 
-class EncodePathParityTests(unittest.TestCase):
-    """SharedStore.encode_path must match constants.encode_path exactly."""
+# Expected Claude-Code-style encodings, pinned inline (the codec replaces
+# every "/" and "." with "-"). Formerly asserted by parity against the
+# now-deleted constants.encode_path.
+_CODEC_EXPECTATIONS = {
+    "/": "-",
+    "/home/m": "-home-m",
+    "/home/m/Projects/claudewheel": "-home-m-Projects-claudewheel",
+    "/home/m/.config/some.app/v1.2.3": "-home-m--config-some-app-v1-2-3",
+    "/home/m/my-project_dir/sub.dir": "-home-m-my-project_dir-sub-dir",
+    "/a/b.c/d-e_f/.hidden": "-a-b-c-d-e_f--hidden",
+    "relative/path.here": "relative-path-here",
+    "no-slash-just.dots": "no-slash-just-dots",
+    "/trailing/slash/": "-trailing-slash-",
+    "/multiple..dots...here": "-multiple--dots---here",
+    "": "",
+}
 
-    def test_parity_across_representative_paths(self) -> None:
+
+class EncodePathTests(unittest.TestCase):
+    """SharedStore.encode_path replaces every / and . with - (pinned expectations)."""
+
+    def test_encodes_representative_paths(self) -> None:
         for case in _CODEC_CASES:
             self.assertEqual(
                 SharedStore.encode_path(case),
-                constants.encode_path(case),
+                _CODEC_EXPECTATIONS[case],
                 msg=f"codec mismatch for {case!r}",
             )
 
 
 class SharedSubdirsTests(unittest.TestCase):
-    """SHARED_SUBDIRS must mirror constants.PROFILE_SHARED_DIRS exactly."""
+    """SHARED_SUBDIRS pins the profile shared-store subdirectory list."""
 
-    def test_subdirs_match_constants(self) -> None:
+    def test_subdirs_are_the_pinned_set(self) -> None:
         self.assertEqual(
             list(SharedStore.SHARED_SUBDIRS),
-            constants.PROFILE_SHARED_DIRS,
+            ["projects", "session-env", "file-history", "tasks", "todos", "paste-cache"],
         )
 
     def test_no_constants_import(self) -> None:

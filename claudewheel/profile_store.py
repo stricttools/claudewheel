@@ -103,7 +103,7 @@ class ProfileStore:
         An explicit dict (e.g. ``{}``) is the explicit token view for callers
         that must proceed without token data.
 
-        Rules mirrored from ``discovery.discover_profiles``:
+        Rules encoding the historical profile-discovery behavior:
         1. ``claude_dir`` qualifies as "default" when it is a dir AND holds
            ``.credentials.json`` (has_credentials=True).
         2. Each subdir of ``profiles_dir`` qualifies when it holds
@@ -284,11 +284,11 @@ class ProfileStore:
                        has_credentials=has_credentials, has_token=has_token)
 
     def classify_shared_dirs(self, name: str) -> dict[str, str]:
-        """Classify each shared-store entry in *name*'s dir; rehomed from discovery.
+        """Classify each shared-store entry in *name*'s dir into one of four states.
 
-        Same four states as ``discovery.classify_shared_dirs`` (intact,
-        wrong-target, real-dir, missing) over SHARED_SUBDIRS + skills, resolved
-        against this store's shared paths rather than module constants.
+        Four states (intact, wrong-target, real-dir, missing) over
+        SHARED_SUBDIRS + skills, resolved against this store's shared paths
+        rather than module constants.
         """
         self._require_shared()
         assert self.shared is not None

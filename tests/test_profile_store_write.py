@@ -31,7 +31,6 @@ import os
 from pathlib import Path
 from unittest.mock import patch
 
-import claudewheel.discovery as disc
 import claudewheel.profile_store as ps_mod
 import claudewheel.wizard as wiz
 from claudewheel.appdata import OptionsFile, StateFile
@@ -265,8 +264,15 @@ class CreateTests(_WriteBase):
 # ---------------------------------------------------------------------------
 
 
-class ClassifyParityTests(_WriteBase):
-    def test_classify_parity(self) -> None:
+class ClassifySharedDirsTests(_WriteBase):
+    """ProfileStore.classify_shared_dirs over all four states (pinned expectations).
+
+    Formerly a parity test against the (now deleted)
+    ``discovery.classify_shared_dirs``; the four-state classification is now
+    pinned by the explicit expectations below.
+    """
+
+    def test_classify_all_four_states(self) -> None:
         cls_dir = self.profiles_dir / "cls"
         cls_dir.mkdir(parents=True)
         # intact
@@ -285,15 +291,12 @@ class ClassifyParityTests(_WriteBase):
 
         store_states = self.store.classify_shared_dirs("cls")
 
-        self.patch_constants_across([disc], ["SHARED_DIR", "SKILLS_DIR"])
-        disc_states = disc.classify_shared_dirs(cls_dir)
-
-        self.assertEqual(store_states, disc_states)
         self.assertEqual(store_states["projects"], "intact")
         self.assertEqual(store_states["session-env"], "wrong-target")
         self.assertEqual(store_states["file-history"], "real-dir")
         self.assertEqual(store_states["tasks"], "real-dir")
         self.assertEqual(store_states["todos"], "missing")
+        self.assertEqual(store_states["paste-cache"], "missing")
         self.assertEqual(store_states["skills"], "intact")
 
 

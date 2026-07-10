@@ -1,4 +1,4 @@
-"""Tests for token entry parsing, expiry computation, and add_token in claudewheel.tokens."""
+"""Tests for token entry parsing, expiry computation, and the TokenStore facade."""
 
 from __future__ import annotations
 
@@ -9,17 +9,13 @@ import time
 import unittest
 from datetime import date, timedelta
 from pathlib import Path
-from unittest.mock import patch
 
-from claudewheel import tokens as tokens_mod
 from claudewheel.tokens import (
     TOKEN_TTL_DAYS,
     TokenStore,
     TokenStoreError,
-    add_token,
     compute_expiry,
     parse_entry,
-    store_tier,
 )
 
 
@@ -142,12 +138,12 @@ class ComputeExpiryTests(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# add_token (moved from tests/test_profile_ops.py when add_token moved here)
+# TokenStore.add (ported from the former module-level add_token tests)
 # ---------------------------------------------------------------------------
 
 
-class AddTokenTests(unittest.TestCase):
-    """Tests for add_token()."""
+class TokenStoreAddTests(unittest.TestCase):
+    """Tests for TokenStore.add()."""
 
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
@@ -155,9 +151,7 @@ class AddTokenTests(unittest.TestCase):
         self.launcher_dir = Path(self._tmp.name) / ".claudewheel"
         self.launcher_dir.mkdir()
         self.tokens_file = self.launcher_dir / "tokens.json"
-        patcher = patch.object(tokens_mod, "TOKENS_FILE", self.tokens_file)
-        patcher.start()
-        self.addCleanup(patcher.stop)
+        self.store = TokenStore(self.tokens_file)
 
     def _write_tokens(self, tokens: dict) -> None:
         self.tokens_file.write_text(json.dumps(tokens, indent=2) + "\n")
@@ -165,7 +159,7 @@ class AddTokenTests(unittest.TestCase):
     def test_creates_fresh_file(self) -> None:
         """When tokens.json doesn't exist, creates it with the entry."""
         self.assertFalse(self.tokens_file.exists())
-        add_token("newprof", "tok-123")
+        self.store.add("newprof", "tok-123")
 
         tokens = json.loads(self.tokens_file.read_text())
         self.assertIn("newprof", tokens)
@@ -174,7 +168,7 @@ class AddTokenTests(unittest.TestCase):
 
     def test_writes_all_three_fields(self) -> None:
         """Entry has token, created (today), and expires_at (created + TTL)."""
-        add_token("prof", "tok-xyz")
+        self.store.add("prof", "tok-xyz")
 
         entry = json.loads(self.tokens_file.read_text())["prof"]
         self.assertEqual(entry["token"], "tok-xyz")
@@ -186,7 +180,7 @@ class AddTokenTests(unittest.TestCase):
     def test_adds_to_existing_file(self) -> None:
         """When tokens.json exists, adds the entry without clobbering others."""
         self._write_tokens({"existing": {"token": "tok-old", "created": "2025-01-01"}})
-        add_token("newprof", "tok-456")
+        self.store.add("newprof", "tok-456")
 
         tokens = json.loads(self.tokens_file.read_text())
         self.assertIn("existing", tokens)
@@ -196,7 +190,7 @@ class AddTokenTests(unittest.TestCase):
     def test_updates_existing_token(self) -> None:
         """Overwrites a profile's token entry when it already exists."""
         self._write_tokens({"myprof": {"token": "old-tok", "created": "2024-01-01"}})
-        add_token("myprof", "new-tok")
+        self.store.add("myprof", "new-tok")
 
         tokens = json.loads(self.tokens_file.read_text())
         self.assertEqual(tokens["myprof"]["token"], "new-tok")
@@ -206,7 +200,7 @@ class AddTokenTests(unittest.TestCase):
     def test_file_permissions_on_fresh_creation(self) -> None:
         """Fresh file gets 0600 permissions."""
         self.assertFalse(self.tokens_file.exists())
-        add_token("secured", "tok-sec")
+        self.store.add("secured", "tok-sec")
 
         mode = self.tokens_file.stat().st_mode & 0o777
         self.assertEqual(mode, 0o600)
@@ -220,7 +214,7 @@ class AddTokenTests(unittest.TestCase):
         self._write_tokens({"myprof": {"token": "old-tok", "created": "2024-01-01"}})
         self.tokens_file.chmod(0o600)
 
-        add_token("myprof", "new-tok")
+        self.store.add("myprof", "new-tok")
 
         mode = self.tokens_file.stat().st_mode & 0o777
         self.assertEqual(mode, 0o600)
@@ -231,22 +225,22 @@ class AddTokenTests(unittest.TestCase):
         self.tokens_file.write_text("{not json")
 
         with self.assertRaises(OSError) as ctx:
-            add_token("prof", "tok-x")
+            self.store.add("prof", "tok-x")
         self.assertIn("corrupt", str(ctx.exception).lower())
         # Original corrupt content preserved for the user to inspect/recover.
         self.assertEqual(self.tokens_file.read_text(), "{not json")
 
     def test_atomic_write_leaves_no_tmp_file(self) -> None:
         """The tmp-file swap leaves no .tmp sibling and valid JSON behind."""
-        add_token("prof", "tok-atomic")
+        self.store.add("prof", "tok-atomic")
         self.assertFalse(self.tokens_file.with_suffix(".tmp").exists())
         # File is valid, complete JSON
         tokens = json.loads(self.tokens_file.read_text())
         self.assertEqual(tokens["prof"]["token"], "tok-atomic")
 
 
-class AddTokenTierTests(unittest.TestCase):
-    """Tests for add_token() optional tier/subscription params."""
+class TokenStoreAddTierTests(unittest.TestCase):
+    """Tests for TokenStore.add() optional tier/subscription params."""
 
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
@@ -254,33 +248,31 @@ class AddTokenTierTests(unittest.TestCase):
         self.launcher_dir = Path(self._tmp.name) / ".claudewheel"
         self.launcher_dir.mkdir()
         self.tokens_file = self.launcher_dir / "tokens.json"
-        patcher = patch.object(tokens_mod, "TOKENS_FILE", self.tokens_file)
-        patcher.start()
-        self.addCleanup(patcher.stop)
+        self.store = TokenStore(self.tokens_file)
 
     def test_tier_included_when_provided(self) -> None:
-        add_token("prof", "tok-1", tier="default_claude_pro",
-                  subscription="claude_pro")
+        self.store.add("prof", "tok-1", tier="default_claude_pro",
+                       subscription="claude_pro")
         entry = json.loads(self.tokens_file.read_text())["prof"]
         self.assertEqual(entry["rateLimitTier"], "default_claude_pro")
         self.assertEqual(entry["subscriptionType"], "claude_pro")
         self.assertEqual(entry["token"], "tok-1")
 
     def test_tier_omitted_when_none(self) -> None:
-        add_token("prof", "tok-2")
+        self.store.add("prof", "tok-2")
         entry = json.loads(self.tokens_file.read_text())["prof"]
         self.assertNotIn("rateLimitTier", entry)
         self.assertNotIn("subscriptionType", entry)
 
     def test_tier_only_no_subscription(self) -> None:
-        add_token("prof", "tok-3", tier="default_claude_max_20x")
+        self.store.add("prof", "tok-3", tier="default_claude_max_20x")
         entry = json.loads(self.tokens_file.read_text())["prof"]
         self.assertEqual(entry["rateLimitTier"], "default_claude_max_20x")
         self.assertNotIn("subscriptionType", entry)
 
 
-class StoreTierTests(unittest.TestCase):
-    """Tests for store_tier() -- tier-only storage in tokens.json."""
+class TokenStoreSetTierTests(unittest.TestCase):
+    """Tests for TokenStore.set_tier() -- tier-only storage in tokens.json."""
 
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
@@ -288,17 +280,15 @@ class StoreTierTests(unittest.TestCase):
         self.launcher_dir = Path(self._tmp.name) / ".claudewheel"
         self.launcher_dir.mkdir()
         self.tokens_file = self.launcher_dir / "tokens.json"
-        patcher = patch.object(tokens_mod, "TOKENS_FILE", self.tokens_file)
-        patcher.start()
-        self.addCleanup(patcher.stop)
+        self.store = TokenStore(self.tokens_file)
 
     def _write_tokens(self, tokens: dict) -> None:
         self.tokens_file.write_text(json.dumps(tokens, indent=2) + "\n")
 
     def test_creates_tier_only_entry(self) -> None:
         """When no prior entry exists, creates a tier-only entry (no token)."""
-        store_tier("newprof", tier="default_claude_pro",
-                   subscription="claude_pro")
+        self.store.set_tier("newprof", tier="default_claude_pro",
+                            subscription="claude_pro")
         tokens = json.loads(self.tokens_file.read_text())
         entry = tokens["newprof"]
         self.assertEqual(entry["rateLimitTier"], "default_claude_pro")
@@ -311,7 +301,7 @@ class StoreTierTests(unittest.TestCase):
             "token": "tok-x", "created": "2025-01-01",
             "expires_at": "2026-01-01",
         }})
-        store_tier("prof", tier="default_claude_max_5x")
+        self.store.set_tier("prof", tier="default_claude_max_5x")
         tokens = json.loads(self.tokens_file.read_text())
         entry = tokens["prof"]
         self.assertEqual(entry["token"], "tok-x")
@@ -321,7 +311,7 @@ class StoreTierTests(unittest.TestCase):
     def test_upgrades_bare_string_entry(self) -> None:
         """A legacy bare-string entry is upgraded to a dict."""
         self._write_tokens({"prof": "tok-legacy"})
-        store_tier("prof", tier="default_claude_pro")
+        self.store.set_tier("prof", tier="default_claude_pro")
         tokens = json.loads(self.tokens_file.read_text())
         entry = tokens["prof"]
         self.assertEqual(entry["token"], "tok-legacy")
@@ -329,19 +319,19 @@ class StoreTierTests(unittest.TestCase):
 
     def test_noop_when_both_none(self) -> None:
         """Does nothing when both tier and subscription are None."""
-        store_tier("prof", tier=None, subscription=None)
+        self.store.set_tier("prof", tier=None, subscription=None)
         self.assertFalse(self.tokens_file.exists())
 
     def test_corrupt_file_raises_oserror(self) -> None:
-        """A corrupt tokens.json raises OSError (same as add_token)."""
+        """A corrupt tokens.json raises OSError (write-path contract)."""
         self.tokens_file.write_text("{not json")
         with self.assertRaises(OSError):
-            store_tier("prof", tier="x")
+            self.store.set_tier("prof", tier="x")
 
     def test_preserves_other_profiles(self) -> None:
         """Storing tier for one profile preserves other profiles' entries."""
         self._write_tokens({"other": {"token": "tok-other"}})
-        store_tier("newprof", tier="default_claude_pro")
+        self.store.set_tier("newprof", tier="default_claude_pro")
         tokens = json.loads(self.tokens_file.read_text())
         self.assertIn("other", tokens)
         self.assertEqual(tokens["other"]["token"], "tok-other")

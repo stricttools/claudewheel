@@ -809,11 +809,11 @@ class CheckResumeSessionTests(unittest.TestCase):
     def test_resume_session_in_current_dir_no_interception(self) -> None:
         """When the session file exists under the current directory's encoded path,
         the function returns immediately without calling find_session."""
-        from claudewheel.constants import encode_path
+        from claudewheel.shared_store import SharedStore
 
         current_dir = "/home/user/my-project"
         session_id = "abc-123-def"
-        encoded = encode_path(os.path.abspath(current_dir))
+        encoded = SharedStore.encode_path(os.path.abspath(current_dir))
 
         # Create the expected session file
         project_dir = self.shared_dir / "projects" / encoded
@@ -1075,10 +1075,10 @@ class CheckContSessionTests(unittest.TestCase):
 
     def test_cont_sessions_exist_no_interception(self) -> None:
         """When sessions exist under the current directory, return immediately."""
-        from claudewheel.constants import encode_path
+        from claudewheel.shared_store import SharedStore
 
         current_dir = "/home/user/my-project"
-        encoded = encode_path(os.path.abspath(current_dir))
+        encoded = SharedStore.encode_path(os.path.abspath(current_dir))
         self._create_project(encoded, session_count=2, cwd=current_dir)
 
         with mock.patch("claudewheel.session.find_orphaned_project_dirs") as mock_find:
@@ -1273,8 +1273,6 @@ class NewProfileFlowTests(unittest.TestCase):
             "terminal_cls": mock.patch(
                 "claudewheel.terminal.Terminal", return_value=self.terminal),
             "config": mock.patch("claudewheel.config.AppConfigStore"),
-            "discover": mock.patch(
-                "claudewheel.discovery.discover_profiles", return_value=[]),
             "wizard": mock.patch(
                 "claudewheel.wizard.run_profile_wizard", autospec=True),
             "create": mock.patch(
@@ -1881,12 +1879,12 @@ class CheckTokensTests(unittest.TestCase):
 
     def test_all_valid_exit_0(self) -> None:
         """When all profiles have valid tokens, exit code is 0."""
-        from claudewheel.discovery import ProfileInfo
+        from claudewheel.profile_store import Profile
 
         profiles = [
-            ProfileInfo(name="personal", path=Path("/fake/personal"),
+            Profile(name="personal", path=Path("/fake/personal"),
                         has_credentials=True, has_token=True),
-            ProfileInfo(name="work", path=Path("/fake/work"),
+            Profile(name="work", path=Path("/fake/work"),
                         has_credentials=True, has_token=True),
         ]
         tokens_data = {
@@ -1905,12 +1903,12 @@ class CheckTokensTests(unittest.TestCase):
 
     def test_one_invalid_exit_1(self) -> None:
         """When one profile has an invalid token, exit code is 1."""
-        from claudewheel.discovery import ProfileInfo
+        from claudewheel.profile_store import Profile
 
         profiles = [
-            ProfileInfo(name="good", path=Path("/fake/good"),
+            Profile(name="good", path=Path("/fake/good"),
                         has_credentials=True, has_token=True),
-            ProfileInfo(name="bad", path=Path("/fake/bad"),
+            Profile(name="bad", path=Path("/fake/bad"),
                         has_credentials=True, has_token=True),
         ]
         tokens_data = {
@@ -1932,10 +1930,10 @@ class CheckTokensTests(unittest.TestCase):
 
     def test_unreachable_exit_1(self) -> None:
         """UNREACHABLE status causes exit 1."""
-        from claudewheel.discovery import ProfileInfo
+        from claudewheel.profile_store import Profile
 
         profiles = [
-            ProfileInfo(name="offline", path=Path("/fake/offline"),
+            Profile(name="offline", path=Path("/fake/offline"),
                         has_credentials=True, has_token=True),
         ]
         tokens_data = {"offline": self.FULL_TOKEN}
@@ -1949,10 +1947,10 @@ class CheckTokensTests(unittest.TestCase):
 
     def test_no_token_shows_no_token(self) -> None:
         """Profile with no token entry shows 'no token' status."""
-        from claudewheel.discovery import ProfileInfo
+        from claudewheel.profile_store import Profile
 
         profiles = [
-            ProfileInfo(name="empty", path=Path("/fake/empty"),
+            Profile(name="empty", path=Path("/fake/empty"),
                         has_credentials=True, has_token=False),
         ]
         tokens_data = {}
@@ -1967,10 +1965,10 @@ class CheckTokensTests(unittest.TestCase):
 
     def test_token_never_fully_printed(self) -> None:
         """The full 108-char token must never appear in output."""
-        from claudewheel.discovery import ProfileInfo
+        from claudewheel.profile_store import Profile
 
         profiles = [
-            ProfileInfo(name="secret", path=Path("/fake/secret"),
+            Profile(name="secret", path=Path("/fake/secret"),
                         has_credentials=True, has_token=True),
         ]
         tokens_data = {"secret": self.FULL_TOKEN}
@@ -1986,10 +1984,10 @@ class CheckTokensTests(unittest.TestCase):
 
     def test_indeterminate_exit_1(self) -> None:
         """INDETERMINATE status causes exit 1."""
-        from claudewheel.discovery import ProfileInfo
+        from claudewheel.profile_store import Profile
 
         profiles = [
-            ProfileInfo(name="weird", path=Path("/fake/weird"),
+            Profile(name="weird", path=Path("/fake/weird"),
                         has_credentials=True, has_token=True),
         ]
         tokens_data = {"weird": self.FULL_TOKEN}
@@ -2003,10 +2001,10 @@ class CheckTokensTests(unittest.TestCase):
 
     def test_tabular_output_format(self) -> None:
         """Output has header row with Profile, Status, Token columns."""
-        from claudewheel.discovery import ProfileInfo
+        from claudewheel.profile_store import Profile
 
         profiles = [
-            ProfileInfo(name="test", path=Path("/fake/test"),
+            Profile(name="test", path=Path("/fake/test"),
                         has_credentials=True, has_token=True),
         ]
         tokens_data = {"test": self.FULL_TOKEN}
@@ -2035,12 +2033,12 @@ class CheckTokensTests(unittest.TestCase):
 
     def test_no_token_profile_among_valid_still_exit_0(self) -> None:
         """Mix of valid tokens and no-token profiles still exits 0."""
-        from claudewheel.discovery import ProfileInfo
+        from claudewheel.profile_store import Profile
 
         profiles = [
-            ProfileInfo(name="has_tok", path=Path("/fake/has_tok"),
+            Profile(name="has_tok", path=Path("/fake/has_tok"),
                         has_credentials=True, has_token=True),
-            ProfileInfo(name="no_tok", path=Path("/fake/no_tok"),
+            Profile(name="no_tok", path=Path("/fake/no_tok"),
                         has_credentials=True, has_token=False),
         ]
         tokens_data = {"has_tok": self.FULL_TOKEN}

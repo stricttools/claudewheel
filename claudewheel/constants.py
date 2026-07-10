@@ -1,34 +1,11 @@
-"""Filesystem paths, ANSI escape sequences, and terminal color helpers."""
+"""ANSI escape sequences and terminal color helpers.
 
-from pathlib import Path
-
-
-# --- Path Constants ---
-
-CONFIG_DIR = Path.home() / ".claudewheel"
-CONFIG_FILE = CONFIG_DIR / "config.json"
-SEGMENTS_FILE = CONFIG_DIR / "segments.json"
-OPTIONS_FILE = CONFIG_DIR / "options.json"
-STATE_FILE = CONFIG_DIR / "state.json"
-THEMES_DIR = CONFIG_DIR / "themes"
-HOOKS_DIR = CONFIG_DIR / "hooks"
-TOKENS_FILE = CONFIG_DIR / "tokens.json"
-
-PROFILES_DIR = CONFIG_DIR / "profiles"
-
-SHARED_SETTINGS_FILE = CONFIG_DIR / "shared-settings.json"
-
-SCRIPTS_DIR = CONFIG_DIR / "scripts"
-
-SHARED_DIR = CONFIG_DIR / "shared"
-INODES_FILE = SHARED_DIR / "inodes.json"
-SKILLS_DIR = CONFIG_DIR / "skills"
-
-# Directories inside each profile that are symlinked to the shared store.
-PROFILE_SHARED_DIRS = ["projects", "session-env", "file-history", "tasks", "todos", "paste-cache"]
-
-VERSIONS_DIR = Path.home() / ".local/share/claude/versions"
-CLAUDE_SYMLINK = Path.home() / ".local/bin/claude"
+Filesystem paths live on the workspace/store layer (``Workspace`` and its
+``ProfileStore``/``TokenStore``/``SharedStore``/``OptionsFile``/``StateFile``/
+``BinaryLocator`` members); the path-encoding codec lives on ``SharedStore``.
+This module is now purely the terminal/ANSI primitives shared across the
+renderer, terminal, and UI layers.
+"""
 
 # ANSI escape helpers
 
@@ -65,11 +42,3 @@ ALT_SCREEN_ON = csi("?1049h")
 ALT_SCREEN_OFF = csi("?1049l")
 CLEAR_SCREEN = csi("2J")
 CLEAR_LINE = csi("2K")
-
-
-# --- Path encoding ---
-
-
-def encode_path(p: str) -> str:
-    """Encode an absolute path the way Claude Code does: replace / and . with -."""
-    return p.replace("/", "-").replace(".", "-")

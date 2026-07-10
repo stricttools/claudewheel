@@ -2,14 +2,11 @@
 
 from __future__ import annotations
 
-import shutil
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from claudewheel.constants import PROFILE_SHARED_DIRS
-from claudewheel.discovery import classify_shared_dirs
 from claudewheel.segment import (
     DiscoveryResult,
     Segment,
@@ -609,93 +606,6 @@ class ParseRequiresTests(unittest.TestCase):
         self.assertEqual(_parse_requires(config), {})
 
 
-class ClassifySharedDirsTests(unittest.TestCase):
-    """Tests for discovery.classify_shared_dirs() covering all four states."""
-
-    def setUp(self) -> None:
-        self._tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(self._tmp.cleanup)
-        root = Path(self._tmp.name)
-        self.shared_dir = root / ".claudewheel" / "shared"
-        self.skills_dir = root / ".claudewheel" / "skills"
-        self.profile = root / ".claudewheel" / "profiles" / "prof"
-        self.profile.mkdir(parents=True)
-        self.shared_dir.mkdir(parents=True)
-        self.skills_dir.mkdir(parents=True)
-        for d in PROFILE_SHARED_DIRS:
-            (self.shared_dir / d).mkdir()
-        for target in [
-            patch("claudewheel.discovery.SHARED_DIR", self.shared_dir),
-            patch("claudewheel.discovery.SKILLS_DIR", self.skills_dir),
-        ]:
-            target.start()
-            self.addCleanup(target.stop)
-
-    def _link_all(self) -> None:
-        """Create correct symlinks for every shared dir plus skills."""
-        for d in PROFILE_SHARED_DIRS:
-            (self.profile / d).symlink_to(self.shared_dir / d)
-        (self.profile / "skills").symlink_to(self.skills_dir)
-
-    def test_covers_all_shared_names_plus_skills(self) -> None:
-        states = classify_shared_dirs(self.profile)
-        self.assertEqual(sorted(states), sorted(PROFILE_SHARED_DIRS + ["skills"]))
-
-    def test_all_intact(self) -> None:
-        self._link_all()
-        states = classify_shared_dirs(self.profile)
-        for name, state in states.items():
-            self.assertEqual(state, "intact", name)
-
-    def test_wrong_target(self) -> None:
-        self._link_all()
-        elsewhere = Path(self._tmp.name) / "elsewhere"
-        elsewhere.mkdir()
-        (self.profile / "projects").unlink()
-        (self.profile / "projects").symlink_to(elsewhere)
-        states = classify_shared_dirs(self.profile)
-        self.assertEqual(states["projects"], "wrong-target")
-        self.assertEqual(states["todos"], "intact")
-
-    def test_real_dir(self) -> None:
-        self._link_all()
-        (self.profile / "todos").unlink()
-        (self.profile / "todos").mkdir()
-        states = classify_shared_dirs(self.profile)
-        self.assertEqual(states["todos"], "real-dir")
-
-    def test_real_file_classified_as_real_dir_danger(self) -> None:
-        """A real FILE at a shared name is the same danger as a real dir."""
-        self._link_all()
-        (self.profile / "tasks").unlink()
-        (self.profile / "tasks").write_text("not a symlink")
-        states = classify_shared_dirs(self.profile)
-        self.assertEqual(states["tasks"], "real-dir")
-
-    def test_missing(self) -> None:
-        """Absent entries are 'missing', never a danger state."""
-        states = classify_shared_dirs(self.profile)
-        for name, state in states.items():
-            self.assertEqual(state, "missing", name)
-
-    def test_skills_states(self) -> None:
-        """skills entry is classified against SKILLS_DIR, not SHARED_DIR."""
-        (self.profile / "skills").symlink_to(self.skills_dir)
-        self.assertEqual(classify_shared_dirs(self.profile)["skills"], "intact")
-        (self.profile / "skills").unlink()
-        (self.profile / "skills").symlink_to(self.shared_dir)
-        self.assertEqual(classify_shared_dirs(self.profile)["skills"],
-                         "wrong-target")
-
-    def test_dangling_symlink_to_target_is_intact(self) -> None:
-        """A symlink at the right target counts as intact even if the shared
-        store entry is gone -- matches the original health-check semantics."""
-        self._link_all()
-        shutil.rmtree(self.shared_dir / "projects")
-        states = classify_shared_dirs(self.profile)
-        self.assertEqual(states["projects"], "intact")
-
-
 class DiscoveryResultTests(unittest.TestCase):
     def test_defaults(self) -> None:
         """DiscoveryResult has sensible defaults for all fields."""
@@ -757,72 +667,6 @@ class LastConfigSelectionOnlyTests(unittest.TestCase):
         state = {"last_config": {"directory": "/new/b"}}
         merge_slow_results(bar, results, state)
         self.assertEqual(seg.value, "/new/b")
-
-
-class ProfileDiscoverySettingsOnlyTests(unittest.TestCase):
-    """Tests for discover_profiles() accepting settings.json as a profile marker."""
-
-    def setUp(self) -> None:
-        self._tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(self._tmp.cleanup)
-        self.home = Path(self._tmp.name)
-        self._patcher = patch.object(Path, "home", return_value=self.home)
-        self._patcher.start()
-        self._profiles_dir = self.home / ".claudewheel" / "profiles"
-        self._profiles_dir.mkdir(parents=True, exist_ok=True)
-        self._dir_patches = [
-            patch("claudewheel.discovery.PROFILES_DIR", self._profiles_dir),
-            patch("claudewheel.discovery.TOKENS_FILE", self.home / ".claudewheel" / "tokens.json"),
-        ]
-        for p in self._dir_patches:
-            p.start()
-
-    def tearDown(self) -> None:
-        for p in self._dir_patches:
-            p.stop()
-        self._patcher.stop()
-        self._tmp.cleanup()
-
-    def test_settings_only_profile_discovered(self) -> None:
-        """A profile with only settings.json (no .credentials.json) is discovered."""
-        from claudewheel.discovery import discover_profiles
-
-        pdir = self._profiles_dir / "newprof"
-        pdir.mkdir()
-        (pdir / "settings.json").write_text("{}")
-
-        profiles = discover_profiles()
-        names = [p.name for p in profiles]
-        self.assertIn("newprof", names)
-
-    def test_settings_only_has_no_credentials_or_token(self) -> None:
-        """Settings-only profile has has_credentials=False, has_token=False."""
-        from claudewheel.discovery import discover_profiles
-
-        pdir = self._profiles_dir / "settingsonly"
-        pdir.mkdir()
-        (pdir / "settings.json").write_text("{}")
-
-        profiles = discover_profiles()
-        prof = [p for p in profiles if p.name == "settingsonly"][0]
-        self.assertFalse(prof.has_credentials)
-        self.assertFalse(prof.has_token)
-
-    def test_profile_with_both_credentials_and_settings(self) -> None:
-        """A profile with both .credentials.json and settings.json works correctly."""
-        from claudewheel.discovery import discover_profiles
-
-        pdir = self._profiles_dir / "fullprof"
-        pdir.mkdir()
-        (pdir / ".credentials.json").write_text("{}")
-        (pdir / "settings.json").write_text("{}")
-
-        profiles = discover_profiles()
-        prof = [p for p in profiles if p.name == "fullprof"][0]
-        self.assertTrue(prof.has_credentials)
-        # It should be discovered exactly once
-        count = sum(1 for p in profiles if p.name == "fullprof")
-        self.assertEqual(count, 1)
 
 
 class DetectBrowsersTests(unittest.TestCase):

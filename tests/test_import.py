@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from claudewheel.constants import encode_path
+from claudewheel.shared_store import SharedStore
 from claudewheel.shared_store import SharedStore
 from claudewheel.import_ import (
     ImportResult,
@@ -582,7 +582,7 @@ class CollisionTests(unittest.TestCase):
         """Collision without reid returns with collision list, 0 imported."""
         self._write_source_session(UUID_A)
         # Pre-create colliding file in shared store
-        target_dir = self.shared_projects / encode_path("/local/test")
+        target_dir = self.shared_projects / SharedStore.encode_path("/local/test")
         target_dir.mkdir(parents=True)
         (target_dir / f"{UUID_A}.jsonl").write_text("{}\n")
 
@@ -601,7 +601,7 @@ class CollisionTests(unittest.TestCase):
         """Collision with reid generates a new UUID and imports."""
         self._write_source_session(UUID_A)
         # Pre-create colliding file
-        target_dir = self.shared_projects / encode_path("/local/test")
+        target_dir = self.shared_projects / SharedStore.encode_path("/local/test")
         target_dir.mkdir(parents=True)
         (target_dir / f"{UUID_A}.jsonl").write_text("{}\n")
 
@@ -625,7 +625,7 @@ class CollisionTests(unittest.TestCase):
         """A collision on the companion directory is also detected."""
         self._write_source_session(UUID_A)
         # Create colliding companion dir in shared store
-        target_dir = self.shared_projects / encode_path("/local/test")
+        target_dir = self.shared_projects / SharedStore.encode_path("/local/test")
         target_dir.mkdir(parents=True)
         (target_dir / UUID_A).mkdir()  # companion dir collision
 
@@ -834,7 +834,7 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(result.paste_files_copied, 1)
 
         # Verify target location
-        target_dir = self.shared / "projects" / encode_path("/home/m/test")
+        target_dir = self.shared / "projects" / SharedStore.encode_path("/home/m/test")
         target_jsonl = target_dir / f"{UUID_A}.jsonl"
         self.assertTrue(target_jsonl.exists())
 
@@ -884,7 +884,7 @@ class IntegrationTests(unittest.TestCase):
                 mappings=[("c:/Users/m/test", "/home/m/test")],
             )
 
-        target_dir = self.shared / "projects" / encode_path("/home/m/test")
+        target_dir = self.shared / "projects" / SharedStore.encode_path("/home/m/test")
         sub_jsonl = target_dir / UUID_A / "subagents" / "sub.jsonl"
         self.assertTrue(sub_jsonl.exists())
         parsed = json.loads(sub_jsonl.read_text().strip())
@@ -908,7 +908,7 @@ class IntegrationTests(unittest.TestCase):
             )
 
         self.assertEqual(result.sessions_imported, 1)
-        target_dir = self.shared / "projects" / encode_path("/new/project")
+        target_dir = self.shared / "projects" / SharedStore.encode_path("/new/project")
         target_jsonl = target_dir / f"{UUID_A}.jsonl"
         self.assertTrue(target_jsonl.exists())
         for raw_line in target_jsonl.read_text().splitlines():
@@ -1004,7 +1004,7 @@ class DryRunTests(unittest.TestCase):
             )
 
         # Shared projects should have no subdirectories created
-        target_dir = self.shared / "projects" / encode_path("/home/m/test")
+        target_dir = self.shared / "projects" / SharedStore.encode_path("/home/m/test")
         self.assertFalse(target_dir.exists())
         # No paste cache in shared
         self.assertFalse((self.shared / "paste-cache").exists())
@@ -1016,7 +1016,7 @@ class DryRunTests(unittest.TestCase):
             _make_session_jsonl("/test2", UUID_B)
         )
         # Create collision in shared store
-        target_dir = self.shared / "projects" / encode_path("/local/test2")
+        target_dir = self.shared / "projects" / SharedStore.encode_path("/local/test2")
         target_dir.mkdir(parents=True)
         (target_dir / f"{UUID_B}.jsonl").write_text("{}\n")
 
@@ -1103,7 +1103,7 @@ class ReidCompanionDirTests(unittest.TestCase):
         self.shared = self.root / "shared"
         self.store = SharedStore(self.shared, self.shared / "skills")
         (self.shared / "projects").mkdir(parents=True)
-        target_dir = self.shared / "projects" / encode_path("/local/test")
+        target_dir = self.shared / "projects" / SharedStore.encode_path("/local/test")
         target_dir.mkdir(parents=True)
         (target_dir / f"{UUID_A}.jsonl").write_text("{}\n")
 
@@ -1124,7 +1124,7 @@ class ReidCompanionDirTests(unittest.TestCase):
         self.assertEqual(result.sessions_imported, 1)
         self.assertEqual(result.sessions_reided, 1)
 
-        target_dir = self.shared / "projects" / encode_path("/local/test")
+        target_dir = self.shared / "projects" / SharedStore.encode_path("/local/test")
         # The old collision file should still exist
         self.assertTrue((target_dir / f"{UUID_A}.jsonl").exists())
         # Find the new UUID -- should be a JSONL file that is NOT UUID_A
@@ -1151,7 +1151,7 @@ class ReidCompanionDirTests(unittest.TestCase):
                 reid=True,
             )
 
-        target_dir = self.shared / "projects" / encode_path("/local/test")
+        target_dir = self.shared / "projects" / SharedStore.encode_path("/local/test")
         new_jsonl_files = [
             f for f in target_dir.glob("*.jsonl")
             if f.stem != UUID_A
@@ -1174,7 +1174,7 @@ class ReidCompanionDirTests(unittest.TestCase):
                 reid=True,
             )
 
-        target_dir = self.shared / "projects" / encode_path("/local/test")
+        target_dir = self.shared / "projects" / SharedStore.encode_path("/local/test")
         new_jsonl_files = [
             f for f in target_dir.glob("*.jsonl")
             if f.stem != UUID_A
@@ -1225,7 +1225,7 @@ class ReidSimpleArtifactsTests(unittest.TestCase):
         self.shared = self.root / "shared"
         self.store = SharedStore(self.shared, self.shared / "skills")
         (self.shared / "projects").mkdir(parents=True)
-        target_dir = self.shared / "projects" / encode_path("/local/test")
+        target_dir = self.shared / "projects" / SharedStore.encode_path("/local/test")
         target_dir.mkdir(parents=True)
         (target_dir / f"{UUID_A}.jsonl").write_text("{}\n")
 
@@ -1246,7 +1246,7 @@ class ReidSimpleArtifactsTests(unittest.TestCase):
         self.assertEqual(result.sessions_reided, 1)
 
         # Find the new UUID from the imported JSONL
-        target_dir = self.shared / "projects" / encode_path("/local/test")
+        target_dir = self.shared / "projects" / SharedStore.encode_path("/local/test")
         new_uuid = [
             f.stem for f in target_dir.glob("*.jsonl")
             if f.stem != UUID_A
@@ -1271,7 +1271,7 @@ class ReidSimpleArtifactsTests(unittest.TestCase):
                 reid=True,
             )
 
-        target_dir = self.shared / "projects" / encode_path("/local/test")
+        target_dir = self.shared / "projects" / SharedStore.encode_path("/local/test")
         new_uuid = [
             f.stem for f in target_dir.glob("*.jsonl")
             if f.stem != UUID_A
@@ -1433,7 +1433,7 @@ class ReidNonJsonlPathTests(unittest.TestCase):
         self.shared = self.root / "shared"
         self.store = SharedStore(self.shared, self.shared / "skills")
         (self.shared / "projects").mkdir(parents=True)
-        target_dir = self.shared / "projects" / encode_path("/local/test")
+        target_dir = self.shared / "projects" / SharedStore.encode_path("/local/test")
         target_dir.mkdir(parents=True)
         (target_dir / f"{UUID_A}.jsonl").write_text("{}\n")
 
@@ -1453,7 +1453,7 @@ class ReidNonJsonlPathTests(unittest.TestCase):
 
         self.assertEqual(result.sessions_reided, 1)
 
-        target_dir = self.shared / "projects" / encode_path("/local/test")
+        target_dir = self.shared / "projects" / SharedStore.encode_path("/local/test")
         new_uuid = [
             f.stem for f in target_dir.glob("*.jsonl")
             if f.stem != UUID_A

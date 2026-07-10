@@ -14,7 +14,7 @@ from pathlib import Path
 from unittest import mock
 
 from claudewheel.wizard import WizardResult, create_profile, run_profile_wizard
-from claudewheel.constants import PROFILE_SHARED_DIRS
+from claudewheel.shared_store import SharedStore
 from claudewheel import wizard as wizard_mod
 from claudewheel import profile_ops as profile_ops_mod
 from claudewheel.defaults import (
@@ -386,7 +386,7 @@ class SymlinkCreationTests(CreateProfileTestBase):
 
         profile_dir = self._profile_dir()
         shared_base = self.fake_home / ".claudewheel" / "shared"
-        for dirname in PROFILE_SHARED_DIRS:
+        for dirname in SharedStore.SHARED_SUBDIRS:
             link = profile_dir / dirname
             self.assertTrue(link.is_symlink(), f"{dirname} should be a symlink")
             target = shared_base / dirname
@@ -398,14 +398,14 @@ class SymlinkCreationTests(CreateProfileTestBase):
         create_profile(self.ws, result)
 
         shared_base = self.fake_home / ".claudewheel" / "shared"
-        for dirname in PROFILE_SHARED_DIRS:
+        for dirname in SharedStore.SHARED_SUBDIRS:
             self.assertTrue((shared_base / dirname).is_dir())
 
     def test_all_six_dirs_present(self) -> None:
         """Exactly 6 shared dirs are defined."""
-        self.assertEqual(len(PROFILE_SHARED_DIRS), 6)
+        self.assertEqual(len(SharedStore.SHARED_SUBDIRS), 6)
         expected = {"projects", "session-env", "file-history", "tasks", "todos", "paste-cache"}
-        self.assertEqual(set(PROFILE_SHARED_DIRS), expected)
+        self.assertEqual(set(SharedStore.SHARED_SUBDIRS), expected)
 
     def test_no_symlinks_when_checkbox_off(self) -> None:
         """symlink_shared=False threads through create_profile: no links created."""
@@ -413,7 +413,7 @@ class SymlinkCreationTests(CreateProfileTestBase):
         create_profile(self.ws, result)
 
         profile_dir = self._profile_dir()
-        for dirname in PROFILE_SHARED_DIRS:
+        for dirname in SharedStore.SHARED_SUBDIRS:
             self.assertFalse((profile_dir / dirname).exists(),
                              f"{dirname} should not exist")
             self.assertFalse((profile_dir / dirname).is_symlink(),
@@ -2274,12 +2274,10 @@ class TierCaptureTests(AuthFlowTestBase):
                 json.dumps(creds))
             return subprocess.CompletedProcess(cmd, 0)
 
-        from claudewheel import tokens as tokens_mod
         with mock.patch("claudewheel.wizard.run_selection", autospec=True,
                         side_effect=["session", "copy"]), \
              mock.patch("claudewheel.wizard._find_claude_binary", return_value=str(fake_binary)), \
-             mock.patch("claudewheel.wizard.subprocess.run", side_effect=fake_run), \
-             mock.patch.object(tokens_mod, "TOKENS_FILE", tokens_file):
+             mock.patch("claudewheel.wizard.subprocess.run", side_effect=fake_run):
             result = run_auth_flow(self.ws, self.locator, config_dir_str, "tiertest", THEME, self.term)
 
         self.assertEqual(result, "authenticated")
