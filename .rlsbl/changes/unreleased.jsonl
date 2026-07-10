@@ -37,3 +37,4 @@
 {"id":"18c10137656e25bd4bdc518280d444dfb36fb3ff15a6dbfc","commits":["ec97223e402c4a396142bf8835cdb3157236f144"],"user_facing":false}
 {"id":"18c101417656b95f239c050db4384415bc13f375c5e993c5","commits":["a912e275a9d5a2262de0ef382a58d4e33cf885d7"],"user_facing":true,"description":"**migrate now supports the default profile.** Session data can be migrated to and from the ~/.claude default profile; previously it errored as if the profile did not exist.","type":"fix"}
 {"id":"18c101470617f7c9de5d5c6f20214d91adbe7cd5360645fe","commits":["b33321352e0d449959dfded9615f4f4e56290cb6"],"user_facing":false}
+{"id":"18c1017278a343d991075a4f4e60456d9e1e456a32b6bf64","commits":["604843d7642dfcbc722f8d676d3092f49fa27726"],"user_facing":false}
