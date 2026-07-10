@@ -53,6 +53,27 @@ def _wizard_mocks(wizard_result, fresh_result=None):
     return patches
 
 
+class LocatorInjectionTests(unittest.TestCase):
+    """The BinaryLocator must be explicitly injected -- no None fallback.
+
+    Like the workspace, the locator is a required constructor dependency
+    threaded from the CLI dispatch boundary. There is no silent
+    ``BinaryLocator.default()`` fallback: omitting it is a hard TypeError.
+    """
+
+    def test_locator_is_required_parameter(self) -> None:
+        import inspect
+        sig = inspect.signature(app_mod.App.__init__)
+        param = sig.parameters["locator"]
+        self.assertIs(
+            param.default, inspect.Parameter.empty,
+            "App.__init__ locator must be required (no None fallback)")
+
+    def test_constructing_without_locator_raises(self) -> None:
+        with self.assertRaises(TypeError):
+            app_mod.App(mock.MagicMock())
+
+
 class WizardRefreshDiscoveryTests(unittest.TestCase):
     """After wizard creates a profile, _discover_profiles is re-run."""
 

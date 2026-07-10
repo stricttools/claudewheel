@@ -59,16 +59,14 @@ class Binding:
 class App:
     """TUI application managing the event loop, keyboard handling, and segment interaction."""
 
-    def __init__(self, workspace: Workspace, cfg: AppConfigStore | None = None,
-                 overrides: dict[str, str] | None = None,
-                 locator: "BinaryLocator | None" = None):
+    def __init__(self, workspace: Workspace, locator: "BinaryLocator",
+                 cfg: AppConfigStore | None = None,
+                 overrides: dict[str, str] | None = None):
         self.workspace = workspace
-        # The binary locator is threaded from the dispatch boundary (cli.main)
-        # so the auth paths never re-derive it. It defaults to the standard
-        # locator only when constructed outside the CLI (e.g. bare tests).
-        if locator is None:
-            from .binaries import BinaryLocator
-            locator = BinaryLocator.default()
+        # The binary locator is a required dependency, threaded from the
+        # dispatch boundary (cli.main) so the auth paths never re-derive it.
+        # Like the workspace, there is no silent fallback -- callers inject it
+        # explicitly (tests pass BinaryLocator.default()).
         self._locator = locator
         self.cfg = cfg if cfg is not None else workspace.appconfig()
         self.bar = build_segment_bar(self.cfg, skip_slow=True)
