@@ -438,11 +438,25 @@ class SymlinkCreationTests(CreateProfileTestBase):
         expected = {"projects", "session-env", "file-history", "tasks", "todos", "paste-cache"}
         self.assertEqual(set(PROFILE_SHARED_DIRS), expected)
 
-    # NOTE: symlink_shared=False no longer suppresses symlinks, and a
-    # pre-existing profile dir is now a hard error (ProfileStore.create refuses
-    # it). The old "no symlinks" and "existing symlink not overwritten" tests
-    # are superseded by tests/test_profile_store_write.py::CreateTests
-    # (test_create_artifacts, test_create_existing_dir).
+    def test_no_symlinks_when_checkbox_off(self) -> None:
+        """symlink_shared=False threads through create_profile: no links created."""
+        result = _make_result(symlink_shared=False)
+        create_profile(result, self.cfg)
+
+        profile_dir = self._profile_dir()
+        for dirname in PROFILE_SHARED_DIRS:
+            self.assertFalse((profile_dir / dirname).exists(),
+                             f"{dirname} should not exist")
+            self.assertFalse((profile_dir / dirname).is_symlink(),
+                             f"{dirname} should not be a symlink")
+        self.assertFalse((profile_dir / "skills").exists())
+        self.assertFalse((profile_dir / "skills").is_symlink())
+        # Settings still written even without symlinks.
+        self.assertTrue((profile_dir / "settings.json").exists())
+
+    # NOTE: a pre-existing profile dir is a hard error (ProfileStore.create
+    # refuses it). The old "existing symlink not overwritten" test is superseded
+    # by tests/test_profile_store_write.py::CreateTests::test_create_existing_dir.
 
 
 class OptionsRegistrationTests(CreateProfileTestBase):

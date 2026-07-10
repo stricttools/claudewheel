@@ -228,7 +228,8 @@ class ProfileStore:
         write_json_atomic(path, data)
 
     def create(self, name: str, settings: dict, *,
-               set_onboarding: bool = True) -> Profile:
+               set_onboarding: bool = True,
+               symlink_shared: bool = True) -> Profile:
         """Create a profile from FINAL *settings* content. Returns the Profile.
 
         Settings assembly (clone/defaults/checkbox overrides/hook merging) stays
@@ -236,6 +237,11 @@ class ProfileStore:
         atomic settings.json write, onboarding flag, all six shared-store
         symlinks plus skills, and options.json registration. No metadata is
         written (config_dir is never persisted -- a deliberate core decision).
+
+        *symlink_shared* mirrors the wizard's "Symlink to shared store" checkbox:
+        when False, neither the six shared-store subdir links nor the skills link
+        are created and the profile gets a plain dir (settings + registration
+        still land). When True (default), all seven links are created.
         """
         self._require_write_stores()
         assert self.shared is not None and self.options is not None  # for type-checkers
@@ -255,17 +261,19 @@ class ProfileStore:
             self._set_onboarding_flag(target)
 
         # Symlink the shared-store subdirs (+ skills), skipping existing links.
-        for sub in SharedStore.SHARED_SUBDIRS:
-            link = target / sub
-            if link.exists() or link.is_symlink():
-                continue
-            sub_target = self.shared.subdir(sub)
-            sub_target.mkdir(parents=True, exist_ok=True)
-            link.symlink_to(sub_target)
-        skills_link = target / "skills"
-        if (self.shared.skills_dir.is_dir()
-                and not skills_link.exists() and not skills_link.is_symlink()):
-            skills_link.symlink_to(self.shared.skills_dir)
+        # Skipped entirely when the caller opted out of shared symlinking.
+        if symlink_shared:
+            for sub in SharedStore.SHARED_SUBDIRS:
+                link = target / sub
+                if link.exists() or link.is_symlink():
+                    continue
+                sub_target = self.shared.subdir(sub)
+                sub_target.mkdir(parents=True, exist_ok=True)
+                link.symlink_to(sub_target)
+            skills_link = target / "skills"
+            if (self.shared.skills_dir.is_dir()
+                    and not skills_link.exists() and not skills_link.is_symlink()):
+                skills_link.symlink_to(self.shared.skills_dir)
 
         # Register in options.json (pinned). No metadata -- config_dir dropped.
         self.options.add_pinned(_PROFILE_SEGMENT, name, _OPTIONS_DEFAULT)

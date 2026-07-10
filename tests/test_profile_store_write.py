@@ -152,6 +152,21 @@ class CreateTests(_WriteBase):
         self.assertIn("alpha", profile_sec["pinned"])
         self.assertNotIn("alpha", profile_sec.get("metadata", {}))
 
+    def test_create_no_symlinks_when_disabled(self) -> None:
+        # symlink_shared=False mirrors the wizard checkbox: a plain profile dir
+        # with NO shared-store subdir links and NO skills link, while settings
+        # and options registration still land.
+        target = self.profiles_dir / "plain"
+        self.store.create("plain", self._SETTINGS, symlink_shared=False)
+        for sub in SharedStore.SHARED_SUBDIRS:
+            self.assertFalse((target / sub).exists(), sub)
+            self.assertFalse((target / sub).is_symlink(), sub)
+        self.assertFalse((target / "skills").exists())
+        self.assertFalse((target / "skills").is_symlink())
+        # Settings + registration still landed.
+        self.assertTrue((target / "settings.json").exists())
+        self.assertIn("plain", self._read_options()["profile"]["pinned"])
+
     def test_create_no_onboarding(self) -> None:
         target = self.profiles_dir / "noonb"
         self.store.create("noonb", self._SETTINGS, set_onboarding=False)

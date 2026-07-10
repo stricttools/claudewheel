@@ -257,7 +257,7 @@ def create_profile(result: WizardResult, cfg: ConfigManager) -> list[str]:
         options=OptionsFile(OPTIONS_FILE),
         state=StateFile(STATE_FILE),
     )
-    store.create(result.name, settings)
+    store.create(result.name, settings, symlink_shared=result.symlink_shared)
     config_dir = store.path_for(result.name)
 
     return [
