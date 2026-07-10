@@ -1,0 +1,55 @@
+{"id":"18c0fb8694f33944b5a79544a5e44cd993d0e9da1f123f78","commits":["d138c1ec9f6badb2a11a8e72a1002ede808f6084"],"user_facing":false}
+{"id":"18c0fb892a6f3f6b29b52012c5e94131ae01fe5b082b310f","commits":["112a3ac1d96d15e805c5f557eb42df11f37db1e1"],"user_facing":false}
+{"id":"18c0fb8b139309dbb8a24a38f3824c028f16cc42bab82ff1","commits":["1836c93c1ef66b68265c0cb6d5a847ec32eee744"],"user_facing":false}
+{"id":"18c0fbcbf1af6bf9a37e1cb2d4ba42dd88a7d4cc774cf4b9","commits":["7eeabb143976f2e6a4fed3bfab26399172468fbf"],"user_facing":false}
+{"id":"18c0fbe37bf3a0e1e2001591e9b34d118667d82d2257d4c4","commits":["efcd5c2facefa3d97ebf273f623d12858de45c61"],"user_facing":false}
+{"id":"18c0fbe4690544a48ee88862164c42c88e07a35754c03868","commits":["3f22e2e61bd5cafb75d987fec23a3349d3a08c7e"],"user_facing":false}
+{"id":"18c0fc28db6cea923499ee52b77542a9b4e6dbf3e5528491","commits":["898c64c44f1fcfa8bfbd49e65bf3ba7e43800920"],"user_facing":false}
+{"id":"18c0fc3bd70976f82fbf4bbada6346cf9741d637f25b7bdc","commits":["d08bab09ea21b7c47be94d03d4086c44ac61e850"],"user_facing":false}
+{"id":"18c0fc51e230410a22a2db50157642488f3904ee1289b8e2","commits":["b64c2ffcad315452e5d24ad0781e5f1811bf5deb"],"user_facing":false}
+{"id":"18c0fcd301f1a7eb45203478bf0e4dcfa9497cd6a0042466","commits":["3718732eb8d6168717134b098e5f814844ecbde1"],"user_facing":false}
+{"id":"18c0fcd7c040028c95449845ef63469b8de1a53e0f36ef9a","commits":["f252d8ccd1fdd4f5e40be54445ffb7ad746c7c2b"],"user_facing":false}
+{"id":"18c0fce7f3c9527f72088ddcc2b84eda90298499e8a81284","commits":["8251ad2a093007de5aeaa8485e053eb44a1f6df9"],"user_facing":false}
+{"id":"18c0fceb9a0ce2c0bc5e3d7581c946209059c60af83bc54a","commits":["8f2c8d5b9f64854cb4990c076a9744b7bcd186d6"],"user_facing":false}
+{"id":"18c0fcf08e9ddf7cea3517ba837642ef9fc31f0a80b1ba23","commits":["9292c8d690c8bae22b08862dfb64a8214757eacb"],"user_facing":false}
+{"id":"18c0fcfbf7ab3648b0a65499a4a44059abc4cac178062bb4","commits":["ab2752cd430345ecc662c10b07450604e33c1e77"],"user_facing":false}
+{"id":"18c0fd3839a25836a34eb9078cf0475fa380bb1c8b84347a","commits":["80dc690bea705fd01b4cc324cef89e6340941b95"],"user_facing":false}
+{"id":"18c0fd38415e7ed4f753ba8c900b459ea8d157e9bfd74fc8","commits":["8b77c03e5595b4fa25f5611b92ea10389c665911"],"user_facing":false}
+{"id":"18c0fd4227c7a2744dc2c0a5f25d4919adb3db5feecc519f","commits":["f296ac261996082727a5432bd9708a8f37452a16"],"user_facing":false}
+{"id":"18c0fdbd94ceddbe75df6e6a60b244da832f075ef7585838","commits":["1e5be3d2425d9edddf056e7842ce4f83ff0236b5"],"user_facing":true,"description":"**resolve_profile no longer writes.** Profile resolution performs zero filesystem writes and no terminal queries \u2014 safe on read-only mounts and headless servers.","type":"fix"}
+{"id":"18c0fdbda0ec460a794a76bd74404be486ae07fe0a35668e","commits":["1e5be3d2425d9edddf056e7842ce4f83ff0236b5"],"user_facing":true,"description":"**Corrupt tokens.json is now a hard error.** resolve_profile raises instead of silently returning an env without a token; profiles resolve purely from the on-disk layout (persisted options.json metadata is no longer consulted).","type":"breaking"}
+{"id":"18c0fdbdad0a3228a24fdc46208a44a593f62e607308a9e4","commits":["1e5be3d2425d9edddf056e7842ce4f83ff0236b5"],"user_facing":true,"description":"**CLAUDEWHEEL_CONFIG_DIR.** New env var overriding the workspace root (default ~/.claudewheel) for programmatic and containerized consumers.","type":"feature"}
+{"id":"18c0fe918312c2aa3b8f3cc06ca84965a97a8e7036a79a84","commits":["2fddd334c66a857571d1eff3ee4750a99e5adfe4"],"user_facing":false}
+{"id":"18c0fe92ec97ebc2c0810c67462c43bdae4e90d7ea2574b3","commits":["953f5cbd28a3de37aeeddc075bb50dde125249e2"],"user_facing":false}
+{"id":"18c0fe944db94221eeebf5d43ccd4a20917f17df28f3832d","commits":["9296f4d3c875259b312881e706e08108e7dbfe72"],"user_facing":false}
+{"id":"18c0ff35aa8192b4fc0d68a5639e455fbd1dc0bd9fbc5b94","commits":["acfdebf7cbefd3469004fcddf513e54979d1031d"],"user_facing":false}
+{"id":"18c1009ae2778d65fe688986b8244589b617ac570ee95a89","commits":["6da9c50f4a6c32433f1fc9e82605908c392cb985"],"user_facing":true,"description":"**Unknown or stale profile names fail launches loudly.** Launching with a profile that no longer exists raises a clear error instead of silently falling back to ~/.claude; profile locations are derived from the profile directory, never from persisted metadata.","type":"breaking"}
+{"id":"18c100aa309de67519a8f5ffe82944128aa6737e3dfb778e","commits":["21d0e5fea168edfe11c7e750a7ad210076ad63e9"],"user_facing":false}
+{"id":"18c101108a92c39f8c780481a71541c9865119383819d147","commits":["18bceeaf02f37b9698ea0d94cb8daec068233c03"],"user_facing":false}
+{"id":"18c1011b11c1148a3c16cce0f8b74fdd96ef0cba892adcab","commits":["dc98443b4714d23743be5ef3ff67d1026c1fa32f"],"user_facing":false}
+{"id":"18c1012cdba5463c13182680167246d0ad07b990353ad43b","commits":["63c611c0d601e7bd9d0912949c1cb51b2caeb6be"],"user_facing":false}
+{"id":"18c1012e6fd0a640486a8c53cc394ecfa7429e258dbd9a37","commits":["149b603922d664fad8d85eeff122c83fd83ace3c"],"user_facing":false}
+{"id":"18c1012f497aafe503e3c6098efa405799827d941b3d969e","commits":["1d39a43d30f5db73854e2c6e85f3b4e10d03a7be"],"user_facing":false}
+{"id":"18c1012fe07c8547f8f1389d6b0d467f93b38b2d06242c67","commits":["4c464b74e17141d1e62d94c43bcad225ffdec7a2"],"user_facing":false}
+{"id":"18c1013029cfe963bb22c9582494462d803a077c90314f87","commits":["56764652e8ae55f246ee23e54775fa79f73ae599"],"user_facing":false}
+{"id":"18c101340a5aa3661ce9977e43784ab1a11049f4d232d016","commits":["81be10db57ad1ed0c25b5845e509bb5001d66a4b"],"user_facing":false}
+{"id":"18c1013412649a4898c325312fe94ef7b64cfb8e45ca353c","commits":["b5a4dec5fd21fb8404e66fcd463b67d9a4abf4a5"],"user_facing":false}
+{"id":"18c10137656e25bd4bdc518280d444dfb36fb3ff15a6dbfc","commits":["ec97223e402c4a396142bf8835cdb3157236f144"],"user_facing":false}
+{"id":"18c101417656b95f239c050db4384415bc13f375c5e993c5","commits":["a912e275a9d5a2262de0ef382a58d4e33cf885d7"],"user_facing":true,"description":"**migrate now supports the default profile.** Session data can be migrated to and from the ~/.claude default profile; previously it errored as if the profile did not exist.","type":"fix"}
+{"id":"18c101470617f7c9de5d5c6f20214d91adbe7cd5360645fe","commits":["b33321352e0d449959dfded9615f4f4e56290cb6"],"user_facing":false}
+{"id":"18c1017278a343d991075a4f4e60456d9e1e456a32b6bf64","commits":["604843d7642dfcbc722f8d676d3092f49fa27726"],"user_facing":false}
+{"id":"18c1017500cc1b56d6624aab4a0148a7a046d94668c53c20","commits":["926a061821d19c154256a3a18625d9d2081a28dd","aca2cedf676cf5201206d11f149e0bc228c9c0b2"],"user_facing":true,"description":"**Health detects relocated workspace roots.** A new health check flags profile hook commands pointing at a different scripts directory than the current workspace; patch-profiles fixes them.","type":"feature"}
+{"id":"18c10179aeeff76297729879f65e49a9beac137d468baa0f","commits":["54ee1efc49301e2bb47afcc35066bc0f1f9a2051"],"user_facing":false}
+{"id":"18c102924a0fb87300354e9f383a45f4b0c67b42b3e83d98","commits":["ed9e0406af98ad4b9d947cb338ed7d9bc8c8e881"],"user_facing":false}
+{"id":"18c102b777c8629fe0ad4d996d3744f5a7f59b54de1e3c9e","commits":["a94568d6369e12d3c1b7da49464338ec55b7dca7"],"user_facing":false}
+{"id":"18c102bf505c250e20183fa9dc5640ce9e866d173211167d","commits":["499ee09acd90e3da8da542cb9a109aa66137be27"],"user_facing":false}
+{"id":"18c102c952148dd24bafac81a47e4ffcb630497a8337859d","commits":["7858064848b5dc900bfc5f41e01deaa0cddfda93"],"user_facing":false}
+{"id":"18c102d91c13953151167115b18641238eef4327b7f68e51","commits":["86e86f33747020b32e55fd9c76c3eed76c73a9b7"],"user_facing":false}
+{"id":"18c102f242c8e921b2d1cc17776e4e8fb01bab0227c72bc5","commits":["14201d9814a013083e8af58270d8056f478625c5"],"user_facing":false}
+{"id":"18c1030bc2f74bf35cffe0346fbf4dc3862f13298a7eb491","commits":["cc6ff011ffa74bb91b2f6fe57468f22f6f324cc8"],"user_facing":false}
+{"id":"18c103137f1df65d2ab0ac3696104418b6a8c2f92911aa28","commits":["c7a18e7a826b6602178c164b66e5ebbbe5ece35a"],"user_facing":false}
+{"id":"18c10802879ed81ed590b1e269464eb8b96ead7db89781b8","commits":["d4513c52cdecfabb52a6a68e11e7d10a30dd3af7"],"user_facing":false}
+{"id":"18c1080585f4f36c9a299c3a6de3458398aaa85ac971eb74","commits":["7c78f469110586afa9d86a751a5683b1d741cae3"],"user_facing":false}
+{"id":"18c1097a99617bb077a264fdac234b09820e2437cc32adfb","commits":["c4abed3e9c20d9d0fb008eaf0713c6e7c23ba098"],"user_facing":false}
+{"id":"18c109956c9e30bcf801e4a02be24d83aa8ad8d15c7a49ee","commits":["15a91795280612bf585a6890289f02da07e6945f"],"user_facing":true,"description":"**options.json no longer stores profile locations.** A one-time migration removes the legacy profile metadata block; profile locations are always derived from the profile directory.","type":"fix"}
+{"id":"18c10a1690d8f9a0d2eb534a44744d75adaef74fc302807c","commits":["eb7d4b5160eaa5d1410158595beaa3e75c3efbb1"],"user_facing":false}
