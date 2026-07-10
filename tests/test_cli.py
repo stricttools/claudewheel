@@ -1637,6 +1637,10 @@ class FixAuthTests(unittest.TestCase):
         with (
             mock.patch("claudewheel.constants.TOKENS_FILE", self.tokens_file),
             mock.patch("claudewheel.profile_ops.TOKENS_FILE", self.tokens_file),
+            # fix_auth_shadow now resolves the profile dir via profile_ops's own
+            # ProfileStore (built from profile_ops.PROFILES_DIR), replacing the
+            # deleted profile_info.config_dir_for.
+            mock.patch("claudewheel.profile_ops.PROFILES_DIR", self.profiles_dir),
             mock.patch("claudewheel.profile_info.PROFILES_DIR", self.profiles_dir),
             redirect_stdout(out),
             redirect_stderr(err),
