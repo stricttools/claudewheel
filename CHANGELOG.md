@@ -2,6 +2,14 @@
 
 # Changelog
 
+## 0.21.0
+
+Paste token option in wizard auth flow
+
+### Features
+
+- **New feature.** Wizard now offers a 'Paste token directly' option for users with pre-existing API tokens.
+
 ## 0.20.1
 
 Guardrail correctness fixes, a repaired --dump-schema/--version, and new guardrail documentation.
