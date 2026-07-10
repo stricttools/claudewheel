@@ -16,9 +16,7 @@ from unittest import mock
 from claudewheel.wizard import WizardResult, create_profile, run_profile_wizard
 from claudewheel.constants import PROFILE_SHARED_DIRS
 from claudewheel import wizard as wizard_mod
-from claudewheel import config as config_mod
 from claudewheel import profile_ops as profile_ops_mod
-from claudewheel.config import ConfigManager
 from claudewheel.defaults import (
     DEFAULT_CONFIG,
     DEFAULT_SEGMENTS,
@@ -59,7 +57,7 @@ def _make_result(
 
 
 def _init_launcher_dir(launcher_dir: Path) -> None:
-    """Populate a temp launcher dir with the minimal files ConfigManager needs."""
+    """Populate a temp launcher dir with the minimal files create_profile needs."""
     launcher_dir.mkdir(parents=True, exist_ok=True)
     themes_dir = launcher_dir / "themes"
     themes_dir.mkdir(exist_ok=True)
@@ -76,7 +74,7 @@ def _init_launcher_dir(launcher_dir: Path) -> None:
 
 
 class CreateProfileTestBase(unittest.TestCase):
-    """Base class that sets up an isolated home dir and ConfigManager."""
+    """Base class that sets up an isolated home dir for create_profile()."""
 
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
@@ -97,30 +95,17 @@ class CreateProfileTestBase(unittest.TestCase):
         os.environ["HOME"] = str(self.fake_home)
         self.addCleanup(self._restore_home)
 
-        # Patch the module-level path constants used by ConfigManager
+        # create_profile() no longer consults an AppConfigStore; it builds a
+        # ProfileStore from wizard.py's own module-level path constants. Those
+        # were captured against the real home at import, so redirect them (plus
+        # profile_ops.PROFILES_DIR) at the sandbox launcher dir.
         self.launcher_dir = self.fake_home / ".claudewheel"
         _init_launcher_dir(self.launcher_dir)
 
         self._scripts_dir = self.launcher_dir / "scripts"
         self._shared_settings_file = self.launcher_dir / "shared-settings.json"
         self._patches = [
-            mock.patch.object(config_mod, "CONFIG_DIR", self.launcher_dir),
-            mock.patch.object(config_mod, "CONFIG_FILE", self.launcher_dir / "config.json"),
-            mock.patch.object(config_mod, "SEGMENTS_FILE", self.launcher_dir / "segments.json"),
-            mock.patch.object(config_mod, "OPTIONS_FILE", self.launcher_dir / "options.json"),
-            mock.patch.object(config_mod, "STATE_FILE", self.launcher_dir / "state.json"),
-            mock.patch.object(config_mod, "THEMES_DIR", self.launcher_dir / "themes"),
-            mock.patch.object(config_mod, "HOOKS_DIR", self.launcher_dir / "hooks"),
-            mock.patch.object(config_mod, "SCRIPTS_DIR", self._scripts_dir),
-            mock.patch.object(config_mod, "SHARED_DIR", self.fake_home / ".claudewheel" / "shared"),
-            mock.patch.object(config_mod, "SHARED_SETTINGS_FILE", self._shared_settings_file),
-            # ConfigManager() (built in setUp) calls _recover_incomplete_renames(),
-            # which now builds a ProfileStore from the config module's own path
-            # constants. Redirect those so recovery never touches the real home.
             mock.patch.object(profile_ops_mod, "PROFILES_DIR", self.launcher_dir / "profiles"),
-            mock.patch.object(config_mod, "PROFILES_DIR", self.launcher_dir / "profiles"),
-            mock.patch.object(config_mod, "TOKENS_FILE", self.launcher_dir / "tokens.json"),
-            mock.patch.object(config_mod, "SKILLS_DIR", self.fake_home / ".claudewheel" / "skills"),
             # wizard.create_profile builds a ProfileStore from these constants.
             mock.patch.object(wizard_mod, "PROFILES_DIR", self.launcher_dir / "profiles"),
             mock.patch.object(wizard_mod, "SCRIPTS_DIR", self._scripts_dir),
@@ -134,8 +119,6 @@ class CreateProfileTestBase(unittest.TestCase):
         for p in self._patches:
             p.start()
             self.addCleanup(p.stop)
-
-        self.cfg = ConfigManager()
 
     def _restore_home(self) -> None:
         if self._orig_home is None:
@@ -160,13 +143,13 @@ class DirectoryCreationTests(CreateProfileTestBase):
     def test_creates_config_dir(self) -> None:
         result = _make_result(name="myprofile")
         self.assertFalse(self._profile_dir("myprofile").exists())
-        create_profile(result, self.cfg)
+        create_profile(result)
         self.assertTrue(self._profile_dir("myprofile").is_dir())
 
     def test_creates_nested_parents(self) -> None:
         """The dir is created with parents=True so intermediate dirs are fine."""
         result = _make_result(name="deep")
-        create_profile(result, self.cfg)
+        create_profile(result)
         self.assertTrue(self._profile_dir("deep").is_dir())
 
 
@@ -179,7 +162,7 @@ class SettingsFromDefaultsTests(CreateProfileTestBase):
         self._shared_settings_file.write_text(json.dumps(shared))
 
         result = _make_result(clone_from=None)
-        create_profile(result, self.cfg)
+        create_profile(result)
 
         settings = self._read_settings()
         self.assertEqual(settings["someKey"], "someValue")
@@ -189,7 +172,7 @@ class SettingsFromDefaultsTests(CreateProfileTestBase):
         """When shared-settings.json is missing, profileDefaults from
         build_canonical_shared_settings are used."""
         result = _make_result(clone_from=None)
-        create_profile(result, self.cfg)
+        create_profile(result)
 
         settings = self._read_settings()
         # profileDefaults includes permissions with deny/ask rules
@@ -208,7 +191,7 @@ class SettingsFromDefaultsTests(CreateProfileTestBase):
         self._shared_settings_file.write_text("NOT VALID JSON{{{")
 
         result = _make_result(clone_from=None)
-        create_profile(result, self.cfg)
+        create_profile(result)
 
         settings = self._read_settings()
         # Should have profileDefaults from canonical
@@ -228,7 +211,7 @@ class SettingsFromCloneTests(CreateProfileTestBase):
         (source_dir / "settings.json").write_text(json.dumps(source_settings))
 
         result = _make_result(name="cloned", clone_from="source")
-        create_profile(result, self.cfg)
+        create_profile(result)
 
         settings = self._read_settings("cloned")
         self.assertEqual(settings["clonedKey"], True)
@@ -242,7 +225,7 @@ class SettingsFromCloneTests(CreateProfileTestBase):
         # No settings.json written
 
         result = _make_result(name="cloned2", clone_from="source")
-        create_profile(result, self.cfg)
+        create_profile(result)
 
         settings = self._read_settings("cloned2")
         expected = {
@@ -257,24 +240,24 @@ class CheckboxOverridesTests(CreateProfileTestBase):
 
     def test_disable_recap_sets_away_summary(self) -> None:
         result = _make_result(disable_recap=True)
-        create_profile(result, self.cfg)
+        create_profile(result)
         self.assertFalse(self._read_settings()["awaySummaryEnabled"])
 
     def test_cleanup_10y_sets_period(self) -> None:
         result = _make_result(cleanup_10y=True)
-        create_profile(result, self.cfg)
+        create_profile(result)
         self.assertEqual(self._read_settings()["cleanupPeriodDays"], 3650)
 
     def test_disable_memory_sets_auto_memory(self) -> None:
         result = _make_result(disable_memory=True)
-        create_profile(result, self.cfg)
+        create_profile(result)
         self.assertFalse(self._read_settings()["autoMemoryEnabled"])
 
     def test_all_overrides_combined(self) -> None:
         result = _make_result(
             disable_recap=True, cleanup_10y=True, disable_memory=True
         )
-        create_profile(result, self.cfg)
+        create_profile(result)
         settings = self._read_settings()
         self.assertFalse(settings["awaySummaryEnabled"])
         self.assertEqual(settings["cleanupPeriodDays"], 3650)
@@ -286,7 +269,7 @@ class CheckboxOverridesTests(CreateProfileTestBase):
         result = _make_result(
             disable_recap=False, cleanup_10y=False, disable_memory=False
         )
-        create_profile(result, self.cfg)
+        create_profile(result)
         settings = self._read_settings()
         # profileDefaults already set these; checkboxes being off means
         # the wizard doesn't override them, so the profileDefaults values remain
@@ -303,7 +286,7 @@ class CheckboxOverridesTests(CreateProfileTestBase):
         self._shared_settings_file.write_text(json.dumps(shared))
 
         result = _make_result(disable_recap=True)
-        create_profile(result, self.cfg)
+        create_profile(result)
 
         settings = self._read_settings()
         # Override applied
@@ -317,14 +300,14 @@ class HooksWiringTests(CreateProfileTestBase):
 
     def test_hooks_written_when_enabled(self) -> None:
         result = _make_result(wire_hooks=True)
-        create_profile(result, self.cfg)
+        create_profile(result)
         settings = self._read_settings()
         self.assertIn("hooks", settings)
         self.assertEqual(settings["hooks"], self._expected_hooks())
 
     def test_no_hooks_when_disabled(self) -> None:
         result = _make_result(wire_hooks=False)
-        create_profile(result, self.cfg)
+        create_profile(result)
         settings = self._read_settings()
         self.assertNotIn("hooks", settings)
 
@@ -352,7 +335,7 @@ class HookMergeTests(CreateProfileTestBase):
         (source_dir / "settings.json").write_text(json.dumps(existing_hooks))
 
         result = _make_result(name="merged", clone_from="src", wire_hooks=True)
-        create_profile(result, self.cfg)
+        create_profile(result)
 
         expected_hooks = self._expected_hooks()
         settings = self._read_settings("merged")
@@ -385,7 +368,7 @@ class HookMergeTests(CreateProfileTestBase):
         (source_dir / "settings.json").write_text(json.dumps(existing_hooks))
 
         result = _make_result(name="nodedup", clone_from="dup", wire_hooks=True)
-        create_profile(result, self.cfg)
+        create_profile(result)
 
         settings = self._read_settings("nodedup")
         hooks_list = settings["hooks"]["UserPromptSubmit"][0]["hooks"]
@@ -400,7 +383,7 @@ class HookMergeTests(CreateProfileTestBase):
         (source_dir / "settings.json").write_text(json.dumps({"someKey": 1}))
 
         result = _make_result(name="fresh", clone_from="nohooks", wire_hooks=True)
-        create_profile(result, self.cfg)
+        create_profile(result)
 
         settings = self._read_settings("fresh")
         self.assertEqual(settings["hooks"], self._expected_hooks())
@@ -413,7 +396,7 @@ class SymlinkCreationTests(CreateProfileTestBase):
 
     def test_symlinks_created(self) -> None:
         result = _make_result(symlink_shared=True)
-        create_profile(result, self.cfg)
+        create_profile(result)
 
         profile_dir = self._profile_dir()
         shared_base = self.fake_home / ".claudewheel" / "shared"
@@ -426,7 +409,7 @@ class SymlinkCreationTests(CreateProfileTestBase):
     def test_shared_target_dirs_created(self) -> None:
         """The target directories under ~/.claudewheel/shared/ are created."""
         result = _make_result(symlink_shared=True)
-        create_profile(result, self.cfg)
+        create_profile(result)
 
         shared_base = self.fake_home / ".claudewheel" / "shared"
         for dirname in PROFILE_SHARED_DIRS:
@@ -441,7 +424,7 @@ class SymlinkCreationTests(CreateProfileTestBase):
     def test_no_symlinks_when_checkbox_off(self) -> None:
         """symlink_shared=False threads through create_profile: no links created."""
         result = _make_result(symlink_shared=False)
-        create_profile(result, self.cfg)
+        create_profile(result)
 
         profile_dir = self._profile_dir()
         for dirname in PROFILE_SHARED_DIRS:
@@ -465,7 +448,7 @@ class OptionsRegistrationTests(CreateProfileTestBase):
     def test_add_option_called(self) -> None:
         """The profile name is added to the 'profile' segment pinned list."""
         result = _make_result(name="newprof")
-        create_profile(result, self.cfg)
+        create_profile(result)
 
         # Reload options from disk to verify persistence
         options = json.loads((self.launcher_dir / "options.json").read_text())
@@ -474,7 +457,7 @@ class OptionsRegistrationTests(CreateProfileTestBase):
     def test_no_config_dir_metadata_written(self) -> None:
         """config_dir is never persisted -- no metadata entry is created."""
         result = _make_result(name="newprof")
-        create_profile(result, self.cfg)
+        create_profile(result)
 
         options = json.loads((self.launcher_dir / "options.json").read_text())
         self.assertNotIn("newprof", options["profile"].get("metadata", {}))
@@ -485,7 +468,7 @@ class SummaryLinesTests(CreateProfileTestBase):
 
     def test_summary_lines_returned(self) -> None:
         result = _make_result(name="sumtest", wire_hooks=True)
-        lines = create_profile(result, self.cfg)
+        lines = create_profile(result)
         self.assertEqual(lines[0], "Created profile 'sumtest':")
         joined = "\n".join(lines)
         self.assertIn("Config dir:", joined)
@@ -497,13 +480,13 @@ class SummaryLinesTests(CreateProfileTestBase):
         source_dir = self.fake_home / ".claudewheel" / "profiles" / "src"
         source_dir.mkdir(parents=True)
         result = _make_result(name="cloned", clone_from="src")
-        lines = create_profile(result, self.cfg)
+        lines = create_profile(result)
         self.assertIn("Settings from:  src", "\n".join(lines))
 
     def test_nothing_printed(self) -> None:
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):
-            create_profile(_make_result(name="quiet"), self.cfg)
+            create_profile(_make_result(name="quiet"))
         self.assertEqual(buf.getvalue(), "")
 
 
@@ -2131,7 +2114,7 @@ class OnboardingFlagTests(CreateProfileTestBase):
     def test_create_profile_writes_onboarding_flag(self) -> None:
         """A freshly created profile has .claude.json with hasCompletedOnboarding."""
         result = _make_result(name="onboard")
-        create_profile(result, self.cfg)
+        create_profile(result)
         cj = self._read_claude_json("onboard")
         self.assertTrue(cj.get("hasCompletedOnboarding"),
                         ".claude.json must contain hasCompletedOnboarding: true")
@@ -2414,7 +2397,7 @@ class HookMergeGapTests(CreateProfileTestBase):
 
         result = _make_result(name="mergegap", clone_from="onlyups",
                               wire_hooks=True)
-        create_profile(result, self.cfg)
+        create_profile(result)
 
         settings = self._read_settings("mergegap")
         self._assert_all_wirings(settings["hooks"])
@@ -2437,7 +2420,7 @@ class HookMergeGapTests(CreateProfileTestBase):
 
         result = _make_result(name="custmerge", clone_from="custom",
                               wire_hooks=True)
-        create_profile(result, self.cfg)
+        create_profile(result)
 
         settings = self._read_settings("custmerge")
         self._assert_all_wirings(settings["hooks"])
@@ -2450,7 +2433,7 @@ class HookMergeGapTests(CreateProfileTestBase):
         from the guardrail model and all four hook wirings."""
         from claudewheel import guardrail
         result = _make_result(name="freshcanon", wire_hooks=True)
-        create_profile(result, self.cfg)
+        create_profile(result)
 
         settings = self._read_settings("freshcanon")
         self._assert_all_wirings(settings["hooks"])

@@ -29,7 +29,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import claudewheel.discovery as disc
 import claudewheel.profile_store as ps_mod
@@ -235,7 +235,7 @@ class CreateTests(_WriteBase):
             disable_memory=False,
             disable_attribution=False,
         )
-        wiz.create_profile(result, Mock())
+        wiz.create_profile(result)
         wiz_dir = self.profiles_dir / "wizprof"
         final_settings = json.loads((wiz_dir / "settings.json").read_text())
 
