@@ -7,8 +7,10 @@ import re
 import sys
 from pathlib import Path
 
-from .discovery import discover_profiles
+from .constants import PROFILES_DIR, TOKENS_FILE
 from .fsutil import write_json_atomic
+from .profile_store import Profile, ProfileStore
+from .tokens import TokenStore
 
 _VALID_CATEGORIES = ("allow", "deny", "ask")
 _TOOL_NAME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_-]*$")
@@ -102,6 +104,22 @@ def remove_rule(data: dict, category: str, rule: str) -> str:
     return "removed"
 
 
+def _enumerate_profiles() -> list[Profile]:
+    """Enumerate profiles via a path-injected ProfileStore.
+
+    Interim call-time construction from this module's path constants (patched in
+    tests) until a later phase threads a Workspace through. Uses the default
+    ``enumerate()``, so a corrupt tokens.json raises ``TokenStoreError`` -- the
+    uniform hard-error contract; permission commands are settings.json
+    operations, but a corrupt tokens.json is a workspace-integrity problem the
+    operator must fix.
+    """
+    store = ProfileStore(
+        PROFILES_DIR, Path.home() / ".claude", TokenStore(TOKENS_FILE)
+    )
+    return store.enumerate()
+
+
 def resolve_profiles(
     profile: str | None, all_profiles: bool
 ) -> list[tuple[str, Path]]:
@@ -111,7 +129,7 @@ def resolve_profiles(
     by the caller's MutexGroup).  Prints to stderr and exits on error.
     """
     if profile is not None:
-        discovered = discover_profiles()
+        discovered = _enumerate_profiles()
         for p in discovered:
             if p.name == profile:
                 return [(p.name, p.path / "settings.json")]
@@ -119,7 +137,7 @@ def resolve_profiles(
         sys.exit(1)
 
     if all_profiles:
-        discovered = discover_profiles()
+        discovered = _enumerate_profiles()
         if not discovered:
             print("Error: no profiles found", file=sys.stderr)
             sys.exit(1)
