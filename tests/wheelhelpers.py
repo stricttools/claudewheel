@@ -70,7 +70,7 @@ def setup_temp_config_dir(
     Returns a dict mapping ``claudewheel.config`` module constant names to the
     paths inside *tmp*, suitable for :func:`patch_config_constants`. Any
     parameter left as ``None`` gets a sensible default that will not cause
-    ``ConfigManager.__post_init__`` to error. Both ``dark.json`` and
+    ``AppConfigStore.__post_init__`` to error. Both ``dark.json`` and
     ``light.json`` are always written so theme resolution (auto/light/dark)
     works regardless of the config's chosen theme.
     """

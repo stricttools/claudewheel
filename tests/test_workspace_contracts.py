@@ -7,7 +7,7 @@ has landed:
 
 1. ``resolve_profile()`` resolves a profile with ZERO filesystem writes and
    ZERO terminal I/O, so it works on a read-only bind mount / headless
-   container. Historically it constructed a full ``ConfigManager`` (now ``AppConfigStore``) whose
+   container. Historically it constructed a full ``AppConfigStore`` whose
    ``__post_init__`` ran schema migrations that wrote ``config.json`` (and, on
    first run, mkdirs + default files), so it crashed when the tree was locked
    down. This is now the LIVE contract.
