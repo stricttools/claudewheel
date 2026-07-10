@@ -7,7 +7,8 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from .constants import SHARED_DIR
+from .constants import SHARED_DIR, SKILLS_DIR
+from .shared_store import SharedStore
 
 MAX_CWD_SCAN_LINES = 10
 
@@ -67,7 +68,7 @@ def find_session(
     Returns ``None`` when no matching file exists.
     """
     if shared_projects_dir is None:
-        shared_projects_dir = SHARED_DIR / "projects"
+        shared_projects_dir = SharedStore(SHARED_DIR, SKILLS_DIR).projects_dir
 
     matches = list(shared_projects_dir.glob(f"*/{session_id}.jsonl"))
     if not matches:
@@ -97,7 +98,7 @@ def find_orphaned_project_dirs(
     :class:`OrphanedProject`.
     """
     if shared_projects_dir is None:
-        shared_projects_dir = SHARED_DIR / "projects"
+        shared_projects_dir = SharedStore(SHARED_DIR, SKILLS_DIR).projects_dir
 
     if not shared_projects_dir.is_dir():
         return []
