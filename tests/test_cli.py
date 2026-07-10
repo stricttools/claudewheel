@@ -2027,6 +2027,27 @@ class CheckTokensTests(unittest.TestCase):
         self.assertIn("valid", out)
         self.assertIn("no token", out)
 
+    def test_corrupt_tokens_clean_error_no_traceback(self) -> None:
+        """A corrupt tokens.json makes check-tokens fail cleanly: nonzero exit,
+        actionable message on stderr, no traceback (mirrors the launch path)."""
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        tokens_file = Path(tmp.name) / "tokens.json"
+        tokens_file.write_text("{ not valid json")
+
+        err = io.StringIO()
+        with (
+            mock.patch("claudewheel.constants.TOKENS_FILE", tokens_file),
+            redirect_stderr(err),
+        ):
+            rc = cli._handle_check_tokens()
+
+        self.assertNotEqual(rc, 0)
+        msg = err.getvalue()
+        self.assertIn(str(tokens_file), msg)
+        self.assertIn("corrupt", msg)
+        self.assertNotIn("Traceback", msg)
+
     def _run_with_patches(self, profiles, tokens_data, validate_fn):
         """Helper to run _handle_check_tokens with clean patches."""
         import json
