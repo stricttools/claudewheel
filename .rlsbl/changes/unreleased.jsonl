@@ -23,3 +23,4 @@
 {"id":"18c0fe92ec97ebc2c0810c67462c43bdae4e90d7ea2574b3","commits":["953f5cbd28a3de37aeeddc075bb50dde125249e2"],"user_facing":false}
 {"id":"18c0fe944db94221eeebf5d43ccd4a20917f17df28f3832d","commits":["9296f4d3c875259b312881e706e08108e7dbfe72"],"user_facing":false}
 {"id":"18c0ff35aa8192b4fc0d68a5639e455fbd1dc0bd9fbc5b94","commits":["acfdebf7cbefd3469004fcddf513e54979d1031d"],"user_facing":false}
+{"id":"18c1009ae2778d65fe688986b8244589b617ac570ee95a89","commits":["6da9c50f4a6c32433f1fc9e82605908c392cb985"],"user_facing":true,"description":"**Unknown or stale profile names fail launches loudly.** Launching with a profile that no longer exists raises a clear error instead of silently falling back to ~/.claude; profile locations are derived from the profile directory, never from persisted metadata.","type":"breaking"}
