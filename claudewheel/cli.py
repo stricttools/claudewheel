@@ -57,7 +57,7 @@ def _do_uninstall(version: str) -> int:
 def _do_reset_options() -> int:
     """Delete OPTIONS_FILE so it regenerates from defaults on next run.
 
-    Does NOT instantiate ConfigManager -- the next normal run will recreate
+    Does NOT instantiate AppConfigStore -- the next normal run will recreate
     options.json via `_ensure_dir`. Idempotent: missing file is not an error.
     """
     if OPTIONS_FILE.exists():
@@ -252,8 +252,8 @@ def _do_launch_sequence(
 # Subcommand handlers
 # ---------------------------------------------------------------------------
 # Each handler's signature must exactly match the flags/args declared for its
-# command.  Handlers that need ConfigManager instantiate it lazily (only the
-# ones that actually need it), keeping the one-shot commands fast.
+# command.  Handlers that need an AppConfigStore instantiate it lazily (only
+# the ones that actually need it), keeping the one-shot commands fast.
 
 def _handle_health() -> int:
     from .health import run_health_check, print_health_report
@@ -340,15 +340,17 @@ def _handle_new_profile() -> int:
     terminal. After the session ends, the summary and auth outcome are
     printed to stdout as a persistent record.
     """
-    from .config import ConfigManager
+    from .config import resolve_theme_name
+    from .workspace import Workspace
     from .terminal import Terminal
     from .theme import parse_theme
     from .ui import show_page
     from .wizard import run_profile_wizard, create_profile, run_auth_flow
     from .discovery import discover_profiles
 
-    cfg = ConfigManager()
-    theme = parse_theme(cfg.theme)
+    cfg = Workspace.default().appconfig()
+    theme_name = resolve_theme_name(cfg.config.get("theme", "auto"))
+    theme = parse_theme(cfg.load_theme(theme_name))
     # Requires a real TTY; a headless environment fails here, loudly.
     terminal = Terminal()
     existing = [p.name for p in discover_profiles()]
@@ -363,7 +365,7 @@ def _handle_new_profile() -> int:
             if result.cancelled:
                 cancelled = True
             else:
-                summary = create_profile(result, cfg)
+                summary = create_profile(result)
                 outcome = run_auth_flow(result.config_dir, result.name,
                                         theme, terminal)
                 show_page("Profile created", summary, theme, terminal)
@@ -591,8 +593,8 @@ def _handle_fix_auth(name: str) -> int:
 
 
 def _handle_show() -> int:
-    from .config import ConfigManager
-    cfg = ConfigManager()
+    from .workspace import Workspace
+    cfg = Workspace.default().appconfig()
     rc = _do_show(cfg)
     if rc != 0:
         sys.exit(rc)
@@ -1047,9 +1049,9 @@ def _handle_launch(
         sys.exit(1)
 
     from .app import App as TuiApp
-    from .config import ConfigManager
+    from .workspace import Workspace
 
-    cfg = ConfigManager()
+    cfg = Workspace.default().appconfig()
     enabled = cfg.config.get("enabled_segments", [])
     segment_keys = [s["key"] for s in cfg.segments_def if s["key"] in enabled]
 

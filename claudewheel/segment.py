@@ -9,12 +9,15 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from .config import ConfigManager
 from .constants import PROFILES_DIR, TOKENS_FILE
 from .fuzzy import fuzzy_rank
 from .profile_store import ProfileStore
 from .tokens import TokenStore
+
+if TYPE_CHECKING:
+    from .config import AppConfigStore
 
 NPM_CACHE_TTL = 3600  # 1 hour
 
@@ -686,7 +689,7 @@ _SEGMENT_MERGE_SPECS: dict[str, dict] = {
 }
 
 
-def build_segment_bar(cfg: ConfigManager, *, skip_slow: bool = False) -> SegmentBar:
+def build_segment_bar(cfg: "AppConfigStore", *, skip_slow: bool = False) -> SegmentBar:
     """Construct the segment bar from config, applying discovery and last-state restore."""
     enabled = cfg.config.get("enabled_segments", [])
     segments: list[Segment] = []

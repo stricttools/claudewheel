@@ -5,11 +5,15 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from .appdata import OptionsFile, StateFile
 from .profile_store import ProfileStore
 from .shared_store import SharedStore
 from .tokens import TokenStore
+
+if TYPE_CHECKING:
+    from .config import AppConfigStore
 
 
 @dataclass(frozen=True)
@@ -128,3 +132,16 @@ class Workspace:
             options=OptionsFile(self.options_file),
             state=StateFile(self.state_file),
         )
+
+    def appconfig(self) -> "AppConfigStore":
+        """Construct the workspace-backed :class:`AppConfigStore`.
+
+        This is a METHOD, not a property, because construction has side effects
+        (it ensures dirs, runs schema migrations, recovers interrupted profile
+        renames, and materializes shared-settings.json). Making the cost
+        explicit at the call site is deliberate. The import is local to avoid an
+        import cycle -- ``config`` imports workspace types for hints, so
+        workspace must not import ``config`` at module top.
+        """
+        from .config import AppConfigStore
+        return AppConfigStore(self)

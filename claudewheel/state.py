@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import json
 import os
+from typing import TYPE_CHECKING
 
 from .appdata import StateFile
-from .config import ConfigManager
 from .constants import SHARED_DIR, SKILLS_DIR, STATE_FILE
 from .fsutil import write_json_atomic
 from .shared_store import SharedStore
+
+if TYPE_CHECKING:
+    from .config import AppConfigStore
 
 # state.json key remembering the browser chosen in the auth wizard's
 # "Choose browser" form (a browser binary path, or "copy").
@@ -20,9 +23,9 @@ def load_state_value(key: str):
     """Read a single value fresh from state.json on disk.
 
     Returns None if the file is missing, unreadable, or lacks the key.
-    Unlike ConfigManager.state, this never uses an in-memory copy -- it is
+    Unlike AppConfigStore.state, this never uses an in-memory copy -- it is
     for code paths (e.g., the auth wizard) that run outside the TUI's
-    ConfigManager lifecycle.
+    AppConfigStore lifecycle.
     """
     return StateFile(STATE_FILE).get_value(key)
 
@@ -31,12 +34,12 @@ def save_state_value(key: str, value) -> None:
     """Read-modify-write a single key in state.json (atomic tmp + rename).
 
     Only *key* is touched; all other keys on disk are preserved. Counterpart
-    of load_state_value() for writers that don't hold a ConfigManager.
+    of load_state_value() for writers that don't hold an AppConfigStore.
     """
     StateFile(STATE_FILE).set_value(key, value)
 
 
-def save_launch_state(cfg: ConfigManager, selections: dict[str, str | None]) -> None:
+def save_launch_state(cfg: "AppConfigStore", selections: dict[str, str | None]) -> None:
     """Save current selections to state.json before launch."""
     # Save last_config (only non-None values)
     cfg.state["last_config"] = {k: v for k, v in selections.items() if v is not None}

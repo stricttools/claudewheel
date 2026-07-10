@@ -9,7 +9,7 @@ import threading
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from .config import ConfigManager
+from .config import AppConfigStore, resolve_theme_name
 from .segment import DiscoveryResult, Segment, build_segment_bar, evaluate_requires, merge_slow_results, run_slow_discovery_via_registry, _discover_profiles, _update_auth_from_metadata
 from .terminal import Terminal, detect_mode2031_support
 from .theme import parse_theme
@@ -55,8 +55,8 @@ class Binding:
 class App:
     """TUI application managing the event loop, keyboard handling, and segment interaction."""
 
-    def __init__(self, cfg: ConfigManager | None = None, overrides: dict[str, str] | None = None):
-        self.cfg = cfg if cfg is not None else ConfigManager()
+    def __init__(self, cfg: AppConfigStore | None = None, overrides: dict[str, str] | None = None):
+        self.cfg = cfg if cfg is not None else Workspace.default().appconfig()
         self.bar = build_segment_bar(self.cfg, skip_slow=True)
         # Apply CLI arg overrides (after last_config pre-fill, before TUI)
         if overrides:
@@ -78,7 +78,8 @@ class App:
         )
         self._slow_thread.start()
         self.terminal = Terminal()
-        self.theme = parse_theme(self.cfg.theme)
+        theme_name = resolve_theme_name(self.cfg.config.get("theme", "auto"))
+        self.theme = parse_theme(self.cfg.load_theme(theme_name))
         self.renderer = Renderer(
             self.terminal, self.theme,
             minimap_mode=self.cfg.config.get("minimap", "auto"),
@@ -429,18 +430,8 @@ class App:
 
     def _h_theme_switch(self, key: str) -> str | None:
         """Handle Mode 2031 theme-change notification."""
-        from .constants import THEMES_DIR
-        from .defaults import DEFAULT_THEME_DARK, DEFAULT_THEME_LIGHT
-
         mode = "dark" if key == "THEME_DARK" else "light"
-        theme_file = THEMES_DIR / f"{mode}.json"
-        default = DEFAULT_THEME_DARK if mode == "dark" else DEFAULT_THEME_LIGHT
-        try:
-            import json
-            with open(theme_file) as f:
-                theme_dict = json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
-            theme_dict = default
+        theme_dict = self.cfg.load_theme(mode)
         self.theme = parse_theme(theme_dict)
         self.renderer.theme = self.theme
         self.cfg.theme = theme_dict
@@ -1020,7 +1011,7 @@ class App:
         existing = [p.name for p in discover_profiles()]
         result = run_profile_wizard(existing, self.theme, self.terminal)
         if not result.cancelled:
-            summary = create_profile(result, self.cfg)
+            summary = create_profile(result)
             run_auth_flow(result.config_dir, result.name,
                           self.theme, self.terminal,
                           skip_label="Skip for now")

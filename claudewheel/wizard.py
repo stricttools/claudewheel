@@ -17,7 +17,6 @@ from .constants import (
     OPTIONS_FILE, PROFILES_DIR, SCRIPTS_DIR, STATE_FILE,
     SHARED_DIR, SHARED_SETTINGS_FILE, SKILLS_DIR, TOKENS_FILE,
 )
-from .config import ConfigManager
 from .defaults import DISALLOWED_TOOLS, build_canonical_shared_settings
 from .discovery import detect_browsers
 from .fsutil import write_json_atomic
@@ -185,16 +184,13 @@ def _set_onboarding_flag(config_dir: str) -> None:
     write_json_atomic(path, data)
 
 
-def create_profile(result: WizardResult, cfg: ConfigManager) -> list[str]:
+def create_profile(result: WizardResult) -> list[str]:
     """Execute the profile creation based on wizard results.
 
     Assembles the final settings dict (clone/defaults/checkbox overrides/hooks)
     then delegates all durable mechanics to :meth:`ProfileStore.create` --
     atomic settings.json write, onboarding flag, shared-store symlinks, and
     options.json (pinned) registration. No config_dir metadata is persisted.
-
-    *cfg* is retained for the historical signature (callers still pass it) but
-    is no longer consulted: registration lands via the store's OptionsFile.
 
     Returns the summary lines describing what was created; presentation is
     the caller's job (the TUI shows a fullscreen page, the CLI prints them).

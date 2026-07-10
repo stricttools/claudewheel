@@ -1,4 +1,13 @@
-"""Config loading, saving, and schema migration system."""
+"""The app-config store: the TUI's config/segments/options/state hub.
+
+This module owns :class:`AppConfigStore`, the workspace-backed store that
+loads and migrates the four JSON config files (config, segments, options,
+state) plus the theme files. Construction is eager (it ensures directories,
+runs schema migrations, recovers interrupted renames, and materializes
+shared-settings.json) but performs **zero terminal I/O** -- theme "auto"
+resolution lives in the module-level :func:`resolve_theme_name`, called at the
+UI boundaries, never during construction.
+"""
 
 from __future__ import annotations
 
@@ -7,21 +16,8 @@ import json
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from .constants import (
-    CONFIG_DIR,
-    CONFIG_FILE,
-    SEGMENTS_FILE,
-    OPTIONS_FILE,
-    STATE_FILE,
-    THEMES_DIR,
-    HOOKS_DIR,
-    SCRIPTS_DIR,
-    PROFILES_DIR,
-    SKILLS_DIR,
-    TOKENS_FILE,
-    SHARED_DIR,  # noqa: F401 -- re-exported; tests patch claudewheel.config.SHARED_DIR
-    SHARED_SETTINGS_FILE,
-)
+from typing import TYPE_CHECKING
+
 from .defaults import (
     DEFAULT_CONFIG,
     DEFAULT_SEGMENTS,
@@ -34,6 +30,9 @@ from .defaults import (
 from .appdata import OptionsFile, StateFile
 from .fsutil import write_json_atomic
 from .terminal import detect_terminal_background
+
+if TYPE_CHECKING:
+    from .workspace import Workspace
 
 
 # ---------------------------------------------------------------------------
@@ -160,56 +159,94 @@ _MIGRATIONS: list[dict] = [
 ]
 
 
-@dataclass
-class ConfigManager:
-    """Manages the four JSON config files (config, segments, options, state) and runs migrations on init."""
+def resolve_theme_name(theme_name: str) -> str:
+    """Resolve 'auto' theme to 'light' or 'dark' via terminal detection.
 
+    Explicit 'light' or 'dark' (or any other custom name) are returned as-is.
+    'auto' queries the terminal background color; detection failure falls back
+    to 'dark'. This performs terminal I/O and therefore lives OUTSIDE store
+    construction -- callers invoke it at the UI boundary, never during
+    :class:`AppConfigStore` init.
+    """
+    if theme_name != "auto":
+        return theme_name
+    detected = detect_terminal_background()
+    return detected if detected in ("light", "dark") else "dark"
+
+
+@dataclass
+class AppConfigStore:
+    """Workspace-backed store for the four JSON config files plus themes.
+
+    Construct it via :meth:`claudewheel.workspace.Workspace.appconfig`; all
+    paths are derived from the workspace. Construction is eager (ensure dirs,
+    load, migrate, recover renames, materialize shared-settings) but does ZERO
+    terminal I/O -- theme "auto" resolution is deferred to
+    :func:`resolve_theme_name` at the UI boundary.
+    """
+
+    workspace: "Workspace"
     config: dict = field(default_factory=dict)
     segments_def: list[dict] = field(default_factory=list)
     options_def: dict = field(default_factory=dict)
     state: dict = field(default_factory=dict)
+    # Written by the runtime theme-switch handler; never populated at
+    # construction time (the store performs no theme resolution).
     theme: dict = field(default_factory=dict)
 
     def __post_init__(self):
+        ws = self.workspace
+        self._root = ws.root
+        self._config_file = ws.config_file
+        self._segments_file = ws.segments_file
+        self._options_file = ws.options_file
+        self._state_file = ws.state_file
+        self._themes_dir = ws.themes_dir
+        self._hooks_dir = ws.hooks_dir
+        self._scripts_dir = ws.scripts_dir
+        self._shared_settings_file = ws.shared_settings_file
+
         self._ensure_dir()
-        self.config = self._load_json(CONFIG_FILE, DEFAULT_CONFIG)
-        self.segments_def = self._load_json(SEGMENTS_FILE, DEFAULT_SEGMENTS)
-        self.options_def = self._load_json(OPTIONS_FILE, DEFAULT_OPTIONS)
-        self.state = self._load_json(STATE_FILE, DEFAULT_STATE)
-        theme_name = self._resolve_theme_name(self.config.get("theme", "auto"))
-        theme_file = THEMES_DIR / f"{theme_name}.json"
-        theme_default = DEFAULT_THEME_LIGHT if theme_name == "light" else DEFAULT_THEME_DARK
-        self.theme = self._load_json(theme_file, theme_default)
-        self._migrate(theme_file, theme_default)
-        self._run_versioned_migrations(theme_file)
+        self.config = self._load_json(self._config_file, DEFAULT_CONFIG)
+        self.segments_def = self._load_json(self._segments_file, DEFAULT_SEGMENTS)
+        self.options_def = self._load_json(self._options_file, DEFAULT_OPTIONS)
+        self.state = self._load_json(self._state_file, DEFAULT_STATE)
+        self._migrate()
+        self._run_versioned_migrations()
         self._recover_incomplete_renames()
         self._ensure_shared_settings()
         self._warn_old_profile_dirs()
 
-    @staticmethod
-    def _resolve_theme_name(theme_name: str) -> str:
-        """Resolve 'auto' theme to 'light' or 'dark' via terminal detection.
+    # --- Theme access (no terminal I/O) ----------------------------------
 
-        Explicit 'light' or 'dark' are returned as-is. 'auto' queries the
-        terminal background color; detection failure falls back to 'dark'.
+    def load_theme(self, name: str) -> dict:
+        """Read ``themes/<name>.json`` and return a complete theme dict.
+
+        Uses the same default-fallback + deep-merge-missing semantics the theme
+        files get during migration, so a partial or missing file still yields a
+        fully populated theme. Pure read -- performs no writes and no terminal
+        I/O. Callers resolve *name* via :func:`resolve_theme_name` first.
         """
-        if theme_name != "auto":
-            return theme_name
-        detected = detect_terminal_background()
-        return detected if detected in ("light", "dark") else "dark"
+        theme_default = DEFAULT_THEME_LIGHT if name == "light" else DEFAULT_THEME_DARK
+        theme = self._load_json(self._themes_dir / f"{name}.json", theme_default)
+        self._deep_merge_missing(theme, theme_default)
+        return theme
 
-    @staticmethod
-    def _recover_incomplete_renames() -> None:
+    def _theme_specs(self) -> list[tuple[Path, dict]]:
+        """The (path, default) pairs for the built-in theme files.
+
+        Migrations run against BOTH files uniformly (not just a
+        terminal-resolved one), so schema fixes are deterministic and
+        mount-agnostic regardless of which theme the user ends up rendering.
+        """
+        return [
+            (self._themes_dir / "dark.json", DEFAULT_THEME_DARK),
+            (self._themes_dir / "light.json", DEFAULT_THEME_LIGHT),
+        ]
+
+    def _recover_incomplete_renames(self) -> None:
         """Finish any interrupted profile renames (crash recovery)."""
-        from .profile_store import ProfileStore
-        from .shared_store import SharedStore
-        from .tokens import TokenStore
-        ProfileStore(
-            PROFILES_DIR, Path.home() / ".claude", TokenStore(TOKENS_FILE),
-            shared=SharedStore(SHARED_DIR, SKILLS_DIR),
-            options=OptionsFile(OPTIONS_FILE),
-            state=StateFile(STATE_FILE),
-        ).recover_incomplete_renames()
+        self.workspace.profiles.recover_incomplete_renames()
 
     @staticmethod
     def _warn_old_profile_dirs() -> None:
@@ -236,22 +273,22 @@ class ConfigManager:
 
     def _ensure_shared_settings(self) -> None:
         """Create shared-settings.json from canonical values if it doesn't exist."""
-        if not SHARED_SETTINGS_FILE.exists():
-            canonical = build_canonical_shared_settings(SCRIPTS_DIR)
-            write_json_atomic(SHARED_SETTINGS_FILE, canonical)
+        if not self._shared_settings_file.exists():
+            canonical = build_canonical_shared_settings(self._scripts_dir)
+            write_json_atomic(self._shared_settings_file, canonical)
 
     def _ensure_dir(self):
         """Create config directories and write default files on first run."""
-        CONFIG_DIR.mkdir(exist_ok=True)
-        THEMES_DIR.mkdir(exist_ok=True)
-        HOOKS_DIR.mkdir(exist_ok=True)
+        self._root.mkdir(exist_ok=True)
+        self._themes_dir.mkdir(exist_ok=True)
+        self._hooks_dir.mkdir(exist_ok=True)
         for path, default in [
-            (CONFIG_FILE, DEFAULT_CONFIG),
-            (SEGMENTS_FILE, DEFAULT_SEGMENTS),
-            (OPTIONS_FILE, DEFAULT_OPTIONS),
-            (STATE_FILE, DEFAULT_STATE),
-            (THEMES_DIR / "dark.json", DEFAULT_THEME_DARK),
-            (THEMES_DIR / "light.json", DEFAULT_THEME_LIGHT),
+            (self._config_file, DEFAULT_CONFIG),
+            (self._segments_file, DEFAULT_SEGMENTS),
+            (self._options_file, DEFAULT_OPTIONS),
+            (self._state_file, DEFAULT_STATE),
+            (self._themes_dir / "dark.json", DEFAULT_THEME_DARK),
+            (self._themes_dir / "light.json", DEFAULT_THEME_LIGHT),
         ]:
             if not path.exists():
                 write_json_atomic(path, default)
@@ -263,7 +300,7 @@ class ConfigManager:
         except (FileNotFoundError, json.JSONDecodeError):
             return default
 
-    def _migrate(self, theme_file: Path, theme_default: dict) -> None:
+    def _migrate(self) -> None:
         """Add missing default keys to existing config files on startup.
 
         Only adds keys that are absent — never overwrites existing user values.
@@ -277,7 +314,7 @@ class ConfigManager:
                 self.config[key] = value
                 changed = True
         if changed:
-            write_json_atomic(CONFIG_FILE, self.config)
+            write_json_atomic(self._config_file, self.config)
 
         # 2. segments.json — list of dicts matched by "key" field
         seg_by_key = {s["key"]: s for s in self.segments_def if "key" in s}
@@ -292,12 +329,13 @@ class ConfigManager:
                     user_seg[attr] = value
                     changed = True
         if changed:
-            write_json_atomic(SEGMENTS_FILE, self.segments_def)
+            write_json_atomic(self._segments_file, self.segments_def)
 
-        # 3. theme file — nested dict, recursively merge missing keys
-        changed = self._deep_merge_missing(self.theme, theme_default)
-        if changed:
-            write_json_atomic(theme_file, self.theme)
+        # 3. theme files — merge missing keys into BOTH dark.json and light.json
+        for theme_file, theme_default in self._theme_specs():
+            theme = self._load_json(theme_file, theme_default)
+            if self._deep_merge_missing(theme, theme_default):
+                write_json_atomic(theme_file, theme)
 
         # 4. options.json -- sync default model values into user's list
         default_models = DEFAULT_OPTIONS.get("model", {}).get("values", [])
@@ -305,34 +343,53 @@ class ConfigManager:
         new_models = [m for m in default_models if m not in user_models]
         if new_models:
             user_models.extend(new_models)
-            OptionsFile(OPTIONS_FILE).write(self.options_def)
+            OptionsFile(self._options_file).write(self.options_def)
 
-    def _run_versioned_migrations(self, theme_file: Path) -> None:
+    def _run_versioned_migrations(self) -> None:
         """Run schema-versioned migrations that change existing values.
 
         Complements _migrate() which only adds missing keys. Versioned
         migrations can mutate values and run exactly once per version bump.
+        Theme migrations run against BOTH theme files uniformly: the primary
+        pass mutates config/segments/options plus the first theme file, and
+        secondary passes apply only theme changes to the remaining files (using
+        throwaway copies of config/segments/options so they are not mutated
+        twice).
         """
         current_version = self.config.get("_schema_version", 0)
         highest_applied = current_version
         config_changed = False
         segments_changed = False
-        theme_changed = False
         options_changed = False
+
+        themes = [
+            (theme_file, theme_default, self._load_json(theme_file, theme_default))
+            for theme_file, theme_default in self._theme_specs()
+        ]
+        theme_before = [json.dumps(t[2], sort_keys=True) for t in themes]
 
         for migration in _MIGRATIONS:
             if migration["version"] > current_version:
-                # Snapshot segments/theme/options to detect mutations
+                # Snapshot segments/options to detect mutations
                 seg_before = json.dumps(self.segments_def, sort_keys=True)
-                theme_before = json.dumps(self.theme, sort_keys=True)
                 options_before = json.dumps(self.options_def, sort_keys=True)
 
-                migration["apply"](self.config, self.segments_def, self.theme, self.options_def)
+                # Primary pass: config/segments/options + the first theme file.
+                migration["apply"](
+                    self.config, self.segments_def, themes[0][2], self.options_def
+                )
+                # Secondary passes: remaining theme files only. Copies keep
+                # config/segments/options from being mutated more than once.
+                for _tf, _td, tdict in themes[1:]:
+                    migration["apply"](
+                        copy.deepcopy(self.config),
+                        copy.deepcopy(self.segments_def),
+                        tdict,
+                        copy.deepcopy(self.options_def),
+                    )
 
                 if json.dumps(self.segments_def, sort_keys=True) != seg_before:
                     segments_changed = True
-                if json.dumps(self.theme, sort_keys=True) != theme_before:
-                    theme_changed = True
                 if json.dumps(self.options_def, sort_keys=True) != options_before:
                     options_changed = True
 
@@ -343,13 +400,14 @@ class ConfigManager:
             config_changed = True
 
         if config_changed:
-            write_json_atomic(CONFIG_FILE, self.config)
+            write_json_atomic(self._config_file, self.config)
         if segments_changed:
-            write_json_atomic(SEGMENTS_FILE, self.segments_def)
-        if theme_changed:
-            write_json_atomic(theme_file, self.theme)
+            write_json_atomic(self._segments_file, self.segments_def)
         if options_changed:
-            OptionsFile(OPTIONS_FILE).write(self.options_def)
+            OptionsFile(self._options_file).write(self.options_def)
+        for (theme_file, _td, tdict), before in zip(themes, theme_before):
+            if json.dumps(tdict, sort_keys=True) != before:
+                write_json_atomic(theme_file, tdict)
 
     @staticmethod
     def _deep_merge_missing(target: dict, defaults: dict) -> bool:
@@ -363,13 +421,13 @@ class ConfigManager:
                 target[key] = copy.deepcopy(default_value)
                 changed = True
             elif isinstance(target[key], dict) and isinstance(default_value, dict):
-                if ConfigManager._deep_merge_missing(target[key], default_value):
+                if AppConfigStore._deep_merge_missing(target[key], default_value):
                     changed = True
         return changed
 
     def add_option(self, segment_key: str, value: str) -> None:
         """Add a new option value to the pinned list in options.json for the given segment."""
-        self.options_def = OptionsFile(OPTIONS_FILE).add_pinned(
+        self.options_def = OptionsFile(self._options_file).add_pinned(
             segment_key, value, self.options_def
         )
 
@@ -381,4 +439,4 @@ class ConfigManager:
         auth_browser directly to disk while the TUI holds its own in-memory
         state loaded at startup; this merge ensures that value survives.
         """
-        StateFile(STATE_FILE).save(self.state)
+        StateFile(self._state_file).save(self.state)
