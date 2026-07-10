@@ -7,9 +7,11 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from .appdata import OptionsFile
 from .constants import OPTIONS_FILE, PROFILES_DIR, TOKENS_FILE
 from .discovery import classify_shared_dirs
-from .tokens import TokenExpiry, compute_expiry, parse_entry
+from .profile_store import ProfileStore
+from .tokens import TokenExpiry, TokenStore, TokenStoreError, parse_entry
 
 
 @dataclass
@@ -38,23 +40,20 @@ class ProfileReport:
     disk_usage_bytes: int = 0
 
 
-def config_dir_for(name: str) -> Path:
-    """Resolve a profile name to its config directory.
+def _profile_store() -> ProfileStore:
+    """Build a path-injected ProfileStore from this module's path constants.
 
-    The "default" profile is Claude Code's built-in ~/.claude, not a
-    claudewheel profile dir (mirrors discovery and segment metadata).
+    Interim call-time construction until a later phase threads a Workspace
+    through; patching the module constants in tests still redirects it.
     """
-    if name == "default":
-        return Path.home() / ".claude"
-    return PROFILES_DIR / name
+    return ProfileStore(
+        PROFILES_DIR, Path.home() / ".claude", TokenStore(TOKENS_FILE)
+    )
 
 
 def _read_options_registration(name: str) -> tuple[bool, bool]:
     """Return (registered, pinned) for *name* from options.json."""
-    try:
-        options = json.loads(OPTIONS_FILE.read_text())
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
-        return False, False
+    options = OptionsFile(OPTIONS_FILE).load({})
     profile_sec = options.get("profile", {})
     return (
         name in profile_sec.get("values", []),
@@ -64,18 +63,20 @@ def _read_options_registration(name: str) -> tuple[bool, bool]:
 
 def _read_token_state(name: str) -> tuple[bool, TokenExpiry | None,
                                           str | None, str | None]:
-    """Return (has_token, expiry, tier, subscription) for *name* from tokens.json."""
-    try:
-        tokens = json.loads(TOKENS_FILE.read_text())
-        mtime = TOKENS_FILE.stat().st_mtime
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
-        return False, None, None, None
+    """Return (has_token, expiry, tier, subscription) for *name* from tokens.json.
+
+    A corrupt tokens.json raises :class:`TokenStoreError` (the hard-error
+    contract): profile inspection is a CLI command, so token corruption is a
+    workspace-integrity problem the operator must fix, never a silent skip.
+    """
+    store = TokenStore(TOKENS_FILE)
+    tokens = store.load()
     if name not in tokens:
         return False, None, None, None
     entry = tokens[name]
     tier = entry.get("rateLimitTier") if isinstance(entry, dict) else None
     subscription = entry.get("subscriptionType") if isinstance(entry, dict) else None
-    return True, compute_expiry(entry, mtime), tier, subscription
+    return True, store.expiry_for(name), tier, subscription
 
 
 def _count_active_sessions(config_dir: Path) -> int:
@@ -153,16 +154,19 @@ def detect_auth_shadow(name: str) -> bool:
 
     Lightweight check usable from both gather_profile_info and health checks.
     """
-    # Check tokens.json for a valid entry
+    # Token read tolerates a corrupt tokens.json (returns False). This helper is
+    # shared with health checks, which carry the tokens-corruption carve-out;
+    # gather_profile_info calls _read_token_state first, so the CLI inspection
+    # path still hard-errors on corrupt tokens before ever reaching here.
     try:
-        tokens = json.loads(TOKENS_FILE.read_text())
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        tokens = TokenStore(TOKENS_FILE).load()
+    except TokenStoreError:
         return False
     if parse_entry(tokens.get(name)) is None:
         return False
 
     # Check .credentials.json for claudeAiOauth
-    config_dir = config_dir_for(name)
+    config_dir = _profile_store().path_for(name)
     creds_path = config_dir / ".credentials.json"
     if not creds_path.exists():
         return False
@@ -179,7 +183,7 @@ def gather_profile_info(name: str) -> ProfileReport:
     Never raises for unknown profiles: callers check report.exists /
     report.registered / report.has_token to decide how to present one.
     """
-    config_dir = config_dir_for(name)
+    config_dir = _profile_store().path_for(name)
     exists = config_dir.is_dir()
     registered, pinned = _read_options_registration(name)
     has_token, token_expiry, rate_limit_tier, subscription_type = _read_token_state(name)

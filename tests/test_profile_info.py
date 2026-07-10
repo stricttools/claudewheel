@@ -234,12 +234,14 @@ class GatherUnknownAndDefaultTests(ProfileInfoFixture):
         self.assertEqual(report.shared_dirs, {})
 
     def test_default_config_dir(self) -> None:
-        self.assertEqual(profile_info.config_dir_for("default"),
-                         Path.home() / ".claude")
+        # Name->dir resolution now lives in ProfileStore.path_for; profile_info
+        # builds the store from its patched module constants at call time.
+        store = profile_info._profile_store()
+        self.assertEqual(store.path_for("default"), Path.home() / ".claude")
 
     def test_named_config_dir(self) -> None:
-        self.assertEqual(profile_info.config_dir_for("work"),
-                         self.profiles_dir / "work")
+        store = profile_info._profile_store()
+        self.assertEqual(store.path_for("work"), self.profiles_dir / "work")
 
 
 class GatherTierTests(ProfileInfoFixture):

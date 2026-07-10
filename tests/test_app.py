@@ -412,7 +412,7 @@ class AuthInterceptTests(unittest.TestCase):
             },
         )
 
-        from claudewheel.profile_info import config_dir_for
+        from claudewheel.workspace import Workspace
 
         with mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="authenticated") as mock_flow, \
              mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result) as mock_disc, \
@@ -420,9 +420,10 @@ class AuthInterceptTests(unittest.TestCase):
             outcome = app._intercept_unauth(seg)
 
         self.assertEqual(outcome, "authenticated")
-        # config_dir is derived from the profile name via config_dir_for.
+        # config_dir is derived from the profile name via ProfileStore.path_for.
+        expected_dir = str(Workspace.default().profiles.path_for("noauth"))
         mock_flow.assert_called_once_with(
-            str(config_dir_for("noauth")), "noauth",
+            expected_dir, "noauth",
             app.theme, app.terminal,
             skip_label="Launch without auth")
         mock_disc.assert_called_once_with({}, {})

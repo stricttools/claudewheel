@@ -883,13 +883,13 @@ class App:
         and updates auth status. Returns the auth flow outcome:
         "authenticated", "unverified", "skip", "cancel", or "failed".
         """
-        from .profile_info import config_dir_for
         from .wizard import run_auth_flow
 
         profile_name = seg.value
-        # config_dir is derived from the profile name, never from persisted
-        # metadata (which no longer carries it).
-        config_dir = str(config_dir_for(profile_name))
+        # config_dir is derived from the profile name via the ProfileStore's
+        # single path_for convention, never from persisted metadata (which no
+        # longer carries it).
+        config_dir = str(Workspace.default().profiles.path_for(profile_name))
 
         outcome = run_auth_flow(config_dir, profile_name,
                                 self.theme, self.terminal,
