@@ -6,7 +6,9 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+from .appdata import OptionsFile, StateFile
 from .profile_store import ProfileStore
+from .shared_store import SharedStore
 from .tokens import TokenStore
 
 
@@ -112,9 +114,17 @@ class Workspace:
 
     @property
     def profiles(self) -> ProfileStore:
-        """The path-injected ProfileStore over this workspace's profiles + tokens."""
-        return ProfileStore(self.profiles_dir, self.claude_dir, self.tokens)
+        """The path-injected ProfileStore over this workspace's profiles + tokens.
 
-    # NOTE: shared-store / appconfig accessors are added by a later
-    # phase; they will live here, each returning a path-injected facade built
-    # from the properties above.
+        Wires ALL write-path stores (shared/options/state) so the store's write
+        operations (create/delete/rename/recover) are usable; the read APIs work
+        with or without them.
+        """
+        return ProfileStore(
+            self.profiles_dir,
+            self.claude_dir,
+            self.tokens,
+            shared=SharedStore(self.shared_dir, self.skills_dir),
+            options=OptionsFile(self.options_file),
+            state=StateFile(self.state_file),
+        )
