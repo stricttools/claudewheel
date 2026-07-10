@@ -570,3 +570,48 @@ class RenameTests(_WriteBase):
         # Malformed breadcrumbs are left in place (tolerant, like the old code).
         self.assertTrue((bad / _RENAME_PENDING_FILE).exists())
         self.assertTrue((missing / _RENAME_PENDING_FILE).exists())
+
+    # --- recovery through the REAL boundary ------------------------------
+
+    def test_recovery_runs_via_appconfig_construction(self) -> None:
+        """Recovery fires through the REAL boundary, not just a direct call.
+
+        The crash-window tests above invoke ``recover_incomplete_renames()``
+        directly. In production, recovery is triggered by constructing the app
+        config store: ``AppConfigStore.__post_init__`` calls
+        ``workspace.profiles.recover_incomplete_renames()``. This pins that
+        wiring: seed an interrupted rename (dir moved, breadcrumb present,
+        tokens/options/state still on 'old'), then build the store via
+        ``Workspace.appconfig()`` and assert -- purely from the recovered on-disk
+        state -- that the rename was rolled forward and the breadcrumb cleared.
+        """
+        self._seed()
+        # Crash after the directory rename but before token migration: leaves the
+        # 'new' dir with a pending breadcrumb; the roll-forward completes it.
+        with patch.object(
+            self.store.token_store, "rename", side_effect=OSError("boom")
+        ):
+            with self.assertRaises(OSError):
+                self.store.rename("old", "new")
+        self.assertTrue((self.profiles_dir / "new" / _RENAME_PENDING_FILE).exists())
+
+        # REAL boundary: constructing the app config store runs recovery in
+        # __post_init__ -- no direct recover_incomplete_renames() call here.
+        Workspace.default().appconfig()
+
+        # Assert via the recovered state -- only the migration-independent facts
+        # that recovery itself owns (the store's __post_init__ migrations run
+        # BEFORE recovery and legitimately drop the options 'metadata' section,
+        # which is orthogonal to rename recovery, so _assert_clean_rename's
+        # metadata check does not apply through this boundary):
+        #   - directory rolled forward (new present, old gone)
+        #   - no pending breadcrumb left anywhere
+        #   - token entry migrated old -> new
+        #   - last_config profile migrated old -> new
+        self.assertTrue((self.profiles_dir / "new").is_dir())
+        self.assertFalse((self.profiles_dir / "old").exists())
+        self._assert_no_breadcrumbs()
+        tokens = self._read_tokens()
+        self.assertIn("new", tokens)
+        self.assertNotIn("old", tokens)
+        self.assertEqual(self._read_state()["last_config"]["profile"], "new")
