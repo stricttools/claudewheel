@@ -21,12 +21,14 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 - **claudewheel** (`claudewheel/__init__.py`): Package version detection from package.json or installed metadata.
 - **claudewheel.__main__** (`claudewheel/__main__.py`): Entry point for `python -m claudewheel` invocation.
 - **claudewheel.app** (`claudewheel/app.py`): TUI event loop, keyboard dispatch, and segment interaction.
+- **claudewheel.appdata** (`claudewheel/appdata.py`): Atomic single-owner accessors for options.json and state.json.
 - **claudewheel.auth** (`claudewheel/auth.py`): Validate OAuth tokens against the Anthropic API and extract them from captured output.
+- **claudewheel.binaries** (`claudewheel/binaries.py`): Locate installed Claude Code binaries and the active `claude` symlink.
 - **claudewheel.cli** (`claudewheel/cli.py`): CLI argument parsing, subcommand routing, and launch orchestration.
-- **claudewheel.config** (`claudewheel/config.py`): Config loading, saving, and schema migration system.
-- **claudewheel.constants** (`claudewheel/constants.py`): Filesystem paths, ANSI escape sequences, and terminal color helpers.
+- **claudewheel.config** (`claudewheel/config.py`): The app-config store: the TUI's config/segments/options/state hub.
+- **claudewheel.constants** (`claudewheel/constants.py`): ANSI escape sequences and terminal color helpers.
 - **claudewheel.defaults** (`claudewheel/defaults.py`): Default values for config, segments, options, state, and themes; canonical permission rules and hook wiring are derived from the guardrail model.
-- **claudewheel.discovery** (`claudewheel/discovery.py`): Scan the filesystem for Claude Code profiles and their credentials.
+- **claudewheel.discovery** (`claudewheel/discovery.py`): Detect installed web browsers across native, flatpak, and snap sources.
 - **claudewheel.fsutil** (`claudewheel/fsutil.py`): Atomic file writes that preserve or enforce target permissions.
 - **claudewheel.fuzzy** (`claudewheel/fuzzy.py`): Score, rank, and highlight fuzzy matches between queries and option lists.
 - **claudewheel.guardrail** (`claudewheel/guardrail.py`): Canonical guardrail protocol model.
@@ -42,12 +44,14 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 - **claudewheel.permission** (`claudewheel/permission.py`): Core logic for managing profile permission rules.
 - **claudewheel.profile** (`claudewheel/profile.py`): Resolve a profile name to CLAUDE_CONFIG_DIR and OAuth token env vars.
 - **claudewheel.profile_info** (`claudewheel/profile_info.py`): Gather and format a detailed inspection report for a single profile.
-- **claudewheel.profile_ops** (`claudewheel/profile_ops.py`): Delete profiles and clean up their dirs, tokens, and options.
+- **claudewheel.profile_ops** (`claudewheel/profile_ops.py`): Profile auth-shadow repair and running-state detection.
+- **claudewheel.profile_store** (`claudewheel/profile_store.py`): Path-injected profile enumeration and env resolution beside discovery.
 - **claudewheel.pty_runner** (`claudewheel/pty_runner.py`): Run a child process under a PTY, proxying the real terminal and capturing its output.
 - **claudewheel.reconcile** (`claudewheel/reconcile.py`): Reconcile profile and shared-settings permissions toward the canonical model.
 - **claudewheel.renderer** (`claudewheel/renderer.py`): Draw the segment bar, fan-out options, minimap, and scroll arrows.
 - **claudewheel.segment** (`claudewheel/segment.py`): Segment and SegmentBar dataclasses, option discovery, and cross-segment constraints.
 - **claudewheel.session** (`claudewheel/session.py`): Session lookup: locate session JSONL files and extract metadata.
+- **claudewheel.shared_store** (`claudewheel/shared_store.py`): Thin path owner for the ~/.claudewheel/shared store layout.
 - **claudewheel.state** (`claudewheel/state.py`): Save selections, launch count, and recent directories to state.json.
 - **claudewheel.stats** (`claudewheel/stats.py`): Report shared-store statistics and clean up legacy data.
 - **claudewheel.terminal** (`claudewheel/terminal.py`): Raw terminal I/O: cbreak mode, escape sequence decoding, and alt screen.
@@ -55,6 +59,7 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 - **claudewheel.tokens** (`claudewheel/tokens.py`): Parse, expire, and write OAuth token entries in ~/.claudewheel/tokens.json.
 - **claudewheel.ui** (`claudewheel/ui.py`): Themed widget layer: form fields, a form runner, and fullscreen pages.
 - **claudewheel.wizard** (`claudewheel/wizard.py`): Interactive form wizard for creating and configuring new profiles.
+- **claudewheel.workspace** (`claudewheel/workspace.py`): Workspace: the single root object owning all claudewheel filesystem paths.
 
 ## Commands
 

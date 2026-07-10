@@ -2,7 +2,7 @@
   "schema_version": 1,
   "name": "claudewheel",
   "slug": "claudewheel",
-  "version": "0.20.1",
+  "version": "0.21.0",
   "description": "TUI launcher for Claude Code: pick a profile, model, directory, and permissions from a segment bar, then launch.",
   "language": "python",
   "base_url": "https://claudewheel.smmh.dev",
@@ -18,8 +18,18 @@
       "type": "doc"
     },
     {
+      "path": "claudewheel-appdata.md",
+      "title": "claudewheel.appdata",
+      "type": "doc"
+    },
+    {
       "path": "claudewheel-auth.md",
       "title": "claudewheel.auth",
+      "type": "doc"
+    },
+    {
+      "path": "claudewheel-binaries.md",
+      "title": "claudewheel.binaries",
       "type": "doc"
     },
     {
@@ -128,6 +138,11 @@
       "type": "doc"
     },
     {
+      "path": "claudewheel-profile_store.md",
+      "title": "claudewheel.profile_store",
+      "type": "doc"
+    },
+    {
       "path": "claudewheel-pty_runner.md",
       "title": "claudewheel.pty_runner",
       "type": "doc"
@@ -150,6 +165,11 @@
     {
       "path": "claudewheel-session.md",
       "title": "claudewheel.session",
+      "type": "doc"
+    },
+    {
+      "path": "claudewheel-shared_store.md",
+      "title": "claudewheel.shared_store",
       "type": "doc"
     },
     {
@@ -185,6 +205,11 @@
     {
       "path": "claudewheel-wizard.md",
       "title": "claudewheel.wizard",
+      "type": "doc"
+    },
+    {
+      "path": "claudewheel-workspace.md",
+      "title": "claudewheel.workspace",
       "type": "doc"
     },
     {
@@ -299,5 +324,5 @@
     }
   ],
   "posts": [],
-  "last_gen": "2026-07-10T08:26:09.960967+00:00"
+  "last_gen": "2026-07-10T21:12:46.256458+00:00"
 }

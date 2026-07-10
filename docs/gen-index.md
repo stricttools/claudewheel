@@ -1,7 +1,8 @@
 ---
 title: API Reference
-description: "Auto-generated API reference index for the selfdoc package — browse all public modules with their docstrings and source locations."
+description: "API reference index for claudewheel covering 42 modules"
 generated: true
+seeded: true
 nav_group: "API Reference"
 nav_order: 0
 order: 90
@@ -13,7 +14,9 @@ order: 90
 - [claudewheel](claudewheel.html)
 - [claudewheel.__main__](claudewheel-__main__.html)
 - [claudewheel.app](claudewheel-app.html)
+- [claudewheel.appdata](claudewheel-appdata.html)
 - [claudewheel.auth](claudewheel-auth.html)
+- [claudewheel.binaries](claudewheel-binaries.html)
 - [claudewheel.cli](claudewheel-cli.html)
 - [claudewheel.config](claudewheel-config.html)
 - [claudewheel.constants](claudewheel-constants.html)
@@ -35,11 +38,13 @@ order: 90
 - [claudewheel.profile](claudewheel-profile.html)
 - [claudewheel.profile_info](claudewheel-profile_info.html)
 - [claudewheel.profile_ops](claudewheel-profile_ops.html)
+- [claudewheel.profile_store](claudewheel-profile_store.html)
 - [claudewheel.pty_runner](claudewheel-pty_runner.html)
 - [claudewheel.reconcile](claudewheel-reconcile.html)
 - [claudewheel.renderer](claudewheel-renderer.html)
 - [claudewheel.segment](claudewheel-segment.html)
 - [claudewheel.session](claudewheel-session.html)
+- [claudewheel.shared_store](claudewheel-shared_store.html)
 - [claudewheel.state](claudewheel-state.html)
 - [claudewheel.stats](claudewheel-stats.html)
 - [claudewheel.terminal](claudewheel-terminal.html)
@@ -47,3 +52,4 @@ order: 90
 - [claudewheel.tokens](claudewheel-tokens.html)
 - [claudewheel.ui](claudewheel-ui.html)
 - [claudewheel.wizard](claudewheel-wizard.html)
+- [claudewheel.workspace](claudewheel-workspace.html)
