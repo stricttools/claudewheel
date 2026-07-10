@@ -19,7 +19,7 @@ Scenario accounting (relative to the pre-facade ResolveProfileTests):
 - ADDED (1): read-only resolution against a chmod-locked (0o555 dirs / 0o444
   files) sandbox workspace, proving zero-write resolution.
 
-No mock of ConfigManager (or any other production symbol) remains in this file.
+No mock of AppConfigStore (or any other production symbol) remains in this file.
 """
 
 from __future__ import annotations

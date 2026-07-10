@@ -7,7 +7,7 @@ has landed:
 
 1. ``resolve_profile()`` resolves a profile with ZERO filesystem writes and
    ZERO terminal I/O, so it works on a read-only bind mount / headless
-   container. Historically it constructed a full ``ConfigManager`` whose
+   container. Historically it constructed a full ``ConfigManager`` (now ``AppConfigStore``) whose
    ``__post_init__`` ran schema migrations that wrote ``config.json`` (and, on
    first run, mkdirs + default files), so it crashed when the tree was locked
    down. This is now the LIVE contract.
@@ -67,7 +67,7 @@ def _set_tree_mode(root: Path, dir_mode: int, file_mode: int) -> None:
 def _build_fake_home(home: Path, *, tokens: str | dict | None) -> Path:
     """Populate *home* with a complete ~/.claudewheel tree and profile 'alpha'.
 
-    Creates every dir/file ConfigManager.__post_init__ would otherwise create,
+    Creates every dir/file AppConfigStore.__post_init__ would otherwise create,
     so a read-only tree cannot be "fixed" by _ensure_dir writing missing files.
     Returns the alpha profile dir.
     """
@@ -117,20 +117,11 @@ class _FakeHomeMixin:
         import claudewheel.config as cfg_mod
         import claudewheel.discovery as disc_mod
 
-        config_consts = {
-            "CONFIG_DIR": cw,
-            "CONFIG_FILE": cw / "config.json",
-            "SEGMENTS_FILE": cw / "segments.json",
-            "OPTIONS_FILE": cw / "options.json",
-            "STATE_FILE": cw / "state.json",
-            "THEMES_DIR": cw / "themes",
-            "HOOKS_DIR": cw / "hooks",
-            "SCRIPTS_DIR": cw / "scripts",
-            "SHARED_SETTINGS_FILE": cw / "shared-settings.json",
-        }
+        # resolve_profile resolves via Workspace.default(), which derives every
+        # path from Path.home()/.claudewheel -- so poisoning Path.home + $HOME
+        # is the whole redirection. The discovery-module constants are patched
+        # defensively (some helpers still reference them).
         patches = [patch_obj for patch_obj in (
-            *[mock.patch.object(cfg_mod, name, value)
-              for name, value in config_consts.items()],
             mock.patch.object(disc_mod, "PROFILES_DIR", cw / "profiles"),
             mock.patch.object(disc_mod, "TOKENS_FILE", cw / "tokens.json"),
             mock.patch.object(Path, "home", classmethod(lambda cls: home)),
@@ -167,7 +158,7 @@ class ReadOnlyResolutionContractTests(_FakeHomeMixin, unittest.TestCase):
         self._tmp.cleanup()
 
     def test_readonly_resolution_zero_writes_zero_tty(self) -> None:
-        """Historically RED: ConfigManager's schema migration tried to write
+        """Historically RED: the config store's schema migration tried to write
         config.json into the chmod-locked tree -> PermissionError [Errno 13]
         Permission denied (the fixture locks perms via chmod, it is not a
         read-only mount, so the errno is 13, not 30) (verified undecorated).

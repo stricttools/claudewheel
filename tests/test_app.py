@@ -868,9 +868,9 @@ class ApplySlowDiscoverySaveStateTests(unittest.TestCase):
         state_file = self.state_file
 
         class _StubCfg:
-            """ConfigManager stand-in: wholesale save_state like the real one.
+            """AppConfigStore stand-in: wholesale save_state like the real one.
 
-            Mirrors the out-of-band merge logic in ConfigManager.save_state().
+            Mirrors the out-of-band merge logic in AppConfigStore.save_state().
             """
 
             def __init__(self) -> None:

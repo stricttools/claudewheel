@@ -130,7 +130,7 @@ class DoResetOptionsTests(unittest.TestCase):
 
 
 class _FakeCfg:
-    """Minimal ConfigManager stand-in -- only the attributes touched by tested helpers."""
+    """Minimal AppConfigStore stand-in -- only the attributes touched by tested helpers."""
 
     def __init__(
         self,
@@ -273,7 +273,7 @@ class PrintModeTests(unittest.TestCase):
         )
 
     def _run_main(self, argv: list[str], last_config: dict | None = None) -> mock.MagicMock:
-        """Invoke cli.main() with patched argv, ConfigManager, and _do_launch_sequence.
+        """Invoke cli.main() with patched argv, AppConfigStore, and _do_launch_sequence.
 
         Returns the mock for _do_launch_sequence so callers can inspect call args.
         strictcli's app.run() calls sys.exit(0) after the handler, so we catch that.
@@ -283,7 +283,7 @@ class PrintModeTests(unittest.TestCase):
 
         with (
             mock.patch("sys.argv", argv),
-            mock.patch("claudewheel.config.ConfigManager", return_value=fake_cfg),
+            mock.patch("claudewheel.config.AppConfigStore", return_value=fake_cfg),
             mock.patch("claudewheel.cli._do_launch_sequence", launch_mock),
             mock.patch("os.getcwd", return_value="/test/dir"),
         ):
@@ -339,7 +339,7 @@ class PrintModeTests(unittest.TestCase):
                 "-s", "version=2.1.116",
                 "--directory", "/some/dir",
             ]),
-            mock.patch("claudewheel.config.ConfigManager", return_value=fake_cfg),
+            mock.patch("claudewheel.config.AppConfigStore", return_value=fake_cfg),
             mock.patch("claudewheel.cli._do_launch_sequence", launch_mock),
             mock.patch("claudewheel.cli._check_cont_session"),
             mock.patch("os.getcwd", return_value="/test/dir"),
@@ -379,7 +379,7 @@ class PrintModeTests(unittest.TestCase):
 
         with (
             mock.patch("sys.argv", ["c", "-p", "test"]),
-            mock.patch("claudewheel.config.ConfigManager", return_value=fake_cfg),
+            mock.patch("claudewheel.config.AppConfigStore", return_value=fake_cfg),
             mock.patch("claudewheel.cli._do_launch_sequence", launch_mock),
             mock.patch("os.getcwd", return_value="/test/dir"),
             redirect_stderr(err),
@@ -404,7 +404,7 @@ class PrintModeTests(unittest.TestCase):
 
         with (
             mock.patch("sys.argv", ["c", "-p", "test"]),
-            mock.patch("claudewheel.config.ConfigManager", return_value=fake_cfg),
+            mock.patch("claudewheel.config.AppConfigStore", return_value=fake_cfg),
             mock.patch("claudewheel.cli._do_launch_sequence", launch_mock),
             mock.patch("os.getcwd", return_value="/test/dir"),
             redirect_stderr(err),
@@ -434,7 +434,7 @@ class LaunchCorruptTokensTests(unittest.TestCase):
     """A corrupt tokens.json on the launch path fails cleanly.
 
     Exercises the real _do_launch_sequence -> resolve_launch_config path (only
-    ConfigManager and run_hooks are stubbed) so the TokenStoreError raised while
+    AppConfigStore and run_hooks are stubbed) so the TokenStoreError raised while
     reading tokens.json propagates to the _handle_launch boundary, which must
     print a clean, actionable message and exit nonzero -- never a traceback.
     """
@@ -465,7 +465,7 @@ class LaunchCorruptTokensTests(unittest.TestCase):
         err = io.StringIO()
         with (
             mock.patch("sys.argv", ["c", "--profile", "work", "-p", "hi"]),
-            mock.patch("claudewheel.config.ConfigManager", return_value=fake_cfg),
+            mock.patch("claudewheel.config.AppConfigStore", return_value=fake_cfg),
             mock.patch("claudewheel.hooks.run_hooks", return_value=True),
             mock.patch.object(cli, "TOKENS_FILE", tokens_file),
             mock.patch("os.getcwd", return_value="/test/dir"),
@@ -520,7 +520,7 @@ class LaunchStaleProfileTests(unittest.TestCase):
         err = io.StringIO()
         with (
             mock.patch("sys.argv", ["c", "--profile", "work", "-p", "hi"]),
-            mock.patch("claudewheel.config.ConfigManager", return_value=fake_cfg),
+            mock.patch("claudewheel.config.AppConfigStore", return_value=fake_cfg),
             mock.patch("claudewheel.hooks.run_hooks", return_value=True),
             mock.patch.object(cli, "PROFILES_DIR", profiles_dir),
             mock.patch.object(cli, "TOKENS_FILE", tokens_file),
@@ -596,7 +596,7 @@ class DuplicateSetKeyTests(unittest.TestCase):
         launch_mock = mock.MagicMock()
         with (
             mock.patch("sys.argv", argv),
-            mock.patch("claudewheel.config.ConfigManager", return_value=fake_cfg),
+            mock.patch("claudewheel.config.AppConfigStore", return_value=fake_cfg),
             mock.patch("claudewheel.cli._do_launch_sequence", launch_mock),
             mock.patch("os.getcwd", return_value="/test/dir"),
         ):
@@ -691,7 +691,7 @@ class PickerFlagTests(unittest.TestCase):
         launch_mock = mock.MagicMock()
         with (
             mock.patch("sys.argv", argv),
-            mock.patch("claudewheel.config.ConfigManager", return_value=fake_cfg),
+            mock.patch("claudewheel.config.AppConfigStore", return_value=fake_cfg),
             mock.patch("claudewheel.cli._do_launch_sequence", launch_mock),
             mock.patch("os.getcwd", return_value="/test/dir"),
         ):
@@ -1039,7 +1039,7 @@ class CheckResumeSessionTests(unittest.TestCase):
                 "-s", "version=2.1.116",
                 "--directory", "/some/dir",
             ]),
-            mock.patch("claudewheel.config.ConfigManager", return_value=fake_cfg),
+            mock.patch("claudewheel.config.AppConfigStore", return_value=fake_cfg),
             mock.patch("claudewheel.cli._do_launch_sequence", mock.MagicMock()),
             mock.patch("claudewheel.cli._check_resume_session") as mock_check,
             mock.patch("os.getcwd", return_value="/test/dir"),
@@ -1266,7 +1266,7 @@ class NewProfileFlowTests(unittest.TestCase):
         self._patches = {
             "terminal_cls": mock.patch(
                 "claudewheel.terminal.Terminal", return_value=self.terminal),
-            "config": mock.patch("claudewheel.config.ConfigManager"),
+            "config": mock.patch("claudewheel.config.AppConfigStore"),
             "discover": mock.patch(
                 "claudewheel.discovery.discover_profiles", return_value=[]),
             "wizard": mock.patch(
@@ -1284,8 +1284,11 @@ class NewProfileFlowTests(unittest.TestCase):
             self.mocks[name] = p.start()
             self.addCleanup(p.stop)
 
-        # parse_theme runs for real on the mocked ConfigManager's theme dict
-        self.mocks["config"].return_value.theme = DEFAULT_THEME_DARK
+        # _handle_new_profile resolves theme at the boundary: an explicit
+        # "dark" avoids a terminal query, and load_theme feeds parse_theme
+        # (which runs for real) the default dark theme dict.
+        self.mocks["config"].return_value.config = {"theme": "dark"}
+        self.mocks["config"].return_value.load_theme.return_value = DEFAULT_THEME_DARK
 
         wizard_result = mock.MagicMock()
         wizard_result.cancelled = False
