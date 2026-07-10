@@ -589,10 +589,11 @@ class EnterFromNameSubmitsTests(WizardTUITestBase):
         self.assertIsNone(result.clone_from)
 
     def test_config_dir_matches_name(self) -> None:
-        """Config dir should reflect the typed name."""
+        """Config dir should be the live workspace's real profile path."""
         keys = list("myname") + ["ENTER"]
         result = self._run_wizard(keys)
-        self.assertEqual(result.config_dir, "~/.claudewheel/profiles/myname")
+        self.assertEqual(result.config_dir,
+                         str(self.ws.profiles.path_for("myname")))
 
 
 class EnterOnEmptyNameTests(WizardTUITestBase):
@@ -949,6 +950,88 @@ class KeyExhaustionSafetyTests(WizardTUITestBase):
         keys = list("some")  # No ENTER or ESC -- keys will run out
         result = self._run_wizard(keys)
         self.assertTrue(result.cancelled)
+
+
+class RelocatedWorkspaceConfigDirTests(unittest.TestCase):
+    """WizardResult.config_dir must track the LIVE workspace root.
+
+    Under a relocated CLAUDEWHEEL_CONFIG_DIR the profile is created at
+    <workspace-root>/profiles/<name> (ProfileStore.path_for), and auth runs
+    against WizardResult.config_dir. If config_dir is a hardcoded
+    ``~/.claudewheel/profiles/<name>`` literal, the two point at DIFFERENT
+    directories under a relocated root -- the profile ends up unauthenticated.
+    These tests pin config_dir to ws.profiles.path_for(name).
+    """
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        base = Path(self._tmp.name)
+
+        # HOME is sandboxed to a location that is NOT the workspace root, so a
+        # hardcoded "~/.claudewheel/..." literal expands somewhere DIFFERENT
+        # from the relocated workspace root.
+        self.fake_home = base / "home"
+        self.fake_home.mkdir(parents=True)
+        self._orig_home = os.environ.get("HOME")
+        os.environ["HOME"] = str(self.fake_home)
+        self.addCleanup(self._restore_home)
+        self._home_patch = mock.patch.object(Path, "home", return_value=self.fake_home)
+        self._home_patch.start()
+        self.addCleanup(self._home_patch.stop)
+
+        # Relocated workspace root, deliberately NOT under ~/.claudewheel.
+        self.relocated_root = base / "relocated-root"
+        self.relocated_root.mkdir(parents=True)
+        (self.relocated_root / "profiles").mkdir()
+
+        from claudewheel.workspace import Workspace
+        self.ws = Workspace.open(self.relocated_root,
+                                 claude_dir=self.relocated_root / ".claude")
+
+        self._signal_patch = mock.patch(
+            "claudewheel.ui.signal.signal", return_value=signal.SIG_DFL,
+        )
+        self._signal_patch.start()
+        self.addCleanup(self._signal_patch.stop)
+
+    def _restore_home(self) -> None:
+        if self._orig_home is None:
+            os.environ.pop("HOME", None)
+        else:
+            os.environ["HOME"] = self._orig_home
+
+    def test_config_dir_is_relocated_path(self) -> None:
+        """config_dir must be the relocated profile path, not a home literal."""
+        term = FakeTerminal(list("relocated") + ["ENTER"])
+        result = run_profile_wizard(self.ws, [], THEME, term)
+        self.assertFalse(result.cancelled)
+        expected = str(self.ws.profiles.path_for("relocated"))
+        self.assertEqual(result.config_dir, expected)
+        # The functional value must be a real absolute path (expanduser no-op).
+        self.assertTrue(os.path.isabs(result.config_dir))
+        self.assertEqual(
+            str(Path(result.config_dir).expanduser()), result.config_dir)
+        # It must NOT be the hardcoded home literal.
+        self.assertNotIn("~", result.config_dir)
+        self.assertTrue(result.config_dir.startswith(str(self.relocated_root)))
+
+    def test_create_and_auth_target_same_dir(self) -> None:
+        """create_profile and the auth-flow config_dir point at one directory."""
+        _init_launcher_dir(self.relocated_root)
+        term = FakeTerminal(list("samedir") + ["ENTER"])
+        result = run_profile_wizard(self.ws, [], THEME, term)
+        self.assertFalse(result.cancelled)
+
+        with contextlib.redirect_stdout(io.StringIO()):
+            create_profile(self.ws, result)
+
+        created_dir = self.ws.profiles.path_for("samedir")
+        self.assertTrue(created_dir.is_dir())
+        # run_auth_flow uses Path(config_dir).expanduser() to locate the config
+        # dir; that must resolve to the directory create_profile just made.
+        auth_target = Path(result.config_dir).expanduser()
+        self.assertEqual(auth_target, created_dir)
 
 
 class AuthFlowTestBase(unittest.TestCase):

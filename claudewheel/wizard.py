@@ -55,6 +55,32 @@ class WizardResult:
     cancelled: bool = False
 
 
+def _real_config_dir(ws: "Workspace", name: str) -> str:
+    """The FUNCTIONAL config dir: a real absolute path string for *name*.
+
+    Derived from the live workspace (``ws.profiles.path_for``), so it honors a
+    relocated workspace root. This is the value stored in
+    ``WizardResult.config_dir`` and consumed by the auth flow -- it must be a
+    real path, never a ``~`` literal (auth expanduser's it, and expanduser on an
+    absolute path is a no-op).
+    """
+    return str(ws.profiles.path_for(name))
+
+
+def _display_config_dir(ws: "Workspace", name: str) -> str:
+    """Cosmetic rendering of the config dir for readonly form fields/messages.
+
+    Shows the REAL path, home-compressed to ``~/...`` only when it actually
+    lives under the user's home (purely for readability). Never used
+    functionally -- WizardResult.config_dir always carries the real path.
+    """
+    real = _real_config_dir(ws, name)
+    home = str(Path.home())
+    if real == home or real.startswith(home + os.sep):
+        return "~" + real[len(home):]
+    return real
+
+
 def _validate_name(ws: "Workspace", name: str, existing_profiles: list[str]) -> str | None:
     """Return error message, or None if valid."""
     name = name.strip()
@@ -64,15 +90,15 @@ def _validate_name(ws: "Workspace", name: str, existing_profiles: list[str]) -> 
         return "Use lowercase letters, digits, hyphens only"
     if name == "default":
         return f"'{name}' is a reserved name"
-    config_dir = (ws.profiles_dir / name).expanduser()
+    config_dir = ws.profiles.path_for(name)
     if config_dir.exists():
-        return f"~/.claudewheel/profiles/{name} already exists"
+        return f"{_display_config_dir(ws, name)} already exists"
     if name in existing_profiles:
         return f"Profile '{name}' already registered"
     return None
 
 
-def _build_fields(existing_profiles: list[str]) -> list[FormField]:
+def _build_fields(ws: "Workspace", existing_profiles: list[str]) -> list[FormField]:
     """Build the ordered list of wizard form fields."""
     radio_opts = [_DEFAULTS_TEMPLATE] + existing_profiles
 
@@ -80,15 +106,14 @@ def _build_fields(existing_profiles: list[str]) -> list[FormField]:
         return get_field(fields, "advanced").value == "Show advanced"
 
     def sync_config_dir(fields: list[FormField]) -> None:
-        name = get_field(fields, "name").value or ""
-        get_field(fields, "config_dir").value = \
-            f"~/.claudewheel/profiles/{name}"
+        name = str(get_field(fields, "name").value or "")
+        get_field(fields, "config_dir").value = _display_config_dir(ws, name)
 
     fields = [
         FormField("name", "text", label="Name", value="",
                   on_change=sync_config_dir),
         FormField("config_dir", "readonly", label="Config dir",
-                  value="~/.claudewheel/profiles/"),
+                  value=_display_config_dir(ws, "")),
         FormField("settings_source", "radio", label="Settings source",
                   value=radio_opts[0], options=radio_opts),
         FormField("advanced", "radio", label="Advanced",
@@ -102,14 +127,14 @@ def _build_fields(existing_profiles: list[str]) -> list[FormField]:
     return fields
 
 
-def _build_result(values: dict[str, object]) -> WizardResult:
+def _build_result(ws: "Workspace", values: dict[str, object]) -> WizardResult:
     """Construct a WizardResult from submitted form values."""
     name = str(values["name"]).strip()
     source = values["settings_source"]
     clone = None if source == _DEFAULTS_TEMPLATE else source
     return WizardResult(
         name=name,
-        config_dir=f"~/.claudewheel/profiles/{name}",
+        config_dir=_real_config_dir(ws, name),
         clone_from=clone,
         wire_hooks=bool(values["wire_hooks"]),
         symlink_shared=bool(values["symlink_shared"]),
@@ -133,7 +158,7 @@ def run_profile_wizard(ws: "Workspace", existing_profiles: list[str], theme,
     The form renders on *terminal* with *theme* colors via the ui widget
     layer: fullscreen, borrowed when the terminal is already raw.
     """
-    fields = _build_fields(existing_profiles)
+    fields = _build_fields(ws, existing_profiles)
 
     def validate(fields: list[FormField]) -> str | None:
         name = str(get_field(fields, "name").value or "").strip()
@@ -143,7 +168,7 @@ def run_profile_wizard(ws: "Workspace", existing_profiles: list[str], theme,
                       validate=validate)
     if values is None:
         return _cancelled_result()
-    return _build_result(values)
+    return _build_result(ws, values)
 
 
 def _load_shared_settings(ws: "Workspace") -> dict:
