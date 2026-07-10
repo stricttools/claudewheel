@@ -1932,6 +1932,12 @@ class RenameProfileHandlerTests(unittest.TestCase):
 
         self._patches = [
             mock.patch.object(cli, "OPTIONS_FILE", self.options_file),
+            # _handle_rename_profile does `from .constants import TOKENS_FILE`
+            # at call time, so it reads constants.TOKENS_FILE (unpatched here it
+            # hits the real ~/.claudewheel/tokens.json). Contain it, and contain
+            # profile_ops' PROFILES_DIR used by _is_profile_running/rename.
+            mock.patch("claudewheel.constants.TOKENS_FILE", self.tokens_file),
+            mock.patch("claudewheel.profile_ops.PROFILES_DIR", self.profiles_dir),
         ]
         for p in self._patches:
             p.start()
