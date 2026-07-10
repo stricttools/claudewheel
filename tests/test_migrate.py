@@ -346,6 +346,46 @@ class MigrateSessionsTests(unittest.TestCase):
         orig_jsonl = self.src_dir / "projects" / "myproj" / f"{UUID_A}.jsonl"
         self.assertTrue(orig_jsonl.exists())
 
+    def _run_migrate_with_default(self, *args, **kwargs):
+        """Run migrate_sessions with PROFILES_DIR and Path.home patched.
+
+        The Path.home patch makes path_for("default") resolve to the sandbox's
+        ~/.claude rather than the real home.
+        """
+        profiles = self.home / ".claudewheel" / "profiles"
+        with patch.object(migrate_mod, "PROFILES_DIR", profiles), \
+             patch.object(Path, "home", return_value=self.home):
+            return migrate_sessions(*args, **kwargs)
+
+    def test_migrate_to_default(self) -> None:
+        """Session data migrates INTO the ~/.claude default profile."""
+        self._populate_src()  # alpha holds artifacts
+        default_dir = self.home / ".claude"
+        (default_dir / "projects" / "myproj").mkdir(parents=True)
+
+        result = self._run_migrate_with_default("alpha", "default")
+
+        self.assertEqual(result.uuids_found, 1)
+        moved = default_dir / "projects" / "myproj" / f"{UUID_A}.jsonl"
+        self.assertTrue(moved.exists())
+        orig = self.src_dir / "projects" / "myproj" / f"{UUID_A}.jsonl"
+        self.assertFalse(orig.exists())
+
+    def test_migrate_from_default(self) -> None:
+        """Session data migrates OUT of the ~/.claude default profile."""
+        default_dir = self.home / ".claude"
+        proj = default_dir / "projects" / "myproj"
+        proj.mkdir(parents=True)
+        (proj / f"{UUID_A}.jsonl").write_text('{"msg":"hi"}')
+        (self.dst_dir / "projects" / "myproj").mkdir(parents=True)
+
+        result = self._run_migrate_with_default("default", "beta")
+
+        self.assertEqual(result.uuids_found, 1)
+        moved = self.dst_dir / "projects" / "myproj" / f"{UUID_A}.jsonl"
+        self.assertTrue(moved.exists())
+        self.assertFalse((proj / f"{UUID_A}.jsonl").exists())
+
 
 if __name__ == "__main__":
     unittest.main()

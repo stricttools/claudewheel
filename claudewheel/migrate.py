@@ -7,7 +7,9 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
-from .constants import PROFILES_DIR
+from .constants import PROFILES_DIR, TOKENS_FILE
+from .profile_store import ProfileStore
+from .tokens import TokenStore
 
 UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 # Dirs whose direct children are keyed by UUID
@@ -119,9 +121,17 @@ def migrate_sessions(
     uuid_filter: str | None = None,
     dry_run: bool = False,
 ) -> MigrateResult:
-    """Migrate session artifacts from src_profile to dst_profile."""
-    src = PROFILES_DIR / src_profile
-    dst = PROFILES_DIR / dst_profile
+    """Migrate session artifacts from src_profile to dst_profile.
+
+    Profile names resolve through :meth:`ProfileStore.path_for`, so ``"default"``
+    (Claude Code's built-in ``~/.claude``) is a valid source or destination in
+    either direction.
+    """
+    store = ProfileStore(
+        PROFILES_DIR, Path.home() / ".claude", TokenStore(TOKENS_FILE)
+    )
+    src = store.path_for(src_profile)
+    dst = store.path_for(dst_profile)
     result = MigrateResult()
 
     if not src.is_dir():
