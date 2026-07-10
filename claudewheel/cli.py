@@ -9,7 +9,7 @@ import strictcli
 from strictcli import App, Arg, CoRequired, Flag, FlagSet, MutexGroup
 
 from . import __version__
-from .constants import CONFIG_DIR, OPTIONS_FILE, PROFILES_DIR, SCRIPTS_DIR, SKILLS_DIR, STATE_FILE, VERSIONS_DIR, CLAUDE_SYMLINK, SHARED_DIR, TOKENS_FILE, encode_path
+from .constants import CONFIG_DIR, OPTIONS_FILE, PROFILES_DIR, SCRIPTS_DIR, SKILLS_DIR, STATE_FILE, VERSIONS_DIR, CLAUDE_SYMLINK, SHARED_DIR, TOKENS_FILE
 from .segment import version_sort_key
 
 # Passthrough args after "--" are stashed here by main() before strictcli sees argv.
@@ -157,6 +157,13 @@ def _write_tier_stub(profile: str | None, config_dir: str | None) -> None:
         write_json_atomic_secret(creds_path, existing)
     except OSError:
         pass
+
+
+def _shared_store():
+    """Build a SharedStore from cli-module path constants (call-time so tests
+    patching SHARED_DIR/SKILLS_DIR redirect it at a sandbox)."""
+    from .shared_store import SharedStore
+    return SharedStore(SHARED_DIR, SKILLS_DIR)
 
 
 def _profile_store():
@@ -446,16 +453,14 @@ def _handle_rename_profile(old: str, new: str) -> int:
     ValueErrors are mapped to the same error-print + exit-1 style.
     """
     import re
+    from .appdata import OptionsFile
     from .constants import PROFILES_DIR, TOKENS_FILE
     from .profile_ops import _is_profile_running
+    from .tokens import TokenStore, TokenStoreError
 
     # Validate old exists
     old_dir = PROFILES_DIR / old
-    try:
-        import json as _json
-        options = _json.loads(OPTIONS_FILE.read_text())
-    except (FileNotFoundError, _json.JSONDecodeError, OSError):
-        options = {}
+    options = OptionsFile(OPTIONS_FILE).load({})
     profile_sec = options.get("profile", {})
     registered = old in profile_sec.get("values", []) or old in profile_sec.get("pinned", [])
     if not registered and not old_dir.is_dir():
@@ -484,10 +489,10 @@ def _handle_rename_profile(old: str, new: str) -> int:
         print(f"Profile '{new}' already registered in options.", file=sys.stderr)
         sys.exit(1)
     try:
-        import json as _json
-        tokens = _json.loads(TOKENS_FILE.read_text())
-    except (FileNotFoundError, _json.JSONDecodeError, OSError):
-        tokens = {}
+        tokens = TokenStore(TOKENS_FILE).load()
+    except TokenStoreError as e:
+        print(str(e), file=sys.stderr)
+        sys.exit(1)
     if new in tokens:
         print(f"Profile '{new}' already has a token entry.", file=sys.stderr)
         sys.exit(1)
@@ -511,17 +516,19 @@ def _handle_rename_profile(old: str, new: str) -> int:
 
 def _handle_check_tokens() -> int:
     """Validate stored tokens for all discovered profiles against the Anthropic API."""
-    import json
     from .constants import TOKENS_FILE
     from .discovery import discover_profiles
-    from .tokens import parse_entry
+    from .tokens import TokenStore, TokenStoreError, parse_entry
     from .auth import validate_token, VALID, INVALID, UNREACHABLE, INDETERMINATE
 
-    # Load tokens.json
+    # Load tokens.json via TokenStore. A corrupt/unreadable file raises
+    # TokenStoreError -- catch it narrowly here so the user sees the actionable
+    # message and a nonzero exit, never a traceback (mirrors the launch path).
     try:
-        tokens = json.loads(TOKENS_FILE.read_text())
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
-        tokens = {}
+        tokens = TokenStore(TOKENS_FILE).load()
+    except TokenStoreError as e:
+        print(str(e), file=sys.stderr)
+        return 1
 
     profiles = discover_profiles()
     if not profiles:
@@ -833,9 +840,11 @@ def _check_resume_session(session_id: str, directory: str) -> None:
     """
     from .session import find_session
 
+    store = _shared_store()
+
     # Step 1: Check if session exists under the current directory
-    encoded_cwd = encode_path(os.path.abspath(directory))
-    expected_path = SHARED_DIR / "projects" / encoded_cwd / f"{session_id}.jsonl"
+    encoded_cwd = store.encode_path(os.path.abspath(directory))
+    expected_path = store.projects_dir / encoded_cwd / f"{session_id}.jsonl"
     if expected_path.exists():
         return  # Claude Code will find it
 
@@ -865,7 +874,7 @@ def _check_resume_session(session_id: str, directory: str) -> None:
 
     # Step 4: Confirmed rename -- old path gone, session found under old encoded dir
     current_dir = os.path.abspath(directory)
-    old_project_dir = SHARED_DIR / "projects" / info.encoded_cwd
+    old_project_dir = store.projects_dir / info.encoded_cwd
     jsonl_files = list(old_project_dir.glob("*.jsonl")) if old_project_dir.is_dir() else []
     n = len(jsonl_files)
     size_bytes = sum(f.stat().st_size for f in jsonl_files)
@@ -927,11 +936,12 @@ def _check_cont_session(directory: str) -> None:
     """
     from .session import find_orphaned_project_dirs
 
+    store = _shared_store()
     current_dir = os.path.abspath(directory)
 
     # Step 1: Check if sessions exist under the current directory
-    encoded_cwd = encode_path(current_dir)
-    project_dir = SHARED_DIR / "projects" / encoded_cwd
+    encoded_cwd = store.encode_path(current_dir)
+    project_dir = store.projects_dir / encoded_cwd
     if project_dir.is_dir() and list(project_dir.glob("*.jsonl")):
         return  # Claude Code will find sessions
 
