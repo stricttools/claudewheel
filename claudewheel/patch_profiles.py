@@ -26,11 +26,28 @@ import json
 from copy import deepcopy
 from pathlib import Path
 
-from .constants import SCRIPTS_DIR, SHARED_SETTINGS_FILE
+from .constants import PROFILES_DIR, SCRIPTS_DIR, SHARED_SETTINGS_FILE, TOKENS_FILE
 from .defaults import DISALLOWED_TOOLS, build_canonical_shared_settings
-from .discovery import discover_profiles
 from .fsutil import write_json_atomic
 from .hook_scripts import HOOK_SCRIPTS, deploy_scripts
+from .profile_store import Profile, ProfileStore
+from .tokens import TokenStore, TokenStoreError
+
+
+def _discovered_profiles() -> list[Profile]:
+    """Enumerate profiles via ProfileStore, tolerating a corrupt tokens.json.
+
+    Built at call time from this module's path constants (patched by tests) plus
+    Claude Code's built-in ``~/.claude``. A corrupt tokens.json is swallowed to
+    ``{}`` here (patch-profiles is additive maintenance, not token resolution),
+    matching the historical discovery tolerance.
+    """
+    store = ProfileStore(PROFILES_DIR, Path.home() / ".claude", TokenStore(TOKENS_FILE))
+    try:
+        tokens = store.token_store.load()
+    except TokenStoreError:
+        tokens = {}
+    return store.enumerate(tokens)
 
 
 def _script_basename(command: str) -> str:
@@ -39,12 +56,22 @@ def _script_basename(command: str) -> str:
 
 
 def merge_hooks(existing: dict, canonical: dict) -> list[str]:
-    """Additively merge canonical hooks into *existing* (mutated in place).
+    """Merge canonical hooks into *existing* (mutated in place).
 
     Canonical entries are matched to existing ones by their "matcher" field.
-    Individual hooks are de-duplicated by script basename, so a profile that
-    already wires a script under a different absolute path is left untouched.
-    Returns a list of human-readable descriptions of every hook added.
+    Individual canonical hooks are matched to existing ones by script basename:
+
+    - a canonical hook whose basename is absent is APPENDED;
+    - a canonical hook whose basename is present but whose command points at a
+      DIFFERENT (stale) absolute path is REPATHED in place to the canonical
+      command -- this is how a workspace relocation is healed, so a profile whose
+      hook commands reference an old scripts directory is brought to the current
+      one without duplicating the entry.
+
+    Only claudewheel-managed wirings (those in *canonical*) are ever touched;
+    user-custom, non-canonical hooks are matched by neither basename nor matcher
+    and so are preserved exactly. Returns human-readable descriptions of every
+    hook added or repathed.
     """
     added: list[str] = []
     for event, canonical_entries in canonical.items():
@@ -66,16 +93,29 @@ def merge_hooks(existing: dict, canonical: dict) -> list[str]:
                     added.append(f"{event}[{label}] {_script_basename(h.get('command', ''))}")
                 continue
             target_hooks = target.setdefault("hooks", [])
-            present = {
-                _script_basename(h.get("command", ""))
-                for h in target_hooks if isinstance(h, dict)
-            }
             for h in c_hooks:
                 base = _script_basename(h.get("command", ""))
-                if base and base not in present:
+                if not base:
+                    continue
+                canonical_cmd = h.get("command", "")
+                matches = [
+                    th for th in target_hooks
+                    if isinstance(th, dict)
+                    and _script_basename(th.get("command", "")) == base
+                ]
+                if not matches:
                     target_hooks.append(deepcopy(h))
-                    present.add(base)
                     added.append(f"{event}[{label}] {base}")
+                    continue
+                # Same script already wired; repath any stale absolute path so a
+                # relocated workspace points back at the current scripts dir.
+                for th in matches:
+                    if th.get("command", "") != canonical_cmd:
+                        old_cmd = th.get("command", "")
+                        th["command"] = canonical_cmd
+                        added.append(
+                            f"{event}[{label}] {base} repath {old_cmd} -> {canonical_cmd}"
+                        )
     return added
 
 
@@ -210,7 +250,7 @@ def run_patch_profiles(dry_run: bool = False) -> int:
             print("shared-settings.json: already up to date")
 
     # 3. Each discovered profile's settings.json
-    profiles = discover_profiles()
+    profiles = _discovered_profiles()
     if not profiles:
         print("no profiles found")
     for info in profiles:

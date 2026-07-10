@@ -12,11 +12,19 @@ from unittest.mock import patch
 
 from claudewheel import cli
 from claudewheel.defaults import DISALLOWED_TOOLS, build_canonical_shared_settings
+from claudewheel.health import check_relocated_hook_paths
 from claudewheel.patch_profiles import (
     merge_hooks,
     run_patch_profiles,
     sync_profile_settings,
     sync_shared_settings,
+)
+
+_CANONICAL_SCRIPT_NAMES = (
+    "hook-timestamp",
+    "hook-block-worktree",
+    "hook-block-unsafe-commands",
+    "hook-advise-commands",
 )
 
 # The three disallowedTools entries most recently added to canonical.
@@ -43,8 +51,9 @@ class _PatchProfilesTestCase(unittest.TestCase):
         patches = [
             patch("claudewheel.patch_profiles.SCRIPTS_DIR", self.scripts_dir),
             patch("claudewheel.patch_profiles.SHARED_SETTINGS_FILE", self.shared_settings),
-            patch("claudewheel.discovery.PROFILES_DIR", self.profiles_dir),
-            patch("claudewheel.discovery.TOKENS_FILE", self.tokens_file),
+            # patch_profiles builds a ProfileStore from its own module constants.
+            patch("claudewheel.patch_profiles.PROFILES_DIR", self.profiles_dir),
+            patch("claudewheel.patch_profiles.TOKENS_FILE", self.tokens_file),
         ]
         for p in patches:
             p.start()
@@ -128,8 +137,13 @@ class MergeHooksTests(_PatchProfilesTestCase):
         cmds = [h["command"] for h in existing["UserPromptSubmit"][0]["hooks"]]
         self.assertIn("/opt/mine/custom-hook", cmds)
 
-    def test_dedups_by_basename_across_different_path(self) -> None:
-        """A hook already wired under a different absolute path is not duplicated."""
+    def test_repaths_stale_absolute_path_not_duplicated(self) -> None:
+        """A claudewheel hook wired under a STALE absolute path is repathed to the
+        current scripts dir in place -- not duplicated, not left stale.
+
+        (Supersedes the old dedup-and-leave-untouched behavior: a relocated
+        workspace must be healed, so patch-profiles now rewrites the command
+        rather than silently keeping the stale root.)"""
         c = self.canonical()
         existing = {
             "UserPromptSubmit": [
@@ -139,8 +153,15 @@ class MergeHooksTests(_PatchProfilesTestCase):
             ],
         }
         added = merge_hooks(existing, {"UserPromptSubmit": c["hooks"]["UserPromptSubmit"]})
-        self.assertEqual(added, [])
+        # Repathed, not duplicated.
         self.assertEqual(len(existing["UserPromptSubmit"][0]["hooks"]), 1)
+        self.assertEqual(
+            existing["UserPromptSubmit"][0]["hooks"][0]["command"],
+            str(self.scripts_dir / "hook-timestamp"),
+        )
+        # The repath is reported as a change.
+        self.assertEqual(len(added), 1)
+        self.assertIn("hook-timestamp", added[0])
 
 
 class SyncProfileSettingsTests(_PatchProfilesTestCase):
@@ -295,6 +316,66 @@ class RunPatchProfilesTests(_PatchProfilesTestCase):
         self.shared_settings.write_text(json.dumps(self.canonical(), indent=2) + "\n")
         out = self._run_patch()
         self.assertIn("no profiles found", out)
+
+    def _relocated_hooks(self, old_scripts: str) -> dict:
+        """Canonical hooks with every command rerooted at *old_scripts*."""
+        hooks = json.loads(json.dumps(self.canonical()["hooks"]))
+        for entries in hooks.values():
+            for entry in entries:
+                for h in entry["hooks"]:
+                    h["command"] = str(Path(old_scripts) / Path(h["command"]).name)
+        return hooks
+
+    def test_relocation_repaths_hooks_and_health_flips(self) -> None:
+        """A profile whose hook commands point at a STALE scripts dir is repathed
+        to the current one; user-custom hooks survive, and the relocation health
+        check flips from FAILED to PASS on the same fixture."""
+        old_scripts = "/old/home/.claudewheel/scripts"
+        hooks = self._relocated_hooks(old_scripts)
+        # A user-custom hook that must be left untouched.
+        hooks["UserPromptSubmit"][0]["hooks"].append(
+            {"type": "command", "command": "/opt/mine/custom"}
+        )
+        settings = {
+            "awaySummaryEnabled": False,
+            "cleanupPeriodDays": 3650,
+            "autoMemoryEnabled": False,
+            "hooks": hooks,
+            "claudewheel": {"disallowedTools": DISALLOWED_TOOLS[:]},
+        }
+        self.shared_settings.parent.mkdir(parents=True, exist_ok=True)
+        self.shared_settings.write_text(json.dumps(self.canonical(), indent=2) + "\n")
+        self.make_profile("work", settings)
+
+        # The relocation health check reads health's own module constants; pin
+        # them at the same temp paths so it inspects this fixture.
+        for target, value in (
+            ("claudewheel.health.SCRIPTS_DIR", self.scripts_dir),
+            ("claudewheel.health.SHARED_SETTINGS_FILE", self.shared_settings),
+            ("claudewheel.health.PROFILES_DIR", self.profiles_dir),
+            ("claudewheel.health.TOKENS_FILE", self.tokens_file),
+        ):
+            p = patch(target, value)
+            p.start()
+            self.addCleanup(p.stop)
+
+        before = check_relocated_hook_paths()
+        self.assertFalse(before.ok)
+        self.assertIn(old_scripts, before.detail)
+
+        self._run_patch()
+
+        s = self.read_settings("work")
+        for entries in s["hooks"].values():
+            for entry in entries:
+                for h in entry["hooks"]:
+                    if Path(h["command"]).name in _CANONICAL_SCRIPT_NAMES:
+                        self.assertEqual(Path(h["command"]).parent, self.scripts_dir)
+        cmds = [h["command"] for h in s["hooks"]["UserPromptSubmit"][0]["hooks"]]
+        self.assertIn("/opt/mine/custom", cmds)
+
+        after = check_relocated_hook_paths()
+        self.assertTrue(after.ok)
 
 
 class PatchProfilesCliTests(_PatchProfilesTestCase):
