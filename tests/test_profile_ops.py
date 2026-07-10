@@ -16,7 +16,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 
-from claudewheel import profile_info, profile_ops
+from claudewheel import profile_ops
 
 
 class _ProfileOpsTestCase(unittest.TestCase):
@@ -36,8 +36,6 @@ class _ProfileOpsTestCase(unittest.TestCase):
         self._patchers = [
             patch.object(profile_ops, "TOKENS_FILE", self.tokens_file),
             patch.object(profile_ops, "PROFILES_DIR", self.profiles_dir),
-            # fix_auth_shadow uses config_dir_for from profile_info
-            patch.object(profile_info, "PROFILES_DIR", self.profiles_dir),
         ]
         for p in self._patchers:
             p.start()

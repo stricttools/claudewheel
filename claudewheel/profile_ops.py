@@ -10,11 +10,12 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass
+from pathlib import Path
 
 from .constants import PROFILES_DIR, TOKENS_FILE
 from .fsutil import write_json_atomic_secret
-from .profile_info import config_dir_for
-from .tokens import parse_entry
+from .profile_store import ProfileStore
+from .tokens import TokenStore, parse_entry
 
 
 @dataclass
@@ -39,14 +40,17 @@ def fix_auth_shadow(name: str) -> FixAuthResult:
     Reads the profile's .credentials.json, strips the claudeAiOauth key, and
     preserves any tier/subscription metadata into tokens.json. Zero printing,
     zero sys.exit -- returns a FixAuthResult describing what happened.
-    """
-    config_dir = config_dir_for(name)
 
-    # 1. Check tokens.json has a valid entry
-    try:
-        tokens = json.loads(TOKENS_FILE.read_text())
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
-        tokens = {}
+    A corrupt tokens.json raises :class:`TokenStoreError` (the hard-error
+    contract) -- token resolution cannot proceed and the operator must fix it.
+    """
+    store = ProfileStore(
+        PROFILES_DIR, Path.home() / ".claude", TokenStore(TOKENS_FILE)
+    )
+    config_dir = store.path_for(name)
+
+    # 1. Check tokens.json has a valid entry (corrupt -> TokenStoreError).
+    tokens = store.token_store.load()
     if parse_entry(tokens.get(name)) is None:
         return FixAuthResult(ok=False, reason="no-token")
 
@@ -68,18 +72,13 @@ def fix_auth_shadow(name: str) -> FixAuthResult:
     sub_type = oauth_block.get("subscriptionType") if isinstance(oauth_block, dict) else None
 
     if tier or sub_type:
-        # Save tier data into tokens.json entry
-        entry = tokens.get(name)
-        if isinstance(entry, str):
-            entry = {"token": entry}
-        elif not isinstance(entry, dict):
-            entry = {}
-        if tier:
-            entry["rateLimitTier"] = tier
-        if sub_type:
-            entry["subscriptionType"] = sub_type
-        tokens[name] = entry
-        write_json_atomic_secret(TOKENS_FILE, tokens)
+        # Merge tier data into the tokens.json entry. TokenStore.set_tier applies
+        # the identical merge (bare-string -> dict upgrade, field-wise set) the
+        # inline code used; `or None` preserves the old truthy guard so empty
+        # strings are never written.
+        store.token_store.set_tier(
+            name, tier=tier or None, subscription=sub_type or None
+        )
 
     # 4. Strip claudeAiOauth and write back
     creds.pop("claudeAiOauth", None)
