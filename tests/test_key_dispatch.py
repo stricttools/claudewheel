@@ -681,24 +681,26 @@ class ModeRoutingTests(unittest.TestCase):
 class ThemeSwitchTests(unittest.TestCase):
     """THEME_DARK / THEME_LIGHT keys dispatch via cross-mode (mode=None) bindings."""
 
-    def _patch_theme_file_missing(self):
-        """Patch builtins.open to raise FileNotFoundError for theme files."""
-        original_open = open
+    @staticmethod
+    def _stub_theme_loader(app):
+        """Wire the app's (mock) store so load_theme returns the default themes.
 
-        def patched_open(path, *args, **kwargs):
-            if isinstance(path, __import__("pathlib").Path) and path.name.endswith(".json"):
-                raise FileNotFoundError(f"mocked: {path}")
-            return original_open(path, *args, **kwargs)
-
-        return mock.patch("builtins.open", side_effect=patched_open)
+        _h_theme_switch now reads its theme via ``self.cfg.load_theme(mode)``
+        (no direct file access), mirroring production where the store owns theme
+        reads. The stub returns the canonical dark/light dicts by mode.
+        """
+        from claudewheel.defaults import DEFAULT_THEME_DARK, DEFAULT_THEME_LIGHT
+        app.cfg.load_theme.side_effect = lambda mode: (
+            DEFAULT_THEME_DARK if mode == "dark" else DEFAULT_THEME_LIGHT
+        )
 
     def test_theme_dark_dispatches_in_main_mode(self):
         """THEME_DARK key triggers _h_theme_switch from main mode."""
         seg = _make_segment()
         app = _make_app(seg)
+        self._stub_theme_loader(app)
         original_theme = app.theme
-        with self._patch_theme_file_missing():
-            result = app._handle_key("THEME_DARK")
+        result = app._handle_key("THEME_DARK")
         self.assertIsNone(result)
         # Theme was swapped (no longer the original mock)
         self.assertIsNot(app.theme, original_theme)
@@ -707,9 +709,9 @@ class ThemeSwitchTests(unittest.TestCase):
         """THEME_LIGHT key triggers _h_theme_switch from main mode."""
         seg = _make_segment()
         app = _make_app(seg)
+        self._stub_theme_loader(app)
         original_theme = app.theme
-        with self._patch_theme_file_missing():
-            result = app._handle_key("THEME_LIGHT")
+        result = app._handle_key("THEME_LIGHT")
         self.assertIsNone(result)
         self.assertIsNot(app.theme, original_theme)
 
@@ -719,9 +721,9 @@ class ThemeSwitchTests(unittest.TestCase):
         seg.creating = True
         seg.create_buffer = ""
         app = _make_app(seg)
+        self._stub_theme_loader(app)
         original_theme = app.theme
-        with self._patch_theme_file_missing():
-            result = app._handle_key("THEME_DARK")
+        result = app._handle_key("THEME_DARK")
         self.assertIsNone(result)
         self.assertIsNot(app.theme, original_theme)
 
@@ -731,9 +733,9 @@ class ThemeSwitchTests(unittest.TestCase):
         seg.search_buffer = "text"
         seg._freeform_editing = True
         app = _make_app(seg)
+        self._stub_theme_loader(app)
         original_theme = app.theme
-        with self._patch_theme_file_missing():
-            result = app._handle_key("THEME_LIGHT")
+        result = app._handle_key("THEME_LIGHT")
         self.assertIsNone(result)
         self.assertIsNot(app.theme, original_theme)
 
@@ -741,10 +743,10 @@ class ThemeSwitchTests(unittest.TestCase):
         """_h_theme_switch updates self.theme and self.renderer.theme."""
         seg = _make_segment()
         app = _make_app(seg)
+        self._stub_theme_loader(app)
         from claudewheel.defaults import DEFAULT_THEME_DARK
         from claudewheel.theme import ThemeColors, parse_theme
-        with self._patch_theme_file_missing():
-            app._h_theme_switch("THEME_DARK")
+        app._h_theme_switch("THEME_DARK")
         # Theme was replaced with a ThemeColors from the default dark dict
         self.assertIsInstance(app.theme, ThemeColors)
         expected = parse_theme(DEFAULT_THEME_DARK)
@@ -756,8 +758,8 @@ class ThemeSwitchTests(unittest.TestCase):
         """_h_theme_switch updates self.cfg.theme with the raw dict."""
         seg = _make_segment()
         app = _make_app(seg)
-        with self._patch_theme_file_missing():
-            app._h_theme_switch("THEME_LIGHT")
+        self._stub_theme_loader(app)
+        app._h_theme_switch("THEME_LIGHT")
         from claudewheel.defaults import DEFAULT_THEME_LIGHT
         self.assertEqual(app.cfg.theme, DEFAULT_THEME_LIGHT)
 
@@ -767,8 +769,8 @@ class ThemeSwitchTests(unittest.TestCase):
         seg.creating = True
         seg.create_buffer = "partial"
         app = _make_app(seg)
-        with self._patch_theme_file_missing():
-            app._handle_key("THEME_DARK")
+        self._stub_theme_loader(app)
+        app._handle_key("THEME_DARK")
         # Creating mode state is undisturbed
         self.assertTrue(seg.creating)
         self.assertEqual(seg.create_buffer, "partial")
