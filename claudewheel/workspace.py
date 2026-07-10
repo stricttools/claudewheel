@@ -6,6 +6,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+from .profile_store import ProfileStore
 from .tokens import TokenStore
 
 
@@ -109,6 +110,11 @@ class Workspace:
         """The path-injected TokenStore over this workspace's tokens.json."""
         return TokenStore(self.tokens_file)
 
-    # NOTE: profiles / shared-store / appconfig accessors are added by a later
+    @property
+    def profiles(self) -> ProfileStore:
+        """The path-injected ProfileStore over this workspace's profiles + tokens."""
+        return ProfileStore(self.profiles_dir, self.claude_dir, self.tokens)
+
+    # NOTE: shared-store / appconfig accessors are added by a later
     # phase; they will live here, each returning a path-injected facade built
     # from the properties above.
