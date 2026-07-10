@@ -117,6 +117,11 @@ class Workspace:
         return TokenStore(self.tokens_file)
 
     @property
+    def shared(self) -> SharedStore:
+        """The path-injected SharedStore over this workspace's shared + skills dirs."""
+        return SharedStore(self.shared_dir, self.skills_dir)
+
+    @property
     def profiles(self) -> ProfileStore:
         """The path-injected ProfileStore over this workspace's profiles + tokens.
 

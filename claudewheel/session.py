@@ -7,9 +7,6 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from .constants import SHARED_DIR, SKILLS_DIR
-from .shared_store import SharedStore
-
 MAX_CWD_SCAN_LINES = 10
 
 
@@ -59,7 +56,7 @@ def get_session_cwd(
 
 
 def find_session(
-    session_id: str, shared_projects_dir: Path | None = None
+    session_id: str, shared_projects_dir: Path
 ) -> SessionInfo | None:
     """Locate a session by UUID in the shared projects store.
 
@@ -67,9 +64,6 @@ def find_session(
     :class:`SessionInfo` on the first match (UUIDs are globally unique).
     Returns ``None`` when no matching file exists.
     """
-    if shared_projects_dir is None:
-        shared_projects_dir = SharedStore(SHARED_DIR, SKILLS_DIR).projects_dir
-
     matches = list(shared_projects_dir.glob(f"*/{session_id}.jsonl"))
     if not matches:
         return None
@@ -87,19 +81,15 @@ def find_session(
 
 
 def find_orphaned_project_dirs(
-    shared_projects_dir: Path | None = None,
+    shared_projects_dir: Path,
 ) -> list[OrphanedProject]:
     """Find all project dirs whose original cwd no longer exists on disk.
 
-    Scans every subdirectory of *shared_projects_dir* (defaulting to
-    ``SHARED_DIR / "projects"``).  For each, reads the newest ``.jsonl``
-    file (by mtime) to extract the ``cwd``.  If the cwd is not ``None``
-    and no longer exists on disk, the project is included as an
+    Scans every subdirectory of *shared_projects_dir*.  For each, reads the
+    newest ``.jsonl`` file (by mtime) to extract the ``cwd``.  If the cwd is
+    not ``None`` and no longer exists on disk, the project is included as an
     :class:`OrphanedProject`.
     """
-    if shared_projects_dir is None:
-        shared_projects_dir = SharedStore(SHARED_DIR, SKILLS_DIR).projects_dir
-
     if not shared_projects_dir.is_dir():
         return []
 

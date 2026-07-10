@@ -1,17 +1,19 @@
 """Report shared-store statistics and clean up legacy data."""
 from __future__ import annotations
 import shutil
-from .constants import SHARED_DIR, SKILLS_DIR
-from .shared_store import SharedStore
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .shared_store import SharedStore
 
 
 def _log(msg: str) -> None:
     print(f"[stats] {msg}")
 
 
-def _report_shared_stats() -> None:
+def _report_shared_stats(store: "SharedStore") -> None:
     """Print file count and total size of the shared store by subdirectory."""
-    shared = SharedStore(SHARED_DIR, SKILLS_DIR).shared_dir
+    shared = store.shared_dir
     if not shared.is_dir():
         _log("shared store not found")
         return
@@ -33,16 +35,16 @@ def _report_shared_stats() -> None:
     _log(f"  {'TOTAL':<20s} {tf:>6d} files  {tb / 1024:>10.1f} KB")
 
 
-def run_stats(dry_run: bool = False) -> None:
+def run_stats(store: "SharedStore", dry_run: bool = False) -> None:
     """Report shared-store stats and clean up legacy data."""
     if dry_run:
         _log("DRY RUN -- no changes will be made")
-    sentinels_dir = SharedStore(SHARED_DIR, SKILLS_DIR).subdir("sentinels")
+    sentinels_dir = store.subdir("sentinels")
     if sentinels_dir.is_dir():
         if dry_run:
             _log(f"would remove legacy sentinels dir: {sentinels_dir}")
         else:
             shutil.rmtree(sentinels_dir)
             _log(f"removed legacy sentinels dir: {sentinels_dir}")
-    _report_shared_stats()
+    _report_shared_stats(store)
     _log("done")

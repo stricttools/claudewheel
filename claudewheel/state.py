@@ -6,37 +6,15 @@ import json
 import os
 from typing import TYPE_CHECKING
 
-from .appdata import StateFile
-from .constants import SHARED_DIR, SKILLS_DIR, STATE_FILE
 from .fsutil import write_json_atomic
-from .shared_store import SharedStore
 
 if TYPE_CHECKING:
     from .config import AppConfigStore
+    from .shared_store import SharedStore
 
 # state.json key remembering the browser chosen in the auth wizard's
 # "Choose browser" form (a browser binary path, or "copy").
 AUTH_BROWSER_KEY = "auth_browser"
-
-
-def load_state_value(key: str):
-    """Read a single value fresh from state.json on disk.
-
-    Returns None if the file is missing, unreadable, or lacks the key.
-    Unlike AppConfigStore.state, this never uses an in-memory copy -- it is
-    for code paths (e.g., the auth wizard) that run outside the TUI's
-    AppConfigStore lifecycle.
-    """
-    return StateFile(STATE_FILE).get_value(key)
-
-
-def save_state_value(key: str, value) -> None:
-    """Read-modify-write a single key in state.json (atomic tmp + rename).
-
-    Only *key* is touched; all other keys on disk are preserved. Counterpart
-    of load_state_value() for writers that don't hold an AppConfigStore.
-    """
-    StateFile(STATE_FILE).set_value(key, value)
 
 
 def save_launch_state(cfg: "AppConfigStore", selections: dict[str, str | None]) -> None:
@@ -57,7 +35,7 @@ def save_launch_state(cfg: "AppConfigStore", selections: dict[str, str | None]) 
     cfg.save_state()
 
 
-def record_inode(directory: str) -> None:
+def record_inode(shared: "SharedStore", directory: str) -> None:
     """Record the inode of a project directory for rename detection."""
     path = os.path.abspath(directory)
     try:
@@ -65,7 +43,7 @@ def record_inode(directory: str) -> None:
     except OSError:
         return
 
-    inodes_file = SharedStore(SHARED_DIR, SKILLS_DIR).inodes_file
+    inodes_file = shared.inodes_file
 
     # Load existing inode map
     data: dict[str, int] = {}

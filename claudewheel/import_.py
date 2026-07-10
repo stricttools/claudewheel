@@ -8,7 +8,6 @@ import uuid as uuid_mod
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .constants import SHARED_DIR, SKILLS_DIR
 from .fsutil import write_text_atomic
 from .session import get_session_cwd
 from .shared_store import SharedStore
@@ -230,6 +229,7 @@ def _scan_source(source: Path) -> list[_SessionBundle]:
 
 
 def run_import(
+    store: SharedStore,
     source: str,
     mappings: list[tuple[str, str]],
     reid: bool = False,
@@ -239,6 +239,8 @@ def run_import(
 
     Parameters
     ----------
+    store:
+        The destination :class:`SharedStore` (the local shared-store layout).
     source:
         Path to the external directory (must contain a ``projects/`` subdir).
     mappings:
@@ -296,7 +298,6 @@ def run_import(
     cwd_to_target: dict[str, str] = norm_mappings
 
     # 5. Compute target directories and detect collisions.
-    store = SharedStore(SHARED_DIR, SKILLS_DIR)
     shared_projects = store.projects_dir
     uuid_target_map: dict[str, tuple[Path, str | None]] = {}
     #   uuid -> (target_dir, new_uuid_or_None)

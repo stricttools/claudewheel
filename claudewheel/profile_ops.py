@@ -10,12 +10,13 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass
-from pathlib import Path
+from typing import TYPE_CHECKING
 
-from .constants import PROFILES_DIR, TOKENS_FILE
 from .fsutil import write_json_atomic_secret
-from .profile_store import ProfileStore
-from .tokens import TokenStore, parse_entry
+from .tokens import parse_entry
+
+if TYPE_CHECKING:
+    from .workspace import Workspace
 
 
 @dataclass
@@ -34,7 +35,7 @@ class FixAuthResult:
     subscription_saved: str | None = None
 
 
-def fix_auth_shadow(name: str) -> FixAuthResult:
+def fix_auth_shadow(ws: "Workspace", name: str) -> FixAuthResult:
     """Remove session credentials (claudeAiOauth) that shadow a long-lived token.
 
     Reads the profile's .credentials.json, strips the claudeAiOauth key, and
@@ -44,9 +45,7 @@ def fix_auth_shadow(name: str) -> FixAuthResult:
     A corrupt tokens.json raises :class:`TokenStoreError` (the hard-error
     contract) -- token resolution cannot proceed and the operator must fix it.
     """
-    store = ProfileStore(
-        PROFILES_DIR, Path.home() / ".claude", TokenStore(TOKENS_FILE)
-    )
+    store = ws.profiles
     config_dir = store.path_for(name)
 
     # 1. Check tokens.json has a valid entry (corrupt -> TokenStoreError).
@@ -91,9 +90,9 @@ def fix_auth_shadow(name: str) -> FixAuthResult:
     )
 
 
-def _is_profile_running(name: str) -> bool:
+def _is_profile_running(ws: "Workspace", name: str) -> bool:
     """Check if a profile has active sessions by scanning its sessions/ dir for PID files."""
-    profile_dir = PROFILES_DIR / name
+    profile_dir = ws.profiles.path_for(name)
     sessions_dir = profile_dir / "sessions"
     if not sessions_dir.is_dir():
         return False

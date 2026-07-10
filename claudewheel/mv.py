@@ -6,11 +6,13 @@ import json
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from .constants import PROFILES_DIR, SHARED_DIR, TOKENS_FILE, encode_path
 from .fsutil import write_json_atomic, write_text_atomic
-from .profile_store import ProfileStore
-from .tokens import TokenStore
+from .shared_store import SharedStore
+
+if TYPE_CHECKING:
+    from .workspace import Workspace
 
 PREFIX = "[mv]"
 
@@ -34,21 +36,18 @@ class MvResult:
     profiles_scanned: int = 0
 
 
-def _discover_profile_dirs() -> list[Path]:
+def _discover_profile_dirs(ws: "Workspace") -> list[Path]:
     """Find all profile directories plus ~/.claudewheel/shared/ if it exists.
 
-    Enumerates profiles via a path-injected ProfileStore (interim call-time
-    construction from this module's path constants until a later phase threads a
-    Workspace through), then includes the shared store directory as a peer
-    target (it holds the actual session data). A corrupt tokens.json raises
-    ``TokenStoreError`` -- the uniform hard-error contract.
+    Enumerates profiles via the workspace's ProfileStore, then includes the
+    shared store directory as a peer target (it holds the actual session data).
+    A corrupt tokens.json raises ``TokenStoreError`` -- the uniform hard-error
+    contract.
     """
-    store = ProfileStore(
-        PROFILES_DIR, Path.home() / ".claude", TokenStore(TOKENS_FILE)
-    )
-    dirs: list[Path] = [p.path for p in store.enumerate()]
-    if SHARED_DIR.is_dir() and SHARED_DIR not in dirs:
-        dirs.append(SHARED_DIR)
+    dirs: list[Path] = [p.path for p in ws.profiles.enumerate()]
+    shared_dir = ws.shared_dir
+    if shared_dir.is_dir() and shared_dir not in dirs:
+        dirs.append(shared_dir)
     return sorted(dirs)
 
 
@@ -112,8 +111,8 @@ def _update_claude_json(
 
 
 def run_mv(
-    old_path: str, new_path: str, dry_run: bool = False, quiet: bool = False,
-    post_hoc: bool = False,
+    ws: "Workspace", old_path: str, new_path: str, dry_run: bool = False,
+    quiet: bool = False, post_hoc: bool = False,
 ) -> MvResult:
     """Rename a project directory and migrate Claude Code session data.
 
@@ -159,12 +158,12 @@ def run_mv(
         _log("DRY RUN -- no changes will be made")
 
     # 2. Compute encoded directory names
-    old_encoded = encode_path(old_resolved)
-    new_encoded = encode_path(new_resolved)
+    old_encoded = SharedStore.encode_path(old_resolved)
+    new_encoded = SharedStore.encode_path(new_resolved)
     _log(f"encoded: {old_encoded} -> {new_encoded}")
 
     # 3. Discover profile dirs
-    profile_dirs = _discover_profile_dirs()
+    profile_dirs = _discover_profile_dirs(ws)
     result.profiles_scanned = len(profile_dirs)
     _log(f"found {len(profile_dirs)} profile/shared dirs")
 
@@ -235,8 +234,9 @@ def run_mv(
                     result.lines_replaced += lines_fixed
 
     # 5. Update .claude.json in each profile dir (not shared)
+    shared_dir = ws.shared_dir
     for pdir in profile_dirs:
-        if pdir == SHARED_DIR:
+        if pdir == shared_dir:
             continue
         claude_json = pdir / ".claude.json"
         if claude_json.is_file():

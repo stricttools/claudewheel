@@ -25,24 +25,27 @@ from __future__ import annotations
 import json
 from copy import deepcopy
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from .constants import PROFILES_DIR, SCRIPTS_DIR, SHARED_SETTINGS_FILE, TOKENS_FILE
 from .defaults import DISALLOWED_TOOLS, build_canonical_shared_settings
 from .fsutil import write_json_atomic
 from .hook_scripts import HOOK_SCRIPTS, deploy_scripts
-from .profile_store import Profile, ProfileStore
-from .tokens import TokenStore, TokenStoreError
+from .profile_store import Profile
+from .tokens import TokenStoreError
+
+if TYPE_CHECKING:
+    from .workspace import Workspace
 
 
-def _discovered_profiles() -> list[Profile]:
-    """Enumerate profiles via ProfileStore, tolerating a corrupt tokens.json.
+def _discovered_profiles(ws: "Workspace") -> list[Profile]:
+    """Enumerate profiles via the workspace's ProfileStore, tolerating a corrupt
+    tokens.json.
 
-    Built at call time from this module's path constants (patched by tests) plus
-    Claude Code's built-in ``~/.claude``. A corrupt tokens.json is swallowed to
-    ``{}`` here (patch-profiles is additive maintenance, not token resolution),
-    matching the historical discovery tolerance.
+    A corrupt tokens.json is swallowed to ``{}`` here (patch-profiles is additive
+    maintenance, not token resolution), matching the historical discovery
+    tolerance.
     """
-    store = ProfileStore(PROFILES_DIR, Path.home() / ".claude", TokenStore(TOKENS_FILE))
+    store = ws.profiles
     try:
         tokens = store.token_store.load()
     except TokenStoreError:
@@ -201,38 +204,40 @@ def _referenced_scripts(hooks: dict) -> list[str]:
     return names
 
 
-def run_patch_profiles(dry_run: bool = False) -> int:
+def run_patch_profiles(ws: "Workspace", dry_run: bool = False) -> int:
     """Sync every discovered profile and shared-settings.json toward canonical.
 
     Deploys any missing built-in hook scripts, then additively patches
     shared-settings.json and each profile's settings.json. With *dry_run*,
     reports what would change and writes nothing.
     """
-    canonical = build_canonical_shared_settings(SCRIPTS_DIR)
+    scripts_dir = ws.scripts_dir
+    shared_settings_file = ws.shared_settings_file
+    canonical = build_canonical_shared_settings(scripts_dir)
     changed_any = False
 
     # 1. Deploy any missing built-in hook scripts referenced by canonical hooks.
     referenced = _referenced_scripts(canonical.get("hooks", {}))
     missing_scripts = [
         n for n in referenced
-        if n in HOOK_SCRIPTS and not (SCRIPTS_DIR / n).exists()
+        if n in HOOK_SCRIPTS and not (scripts_dir / n).exists()
     ]
     if missing_scripts:
         changed_any = True
         if dry_run:
             for n in missing_scripts:
-                print(f"hook script: would deploy {SCRIPTS_DIR / n}")
+                print(f"hook script: would deploy {scripts_dir / n}")
         else:
-            for n, action in deploy_scripts(missing_scripts, SCRIPTS_DIR):
-                print(f"hook script: {action} {SCRIPTS_DIR / n}")
+            for n, action in deploy_scripts(missing_scripts, scripts_dir):
+                print(f"hook script: {action} {scripts_dir / n}")
     else:
         print("hook scripts: all present")
 
     # 2. shared-settings.json
     shared = None
-    if SHARED_SETTINGS_FILE.exists():
+    if shared_settings_file.exists():
         try:
-            shared = json.loads(SHARED_SETTINGS_FILE.read_text())
+            shared = json.loads(shared_settings_file.read_text())
         except (json.JSONDecodeError, OSError) as e:
             print(f"shared-settings.json: unreadable ({e}), skipping")
     else:
@@ -245,12 +250,12 @@ def run_patch_profiles(dry_run: bool = False) -> int:
             for c in sh_changes:
                 print(f"    + {c}")
             if not dry_run:
-                write_json_atomic(SHARED_SETTINGS_FILE, shared)
+                write_json_atomic(shared_settings_file, shared)
         else:
             print("shared-settings.json: already up to date")
 
     # 3. Each discovered profile's settings.json
-    profiles = _discovered_profiles()
+    profiles = _discovered_profiles(ws)
     if not profiles:
         print("no profiles found")
     for info in profiles:

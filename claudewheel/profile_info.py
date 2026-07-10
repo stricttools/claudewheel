@@ -6,12 +6,13 @@ import json
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from .appdata import OptionsFile
-from .constants import OPTIONS_FILE, PROFILES_DIR, TOKENS_FILE
-from .discovery import classify_shared_dirs
-from .profile_store import ProfileStore
-from .tokens import TokenExpiry, TokenStore, TokenStoreError, parse_entry
+from .tokens import TokenExpiry, TokenStoreError, parse_entry
+
+if TYPE_CHECKING:
+    from .workspace import Workspace
 
 
 @dataclass
@@ -40,20 +41,9 @@ class ProfileReport:
     disk_usage_bytes: int = 0
 
 
-def _profile_store() -> ProfileStore:
-    """Build a path-injected ProfileStore from this module's path constants.
-
-    Interim call-time construction until a later phase threads a Workspace
-    through; patching the module constants in tests still redirects it.
-    """
-    return ProfileStore(
-        PROFILES_DIR, Path.home() / ".claude", TokenStore(TOKENS_FILE)
-    )
-
-
-def _read_options_registration(name: str) -> tuple[bool, bool]:
+def _read_options_registration(ws: "Workspace", name: str) -> tuple[bool, bool]:
     """Return (registered, pinned) for *name* from options.json."""
-    options = OptionsFile(OPTIONS_FILE).load({})
+    options = OptionsFile(ws.options_file).load({})
     profile_sec = options.get("profile", {})
     return (
         name in profile_sec.get("values", []),
@@ -61,7 +51,7 @@ def _read_options_registration(name: str) -> tuple[bool, bool]:
     )
 
 
-def _read_token_state(name: str) -> tuple[bool, TokenExpiry | None,
+def _read_token_state(ws: "Workspace", name: str) -> tuple[bool, TokenExpiry | None,
                                           str | None, str | None]:
     """Return (has_token, expiry, tier, subscription) for *name* from tokens.json.
 
@@ -69,7 +59,7 @@ def _read_token_state(name: str) -> tuple[bool, TokenExpiry | None,
     contract): profile inspection is a CLI command, so token corruption is a
     workspace-integrity problem the operator must fix, never a silent skip.
     """
-    store = TokenStore(TOKENS_FILE)
+    store = ws.tokens
     tokens = store.load()
     if name not in tokens:
         return False, None, None, None
@@ -144,7 +134,7 @@ def _read_settings(config_dir: Path) -> tuple[bool, dict[str, int],
     )
 
 
-def detect_auth_shadow(name: str) -> bool:
+def detect_auth_shadow(ws: "Workspace", name: str) -> bool:
     """Return True if profile has session credentials shadowing a long-lived token.
 
     Conditions (all must be true):
@@ -159,14 +149,14 @@ def detect_auth_shadow(name: str) -> bool:
     # gather_profile_info calls _read_token_state first, so the CLI inspection
     # path still hard-errors on corrupt tokens before ever reaching here.
     try:
-        tokens = TokenStore(TOKENS_FILE).load()
+        tokens = ws.tokens.load()
     except TokenStoreError:
         return False
     if parse_entry(tokens.get(name)) is None:
         return False
 
     # Check .credentials.json for claudeAiOauth
-    config_dir = _profile_store().path_for(name)
+    config_dir = ws.profiles.path_for(name)
     creds_path = config_dir / ".credentials.json"
     if not creds_path.exists():
         return False
@@ -177,16 +167,16 @@ def detect_auth_shadow(name: str) -> bool:
     return "claudeAiOauth" in creds
 
 
-def gather_profile_info(name: str) -> ProfileReport:
+def gather_profile_info(ws: "Workspace", name: str) -> ProfileReport:
     """Assemble a full ProfileReport for *name*.
 
     Never raises for unknown profiles: callers check report.exists /
     report.registered / report.has_token to decide how to present one.
     """
-    config_dir = _profile_store().path_for(name)
+    config_dir = ws.profiles.path_for(name)
     exists = config_dir.is_dir()
-    registered, pinned = _read_options_registration(name)
-    has_token, token_expiry, rate_limit_tier, subscription_type = _read_token_state(name)
+    registered, pinned = _read_options_registration(ws, name)
+    has_token, token_expiry, rate_limit_tier, subscription_type = _read_token_state(ws, name)
     has_credentials = (config_dir / ".credentials.json").exists()
 
     shared_dirs: dict[str, str] = {}
@@ -195,13 +185,13 @@ def gather_profile_info(name: str) -> ProfileReport:
     settings_found, permission_counts = False, {}
     away, cleanup, auto_memory = None, None, None
     if exists:
-        shared_dirs = classify_shared_dirs(config_dir)
+        shared_dirs = ws.profiles.classify_shared_dirs(name)
         active_sessions = _count_active_sessions(config_dir)
         disk_usage_bytes = _disk_usage(config_dir)
         (settings_found, permission_counts,
          away, cleanup, auto_memory) = _read_settings(config_dir)
 
-    has_auth_shadow = detect_auth_shadow(name)
+    has_auth_shadow = detect_auth_shadow(ws, name)
 
     return ProfileReport(
         name=name,

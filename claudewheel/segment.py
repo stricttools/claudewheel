@@ -11,13 +11,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from .constants import PROFILES_DIR, TOKENS_FILE
 from .fuzzy import fuzzy_rank
-from .profile_store import ProfileStore
-from .tokens import TokenStore
 
 if TYPE_CHECKING:
     from .config import AppConfigStore
+    from .workspace import Workspace
 
 NPM_CACHE_TTL = 3600  # 1 hour
 
@@ -40,7 +38,7 @@ class DiscoveryResult:
 class DiscoveryEntry:
     """Registry entry mapping a discovery type to its function."""
 
-    func: Callable  # (config: dict, state: dict) -> DiscoveryResult
+    func: Callable  # (config: dict, state: dict, ws: Workspace) -> DiscoveryResult
     is_slow: bool = False
     verify: Callable | None = None  # for staleness checks (Phase 4)
 
@@ -384,7 +382,7 @@ def fetch_npm_versions(state: dict, count: int = 15) -> list[str]:
 # Individual discovery functions -- extracted from discover_options match/case
 # ---------------------------------------------------------------------------
 
-def _discover_directory_listing(config: dict, state: dict) -> DiscoveryResult:
+def _discover_directory_listing(config: dict, state: dict, ws: "Workspace") -> DiscoveryResult:
     """Discover options from a directory of files (e.g., installed versions)."""
     disc = config["discovery"]
     path = Path(disc["path"]).expanduser()
@@ -398,7 +396,7 @@ def _discover_directory_listing(config: dict, state: dict) -> DiscoveryResult:
     return DiscoveryResult()
 
 
-def _discover_npm_and_local(config: dict, state: dict) -> DiscoveryResult:
+def _discover_npm_and_local(config: dict, state: dict, ws: "Workspace") -> DiscoveryResult:
     """Discover versions from npm registry + locally installed files."""
     disc = config["discovery"]
     local_path = Path(disc["path"]).expanduser()
@@ -414,7 +412,7 @@ def _discover_npm_and_local(config: dict, state: dict) -> DiscoveryResult:
     return DiscoveryResult(values=all_versions, installed=installed)
 
 
-def _discover_npm_and_local_cached(config: dict, state: dict) -> DiscoveryResult:
+def _discover_npm_and_local_cached(config: dict, state: dict, ws: "Workspace") -> DiscoveryResult:
     """Fast path for npm_and_local: use cached npm versions only if warm."""
     disc = config["discovery"]
     local_path = Path(disc["path"]).expanduser()
@@ -437,7 +435,7 @@ def _discover_npm_and_local_cached(config: dict, state: dict) -> DiscoveryResult
     return DiscoveryResult(values=all_versions, installed=installed)
 
 
-def _discover_directory_scan(config: dict, state: dict) -> DiscoveryResult:
+def _discover_directory_scan(config: dict, state: dict, ws: "Workspace") -> DiscoveryResult:
     """Discover directories by scanning parent directories.
 
     Recent dirs from state are used as hints: validated (must exist on disk),
@@ -478,7 +476,7 @@ def _discover_directory_scan(config: dict, state: dict) -> DiscoveryResult:
     return DiscoveryResult(values=merged)
 
 
-def _discover_profiles(config: dict, state: dict) -> DiscoveryResult:
+def _discover_profiles(config: dict, state: dict, ws: "Workspace") -> DiscoveryResult:
     """Discover Claude Code profiles via ProfileStore enumeration.
 
     Profile identity comes solely from the store (profile dirs + tokens);
@@ -486,8 +484,7 @@ def _discover_profiles(config: dict, state: dict) -> DiscoveryResult:
     fields. A corrupt tokens.json raises TokenStoreError, which propagates so
     discovery fails loudly rather than silently omitting profiles.
     """
-    store = ProfileStore(PROFILES_DIR, Path.home() / ".claude", TokenStore(TOKENS_FILE))
-    discovered = store.enumerate()
+    discovered = ws.profiles.enumerate()
     values: list[str] = [p.name for p in discovered]
     metadata: dict[str, dict] = {
         p.name: {"has_token": p.has_token, "has_credentials": p.has_credentials}
@@ -496,7 +493,7 @@ def _discover_profiles(config: dict, state: dict) -> DiscoveryResult:
     return DiscoveryResult(values=values, metadata=metadata)
 
 
-def _discover_gh_accounts(config: dict, state: dict) -> DiscoveryResult:
+def _discover_gh_accounts(config: dict, state: dict, ws: "Workspace") -> DiscoveryResult:
     """Discover GitHub accounts from gh CLI auth status."""
     static_values = _parse_static_values(config)
     values = list(static_values)
@@ -520,7 +517,7 @@ def _discover_gh_accounts(config: dict, state: dict) -> DiscoveryResult:
     return DiscoveryResult(values=values)
 
 
-def _discover_state_field(config: dict, state: dict) -> DiscoveryResult:
+def _discover_state_field(config: dict, state: dict, ws: "Workspace") -> DiscoveryResult:
     """Discover options by merging state-tracked values with static defaults."""
     disc = config["discovery"]
     static_values = _parse_static_values(config)
@@ -585,7 +582,7 @@ DISCOVERY_REGISTRY: dict[str, DiscoveryEntry] = {
 # ---------------------------------------------------------------------------
 
 def run_slow_discovery_via_registry(
-    options_def: dict, state: dict,
+    options_def: dict, state: dict, ws: "Workspace",
 ) -> dict[str, DiscoveryResult]:
     """Run only slow discovery types via the registry.
 
@@ -601,7 +598,7 @@ def run_slow_discovery_via_registry(
         dtype = disc["type"]
         entry = DISCOVERY_REGISTRY.get(dtype)
         if entry and entry.is_slow:
-            results[key] = entry.func(opt, state)
+            results[key] = entry.func(opt, state, ws)
     return results
 
 
@@ -609,6 +606,7 @@ def populate_segment_state(
     seg: "Segment",
     options_def_entry: dict,
     state: dict,
+    ws: "Workspace",
     *,
     skip_slow: bool = True,
 ) -> None:
@@ -639,14 +637,14 @@ def populate_segment_state(
     if entry.is_slow and skip_slow:
         # For npm_and_local, use the cached fast-path
         if dtype == "npm_and_local":
-            result = _discover_npm_and_local_cached(options_def_entry, state)
+            result = _discover_npm_and_local_cached(options_def_entry, state, ws)
             seg.state.set_discovered(result.values, verify_fn=verify_fn)
             if result.installed:
                 seg.state.set_installed(result.installed)
         # Other slow types (gh_auth) produce nothing at startup
         return
 
-    result = entry.func(options_def_entry, state)
+    result = entry.func(options_def_entry, state, ws)
     seg.state.set_discovered(result.values, verify_fn=verify_fn)
     if result.installed:
         seg.state.set_installed(result.installed)
@@ -693,6 +691,7 @@ def build_segment_bar(cfg: "AppConfigStore", *, skip_slow: bool = False) -> Segm
     """Construct the segment bar from config, applying discovery and last-state restore."""
     enabled = cfg.config.get("enabled_segments", [])
     segments: list[Segment] = []
+    ws = cfg.workspace
 
     from .defaults import DEFAULT_OPTIONS
     last = cfg.state.get("last_config", {})
@@ -735,7 +734,7 @@ def build_segment_bar(cfg: "AppConfigStore", *, skip_slow: bool = False) -> Segm
         seg.state.set_metadata(dict(opt.get("metadata", {})))
 
         # Run discovery via registry
-        populate_segment_state(seg, opt, cfg.state, skip_slow=skip_slow)
+        populate_segment_state(seg, opt, cfg.state, ws, skip_slow=skip_slow)
 
         # Phase 7: "+" is a virtual UI element via display_options,
         # no longer stored in any SegmentState collection.

@@ -23,23 +23,25 @@ from __future__ import annotations
 import json
 import sys
 from dataclasses import dataclass, field
-from pathlib import Path
+from typing import TYPE_CHECKING
 
-from .constants import PROFILES_DIR, SHARED_SETTINGS_FILE, TOKENS_FILE
 from .guardrail import ALLOW_CONFLICTS, canonical_ask_rules, canonical_deny_rules
 from .permission import add_rule, load_settings, remove_rule, save_settings
-from .profile_store import Profile, ProfileStore
-from .tokens import TokenStore, TokenStoreError
+from .profile_store import Profile
+from .tokens import TokenStoreError
+
+if TYPE_CHECKING:
+    from .workspace import Workspace
 
 
-def _discovered_profiles() -> list[Profile]:
-    """Enumerate profiles via ProfileStore, tolerating a corrupt tokens.json.
+def _discovered_profiles(ws: "Workspace") -> list[Profile]:
+    """Enumerate profiles via the workspace's ProfileStore, tolerating a corrupt
+    tokens.json.
 
-    Built at call time from this module's path constants (patched by tests) plus
-    Claude Code's built-in ``~/.claude``. A corrupt tokens.json is swallowed to
-    ``{}`` -- reconciliation touches permissions, not tokens.
+    A corrupt tokens.json is swallowed to ``{}`` -- reconciliation touches
+    permissions, not tokens.
     """
-    store = ProfileStore(PROFILES_DIR, Path.home() / ".claude", TokenStore(TOKENS_FILE))
+    store = ws.profiles
     try:
         tokens = store.token_store.load()
     except TokenStoreError:
@@ -157,7 +159,7 @@ def _print_diff(label: str, diff: PermissionDiff, dry_run: bool) -> None:
         print(f"    allow -{rule}")
 
 
-def run_reconcile(dry_run: bool, profile: str | None) -> int:
+def run_reconcile(ws: "Workspace", dry_run: bool, profile: str | None) -> int:
     """Reconcile permissions across profiles and shared-settings profileDefaults.
 
     When *profile* is ``None``, every discovered profile is reconciled AND
@@ -176,7 +178,7 @@ def run_reconcile(dry_run: bool, profile: str | None) -> int:
     targets_changed = 0
 
     # 1. Profiles.
-    profiles = _discovered_profiles()
+    profiles = _discovered_profiles(ws)
     if only_one:
         profiles = [p for p in profiles if p.name == profile]
         if not profiles:
@@ -209,12 +211,13 @@ def run_reconcile(dry_run: bool, profile: str | None) -> int:
 
     # 2. shared-settings.json profileDefaults (fleet-wide; skipped when scoped).
     if not only_one:
-        if not SHARED_SETTINGS_FILE.exists():
+        shared_settings_file = ws.shared_settings_file
+        if not shared_settings_file.exists():
             print("shared-settings.json: not found, skipping")
         else:
             shared: dict | None = None
             try:
-                shared = load_settings(SHARED_SETTINGS_FILE)
+                shared = load_settings(shared_settings_file)
             except (json.JSONDecodeError, OSError) as e:
                 print(f"shared-settings.json: unreadable ({e}), skipping")
             if shared is not None:
@@ -233,7 +236,7 @@ def run_reconcile(dry_run: bool, profile: str | None) -> int:
                         _print_diff(label, diff, dry_run)
                         if not dry_run:
                             apply_settings_diff(pd, diff)
-                            save_settings(SHARED_SETTINGS_FILE, shared)
+                            save_settings(shared_settings_file, shared)
 
     # 3. Summary.
     if not changed_any:

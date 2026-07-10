@@ -6,10 +6,10 @@ import re
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from .constants import PROFILES_DIR, TOKENS_FILE
-from .profile_store import ProfileStore
-from .tokens import TokenStore
+if TYPE_CHECKING:
+    from .workspace import Workspace
 
 UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 # Dirs whose direct children are keyed by UUID
@@ -116,6 +116,7 @@ def _shared_store(src: Path, dst: Path) -> bool:
 
 
 def migrate_sessions(
+    ws: "Workspace",
     src_profile: str,
     dst_profile: str,
     uuid_filter: str | None = None,
@@ -127,9 +128,7 @@ def migrate_sessions(
     (Claude Code's built-in ``~/.claude``) is a valid source or destination in
     either direction.
     """
-    store = ProfileStore(
-        PROFILES_DIR, Path.home() / ".claude", TokenStore(TOKENS_FILE)
-    )
+    store = ws.profiles
     src = store.path_for(src_profile)
     dst = store.path_for(dst_profile)
     result = MigrateResult()

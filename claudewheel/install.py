@@ -9,8 +9,10 @@ import sys
 import urllib.request
 import urllib.error
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from .constants import VERSIONS_DIR
+if TYPE_CHECKING:
+    from .binaries import BinaryLocator
 
 GCS_BASE = (
     "https://storage.googleapis.com/"
@@ -56,10 +58,12 @@ def fetch_manifest(version: str) -> dict:
         raise OSError(f"Failed to fetch manifest for {version}: {e}") from e
 
 
-def install_version(version: str, progress_callback=None) -> Path:
+def install_version(locator: "BinaryLocator", version: str,
+                    progress_callback=None) -> Path:
     """Download and install a Claude Code version binary.
 
     Args:
+        locator: The :class:`BinaryLocator` supplying the versions directory.
         version: The version string (e.g. "2.1.120")
         progress_callback: Optional callable(bytes_downloaded, total_bytes)
 
@@ -96,8 +100,9 @@ def install_version(version: str, progress_callback=None) -> Path:
     except Exception as e:
         raise OSError(f"Failed to download {version}: {e}") from e
 
-    VERSIONS_DIR.mkdir(parents=True, exist_ok=True)
-    dest = VERSIONS_DIR / version
+    versions_dir = locator.versions_dir
+    versions_dir.mkdir(parents=True, exist_ok=True)
+    dest = versions_dir / version
     tmp = dest.with_suffix(".downloading")
 
     sha256 = hashlib.sha256()

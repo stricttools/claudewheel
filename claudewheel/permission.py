@@ -6,11 +6,12 @@ import json
 import re
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from .constants import PROFILES_DIR, TOKENS_FILE
 from .fsutil import write_json_atomic
-from .profile_store import Profile, ProfileStore
-from .tokens import TokenStore
+
+if TYPE_CHECKING:
+    from .workspace import Workspace
 
 _VALID_CATEGORIES = ("allow", "deny", "ask")
 _TOOL_NAME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_-]*$")
@@ -104,32 +105,20 @@ def remove_rule(data: dict, category: str, rule: str) -> str:
     return "removed"
 
 
-def _enumerate_profiles() -> list[Profile]:
-    """Enumerate profiles via a path-injected ProfileStore.
-
-    Interim call-time construction from this module's path constants (patched in
-    tests) until a later phase threads a Workspace through. Uses the default
-    ``enumerate()``, so a corrupt tokens.json raises ``TokenStoreError`` -- the
-    uniform hard-error contract; permission commands are settings.json
-    operations, but a corrupt tokens.json is a workspace-integrity problem the
-    operator must fix.
-    """
-    store = ProfileStore(
-        PROFILES_DIR, Path.home() / ".claude", TokenStore(TOKENS_FILE)
-    )
-    return store.enumerate()
-
-
 def resolve_profiles(
-    profile: str | None, all_profiles: bool
+    ws: "Workspace", profile: str | None, all_profiles: bool
 ) -> list[tuple[str, Path]]:
     """Map the mutex flag values to a list of ``(name, settings_path)`` pairs.
 
     Exactly one of *profile* or *all_profiles* must be truthy (enforced
     by the caller's MutexGroup).  Prints to stderr and exits on error.
+    Enumeration uses the workspace's ProfileStore, so a corrupt tokens.json
+    raises ``TokenStoreError`` -- the uniform hard-error contract; permission
+    commands are settings.json operations, but a corrupt tokens.json is a
+    workspace-integrity problem the operator must fix.
     """
     if profile is not None:
-        discovered = _enumerate_profiles()
+        discovered = ws.profiles.enumerate()
         for p in discovered:
             if p.name == profile:
                 return [(p.name, p.path / "settings.json")]
@@ -137,7 +126,7 @@ def resolve_profiles(
         sys.exit(1)
 
     if all_profiles:
-        discovered = _enumerate_profiles()
+        discovered = ws.profiles.enumerate()
         if not discovered:
             print("Error: no profiles found", file=sys.stderr)
             sys.exit(1)

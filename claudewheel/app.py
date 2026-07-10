@@ -55,8 +55,10 @@ class Binding:
 class App:
     """TUI application managing the event loop, keyboard handling, and segment interaction."""
 
-    def __init__(self, cfg: AppConfigStore | None = None, overrides: dict[str, str] | None = None):
-        self.cfg = cfg if cfg is not None else Workspace.default().appconfig()
+    def __init__(self, workspace: Workspace, cfg: AppConfigStore | None = None,
+                 overrides: dict[str, str] | None = None):
+        self.workspace = workspace
+        self.cfg = cfg if cfg is not None else workspace.appconfig()
         self.bar = build_segment_bar(self.cfg, skip_slow=True)
         # Apply CLI arg overrides (after last_config pre-fill, before TUI)
         if overrides:
@@ -149,7 +151,8 @@ class App:
         """Background thread: run slow discovery and store results."""
         state_copy = copy.deepcopy(self.cfg.state)
         self._slow_state_copy = state_copy
-        self._slow_results = run_slow_discovery_via_registry(self.cfg.options_def, state_copy)
+        self._slow_results = run_slow_discovery_via_registry(
+            self.cfg.options_def, state_copy, self.workspace)
 
     def _apply_slow_discovery(self) -> None:
         """Merge slow discovery results into the live segment bar.
@@ -876,13 +879,16 @@ class App:
         """
         from .wizard import run_auth_flow
 
+        from .binaries import BinaryLocator
+
         profile_name = seg.value
         # config_dir is derived from the profile name via the ProfileStore's
         # single path_for convention, never from persisted metadata (which no
         # longer carries it).
-        config_dir = str(Workspace.default().profiles.path_for(profile_name))
+        config_dir = str(self.workspace.profiles.path_for(profile_name))
 
-        outcome = run_auth_flow(config_dir, profile_name,
+        outcome = run_auth_flow(self.workspace, BinaryLocator.default(),
+                                config_dir, profile_name,
                                 self.theme, self.terminal,
                                 skip_label="Launch without auth")
 
@@ -900,9 +906,16 @@ class App:
         """
         from .profile_info import format_report, gather_profile_info
         from .profile_ops import fix_auth_shadow
+        from .tokens import TokenStoreError
         from .ui import show_page
 
-        report = gather_profile_info(seg.value)
+        # A corrupt tokens.json surfaces as TokenStoreError from gather_profile_info.
+        # Catch it narrowly and surface a clean flash instead of crashing the TUI.
+        try:
+            report = gather_profile_info(self.workspace, seg.value)
+        except TokenStoreError as e:
+            self._flash = f"Cannot inspect: {e}"
+            return
         if report.has_auth_shadow:
             hint = "f: fix auth shadow   any key: close"
         else:
@@ -910,7 +923,7 @@ class App:
         key = show_page(f"Profile: {seg.value}", format_report(report),
                         self.theme, self.terminal, hint=hint)
         if key == "f" and report.has_auth_shadow:
-            result = fix_auth_shadow(seg.value)
+            result = fix_auth_shadow(self.workspace, seg.value)
             if result.ok:
                 self._flash = "Auth shadow fixed"
             else:
@@ -930,7 +943,7 @@ class App:
         from .ui import run_selection, show_page
 
         name = seg.value
-        report = gather_profile_info(name)
+        report = gather_profile_info(self.workspace, name)
 
         if report.danger:
             at_risk = sorted(d for d, s in report.shared_dirs.items()
@@ -972,7 +985,7 @@ class App:
             return
 
         try:
-            Workspace.default().profiles.delete(name)
+            self.workspace.profiles.delete(name)
         except ValueError as e:
             self._flash = f"Not deleted: {e}"
             return
@@ -991,7 +1004,7 @@ class App:
 
     def _refresh_profile_segment(self, seg: Segment) -> None:
         """Re-run profile discovery and update the segment's auth status."""
-        fresh = _discover_profiles({}, {})
+        fresh = _discover_profiles({}, {}, self.workspace)
         seg.state.set_discovered(fresh.values)
         if fresh.metadata:
             seg.state.update_metadata(fresh.metadata)
@@ -1005,14 +1018,15 @@ class App:
         existing alt screen (subprocess steps open cooked windows inside
         the auth flow). The main TUI repaints on return.
         """
+        from .binaries import BinaryLocator
         from .ui import show_page
         from .wizard import run_profile_wizard, create_profile, run_auth_flow
-        from .discovery import discover_profiles
-        existing = [p.name for p in discover_profiles()]
-        result = run_profile_wizard(existing, self.theme, self.terminal)
+        existing = [p.name for p in self.workspace.profiles.enumerate()]
+        result = run_profile_wizard(self.workspace, existing, self.theme, self.terminal)
         if not result.cancelled:
-            summary = create_profile(result)
-            run_auth_flow(result.config_dir, result.name,
+            summary = create_profile(self.workspace, result)
+            run_auth_flow(self.workspace, BinaryLocator.default(),
+                          result.config_dir, result.name,
                           self.theme, self.terminal,
                           skip_label="Skip for now")
             show_page("Profile created", summary, self.theme, self.terminal)

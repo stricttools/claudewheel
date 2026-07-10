@@ -8,16 +8,19 @@ import stat
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from . import guardrail
 from .appdata import OptionsFile
-from .constants import INODES_FILE, OPTIONS_FILE, PROFILES_DIR, PROFILE_SHARED_DIRS, SCRIPTS_DIR, SHARED_SETTINGS_FILE, SKILLS_DIR, TOKENS_FILE
 from .defaults import DISALLOWED_TOOLS
-from .discovery import classify_shared_dirs
 from .fsutil import write_json_atomic
 from .hook_scripts import HOOK_SCRIPTS
-from .profile_store import Profile, ProfileStore
+from .profile_store import Profile
+from .shared_store import SharedStore
 from .tokens import TOKEN_TTL_DAYS, TokenStore, TokenStoreError, compute_expiry, parse_entry
+
+if TYPE_CHECKING:
+    from .workspace import Workspace
 
 
 @dataclass
@@ -90,47 +93,37 @@ def check_tmp_claude_size() -> HealthResult:
         return HealthResult(True, "/tmp/claude", f"check failed: {e}")
 
 
-def _make_store() -> ProfileStore:
-    """Build a read-only ProfileStore from health's module path constants.
+def _discover_profiles(ws: "Workspace", tokens: dict | None = None) -> list[Profile]:
+    """Enumerate profiles via the workspace's ProfileStore.
 
-    Constructed at call time (never module-import time) so the tests' patches of
-    ``health.PROFILES_DIR`` / ``health.TOKENS_FILE`` and ``Path.home`` take
-    effect. Read-only: the write-path stores stay ``None``.
-    """
-    return ProfileStore(PROFILES_DIR, Path.home() / ".claude", TokenStore(TOKENS_FILE))
-
-
-def _discover_profiles(tokens: dict | None = None) -> list[Profile]:
-    """Enumerate profiles via ProfileStore.
-
-    *tokens* ``None`` loads token data via ``TokenStore`` (a corrupt tokens.json
+    *tokens* ``None`` loads token data via the store (a corrupt tokens.json
     raises :class:`TokenStoreError`). Callers inside a health run pass the single
     token view loaded once by :func:`run_health_check` (``{}`` when corrupt) so
     enumeration never re-reads the file.
     """
-    return _make_store().enumerate(tokens)
+    return ws.profiles.enumerate(tokens)
 
 
 # -- Shared-store profile checks -------------------------------------------
 
 
-def check_shared_symlinks(tokens: dict | None = None) -> HealthResult:
+def check_shared_symlinks(ws: "Workspace", tokens: dict | None = None) -> HealthResult:
     """Verify each profile's shared dirs are symlinks to ~/.claudewheel/shared/."""
-    profiles = _discover_profiles(tokens)
+    profiles = _discover_profiles(ws, tokens)
     if not profiles:
         return HealthResult(True, "shared-symlinks", "no profiles found")
 
     broken: list[str] = []
     for p in profiles:
-        states = classify_shared_dirs(p.path)
+        states = ws.profiles.classify_shared_dirs(p.name)
         # Health checks completeness: anything not "intact" is broken,
         # including "missing" (unlike delete-safety, which only fears
         # "real-dir"). This preserves the original is_symlink() semantics.
-        for d in PROFILE_SHARED_DIRS:
+        for d in SharedStore.SHARED_SUBDIRS:
             if states[d] != "intact":
                 broken.append(f"{p.name}/{d}")
         # skills -> ~/.claudewheel/skills (only checked if the store exists)
-        if SKILLS_DIR.is_dir() and states["skills"] != "intact":
+        if ws.skills_dir.is_dir() and states["skills"] != "intact":
             broken.append(f"{p.name}/skills")
 
     if broken:
@@ -162,7 +155,7 @@ def _hook_wired(hooks: object, event: str, matcher: str, script: str) -> bool:
     return False
 
 
-def check_hooks_wired(tokens: dict | None = None) -> HealthResult:
+def check_hooks_wired(ws: "Workspace", tokens: dict | None = None) -> HealthResult:
     """Verify each profile wires every expected hook in settings.json.
 
     The canonical wirings are the (event, matcher, script-name) triples in
@@ -170,7 +163,7 @@ def check_hooks_wired(tokens: dict | None = None) -> HealthResult:
     triple is present: an entry under the given event whose matcher equals the
     given matcher, containing a hook command that references the given script.
     """
-    profiles = _discover_profiles(tokens)
+    profiles = _discover_profiles(ws, tokens)
     if not profiles:
         return HealthResult(True, "hooks-wired", "no profiles found")
 
@@ -199,9 +192,9 @@ def check_hooks_wired(tokens: dict | None = None) -> HealthResult:
     return HealthResult(True, "hooks-wired", f"all {len(profiles)} profiles OK")
 
 
-def check_settings_defaults(tokens: dict | None = None) -> HealthResult:
+def check_settings_defaults(ws: "Workspace", tokens: dict | None = None) -> HealthResult:
     """Verify each profile enforces expected defaults in settings.json."""
-    profiles = _discover_profiles(tokens)
+    profiles = _discover_profiles(ws, tokens)
     if not profiles:
         return HealthResult(True, "settings-defaults", "no profiles found")
 
@@ -264,21 +257,22 @@ def _diff_json(label: str, canonical: object, actual: object) -> list[str]:
     return diffs
 
 
-def check_shared_settings_drift(tokens: dict | None = None) -> HealthResult:
+def check_shared_settings_drift(ws: "Workspace", tokens: dict | None = None) -> HealthResult:
     """Compare each profile's hooks and disallowedTools against shared-settings.json."""
     # Load shared settings
-    if not SHARED_SETTINGS_FILE.exists():
+    shared_settings_file = ws.shared_settings_file
+    if not shared_settings_file.exists():
         return HealthResult(True, "settings-drift", "shared-settings.json not found (will be created on next launch)")
 
     try:
-        shared = json.loads(SHARED_SETTINGS_FILE.read_text())
+        shared = json.loads(shared_settings_file.read_text())
     except (json.JSONDecodeError, OSError) as e:
         return HealthResult(False, "settings-drift", f"unreadable shared-settings.json: {e}")
 
     canonical_hooks = shared.get("hooks", {})
     canonical_disallowed = shared.get("disallowedTools", [])
 
-    profiles = _discover_profiles(tokens)
+    profiles = _discover_profiles(ws, tokens)
     if not profiles:
         return HealthResult(True, "settings-drift", "no profiles found")
 
@@ -331,7 +325,7 @@ def _canonical_permission_diffs(label: str, perms: object) -> list[str]:
     return diffs
 
 
-def check_canonical_permissions_drift(tokens: dict | None = None) -> HealthResult:
+def check_canonical_permissions_drift(ws: "Workspace", tokens: dict | None = None) -> HealthResult:
     """Compare each profile's permissions against the canonical guardrail model.
 
     For every profile settings.json and for shared-settings.json's
@@ -346,9 +340,10 @@ def check_canonical_permissions_drift(tokens: dict | None = None) -> HealthResul
 
     # profileDefaults in shared-settings.json seeds new profiles, so it must
     # be canonical too.
-    if SHARED_SETTINGS_FILE.exists():
+    shared_settings_file = ws.shared_settings_file
+    if shared_settings_file.exists():
         try:
-            shared = json.loads(SHARED_SETTINGS_FILE.read_text())
+            shared = json.loads(shared_settings_file.read_text())
         except (json.JSONDecodeError, OSError) as e:
             all_diffs.append(f"profileDefaults: unreadable shared-settings.json: {e}")
         else:
@@ -356,7 +351,7 @@ def check_canonical_permissions_drift(tokens: dict | None = None) -> HealthResul
             for d in _canonical_permission_diffs("permissions", pd_perms):
                 all_diffs.append(f"profileDefaults: {d}")
 
-    profiles = _discover_profiles(tokens)
+    profiles = _discover_profiles(ws, tokens)
     for p in profiles:
         settings_file = p.path / "settings.json"
         if not settings_file.exists():
@@ -376,17 +371,17 @@ def check_canonical_permissions_drift(tokens: dict | None = None) -> HealthResul
     return HealthResult(True, "canonical-drift", f"{len(profiles)} profiles + profileDefaults match canonical")
 
 
-def check_auth_shadow(tokens: dict | None = None) -> HealthResult:
+def check_auth_shadow(ws: "Workspace", tokens: dict | None = None) -> HealthResult:
     """Detect profiles where .credentials.json claudeAiOauth shadows a long-lived token."""
     from .profile_info import detect_auth_shadow
 
-    profiles = _discover_profiles(tokens)
+    profiles = _discover_profiles(ws, tokens)
     if not profiles:
         return HealthResult(True, "auth-shadow", "no profiles found")
 
     shadowed: list[str] = []
     for p in profiles:
-        if detect_auth_shadow(p.name):
+        if detect_auth_shadow(ws, p.name):
             shadowed.append(p.name)
 
     if shadowed:
@@ -397,7 +392,7 @@ def check_auth_shadow(tokens: dict | None = None) -> HealthResult:
     return HealthResult(True, "auth-shadow", "no auth shadow detected")
 
 
-def check_token_expiry(tokens: dict | None = None,
+def check_token_expiry(ws: "Workspace", tokens: dict | None = None,
                        token_error: TokenStoreError | None = None) -> HealthResult:
     """Warn if any token is approaching 1-year expiry (setup-token TTL).
 
@@ -408,7 +403,7 @@ def check_token_expiry(tokens: dict | None = None,
     """
     if token_error is not None:
         return HealthResult(False, "token-expiry", str(token_error))
-    tokens_file = TOKENS_FILE
+    tokens_file = ws.tokens_file
     if not tokens_file.exists():
         return HealthResult(True, "token-expiry", "no tokens.json")
     if tokens is None:
@@ -432,7 +427,7 @@ def check_token_expiry(tokens: dict | None = None,
     return HealthResult(True, "token-expiry", f"~{int(min_remaining)} days remaining")
 
 
-def check_tokens(tokens: dict | None = None,
+def check_tokens(ws: "Workspace", tokens: dict | None = None,
                  token_error: TokenStoreError | None = None) -> HealthResult:
     """Verify each profile has a matching entry in ~/.claudewheel/tokens.json.
 
@@ -443,7 +438,7 @@ def check_tokens(tokens: dict | None = None,
     """
     if token_error is not None:
         return HealthResult(False, "tokens", str(token_error))
-    tokens_file = TOKENS_FILE
+    tokens_file = ws.tokens_file
     if not tokens_file.exists():
         return HealthResult(True, "tokens", "tokens.json not found")
 
@@ -453,7 +448,7 @@ def check_tokens(tokens: dict | None = None,
         except TokenStoreError as e:
             return HealthResult(False, "tokens", str(e))
 
-    profiles = _discover_profiles(tokens)
+    profiles = _discover_profiles(ws, tokens)
     if not profiles:
         return HealthResult(True, "tokens", "no profiles found")
 
@@ -471,7 +466,7 @@ def check_tokens(tokens: dict | None = None,
     return HealthResult(True, "tokens", f"all {len(profiles)} profiles OK")
 
 
-def check_orphan_profiles(tokens: dict | None = None) -> HealthResult:
+def check_orphan_profiles(ws: "Workspace", tokens: dict | None = None) -> HealthResult:
     """Detect profile dirs in ~/.claudewheel/profiles/ that are not registered.
 
     A directory is "orphan" if it:
@@ -483,7 +478,7 @@ def check_orphan_profiles(tokens: dict | None = None) -> HealthResult:
     For each orphan, we also flag if it contains broken symlinks (symlinks
     whose target does not exist).
     """
-    store = _make_store()
+    store = ws.profiles
     if not store.profiles_dir.is_dir():
         return HealthResult(True, "orphan-profiles", "no profiles dir found")
 
@@ -491,7 +486,7 @@ def check_orphan_profiles(tokens: dict | None = None) -> HealthResult:
     registered = {p.name for p in store.enumerate(tokens)}
 
     # Profiles known to options.json (may not have .credentials.json yet).
-    options = OptionsFile(OPTIONS_FILE).load({})
+    options = OptionsFile(ws.options_file).load({})
     profile_sec = options.get("profile", {})
     options_profiles = set(profile_sec.get("values", []))
     options_profiles |= set(profile_sec.get("pinned", []))
@@ -523,9 +518,9 @@ def check_orphan_profiles(tokens: dict | None = None) -> HealthResult:
     return HealthResult(True, "orphan-profiles", "no orphan dirs found")
 
 
-def check_file_permissions(tokens: dict | None = None) -> HealthResult:
+def check_file_permissions(ws: "Workspace", tokens: dict | None = None) -> HealthResult:
     """Verify sensitive files have restrictive permissions (0600)."""
-    profiles = _discover_profiles(tokens)
+    profiles = _discover_profiles(ws, tokens)
     issues: list[str] = []
     for p in profiles:
         creds = p.path / ".credentials.json"
@@ -533,7 +528,7 @@ def check_file_permissions(tokens: dict | None = None) -> HealthResult:
             mode = oct(creds.stat().st_mode & 0o777)
             if mode != "0o600":
                 issues.append(f"{p.name}/.credentials.json is {mode}")
-    tokens_file = TOKENS_FILE
+    tokens_file = ws.tokens_file
     if tokens_file.exists():
         mode = oct(tokens_file.stat().st_mode & 0o777)
         if mode != "0o600":
@@ -543,13 +538,14 @@ def check_file_permissions(tokens: dict | None = None) -> HealthResult:
     return HealthResult(True, "file-perms", "all sensitive files 0600")
 
 
-def check_inode_renames() -> HealthResult:
+def check_inode_renames(ws: "Workspace") -> HealthResult:
     """Detect directory renames by comparing inode records against the filesystem."""
-    if not INODES_FILE.exists():
+    inodes_file = ws.inodes_file
+    if not inodes_file.exists():
         return HealthResult(True, "inode-renames", "no inode data yet")
 
     try:
-        data = json.loads(INODES_FILE.read_text())
+        data = json.loads(inodes_file.read_text())
     except (json.JSONDecodeError, OSError):
         return HealthResult(False, "inode-renames", "unreadable inodes.json")
 
@@ -582,8 +578,8 @@ def check_inode_renames() -> HealthResult:
         for s in stale:
             del data[s]
         try:
-            INODES_FILE.parent.mkdir(parents=True, exist_ok=True)
-            write_json_atomic(INODES_FILE, data)
+            inodes_file.parent.mkdir(parents=True, exist_ok=True)
+            write_json_atomic(inodes_file, data)
         except OSError:
             pass
 
@@ -594,28 +590,29 @@ def check_inode_renames() -> HealthResult:
     return HealthResult(True, "inode-renames", "no renames detected")
 
 
-def check_deployed_hook_drift() -> HealthResult:
+def check_deployed_hook_drift(ws: "Workspace") -> HealthResult:
     """Compare deployed hook scripts against the generated ``HOOK_SCRIPTS`` model.
 
-    Byte-hashes each script deployed under ``SCRIPTS_DIR`` against the
+    Byte-hashes each script deployed under ``scripts_dir`` against the
     corresponding ``HOOK_SCRIPTS[name]`` string (the canonical model, generated
     from the guardrail spec at import). Drift means a deployed script no longer
     matches what ``claudewheel deploy-hooks`` would write -- usually a stale copy
     left over after the model was regenerated.
 
     Warn-only: reports drift but NEVER raises and is never a hard gate. Absence
-    is not drift: if ``SCRIPTS_DIR`` does not exist (CI, fresh machines) or an
+    is not drift: if ``scripts_dir`` does not exist (CI, fresh machines) or an
     individual model script has not been deployed yet, it is skipped and the
     check stays OK. Only the scripts present in both ``HOOK_SCRIPTS`` and on disk
     are compared.
     """
-    if not SCRIPTS_DIR.is_dir():
+    scripts_dir = ws.scripts_dir
+    if not scripts_dir.is_dir():
         return HealthResult(True, "hook-drift", "no scripts dir (hooks not deployed)")
 
     drifted: list[str] = []
     checked = 0
     for name in sorted(HOOK_SCRIPTS):
-        dest = SCRIPTS_DIR / name
+        dest = scripts_dir / name
         if not dest.exists():
             continue  # not deployed on this machine -> nothing to compare
         checked += 1
@@ -669,7 +666,7 @@ def _stale_hook_command_paths(hooks: object, scripts_dir: Path) -> list[str]:
     return stale
 
 
-def check_relocated_hook_paths(tokens: dict | None = None) -> HealthResult:
+def check_relocated_hook_paths(ws: "Workspace", tokens: dict | None = None) -> HealthResult:
     """Detect hook commands pointing at a scripts dir other than the current one.
 
     The deployed-hook drift check compares script CONTENT hashes and so cannot
@@ -678,22 +675,23 @@ def check_relocated_hook_paths(tokens: dict | None = None) -> HealthResult:
     ``check_hooks_wired`` also passes for a stale root). This check closes that
     blind spot: for ``shared-settings.json`` and every profile's
     ``settings.json``, it flags any claudewheel-managed hook command whose parent
-    directory is not the current ``SCRIPTS_DIR``. Intact (current-root) and
+    directory is not the current ``scripts_dir``. Intact (current-root) and
     absent hooks pass; ``claudewheel patch-profiles`` repaths any it finds.
     """
-    scripts_dir = SCRIPTS_DIR
+    scripts_dir = ws.scripts_dir
     issues: list[str] = []
 
-    if SHARED_SETTINGS_FILE.exists():
+    shared_settings_file = ws.shared_settings_file
+    if shared_settings_file.exists():
         try:
-            shared = json.loads(SHARED_SETTINGS_FILE.read_text())
+            shared = json.loads(shared_settings_file.read_text())
         except (json.JSONDecodeError, OSError):
             shared = None
         if isinstance(shared, dict):
             for cmd in _stale_hook_command_paths(shared.get("hooks", {}), scripts_dir):
                 issues.append(f"shared-settings.json: {cmd}")
 
-    for p in _discover_profiles(tokens):
+    for p in _discover_profiles(ws, tokens):
         settings_file = p.path / "settings.json"
         if not settings_file.exists():
             continue
@@ -714,7 +712,7 @@ def check_relocated_hook_paths(tokens: dict | None = None) -> HealthResult:
     return HealthResult(True, "hook-path-drift", "all hook commands under current scripts dir")
 
 
-def run_health_check() -> list[HealthResult]:
+def run_health_check(ws: "Workspace") -> list[HealthResult]:
     """Run all health checks and return results.
 
     Token data is loaded ONCE here (the single-load carve-out): a corrupt
@@ -723,10 +721,9 @@ def run_health_check() -> list[HealthResult]:
     enumerate dir-only, has_token False), and the recorded error surfaces as a
     FAILED token check via ``check_tokens`` / ``check_token_expiry``.
     """
-    store = _make_store()
     token_error: TokenStoreError | None = None
     try:
-        tokens: dict = store.token_store.load()
+        tokens: dict = ws.tokens.load()
     except TokenStoreError as e:
         token_error = e
         tokens = {}
@@ -734,19 +731,19 @@ def run_health_check() -> list[HealthResult]:
     return [
         check_tmpfs_quota(),
         check_tmp_claude_size(),
-        check_shared_symlinks(tokens),
-        check_hooks_wired(tokens),
-        check_settings_defaults(tokens),
-        check_shared_settings_drift(tokens),
-        check_canonical_permissions_drift(tokens),
-        check_deployed_hook_drift(),
-        check_relocated_hook_paths(tokens),
-        check_tokens(tokens, token_error),
-        check_token_expiry(tokens, token_error),
-        check_auth_shadow(tokens),
-        check_orphan_profiles(tokens),
-        check_file_permissions(tokens),
-        check_inode_renames(),
+        check_shared_symlinks(ws, tokens),
+        check_hooks_wired(ws, tokens),
+        check_settings_defaults(ws, tokens),
+        check_shared_settings_drift(ws, tokens),
+        check_canonical_permissions_drift(ws, tokens),
+        check_deployed_hook_drift(ws),
+        check_relocated_hook_paths(ws, tokens),
+        check_tokens(ws, tokens, token_error),
+        check_token_expiry(ws, tokens, token_error),
+        check_auth_shadow(ws, tokens),
+        check_orphan_profiles(ws, tokens),
+        check_file_permissions(ws, tokens),
+        check_inode_renames(ws),
     ]
 
 

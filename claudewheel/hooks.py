@@ -5,20 +5,19 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+from pathlib import Path
 
-from .constants import HOOKS_DIR
 
-
-def run_hooks(stage: str, selections: dict[str, str | None]) -> bool:
+def run_hooks(hooks_dir: Path, stage: str, selections: dict[str, str | None]) -> bool:
     """Run hook scripts for a given stage. Returns True if all pass.
 
-    Scans ~/.claudewheel/hooks/ for executable files whose names start
-    with the stage prefix (e.g. "pre-launch"). Passes current selections
-    as CL_PROFILE, CL_GITHUB, etc. environment variables.
+    Scans *hooks_dir* for executable files whose names start with the stage
+    prefix (e.g. "pre-launch"). Passes current selections as CL_PROFILE,
+    CL_GITHUB, etc. environment variables.
 
     Returns False if any hook exits nonzero (its stderr is printed).
     """
-    if not HOOKS_DIR.is_dir():
+    if not hooks_dir.is_dir():
         return True
 
     # Build env with CL_* variables from selections
@@ -29,7 +28,7 @@ def run_hooks(stage: str, selections: dict[str, str | None]) -> bool:
 
     # Find and run matching hooks sorted by name
     hooks = sorted(
-        [f for f in HOOKS_DIR.iterdir() if f.name.startswith(stage) and os.access(f, os.X_OK)],
+        [f for f in hooks_dir.iterdir() if f.name.startswith(stage) and os.access(f, os.X_OK)],
         key=lambda f: f.name
     )
 

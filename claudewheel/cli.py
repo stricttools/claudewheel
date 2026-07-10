@@ -9,41 +9,34 @@ import strictcli
 from strictcli import App, Arg, CoRequired, Flag, FlagSet, MutexGroup
 
 from . import __version__
-from .constants import CONFIG_DIR, OPTIONS_FILE, PROFILES_DIR, SCRIPTS_DIR, SKILLS_DIR, STATE_FILE, VERSIONS_DIR, CLAUDE_SYMLINK, SHARED_DIR, TOKENS_FILE
 from .segment import version_sort_key
 
 # Passthrough args after "--" are stashed here by main() before strictcli sees argv.
 _passthrough: list[str] = []
 
 
-def _do_uninstall(version: str) -> int:
+def _do_uninstall(locator, version: str) -> int:
     """Delete an installed Claude Code version binary.
 
     Refuses to delete the version the `claude` symlink currently points to,
     since that would break the default `claude` command. Returns a process
     exit code.
     """
-    target = VERSIONS_DIR / version
+    target = locator.binary_for(version)
     if not target.exists():
         print(f"Version {version} is not installed at {target}", file=sys.stderr)
         return 1
 
     # Refuse to remove the version the symlink currently resolves to.
-    try:
-        if CLAUDE_SYMLINK.is_symlink() or CLAUDE_SYMLINK.exists():
-            current = CLAUDE_SYMLINK.resolve().name
-            if current == version:
-                print(
-                    f"Refusing to uninstall {version}: it is the current "
-                    f"`claude` symlink target ({CLAUDE_SYMLINK}). "
-                    "Switch to another version first.",
-                    file=sys.stderr,
-                )
-                return 1
-    except OSError:
-        # If we can't resolve the symlink, fall through and uninstall anyway --
-        # a broken symlink isn't a reason to block cleanup.
-        pass
+    resolved = locator.symlink_target()
+    if resolved is not None and resolved.name == version:
+        print(
+            f"Refusing to uninstall {version}: it is the current "
+            f"`claude` symlink target ({locator.claude_symlink}). "
+            "Switch to another version first.",
+            file=sys.stderr,
+        )
+        return 1
 
     try:
         target.unlink()
@@ -54,21 +47,22 @@ def _do_uninstall(version: str) -> int:
     return 0
 
 
-def _do_reset_options() -> int:
-    """Delete OPTIONS_FILE so it regenerates from defaults on next run.
+def _do_reset_options(ws) -> int:
+    """Delete options.json so it regenerates from defaults on next run.
 
     Does NOT instantiate AppConfigStore -- the next normal run will recreate
     options.json via `_ensure_dir`. Idempotent: missing file is not an error.
     """
-    if OPTIONS_FILE.exists():
+    options_file = ws.options_file
+    if options_file.exists():
         try:
-            OPTIONS_FILE.unlink()
+            options_file.unlink()
         except OSError as e:
-            print(f"Failed to delete {OPTIONS_FILE}: {e}", file=sys.stderr)
+            print(f"Failed to delete {options_file}: {e}", file=sys.stderr)
             return 1
-        print(f"Deleted {OPTIONS_FILE}; defaults will regenerate on next run.")
+        print(f"Deleted {options_file}; defaults will regenerate on next run.")
     else:
-        print(f"{OPTIONS_FILE} does not exist; nothing to reset.")
+        print(f"{options_file} does not exist; nothing to reset.")
     return 0
 
 
@@ -107,7 +101,7 @@ def _do_show(cfg: object) -> int:
     return 0
 
 
-def _write_tier_stub(profile: str | None, config_dir: str | None) -> None:
+def _write_tier_stub(ws, profile: str | None, config_dir: str | None) -> None:
     """Write a rateLimitTier stub into .credentials.json if tokens.json has tier data.
 
     This lets downstream tools (e.g. howmuchleft) read the tier from
@@ -118,13 +112,11 @@ def _write_tier_stub(profile: str | None, config_dir: str | None) -> None:
     """
     import json
     from pathlib import Path
-    from .constants import TOKENS_FILE
     from .fsutil import write_json_atomic_secret
-    from .tokens import TokenStore
 
     if not profile or not config_dir:
         return
-    tokens = TokenStore(TOKENS_FILE).load()
+    tokens = ws.tokens.load()
     entry = tokens.get(profile)
     if not isinstance(entry, dict):
         return
@@ -159,51 +151,19 @@ def _write_tier_stub(profile: str | None, config_dir: str | None) -> None:
         pass
 
 
-def _shared_store():
-    """Build a SharedStore from cli-module path constants (call-time so tests
-    patching SHARED_DIR/SKILLS_DIR redirect it at a sandbox)."""
-    from .shared_store import SharedStore
-    return SharedStore(SHARED_DIR, SKILLS_DIR)
-
-
-def _profile_store():
-    """Build a fully-wired ProfileStore from cli-module path constants.
-
-    Read APIs work without the write stores, but delete/rename need them, so
-    every store this helper hands out is wired for writes. Tests patch the cli
-    module constants (and Path.home) to redirect it at a sandbox.
-    """
-    from pathlib import Path
-    from .appdata import OptionsFile, StateFile
-    from .profile_store import ProfileStore
-    from .shared_store import SharedStore
-    from .tokens import TokenStore
-
-    return ProfileStore(
-        PROFILES_DIR, Path.home() / ".claude", TokenStore(TOKENS_FILE),
-        shared=SharedStore(SHARED_DIR, SKILLS_DIR),
-        options=OptionsFile(OPTIONS_FILE),
-        state=StateFile(STATE_FILE),
-    )
-
-
 def _do_launch_sequence(
-    cfg: object, selections: dict, extra_flags: list[str] | None = None,
+    ws, locator, cfg: object, selections: dict, extra_flags: list[str] | None = None,
     interactive: bool = True,
     metadata: dict[str, dict[str, dict]] | None = None,
 ) -> None:
     """Run health check, hooks, save state, resolve, and exec. Does not return on success."""
-    from pathlib import Path
-    from .binaries import BinaryLocator
     from .health import run_health_check, print_health_report
     from .hooks import run_hooks
     from .launch import resolve_launch_config, do_launch
-    from .profile_store import ProfileStore
     from .state import record_inode, save_launch_state
-    from .tokens import TokenStore
 
     if interactive and cfg.config.get("health_check_on_launch", True):
-        results = run_health_check()
+        results = run_health_check(ws)
         warnings = [r for r in results if not r.ok]
         if warnings:
             # In non-interactive mode (e.g. print mode), write to stderr and skip input()
@@ -217,28 +177,26 @@ def _do_launch_sequence(
                 except KeyboardInterrupt:
                     print()
                     sys.exit(1)
-    if not run_hooks("pre-launch", selections):
+    if not run_hooks(ws.hooks_dir, "pre-launch", selections):
         print("Pre-launch hook failed. Aborting.", file=sys.stderr)
         sys.exit(1)
     # Save state only after hooks succeed, so launch_count isn't inflated by aborts
     if interactive:
         save_launch_state(cfg, selections)
-        record_inode(selections.get("directory", os.getcwd()))
-    # Read-side ProfileStore is enough: env() supplies both config dir and
-    # token. A stale/unknown profile name raises ValueError (the hard-error
-    # contract); a corrupt tokens.json raises TokenStoreError. Both are caught
-    # here so the user sees a clean message, never a traceback.
-    profiles = ProfileStore(PROFILES_DIR, Path.home() / ".claude",
-                            TokenStore(TOKENS_FILE))
+        record_inode(ws.shared, selections.get("directory", os.getcwd()))
+    # The workspace ProfileStore supplies both config dir and token via env(). A
+    # stale/unknown profile name raises ValueError (the hard-error contract); a
+    # corrupt tokens.json raises TokenStoreError. Both are caught here so the
+    # user sees a clean message, never a traceback.
     try:
         cwd, argv, env = resolve_launch_config(
             selections, cfg.options_def, cfg.config.get("default_flags", []),
-            locator=BinaryLocator.default(),
-            profiles=profiles,
+            locator=locator,
+            profiles=ws.profiles,
             extra_flags=extra_flags,
             metadata=metadata,
         )
-        _write_tier_stub(selections.get("profile"), env.get("CLAUDE_CONFIG_DIR"))
+        _write_tier_stub(ws, selections.get("profile"), env.get("CLAUDE_CONFIG_DIR"))
         do_launch(cwd, argv, env)
     except ValueError as e:
         print(f"Launch failed: {e}", file=sys.stderr)
@@ -255,42 +213,30 @@ def _do_launch_sequence(
 # command.  Handlers that need an AppConfigStore instantiate it lazily (only
 # the ones that actually need it), keeping the one-shot commands fast.
 
-def _handle_health() -> int:
+def _handle_health(ws) -> int:
     from .health import run_health_check, print_health_report
-    results = run_health_check()
+    results = run_health_check(ws)
     print_health_report(results)
     if not all(r.ok for r in results):
         sys.exit(1)
     return 0
 
 
-def _handle_config() -> int:
+def _handle_config(ws) -> int:
     editor = os.environ.get("EDITOR", os.environ.get("VISUAL", "vi"))
-    os.execlp(editor, editor, str(CONFIG_DIR))
+    os.execlp(editor, editor, str(ws.root))
     return 0
 
 
-def _handle_versions() -> int:
-    if VERSIONS_DIR.is_dir():
-        versions = sorted(
-            [e.name for e in VERSIONS_DIR.iterdir() if e.is_file()],
-            key=version_sort_key,
-            reverse=True,
-        )
-    else:
-        versions = []
+def _handle_versions(locator) -> int:
+    versions = locator.installed_versions()
 
     # Determine which version the symlink points to
-    current_version = None
-    try:
-        if CLAUDE_SYMLINK.is_symlink() or CLAUDE_SYMLINK.exists():
-            target = CLAUDE_SYMLINK.resolve()
-            current_version = target.name
-    except OSError:
-        pass
+    target = locator.symlink_target()
+    current_version = target.name if target is not None else None
 
     if not versions:
-        print("No versions found in", VERSIONS_DIR)
+        print("No versions found in", locator.versions_dir)
     else:
         for v in versions:
             suffix = " (current)" if v == current_version else ""
@@ -298,7 +244,7 @@ def _handle_versions() -> int:
     return 0
 
 
-def _handle_install(version: str) -> int:
+def _handle_install(locator, version: str) -> int:
     from .install import install_version
 
     def on_progress(downloaded: int, total: int) -> None:
@@ -310,7 +256,7 @@ def _handle_install(version: str) -> int:
 
     print(f"Downloading Claude Code {version}...")
     try:
-        dest = install_version(version, progress_callback=on_progress)
+        dest = install_version(locator, version, progress_callback=on_progress)
         print(f"\nInstalled to {dest}")
     except OSError as e:
         print(f"\nInstallation failed: {e}", file=sys.stderr)
@@ -318,21 +264,21 @@ def _handle_install(version: str) -> int:
     return 0
 
 
-def _handle_uninstall(version: str) -> int:
-    rc = _do_uninstall(version)
+def _handle_uninstall(locator, version: str) -> int:
+    rc = _do_uninstall(locator, version)
     if rc != 0:
         sys.exit(rc)
     return 0
 
 
-def _handle_reset_options() -> int:
-    rc = _do_reset_options()
+def _handle_reset_options(ws) -> int:
+    rc = _do_reset_options(ws)
     if rc != 0:
         sys.exit(rc)
     return 0
 
 
-def _handle_new_profile() -> int:
+def _handle_new_profile(ws, locator) -> int:
     """Run the create-profile flow as one continuous alt-screen session.
 
     Mirrors the TUI path: wizard form, auth forms, and summary page all
@@ -341,19 +287,17 @@ def _handle_new_profile() -> int:
     printed to stdout as a persistent record.
     """
     from .config import resolve_theme_name
-    from .workspace import Workspace
     from .terminal import Terminal
     from .theme import parse_theme
     from .ui import show_page
     from .wizard import run_profile_wizard, create_profile, run_auth_flow
-    from .discovery import discover_profiles
 
-    cfg = Workspace.default().appconfig()
+    cfg = ws.appconfig()
     theme_name = resolve_theme_name(cfg.config.get("theme", "auto"))
     theme = parse_theme(cfg.load_theme(theme_name))
     # Requires a real TTY; a headless environment fails here, loudly.
     terminal = Terminal()
-    existing = [p.name for p in discover_profiles()]
+    existing = [p.name for p in ws.profiles.enumerate()]
 
     cancelled = False
     summary: list[str] = []
@@ -361,12 +305,12 @@ def _handle_new_profile() -> int:
     try:
         terminal.enter_raw(alt_screen=True)
         try:
-            result = run_profile_wizard(existing, theme, terminal)
+            result = run_profile_wizard(ws, existing, theme, terminal)
             if result.cancelled:
                 cancelled = True
             else:
-                summary = create_profile(result)
-                outcome = run_auth_flow(result.config_dir, result.name,
+                summary = create_profile(ws, result)
+                outcome = run_auth_flow(ws, locator, result.config_dir, result.name,
                                         theme, terminal)
                 show_page("Profile created", summary, theme, terminal)
         finally:
@@ -392,12 +336,12 @@ def _handle_new_profile() -> int:
 
 @strictcli.flag("force-delete", type=bool, help="force deletion even if sessions appear active; skips the safety check")
 @strictcli.flag("force-delete-data", type=bool, help="delete even when shared-dir names hold REAL data instead of symlinks; this DESTROYS that data (e.g. conversation history)")
-def _handle_delete_profile(name: str, force_delete: bool, force_delete_data: bool) -> int:
+def _handle_delete_profile(ws, name: str, force_delete: bool, force_delete_data: bool) -> int:
     """Delete a profile via ProfileStore. The running check is CLI policy."""
     from .profile_ops import _is_profile_running
 
     # Running check is CLI policy (ProfileStore.delete does not enforce it).
-    if not force_delete and _is_profile_running(name):
+    if not force_delete and _is_profile_running(ws, name):
         print(
             f"Profile '{name}' appears to have active sessions. "
             "Use --force-delete to delete anyway.",
@@ -405,7 +349,7 @@ def _handle_delete_profile(name: str, force_delete: bool, force_delete_data: boo
         )
         sys.exit(1)
 
-    store = _profile_store()
+    store = ws.profiles
     try:
         result = store.delete(name, allow_data_destruction=force_delete_data)
     except ValueError as e:
@@ -430,10 +374,18 @@ def _handle_delete_profile(name: str, force_delete: bool, force_delete_data: boo
     return 0
 
 
-def _handle_show_profile(name: str) -> int:
+def _handle_show_profile(ws, name: str) -> int:
     from .profile_info import format_report, gather_profile_info
+    from .tokens import TokenStoreError
 
-    report = gather_profile_info(name)
+    # A corrupt tokens.json surfaces as a TokenStoreError from gather_profile_info
+    # (it reads token state). Catch it narrowly here so the user sees a clean,
+    # actionable message and a nonzero exit, never a Python traceback.
+    try:
+        report = gather_profile_info(ws, name)
+    except TokenStoreError as e:
+        print(str(e), file=sys.stderr)
+        sys.exit(1)
     # Unknown = no dir on disk, not registered/pinned, and no token entry.
     # "default" (~/.claude) is inspectable like any other profile.
     if not (report.exists or report.registered or report.pinned
@@ -446,7 +398,7 @@ def _handle_show_profile(name: str) -> int:
     return 0
 
 
-def _handle_rename_profile(old: str, new: str) -> int:
+def _handle_rename_profile(ws, old: str, new: str) -> int:
     """Rename a profile: validate inputs, then delegate to ProfileStore.rename.
 
     The charset, name-collision (options + tokens), and running checks stay
@@ -456,13 +408,12 @@ def _handle_rename_profile(old: str, new: str) -> int:
     """
     import re
     from .appdata import OptionsFile
-    from .constants import PROFILES_DIR, TOKENS_FILE
     from .profile_ops import _is_profile_running
-    from .tokens import TokenStore, TokenStoreError
+    from .tokens import TokenStoreError
 
     # Validate old exists
-    old_dir = PROFILES_DIR / old
-    options = OptionsFile(OPTIONS_FILE).load({})
+    old_dir = ws.profiles_dir / old
+    options = OptionsFile(ws.options_file).load({})
     profile_sec = options.get("profile", {})
     registered = old in profile_sec.get("values", []) or old in profile_sec.get("pinned", [])
     if not registered and not old_dir.is_dir():
@@ -481,7 +432,7 @@ def _handle_rename_profile(old: str, new: str) -> int:
         sys.exit(1)
 
     # Validate not already taken
-    new_dir = PROFILES_DIR / new
+    new_dir = ws.profiles_dir / new
     if new_dir.exists():
         print(f"Profile '{new}' already exists (directory).", file=sys.stderr)
         sys.exit(1)
@@ -491,7 +442,7 @@ def _handle_rename_profile(old: str, new: str) -> int:
         print(f"Profile '{new}' already registered in options.", file=sys.stderr)
         sys.exit(1)
     try:
-        tokens = TokenStore(TOKENS_FILE).load()
+        tokens = ws.tokens.load()
     except TokenStoreError as e:
         print(str(e), file=sys.stderr)
         sys.exit(1)
@@ -500,14 +451,14 @@ def _handle_rename_profile(old: str, new: str) -> int:
         sys.exit(1)
 
     # Check not running
-    if _is_profile_running(old):
+    if _is_profile_running(ws, old):
         print(f"Profile '{old}' has active sessions. "
               "Stop them before renaming.", file=sys.stderr)
         sys.exit(1)
 
     # Perform rename
     try:
-        _profile_store().rename(old, new)
+        ws.profiles.rename(old, new)
     except (ValueError, OSError) as e:
         print(f"Rename failed: {e}", file=sys.stderr)
         sys.exit(1)
@@ -516,23 +467,21 @@ def _handle_rename_profile(old: str, new: str) -> int:
     return 0
 
 
-def _handle_check_tokens() -> int:
+def _handle_check_tokens(ws) -> int:
     """Validate stored tokens for all discovered profiles against the Anthropic API."""
-    from .constants import TOKENS_FILE
-    from .discovery import discover_profiles
-    from .tokens import TokenStore, TokenStoreError, parse_entry
+    from .tokens import TokenStoreError, parse_entry
     from .auth import validate_token, VALID, INVALID, UNREACHABLE, INDETERMINATE
 
     # Load tokens.json via TokenStore. A corrupt/unreadable file raises
     # TokenStoreError -- catch it narrowly here so the user sees the actionable
     # message and a nonzero exit, never a traceback (mirrors the launch path).
     try:
-        tokens = TokenStore(TOKENS_FILE).load()
+        tokens = ws.tokens.load()
     except TokenStoreError as e:
         print(str(e), file=sys.stderr)
         return 1
 
-    profiles = discover_profiles()
+    profiles = ws.profiles.enumerate(tokens)
     if not profiles:
         print("No profiles found.")
         return 0
@@ -568,11 +517,11 @@ def _handle_check_tokens() -> int:
     return 1 if any_bad else 0
 
 
-def _handle_fix_auth(name: str) -> int:
+def _handle_fix_auth(ws, name: str) -> int:
     """Remove session credentials that shadow a long-lived token."""
     from .profile_ops import fix_auth_shadow
 
-    result = fix_auth_shadow(name)
+    result = fix_auth_shadow(ws, name)
 
     if not result.ok:
         if result.reason == "no-token":
@@ -592,20 +541,19 @@ def _handle_fix_auth(name: str) -> int:
     return 0
 
 
-def _handle_show() -> int:
-    from .workspace import Workspace
-    cfg = Workspace.default().appconfig()
+def _handle_show(ws) -> int:
+    cfg = ws.appconfig()
     rc = _do_show(cfg)
     if rc != 0:
         sys.exit(rc)
     return 0
 
 
-def _handle_migrate(src: str, dst: str, uuid: str) -> int:
+def _handle_migrate(ws, src: str, dst: str, uuid: str) -> int:
     from .migrate import migrate_sessions
     uuid_filter = uuid if uuid else None
     try:
-        migrate_sessions(src, dst, uuid_filter=uuid_filter, dry_run=False)
+        migrate_sessions(ws, src, dst, uuid_filter=uuid_filter, dry_run=False)
     except (FileNotFoundError, OSError) as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
@@ -613,18 +561,18 @@ def _handle_migrate(src: str, dst: str, uuid: str) -> int:
 
 
 @strictcli.flag("dry-run", type=bool, default=False, help="preview cleanup changes without writing anything to disk")
-def _handle_stats(dry_run: bool) -> int:
+def _handle_stats(ws, dry_run: bool) -> int:
     from .stats import run_stats
-    run_stats(dry_run=dry_run)
+    run_stats(ws.shared, dry_run=dry_run)
     return 0
 
 
 @strictcli.flag("dry-run", type=bool, default=False, help="preview the rename and session migration without writing anything to disk")
 @strictcli.flag("post-hoc", type=bool, default=False, help="skip filesystem rename, migrate sessions only (directory already renamed)")
-def _handle_mv(old: str, new: str, dry_run: bool, post_hoc: bool) -> int:
+def _handle_mv(ws, old: str, new: str, dry_run: bool, post_hoc: bool) -> int:
     from .mv import run_mv
     try:
-        run_mv(old, new, dry_run=dry_run, post_hoc=post_hoc)
+        run_mv(ws, old, new, dry_run=dry_run, post_hoc=post_hoc)
     except (ValueError, FileNotFoundError, FileExistsError, OSError) as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
@@ -633,7 +581,7 @@ def _handle_mv(old: str, new: str, dry_run: bool, post_hoc: bool) -> int:
 
 @strictcli.flag("dry-run", type=bool, default=False, help="preview the import operation without writing any session data to disk")
 @strictcli.flag("reid", type=bool, default=False, help="assign new UUIDs to sessions that collide with existing local sessions")
-def _handle_import(source: str, from_: list[str], to: list[str], dry_run: bool, reid: bool) -> int:
+def _handle_import(ws, source: str, from_: list[str], to: list[str], dry_run: bool, reid: bool) -> int:
     from pathlib import Path
     from .import_ import run_import
 
@@ -654,7 +602,7 @@ def _handle_import(source: str, from_: list[str], to: list[str], dry_run: bool, 
         mappings.append((f, str(resolved)))
 
     try:
-        result = run_import(source, mappings, reid=reid, dry_run=dry_run)
+        result = run_import(ws.shared, source, mappings, reid=reid, dry_run=dry_run)
     except (ValueError, FileNotFoundError, OSError) as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1
@@ -670,7 +618,7 @@ def _handle_import(source: str, from_: list[str], to: list[str], dry_run: bool, 
 
 @strictcli.flag("all", type=bool, default=False, help="deploy every known hook script from the built-in registry at once")
 @strictcli.flag("force-overwrite", type=bool, default=False, help="overwrite existing hook scripts on disk instead of skipping them")
-def _handle_deploy_hooks(name: str, all: bool, force_overwrite: bool) -> int:
+def _handle_deploy_hooks(ws, name: str, all: bool, force_overwrite: bool) -> int:
     from .hook_scripts import HOOK_SCRIPTS, deploy_scripts
 
     if not name and not all:
@@ -685,9 +633,10 @@ def _handle_deploy_hooks(name: str, all: bool, force_overwrite: bool) -> int:
         print(f"Error: unknown hook script: {name!r} (known: {known})", file=sys.stderr)
         sys.exit(1)
 
+    scripts_dir = ws.scripts_dir
     targets = sorted(HOOK_SCRIPTS) if all else [name]
-    for script_name, action in deploy_scripts(targets, SCRIPTS_DIR, force_overwrite):
-        dest = SCRIPTS_DIR / script_name
+    for script_name, action in deploy_scripts(targets, scripts_dir, force_overwrite):
+        dest = scripts_dir / script_name
         if action == "exists":
             print(f"already exists: {dest}")
         else:
@@ -698,9 +647,9 @@ def _handle_deploy_hooks(name: str, all: bool, force_overwrite: bool) -> int:
 
 @strictcli.flag("dry-run", type=bool, default=False,
                 help="preview the changes without writing anything to disk")
-def _handle_patch_profiles(dry_run: bool) -> int:
+def _handle_patch_profiles(ws, dry_run: bool) -> int:
     from .patch_profiles import run_patch_profiles
-    return run_patch_profiles(dry_run=dry_run)
+    return run_patch_profiles(ws, dry_run=dry_run)
 
 
 @strictcli.flag("dry-run", type=bool, default=False,
@@ -709,7 +658,7 @@ def _handle_patch_profiles(dry_run: bool) -> int:
                 help="perform the reconciliation, writing each target atomically (mutually exclusive with --dry-run; you MUST pass exactly one of --dry-run or --apply)")
 @strictcli.flag("profile", type=str, default="",
                 help="reconcile only this single profile; when given, shared-settings.json profileDefaults is left untouched (omit to reconcile every profile AND shared-settings profileDefaults)")
-def _handle_reconcile_permissions(dry_run: bool, apply: bool, profile: str) -> int:
+def _handle_reconcile_permissions(ws, dry_run: bool, apply: bool, profile: str) -> int:
     from .reconcile import run_reconcile
 
     if dry_run == apply:
@@ -722,10 +671,10 @@ def _handle_reconcile_permissions(dry_run: bool, apply: bool, profile: str) -> i
         )
         sys.exit(2)
 
-    return run_reconcile(dry_run=dry_run, profile=profile or None)
+    return run_reconcile(ws, dry_run=dry_run, profile=profile or None)
 
 
-def _handle_permission_add(category: str, rule: str,
+def _handle_permission_add(ws, category: str, rule: str,
                            profile: str, all_profiles: bool) -> int:
     from .permission import validate_rule, resolve_profiles, load_settings, add_rule, save_settings
 
@@ -741,7 +690,7 @@ def _handle_permission_add(category: str, rule: str,
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
-    targets = resolve_profiles(profile if profile else None, all_profiles)
+    targets = resolve_profiles(ws, profile if profile else None, all_profiles)
     for name, settings_path in targets:
         data = load_settings(settings_path)
         result = add_rule(data, category, rule)
@@ -753,7 +702,7 @@ def _handle_permission_add(category: str, rule: str,
     return 0
 
 
-def _handle_permission_remove(category: str, rule: str,
+def _handle_permission_remove(ws, category: str, rule: str,
                               profile: str, all_profiles: bool) -> int:
     from .permission import resolve_profiles, load_settings, remove_rule, save_settings
 
@@ -767,7 +716,7 @@ def _handle_permission_remove(category: str, rule: str,
         print("Error: rule must not be empty", file=sys.stderr)
         sys.exit(1)
 
-    targets = resolve_profiles(profile if profile else None, all_profiles)
+    targets = resolve_profiles(ws, profile if profile else None, all_profiles)
     for name, settings_path in targets:
         data = load_settings(settings_path)
         result = remove_rule(data, category, rule)
@@ -783,7 +732,7 @@ def _handle_permission_remove(category: str, rule: str,
                 choices=["grouped", "flat", "json"])
 @strictcli.flag("category", type=str, help="restrict output to a single permission category (allow, deny, or ask)",
                 default="")
-def _handle_permission_list(profile: str, all_profiles: bool,
+def _handle_permission_list(ws, profile: str, all_profiles: bool,
                             format: str, category: str) -> int:
     import json as json_mod
     from .permission import resolve_profiles, load_settings
@@ -794,7 +743,7 @@ def _handle_permission_list(profile: str, all_profiles: bool,
               file=sys.stderr)
         sys.exit(1)
 
-    targets = resolve_profiles(profile if profile else None, all_profiles)
+    targets = resolve_profiles(ws, profile if profile else None, all_profiles)
     multi = len(targets) > 1
 
     for i, (name, settings_path) in enumerate(targets):
@@ -829,7 +778,7 @@ def _handle_permission_list(profile: str, all_profiles: bool,
     return 0
 
 
-def _check_resume_session(session_id: str, directory: str) -> None:
+def _check_resume_session(ws, session_id: str, directory: str) -> None:
     """Intercept --resume to detect and offer to fix directory renames.
 
     When a session exists under an old encoded path (because the project
@@ -842,7 +791,7 @@ def _check_resume_session(session_id: str, directory: str) -> None:
     """
     from .session import find_session
 
-    store = _shared_store()
+    store = ws.shared
 
     # Step 1: Check if session exists under the current directory
     encoded_cwd = store.encode_path(os.path.abspath(directory))
@@ -851,7 +800,7 @@ def _check_resume_session(session_id: str, directory: str) -> None:
         return  # Claude Code will find it
 
     # Step 2: Search the entire shared store
-    info = find_session(session_id)
+    info = find_session(session_id, store.projects_dir)
     if info is None:
         print(
             f"Session {session_id} not found in any project directory.\n"
@@ -904,7 +853,7 @@ def _check_resume_session(session_id: str, directory: str) -> None:
     # Step 5: Dry-run first (quiet -- no per-file log spam)
     from .mv import run_mv
 
-    result = run_mv(old_cwd, current_dir, dry_run=True, quiet=True, post_hoc=True)
+    result = run_mv(ws, old_cwd, current_dir, dry_run=True, quiet=True, post_hoc=True)
     print(
         f"\nWill move {result.files_rewritten} session files, "
         f"rewrite {result.lines_replaced} path references, "
@@ -924,11 +873,11 @@ def _check_resume_session(session_id: str, directory: str) -> None:
         sys.exit(1)
 
     # Step 6: Execute for real
-    result = run_mv(old_cwd, current_dir, dry_run=False, quiet=True, post_hoc=True)
+    result = run_mv(ws, old_cwd, current_dir, dry_run=False, quiet=True, post_hoc=True)
     print("Done. Resuming session...")
 
 
-def _check_cont_session(directory: str) -> None:
+def _check_cont_session(ws, directory: str) -> None:
     """Intercept --cont to detect and offer to fix directory renames.
 
     When the current directory has no sessions but an orphaned project
@@ -938,7 +887,7 @@ def _check_cont_session(directory: str) -> None:
     """
     from .session import find_orphaned_project_dirs
 
-    store = _shared_store()
+    store = ws.shared
     current_dir = os.path.abspath(directory)
 
     # Step 1: Check if sessions exist under the current directory
@@ -948,7 +897,7 @@ def _check_cont_session(directory: str) -> None:
         return  # Claude Code will find sessions
 
     # Step 2: Scan all project dirs for orphans (cwd no longer on disk)
-    candidates = find_orphaned_project_dirs()
+    candidates = find_orphaned_project_dirs(store.projects_dir)
 
     # Step 3: No candidates
     if not candidates:
@@ -1004,7 +953,7 @@ def _check_cont_session(directory: str) -> None:
     # Two-prompt flow: dry run, then confirm and execute
     from .mv import run_mv
 
-    result = run_mv(old_cwd, current_dir, dry_run=True, quiet=True, post_hoc=True)
+    result = run_mv(ws, old_cwd, current_dir, dry_run=True, quiet=True, post_hoc=True)
     print(
         f"\nWill move {result.files_rewritten} session files, "
         f"rewrite {result.lines_replaced} path references, "
@@ -1022,13 +971,14 @@ def _check_cont_session(directory: str) -> None:
     if not answer.strip().lower().startswith("y"):
         return
 
-    result = run_mv(old_cwd, current_dir, dry_run=False, quiet=True, post_hoc=True)
+    result = run_mv(ws, old_cwd, current_dir, dry_run=False, quiet=True, post_hoc=True)
     print("Done. Resuming session...")
 
 
 # "continue" and "print" are Python keywords, so we use "cont" / "print-prompt"
 # as flag names. Short forms -c and -p remain the same for user convenience.
 def _handle_launch(
+    ws, locator,
     # Session flags (via tag); mutually exclusive, all optional
     cont: bool, resume: str, print_prompt: str, picker: bool,
     # Segment flags (via tag); empty string means "not provided"
@@ -1049,9 +999,8 @@ def _handle_launch(
         sys.exit(1)
 
     from .app import App as TuiApp
-    from .workspace import Workspace
 
-    cfg = Workspace.default().appconfig()
+    cfg = ws.appconfig()
     enabled = cfg.config.get("enabled_segments", [])
     segment_keys = [s["key"] for s in cfg.segments_def if s["key"] in enabled]
 
@@ -1114,9 +1063,9 @@ def _handle_launch(
     # move sessions before Claude Code tries to find them.
     if resume_val:
         target_dir = segment_overrides.get("directory", os.getcwd())
-        _check_resume_session(resume_val, target_dir)
+        _check_resume_session(ws, resume_val, target_dir)
     if cont:
-        _check_cont_session(segment_overrides.get("directory", os.getcwd()))
+        _check_cont_session(ws, segment_overrides.get("directory", os.getcwd()))
 
     # Skip TUI when args cover every required segment, or when print mode is active.
     required_keys = {s["key"] for s in cfg.segments_def
@@ -1145,12 +1094,12 @@ def _handle_launch(
                         "to populate last_config.",
                         file=sys.stderr,
                     )
-            _do_launch_sequence(cfg, merged, extra_flags=extra_flags,
+            _do_launch_sequence(ws, locator, cfg, merged, extra_flags=extra_flags,
                                 interactive=print_prompt_val is None)
             return 0
 
         # Otherwise show the TUI (pre-filled from last_config + arg overrides)
-        app = TuiApp(cfg=cfg, overrides=segment_overrides)
+        app = TuiApp(ws, cfg=cfg, overrides=segment_overrides)
         selections = app.run_tui()
         if selections is None:
             return 0
@@ -1162,7 +1111,7 @@ def _handle_launch(
                 bar_metadata[seg.key] = seg.state.metadata
 
         _do_launch_sequence(
-            app.cfg, selections, extra_flags=extra_flags,
+            ws, locator, app.cfg, selections, extra_flags=extra_flags,
             metadata=bar_metadata or None,
         )
         return 0
@@ -1206,68 +1155,93 @@ def _inject_launch(argv: list[str]) -> list[str]:
     return list(argv)
 
 
-def _build_app() -> App:
+def _bind(handler, *pre):
+    """Pre-bind leading positional dependencies (workspace/locator) to a handler.
+
+    strictcli dispatches handlers with keyword arguments (`handler(**parsed)`)
+    and builds the schema from the declared Flag/Arg objects -- NOT from the
+    handler signature. The signature is used only for validation, which strictcli
+    SKIPS when the callable accepts ``**kwargs``. So the returned wrapper:
+
+    - takes ``**kwargs`` (validation skipped, no signature drift),
+    - forwards the pre-bound deps plus parsed kwargs to the real handler,
+    - copies the ``@strictcli.flag`` / ``@strictcli.arg`` decorator metadata so
+      the schema is byte-identical to registering the bare handler.
+
+    We deliberately do NOT use ``functools.wraps``: it would set ``__wrapped__``,
+    and ``inspect.signature`` follows that chain back to the real (ws-bearing)
+    signature, re-triggering strict validation. Copying only the two strictcli
+    attributes keeps the wrapper's signature a clean ``(**kwargs)``.
+    """
+    def wrapper(**kwargs):
+        return handler(*pre, **kwargs)
+    wrapper._strictcli_flags = getattr(handler, "_strictcli_flags", [])
+    wrapper._strictcli_args = getattr(handler, "_strictcli_args", [])
+    return wrapper
+
+
+def _build_app(ws, locator) -> App:
     """Build the strictcli App with all subcommands registered."""
     app = App(name="c", version=__version__, help="claudewheel - TUI launcher for Claude Code with profile, model, and directory selection")
 
     # -- One-shot commands --
 
     app.command("health", help="run diagnostic health checks on profiles, tokens, and hooks, then exit")(
-        _handle_health
+        _bind(_handle_health, ws)
     )
 
     app.command("config", help="open the ~/.claudewheel/ config directory in your $EDITOR")(
-        _handle_config
+        _bind(_handle_config, ws)
     )
 
     app.command("versions", help="list all installed Claude Code versions, marking the current symlink target")(
-        _handle_versions
+        _bind(_handle_versions, locator)
     )
 
     app.command("install", help="download and install a specific Claude Code version",
                 args=[Arg(name="version", help="semver version string to download and install (e.g. 2.1.119)")])(
-        _handle_install
+        _bind(_handle_install, locator)
     )
 
     app.command("uninstall", help="delete an installed Claude Code version binary from the versions directory",
                 args=[Arg(name="version", help="semver version string to remove (refuses if it is the current symlink target)")])(
-        _handle_uninstall
+        _bind(_handle_uninstall, locator)
     )
 
     app.command("reset-options", help="delete options.json so it regenerates from defaults")(
-        _handle_reset_options
+        _bind(_handle_reset_options, ws)
     )
 
     # -- Profile group --
     profile_grp = app.group("profile", help="create, inspect, rename, delete, and manage Claude Code profiles and their stored tokens")
 
     profile_grp.command("create", help="create a new profile interactively through a guided wizard, then set up its authentication")(
-        _handle_new_profile
+        _bind(_handle_new_profile, ws, locator)
     )
 
     profile_grp.command("delete", help="delete a registered profile and clean up its directory, tokens, and options entries",
                         args=[Arg(name="name", help="name of the profile to delete (e.g. work, personal, lisa)")])(
-        _handle_delete_profile
+        _bind(_handle_delete_profile, ws)
     )
 
     profile_grp.command("show", help="inspect a profile's configuration, authentication status, and session data in a detailed report",
                         args=[Arg(name="name", help="name of the profile to inspect (e.g. work, personal, default)")])(
-        _handle_show_profile
+        _bind(_handle_show_profile, ws)
     )
 
     profile_grp.command("rename", help="rename a profile, moving its directory, tokens, and session data to the new name",
                         args=[Arg(name="old", help="current name of the profile to rename (must be an existing, non-running profile)"),
                               Arg(name="new", help="new name for the profile (lowercase letters, digits, and hyphens; must be unused)")])(
-        _handle_rename_profile
+        _bind(_handle_rename_profile, ws)
     )
 
     profile_grp.command("fix-auth", help="remove session credentials that shadow a long-lived token",
                         args=[Arg(name="name", help="name of the profile whose shadowing session credentials should be removed")])(
-        _handle_fix_auth
+        _bind(_handle_fix_auth, ws)
     )
 
     profile_grp.command("check-tokens", help="validate every discovered profile's stored OAuth token against the Anthropic API")(
-        _handle_check_tokens
+        _bind(_handle_check_tokens, ws)
     )
 
     # Hard-break old top-level names so they fail loudly with migration guidance
@@ -1276,7 +1250,7 @@ def _build_app() -> App:
     app.deprecate("show-profile", message="Renamed: use 'claudewheel profile show <name>' instead.")
 
     app.command("show", help="print a summary of current segment selections, theme, and recent directories")(
-        _handle_show
+        _bind(_handle_show, ws)
     )
 
     app.command("migrate", help="move session data files from one profile to another, optionally filtered by UUID",
@@ -1285,11 +1259,11 @@ def _build_app() -> App:
                     Arg(name="dst", help="destination profile name to receive the migrated sessions (e.g. personal)"),
                     Arg(name="uuid", help="optional UUID substring to migrate only matching sessions", required=False, default=""),
                 ])(
-        _handle_migrate
+        _bind(_handle_migrate, ws)
     )
 
     app.command("stats", help="report shared-store stats and clean up legacy data")(
-        _handle_stats
+        _bind(_handle_stats, ws)
     )
 
     app.command("mv", help="rename a project directory and migrate session data",
@@ -1297,7 +1271,7 @@ def _build_app() -> App:
                     Arg(name="old", help="current path of the project directory to rename (absolute or relative)"),
                     Arg(name="new", help="target path for the renamed project directory (absolute or relative)"),
                 ])(
-        _handle_mv
+        _bind(_handle_mv, ws)
     )
 
     app.command("import", help="import session data from an external Claude Code directory",
@@ -1315,20 +1289,20 @@ def _build_app() -> App:
                 dependencies=[
                     CoRequired(flags=["from", "to"]),
                 ])(
-        _handle_import
+        _bind(_handle_import, ws)
     )
 
     app.command("deploy-hooks", help="deploy built-in hook scripts to the ~/.claudewheel/scripts/ directory",
                 args=[Arg(name="name", help="name of the specific hook script to deploy (omit to use --all)", required=False, default="")])(
-        _handle_deploy_hooks
+        _bind(_handle_deploy_hooks, ws)
     )
 
     app.command("patch-profiles", help="sync existing profiles and shared-settings.json to canonical hook and disallowedTools defaults")(
-        _handle_patch_profiles
+        _bind(_handle_patch_profiles, ws)
     )
 
     app.command("reconcile-permissions", help="reconcile profile and shared-settings permissions (deny/ask/allow) to the canonical guardrail model; requires exactly one of --dry-run or --apply")(
-        _handle_reconcile_permissions
+        _bind(_handle_reconcile_permissions, ws)
     )
 
     # -- Permission group --
@@ -1351,7 +1325,7 @@ def _build_app() -> App:
                          Arg(name="rule", help="permission rule string to add (e.g. Bash, Read(//home/**), Edit)")
                      ],
                      mutex=[_profile_mutex])(
-        _handle_permission_add
+        _bind(_handle_permission_add, ws)
     )
 
     perm_grp.command("remove", help=(
@@ -1366,7 +1340,7 @@ def _build_app() -> App:
                          Arg(name="rule", help="exact permission rule string to remove (must match an existing entry)"),
                      ],
                      mutex=[_profile_mutex])(
-        _handle_permission_remove
+        _bind(_handle_permission_remove, ws)
     )
 
     perm_grp.command("list", help=(
@@ -1377,7 +1351,7 @@ def _build_app() -> App:
                          " registered profile, with each profile's rules displayed under a header."
                      ),
                      mutex=[_profile_mutex])(
-        _handle_permission_list
+        _bind(_handle_permission_list, ws)
     )
 
     # -- Launch command (default when no subcommand given) --
@@ -1412,7 +1386,7 @@ def _build_app() -> App:
 
     app.command("launch", help="start the interactive TUI launcher to select a profile, model, and directory",
                 flag_sets=[_session_flag_set, _segment_flag_set])(
-        _handle_launch
+        _bind(_handle_launch, ws, locator)
     )
 
     return app
@@ -1436,4 +1410,15 @@ def main() -> None:
     # handled at the app level, not routed to the launch command.
     sys.argv = _inject_launch(sys.argv)
 
-    _build_app().run()
+    # Open the workspace ONCE at the dispatch boundary and thread it (plus the
+    # binary locator, which is separate from the workspace by design) into every
+    # handler via `_bind`. `Workspace.default()` is pure value construction (the
+    # sole reader of the config-dir override env var); no filesystem or terminal
+    # I/O happens here, so `--dump-schema` stays hermetic.
+    from .workspace import Workspace
+    from .binaries import BinaryLocator
+
+    ws = Workspace.default()
+    locator = BinaryLocator.default()
+
+    _build_app(ws, locator).run()

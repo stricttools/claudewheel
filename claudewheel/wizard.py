@@ -9,24 +9,21 @@ import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from . import auth
-from .appdata import OptionsFile, StateFile
-from .constants import (
-    CLAUDE_SYMLINK,
-    OPTIONS_FILE, PROFILES_DIR, SCRIPTS_DIR, STATE_FILE,
-    SHARED_DIR, SHARED_SETTINGS_FILE, SKILLS_DIR, TOKENS_FILE,
-)
+from .appdata import StateFile
 from .defaults import DISALLOWED_TOOLS, build_canonical_shared_settings
 from .discovery import detect_browsers
 from .fsutil import write_json_atomic
 from .patch_profiles import merge_hooks
-from .profile_store import ProfileStore
 from .pty_runner import run_under_pty
-from .shared_store import SharedStore
-from .state import AUTH_BROWSER_KEY, load_state_value, save_state_value
-from .tokens import TokenStore, add_token, store_tier
+from .state import AUTH_BROWSER_KEY
 from .ui import FormField, get_field, run_form, run_selection
+
+if TYPE_CHECKING:
+    from .binaries import BinaryLocator
+    from .workspace import Workspace
 
 # The 6 advanced checkboxes: (field key, display label). Keys match the
 # WizardResult attribute names.
@@ -58,7 +55,7 @@ class WizardResult:
     cancelled: bool = False
 
 
-def _validate_name(name: str, existing_profiles: list[str]) -> str | None:
+def _validate_name(ws: "Workspace", name: str, existing_profiles: list[str]) -> str | None:
     """Return error message, or None if valid."""
     name = name.strip()
     if not name:
@@ -67,7 +64,7 @@ def _validate_name(name: str, existing_profiles: list[str]) -> str | None:
         return "Use lowercase letters, digits, hyphens only"
     if name == "default":
         return f"'{name}' is a reserved name"
-    config_dir = (PROFILES_DIR / name).expanduser()
+    config_dir = (ws.profiles_dir / name).expanduser()
     if config_dir.exists():
         return f"~/.claudewheel/profiles/{name} already exists"
     if name in existing_profiles:
@@ -129,7 +126,7 @@ def _cancelled_result() -> WizardResult:
                         False, cancelled=True)
 
 
-def run_profile_wizard(existing_profiles: list[str], theme,
+def run_profile_wizard(ws: "Workspace", existing_profiles: list[str], theme,
                        terminal) -> WizardResult:
     """Run the profile creation form and return the user's choices.
 
@@ -140,7 +137,7 @@ def run_profile_wizard(existing_profiles: list[str], theme,
 
     def validate(fields: list[FormField]) -> str | None:
         name = str(get_field(fields, "name").value or "").strip()
-        return _validate_name(name, existing_profiles)
+        return _validate_name(ws, name, existing_profiles)
 
     values = run_form("New Profile", fields, theme, terminal,
                       validate=validate)
@@ -149,14 +146,14 @@ def run_profile_wizard(existing_profiles: list[str], theme,
     return _build_result(values)
 
 
-def _load_shared_settings() -> dict:
+def _load_shared_settings(ws: "Workspace") -> dict:
     """Load shared-settings.json, falling back to canonical defaults if missing."""
-    if SHARED_SETTINGS_FILE.exists():
+    if ws.shared_settings_file.exists():
         try:
-            return json.loads(SHARED_SETTINGS_FILE.read_text())
+            return json.loads(ws.shared_settings_file.read_text())
         except (json.JSONDecodeError, OSError):
             pass
-    return build_canonical_shared_settings(SCRIPTS_DIR)
+    return build_canonical_shared_settings(ws.scripts_dir)
 
 
 def _set_onboarding_flag(config_dir: str) -> None:
@@ -184,7 +181,7 @@ def _set_onboarding_flag(config_dir: str) -> None:
     write_json_atomic(path, data)
 
 
-def create_profile(result: WizardResult) -> list[str]:
+def create_profile(ws: "Workspace", result: WizardResult) -> list[str]:
     """Execute the profile creation based on wizard results.
 
     Assembles the final settings dict (clone/defaults/checkbox overrides/hooks)
@@ -196,13 +193,13 @@ def create_profile(result: WizardResult) -> list[str]:
     the caller's job (the TUI shows a fullscreen page, the CLI prints them).
     """
     # Load shared settings once -- used for profileDefaults and hooks/disallowedTools
-    shared = _load_shared_settings()
+    shared = _load_shared_settings(ws)
 
     # Build settings.json content
     settings: dict = {}
     if result.clone_from:
         # Copy from existing profile
-        source_dir = PROFILES_DIR / result.clone_from
+        source_dir = ws.profiles_dir / result.clone_from
         source_settings = source_dir / "settings.json"
         if source_settings.exists():
             try:
@@ -247,12 +244,7 @@ def create_profile(result: WizardResult) -> list[str]:
     # atomic settings.json write, sets the onboarding flag, symlinks the six
     # shared-store subdirs (+ skills), and registers the profile in
     # options.json (pinned). The old non-atomic write_text lived here.
-    store = ProfileStore(
-        PROFILES_DIR, Path.home() / ".claude", TokenStore(TOKENS_FILE),
-        shared=SharedStore(SHARED_DIR, SKILLS_DIR),
-        options=OptionsFile(OPTIONS_FILE),
-        state=StateFile(STATE_FILE),
-    )
+    store = ws.profiles
     store.create(result.name, settings, symlink_shared=result.symlink_shared)
     config_dir = store.path_for(result.name)
 
@@ -269,17 +261,19 @@ def create_profile(result: WizardResult) -> list[str]:
     ]
 
 
-def _find_claude_binary() -> str | None:
-    """Locate the Claude Code binary. Returns the path or None."""
-    if CLAUDE_SYMLINK.exists() or CLAUDE_SYMLINK.is_symlink():
-        resolved = CLAUDE_SYMLINK.resolve()
+def _find_claude_binary(locator: "BinaryLocator") -> str | None:
+    """Locate the Claude Code binary via the injected locator. Returns path or None."""
+    symlink = locator.fallback
+    if symlink.exists() or symlink.is_symlink():
+        resolved = symlink.resolve()
         if resolved.is_file():
             return str(resolved)
     found = shutil.which("claude")
     return found
 
 
-def run_auth_flow(config_dir: str, profile_name: str, theme, terminal,
+def run_auth_flow(ws: "Workspace", locator: "BinaryLocator", config_dir: str,
+                  profile_name: str, theme, terminal,
                   skip_label: str = "Skip for now") -> str:
     """Prompt the user to set up authentication for a newly created profile.
 
@@ -320,12 +314,12 @@ def run_auth_flow(config_dir: str, profile_name: str, theme, terminal,
         return "cancel"
 
     if choice == "paste":
-        outcome = _auth_paste_token(config_dir, profile_name, theme, terminal)
+        outcome = _auth_paste_token(ws, config_dir, profile_name, theme, terminal)
     else:
         # Pre-focus the browser chosen in the last successful auth. If that
         # browser is gone from the options (uninstalled), run_selection falls
         # back to focusing the first option -- the form always appears.
-        remembered = load_state_value(AUTH_BROWSER_KEY)
+        remembered = StateFile(ws.state_file).get_value(AUTH_BROWSER_KEY)
         if not isinstance(remembered, str):
             remembered = None
 
@@ -339,18 +333,18 @@ def run_auth_flow(config_dir: str, profile_name: str, theme, terminal,
             return "cancel"
 
         if choice == "session":
-            ok = _auth_session_login(config_dir, profile_name, browser, terminal)
+            ok = _auth_session_login(ws, locator, config_dir, profile_name, browser, terminal)
             outcome = "authenticated" if ok else "failed"
         else:
-            outcome = _auth_long_lived_token(config_dir, profile_name, browser,
-                                             theme, terminal)
+            outcome = _auth_long_lived_token(ws, locator, config_dir, profile_name,
+                                             browser, theme, terminal)
 
     if outcome in ("authenticated", "unverified"):
         # Remember the working browser choice for the next auth flow. An
         # unverified save still means the browser step itself worked.
         # The paste path has no browser step, so skip persistence.
         if choice != "paste":
-            save_state_value(AUTH_BROWSER_KEY, browser)
+            StateFile(ws.state_file).set_value(AUTH_BROWSER_KEY, browser)
         # Mark onboarding complete so CC skips the login screen
         _set_onboarding_flag(config_dir)
     return outcome
@@ -370,7 +364,8 @@ def _apply_browser_env(env: dict[str, str], browser: str) -> None:
         env["BROWSER"] = browser
 
 
-def _capture_tier_from_credentials(credentials: Path, profile_name: str) -> None:
+def _capture_tier_from_credentials(ws: "Workspace", credentials: Path,
+                                   profile_name: str) -> None:
     """Read rateLimitTier/subscriptionType from .credentials.json and store in tokens.json.
 
     Best-effort: silently skips if the credentials file cannot be parsed or
@@ -388,13 +383,13 @@ def _capture_tier_from_credentials(credentials: Path, profile_name: str) -> None
     if not tier and not subscription:
         return
     try:
-        store_tier(profile_name, tier=tier, subscription=subscription)
+        ws.tokens.set_tier(profile_name, tier=tier, subscription=subscription)
     except OSError:
         pass  # best-effort: don't fail auth flow over tier storage
 
 
-def _auth_session_login(config_dir: str, profile_name: str,
-                        browser: str, terminal) -> bool:
+def _auth_session_login(ws: "Workspace", locator: "BinaryLocator", config_dir: str,
+                        profile_name: str, browser: str, terminal) -> bool:
     """Run ``claude auth login`` with CLAUDE_CONFIG_DIR and BROWSER set.
 
     The whole body runs inside ``terminal.cooked()`` so the claude subprocess
@@ -402,7 +397,7 @@ def _auth_session_login(config_dir: str, profile_name: str,
     if any) is restored on exit.
     """
     with terminal.cooked():
-        binary = _find_claude_binary()
+        binary = _find_claude_binary(locator)
         if binary is None:
             print("Error: Claude binary not found. Install it or add it to PATH.")
             return False
@@ -424,7 +419,7 @@ def _auth_session_login(config_dir: str, profile_name: str,
         credentials = Path(config_dir).expanduser() / ".credentials.json"
         if credentials.exists():
             # Extract rate-limit tier metadata if present
-            _capture_tier_from_credentials(credentials, profile_name)
+            _capture_tier_from_credentials(ws, credentials, profile_name)
             print("Authentication successful.")
             return True
 
@@ -450,7 +445,7 @@ def _read_pasted_token(prompt: str) -> str | None:
     return "".join(raw.split())
 
 
-def _capture_setup_token(config_dir: str, browser: str) -> str | None:
+def _capture_setup_token(locator: "BinaryLocator", config_dir: str, browser: str) -> str | None:
     """Run ``claude setup-token`` under a PTY and scrape the token.
 
     Must run inside a cooked window: run_under_pty proxies the real terminal
@@ -463,7 +458,7 @@ def _capture_setup_token(config_dir: str, browser: str) -> str | None:
     the scrape failed and offered a manual paste as a clearly labeled recovery
     step -- not a silent fallback. Empty input aborts.
     """
-    binary = _find_claude_binary()
+    binary = _find_claude_binary(locator)
     if binary is None:
         print("Error: Claude binary not found. Install it or add it to PATH.")
         return None
@@ -495,17 +490,17 @@ def _capture_setup_token(config_dir: str, browser: str) -> str | None:
     return token
 
 
-def _save_token(profile_name: str, token: str) -> bool:
-    """Write the token via add_token; print and return False on OSError."""
+def _save_token(ws: "Workspace", profile_name: str, token: str) -> bool:
+    """Write the token via the workspace TokenStore; print + return False on OSError."""
     try:
-        add_token(profile_name, token)
+        ws.tokens.add(profile_name, token)
     except OSError as e:
         print(f"Error saving token: {e}")
         return False
     return True
 
 
-def _auth_paste_token(config_dir: str, profile_name: str,
+def _auth_paste_token(ws: "Workspace", config_dir: str, profile_name: str,
                       theme, terminal) -> str:
     """Prompt the user to paste a token directly, validate it, save it.
 
@@ -536,7 +531,7 @@ def _auth_paste_token(config_dir: str, profile_name: str,
                 return "failed"
 
         if status == auth.VALID:
-            if not _save_token(profile_name, token):
+            if not _save_token(ws, profile_name, token):
                 return "failed"
             print("Token validated and saved successfully.")
             return "authenticated"
@@ -558,13 +553,14 @@ def _auth_paste_token(config_dir: str, profile_name: str,
         return "failed"
 
     with terminal.cooked():
-        if not _save_token(profile_name, token):
+        if not _save_token(ws, profile_name, token):
             return "failed"
         print("Token saved WITHOUT validation.")
     return "unverified"
 
 
-def _auth_long_lived_token(config_dir: str, profile_name: str, browser: str,
+def _auth_long_lived_token(ws: "Workspace", locator: "BinaryLocator", config_dir: str,
+                           profile_name: str, browser: str,
                            theme, terminal) -> str:
     """Run ``claude setup-token``, scrape the token, validate it, save it.
 
@@ -579,7 +575,7 @@ def _auth_long_lived_token(config_dir: str, profile_name: str, browser: str,
       stale frame), then the flow fails hard.
     """
     with terminal.cooked():
-        token = _capture_setup_token(config_dir, browser)
+        token = _capture_setup_token(locator, config_dir, browser)
         if token is None:
             return "failed"
 
@@ -597,7 +593,7 @@ def _auth_long_lived_token(config_dir: str, profile_name: str, browser: str,
                 return "failed"
 
         if status == auth.VALID:
-            if not _save_token(profile_name, token):
+            if not _save_token(ws, profile_name, token):
                 return "failed"
             print("Token validated and saved successfully.")
             return "authenticated"
@@ -619,7 +615,7 @@ def _auth_long_lived_token(config_dir: str, profile_name: str, browser: str,
         return "failed"
 
     with terminal.cooked():
-        if not _save_token(profile_name, token):
+        if not _save_token(ws, profile_name, token):
             return "failed"
         print("Token saved WITHOUT validation.")
     return "unverified"
