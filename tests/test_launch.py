@@ -1,17 +1,44 @@
-"""Tests for launch.py resolve_launch_config -- disallowed tools CLI flags."""
+"""Tests for launch.py resolve_launch_config.
+
+Covers disallowed-tools CLI flags, version selection / fallback via a
+BinaryLocator, and OAuth token resolution / corruption handling via a
+TokenStore. Both concerns are injected as explicit arguments pointed at
+tmpdir paths -- no module-constant patching.
+"""
 
 from __future__ import annotations
 
+import json
+import tempfile
 import unittest
+from pathlib import Path
 from unittest import mock
 
-from claudewheel.constants import CLAUDE_SYMLINK
+from claudewheel.binaries import BinaryLocator
 from claudewheel.defaults import DISALLOWED_TOOLS
 from claudewheel.launch import resolve_launch_config
+from claudewheel.tokens import TokenStore, TokenStoreError
 
 
-class ResolveDisallowedToolsTests(unittest.TestCase):
-    """Verify --disallowedTools flag and its tool list appear correctly in argv."""
+class ResolveLaunchConfigTestBase(unittest.TestCase):
+    """Base class: a tmpdir-backed BinaryLocator and TokenStore per test."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.tmp = Path(self._tmp.name)
+
+        self.versions_dir = self.tmp / "versions"
+        self.versions_dir.mkdir()
+        self.symlink_path = self.tmp / "claude"
+        self.tokens_file = self.tmp / "tokens.json"
+
+        self.locator = BinaryLocator(
+            versions_dir=self.versions_dir,
+            claude_symlink=self.symlink_path,
+        )
+        self.token_store = TokenStore(self.tokens_file)
 
     def _resolve(
         self,
@@ -19,6 +46,8 @@ class ResolveDisallowedToolsTests(unittest.TestCase):
         options_def: dict | None = None,
         default_flags: list[str] | None = None,
         extra_flags: list[str] | None = None,
+        locator: BinaryLocator | None = None,
+        token_store: TokenStore | None = None,
     ) -> tuple[str, list[str], dict[str, str]]:
         """Call resolve_launch_config with fetch_gh_token mocked out."""
         if selections is None:
@@ -30,8 +59,15 @@ class ResolveDisallowedToolsTests(unittest.TestCase):
 
         with mock.patch("claudewheel.launch.fetch_gh_token", return_value=None):
             return resolve_launch_config(
-                selections, options_def, default_flags, extra_flags
+                selections, options_def, default_flags,
+                locator=locator or self.locator,
+                token_store=token_store or self.token_store,
+                extra_flags=extra_flags,
             )
+
+
+class ResolveDisallowedToolsTests(ResolveLaunchConfigTestBase):
+    """Verify --disallowedTools flag and its tool list appear correctly in argv."""
 
     def test_argv_includes_disallowed_tools_flag(self) -> None:
         """argv contains --disallowedTools and every tool in DISALLOWED_TOOLS."""
@@ -69,10 +105,70 @@ class ResolveDisallowedToolsTests(unittest.TestCase):
             "--disallowedTools should appear after --dangerously-skip-permissions",
         )
 
-    def test_argv_starts_with_binary_path(self) -> None:
-        """When no version is selected, argv[0] is CLAUDE_SYMLINK."""
+
+class ResolveBinaryPathTests(ResolveLaunchConfigTestBase):
+    """Version -> binary path selection and symlink fallback via the locator."""
+
+    def test_argv_starts_with_fallback_symlink(self) -> None:
+        """When no version is selected, argv[0] is the locator's fallback symlink."""
         _, argv, _ = self._resolve()
-        self.assertEqual(argv[0], str(CLAUDE_SYMLINK))
+        self.assertEqual(argv[0], str(self.symlink_path))
+        self.assertEqual(argv[0], str(self.locator.fallback))
+
+    def test_selected_version_resolves_to_binary_path(self) -> None:
+        """A selected, on-disk version resolves to its binary path under versions_dir."""
+        binary = self.versions_dir / "2.1.116"
+        binary.write_bytes(b"fake binary")
+
+        _, argv, _ = self._resolve(selections={"profile": None, "version": "2.1.116"})
+        self.assertEqual(argv[0], str(binary))
+
+    def test_missing_version_raises_oserror(self) -> None:
+        """A selected version that is not on disk raises OSError with guidance."""
+        with self.assertRaises(OSError) as ctx:
+            self._resolve(selections={"profile": None, "version": "9.9.9"})
+        self.assertIn("9.9.9", str(ctx.exception))
+        self.assertIn("not on disk", str(ctx.exception))
+
+
+class ResolveTokenTests(ResolveLaunchConfigTestBase):
+    """OAuth token resolution through the injected TokenStore."""
+
+    def test_token_from_store_sets_env(self) -> None:
+        """A token present for the profile is written to CLAUDE_CODE_OAUTH_TOKEN."""
+        self.tokens_file.write_text(json.dumps({"work": "tok-abc"}))
+
+        _, _, env = self._resolve(selections={"profile": "work"})
+        self.assertEqual(env["CLAUDE_CODE_OAUTH_TOKEN"], "tok-abc")
+
+    def test_missing_tokens_file_yields_no_token(self) -> None:
+        """A missing tokens.json is not an error and sets no OAuth token env."""
+        self.assertFalse(self.tokens_file.exists())
+
+        _, _, env = self._resolve(selections={"profile": "work"})
+        self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN", env)
+
+    def test_absent_entry_yields_no_token(self) -> None:
+        """A tokens.json without the profile's entry sets no OAuth token env."""
+        self.tokens_file.write_text(json.dumps({"other": "tok"}))
+
+        _, _, env = self._resolve(selections={"profile": "work"})
+        self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN", env)
+
+    def test_no_profile_skips_token_lookup(self) -> None:
+        """With no profile selected, no OAuth token is looked up even if corrupt."""
+        self.tokens_file.write_text("{ not valid json")
+
+        _, _, env = self._resolve(selections={"profile": None})
+        self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN", env)
+
+    def test_corrupt_tokens_raises_tokenstoreerror(self) -> None:
+        """A corrupt tokens.json raises TokenStoreError naming the file path."""
+        self.tokens_file.write_text("{ not valid json")
+
+        with self.assertRaises(TokenStoreError) as ctx:
+            self._resolve(selections={"profile": "work"})
+        self.assertIn(str(self.tokens_file), str(ctx.exception))
 
 
 if __name__ == "__main__":

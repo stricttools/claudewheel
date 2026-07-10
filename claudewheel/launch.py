@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import json
 import os
 import subprocess
 from pathlib import Path
 
-from .constants import VERSIONS_DIR, CLAUDE_SYMLINK, TOKENS_FILE
+from .binaries import BinaryLocator
 from .defaults import DISALLOWED_TOOLS
-from .tokens import parse_entry
+from .tokens import TokenStore
 
 
 def fetch_gh_token(account: str) -> str | None:
@@ -30,6 +29,8 @@ def resolve_launch_config(
     selections: dict[str, str | None],
     options_def: dict,
     default_flags: list[str],
+    locator: BinaryLocator,
+    token_store: TokenStore,
     extra_flags: list[str] | None = None,
     metadata: dict[str, dict[str, dict]] | None = None,
 ) -> tuple[str, list[str], dict[str, str]]:
@@ -65,8 +66,9 @@ def resolve_launch_config(
     # 3. Version -> binary path
     version = selections.get("version")
     if version:
-        binary_path = str(VERSIONS_DIR / version)
-        if not (VERSIONS_DIR / version).is_file():
+        binary = locator.binary_for(version)
+        binary_path = str(binary)
+        if not binary.is_file():
             raise OSError(
                 f"Version {version} is not on disk. "
                 f"Use the TUI to install it, or run: "
@@ -74,7 +76,7 @@ def resolve_launch_config(
             )
     else:
         # Fall back to the symlink if no version selected
-        binary_path = str(CLAUDE_SYMLINK)
+        binary_path = str(locator.fallback)
 
     # 4. Directory -> cwd
     directory = selections.get("directory")
@@ -114,16 +116,13 @@ def resolve_launch_config(
     env["CLAUDE_CONFIG_DIR"] = config_dir
     if gh_token:
         env["GH_TOKEN"] = gh_token
-    # Long-lived OAuth token (from tokens.json, keyed by profile name)
-    # Supports both {name: "token"} and {name: {token, created}} formats.
-    if profile and TOKENS_FILE.is_file():
-        try:
-            tokens = json.loads(TOKENS_FILE.read_text())
-            token = parse_entry(tokens.get(profile))
-            if token:
-                env["CLAUDE_CODE_OAUTH_TOKEN"] = token
-        except (json.JSONDecodeError, OSError):
-            pass
+    # Long-lived OAuth token (from tokens.json, keyed by profile name).
+    # A corrupt tokens.json raises TokenStoreError (surfaced cleanly by the
+    # CLI launch handler); a missing file or absent entry yields no token.
+    if profile:
+        token = token_store.token_for(profile)
+        if token:
+            env["CLAUDE_CODE_OAUTH_TOKEN"] = token
 
     # 9. Argv
     argv = [binary_path] + default_flags + mcp_flags + perm_flags + model_flags + disallowed_flags

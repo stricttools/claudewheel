@@ -9,7 +9,7 @@ import strictcli
 from strictcli import App, Arg, CoRequired, Flag, FlagSet, MutexGroup
 
 from . import __version__
-from .constants import CONFIG_DIR, OPTIONS_FILE, SCRIPTS_DIR, VERSIONS_DIR, CLAUDE_SYMLINK, SHARED_DIR, encode_path
+from .constants import CONFIG_DIR, OPTIONS_FILE, SCRIPTS_DIR, VERSIONS_DIR, CLAUDE_SYMLINK, SHARED_DIR, TOKENS_FILE, encode_path
 from .segment import version_sort_key
 
 # Passthrough args after "--" are stashed here by main() before strictcli sees argv.
@@ -113,19 +113,18 @@ def _write_tier_stub(profile: str | None, config_dir: str | None) -> None:
     This lets downstream tools (e.g. howmuchleft) read the tier from
     .credentials.json even when auth is via CLAUDE_CODE_OAUTH_TOKEN.
     Short-circuits if .credentials.json already has the same tier value.
-    Best-effort: silently skips on any error.
+    A corrupt tokens.json raises TokenStoreError (surfaced cleanly by the
+    launch handler); the .credentials.json write remains best-effort.
     """
     import json
     from pathlib import Path
     from .constants import TOKENS_FILE
     from .fsutil import write_json_atomic_secret
+    from .tokens import TokenStore
 
     if not profile or not config_dir:
         return
-    try:
-        tokens = json.loads(TOKENS_FILE.read_text())
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
-        return
+    tokens = TokenStore(TOKENS_FILE).load()
     entry = tokens.get(profile)
     if not isinstance(entry, dict):
         return
@@ -166,10 +165,12 @@ def _do_launch_sequence(
     metadata: dict[str, dict[str, dict]] | None = None,
 ) -> None:
     """Run health check, hooks, save state, resolve, and exec. Does not return on success."""
+    from .binaries import BinaryLocator
     from .health import run_health_check, print_health_report
     from .hooks import run_hooks
     from .launch import resolve_launch_config, do_launch
     from .state import record_inode, save_launch_state
+    from .tokens import TokenStore
 
     if interactive and cfg.config.get("health_check_on_launch", True):
         results = run_health_check()
@@ -196,6 +197,8 @@ def _do_launch_sequence(
     try:
         cwd, argv, env = resolve_launch_config(
             selections, cfg.options_def, cfg.config.get("default_flags", []),
+            locator=BinaryLocator.default(),
+            token_store=TokenStore(TOKENS_FILE),
             extra_flags=extra_flags,
             metadata=metadata,
         )
@@ -1041,42 +1044,51 @@ def _handle_launch(
     skip_tui = print_prompt_val is not None or (
         required_keys and all(k in segment_overrides for k in required_keys)
     )
-    if skip_tui:
-        merged = dict(cfg.state.get("last_config", {}))
-        merged.update(segment_overrides)
-        if print_prompt_val is not None:
-            print_keys = {s["key"] for s in cfg.segments_def
-                          if s["key"] in enabled and s.get("print_mode", True)}
-            merged = {k: v for k, v in merged.items() if k in print_keys}
-            missing = [k for k in required_keys & print_keys if not merged.get(k)]
-            if missing:
-                print(
-                    f"Warning: required segments not set: {', '.join(sorted(missing))}; "
-                    "using fallback defaults. Use --<segment> flags or run the TUI first "
-                    "to populate last_config.",
-                    file=sys.stderr,
-                )
-        _do_launch_sequence(cfg, merged, extra_flags=extra_flags,
-                            interactive=print_prompt_val is None)
+
+    # A corrupt tokens.json surfaces as a TokenStoreError from the launch
+    # sequence. Catch it narrowly at this handler boundary so the user sees a
+    # clean, actionable message instead of a Python traceback.
+    from .tokens import TokenStoreError
+    try:
+        if skip_tui:
+            merged = dict(cfg.state.get("last_config", {}))
+            merged.update(segment_overrides)
+            if print_prompt_val is not None:
+                print_keys = {s["key"] for s in cfg.segments_def
+                              if s["key"] in enabled and s.get("print_mode", True)}
+                merged = {k: v for k, v in merged.items() if k in print_keys}
+                missing = [k for k in required_keys & print_keys if not merged.get(k)]
+                if missing:
+                    print(
+                        f"Warning: required segments not set: {', '.join(sorted(missing))}; "
+                        "using fallback defaults. Use --<segment> flags or run the TUI first "
+                        "to populate last_config.",
+                        file=sys.stderr,
+                    )
+            _do_launch_sequence(cfg, merged, extra_flags=extra_flags,
+                                interactive=print_prompt_val is None)
+            return 0
+
+        # Otherwise show the TUI (pre-filled from last_config + arg overrides)
+        app = TuiApp(cfg=cfg, overrides=segment_overrides)
+        selections = app.run_tui()
+        if selections is None:
+            return 0
+
+        # Extract per-segment metadata from the bar for resolve_launch_config
+        bar_metadata: dict[str, dict[str, dict]] = {}
+        for seg in app.bar.segments:
+            if seg.state.metadata:
+                bar_metadata[seg.key] = seg.state.metadata
+
+        _do_launch_sequence(
+            app.cfg, selections, extra_flags=extra_flags,
+            metadata=bar_metadata or None,
+        )
         return 0
-
-    # Otherwise show the TUI (pre-filled from last_config + arg overrides)
-    app = TuiApp(cfg=cfg, overrides=segment_overrides)
-    selections = app.run_tui()
-    if selections is None:
-        return 0
-
-    # Extract per-segment metadata from the bar for resolve_launch_config
-    bar_metadata: dict[str, dict[str, dict]] = {}
-    for seg in app.bar.segments:
-        if seg.state.metadata:
-            bar_metadata[seg.key] = seg.state.metadata
-
-    _do_launch_sequence(
-        app.cfg, selections, extra_flags=extra_flags,
-        metadata=bar_metadata or None,
-    )
-    return 0
+    except TokenStoreError as e:
+        print(f"Launch failed: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 # ---------------------------------------------------------------------------

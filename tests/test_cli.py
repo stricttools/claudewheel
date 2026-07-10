@@ -430,6 +430,59 @@ class PrintModeTests(unittest.TestCase):
         self.assertEqual(extra_flags, ["--print", "test", "--output-format", "json"])
 
 
+class LaunchCorruptTokensTests(unittest.TestCase):
+    """A corrupt tokens.json on the launch path fails cleanly.
+
+    Exercises the real _do_launch_sequence -> resolve_launch_config path (only
+    ConfigManager and run_hooks are stubbed) so the TokenStoreError raised while
+    reading tokens.json propagates to the _handle_launch boundary, which must
+    print a clean, actionable message and exit nonzero -- never a traceback.
+    """
+
+    SEGMENTS_DEF = PrintModeTests.SEGMENTS_DEF
+    ALL_ENABLED = PrintModeTests.ALL_ENABLED
+
+    def _make_cfg(self) -> _FakeCfg:
+        return _FakeCfg(
+            config={
+                "theme": "dark",
+                "enabled_segments": list(self.ALL_ENABLED),
+                "default_flags": [],
+                "health_check_on_launch": False,
+            },
+            segments_def=list(self.SEGMENTS_DEF),
+            state={"last_config": {}, "recent_dirs": [], "launch_count": 0},
+            options_def={},
+        )
+
+    def test_corrupt_tokens_clean_error_no_traceback(self) -> None:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        tokens_file = Path(tmp.name) / "tokens.json"
+        tokens_file.write_text("{ not valid json")
+
+        fake_cfg = self._make_cfg()
+        err = io.StringIO()
+        with (
+            mock.patch("sys.argv", ["c", "--profile", "work", "-p", "hi"]),
+            mock.patch("claudewheel.config.ConfigManager", return_value=fake_cfg),
+            mock.patch("claudewheel.hooks.run_hooks", return_value=True),
+            mock.patch.object(cli, "TOKENS_FILE", tokens_file),
+            mock.patch("os.getcwd", return_value="/test/dir"),
+            redirect_stderr(err),
+        ):
+            with self.assertRaises(SystemExit) as ctx:
+                cli.main()
+
+        self.assertNotEqual(ctx.exception.code, 0)
+        msg = err.getvalue()
+        # The actionable TokenStoreError message (path + reason) must be shown,
+        self.assertIn(str(tokens_file), msg)
+        self.assertIn("corrupt", msg)
+        # and no Python traceback should leak to the user.
+        self.assertNotIn("Traceback", msg)
+
+
 class BuildAppTests(unittest.TestCase):
     """Smoke test that _build_app() constructs successfully.
 
