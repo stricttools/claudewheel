@@ -143,7 +143,9 @@ class RecordInodePermissionTests(unittest.TestCase):
             project_dir = Path(tmp) / "proj"
             project_dir.mkdir()
 
-            with patch("claudewheel.state.INODES_FILE", inodes_file):
+            # record_inode derives the inodes file from SharedStore(SHARED_DIR),
+            # so patch state.SHARED_DIR -> store.inodes_file == inodes_file.
+            with patch("claudewheel.state.SHARED_DIR", Path(tmp)):
                 record_inode(str(project_dir))
 
             # The write happened (new mapping recorded) ...

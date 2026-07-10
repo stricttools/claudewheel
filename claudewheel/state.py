@@ -7,8 +7,9 @@ import os
 
 from .appdata import StateFile
 from .config import ConfigManager
-from .constants import INODES_FILE, STATE_FILE
+from .constants import SHARED_DIR, SKILLS_DIR, STATE_FILE
 from .fsutil import write_json_atomic
+from .shared_store import SharedStore
 
 # state.json key remembering the browser chosen in the auth wizard's
 # "Choose browser" form (a browser binary path, or "copy").
@@ -61,11 +62,13 @@ def record_inode(directory: str) -> None:
     except OSError:
         return
 
+    inodes_file = SharedStore(SHARED_DIR, SKILLS_DIR).inodes_file
+
     # Load existing inode map
     data: dict[str, int] = {}
-    if INODES_FILE.exists():
+    if inodes_file.exists():
         try:
-            data = json.loads(INODES_FILE.read_text())
+            data = json.loads(inodes_file.read_text())
         except (json.JSONDecodeError, OSError):
             pass
 
@@ -77,5 +80,5 @@ def record_inode(directory: str) -> None:
     data[path] = inode
 
     # Atomic write: tmp + rename
-    INODES_FILE.parent.mkdir(parents=True, exist_ok=True)
-    write_json_atomic(INODES_FILE, data)
+    inodes_file.parent.mkdir(parents=True, exist_ok=True)
+    write_json_atomic(inodes_file, data)

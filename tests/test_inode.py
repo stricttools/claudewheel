@@ -17,8 +17,12 @@ class InodeTestCase(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory()
         self.tmp_path = Path(self._tmp.name)
         self._inodes_file = self.tmp_path / "inodes.json"
+        # state.record_inode derives the inodes file from SharedStore's shared_dir
+        # (inodes.json belongs to the shared store), so patch state.SHARED_DIR to
+        # the temp dir -> store.inodes_file == self._inodes_file. health.py still
+        # reads its own INODES_FILE constant this wave, so patch that directly.
         self._patches = [
-            patch("claudewheel.state.INODES_FILE", self._inodes_file),
+            patch("claudewheel.state.SHARED_DIR", self.tmp_path),
             patch("claudewheel.health.INODES_FILE", self._inodes_file),
         ]
         for p in self._patches:
