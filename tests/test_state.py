@@ -162,9 +162,9 @@ class RecordInodePermissionTests(unittest.TestCase):
 
 
 class _StubCfg:
-    """Minimal ConfigManager stand-in: a state dict plus save_state().
+    """Minimal AppConfigStore stand-in: a state dict plus save_state().
 
-    Mirrors ConfigManager.save_state()'s out-of-band merge logic so that
+    Mirrors AppConfigStore.save_state()'s out-of-band merge logic so that
     tests exercise the same contract (auth_browser survives clobber).
     """
 
@@ -173,7 +173,7 @@ class _StubCfg:
         self.state: dict = state if state is not None else {}
 
     def save_state(self) -> None:
-        # Merge out-of-band keys (same as ConfigManager.save_state)
+        # Merge out-of-band keys (same as AppConfigStore.save_state)
         try:
             on_disk = json.loads(self._state_file.read_text())
             if isinstance(on_disk, dict):
@@ -236,38 +236,35 @@ class SaveLaunchStateTests(StateFileTestCase):
 
 
 # ---------------------------------------------------------------------------
-# ConfigManager.save_state out-of-band merge
+# AppConfigStore.save_state out-of-band merge
 # ---------------------------------------------------------------------------
 
 
-class ConfigManagerSaveStateMergeTests(StateFileTestCase):
-    """Test that ConfigManager.save_state() merges out-of-band auth_browser."""
+class AppConfigStoreSaveStateMergeTests(StateFileTestCase):
+    """Test that AppConfigStore.save_state() merges out-of-band auth_browser.
+
+    save_state() now targets the workspace-derived ``self._state_file``, so
+    tests wire that instance attribute directly instead of patching a module
+    constant.
+    """
 
     def _make_cfg(self, state: dict | None = None):
-        """Build a real ConfigManager with patched paths to use our temp dir."""
-        from claudewheel.config import ConfigManager
-        from unittest.mock import patch as _patch
+        """Build a bare AppConfigStore wired to our temp state file."""
+        from claudewheel.config import AppConfigStore
 
-        cfg_dir = self.tmp_path / "cfg"
-        cfg_dir.mkdir(parents=True, exist_ok=True)
-        cfg = object.__new__(ConfigManager)
+        cfg = object.__new__(AppConfigStore)
+        cfg._state_file = self.state_file
         cfg.state = state if state is not None else {}
         return cfg
 
     def test_merges_auth_browser_from_disk(self) -> None:
         """save_state picks up auth_browser written by an external process."""
-        from claudewheel.config import ConfigManager
-        from unittest.mock import patch as _patch
-
-        cfg = object.__new__(ConfigManager)
-        cfg.state = {"launch_count": 5}
+        cfg = self._make_cfg({"launch_count": 5})
 
         # Simulate out-of-band write by auth wizard
         self.state_file.write_text(json.dumps({"auth_browser": "/usr/bin/chrome"}))
 
-        # Patch STATE_FILE in the config module too (save_state reads it)
-        with _patch("claudewheel.config.STATE_FILE", self.state_file):
-            cfg.save_state()
+        cfg.save_state()
 
         on_disk = json.loads(self.state_file.read_text())
         self.assertEqual(on_disk["auth_browser"], "/usr/bin/chrome")
@@ -275,14 +272,9 @@ class ConfigManagerSaveStateMergeTests(StateFileTestCase):
 
     def test_no_clobber_when_disk_missing(self) -> None:
         """save_state works when state file doesn't exist yet."""
-        from claudewheel.config import ConfigManager
-        from unittest.mock import patch as _patch
+        cfg = self._make_cfg({"launch_count": 1})
 
-        cfg = object.__new__(ConfigManager)
-        cfg.state = {"launch_count": 1}
-
-        with _patch("claudewheel.config.STATE_FILE", self.state_file):
-            cfg.save_state()
+        cfg.save_state()
 
         on_disk = json.loads(self.state_file.read_text())
         self.assertEqual(on_disk, {"launch_count": 1})
@@ -290,17 +282,12 @@ class ConfigManagerSaveStateMergeTests(StateFileTestCase):
 
     def test_in_memory_auth_browser_not_clobbered_by_disk_none(self) -> None:
         """If auth_browser is already in memory and not on disk, it survives."""
-        from claudewheel.config import ConfigManager
-        from unittest.mock import patch as _patch
-
-        cfg = object.__new__(ConfigManager)
-        cfg.state = {"auth_browser": "copy", "launch_count": 2}
+        cfg = self._make_cfg({"auth_browser": "copy", "launch_count": 2})
 
         # Disk file exists but has no auth_browser key
         self.state_file.write_text(json.dumps({"other": "stuff"}))
 
-        with _patch("claudewheel.config.STATE_FILE", self.state_file):
-            cfg.save_state()
+        cfg.save_state()
 
         on_disk = json.loads(self.state_file.read_text())
         self.assertEqual(on_disk["auth_browser"], "copy")
