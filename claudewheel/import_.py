@@ -8,9 +8,10 @@ import uuid as uuid_mod
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .constants import SHARED_DIR, encode_path
+from .constants import SHARED_DIR, SKILLS_DIR
 from .fsutil import write_text_atomic
 from .session import get_session_cwd
+from .shared_store import SharedStore
 
 UUID_RE = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
@@ -295,14 +296,15 @@ def run_import(
     cwd_to_target: dict[str, str] = norm_mappings
 
     # 5. Compute target directories and detect collisions.
-    shared_projects = SHARED_DIR / "projects"
+    store = SharedStore(SHARED_DIR, SKILLS_DIR)
+    shared_projects = store.projects_dir
     uuid_target_map: dict[str, tuple[Path, str | None]] = {}
     #   uuid -> (target_dir, new_uuid_or_None)
 
     for b in bundles:
         norm = _normalize_cwd(b.cwd)
         to_path = cwd_to_target[norm]
-        target_dir = shared_projects / encode_path(to_path)
+        target_dir = shared_projects / store.encode_path(to_path)
         target_jsonl = target_dir / f"{b.uuid}.jsonl"
         target_companion = target_dir / b.uuid
 
@@ -396,13 +398,13 @@ def run_import(
         for d in SIMPLE_DIRS:
             _copy_simple_artifacts(
                 source_path, d, b.uuid, effective_uuid, is_reided,
-                result, dry_run,
+                result, dry_run, store,
             )
 
     # 9. Paste cache.
     paste_src = source_path / "paste-cache"
     if paste_src.is_dir():
-        paste_dst = SHARED_DIR / "paste-cache"
+        paste_dst = store.subdir("paste-cache")
         if not dry_run:
             paste_dst.mkdir(parents=True, exist_ok=True)
         for item in sorted(paste_src.iterdir()):
@@ -439,13 +441,14 @@ def _copy_simple_artifacts(
     is_reided: bool,
     result: ImportResult,
     dry_run: bool,
+    store: SharedStore,
 ) -> None:
     """Copy UUID-keyed artifacts from a simple directory (todos, session-env, etc.)."""
     src_dir = source_root / dirname
     if not src_dir.is_dir():
         return
 
-    dst_base = SHARED_DIR / dirname
+    dst_base = store.subdir(dirname)
 
     if dirname == "todos":
         # Todos files: <uuid>-agent-<uuid>.json
