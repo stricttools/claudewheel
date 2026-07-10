@@ -483,6 +483,60 @@ class LaunchCorruptTokensTests(unittest.TestCase):
         self.assertNotIn("Traceback", msg)
 
 
+class LaunchStaleProfileTests(unittest.TestCase):
+    """A launch selecting a profile that no longer exists fails cleanly.
+
+    Exercises the real _do_launch_sequence -> resolve_launch_config path so the
+    ValueError raised by ProfileStore.env for an unknown name is mapped to a
+    clean stderr message + nonzero exit -- the hard-error contract that replaced
+    the silent ~/.claude fallback, never a traceback.
+    """
+
+    SEGMENTS_DEF = PrintModeTests.SEGMENTS_DEF
+    ALL_ENABLED = PrintModeTests.ALL_ENABLED
+
+    def _make_cfg(self) -> _FakeCfg:
+        return _FakeCfg(
+            config={
+                "theme": "dark",
+                "enabled_segments": list(self.ALL_ENABLED),
+                "default_flags": [],
+                "health_check_on_launch": False,
+            },
+            segments_def=list(self.SEGMENTS_DEF),
+            state={"last_config": {}, "recent_dirs": [], "launch_count": 0},
+            options_def={},
+        )
+
+    def test_stale_profile_clean_error_no_traceback(self) -> None:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        # Empty profiles dir + no tokens file: "work" is not discoverable.
+        profiles_dir = Path(tmp.name) / "profiles"
+        profiles_dir.mkdir()
+        tokens_file = Path(tmp.name) / "tokens.json"
+
+        fake_cfg = self._make_cfg()
+        err = io.StringIO()
+        with (
+            mock.patch("sys.argv", ["c", "--profile", "work", "-p", "hi"]),
+            mock.patch("claudewheel.config.ConfigManager", return_value=fake_cfg),
+            mock.patch("claudewheel.hooks.run_hooks", return_value=True),
+            mock.patch.object(cli, "PROFILES_DIR", profiles_dir),
+            mock.patch.object(cli, "TOKENS_FILE", tokens_file),
+            mock.patch("os.getcwd", return_value="/test/dir"),
+            redirect_stderr(err),
+        ):
+            with self.assertRaises(SystemExit) as ctx:
+                cli.main()
+
+        self.assertNotEqual(ctx.exception.code, 0)
+        msg = err.getvalue()
+        self.assertIn("Launch failed", msg)
+        self.assertIn("work", msg)
+        self.assertNotIn("Traceback", msg)
+
+
 class BuildAppTests(unittest.TestCase):
     """Smoke test that _build_app() constructs successfully.
 
