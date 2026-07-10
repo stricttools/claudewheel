@@ -38,8 +38,10 @@ from claudewheel.defaults import (
     DEFAULT_THEME_DARK,
     DEFAULT_THEME_LIGHT,
 )
+from claudewheel.health import run_health_check
 from claudewheel.profile import resolve_profile
 from claudewheel.tokens import TokenStoreError
+from claudewheel.workspace import Workspace
 
 
 def _write_json(path: Path, data) -> None:
@@ -218,6 +220,99 @@ class CorruptTokensContractTests(_FakeHomeMixin, unittest.TestCase):
         env = resolve_profile("alpha")
         self.assertEqual(env["CLAUDE_CONFIG_DIR"], str(self.alpha_dir))
         self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN", env)
+
+
+class WholePackageReadOnlyContractTests(_FakeHomeMixin, unittest.TestCase):
+    """Every READ path must work on a fully-migrated, chmod-locked workspace.
+
+    Phase decisions: reads must work on read-only mounts; fail-loud is only for
+    WRITE operations. This builds a fully-populated, already-migrated workspace
+    (``appconfig()`` runs all migrations + dir seeding while writable), then locks
+    the whole tree down (dirs r-x, files r--) and exercises the read surface:
+
+    - ``ProfileStore.enumerate`` / ``profiles.env(name)``
+    - the ``resolve_profile`` facade (via ``Workspace.default()``)
+    - ``TokenStore.load``
+    - ``SharedStore`` path accessors
+    - ``run_health_check`` -- a diagnostic that must COMPLETE and report on a
+      read-only tree, never crash. The inode-renames check attempts to rewrite
+      ``inodes.json`` when it finds stale entries; on a locked tree that write
+      must fail cleanly (guarded ``except OSError``), not blow up the run. The
+      fixture seeds a stale inode entry precisely to exercise that write path.
+
+    A before/after snapshot proves zero successful writes reached the tree.
+    """
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.home = Path(self._tmp.name)
+        self.alpha_dir = _build_fake_home(self.home, tokens={"alpha": "tok-alpha"})
+
+        # Construct the store once WHILE WRITABLE so every migration/seed runs
+        # (schema bump writes config.json, dir seeding creates shared subdirs).
+        self.ws = Workspace.open(
+            self.home / ".claudewheel", claude_dir=self.home / ".claude"
+        )
+        self.ws.appconfig()
+
+        # Seed a stale inode entry (path does not exist) so check_inode_renames
+        # takes its write branch -- the whole point is to prove that write fails
+        # cleanly on the locked tree rather than crashing run_health_check.
+        self.ws.inodes_file.parent.mkdir(parents=True, exist_ok=True)
+        _write_json(self.ws.inodes_file, {"/nonexistent/stale-dir-xyz": 424242})
+
+        # Lock the whole tree down: dirs r-x, files r--.
+        _set_tree_mode(self.home, dir_mode=0o555, file_mode=0o444)
+
+    def tearDown(self) -> None:
+        # Restore write bits BEFORE TemporaryDirectory cleanup, else rmtree fails.
+        _set_tree_mode(self.home, dir_mode=0o755, file_mode=0o644)
+        self._tmp.cleanup()
+
+    def test_all_reads_work_and_zero_writes_on_readonly_tree(self) -> None:
+        self._patch_env(self.home, detect="dark")
+
+        before = _snapshot(self.home)
+
+        # -- ProfileStore.enumerate --
+        profiles = self.ws.profiles.enumerate()
+        self.assertIn("alpha", [p.name for p in profiles])
+
+        # -- profiles.env(name) --
+        env = self.ws.profiles.env("alpha")
+        self.assertEqual(env["CLAUDE_CONFIG_DIR"], str(self.alpha_dir))
+        self.assertEqual(env["CLAUDE_CODE_OAUTH_TOKEN"], "tok-alpha")
+
+        # -- resolve_profile facade (resolves via Workspace.default()) --
+        resolved = resolve_profile("alpha")
+        self.assertEqual(resolved["CLAUDE_CONFIG_DIR"], str(self.alpha_dir))
+        self.assertEqual(resolved["CLAUDE_CODE_OAUTH_TOKEN"], "tok-alpha")
+
+        # -- TokenStore.load --
+        tokens = self.ws.tokens.load()
+        self.assertIn("alpha", tokens)
+
+        # -- SharedStore path accessors (pure path reads) --
+        shared = self.ws.shared
+        self.assertEqual(shared.inodes_file, self.ws.inodes_file)
+        self.assertTrue(str(shared.projects_dir).startswith(str(self.ws.shared_dir)))
+        self.assertTrue(str(shared.subdir("tasks")).startswith(str(self.ws.shared_dir)))
+
+        # -- health's read-only checks: must COMPLETE and report, never crash --
+        results = run_health_check(self.ws)
+        self.assertTrue(results)
+        labels = {r.label for r in results}
+        self.assertIn("inode-renames", labels)
+        # The inode check attempted a write (stale entry) but the locked tree
+        # rejected it; the guarded except swallowed it, so the run still reports.
+        inode_result = next(r for r in results if r.label == "inode-renames")
+        self.assertTrue(inode_result.ok)
+
+        # -- zero successful writes reached the tree --
+        self.assertEqual(
+            _snapshot(self.home), before,
+            "read-only workspace was mutated by a read/diagnostic path",
+        )
 
 
 def _snapshot(root: Path) -> dict[str, tuple[float, int]]:
