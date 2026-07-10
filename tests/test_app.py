@@ -1308,8 +1308,7 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         # segments (profile now None, so it is dropped from last_config).
         saved = {}
         app.cfg.save_state = lambda: saved.update(app.cfg.state)
-        with mock.patch("claudewheel.state.merge_out_of_band_keys"):
-            save_launch_state(app.cfg, {"profile": seg.value, "model": "opus"})
+        save_launch_state(app.cfg, {"profile": seg.value, "model": "opus"})
         self.assertNotIn("profile", saved["last_config"])
 
     # -- refusals -------------------------------------------------------------

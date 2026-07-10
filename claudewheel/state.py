@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 
+from .appdata import StateFile
 from .config import ConfigManager
 from .constants import INODES_FILE, STATE_FILE
 from .fsutil import write_json_atomic
@@ -22,15 +23,7 @@ def load_state_value(key: str):
     for code paths (e.g., the auth wizard) that run outside the TUI's
     ConfigManager lifecycle.
     """
-    if not STATE_FILE.exists():
-        return None
-    try:
-        data = json.loads(STATE_FILE.read_text())
-    except (json.JSONDecodeError, OSError):
-        return None
-    if not isinstance(data, dict):
-        return None
-    return data.get(key)
+    return StateFile(STATE_FILE).get_value(key)
 
 
 def save_state_value(key: str, value) -> None:
@@ -39,30 +32,7 @@ def save_state_value(key: str, value) -> None:
     Only *key* is touched; all other keys on disk are preserved. Counterpart
     of load_state_value() for writers that don't hold a ConfigManager.
     """
-    data: dict = {}
-    if STATE_FILE.exists():
-        try:
-            loaded = json.loads(STATE_FILE.read_text())
-            if isinstance(loaded, dict):
-                data = loaded
-        except (json.JSONDecodeError, OSError):
-            pass
-    data[key] = value
-    STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    write_json_atomic(STATE_FILE, data)
-
-
-def merge_out_of_band_keys(state: dict) -> None:
-    """Re-read keys written straight to state.json by out-of-band writers.
-
-    The auth wizard writes AUTH_BROWSER_KEY directly to disk while the TUI
-    holds its own in-memory state (loaded at startup). Any wholesale
-    ConfigManager.save_state() must call this first so it doesn't clobber
-    those fresh on-disk values with stale in-memory ones.
-    """
-    browser = load_state_value(AUTH_BROWSER_KEY)
-    if browser is not None:
-        state[AUTH_BROWSER_KEY] = browser
+    StateFile(STATE_FILE).set_value(key, value)
 
 
 def save_launch_state(cfg: ConfigManager, selections: dict[str, str | None]) -> None:
