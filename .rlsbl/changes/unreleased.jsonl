@@ -20,3 +20,4 @@
 {"id":"18c0fdbda0ec460a794a76bd74404be486ae07fe0a35668e","commits":["1e5be3d2425d9edddf056e7842ce4f83ff0236b5"],"user_facing":true,"description":"**Corrupt tokens.json is now a hard error.** resolve_profile raises instead of silently returning an env without a token; profiles resolve purely from the on-disk layout (persisted options.json metadata is no longer consulted).","type":"breaking"}
 {"id":"18c0fdbdad0a3228a24fdc46208a44a593f62e607308a9e4","commits":["1e5be3d2425d9edddf056e7842ce4f83ff0236b5"],"user_facing":true,"description":"**CLAUDEWHEEL_CONFIG_DIR.** New env var overriding the workspace root (default ~/.claudewheel) for programmatic and containerized consumers.","type":"feature"}
 {"id":"18c0fe918312c2aa3b8f3cc06ca84965a97a8e7036a79a84","commits":["2fddd334c66a857571d1eff3ee4750a99e5adfe4"],"user_facing":false}
+{"id":"18c0fe92ec97ebc2c0810c67462c43bdae4e90d7ea2574b3","commits":["953f5cbd28a3de37aeeddc075bb50dde125249e2"],"user_facing":false}
