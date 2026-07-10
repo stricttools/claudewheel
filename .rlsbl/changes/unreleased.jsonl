@@ -1,2 +1,0 @@
-{"id":"18c0e0236e40279a793b6df640c04009875f3c830284b778","commits":["53759a5385e42dbc35f51e7ce64ed3db3fa196d6"],"user_facing":true,"description":"**New feature.** Wizard now offers a 'Paste token directly' option for users with pre-existing API tokens.","type":"feature"}
-{"id":"18c0e0245e3c9fb09b8f60f15ff24685a034d8a7325c768a","commits":["7d0b323cd67dd413545270893c3590adf8e72559","27a42d821d3bd33fbddd96e1406c64c6881e6b7b"],"user_facing":false}
