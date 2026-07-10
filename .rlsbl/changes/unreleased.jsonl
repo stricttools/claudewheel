@@ -51,3 +51,4 @@
 {"id":"18c10802879ed81ed590b1e269464eb8b96ead7db89781b8","commits":["d4513c52cdecfabb52a6a68e11e7d10a30dd3af7"],"user_facing":false}
 {"id":"18c1080585f4f36c9a299c3a6de3458398aaa85ac971eb74","commits":["7c78f469110586afa9d86a751a5683b1d741cae3"],"user_facing":false}
 {"id":"18c1097a99617bb077a264fdac234b09820e2437cc32adfb","commits":["c4abed3e9c20d9d0fb008eaf0713c6e7c23ba098"],"user_facing":false}
+{"id":"18c109956c9e30bcf801e4a02be24d83aa8ad8d15c7a49ee","commits":["15a91795280612bf585a6890289f02da07e6945f"],"user_facing":true,"description":"**options.json no longer stores profile locations.** A one-time migration removes the legacy profile metadata block; profile locations are always derived from the profile directory.","type":"fix"}
