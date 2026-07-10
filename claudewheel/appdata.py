@@ -47,6 +47,77 @@ class OptionsFile:
         write_json_atomic(self.path, options)
         return options
 
+    def rename_value(self, segment_key: str, old: str, new: str, default: dict) -> dict:
+        """Swap ``old`` -> ``new`` in a segment's values, pinned, and metadata key.
+
+        Replicates ``profile_ops._update_options_rename``'s disk semantics for
+        the values list and pinned list (in-place index swap, order preserved).
+        The metadata key is moved verbatim (``old`` -> ``new``) with NO
+        ``config_dir`` rewrite -- config_dir is never persisted going forward,
+        but the legacy metadata dict may still exist on disk, so re-keying it
+        avoids orphaning the entry. Fresh read, atomic write, returns the dict.
+        """
+        options = self.load(default)
+        seg = options.get(segment_key)
+        if not seg:
+            return options
+
+        changed = False
+
+        values = seg.get("values", [])
+        if old in values:
+            values[values.index(old)] = new
+            changed = True
+
+        pinned = seg.get("pinned", [])
+        if old in pinned:
+            pinned[pinned.index(old)] = new
+            changed = True
+
+        metadata = seg.get("metadata", {})
+        if old in metadata:
+            metadata[new] = metadata.pop(old)
+            changed = True
+
+        if changed:
+            write_json_atomic(self.path, options)
+        return options
+
+    def remove_value(self, segment_key: str, name: str, default: dict) -> dict:
+        """Remove ``name`` from a segment's values, pinned, and metadata.
+
+        Replicates ``profile_ops._remove_from_options``'s disk semantics: drop
+        from the values list, the pinned list, and the metadata dict. Fresh
+        read, atomic write only when something was removed, returns the dict.
+        """
+        options = self.load(default)
+        seg = options.get(segment_key)
+        if not seg:
+            return options
+
+        found = False
+
+        values = seg.get("values", [])
+        if name in values:
+            values.remove(name)
+            seg["values"] = values
+            found = True
+
+        pinned = seg.get("pinned", [])
+        if name in pinned:
+            pinned.remove(name)
+            seg["pinned"] = pinned
+            found = True
+
+        metadata = seg.get("metadata", {})
+        if name in metadata:
+            del metadata[name]
+            found = True
+
+        if found:
+            write_json_atomic(self.path, options)
+        return options
+
     def write(self, data: dict) -> None:
         """Bare atomic write of the full options dict (used by config migrations)."""
         write_json_atomic(self.path, data)
