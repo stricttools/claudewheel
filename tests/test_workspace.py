@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import dataclasses
 import os
 from pathlib import Path
@@ -12,6 +13,36 @@ from claudewheel.tokens import TokenStore
 from claudewheel.workspace import Workspace
 
 from tests.wheelhelpers import SandboxHomeTestCase
+
+
+def _reads_env_var(source: str, name: str) -> bool:
+    """True if *source* actually READS the environment variable *name*.
+
+    Detects the read semantically via the AST rather than by a plain substring
+    scan, so docstrings and comments that merely *mention* the variable name do
+    not count. A read is any of:
+
+    - ``os.environ.get(name, ...)`` / ``os.getenv(name)`` -- the literal is the
+      first positional argument of a ``.get``/``.getenv`` call;
+    - ``os.environ[name]`` -- the literal is a subscript key.
+    """
+    tree = ast.parse(source)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            fn = node.func
+            if (
+                isinstance(fn, ast.Attribute)
+                and fn.attr in ("get", "getenv")
+                and node.args
+                and isinstance(node.args[0], ast.Constant)
+                and node.args[0].value == name
+            ):
+                return True
+        if isinstance(node, ast.Subscript):
+            key = node.slice
+            if isinstance(key, ast.Constant) and key.value == name:
+                return True
+    return False
 
 
 class WorkspaceOpenTests(SandboxHomeTestCase):
@@ -74,14 +105,22 @@ class WorkspaceDefaultTests(SandboxHomeTestCase):
         self.assertEqual(ws.root, self.home / "tilde-config")
 
     def test_env_var_read_in_exactly_one_source_file(self) -> None:
-        """Permanent guard: CLAUDEWHEEL_CONFIG_DIR appears in only workspace.py."""
+        """Permanent guard: CLAUDEWHEEL_CONFIG_DIR is READ in only workspace.py.
+
+        The env var is the single source of the workspace root override, so
+        exactly one module may consult it. This checks the *read* semantically
+        (AST-based) rather than by substring, so any module -- including
+        profile.py's public-API docstring -- may freely *name* the variable in
+        prose without tripping the guard. Only an actual ``os.environ``/
+        ``os.getenv`` read counts.
+        """
         pkg_dir = Path(claudewheel.__file__).parent
-        offenders = [
+        readers = [
             py.name
             for py in sorted(pkg_dir.glob("*.py"))
-            if "CLAUDEWHEEL_CONFIG_DIR" in py.read_text()
+            if _reads_env_var(py.read_text(), "CLAUDEWHEEL_CONFIG_DIR")
         ]
-        self.assertEqual(offenders, ["workspace.py"])
+        self.assertEqual(readers, ["workspace.py"])
 
 
 class WorkspacePathTests(SandboxHomeTestCase):
