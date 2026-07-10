@@ -29,6 +29,6 @@
   ],
   "author": "smm-h",
   "scripts": {
-    "test": "python3 -m pytest tests/"
+    "test": "uv run pytest tests/"
   }
 }
