@@ -17,10 +17,12 @@ from claudewheel.health import (
     check_deployed_hook_drift,
     check_hooks_wired,
     check_orphan_profiles,
+    check_relocated_hook_paths,
     check_settings_defaults,
     check_shared_symlinks,
     check_tmp_claude_size,
     check_tokens,
+    run_health_check,
 )
 
 
@@ -40,11 +42,13 @@ class _HomeDirTestCase(unittest.TestCase):
         self._dir_patches = [
             patch("claudewheel.health.SKILLS_DIR", self._skills_dir),
             patch("claudewheel.health.PROFILES_DIR", self._profiles_dir),
+            # health builds a ProfileStore + TokenStore from its own module
+            # constants; without this the store hits the real
+            # ~/.claudewheel/tokens.json.
+            patch("claudewheel.health.TOKENS_FILE", self._tokens_file),
             patch("claudewheel.discovery.SHARED_DIR", self._shared_dir),
             patch("claudewheel.discovery.SKILLS_DIR", self._skills_dir),
             patch("claudewheel.discovery.PROFILES_DIR", self._profiles_dir),
-            # discover_profiles() reads discovery.TOKENS_FILE during its scan;
-            # without this it hits the real ~/.claudewheel/tokens.json.
             patch("claudewheel.discovery.TOKENS_FILE", self._tokens_file),
             patch("claudewheel.profile_info.PROFILES_DIR", self._profiles_dir),
         ]
@@ -1078,6 +1082,153 @@ class CheckDeployedHookDriftTests(unittest.TestCase):
         result = check_deployed_hook_drift()
         self.assertTrue(result.ok)
         self.assertIn("no model hook scripts deployed", result.detail)
+
+
+# ---------------------------------------------------------------------------
+# run_health_check -- corrupt tokens.json carve-out
+# ---------------------------------------------------------------------------
+
+
+class HealthRunCorruptTokensTests(_HomeDirTestCase):
+    """The single-load carve-out: a corrupt tokens.json fails the token checks
+    but the full health run still completes with every check reported."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        cw = self.home / ".claudewheel"
+        cw.mkdir(parents=True, exist_ok=True)
+        # Redirect the remaining real-filesystem constants into the temp home so
+        # the full run stays hermetic (no reads/writes of the real store).
+        extra = [
+            patch("claudewheel.health.INODES_FILE", cw / "shared" / "inodes.json"),
+            patch("claudewheel.health.SHARED_SETTINGS_FILE", cw / "shared-settings.json"),
+            patch("claudewheel.health.OPTIONS_FILE", cw / "options.json"),
+            patch("claudewheel.health.SCRIPTS_DIR", cw / "scripts"),
+        ]
+        for p in extra:
+            p.start()
+            self.addCleanup(p.stop)
+
+    def test_corrupt_tokens_fails_token_checks_but_run_completes(self) -> None:
+        self._make_profile("work")
+        self._tokens_file.parent.mkdir(parents=True, exist_ok=True)
+        self._tokens_file.write_text("not valid json{{{")
+
+        results = run_health_check()
+
+        # Every check is reported -- nothing crashed or was skipped.
+        self.assertEqual(len(results), 15)
+        labels = [r.label for r in results]
+
+        # Both token checks failed with the actionable exception message.
+        tokens_result = next(r for r in results if r.label == "tokens")
+        self.assertFalse(tokens_result.ok)
+        self.assertIn("corrupt", tokens_result.detail)
+        self.assertIn("retry", tokens_result.detail)
+
+        expiry_result = next(r for r in results if r.label == "token-expiry")
+        self.assertFalse(expiry_result.ok)
+        self.assertIn("corrupt", expiry_result.detail)
+
+        # Profile-based checks still ran (dir-only enumeration, has_token False).
+        self.assertIn("hooks-wired", labels)
+        self.assertIn("orphan-profiles", labels)
+
+    def test_standalone_check_tokens_fails_on_corrupt_file(self) -> None:
+        """Called directly (no run-level token view), check_tokens still fails."""
+        self._make_profile("work")
+        self._tokens_file.parent.mkdir(parents=True, exist_ok=True)
+        self._tokens_file.write_text("{not json")
+
+        result = check_tokens()
+        self.assertFalse(result.ok)
+        self.assertIn("corrupt", result.detail)
+
+
+# ---------------------------------------------------------------------------
+# check_relocated_hook_paths
+# ---------------------------------------------------------------------------
+
+
+class CheckRelocatedHookPathsTests(_HomeDirTestCase):
+    """Tests for check_relocated_hook_paths() -- the relocation blind-spot check."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self._scripts_dir = self.home / ".claudewheel" / "scripts"
+        self._shared_settings = self.home / ".claudewheel" / "shared-settings.json"
+        extra = [
+            patch("claudewheel.health.SCRIPTS_DIR", self._scripts_dir),
+            patch("claudewheel.health.SHARED_SETTINGS_FILE", self._shared_settings),
+        ]
+        for p in extra:
+            p.start()
+            self.addCleanup(p.stop)
+
+    def _write_settings(self, pdir: Path, settings: dict) -> None:
+        (pdir / "settings.json").write_text(json.dumps(settings))
+
+    def _timestamp_hooks(self, scripts_dir) -> dict:
+        return {
+            "UserPromptSubmit": [
+                {"matcher": "", "hooks": [
+                    {"type": "command",
+                     "command": str(Path(scripts_dir) / "hook-timestamp")},
+                ]},
+            ],
+        }
+
+    def test_passes_when_commands_under_current_scripts_dir(self) -> None:
+        pdir = self._make_profile("current")
+        self._write_settings(pdir, {"hooks": self._timestamp_hooks(self._scripts_dir)})
+
+        result = check_relocated_hook_paths()
+        self.assertTrue(result.ok)
+        self.assertIn("current scripts dir", result.detail)
+
+    def test_fails_naming_profile_with_stale_root(self) -> None:
+        pdir = self._make_profile("relocated")
+        self._write_settings(
+            pdir, {"hooks": self._timestamp_hooks("/old/home/.claudewheel/scripts")}
+        )
+
+        result = check_relocated_hook_paths()
+        self.assertFalse(result.ok)
+        self.assertIn("relocated", result.detail)
+        self.assertIn("/old/home/.claudewheel/scripts/hook-timestamp", result.detail)
+        self.assertIn("patch-profiles", result.detail)
+
+    def test_profile_without_hooks_passes(self) -> None:
+        pdir = self._make_profile("nohooks")
+        self._write_settings(pdir, {"permissions": {}})
+
+        result = check_relocated_hook_paths()
+        self.assertTrue(result.ok)
+
+    def test_user_custom_hook_under_other_dir_passes(self) -> None:
+        """A non-claudewheel hook command under any dir is ignored (not flagged)."""
+        pdir = self._make_profile("custom")
+        settings = {"hooks": {"UserPromptSubmit": [
+            {"matcher": "", "hooks": [
+                {"type": "command", "command": str(self._scripts_dir / "hook-timestamp")},
+                {"type": "command", "command": "/opt/mine/my-own-hook"},
+            ]},
+        ]}}
+        self._write_settings(pdir, settings)
+
+        result = check_relocated_hook_paths()
+        self.assertTrue(result.ok)
+
+    def test_shared_settings_stale_root_flagged(self) -> None:
+        self._shared_settings.parent.mkdir(parents=True, exist_ok=True)
+        self._shared_settings.write_text(
+            json.dumps({"hooks": self._timestamp_hooks("/stale/scripts")})
+        )
+
+        result = check_relocated_hook_paths()
+        self.assertFalse(result.ok)
+        self.assertIn("shared-settings.json", result.detail)
+        self.assertIn("/stale/scripts/hook-timestamp", result.detail)
 
 
 if __name__ == "__main__":

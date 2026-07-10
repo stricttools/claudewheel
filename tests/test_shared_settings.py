@@ -24,9 +24,14 @@ class _HomeDirTestCase(unittest.TestCase):
         self._profiles_dir = self.home / ".claudewheel" / "profiles"
         self._shared_settings = self.home / ".claudewheel" / "shared-settings.json"
         self._scripts_dir = self.home / ".claudewheel" / "scripts"
+        self._tokens_file = self.home / ".claudewheel" / "tokens.json"
         self._dir_patches = [
             patch("claudewheel.health.PROFILES_DIR", self._profiles_dir),
             patch("claudewheel.health.SHARED_SETTINGS_FILE", self._shared_settings),
+            # health enumerates through a ProfileStore + TokenStore built from
+            # its own module constants; pin TOKENS_FILE into the temp home so it
+            # never reads the real ~/.claudewheel/tokens.json.
+            patch("claudewheel.health.TOKENS_FILE", self._tokens_file),
             patch("claudewheel.discovery.PROFILES_DIR", self._profiles_dir),
         ]
         for p in self._dir_patches:
