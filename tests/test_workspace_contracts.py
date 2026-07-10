@@ -1,22 +1,24 @@
 """Contract tests for profile.resolve_profile() read-only / corrupt-tokens behavior.
 
-These pin the FUTURE contract described in
-``todo/resolve-profile-constructs-full-config-manager.md``:
+These pin the contract described in
+``todo/resolve-profile-constructs-full-config-manager.md``, now that the
+thin-facade refactor (``resolve_profile`` -> ``Workspace.default().profiles.env``)
+has landed:
 
-1. ``resolve_profile()`` must resolve a profile with ZERO filesystem writes and
-   ZERO terminal I/O, so it works on a read-only bind mount / headless container.
-   Today it constructs a full ``ConfigManager`` whose ``__post_init__`` runs
-   schema migrations that write ``config.json`` (and, on first run, mkdirs +
-   default files), so it crashes on a read-only filesystem. That test is marked
-   ``@unittest.expectedFailure`` until the refactor lands.
+1. ``resolve_profile()`` resolves a profile with ZERO filesystem writes and
+   ZERO terminal I/O, so it works on a read-only bind mount / headless
+   container. Historically it constructed a full ``ConfigManager`` whose
+   ``__post_init__`` ran schema migrations that wrote ``config.json`` (and, on
+   first run, mkdirs + default files), so it crashed when the tree was locked
+   down. This is now the LIVE contract.
 
-2. A corrupt ``tokens.json`` must become a HARD ERROR that names the file, rather
-   than being silently swallowed (today ``resolve_profile`` catches
-   ``json.JSONDecodeError`` and returns env WITHOUT the token). That case is
-   ``@unittest.expectedFailure``. A MISSING file and a MISSING entry must remain
-   fine (no token, no error) -- those two are green today and must stay green.
+2. A corrupt ``tokens.json`` is a HARD ERROR (``TokenStoreError``) that names
+   the file, rather than being silently swallowed (historically
+   ``resolve_profile`` caught ``json.JSONDecodeError`` and returned env WITHOUT
+   the token). A MISSING file and a MISSING entry remain fine (no token, no
+   error).
 
-When the refactor ships, drop the ``@unittest.expectedFailure`` decorators.
+Both contracts are enforced live -- no ``@unittest.expectedFailure`` remains.
 """
 
 from __future__ import annotations
@@ -37,6 +39,7 @@ from claudewheel.defaults import (
     DEFAULT_THEME_LIGHT,
 )
 from claudewheel.profile import resolve_profile
+from claudewheel.tokens import TokenStoreError
 
 
 def _write_json(path: Path, data) -> None:
@@ -113,7 +116,6 @@ class _FakeHomeMixin:
         cw = home / ".claudewheel"
         import claudewheel.config as cfg_mod
         import claudewheel.discovery as disc_mod
-        import claudewheel.profile as prof_mod
 
         config_consts = {
             "CONFIG_DIR": cw,
@@ -129,7 +131,6 @@ class _FakeHomeMixin:
         patches = [patch_obj for patch_obj in (
             *[mock.patch.object(cfg_mod, name, value)
               for name, value in config_consts.items()],
-            mock.patch.object(prof_mod, "TOKENS_FILE", cw / "tokens.json"),
             mock.patch.object(disc_mod, "PROFILES_DIR", cw / "profiles"),
             mock.patch.object(disc_mod, "TOKENS_FILE", cw / "tokens.json"),
             mock.patch.object(Path, "home", classmethod(lambda cls: home)),
@@ -165,12 +166,13 @@ class ReadOnlyResolutionContractTests(_FakeHomeMixin, unittest.TestCase):
         _set_tree_mode(self.home, dir_mode=0o755, file_mode=0o644)
         self._tmp.cleanup()
 
-    @unittest.expectedFailure
     def test_readonly_resolution_zero_writes_zero_tty(self) -> None:
-        """RED today: ConfigManager's schema migration writes config.json ->
-        OSError [Errno 30] Read-only file system (verified undecorated).
+        """Historically RED: ConfigManager's schema migration tried to write
+        config.json into the chmod-locked tree -> PermissionError [Errno 13]
+        Permission denied (the fixture locks perms via chmod, it is not a
+        read-only mount, so the errno is 13, not 30) (verified undecorated).
 
-        Future contract: pure read-only resolution -- returns the profile dir and
+        Live contract: pure read-only resolution -- returns the profile dir and
         token from tokens.json, performs zero writes, and never queries the TTY.
         """
         # Spy that fails loudly if terminal background detection is attempted.
@@ -198,18 +200,17 @@ class CorruptTokensContractTests(_FakeHomeMixin, unittest.TestCase):
     def tearDown(self) -> None:
         self._tmp.cleanup()
 
-    @unittest.expectedFailure
     def test_corrupt_tokens_is_hard_error(self) -> None:
-        """RED today: corrupt tokens.json is silently swallowed (no exception,
-        env returned without a token), so assertRaises fails (verified undecorated).
+        """Historically RED: corrupt tokens.json was silently swallowed (no
+        exception, env returned without a token) (verified undecorated).
 
-        Future contract: a corrupt tokens.json raises an error naming the file.
+        Live contract: a corrupt tokens.json raises TokenStoreError naming the file.
         """
-        _build_fake_home(self.home, tokens=None)  # writable tree; ConfigManager can init
+        _build_fake_home(self.home, tokens=None)  # writable tree
         _write_corrupt_tokens(self.home)
         self._patch_env(self.home, detect="dark")
 
-        with self.assertRaises(Exception) as ctx:
+        with self.assertRaises(TokenStoreError) as ctx:
             resolve_profile("alpha")
         self.assertIn("tokens.json", str(ctx.exception))
 
