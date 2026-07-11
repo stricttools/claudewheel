@@ -18,11 +18,13 @@ Naming note: this file is deliberately named ``wheelhelpers.py`` (not
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import tempfile
 import unittest
 from pathlib import Path
+from typing import Iterable
 from unittest.mock import patch
 
 from claudewheel.shared_store import SharedStore
@@ -46,6 +48,81 @@ def write_json(path: Path, data: dict | list) -> None:
     with open(path, "w") as f:
         json.dump(data, f, indent=2)
         f.write("\n")
+
+
+# ---------------------------------------------------------------------------
+# Filesystem snapshot / chmod helpers (hoisted from test_workspace_contracts,
+# test_profile, and test_migration so the sandbox-escape guard and the
+# read-only contract tests share one implementation).
+# ---------------------------------------------------------------------------
+
+
+class _Missing:
+    """Sentinel for a file absent from a :func:`hash_snapshot`.
+
+    A single module-level instance (:data:`MISSING`) is reused so that two
+    snapshots compare equal when the same file is absent in both -- equality is
+    by identity, and the readable ``repr`` keeps failure diffs legible.
+    """
+
+    __slots__ = ()
+
+    def __repr__(self) -> str:  # pragma: no cover - trivial
+        return "<MISSING>"
+
+
+MISSING = _Missing()
+
+
+def set_tree_mode(root: Path, dir_mode: int, file_mode: int) -> None:
+    """chmod every dir/file under *root* (inclusive). Files first, then dirs."""
+    dirs: list[Path] = [root]
+    files: list[Path] = []
+    for dp, dns, fns in os.walk(root):
+        for d in dns:
+            dirs.append(Path(dp) / d)
+        for f in fns:
+            files.append(Path(dp) / f)
+    for f in files:
+        os.chmod(f, file_mode)
+    for d in dirs:
+        os.chmod(d, dir_mode)
+
+
+def snapshot_tree(root: Path) -> dict[str, tuple[float, int]]:
+    """Map each file under *root* to ``(mtime, size)`` for change detection.
+
+    Walks with :func:`os.walk` (which does NOT follow symlinks), so only real
+    files under *root* are recorded. Cheap, but blind to same-size in-place
+    rewrites -- use :func:`hash_snapshot` when byte-level fidelity matters.
+    """
+    snap: dict[str, tuple[float, int]] = {}
+    for dp, _dns, fns in os.walk(root):
+        for f in fns:
+            p = Path(dp) / f
+            st = p.stat()
+            snap[str(p)] = (st.st_mtime, st.st_size)
+    return snap
+
+
+def hash_snapshot(paths: Iterable[Path]) -> dict[str, str | _Missing]:
+    """Content-hash an EXPLICIT set of files: ``{str(path): sha256-hex | MISSING}``.
+
+    Unlike :func:`snapshot_tree`, this takes an explicit iterable of individual
+    file paths (not a tree root) and records the SHA-256 of each file's bytes,
+    so an in-place rewrite that preserves mtime and size is still detected. A
+    path that does not resolve to a regular file is recorded as :data:`MISSING`
+    (equal across snapshots by sentinel identity). Only affordable because the
+    caller monitors a bounded handful of small files, never a whole tree.
+    """
+    snap: dict[str, str | _Missing] = {}
+    for path in paths:
+        key = str(path)
+        if path.is_file():
+            snap[key] = hashlib.sha256(path.read_bytes()).hexdigest()
+        else:
+            snap[key] = MISSING
+    return snap
 
 
 # ---------------------------------------------------------------------------

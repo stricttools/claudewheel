@@ -42,6 +42,10 @@ from claudewheel.health import run_health_check
 from claudewheel.profile import resolve_profile
 from claudewheel.tokens import TokenStoreError
 from claudewheel.workspace import Workspace
+from tests.wheelhelpers import (
+    set_tree_mode as _set_tree_mode,
+    snapshot_tree as _snapshot,
+)
 
 
 def _write_json(path: Path, data) -> None:
@@ -49,21 +53,6 @@ def _write_json(path: Path, data) -> None:
     with open(path, "w") as f:
         json.dump(data, f, indent=2)
         f.write("\n")
-
-
-def _set_tree_mode(root: Path, dir_mode: int, file_mode: int) -> None:
-    """chmod every dir/file under *root* (inclusive). Files first, then dirs."""
-    dirs: list[Path] = [root]
-    files: list[Path] = []
-    for dp, dns, fns in os.walk(root):
-        for d in dns:
-            dirs.append(Path(dp) / d)
-        for f in fns:
-            files.append(Path(dp) / f)
-    for f in files:
-        os.chmod(f, file_mode)
-    for d in dirs:
-        os.chmod(d, dir_mode)
 
 
 def _build_fake_home(home: Path, *, tokens: str | dict | None) -> Path:
@@ -313,17 +302,6 @@ class WholePackageReadOnlyContractTests(_FakeHomeMixin, unittest.TestCase):
             _snapshot(self.home), before,
             "read-only workspace was mutated by a read/diagnostic path",
         )
-
-
-def _snapshot(root: Path) -> dict[str, tuple[float, int]]:
-    """Map each file under *root* to (mtime_ns-ish, size) for change detection."""
-    snap: dict[str, tuple[float, int]] = {}
-    for dp, _dns, fns in os.walk(root):
-        for f in fns:
-            p = Path(dp) / f
-            st = p.stat()
-            snap[str(p)] = (st.st_mtime, st.st_size)
-    return snap
 
 
 if __name__ == "__main__":

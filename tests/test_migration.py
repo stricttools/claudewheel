@@ -21,6 +21,7 @@ from claudewheel.defaults import (
 from tests.wheelhelpers import (
     SandboxHomeTestCase,
     setup_temp_config_dir as _setup_temp_config_dir,
+    snapshot_tree as _snapshot,
     write_json,
     write_json as _write_json,
 )
@@ -567,17 +568,6 @@ class RenameRecoveryOnStartupTests(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # 6. Phase 5.1 construction contract: lazy, idempotent, fail-loud
 # ---------------------------------------------------------------------------
-
-
-def _snapshot(root: Path) -> dict[str, tuple[float, int]]:
-    """Map each file under *root* to (mtime, size) for change detection."""
-    snap: dict[str, tuple[float, int]] = {}
-    for dp, _dns, fns in os.walk(root):
-        for f in fns:
-            p = Path(dp) / f
-            st = p.stat()
-            snap[str(p)] = (st.st_mtime, st.st_size)
-    return snap
 
 
 class ConstructionContractTests(unittest.TestCase):

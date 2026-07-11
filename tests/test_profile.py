@@ -26,26 +26,14 @@ from __future__ import annotations
 
 import os
 import unittest
-from pathlib import Path
 
 from claudewheel.profile import resolve_profile
 from claudewheel.tokens import TokenStoreError
-from tests.wheelhelpers import SandboxHomeTestCase, write_json
-
-
-def _set_tree_mode(root: Path, dir_mode: int, file_mode: int) -> None:
-    """chmod every dir/file under *root* (inclusive). Files first, then dirs."""
-    dirs: list[Path] = [root]
-    files: list[Path] = []
-    for dp, dns, fns in os.walk(root):
-        for d in dns:
-            dirs.append(Path(dp) / d)
-        for f in fns:
-            files.append(Path(dp) / f)
-    for f in files:
-        os.chmod(f, file_mode)
-    for d in dirs:
-        os.chmod(d, dir_mode)
+from tests.wheelhelpers import (
+    SandboxHomeTestCase,
+    set_tree_mode as _set_tree_mode,
+    write_json,
+)
 
 
 class ResolveProfileTests(SandboxHomeTestCase):
