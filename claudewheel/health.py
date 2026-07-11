@@ -573,20 +573,32 @@ def check_inode_renames(ws: "Workspace") -> HealthResult:
                     f"Run: claudewheel mv --post-hoc {old} {new}"
                 )
 
-    # Clean up stale entries (deleted dirs with no matching inode elsewhere)
+    # Clean up stale entries (deleted dirs with no matching inode elsewhere).
+    # Track whether the pruned data actually reached disk: on a read-only tree
+    # the write is rejected, and the check must not claim it "cleaned" anything.
+    persisted = False
     if stale:
         for s in stale:
             del data[s]
         try:
             inodes_file.parent.mkdir(parents=True, exist_ok=True)
             write_json_atomic(inodes_file, data)
+            persisted = True
         except OSError:
-            pass
+            persisted = False
 
     if renames:
         return HealthResult(False, "inode-renames", "; ".join(renames))
     if stale:
-        return HealthResult(True, "inode-renames", f"cleaned {len(stale)} stale entries")
+        if persisted:
+            return HealthResult(True, "inode-renames", f"cleaned {len(stale)} stale entries")
+        # The run itself is diagnostic, so a read-only tree is not a failure of
+        # THIS check -- ok stays True. The honest detail is the fix.
+        return HealthResult(
+            True, "inode-renames",
+            f"found {len(stale)} stale entries but could not persist cleanup "
+            "(workspace likely read-only)",
+        )
     return HealthResult(True, "inode-renames", "no renames detected")
 
 

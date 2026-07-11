@@ -296,6 +296,14 @@ class WholePackageReadOnlyContractTests(_FakeHomeMixin, unittest.TestCase):
         # rejected it; the guarded except swallowed it, so the run still reports.
         inode_result = next(r for r in results if r.label == "inode-renames")
         self.assertTrue(inode_result.ok)
+        # Honest detail: the write to prune inodes.json was rejected by the
+        # locked tree, so the check must NOT claim it "cleaned" anything. It
+        # must report the stale entries were found but could not be persisted
+        # (read-only likelihood).
+        self.assertNotIn("cleaned", inode_result.detail)
+        self.assertIn("stale", inode_result.detail)
+        self.assertIn("could not persist", inode_result.detail)
+        self.assertIn("read-only", inode_result.detail)
 
         # -- zero successful writes reached the tree --
         self.assertEqual(
