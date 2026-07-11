@@ -9,7 +9,8 @@
   "pipelines": {
     "npm": {
       "type": "npm",
-      "local": false
+      "local": false,
+      "provenance": true
     },
     "pypi": {
       "type": "pypi",
