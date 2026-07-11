@@ -412,7 +412,7 @@ def _handle_rename_profile(ws, old: str, new: str) -> int:
     from .tokens import TokenStoreError
 
     # Validate old exists
-    old_dir = ws.profiles_dir / old
+    old_dir = ws.profiles.path_for(old)
     options = OptionsFile(ws.options_file).load({})
     profile_sec = options.get("profile", {})
     registered = old in profile_sec.get("values", []) or old in profile_sec.get("pinned", [])
@@ -432,7 +432,7 @@ def _handle_rename_profile(ws, old: str, new: str) -> int:
         sys.exit(1)
 
     # Validate not already taken
-    new_dir = ws.profiles_dir / new
+    new_dir = ws.profiles.path_for(new)
     if new_dir.exists():
         print(f"Profile '{new}' already exists (directory).", file=sys.stderr)
         sys.exit(1)

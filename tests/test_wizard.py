@@ -221,6 +221,61 @@ class SettingsFromCloneTests(CreateProfileTestBase):
         self.assertEqual(settings, expected)
 
 
+class CloneFromDefaultTests(CreateProfileTestBase):
+    """Cloning from the built-in ``default`` profile (``~/.claude``).
+
+    Regression: the source path was hand-composed as
+    ``ws.profiles_dir / "default"`` -- a path that never exists for the
+    ``default`` profile, whose real home is ``ws.claude_dir`` (``~/.claude``).
+    So clone-from-default silently produced an empty-base profile while the
+    summary still claimed the settings came from ``default``.
+    """
+
+    def _write_default_settings(self) -> dict:
+        """Populate the real default profile (~/.claude/settings.json)."""
+        default_dir = self.fake_home / ".claude"
+        default_dir.mkdir(parents=True, exist_ok=True)
+        # Distinctive content, including keys the wizard does NOT override:
+        # "env" and the "allow" list inside "permissions".
+        settings = {
+            "env": {"MY_CUSTOM_VAR": "from-default"},
+            "model": "opus",
+            "permissions": {"allow": ["Bash(git status)", "Read(//home/**)"]},
+        }
+        (default_dir / "settings.json").write_text(json.dumps(settings))
+        return settings
+
+    def test_clone_from_default_carries_non_overridden_keys(self) -> None:
+        source = self._write_default_settings()
+
+        result = _make_result(name="fromdef", clone_from="default")
+        create_profile(self.ws, result)
+
+        settings = self._read_settings("fromdef")
+        # (a) Non-overridden keys from the real default must survive the clone.
+        self.assertEqual(settings.get("env"), source["env"])
+        self.assertEqual(settings.get("model"), "opus")
+        # permissions.allow is a non-overridden key; disableAutoMode is merged in.
+        self.assertEqual(
+            settings.get("permissions", {}).get("allow"),
+            source["permissions"]["allow"],
+        )
+
+    def test_clone_from_default_summary_is_truthful(self) -> None:
+        source = self._write_default_settings()
+
+        result = _make_result(name="fromdef2", clone_from="default")
+        lines = create_profile(self.ws, result)
+
+        # (b) The summary claims the settings came from "default". That claim
+        # must be backed by reality: the created settings genuinely carry the
+        # default profile's non-overridden data.
+        source_line = next(l for l in lines if "Settings from:" in l)
+        self.assertIn("default", source_line)
+        settings = self._read_settings("fromdef2")
+        self.assertEqual(settings.get("env"), source["env"])
+
+
 class CheckboxOverridesTests(CreateProfileTestBase):
     """Test 4: checkbox overrides written correctly."""
 

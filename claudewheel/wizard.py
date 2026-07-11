@@ -224,7 +224,7 @@ def create_profile(ws: "Workspace", result: WizardResult) -> list[str]:
     settings: dict = {}
     if result.clone_from:
         # Copy from existing profile
-        source_dir = ws.profiles_dir / result.clone_from
+        source_dir = ws.profiles.path_for(result.clone_from)
         source_settings = source_dir / "settings.json"
         if source_settings.exists():
             try:
