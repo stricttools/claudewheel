@@ -1,73 +1,60 @@
-"""Schema-freshness guard: the committed .strictcli/schema.json must match a
-fresh `claudewheel --dump-schema`, modulo the version field.
+"""Schema-freshness guard: the committed .strictcli/schema.json must match the
+live CLI structure, modulo the non-structural version/project_id fields.
 
 The strictcli schema is checked into the repo and consumed by selfdoc. If the
 CLI surface (commands, groups, flags, args, help text) drifts from the committed
-schema, this test fails so the schema gets re-dumped. Only the ``version`` field
-is normalized out -- it changes every release and is not structural.
+schema, this test fails so the schema gets re-dumped.
 
-The fresh dump runs once at module scope. strictcli's --dump-schema reads
-``[project].name`` from a pyproject.toml in the cwd and writes
-``<cwd>/.strictcli/schema.json``; the test runs it in a throwaway temp dir so it
-never touches the committed file.
+The fresh schema is obtained in-process via ``App.dump_schema_dict()`` (strictcli
+>= 0.27.0): no subprocess, no throwaway temp cwd, no filesystem access. The
+returned dict is byte-identical to the written ``.strictcli/schema.json`` with
+the ``project_id`` field removed, so the comparison normalizes out both
+``project_id`` (absent from the in-process dump, present in the committed file)
+and ``version`` (changes every release, not structural).
 """
 
 from __future__ import annotations
 
 import copy
 import json
-import subprocess
-import sys
-import tempfile
 import unittest
 from pathlib import Path
+
+from claudewheel.binaries import BinaryLocator
+from claudewheel.cli import _build_app
+from claudewheel.workspace import Workspace
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 _COMMITTED_SCHEMA = _REPO_ROOT / ".strictcli" / "schema.json"
 
-# Populated by setUpModule so the (relatively slow) subprocess dump runs once.
-_FRESH_SCHEMA: dict | None = None
 
+def _normalize(schema: dict) -> dict:
+    """Drop the non-structural fields (version + project_id) for comparison.
 
-def _strip_version(schema: dict) -> dict:
-    """Return a copy of the schema with the non-structural version field removed."""
+    ``version`` changes every release; ``project_id`` is added only by the
+    ``--dump-schema`` writer path (from pyproject.toml) and is absent from the
+    in-process ``dump_schema_dict()`` result.
+    """
     stripped = dict(schema)
     stripped.pop("version", None)
+    stripped.pop("project_id", None)
     return stripped
 
 
-def setUpModule() -> None:
-    global _FRESH_SCHEMA
-    tmp = tempfile.mkdtemp(prefix="cw-schema-fresh-")
-    tmp_path = Path(tmp)
-    # strictcli derives project_id from [project].name; it must match the
-    # committed schema's project_id for a structural comparison.
-    committed = json.loads(_COMMITTED_SCHEMA.read_text())
-    project_id = committed["project_id"]
-    (tmp_path / "pyproject.toml").write_text(
-        f'[project]\nname = "{project_id}"\nversion = "0.0.0"\n'
-    )
-    result = subprocess.run(
-        [sys.executable, "-m", "claudewheel", "--dump-schema"],
-        cwd=tmp,
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(
-            f"--dump-schema failed (exit {result.returncode}):\n"
-            f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
-        )
-    fresh_path = tmp_path / ".strictcli" / "schema.json"
-    _FRESH_SCHEMA = json.loads(fresh_path.read_text())
+def _fresh_schema() -> dict:
+    """Return the live CLI schema in-process. ``Workspace.default()`` and
+    ``BinaryLocator.default()`` are pure value construction (no filesystem or
+    terminal I/O), matching how ``main()`` builds the app."""
+    app = _build_app(Workspace.default(), BinaryLocator.default())
+    return app.dump_schema_dict()
 
 
 class SchemaFreshnessTests(unittest.TestCase):
     def test_committed_schema_matches_fresh_dump(self) -> None:
         committed = json.loads(_COMMITTED_SCHEMA.read_text())
         self.assertEqual(
-            _strip_version(_FRESH_SCHEMA),
-            _strip_version(committed),
+            _normalize(_fresh_schema()),
+            _normalize(committed),
             "committed .strictcli/schema.json is stale -- re-run "
             "`claudewheel --dump-schema` from the repo root and commit it",
         )
@@ -83,8 +70,8 @@ class SchemaFreshnessTests(unittest.TestCase):
             "help": "injected by the freshness meta-test",
         }
         self.assertNotEqual(
-            _strip_version(mutated),
-            _strip_version(committed),
+            _normalize(mutated),
+            _normalize(committed),
             "the freshness comparison failed to detect an injected command; "
             "the guard would be a no-op",
         )
@@ -96,8 +83,8 @@ class SchemaFreshnessTests(unittest.TestCase):
         mutated = copy.deepcopy(committed)
         mutated["help"] = committed.get("help", "") + " MUTATED"
         self.assertNotEqual(
-            _strip_version(mutated),
-            _strip_version(committed),
+            _normalize(mutated),
+            _normalize(committed),
         )
 
 
