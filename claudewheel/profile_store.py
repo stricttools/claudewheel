@@ -252,35 +252,44 @@ class ProfileStore:
 
         target.mkdir(parents=True)
 
-        # settings.json -- ATOMIC (the fix for the wizard's truncating write_text)
-        write_json_atomic(target / "settings.json", settings)
+        # Everything below was created by THIS call (the pre-mkdir FileExistsError
+        # guard above guarantees the dir did not pre-exist), so any failure lets
+        # us safely remove the whole target dir and re-raise, leaving no debris to
+        # block a retry. Removal is symlink-safe (shared session data survives) --
+        # it reuses the same helper delete() uses.
+        try:
+            # settings.json -- ATOMIC (the fix for the wizard's truncating write_text)
+            write_json_atomic(target / "settings.json", settings)
 
-        # Onboarding flag so CC skips the login screen under an injected token.
-        if set_onboarding:
-            self._set_onboarding_flag(target)
+            # Onboarding flag so CC skips the login screen under an injected token.
+            if set_onboarding:
+                self._set_onboarding_flag(target)
 
-        # Symlink the shared-store subdirs (+ skills), skipping existing links.
-        # Skipped entirely when the caller opted out of shared symlinking.
-        if symlink_shared:
-            for sub in SharedStore.SHARED_SUBDIRS:
-                link = target / sub
-                if link.exists() or link.is_symlink():
-                    continue
-                sub_target = self.shared.subdir(sub)
-                sub_target.mkdir(parents=True, exist_ok=True)
-                link.symlink_to(sub_target)
-            skills_link = target / "skills"
-            if (self.shared.skills_dir.is_dir()
-                    and not skills_link.exists() and not skills_link.is_symlink()):
-                skills_link.symlink_to(self.shared.skills_dir)
+            # Symlink the shared-store subdirs (+ skills), skipping existing links.
+            # Skipped entirely when the caller opted out of shared symlinking.
+            if symlink_shared:
+                for sub in SharedStore.SHARED_SUBDIRS:
+                    link = target / sub
+                    if link.exists() or link.is_symlink():
+                        continue
+                    sub_target = self.shared.subdir(sub)
+                    sub_target.mkdir(parents=True, exist_ok=True)
+                    link.symlink_to(sub_target)
+                skills_link = target / "skills"
+                if (self.shared.skills_dir.is_dir()
+                        and not skills_link.exists() and not skills_link.is_symlink()):
+                    skills_link.symlink_to(self.shared.skills_dir)
 
-        # Register in options.json (pinned). No metadata -- config_dir dropped.
-        self.options.add_pinned(_PROFILE_SEGMENT, name, _OPTIONS_DEFAULT)
+            # Register in options.json (pinned). No metadata -- config_dir dropped.
+            self.options.add_pinned(_PROFILE_SEGMENT, name, _OPTIONS_DEFAULT)
 
-        has_credentials = (target / ".credentials.json").exists()
-        has_token = name in self.token_store.load()
-        return Profile(name=name, path=target,
-                       has_credentials=has_credentials, has_token=has_token)
+            has_credentials = (target / ".credentials.json").exists()
+            has_token = name in self.token_store.load()
+            return Profile(name=name, path=target,
+                           has_credentials=has_credentials, has_token=has_token)
+        except BaseException:
+            self._remove_profile_dir(name)
+            raise
 
     def classify_shared_dirs(self, name: str) -> dict[str, str]:
         """Classify each shared-store entry in *name*'s dir into one of four states.

@@ -206,6 +206,53 @@ class CreateTests(_WriteBase):
                 self.store.create("atomic", self._SETTINGS)
         self.assertFalse((target / "settings.json").exists())
 
+    def test_create_cleanup_on_failure_enables_retry(self) -> None:
+        # A failure partway through create() must remove the partially-created
+        # target dir (everything under it was made by this call), so a retry is
+        # not blocked by the pre-mkdir FileExistsError guard.
+        target = self.profiles_dir / "retry"
+        with patch.object(Path, "rename", side_effect=OSError("injected")):
+            with self.assertRaises(OSError):
+                self.store.create("retry", self._SETTINGS)
+        # The debris is gone -- the whole target dir was cleaned up.
+        self.assertFalse(target.exists())
+        # A retry now succeeds instead of hitting FileExistsError.
+        profile = self.store.create("retry", self._SETTINGS)
+        self.assertIsInstance(profile, Profile)
+        self.assertTrue((target / "settings.json").exists())
+
+    def test_create_refusal_preserves_existing_dir(self) -> None:
+        # The pre-mkdir FileExistsError refusal path must NOT delete anything:
+        # the store never created the dir, so it does not own its contents.
+        target = self.profiles_dir / "keepme"
+        target.mkdir(parents=True)
+        (target / "sentinel.txt").write_text("do not delete")
+        with self.assertRaises(FileExistsError):
+            self.store.create("keepme", self._SETTINGS)
+        # Pre-existing dir and its contents survive untouched.
+        self.assertTrue(target.is_dir())
+        self.assertTrue((target / "sentinel.txt").exists())
+        self.assertEqual((target / "sentinel.txt").read_text(), "do not delete")
+
+    def test_create_cleanup_is_symlink_safe(self) -> None:
+        # Cleanup on failure must unlink shared-store symlinks WITHOUT following
+        # them into the shared store -- real session data behind the links must
+        # survive. Inject a failure at options registration (after symlinks are
+        # created) so the cleanup path exercises symlink removal.
+        (self.shared_dir / "projects" / "payload.jsonl").write_text("keep me")
+        target = self.profiles_dir / "symsafe"
+        with patch.object(
+            self.store.options, "add_pinned", side_effect=OSError("injected")
+        ):
+            with self.assertRaises(OSError):
+                self.store.create("symsafe", self._SETTINGS)
+        # Debris removed, but shared data behind the symlinks survives.
+        self.assertFalse(target.exists())
+        self.assertTrue((self.shared_dir / "projects" / "payload.jsonl").exists())
+        self.assertEqual(
+            (self.shared_dir / "projects" / "payload.jsonl").read_text(), "keep me"
+        )
+
     def test_create_parity_with_wizard(self) -> None:
         # Give the wizard real profileDefaults so it produces a non-trivial
         # final settings dict, then feed that SAME dict to the store and compare
