@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import copy
 import json
-import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -244,7 +243,6 @@ class AppConfigStore:
         self._run_versioned_migrations()
         self._recover_incomplete_renames()
         self._ensure_shared_settings()
-        self._warn_old_profile_dirs()
 
     # --- Theme access (no terminal I/O) ----------------------------------
 
@@ -276,29 +274,6 @@ class AppConfigStore:
     def _recover_incomplete_renames(self) -> None:
         """Finish any interrupted profile renames (crash recovery)."""
         self.workspace.profiles.recover_incomplete_renames()
-
-    @staticmethod
-    def _warn_old_profile_dirs() -> None:
-        """Print a warning if old-style ~/.claude-<name>/ profile dirs exist."""
-        home = Path.home()
-        skip = {".claude-shared", ".claude-common", ".claude"}
-        old_dirs: list[str] = []
-        try:
-            for entry in sorted(home.iterdir()):
-                if not entry.is_dir() or not entry.name.startswith(".claude-"):
-                    continue
-                if entry.name in skip:
-                    continue
-                old_dirs.append(f"~/{entry.name}")
-        except OSError:
-            return
-        if old_dirs:
-            dirs_str = ", ".join(old_dirs)
-            print(
-                f"Warning: Found old-style profile directories: {dirs_str}. "
-                "Move them to ~/.claudewheel/profiles/<name>/ and delete the originals.",
-                file=sys.stderr,
-            )
 
     def _ensure_shared_settings(self) -> None:
         """Create shared-settings.json from canonical values if it doesn't exist."""

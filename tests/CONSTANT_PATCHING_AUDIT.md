@@ -55,4 +55,3 @@ workspace/locator/browser layers look, not import-time captured constants):
 - `discovery.py` — browser-detection directories (`_FLATPAK_EXPORT_DIRS`,
   `_SNAP_BIN_DIR`).
 - `segment.py` — tilde-relativization and directory-scan base dirs.
-- `config.py` — `_warn_old_profile_dirs` home scan for legacy `~/.claude-<name>` dirs.

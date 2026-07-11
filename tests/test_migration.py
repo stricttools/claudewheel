@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+import io
 import json
 import os
 import tempfile
@@ -599,6 +601,19 @@ class ConstructionContractTests(unittest.TestCase):
         after = _snapshot(paths["CONFIG_DIR"])
 
         self.assertEqual(after, before, "reopen mutated files on disk")
+
+    def test_construction_emits_nothing_on_stderr(self) -> None:
+        """Constructing appconfig() on a sandbox root prints nothing to stderr.
+
+        Regression guard for the removed legacy-dir warning: construction must
+        be silent (no ``~/.claude-<name>`` scan of the real home, no stray
+        stderr output of any kind).
+        """
+        paths = _setup_temp_config_dir(self.tmp)
+        captured = io.StringIO()
+        with contextlib.redirect_stderr(captured):
+            Workspace.open(paths["CONFIG_DIR"]).appconfig()
+        self.assertEqual(captured.getvalue(), "")
 
     def test_readonly_root_raises(self) -> None:
         """appconfig() on a read-only (0o555) root fails loudly (no silent skip)."""
