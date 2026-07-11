@@ -209,40 +209,12 @@ class CheckHooksWiredTests(_HomeDirTestCase):
         (pdir / "settings.json").write_text(json.dumps(settings))
 
     def _good_settings(self) -> dict:
-        """Return settings with all four canonical hook wirings present."""
-        return {
-            "hooks": {
-                "UserPromptSubmit": [
-                    {
-                        "hooks": [
-                            {"command": "/usr/bin/hook-timestamp"},
-                        ]
-                    }
-                ],
-                "PreToolUse": [
-                    {
-                        "matcher": "Agent",
-                        "hooks": [
-                            {"command": "/usr/bin/hook-block-worktree"},
-                        ]
-                    },
-                    {
-                        "matcher": "Bash",
-                        "hooks": [
-                            {"command": "/usr/bin/hook-block-unsafe-commands"},
-                        ]
-                    },
-                ],
-                "PostToolUse": [
-                    {
-                        "matcher": "Bash",
-                        "hooks": [
-                            {"command": "/usr/bin/hook-advise-commands"},
-                        ]
-                    },
-                ],
-            }
-        }
+        """Return settings with all four canonical hook wirings present.
+
+        Commands are rooted at the workspace's current scripts dir because
+        hooks-wired now requires the exact canonical command, not a substring.
+        """
+        return self._settings_under(self.ws.scripts_dir)
 
     def _three_hook_settings(self) -> dict:
         """Return settings with only the three old hooks (no PostToolUse advise)."""
@@ -292,12 +264,13 @@ class CheckHooksWiredTests(_HomeDirTestCase):
     def test_warn_when_block_unsafe_commands_missing(self) -> None:
         """Returns WARN when hook-block-unsafe-commands is missing from PreToolUse."""
         pdir = self._make_profile("no-bash-hook")
+        sd = self.ws.scripts_dir
         settings = {
             "hooks": {
                 "UserPromptSubmit": [
                     {
                         "hooks": [
-                            {"command": "/usr/bin/hook-timestamp"},
+                            {"command": str(sd / "hook-timestamp")},
                         ]
                     }
                 ],
@@ -305,7 +278,7 @@ class CheckHooksWiredTests(_HomeDirTestCase):
                     {
                         "matcher": "Agent",
                         "hooks": [
-                            {"command": "/usr/bin/hook-block-worktree"},
+                            {"command": str(sd / "hook-block-worktree")},
                         ]
                     }
                 ],
@@ -330,6 +303,62 @@ class CheckHooksWiredTests(_HomeDirTestCase):
         result = check_hooks_wired(self.ws)
         self.assertTrue(result.ok)
         self.assertIn("no profiles found", result.detail)
+
+    def _settings_under(self, scripts_dir) -> dict:
+        """Build all four canonical wirings with commands rooted at *scripts_dir*."""
+        scripts_dir = Path(scripts_dir)
+        return {
+            "hooks": {
+                "UserPromptSubmit": [
+                    {"matcher": "", "hooks": [
+                        {"command": str(scripts_dir / "hook-timestamp")},
+                    ]},
+                ],
+                "PreToolUse": [
+                    {"matcher": "Agent", "hooks": [
+                        {"command": str(scripts_dir / "hook-block-worktree")},
+                    ]},
+                    {"matcher": "Bash", "hooks": [
+                        {"command": str(scripts_dir / "hook-block-unsafe-commands")},
+                    ]},
+                ],
+                "PostToolUse": [
+                    {"matcher": "Bash", "hooks": [
+                        {"command": str(scripts_dir / "hook-advise-commands")},
+                    ]},
+                ],
+            }
+        }
+
+    def test_warn_when_hooks_under_wrong_dir(self) -> None:
+        """Right basenames under the WRONG scripts dir must FAIL hooks-wired.
+
+        The substring matcher used to pass here even though the hooks pointed at
+        a directory that is not the current scripts dir. The exact-command
+        matcher rejects them.
+        """
+        pdir = self._make_profile("wrong-dir")
+        self._write_settings(pdir, self._settings_under("/nonexistent/dead/scripts"))
+
+        result = check_hooks_wired(self.ws)
+        self.assertFalse(result.ok)
+        self.assertIn("hook-timestamp", result.detail)
+
+    def test_damaged_hooks_fail_then_pass_after_repair(self) -> None:
+        """Phase-1-style damage: hooks pointing at a dead dir FAIL pre-repair,
+        and PASS once repathed to the current scripts dir (post-repair)."""
+        pdir = self._make_profile("damaged")
+
+        # Pre-repair: every hook points at a dead /tmp directory.
+        self._write_settings(pdir, self._settings_under("/tmp/dead-scripts-xyz"))
+        pre = check_hooks_wired(self.ws)
+        self.assertFalse(pre.ok)
+
+        # Post-repair: repathed to the workspace's current scripts dir.
+        self._write_settings(pdir, self._settings_under(self.ws.scripts_dir))
+        post = check_hooks_wired(self.ws)
+        self.assertTrue(post.ok)
+        self.assertIn("1 profiles OK", post.detail)
 
 
 # ---------------------------------------------------------------------------

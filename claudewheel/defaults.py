@@ -28,6 +28,17 @@ DISALLOWED_TOOLS = [
     "TaskUpdate",
 ]
 
+def canonical_hook_command(scripts_dir: Path, script: str) -> str:
+    """Return the canonical hook command string for *script* under *scripts_dir*.
+
+    Single source of truth for how a hook command path is composed. Reused by
+    ``_build_canonical_hooks`` (which deploys the wirings) and by
+    ``health.check_hooks_wired`` (which verifies them), so verification matches
+    deployment exactly instead of doing a lax substring match.
+    """
+    return str(scripts_dir / script)
+
+
 def _build_canonical_hooks(scripts_dir: Path) -> dict:
     """Build the hooks dict from the guardrail model's EXPECTED_HOOK_WIRINGS.
 
@@ -45,7 +56,7 @@ def _build_canonical_hooks(scripts_dir: Path) -> dict:
             entry = {"matcher": matcher, "hooks": []}
             entries.append(entry)
         entry["hooks"].append(
-            {"type": "command", "command": str(scripts_dir / script)}
+            {"type": "command", "command": canonical_hook_command(scripts_dir, script)}
         )
     return hooks
 

@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 
 from . import guardrail
 from .appdata import OptionsFile
-from .defaults import DISALLOWED_TOOLS
+from .defaults import DISALLOWED_TOOLS, canonical_hook_command
 from .fsutil import write_json_atomic
 from .hook_scripts import HOOK_SCRIPTS
 from .profile_store import Profile
@@ -131,18 +131,23 @@ def check_shared_symlinks(ws: "Workspace", tokens: dict | None = None) -> Health
     return HealthResult(True, "shared-symlinks", f"all {len(profiles)} profiles OK")
 
 
-def _hook_wired(hooks: object, event: str, matcher: str, script: str) -> bool:
+def _hook_wired(hooks: object, event: str, matcher: str, script: str,
+                scripts_dir: Path) -> bool:
     """Return True if *hooks* wires *script* under *event* with *matcher*.
 
     An entry matches when its ``matcher`` equals *matcher* (an absent matcher
     is treated as the empty string, which is how UserPromptSubmit entries are
-    stored) and it carries a hook command mentioning *script*.
+    stored) and it carries a hook command equal to the EXACT canonical command
+    for *script* under *scripts_dir*. Exact-match (not substring) so a hook
+    pointing at a stale/dead scripts directory -- right basename, wrong root --
+    does NOT pass, which a substring match would have wrongly accepted.
     """
     if not isinstance(hooks, dict):
         return False
     entries = hooks.get(event, [])
     if not isinstance(entries, list):
         return False
+    expected_cmd = canonical_hook_command(scripts_dir, script)
     for entry in entries:
         if not isinstance(entry, dict):
             continue
@@ -150,7 +155,7 @@ def _hook_wired(hooks: object, event: str, matcher: str, script: str) -> bool:
             continue
         for h in entry.get("hooks", []):
             cmd = h.get("command", "") if isinstance(h, dict) else ""
-            if script in cmd:
+            if cmd == expected_cmd:
                 return True
     return False
 
@@ -161,12 +166,15 @@ def check_hooks_wired(ws: "Workspace", tokens: dict | None = None) -> HealthResu
     The canonical wirings are the (event, matcher, script-name) triples in
     ``guardrail.EXPECTED_HOOK_WIRINGS``. A profile passes only when every
     triple is present: an entry under the given event whose matcher equals the
-    given matcher, containing a hook command that references the given script.
+    given matcher, containing a hook command equal to the exact canonical
+    command (``scripts_dir / script``) for that triple. A hook pointing at the
+    right basename under the wrong directory does NOT satisfy the wiring.
     """
     profiles = _discover_profiles(ws, tokens)
     if not profiles:
         return HealthResult(True, "hooks-wired", "no profiles found")
 
+    scripts_dir = ws.scripts_dir
     missing: list[str] = []
     for p in profiles:
         settings_file = p.path / "settings.json"
@@ -181,7 +189,7 @@ def check_hooks_wired(ws: "Workspace", tokens: dict | None = None) -> HealthResu
 
         hooks = settings.get("hooks", {})
         for event, matcher, script in guardrail.EXPECTED_HOOK_WIRINGS:
-            if not _hook_wired(hooks, event, matcher, script):
+            if not _hook_wired(hooks, event, matcher, script, scripts_dir):
                 missing.append(f"{p.name}: missing ({event}, {matcher}, {script})")
 
     if missing:
