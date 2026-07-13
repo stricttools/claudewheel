@@ -220,30 +220,25 @@ class MiniclaudeHardErrorTests(MiniclaudeAdapterTestBase):
             )
         self.assertIn("passthrough", str(ctx.exception))
 
-    def test_mcp_strict_raises(self) -> None:
-        """MCP strict -> hard error naming it as claude-client-only."""
-        with self.assertRaises(ValueError) as ctx:
-            self._resolve(selections={"profile": "work", "mcp": "strict"})
-        msg = str(ctx.exception)
-        self.assertIn("strict", msg)
-        self.assertIn("claude-client-only", msg)
-
     def test_mcp_default_is_not_an_error(self) -> None:
         """MCP 'default' is the no-op mode and must NOT error for miniclaude."""
         _, argv, _ = self._resolve(selections={"profile": "work", "mcp": "default"})
         self.assertEqual(argv[:2], [self.MC_BINARY, "repl"])
 
 
-class MiniclaudeAmbientVersionTests(MiniclaudeAdapterTestBase):
-    """Regression: an ambient (remembered/configured) claude version must be
-    IGNORED by the miniclaude adapter, not turned into a hard error.
+class MiniclaudeAmbientSelectionTests(MiniclaudeAdapterTestBase):
+    """Regression: ambient (remembered/configured) claude-only selections must
+    be IGNORED by the miniclaude adapter, not turned into hard errors.
 
-    Reproduces the reported bug: ``claudewheel --client miniclaude`` failed with
-    "version selection '2.1.202' is claude-client-only ..." whenever a claude
-    version was remembered in last_config (or set as a config default), because
-    that ambient version flowed into the miniclaude adapter, which rejected it.
-    A version is a claude-only input on the same footing as default_flags and
-    DISALLOWED_TOOLS, so it is now dropped without error.
+    Reproduces the reported bug class: ``claudewheel --client miniclaude``
+    failed with "... is claude-client-only ..." whenever a claude-only value
+    was remembered in last_config (or set as a config default), because that
+    ambient value flowed into the miniclaude adapter, which rejected it.
+    ``version`` (every launch persists one -- it is a required segment) and
+    ``mcp: "strict"`` are claude-only inputs on the same footing as
+    default_flags and DISALLOWED_TOOLS, so they are dropped without error. A
+    contradictory *explicit, same-invocation* override is rejected upstream in
+    the CLI, where the selection's provenance is known.
     """
 
     def test_version_selection_is_ignored_not_an_error(self) -> None:
@@ -268,6 +263,31 @@ class MiniclaudeAmbientVersionTests(MiniclaudeAdapterTestBase):
             "--profile", "work",
             "--model", "claude-opus-4-8",
             "--permission-mode", "bypassPermissions",
+        ])
+
+    def test_mcp_strict_is_ignored_not_an_error(self) -> None:
+        """An ambient mcp='strict' builds a normal argv (no strict-MCP flag)."""
+        _, argv, _ = self._resolve(
+            selections={"profile": "work", "mcp": "strict"},
+        )
+        self.assertEqual(argv, [self.MC_BINARY, "repl", "--profile", "work"])
+        # No strict-MCP artifact leaks into the miniclaude argv.
+        self.assertNotIn("--strict-mcp-config", argv)
+
+    def test_mcp_strict_alongside_other_selections_still_builds(self) -> None:
+        """mcp='strict' is dropped while model/permissions still map through."""
+        _, argv, _ = self._resolve(selections={
+            "profile": "work",
+            "mcp": "strict",
+            "version": "2.1.202",
+            "model": "claude-opus-4-8",
+            "permissions": "plan",
+        })
+        self.assertEqual(argv, [
+            self.MC_BINARY, "repl",
+            "--profile", "work",
+            "--model", "claude-opus-4-8",
+            "--permission-mode", "plan",
         ])
 
 

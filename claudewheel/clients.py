@@ -13,15 +13,16 @@ Adapters:
   ``--disallowedTools`` + session/passthrough flags), with the binary chosen by
   the :class:`~claudewheel.binaries.BinaryLocator`.
 - ``miniclaude``: the miniclaude REPL client. Builds ``miniclaude repl`` with a
-  mapped permission mode and mapped session flags. Strict MCP -- an active,
-  claude-only selection -- is a HARD ERROR, never a silent drop. By-definition
-  claude-only inputs that simply do not apply are ignored without error: the
-  ``version`` selection (it names a claudewheel-managed *claude* binary, which
-  a non-claude client never execs), ``config.default_flags`` (raw claude CLI
-  flags), and the ``DISALLOWED_TOOLS`` constant. Ignoring ``version`` here is
-  what lets a plain ``--client miniclaude`` succeed even when a claude version
-  is remembered in last_config or set as a config default; a *contradictory,
-  same-invocation* explicit version (``-s version=...`` together with a
+  mapped permission mode and mapped session flags. By-definition claude-only
+  inputs that simply do not apply are ignored without error: the ``version``
+  selection (it names a claudewheel-managed *claude* binary, which a non-claude
+  client never execs), the ``mcp`` selection ("strict" maps to claude's
+  ``--strict-mcp-config``; miniclaude has no equivalent),
+  ``config.default_flags`` (raw claude CLI flags), and the ``DISALLOWED_TOOLS``
+  constant. Ignoring ``version``/``mcp`` here is what lets a plain ``--client
+  miniclaude`` succeed even when a claude-only value is remembered in
+  last_config or set as a config default; a *contradictory, same-invocation*
+  explicit override (``-s version=...`` / ``-s mcp=strict`` together with a
   non-claude ``--client``) is rejected upstream in the CLI, not here.
 
 Every hard error raised here is a :class:`ValueError` so the CLI launch
@@ -136,26 +137,18 @@ def build_miniclaude_argv(ctx: ClientContext) -> list[str]:
     Shape: ``[binary, "repl", "--profile", <profile>, "--model", <model id>,
     "--permission-mode", <mapped>] + <session flags>``. ``--model`` and
     ``--permission-mode`` are included only when the corresponding selection is
-    present. Strict MCP (an active claude-only selection), a missing profile, an
-    unsupported session flag, and passthrough args are all HARD ERRORS -- never
-    silent drops.
+    present. A missing profile, an unsupported session flag, and passthrough
+    args are all HARD ERRORS -- never silent drops.
 
-    A ``version`` selection is IGNORED, not rejected: it names a
-    claudewheel-managed *claude* binary, so for a non-claude client it is a
-    by-definition-inapplicable input on the same footing as ``default_flags``
+    ``version`` and ``mcp`` selections are IGNORED, not rejected: a version
+    names a claudewheel-managed *claude* binary and mcp "strict" maps to
+    claude's ``--strict-mcp-config``, so for a non-claude client they are
+    by-definition-inapplicable inputs on the same footing as ``default_flags``
     and ``DISALLOWED_TOOLS``. This is what lets ``--client miniclaude`` succeed
-    when a claude version is merely remembered/configured. A contradictory
-    *explicit* version passed in the same invocation is rejected upstream in the
-    CLI (``claudewheel.cli``), where the selection's provenance is known.
+    when such a value is merely remembered/configured. A contradictory
+    *explicit* override passed in the same invocation is rejected upstream in
+    the CLI (``claudewheel.cli``), where the selection's provenance is known.
     """
-    # Reject active claude-only selections loudly rather than dropping them
-    # silently. (``version`` is NOT rejected here -- see the docstring.)
-    if ctx.selections.get("mcp") == "strict":
-        raise ValueError(
-            "mcp selection 'strict' is claude-client-only: the miniclaude client "
-            "has no --strict-mcp-config equivalent"
-        )
-
     profile = ctx.selections.get("profile")
     if not profile:
         raise ValueError("the miniclaude client requires a claudewheel profile")
@@ -232,6 +225,22 @@ CLIENT_ADAPTERS = {
 CLIENT_NAMES = tuple(CLIENT_ADAPTERS)
 
 DEFAULT_CLIENT = "claude"
+
+# Segment selections whose only effect is a claude-specific launch input,
+# mapped to a predicate over the selected value: True means that value is
+# claude-only. Single source of truth for the three enforcement sites:
+# the TUI skips these segments for non-claude clients, the CLI drops their
+# ambient (remembered/default) values, and the CLI rejects a contradictory
+# explicit same-invocation override.
+#
+# version: any value (it names a claudewheel-managed claude binary).
+# mcp: only "strict" is claude-only (it maps to --strict-mcp-config; "default"
+#      is a no-op) -- but the segment exists solely for that flag, so the TUI
+#      skips the whole segment for non-claude clients.
+CLAUDE_ONLY_SELECTIONS: dict[str, object] = {
+    "version": lambda v: True,
+    "mcp": lambda v: v == "strict",
+}
 
 
 # ---------------------------------------------------------------------------

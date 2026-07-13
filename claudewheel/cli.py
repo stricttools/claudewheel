@@ -983,24 +983,38 @@ def _check_cont_session(ws, directory: str) -> None:
 
 # "continue" and "print" are Python keywords, so we use "cont" / "print-prompt"
 # as flag names. Short forms -c and -p remain the same for user convenience.
-def _reject_incompatible_version(client_val: str, segment_overrides: dict) -> None:
-    """Hard-error on an explicit version override combined with a non-claude client.
+# Explicit segment overrides that contradict a non-claude client. Maps segment
+# key -> predicate over the override value: True means the value is claude-only.
+# version: any value (it names a claudewheel-managed claude binary).
+# mcp: only "strict" (it maps to claude's --strict-mcp-config; "default" is a no-op).
+_CLAUDE_ONLY_OVERRIDES: dict[str, callable] = {
+    "version": lambda v: True,
+    "mcp": lambda v: v == "strict",
+}
 
-    A ``version`` selection names a claudewheel-managed *claude* binary, so it
-    is claude-client-only. An *ambient* version (remembered in last_config or a
-    config default) is silently ignored for non-claude clients; but an explicit,
-    same-invocation ``-s version=...`` alongside a non-claude ``--client`` is
+
+def _reject_claude_only_overrides(client_val: str, segment_overrides: dict) -> None:
+    """Hard-error on explicit claude-only overrides combined with a non-claude client.
+
+    ``version`` and ``mcp=strict`` are claude-client-only inputs. An *ambient*
+    value (remembered in last_config or a config default) is silently ignored
+    for non-claude clients; but an explicit, same-invocation override (a
+    segment flag or ``-s key=value``) alongside a non-claude ``--client`` is
     contradictory intent and is rejected here, where the selection's provenance
     (an explicit override) is known -- the adapter downstream cannot tell
     explicit from ambient.
     """
-    if client_val != "claude" and "version" in segment_overrides:
-        print(
-            f"Error: explicit version selection {segment_overrides['version']!r} "
-            f"is claude-client-only and cannot be combined with --client {client_val}",
-            file=sys.stderr,
-        )
-        sys.exit(1)
+    if client_val == "claude":
+        return
+    for key, is_claude_only in _CLAUDE_ONLY_OVERRIDES.items():
+        if key in segment_overrides and is_claude_only(segment_overrides[key]):
+            print(
+                f"Error: explicit {key} selection {segment_overrides[key]!r} "
+                f"is claude-client-only and cannot be combined with "
+                f"--client {client_val}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
 
 
 def _handle_launch(
@@ -1134,14 +1148,15 @@ def _handle_launch(
             # No prompting (mirrors how non-interactive segment values come from
             # last_config/flags without a TUI).
             client_val = client if client is not None else resolved_default_client
-            _reject_incompatible_version(client_val, segment_overrides)
+            _reject_claude_only_overrides(client_val, segment_overrides)
             merged = dict(cfg.state.get("last_config", {}))
             merged.update(segment_overrides)
-            # Drop an ambient (remembered/default) version for non-claude
-            # clients: it is a claude-only input and must not reach the adapter.
-            # An explicit -s version was already rejected above.
+            # Drop ambient (remembered/default) claude-only values for
+            # non-claude clients: they must not reach the adapter. Explicit
+            # contradictory overrides were already rejected above.
             if client_val != "claude":
-                merged.pop("version", None)
+                for _key in _CLAUDE_ONLY_OVERRIDES:
+                    merged.pop(_key, None)
             if print_prompt_val is not None:
                 print_keys = {s["key"] for s in cfg.segments_def
                               if s["key"] in enabled and s.get("print_mode", True)}
@@ -1159,10 +1174,10 @@ def _handle_launch(
                                 client=client_val, passthrough=list(_passthrough))
             return 0
 
-        # Explicit --client is known up front; reject a contradictory explicit
-        # version before the TUI even opens.
+        # Explicit --client is known up front; reject contradictory explicit
+        # claude-only overrides before the TUI even opens.
         if client is not None:
-            _reject_incompatible_version(client, segment_overrides)
+            _reject_claude_only_overrides(client, segment_overrides)
 
         # Otherwise show the TUI (pre-filled from last_config + arg overrides).
         # The app runs the Client step first (unless --client was explicit),
@@ -1178,8 +1193,9 @@ def _handle_launch(
 
         client_val = app.selected_client
         # A client picked in the TUI can still collide with an explicit
-        # -s version override; reject that contradictory intent.
-        _reject_incompatible_version(client_val, segment_overrides)
+        # claude-only override (e.g. -s version=...); reject that
+        # contradictory intent.
+        _reject_claude_only_overrides(client_val, segment_overrides)
 
         # Extract per-segment metadata from the bar for resolve_launch_config
         bar_metadata: dict[str, dict[str, dict]] = {}
