@@ -350,12 +350,8 @@
         {
           "name": "client",
           "type": "str",
-          "help": "launch target client (default: claude). 'miniclaude' launches the miniclaude REPL instead; version and strict-MCP selections, config default_flags, and the disallowedTools list are claude-client-only",
-          "default": "claude",
-          "choices": [
-            "claude",
-            "miniclaude"
-          ]
+          "help": "launch target client (one of: claude, miniclaude). When omitted, the interactive launcher prompts with a Client step (cursor on config default_client, else claude) and non-interactive launches use default_client. Passing it explicitly skips that step. 'miniclaude' launches the miniclaude REPL instead; version and strict-MCP selections, config default_flags, and the disallowedTools list are claude-client-only",
+          "default": ""
         }
       ]
     }

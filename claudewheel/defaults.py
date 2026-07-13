@@ -102,6 +102,11 @@ DEFAULT_CONFIG = {
     "default_flags": ["--dangerously-skip-permissions"],
     "health_check_on_launch": True,
     "minimap": "auto",
+    # Pre-selected client for the interactive launcher's Client step and the
+    # fallback client for non-interactive launches. Must name a
+    # clients.CLIENT_ADAPTERS entry; an unknown value is a hard error at launch.
+    # _migrate() backfills this key into existing config.json files.
+    "default_client": "claude",
     "_schema_version": 0,
 }
 

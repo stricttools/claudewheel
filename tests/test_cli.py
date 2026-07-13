@@ -426,6 +426,136 @@ class PrintModeTests(unittest.TestCase):
         self.assertEqual(extra_flags, ["--print", "test", "--output-format", "json"])
 
 
+class ClientSelectionCliTests(unittest.TestCase):
+    """Client-step resolution in _handle_launch (non-interactive + wiring)."""
+
+    SEGMENTS_DEF = PrintModeTests.SEGMENTS_DEF
+    ALL_ENABLED = PrintModeTests.ALL_ENABLED
+
+    def _make_cfg(self, *, default_client: str | None = None,
+                  last_config: dict | None = None) -> _FakeCfg:
+        config = {
+            "theme": "dark",
+            "enabled_segments": list(self.ALL_ENABLED),
+            "default_flags": [],
+            "health_check_on_launch": False,
+        }
+        if default_client is not None:
+            config["default_client"] = default_client
+        return _FakeCfg(
+            config=config,
+            segments_def=list(self.SEGMENTS_DEF),
+            state={
+                "last_config": dict(last_config) if last_config else {},
+                "recent_dirs": [],
+                "launch_count": 0,
+            },
+            options_def={},
+        )
+
+    def _run(self, argv: list[str], cfg: _FakeCfg,
+             app_mock: object | None = None):
+        """Run cli.main() with AppConfigStore + _do_launch_sequence patched.
+
+        Returns (launch_mock, stderr_text). When *app_mock* is given, the TUI
+        App class is patched with it so the interactive path is exercised
+        without a real terminal.
+        """
+        from contextlib import ExitStack
+        launch_mock = mock.MagicMock()
+        stderr = io.StringIO()
+        with ExitStack() as stack:
+            stack.enter_context(mock.patch("sys.argv", argv))
+            stack.enter_context(
+                mock.patch("claudewheel.config.AppConfigStore", return_value=cfg))
+            stack.enter_context(
+                mock.patch("claudewheel.cli._do_launch_sequence", launch_mock))
+            stack.enter_context(mock.patch("os.getcwd", return_value="/test/dir"))
+            stack.enter_context(redirect_stderr(stderr))
+            if app_mock is not None:
+                stack.enter_context(mock.patch("claudewheel.app.App", app_mock))
+            try:
+                cli.main()
+            except SystemExit:
+                pass
+        return launch_mock, stderr.getvalue()
+
+    # -- Non-interactive: default_client used, ambient version dropped --
+
+    def test_non_interactive_uses_default_client(self) -> None:
+        cfg = self._make_cfg(default_client="miniclaude",
+                             last_config={"version": "2.1.202"})
+        launch_mock, _ = self._run(["c", "-p", "hi"], cfg)
+        launch_mock.assert_called_once()
+        _, kwargs = launch_mock.call_args
+        self.assertEqual(kwargs["client"], "miniclaude")
+
+    def test_non_interactive_drops_ambient_version_for_non_claude(self) -> None:
+        cfg = self._make_cfg(default_client="miniclaude",
+                             last_config={"version": "2.1.202"})
+        launch_mock, _ = self._run(["c", "-p", "hi"], cfg)
+        merged = launch_mock.call_args[0][3]
+        self.assertNotIn("version", merged)
+
+    def test_explicit_client_wins_over_default(self) -> None:
+        cfg = self._make_cfg(default_client="claude")
+        launch_mock, _ = self._run(["c", "--client", "miniclaude", "-p", "hi"], cfg)
+        launch_mock.assert_called_once()
+        self.assertEqual(launch_mock.call_args[1]["client"], "miniclaude")
+
+    # -- Explicit version + non-claude client is a hard error --
+
+    def test_explicit_version_with_miniclaude_hard_errors(self) -> None:
+        cfg = self._make_cfg()
+        launch_mock, err = self._run(
+            ["c", "--client", "miniclaude", "-s", "version=2.1.116",
+             "--profile", "p", "--directory", "/d"],
+            cfg,
+        )
+        launch_mock.assert_not_called()
+        self.assertIn("claude-client-only", err)
+        self.assertIn("2.1.116", err)
+
+    # -- Unknown default_client is a hard error at launch --
+
+    def test_unknown_default_client_hard_errors(self) -> None:
+        cfg = self._make_cfg(default_client="bogus")
+        launch_mock, err = self._run(["c", "-p", "hi"], cfg)
+        launch_mock.assert_not_called()
+        self.assertIn("bogus", err)
+        self.assertIn("unknown client", err)
+
+    # -- Interactive path threads the client inputs into the App --
+
+    def _make_app_mock(self, selections: dict, selected_client: str):
+        app_instance = mock.MagicMock()
+        app_instance.run_tui.return_value = selections
+        app_instance.selected_client = selected_client
+        app_instance.cfg = None
+        app_instance.bar.segments = []
+        app_cls = mock.MagicMock(return_value=app_instance)
+        return app_cls, app_instance
+
+    def test_interactive_passes_no_explicit_client_to_app(self) -> None:
+        cfg = self._make_cfg(default_client="claude")
+        app_cls, _ = self._make_app_mock({"profile": "p", "directory": "/d"}, "claude")
+        launch_mock, _ = self._run(["c", "--profile", "p"], cfg, app_mock=app_cls)
+        app_cls.assert_called_once()
+        kwargs = app_cls.call_args[1]
+        self.assertIsNone(kwargs["explicit_client"])
+        self.assertEqual(kwargs["default_client"], "claude")
+
+    def test_interactive_threads_explicit_client_to_app(self) -> None:
+        cfg = self._make_cfg(default_client="claude")
+        app_cls, _ = self._make_app_mock({"profile": "p", "directory": "/d"}, "miniclaude")
+        launch_mock, _ = self._run(
+            ["c", "--client", "miniclaude", "--profile", "p"], cfg, app_mock=app_cls)
+        app_cls.assert_called_once()
+        self.assertEqual(app_cls.call_args[1]["explicit_client"], "miniclaude")
+        # The client the App resolved is what gets launched.
+        self.assertEqual(launch_mock.call_args[1]["client"], "miniclaude")
+
+
 class LaunchCorruptTokensTests(unittest.TestCase):
     """A corrupt tokens.json on the launch path fails cleanly.
 

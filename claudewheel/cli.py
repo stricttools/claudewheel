@@ -9,7 +9,7 @@ import strictcli
 from strictcli import App, Arg, CoRequired, Flag, FlagSet, MutexGroup
 
 from . import __version__
-from .clients import CLIENT_NAMES, DEFAULT_CLIENT
+from .clients import CLIENT_NAMES, DEFAULT_CLIENT, resolve_default_client
 from .segment import version_sort_key
 
 # Passthrough args after "--" are stashed here by main() before strictcli sees argv.
@@ -983,6 +983,26 @@ def _check_cont_session(ws, directory: str) -> None:
 
 # "continue" and "print" are Python keywords, so we use "cont" / "print-prompt"
 # as flag names. Short forms -c and -p remain the same for user convenience.
+def _reject_incompatible_version(client_val: str, segment_overrides: dict) -> None:
+    """Hard-error on an explicit version override combined with a non-claude client.
+
+    A ``version`` selection names a claudewheel-managed *claude* binary, so it
+    is claude-client-only. An *ambient* version (remembered in last_config or a
+    config default) is silently ignored for non-claude clients; but an explicit,
+    same-invocation ``-s version=...`` alongside a non-claude ``--client`` is
+    contradictory intent and is rejected here, where the selection's provenance
+    (an explicit override) is known -- the adapter downstream cannot tell
+    explicit from ambient.
+    """
+    if client_val != "claude" and "version" in segment_overrides:
+        print(
+            f"Error: explicit version selection {segment_overrides['version']!r} "
+            f"is claude-client-only and cannot be combined with --client {client_val}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+
 def _handle_launch(
     ws, locator,
     # Session flags (via tag); mutually exclusive, all optional
@@ -992,13 +1012,26 @@ def _handle_launch(
     directory: str, mcp: str, permissions: str,
     # Repeatable set flag (via tag)
     set: list[str],
-    # Launch target adapter (via tag)
-    client: str,
+    # Launch target adapter (via tag). None means "--client not passed": the
+    # interactive launcher prompts (Client step) and non-interactive launches
+    # fall back to config default_client. A value means explicit -> skip the step.
+    client: str | None,
 ) -> int:
     # Normalize sentinel defaults to None for cleaner downstream logic
     _UNSET = "\x00__unset__"
     resume_val: str | None = None if resume == _UNSET else resume
     print_prompt_val: str | None = None if print_prompt == _UNSET else print_prompt
+
+    # --client: empty string means "not passed". Validate an explicit value
+    # against the registry (choices are enforced in the handler, not strictcli,
+    # so the flag can stay optional with a distinguishable "absent" sentinel).
+    client = client or None
+    if client is not None and client not in CLIENT_NAMES:
+        print(
+            f"Error: unknown client {client!r}; known: {', '.join(CLIENT_NAMES)}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
     provided = sum([cont, resume_val is not None, print_prompt_val is not None, picker])
     if provided > 1:
@@ -1082,14 +1115,33 @@ def _handle_launch(
         required_keys and all(k in segment_overrides for k in required_keys)
     )
 
+    # Resolve the configured default client once, up front, so an unknown
+    # default_client fails loudly (hard error) before any launch work -- never a
+    # silent fallback. Explicit --client overrides it downstream.
+    try:
+        resolved_default_client = resolve_default_client(cfg.config)
+    except ValueError as e:
+        print(f"Launch failed: {e}", file=sys.stderr)
+        sys.exit(1)
+
     # A corrupt tokens.json surfaces as a TokenStoreError from the launch
     # sequence. Catch it narrowly at this handler boundary so the user sees a
     # clean, actionable message instead of a Python traceback.
     from .tokens import TokenStoreError
     try:
         if skip_tui:
+            # Non-interactive: explicit --client wins, else the config default.
+            # No prompting (mirrors how non-interactive segment values come from
+            # last_config/flags without a TUI).
+            client_val = client if client is not None else resolved_default_client
+            _reject_incompatible_version(client_val, segment_overrides)
             merged = dict(cfg.state.get("last_config", {}))
             merged.update(segment_overrides)
+            # Drop an ambient (remembered/default) version for non-claude
+            # clients: it is a claude-only input and must not reach the adapter.
+            # An explicit -s version was already rejected above.
+            if client_val != "claude":
+                merged.pop("version", None)
             if print_prompt_val is not None:
                 print_keys = {s["key"] for s in cfg.segments_def
                               if s["key"] in enabled and s.get("print_mode", True)}
@@ -1104,14 +1156,30 @@ def _handle_launch(
                     )
             _do_launch_sequence(ws, locator, cfg, merged, extra_flags=extra_flags,
                                 interactive=print_prompt_val is None,
-                                client=client, passthrough=list(_passthrough))
+                                client=client_val, passthrough=list(_passthrough))
             return 0
 
-        # Otherwise show the TUI (pre-filled from last_config + arg overrides)
-        app = TuiApp(ws, cfg=cfg, overrides=segment_overrides, locator=locator)
+        # Explicit --client is known up front; reject a contradictory explicit
+        # version before the TUI even opens.
+        if client is not None:
+            _reject_incompatible_version(client, segment_overrides)
+
+        # Otherwise show the TUI (pre-filled from last_config + arg overrides).
+        # The app runs the Client step first (unless --client was explicit),
+        # then the segment bar; it drops the version segment for non-claude
+        # clients.
+        app = TuiApp(ws, cfg=cfg, overrides=segment_overrides, locator=locator,
+                     explicit_client=client,
+                     default_client=resolved_default_client,
+                     clients_config=cfg.config.get("clients", {}))
         selections = app.run_tui()
         if selections is None:
             return 0
+
+        client_val = app.selected_client
+        # A client picked in the TUI can still collide with an explicit
+        # -s version override; reject that contradictory intent.
+        _reject_incompatible_version(client_val, segment_overrides)
 
         # Extract per-segment metadata from the bar for resolve_launch_config
         bar_metadata: dict[str, dict[str, dict]] = {}
@@ -1122,7 +1190,7 @@ def _handle_launch(
         _do_launch_sequence(
             ws, locator, app.cfg, selections, extra_flags=extra_flags,
             metadata=bar_metadata or None,
-            client=client, passthrough=list(_passthrough),
+            client=client_val, passthrough=list(_passthrough),
         )
         return 0
     except TokenStoreError as e:
@@ -1395,11 +1463,19 @@ def _build_app(ws, locator) -> App:
     ])
 
     _client_flag_set = FlagSet(name="client", flags=[
-        Flag(name="client", type=str, default=DEFAULT_CLIENT, choices=list(CLIENT_NAMES),
+        # Empty string means "not passed" (same convention as the segment
+        # flags), so the launcher can tell an explicit choice from the absence
+        # of one. Choices are validated in the handler against CLIENT_NAMES.
+        Flag(name="client", type=str, default="",
              help=(
-                 "launch target client (default: claude). 'miniclaude' launches the "
-                 "miniclaude REPL instead; version and strict-MCP selections, config "
-                 "default_flags, and the disallowedTools list are claude-client-only"
+                 "launch target client (one of: " + ", ".join(CLIENT_NAMES) + "). "
+                 "When omitted, the interactive launcher prompts with a Client "
+                 "step (cursor on config default_client, else claude) and "
+                 "non-interactive launches use default_client. Passing it "
+                 "explicitly skips that step. 'miniclaude' launches the "
+                 "miniclaude REPL instead; version and strict-MCP selections, "
+                 "config default_flags, and the disallowedTools list are "
+                 "claude-client-only"
              )),
     ])
 

@@ -1445,5 +1445,59 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         app._refresh_profile_segment.assert_not_called()
 
 
+class SelectClientStepTests(unittest.TestCase):
+    """App._select_client: explicit skips the picker; non-claude drops version."""
+
+    def _app_with_bar(self, seg_keys, *, explicit=None, default="claude",
+                      focus_idx=0):
+        app = object.__new__(app_mod.App)
+        app._explicit_client = explicit
+        app._default_client = default
+        app._clients_config = {}
+        app._locator = BinaryLocator.default()
+        app.selected_client = explicit or default
+        app.terminal = mock.MagicMock()
+        app.theme = mock.MagicMock()
+        app.bar = SegmentBar(
+            segments=[Segment(key=k, label=k.title()) for k in seg_keys],
+            focus_idx=focus_idx,
+        )
+        return app
+
+    def test_explicit_non_claude_drops_version_without_prompt(self) -> None:
+        app = self._app_with_bar(["profile", "version", "model"],
+                                 explicit="miniclaude")
+        with mock.patch("claudewheel.ui.run_selection") as picker:
+            self.assertTrue(app._select_client())
+        picker.assert_not_called()  # explicit --client skips the step
+        self.assertEqual([s.key for s in app.bar.segments], ["profile", "model"])
+        self.assertEqual(app.selected_client, "miniclaude")
+
+    def test_picked_claude_keeps_version(self) -> None:
+        app = self._app_with_bar(["profile", "version"])
+        with mock.patch("claudewheel.ui.run_selection", return_value="claude"):
+            self.assertTrue(app._select_client())
+        self.assertIn("version", [s.key for s in app.bar.segments])
+        self.assertEqual(app.selected_client, "claude")
+
+    def test_picked_non_claude_drops_version(self) -> None:
+        app = self._app_with_bar(["profile", "version"])
+        with mock.patch("claudewheel.ui.run_selection", return_value="miniclaude"):
+            self.assertTrue(app._select_client())
+        self.assertNotIn("version", [s.key for s in app.bar.segments])
+
+    def test_cancel_returns_false(self) -> None:
+        app = self._app_with_bar(["profile", "version"])
+        with mock.patch("claudewheel.ui.run_selection", return_value=None):
+            self.assertFalse(app._select_client())
+
+    def test_focus_clamped_when_version_dropped(self) -> None:
+        # Focus on the version segment (last); dropping it must reset focus.
+        app = self._app_with_bar(["profile", "version"], explicit="miniclaude",
+                                 focus_idx=1)
+        self.assertTrue(app._select_client())
+        self.assertEqual(app.bar.focus_idx, 0)
+
+
 if __name__ == "__main__":
     unittest.main()

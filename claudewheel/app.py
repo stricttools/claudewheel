@@ -61,8 +61,21 @@ class App:
 
     def __init__(self, workspace: Workspace, locator: "BinaryLocator",
                  cfg: AppConfigStore | None = None,
-                 overrides: dict[str, str] | None = None):
+                 overrides: dict[str, str] | None = None,
+                 explicit_client: str | None = None,
+                 default_client: str = "claude",
+                 clients_config: dict | None = None):
         self.workspace = workspace
+        # Client-selection step inputs. explicit_client is the --client flag
+        # value when the user passed it (else None -> the TUI prompts);
+        # default_client is the (already validated) config default used as the
+        # picker's initial cursor. selected_client holds the resolved choice
+        # after run_tui; it defaults to the non-prompt answer so callers reading
+        # it before the loop still see a sane value.
+        self._explicit_client = explicit_client
+        self._default_client = default_client
+        self._clients_config = clients_config or {}
+        self.selected_client = explicit_client or default_client
         # The binary locator is a required dependency, threaded from the
         # dispatch boundary (cli.main) so the auth paths never re-derive it.
         # Like the workspace, there is no silent fallback -- callers inject it
@@ -127,6 +140,11 @@ class App:
         signal.signal(signal.SIGHUP, on_term)
 
         try:
+            # Client-selection step: runs first, before the segment bar, so the
+            # chosen client can drop client-incompatible segments (e.g. version,
+            # which is claude-only). Borrowed render -- reuses this raw session.
+            if not self._select_client():
+                return None
             evaluate_requires(self.bar)
             self.renderer.render(self.bar, show_provenance=self._show_provenance, hints=self._compute_hints())
             while self.running:
@@ -148,6 +166,44 @@ class App:
                 self._flash = ""  # Clear flash after one render cycle
         finally:
             self.terminal.exit_raw()
+
+    def _select_client(self) -> bool:
+        """Run the Client selection step and drop claude-only segments.
+
+        Explicit ``--client`` wins and skips the picker (see
+        :func:`claudewheel.clients.resolve_client`); otherwise the picker fans
+        out the :data:`~claudewheel.clients.CLIENT_ADAPTERS` registry with the
+        configured default pre-focused. Returns False when the user cancels the
+        picker (Esc/Ctrl-C) so the caller quits cleanly; True otherwise.
+
+        When the resolved client is not ``claude``, the ``version`` segment is
+        removed from the bar: it selects a claudewheel-managed *claude* binary,
+        so it is inapplicable to any other client and is skipped entirely.
+        """
+        from .clients import build_client_choices, resolve_client
+        from .ui import run_selection
+
+        def prompt() -> str | None:
+            options, initial = build_client_choices(
+                self._locator, self._clients_config, self._default_client
+            )
+            return run_selection(
+                "Client", options, self.theme, self.terminal,
+                initial_key=initial,
+            )
+
+        client = resolve_client(self._explicit_client, prompt)
+        if client is None:
+            return False
+        self.selected_client = client
+
+        if client != "claude":
+            self.bar.segments = [
+                s for s in self.bar.segments if s.key != "version"
+            ]
+            if self.bar.focus_idx >= len(self.bar.segments):
+                self.bar.focus_idx = 0
+        return True
 
     def _promote_ephemeral(self) -> None:
         """Promote ephemeral selections to pinned on disk before launch."""
