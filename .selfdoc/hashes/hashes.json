@@ -33,7 +33,7 @@
   "en/claudewheel-clients.md": {
     "content": "6505137182b8cd981edef36ad7232e853157b3bdaca3bdf2f8a3190c71caf292",
     "description": "42ff53398c186b91f62baeb12f2538c088fb6a4b2cd347e3f07484abdb90f0a0",
-    "source_docstring": "f1d19c036dfae2026868d7ff2bb70827676167ca50a864d07df6282424db4fe0"
+    "source_docstring": "b14c6e22b9555de6e2593b92ba51c795e5e8d960760134327b665f915b6e59d7"
   },
   "en/claudewheel-config.md": {
     "content": "285471e5a7fb5d11bf1ed1b40dc419bb5ed1dcd633e81bbe60b7f692c090b548",
@@ -245,9 +245,9 @@
     "schema_hash": "80a0084301fc6cc9afdafb1cb7134f1d262839bb69f69e6dafb4502b0d1d72f7"
   },
   "en/cli-launch.md": {
-    "content": "a326d8a36bc9b4931a2aacba5e8509b553b7b58e6b41607fc4f71d30407e74b3",
+    "content": "57f49b9342d4044f3220e409424532ec98b9a3fd33b9927185b900c17a74a429",
     "description": "a8b7a893b99a6d86f5e01415abea600a3f4d2d1285c843ba398c837224656ba5",
-    "schema_hash": "a3843ce25cebdad76449437fbc5aecd535c4aa7717c07abc0e60a9a0b6de5627"
+    "schema_hash": "6f58b2676c4e387ec693d8d8d59e8f6130dbc4bb4c72894eb7dbd73c73381b3a"
   },
   "en/cli-migrate.md": {
     "content": "404a673aa2ba1ff016536ce36329b22e125a02ea3557f233b0ca0be3f24fbd72",
