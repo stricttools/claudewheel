@@ -2,6 +2,21 @@
 
 # Changelog
 
+## 0.23.0
+
+Launch-target client adapters: the new --client flag can launch alternative clients (miniclaude) with mapped profile/model/permission selections.
+
+<details>
+<summary>Context</summary>
+
+Maintenance items riding along with this release: strictcli dependency bumped to >=0.27.0, and the docs were migrated to schema auto-discovery.
+
+</details>
+
+### Features
+
+- **Launch target selection.** New `--client` flag on `claudewheel launch` can start the miniclaude REPL client (`--client miniclaude`) instead of the official claude binary; the default `claude` preserves existing behavior.
+
 ## 0.22.1
 
 Fixes from the post-refactor hardening pass: clone-from-default profile creation, honest health reporting, self-cleaning failed profile creation, and an exact hooks-wired check.
