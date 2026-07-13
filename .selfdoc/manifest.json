@@ -38,6 +38,11 @@
       "type": "doc"
     },
     {
+      "path": "claudewheel-clients.md",
+      "title": "claudewheel.clients",
+      "type": "doc"
+    },
+    {
       "path": "claudewheel-config.md",
       "title": "claudewheel.config",
       "type": "doc"
@@ -324,5 +329,5 @@
     }
   ],
   "posts": [],
-  "last_gen": "2026-07-11T14:29:04.565740+00:00"
+  "last_gen": "2026-07-13T17:18:40.822649+00:00"
 }

@@ -25,6 +25,7 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 - **claudewheel.auth** (`claudewheel/auth.py`): Validate OAuth tokens against the Anthropic API and extract them from captured output.
 - **claudewheel.binaries** (`claudewheel/binaries.py`): Locate installed Claude Code binaries and the active `claude` symlink.
 - **claudewheel.cli** (`claudewheel/cli.py`): CLI argument parsing, subcommand routing, and launch orchestration.
+- **claudewheel.clients** (`claudewheel/clients.py`): Client adapters: map resolved launch inputs to a client-specific argv.
 - **claudewheel.config** (`claudewheel/config.py`): The app-config store: the TUI's config/segments/options/state hub.
 - **claudewheel.constants** (`claudewheel/constants.py`): ANSI escape sequences and terminal color helpers.
 - **claudewheel.defaults** (`claudewheel/defaults.py`): Default values for config, segments, options, state, and themes; canonical permission rules and hook wiring are derived from the guardrail model.
