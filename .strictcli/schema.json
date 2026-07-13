@@ -346,6 +346,16 @@
           "short": "s",
           "default": [],
           "repeatable": true
+        },
+        {
+          "name": "client",
+          "type": "str",
+          "help": "launch target client (default: claude). 'miniclaude' launches the miniclaude REPL instead; version and strict-MCP selections, config default_flags, and the disallowedTools list are claude-client-only",
+          "default": "claude",
+          "choices": [
+            "claude",
+            "miniclaude"
+          ]
         }
       ]
     }

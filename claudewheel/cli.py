@@ -9,6 +9,7 @@ import strictcli
 from strictcli import App, Arg, CoRequired, Flag, FlagSet, MutexGroup
 
 from . import __version__
+from .clients import CLIENT_NAMES, DEFAULT_CLIENT
 from .segment import version_sort_key
 
 # Passthrough args after "--" are stashed here by main() before strictcli sees argv.
@@ -155,6 +156,8 @@ def _do_launch_sequence(
     ws, locator, cfg: object, selections: dict, extra_flags: list[str] | None = None,
     interactive: bool = True,
     metadata: dict[str, dict[str, dict]] | None = None,
+    client: str = DEFAULT_CLIENT,
+    passthrough: list[str] | None = None,
 ) -> None:
     """Run health check, hooks, save state, resolve, and exec. Does not return on success."""
     from .health import run_health_check, print_health_report
@@ -195,6 +198,9 @@ def _do_launch_sequence(
             profiles=ws.profiles,
             extra_flags=extra_flags,
             metadata=metadata,
+            client=client,
+            clients_config=cfg.config.get("clients", {}),
+            passthrough=passthrough,
         )
         _write_tier_stub(ws, selections.get("profile"), env.get("CLAUDE_CONFIG_DIR"))
         do_launch(cwd, argv, env)
@@ -986,6 +992,8 @@ def _handle_launch(
     directory: str, mcp: str, permissions: str,
     # Repeatable set flag (via tag)
     set: list[str],
+    # Launch target adapter (via tag)
+    client: str,
 ) -> int:
     # Normalize sentinel defaults to None for cleaner downstream logic
     _UNSET = "\x00__unset__"
@@ -1095,7 +1103,8 @@ def _handle_launch(
                         file=sys.stderr,
                     )
             _do_launch_sequence(ws, locator, cfg, merged, extra_flags=extra_flags,
-                                interactive=print_prompt_val is None)
+                                interactive=print_prompt_val is None,
+                                client=client, passthrough=list(_passthrough))
             return 0
 
         # Otherwise show the TUI (pre-filled from last_config + arg overrides)
@@ -1113,6 +1122,7 @@ def _handle_launch(
         _do_launch_sequence(
             ws, locator, app.cfg, selections, extra_flags=extra_flags,
             metadata=bar_metadata or None,
+            client=client, passthrough=list(_passthrough),
         )
         return 0
     except TokenStoreError as e:
@@ -1384,8 +1394,17 @@ def _build_app(ws, locator) -> App:
              help="set any segment value as KEY=VALUE (e.g. -s version=2.1.119); repeatable"),
     ])
 
+    _client_flag_set = FlagSet(name="client", flags=[
+        Flag(name="client", type=str, default=DEFAULT_CLIENT, choices=list(CLIENT_NAMES),
+             help=(
+                 "launch target client (default: claude). 'miniclaude' launches the "
+                 "miniclaude REPL instead; version and strict-MCP selections, config "
+                 "default_flags, and the disallowedTools list are claude-client-only"
+             )),
+    ])
+
     app.command("launch", help="start the interactive TUI launcher to select a profile, model, and directory",
-                flag_sets=[_session_flag_set, _segment_flag_set])(
+                flag_sets=[_session_flag_set, _segment_flag_set, _client_flag_set])(
         _bind(_handle_launch, ws, locator)
     )
 
