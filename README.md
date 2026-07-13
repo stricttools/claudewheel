@@ -59,6 +59,12 @@ Keys:
 
 Search shows the matched characters in the search-match colour. The search buffer turns red when no option matches.
 
+## Client selection
+
+Before the segment bar, the interactive launcher shows a **Client** step: choose which client to launch --- `claude` (the official Claude Code CLI) or `miniclaude` (the miniclaude REPL). The cursor starts on the `default_client` configured in `config.json` (default: `claude`). A client whose binary is not installed is shown with a `(not installed)` suffix rather than hidden; selecting it still launches and fails with a clear message.
+
+Pass `--client <name>` to skip the step and choose explicitly; non-interactive launches (e.g. `-p`) use `default_client` without prompting. When the selected client is not `claude`, the version step is skipped --- the version selects a claudewheel-managed *claude* binary, which does not apply to other clients.
+
 ## Narrow terminals
 
 When the segment bar is wider than the terminal, the renderer switches to a scrolling viewport:
