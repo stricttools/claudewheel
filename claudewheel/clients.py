@@ -13,11 +13,16 @@ Adapters:
   ``--disallowedTools`` + session/passthrough flags), with the binary chosen by
   the :class:`~claudewheel.binaries.BinaryLocator`.
 - ``miniclaude``: the miniclaude REPL client. Builds ``miniclaude repl`` with a
-  mapped permission mode and mapped session flags. Selections that only make
-  sense for the claude client (an explicit version, strict MCP) are HARD
-  ERRORS, never silent drops. By-definition claude-only inputs that simply do
-  not apply -- ``config.default_flags`` (raw claude CLI flags) and the
-  ``DISALLOWED_TOOLS`` constant -- are ignored without error.
+  mapped permission mode and mapped session flags. Strict MCP -- an active,
+  claude-only selection -- is a HARD ERROR, never a silent drop. By-definition
+  claude-only inputs that simply do not apply are ignored without error: the
+  ``version`` selection (it names a claudewheel-managed *claude* binary, which
+  a non-claude client never execs), ``config.default_flags`` (raw claude CLI
+  flags), and the ``DISALLOWED_TOOLS`` constant. Ignoring ``version`` here is
+  what lets a plain ``--client miniclaude`` succeed even when a claude version
+  is remembered in last_config or set as a config default; a *contradictory,
+  same-invocation* explicit version (``-s version=...`` together with a
+  non-claude ``--client``) is rejected upstream in the CLI, not here.
 
 Every hard error raised here is a :class:`ValueError` so the CLI launch
 sequence catches it and prints a clean, actionable message instead of a
@@ -131,17 +136,20 @@ def build_miniclaude_argv(ctx: ClientContext) -> list[str]:
     Shape: ``[binary, "repl", "--profile", <profile>, "--model", <model id>,
     "--permission-mode", <mapped>] + <session flags>``. ``--model`` and
     ``--permission-mode`` are included only when the corresponding selection is
-    present. Claude-only selections (an explicit version, strict MCP), a missing
-    profile, an unsupported session flag, and passthrough args are all HARD
-    ERRORS -- never silent drops.
+    present. Strict MCP (an active claude-only selection), a missing profile, an
+    unsupported session flag, and passthrough args are all HARD ERRORS -- never
+    silent drops.
+
+    A ``version`` selection is IGNORED, not rejected: it names a
+    claudewheel-managed *claude* binary, so for a non-claude client it is a
+    by-definition-inapplicable input on the same footing as ``default_flags``
+    and ``DISALLOWED_TOOLS``. This is what lets ``--client miniclaude`` succeed
+    when a claude version is merely remembered/configured. A contradictory
+    *explicit* version passed in the same invocation is rejected upstream in the
+    CLI (``claudewheel.cli``), where the selection's provenance is known.
     """
-    # Reject claude-only selections loudly rather than dropping them silently.
-    version = ctx.selections.get("version")
-    if version:
-        raise ValueError(
-            f"version selection {version!r} is claude-client-only: the miniclaude "
-            f"client does not use claudewheel-managed claude binaries"
-        )
+    # Reject active claude-only selections loudly rather than dropping them
+    # silently. (``version`` is NOT rejected here -- see the docstring.)
     if ctx.selections.get("mcp") == "strict":
         raise ValueError(
             "mcp selection 'strict' is claude-client-only: the miniclaude client "
@@ -224,3 +232,85 @@ CLIENT_ADAPTERS = {
 CLIENT_NAMES = tuple(CLIENT_ADAPTERS)
 
 DEFAULT_CLIENT = "claude"
+
+
+# ---------------------------------------------------------------------------
+# Client-selection step (TUI + non-interactive resolution)
+# ---------------------------------------------------------------------------
+
+
+def resolve_default_client(config: dict) -> str:
+    """Return the configured ``default_client``, validated against the registry.
+
+    Reads ``config["default_client"]`` (falling back to :data:`DEFAULT_CLIENT`
+    when the key is absent). An unknown value is a HARD ERROR
+    (:class:`ValueError`) -- never a silent fallback to "claude" -- so a typo in
+    config.json fails loudly instead of quietly launching the wrong client.
+    """
+    name = config.get("default_client", DEFAULT_CLIENT)
+    if name not in CLIENT_ADAPTERS:
+        raise ValueError(
+            f"unknown client {name!r}; known: {', '.join(CLIENT_ADAPTERS)}"
+        )
+    return name
+
+
+def client_available(
+    name: str, locator: BinaryLocator, clients_config: dict
+) -> bool:
+    """Report whether *name*'s launch binary is resolvable right now.
+
+    Mirrors each adapter's own binary resolution so the picker's availability
+    marking matches what an actual launch would find:
+
+    - ``claude``: the :class:`~claudewheel.binaries.BinaryLocator` fallback
+      symlink (what ``build_claude_argv`` execs when no version is selected).
+    - ``miniclaude``: the configured ``clients.miniclaude.binary`` or a PATH
+      ``miniclaude`` (what ``build_miniclaude_argv`` resolves).
+
+    A client with no known probe is reported available (True): we cannot prove
+    it missing, so we never mislabel a freshly added adapter as "not installed".
+    """
+    if name == "claude":
+        return locator.fallback.exists()
+    if name == "miniclaude":
+        configured = clients_config.get("miniclaude", {}).get("binary")
+        return bool(configured or shutil.which("miniclaude"))
+    return True
+
+
+def build_client_choices(
+    locator: BinaryLocator, clients_config: dict, default_client: str
+) -> tuple[list[tuple[str, str]], str]:
+    """Build the ``(options, initial_key)`` pair for the client-selection step.
+
+    Options are the :data:`CLIENT_ADAPTERS` registry entries in registry order
+    ("claude" first), as ``(key, label)`` pairs for
+    :func:`claudewheel.ui.run_selection`. The key is always the bare client
+    name; unavailable clients get a ``" (not installed)"`` label suffix rather
+    than being hidden -- selecting one still launches and fails with the
+    adapter's own hard-error message. *initial_key* is *default_client*, so the
+    cursor starts on the configured default.
+    """
+    options: list[tuple[str, str]] = []
+    for name in CLIENT_ADAPTERS:
+        if client_available(name, locator, clients_config):
+            label = name
+        else:
+            label = f"{name} (not installed)"
+        options.append((name, label))
+    return options, default_client
+
+
+def resolve_client(explicit_client: str | None, prompt) -> str | None:
+    """Resolve the launch client: explicit CLI flag wins, else prompt.
+
+    *explicit_client* is the ``--client`` value when the user passed it, or
+    ``None`` when they did not. When it is set, it is returned verbatim and
+    *prompt* is NOT called (explicit wins, the TUI step is skipped). Otherwise
+    *prompt* (a zero-arg callable that runs the interactive picker) is invoked
+    and its result returned -- a client name, or ``None`` if the user cancelled.
+    """
+    if explicit_client is not None:
+        return explicit_client
+    return prompt()

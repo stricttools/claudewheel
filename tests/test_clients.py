@@ -220,14 +220,6 @@ class MiniclaudeHardErrorTests(MiniclaudeAdapterTestBase):
             )
         self.assertIn("passthrough", str(ctx.exception))
 
-    def test_version_selection_raises(self) -> None:
-        """An explicit version selection -> hard error naming it as claude-client-only."""
-        with self.assertRaises(ValueError) as ctx:
-            self._resolve(selections={"profile": "work", "version": "2.1.116"})
-        msg = str(ctx.exception)
-        self.assertIn("2.1.116", msg)
-        self.assertIn("claude-client-only", msg)
-
     def test_mcp_strict_raises(self) -> None:
         """MCP strict -> hard error naming it as claude-client-only."""
         with self.assertRaises(ValueError) as ctx:
@@ -240,6 +232,155 @@ class MiniclaudeHardErrorTests(MiniclaudeAdapterTestBase):
         """MCP 'default' is the no-op mode and must NOT error for miniclaude."""
         _, argv, _ = self._resolve(selections={"profile": "work", "mcp": "default"})
         self.assertEqual(argv[:2], [self.MC_BINARY, "repl"])
+
+
+class MiniclaudeAmbientVersionTests(MiniclaudeAdapterTestBase):
+    """Regression: an ambient (remembered/configured) claude version must be
+    IGNORED by the miniclaude adapter, not turned into a hard error.
+
+    Reproduces the reported bug: ``claudewheel --client miniclaude`` failed with
+    "version selection '2.1.202' is claude-client-only ..." whenever a claude
+    version was remembered in last_config (or set as a config default), because
+    that ambient version flowed into the miniclaude adapter, which rejected it.
+    A version is a claude-only input on the same footing as default_flags and
+    DISALLOWED_TOOLS, so it is now dropped without error.
+    """
+
+    def test_version_selection_is_ignored_not_an_error(self) -> None:
+        """A version in the selections builds a normal argv (no --model/version)."""
+        _, argv, _ = self._resolve(
+            selections={"profile": "work", "version": "2.1.202"},
+        )
+        self.assertEqual(argv, [self.MC_BINARY, "repl", "--profile", "work"])
+        # The claude version name never leaks into the miniclaude argv.
+        self.assertNotIn("2.1.202", argv)
+
+    def test_version_alongside_model_and_perms_still_builds(self) -> None:
+        """Version is dropped while model/permissions still map through."""
+        _, argv, _ = self._resolve(selections={
+            "profile": "work",
+            "version": "2.1.202",
+            "model": "claude-opus-4-8",
+            "permissions": "bypass",
+        })
+        self.assertEqual(argv, [
+            self.MC_BINARY, "repl",
+            "--profile", "work",
+            "--model", "claude-opus-4-8",
+            "--permission-mode", "bypassPermissions",
+        ])
+
+
+class ResolveDefaultClientTests(unittest.TestCase):
+    """resolve_default_client validates config.default_client against the registry."""
+
+    def test_absent_key_defaults_to_claude(self) -> None:
+        from claudewheel.clients import resolve_default_client
+        self.assertEqual(resolve_default_client({}), "claude")
+
+    def test_valid_value_returned(self) -> None:
+        from claudewheel.clients import resolve_default_client
+        self.assertEqual(
+            resolve_default_client({"default_client": "miniclaude"}), "miniclaude")
+
+    def test_unknown_value_is_hard_error(self) -> None:
+        from claudewheel.clients import resolve_default_client
+        with self.assertRaises(ValueError) as ctx:
+            resolve_default_client({"default_client": "bogus"})
+        msg = str(ctx.exception)
+        self.assertIn("bogus", msg)
+        self.assertIn("known:", msg)
+        self.assertIn("claude", msg)
+
+
+class ClientAvailabilityTests(MiniclaudeAdapterTestBase):
+    """client_available mirrors each adapter's binary resolution."""
+
+    def test_claude_available_when_fallback_exists(self) -> None:
+        from claudewheel.clients import client_available
+        self.symlink_path.write_text("#!/bin/sh\n")  # fallback now exists
+        self.assertTrue(client_available("claude", self.locator, {}))
+
+    def test_claude_unavailable_when_fallback_missing(self) -> None:
+        from claudewheel.clients import client_available
+        self.assertFalse(self.symlink_path.exists())
+        self.assertFalse(client_available("claude", self.locator, {}))
+
+    def test_miniclaude_available_via_config_binary(self) -> None:
+        from claudewheel.clients import client_available
+        self.assertTrue(client_available(
+            "miniclaude", self.locator, {"miniclaude": {"binary": self.MC_BINARY}}))
+
+    def test_miniclaude_available_via_path(self) -> None:
+        from claudewheel.clients import client_available
+        with mock.patch("claudewheel.clients.shutil.which", return_value="/usr/bin/miniclaude"):
+            self.assertTrue(client_available("miniclaude", self.locator, {}))
+
+    def test_miniclaude_unavailable_when_missing(self) -> None:
+        from claudewheel.clients import client_available
+        with mock.patch("claudewheel.clients.shutil.which", return_value=None):
+            self.assertFalse(client_available("miniclaude", self.locator, {}))
+
+
+class BuildClientChoicesTests(MiniclaudeAdapterTestBase):
+    """build_client_choices exposes the registry as (key, label) picker options."""
+
+    def test_options_are_the_registry_in_order(self) -> None:
+        from claudewheel.clients import CLIENT_ADAPTERS, build_client_choices
+        self.symlink_path.write_text("#!/bin/sh\n")
+        options, _ = build_client_choices(
+            self.locator, {"miniclaude": {"binary": self.MC_BINARY}}, "claude")
+        keys = [key for key, _label in options]
+        self.assertEqual(keys, list(CLIENT_ADAPTERS))
+
+    def test_initial_key_honors_default_client(self) -> None:
+        from claudewheel.clients import build_client_choices
+        _, initial = build_client_choices(
+            self.locator, {"miniclaude": {"binary": self.MC_BINARY}}, "miniclaude")
+        self.assertEqual(initial, "miniclaude")
+
+    def test_available_client_label_is_bare_name(self) -> None:
+        from claudewheel.clients import build_client_choices
+        self.symlink_path.write_text("#!/bin/sh\n")  # claude available
+        options, _ = build_client_choices(
+            self.locator, {"miniclaude": {"binary": self.MC_BINARY}}, "claude")
+        labels = dict(options)
+        self.assertEqual(labels["claude"], "claude")
+
+    def test_unavailable_client_gets_not_installed_suffix(self) -> None:
+        from claudewheel.clients import build_client_choices
+        # claude fallback missing -> "(not installed)"; miniclaude missing too.
+        with mock.patch("claudewheel.clients.shutil.which", return_value=None):
+            options, _ = build_client_choices(self.locator, {}, "claude")
+        labels = dict(options)
+        self.assertEqual(labels["claude"], "claude (not installed)")
+        self.assertEqual(labels["miniclaude"], "miniclaude (not installed)")
+        # Keys stay the bare client names -- the suffix is display-only.
+        self.assertIn("claude", labels)
+        self.assertIn("miniclaude", labels)
+
+
+class ResolveClientTests(unittest.TestCase):
+    """resolve_client: explicit --client wins and skips the prompt."""
+
+    def test_explicit_client_skips_prompt(self) -> None:
+        from claudewheel.clients import resolve_client
+        prompt = mock.MagicMock()
+        result = resolve_client("miniclaude", prompt)
+        self.assertEqual(result, "miniclaude")
+        prompt.assert_not_called()
+
+    def test_no_explicit_client_invokes_prompt(self) -> None:
+        from claudewheel.clients import resolve_client
+        prompt = mock.MagicMock(return_value="claude")
+        result = resolve_client(None, prompt)
+        self.assertEqual(result, "claude")
+        prompt.assert_called_once()
+
+    def test_prompt_cancellation_propagates_none(self) -> None:
+        from claudewheel.clients import resolve_client
+        prompt = mock.MagicMock(return_value=None)
+        self.assertIsNone(resolve_client(None, prompt))
 
 
 class UnknownClientTests(MiniclaudeAdapterTestBase):
