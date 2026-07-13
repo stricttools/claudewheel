@@ -30,6 +30,11 @@
     "description": "4768880d63c711fbb9f597142d82801d803e7d5915b48c16fe1bf306f7d3bdec",
     "source_docstring": "5c368c06c67e09b80e33be9cf75a2b187ad21e418c9f424711530530b8176bb5"
   },
+  "en/claudewheel-clients.md": {
+    "content": "6505137182b8cd981edef36ad7232e853157b3bdaca3bdf2f8a3190c71caf292",
+    "description": "a682afe8d39bc630793efdb57c3d6be3341378471bba09d950daca0a7ef04972",
+    "source_docstring": "f1d19c036dfae2026868d7ff2bb70827676167ca50a864d07df6282424db4fe0"
+  },
   "en/claudewheel-config.md": {
     "content": "285471e5a7fb5d11bf1ed1b40dc419bb5ed1dcd633e81bbe60b7f692c090b548",
     "description": "af5ddadf4796445eeae26d48344973a7cb317978ddbdb30dfea501c4aab8a9b1",
@@ -231,7 +236,7 @@
     "schema_hash": "541eac633045878188810d2d18a829ee8fbf02abe83d0f1f9361a0b55fb5cbde"
   },
   "en/cli-index.md": {
-    "content": "95dff076cd68b9bc630116500724bd9f73264e958e0a5051cb487b64b8b1bf39",
+    "content": "832649d070d968fb80b9c11208be19dc1367ac5803f01804a446267e31466606",
     "description": "5bc623039b2c8e0e6bdad791f885699a26953e6a3e1c6b940908b1715046165a"
   },
   "en/cli-install.md": {
@@ -240,9 +245,9 @@
     "schema_hash": "80a0084301fc6cc9afdafb1cb7134f1d262839bb69f69e6dafb4502b0d1d72f7"
   },
   "en/cli-launch.md": {
-    "content": "a40302f80b47d4c91b23f88a4c00f3902608891be98eda9ac30426eb86b2218c",
+    "content": "a326d8a36bc9b4931a2aacba5e8509b553b7b58e6b41607fc4f71d30407e74b3",
     "description": "a8b7a893b99a6d86f5e01415abea600a3f4d2d1285c843ba398c837224656ba5",
-    "schema_hash": "2c8442d4e3b877ac563c875ec8c0f547ad43782d8a7b14eae7774e248a5b23cf"
+    "schema_hash": "a3843ce25cebdad76449437fbc5aecd535c4aa7717c07abc0e60a9a0b6de5627"
   },
   "en/cli-migrate.md": {
     "content": "404a673aa2ba1ff016536ce36329b22e125a02ea3557f233b0ca0be3f24fbd72",
@@ -300,9 +305,9 @@
     "schema_hash": "94a2d51885e0553db237d5a292bb7256e7a11a2574d08a84106824d305e9db2d"
   },
   "en/gen-index.md": {
-    "content": "213d0e28aeaffff3c7c1d0d97e94de21886091f13ecf103d8c21703fe70a3276",
-    "description": "c67e34545672078df23a740fa58d4748d4f71112e9f0253172678e81844074c6",
-    "seed_hash": "c67e34545672078df23a740fa58d4748d4f71112e9f0253172678e81844074c6"
+    "content": "110f9cfb4c4e3562a5612613930dda5e0a71b54ace463942de9154f8f9617956",
+    "description": "681686e8dbae1c8013b9f53955299ff0a5327d2942056ef88236b3af05dbce53",
+    "seed_hash": "681686e8dbae1c8013b9f53955299ff0a5327d2942056ef88236b3af05dbce53"
   },
   "en/guardrails.md": {
     "content": "5dc1d77810b7a24b9654e720a6c17abfa3666c2180c6badb730e07bf4312d020",
