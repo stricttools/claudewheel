@@ -3,8 +3,18 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to publish (e.g. v1.2.3). Overrides the ref for
+          retry dispatch.
+        required: false
+        type: string
+
+# One publish run per tag: a workflow_dispatch retry at the same tag
+# queues behind the in-flight run instead of racing it. A publish is never
+# cancelled mid-flight.
 concurrency:
-  group: ${{ github.workflow_ref }}-${{ github.ref }}
+  group: publish-${{ inputs.tag || github.ref_name }}
   cancel-in-progress: false
 permissions:
   contents: read
@@ -112,10 +122,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag || github.event.release.tag_name }}
       - uses: actions/setup-node@v6
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
+      - name: Install gitleaks
+        run: |
+          GITLEAKS_VERSION=8.24.3
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | tar xz -C /usr/local/bin gitleaks
+      - name: Scan source for secrets
+        run: |
+          gitleaks dir .
       - name: Check if already published
         id: check-npm
         run: |
@@ -135,6 +154,9 @@ jobs:
           else
             echo "tag=" >> "$GITHUB_OUTPUT"
           fi
+      # --access public is hardcoded on purpose: scoped packages are forbidden
+      # in this ecosystem, and unscoped public packages require --access public.
+      # --provenance is toggled by the pipeline's `provenance` config key.
       - run: npm publish --provenance --access public ${{ 
           steps.dist-tag.outputs.tag }}
         if: steps.check-npm.outputs.skip != 'true'
@@ -145,8 +167,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag || github.event.release.tag_name }}
       - uses: astral-sh/setup-uv@v7
+      - name: Install gitleaks
+        run: |
+          GITLEAKS_VERSION=8.24.3
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | tar xz -C /usr/local/bin gitleaks
       - run: uv build --out-dir dist
+      - name: Scan artifacts for secrets
+        run: |
+          gitleaks dir dist/
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
           skip-existing: true
