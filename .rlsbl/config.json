@@ -9,15 +9,18 @@
   "pipelines": {
     "npm": {
       "type": "npm",
+      "target": "npm",
       "local": false,
       "provenance": true
     },
     "pypi": {
       "type": "pypi",
+      "target": "pypi",
       "local": false
     },
     "docs-deploy": {
       "type": "cloudflare-pages",
+      "target": null,
       "local": true
     }
   },
