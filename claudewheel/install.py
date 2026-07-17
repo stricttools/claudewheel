@@ -8,8 +8,9 @@ import platform
 import sys
 import urllib.request
 import urllib.error
+from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from .binaries import BinaryLocator
@@ -45,13 +46,14 @@ def _detect_platform() -> str:
         return f"{system}-{arch}"
 
 
-def fetch_manifest(version: str) -> dict:
+def fetch_manifest(version: str) -> dict[str, Any]:
     """Fetch the version manifest from GCS. Returns the parsed JSON dict."""
     url = f"{GCS_BASE}/{version}/manifest.json"
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "claudewheel"})
         with urllib.request.urlopen(req, timeout=10) as resp:
-            return json.loads(resp.read())
+            data: dict[str, Any] = json.loads(resp.read())
+            return data
     except urllib.error.HTTPError as e:
         raise OSError(f"Version {version} not found on server (HTTP {e.code})") from e
     except Exception as e:
@@ -59,7 +61,7 @@ def fetch_manifest(version: str) -> dict:
 
 
 def install_version(locator: "BinaryLocator", version: str,
-                    progress_callback=None) -> Path:
+                    progress_callback: Callable[[int, int], None] | None = None) -> Path:
     """Download and install a Claude Code version binary.
 
     Args:

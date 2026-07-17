@@ -49,7 +49,8 @@ def get_session_cwd(
                 except (json.JSONDecodeError, ValueError):
                     continue
                 if "cwd" in obj:
-                    return obj["cwd"]
+                    cwd = obj["cwd"]
+                    return cwd if isinstance(cwd, str) else None
     except (FileNotFoundError, OSError):
         return None
     return None

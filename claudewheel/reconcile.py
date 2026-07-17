@@ -23,7 +23,7 @@ from __future__ import annotations
 import json
 import sys
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from .guardrail import ALLOW_CONFLICTS, canonical_ask_rules, canonical_deny_rules
 from .permission import add_rule, load_settings, remove_rule, save_settings
@@ -94,7 +94,7 @@ def _reconcile_list(current: list[str], canonical: list[str]) -> tuple[list[str]
     return to_add, to_remove
 
 
-def compute_settings_diff(container: dict) -> PermissionDiff:
+def compute_settings_diff(container: dict[str, Any]) -> PermissionDiff:
     """Compute the reconciliation diff for a dict holding a ``permissions`` block.
 
     *container* is either a profile ``settings.json`` dict or a
@@ -107,9 +107,12 @@ def compute_settings_diff(container: dict) -> PermissionDiff:
     if not isinstance(perms, dict):
         perms = {}
 
-    deny_current = perms.get("deny") if isinstance(perms.get("deny"), list) else []
-    ask_current = perms.get("ask") if isinstance(perms.get("ask"), list) else []
-    allow_current = perms.get("allow") if isinstance(perms.get("allow"), list) else []
+    deny_raw = perms.get("deny")
+    deny_current: list[str] = deny_raw if isinstance(deny_raw, list) else []
+    ask_raw = perms.get("ask")
+    ask_current: list[str] = ask_raw if isinstance(ask_raw, list) else []
+    allow_raw = perms.get("allow")
+    allow_current: list[str] = allow_raw if isinstance(allow_raw, list) else []
 
     deny_add, deny_remove = _reconcile_list(deny_current, canonical_deny_rules())
     ask_add, ask_remove = _reconcile_list(ask_current, canonical_ask_rules())
@@ -124,7 +127,7 @@ def compute_settings_diff(container: dict) -> PermissionDiff:
     )
 
 
-def apply_settings_diff(container: dict, diff: PermissionDiff) -> None:
+def apply_settings_diff(container: dict[str, Any], diff: PermissionDiff) -> None:
     """Mutate *container* in place to enact *diff* via the permission primitives.
 
     Removals run before additions. Uses ``permission.add_rule`` (append-only) and
@@ -215,7 +218,7 @@ def run_reconcile(ws: "Workspace", dry_run: bool, profile: str | None) -> int:
         if not shared_settings_file.exists():
             print("shared-settings.json: not found, skipping")
         else:
-            shared: dict | None = None
+            shared: dict[str, Any] | None = None
             try:
                 shared = load_settings(shared_settings_file)
             except (json.JSONDecodeError, OSError) as e:

@@ -1,6 +1,7 @@
 """Package version detection from package.json or installed metadata."""
 
 import json as _json
+from collections.abc import Callable as _Callable
 from importlib.metadata import PackageNotFoundError as _PackageNotFoundError
 from importlib.metadata import version as _version
 from pathlib import Path as _Path
@@ -11,7 +12,10 @@ def _default_package_json() -> _Path:
     return _Path(__file__).resolve().parent.parent / "package.json"
 
 
-def _detect_version(package_json=None, metadata_version=_version) -> str:
+def _detect_version(
+    package_json: _Path | None = None,
+    metadata_version: _Callable[[str], str] = _version,
+) -> str:
     """Resolve the package version, preferring the repo-root package.json.
 
     Resolution order (exact, not heuristic):
@@ -29,7 +33,7 @@ def _detect_version(package_json=None, metadata_version=_version) -> str:
         package_json = _default_package_json()
     if package_json.exists():
         try:
-            return _json.loads(package_json.read_text())["version"]
+            return str(_json.loads(package_json.read_text())["version"])
         except (OSError, KeyError, _json.JSONDecodeError):
             pass
 

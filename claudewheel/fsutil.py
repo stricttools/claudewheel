@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+from typing import Any
 
 
 def write_text_atomic(path: Path, text: str) -> None:
@@ -24,12 +25,12 @@ def write_text_atomic(path: Path, text: str) -> None:
     tmp.rename(path)
 
 
-def write_json_atomic(path: Path, data) -> None:
+def write_json_atomic(path: Path, data: Any) -> None:
     """Atomic JSON write (indent=2, trailing newline), preserving file mode."""
     write_text_atomic(path, json.dumps(data, indent=2) + "\n")
 
 
-def write_json_atomic_secret(path: Path, data) -> None:
+def write_json_atomic_secret(path: Path, data: Any) -> None:
     """Atomic JSON write for secret-holding files: target is always 0600.
 
     The tmp file is created 0600 from the start (never umask-readable,

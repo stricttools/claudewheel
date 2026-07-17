@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from .fsutil import write_json_atomic
 
@@ -15,15 +16,16 @@ class OptionsFile:
 
     path: Path
 
-    def load(self, default: dict) -> dict:
+    def load(self, default: dict[str, Any]) -> dict[str, Any]:
         """Read options.json fresh from disk; return *default* if missing/corrupt."""
         try:
             with open(self.path) as f:
-                return json.load(f)
+                data: dict[str, Any] = json.load(f)
+                return data
         except (FileNotFoundError, json.JSONDecodeError):
             return default
 
-    def add_pinned(self, segment_key: str, value: str, default: dict) -> dict:
+    def add_pinned(self, segment_key: str, value: str, default: dict[str, Any]) -> dict[str, Any]:
         """Append *value* to a segment's pinned list, write, and return the fresh dict.
 
         Fresh read (falling back to *default*), ensures the segment dict and its
@@ -39,7 +41,7 @@ class OptionsFile:
             write_json_atomic(self.path, options)
         return options
 
-    def set_metadata(self, segment_key: str, value: str, meta: dict, default: dict) -> dict:
+    def set_metadata(self, segment_key: str, value: str, meta: dict[str, Any], default: dict[str, Any]) -> dict[str, Any]:
         """Set metadata for a segment value, write, and return the fresh dict."""
         options = self.load(default)
         seg = options.setdefault(segment_key, {"values": []})
@@ -47,7 +49,7 @@ class OptionsFile:
         write_json_atomic(self.path, options)
         return options
 
-    def rename_value(self, segment_key: str, old: str, new: str, default: dict) -> dict:
+    def rename_value(self, segment_key: str, old: str, new: str, default: dict[str, Any]) -> dict[str, Any]:
         """Swap ``old`` -> ``new`` in a segment's values, pinned, and metadata key.
 
         Swaps ``old`` -> ``new`` in the values list and pinned list (in-place
@@ -83,7 +85,7 @@ class OptionsFile:
             write_json_atomic(self.path, options)
         return options
 
-    def remove_value(self, segment_key: str, name: str, default: dict) -> dict:
+    def remove_value(self, segment_key: str, name: str, default: dict[str, Any]) -> dict[str, Any]:
         """Remove ``name`` from a segment's values, pinned, and metadata.
 
         Drops ``name`` from the values list, the pinned list, and the metadata
@@ -118,7 +120,7 @@ class OptionsFile:
             write_json_atomic(self.path, options)
         return options
 
-    def write(self, data: dict) -> None:
+    def write(self, data: dict[str, Any]) -> None:
         """Bare atomic write of the full options dict (used by config migrations)."""
         write_json_atomic(self.path, data)
 
@@ -129,15 +131,16 @@ class StateFile:
 
     path: Path
 
-    def load(self, default: dict) -> dict:
+    def load(self, default: dict[str, Any]) -> dict[str, Any]:
         """Read state.json fresh from disk; return *default* if missing/corrupt."""
         try:
             with open(self.path) as f:
-                return json.load(f)
+                data: dict[str, Any] = json.load(f)
+                return data
         except (FileNotFoundError, json.JSONDecodeError):
             return default
 
-    def save(self, state: dict, out_of_band_keys: tuple[str, ...] = ("auth_browser",)) -> None:
+    def save(self, state: dict[str, Any], out_of_band_keys: tuple[str, ...] = ("auth_browser",)) -> None:
         """Write *state* to disk, letting fresh on-disk out-of-band keys win.
 
         Re-reads the disk copy and, for each name in *out_of_band_keys*, copies a
@@ -156,7 +159,7 @@ class StateFile:
             pass
         write_json_atomic(self.path, state)
 
-    def get_value(self, key: str, default=None):
+    def get_value(self, key: str, default: Any = None) -> Any:
         """Read a single key fresh from disk; return *default* if unavailable."""
         if not self.path.exists():
             return default
@@ -168,9 +171,9 @@ class StateFile:
             return default
         return data.get(key, default)
 
-    def set_value(self, key: str, value) -> None:
+    def set_value(self, key: str, value: Any) -> None:
         """Read-modify-write a single key, preserving all other keys on disk."""
-        data: dict = {}
+        data: dict[str, Any] = {}
         if self.path.exists():
             try:
                 loaded = json.loads(self.path.read_text())

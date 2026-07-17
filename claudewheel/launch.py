@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import subprocess
 from pathlib import Path
+from typing import Any
 
 from .binaries import BinaryLocator
 from .clients import CLIENT_ADAPTERS, ClientContext
@@ -28,14 +29,14 @@ def fetch_gh_token(account: str) -> str | None:
 
 def resolve_launch_config(
     selections: dict[str, str | None],
-    options_def: dict,
+    options_def: dict[str, Any],
     default_flags: list[str],
     locator: BinaryLocator,
     profiles: ProfileStore,
     extra_flags: list[str] | None = None,
-    metadata: dict[str, dict[str, dict]] | None = None,
+    metadata: dict[str, dict[str, dict[str, Any]]] | None = None,
     client: str = "claude",
-    clients_config: dict | None = None,
+    clients_config: dict[str, Any] | None = None,
     passthrough: list[str] | None = None,
 ) -> tuple[str, list[str], dict[str, str]]:
     """Build (cwd, argv, env) for os.execvpe from TUI selections.

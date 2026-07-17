@@ -25,7 +25,7 @@ from __future__ import annotations
 import json
 from copy import deepcopy
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from .defaults import DISALLOWED_TOOLS, build_canonical_shared_settings
 from .fsutil import write_json_atomic
@@ -58,7 +58,7 @@ def _script_basename(command: str) -> str:
     return Path(command).name if command else ""
 
 
-def merge_hooks(existing: dict, canonical: dict) -> list[str]:
+def merge_hooks(existing: dict[str, Any], canonical: dict[str, Any]) -> list[str]:
     """Merge canonical hooks into *existing* (mutated in place).
 
     Canonical entries are matched to existing ones by their "matcher" field.
@@ -122,7 +122,7 @@ def merge_hooks(existing: dict, canonical: dict) -> list[str]:
     return added
 
 
-def _append_missing(current: list, wanted: list) -> list[str]:
+def _append_missing(current: list[str], wanted: list[str]) -> list[str]:
     """Append entries of *wanted* absent from *current* (mutated). Returns them."""
     added: list[str] = []
     have = set(current)
@@ -134,7 +134,7 @@ def _append_missing(current: list, wanted: list) -> list[str]:
     return added
 
 
-def sync_profile_settings(settings: dict, canonical: dict) -> list[str]:
+def sync_profile_settings(settings: dict[str, Any], canonical: dict[str, Any]) -> list[str]:
     """Additively sync one profile's settings dict toward canonical (mutated).
 
     Returns descriptions of every change. Empty list means already in sync.
@@ -166,7 +166,7 @@ def sync_profile_settings(settings: dict, canonical: dict) -> list[str]:
     return changes
 
 
-def sync_shared_settings(shared: dict, canonical: dict) -> list[str]:
+def sync_shared_settings(shared: dict[str, Any], canonical: dict[str, Any]) -> list[str]:
     """Additively sync shared-settings.json dict toward canonical (mutated).
 
     Returns descriptions of every change. Empty list means already in sync.
@@ -189,7 +189,7 @@ def sync_shared_settings(shared: dict, canonical: dict) -> list[str]:
     return changes
 
 
-def _referenced_scripts(hooks: dict) -> list[str]:
+def _referenced_scripts(hooks: dict[str, Any]) -> list[str]:
     """Collect the ordered, unique script basenames referenced by *hooks*."""
     names: list[str] = []
     for entries in hooks.values():

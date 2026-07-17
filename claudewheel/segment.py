@@ -9,7 +9,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from .fuzzy import fuzzy_rank
 
@@ -31,16 +31,16 @@ class DiscoveryResult:
     values: list[str] = field(default_factory=list)
     installed: set[str] = field(default_factory=set)
     requires: dict[str, dict[str, str]] = field(default_factory=dict)
-    metadata: dict[str, dict] = field(default_factory=dict)
+    metadata: dict[str, dict[str, Any]] = field(default_factory=dict)
 
 
 @dataclass
 class DiscoveryEntry:
     """Registry entry mapping a discovery type to its function."""
 
-    func: Callable  # (config: dict, state: dict, ws: Workspace) -> DiscoveryResult
+    func: Callable[..., DiscoveryResult]  # (config, state, ws) -> DiscoveryResult
     is_slow: bool = False
-    verify: Callable | None = None  # for staleness checks (Phase 4)
+    verify: Callable[..., bool] | None = None  # for staleness checks (Phase 4)
 
 
 def _deduplicate(items: list[str]) -> list[str]:
@@ -74,7 +74,7 @@ class SegmentState:
     _installed: set[str] = field(default_factory=set)
     _authenticated: set[str] = field(default_factory=set)
     _auth_status_active: bool = False
-    metadata: dict[str, dict] = field(default_factory=dict)
+    metadata: dict[str, dict[str, Any]] = field(default_factory=dict)
     collection_order: list[str] = field(default_factory=lambda: list(_DEFAULT_COLLECTION_ORDER))
     sort: str | None = None
     _options: list[str] | None = field(default=None, repr=False)
@@ -100,7 +100,7 @@ class SegmentState:
 
     # -- Mutation methods (each invalidates cache) --
 
-    def set_discovered(self, vals: list[str], *, verify_fn: Callable | None = None) -> None:
+    def set_discovered(self, vals: list[str], *, verify_fn: Callable[[str], bool] | None = None) -> None:
         if verify_fn is not None:
             # VERIFY policy: values removed from new list are checked before dropping
             new_set = set(vals)
@@ -146,10 +146,10 @@ class SegmentState:
     def mark_installed(self, val: str) -> None:
         self._installed.add(val)
 
-    def set_metadata(self, meta: dict[str, dict]) -> None:
+    def set_metadata(self, meta: dict[str, dict[str, Any]]) -> None:
         self.metadata = meta
 
-    def update_metadata(self, partial: dict[str, dict]) -> None:
+    def update_metadata(self, partial: dict[str, dict[str, Any]]) -> None:
         self.metadata.update(partial)
 
     # -- Query methods --
@@ -305,12 +305,13 @@ class Segment:
 # Translates options= to _init_options= which seeds state._defaults.
 _Segment_orig_init = Segment.__init__
 
-def _Segment_init_wrapper(self, *args, options=None, **kwargs):
+def _Segment_init_wrapper(self: Segment, *args: Any, options: Any = None, **kwargs: Any) -> None:
     if options is not None:
         kwargs["_init_options"] = options
     _Segment_orig_init(self, *args, **kwargs)
 
-Segment.__init__ = _Segment_init_wrapper
+# setattr (not direct assignment) so mypy does not flag a method reassignment.
+setattr(Segment, "__init__", _Segment_init_wrapper)
 
 
 @dataclass
@@ -347,11 +348,11 @@ def version_sort_key(version: str) -> list[int]:
     return parts
 
 
-def fetch_npm_versions(state: dict, count: int = 15) -> list[str]:
+def fetch_npm_versions(state: dict[str, Any], count: int = 15) -> list[str]:
     """Fetch recent Claude Code versions from npm, with 1-hour cache in state."""
     cache = state.get("npm_versions_cache", {})
     cached_at = cache.get("fetched_at", 0)
-    cached_versions = cache.get("versions", [])
+    cached_versions: list[str] = cache.get("versions", [])
 
     if time.time() - cached_at < NPM_CACHE_TTL and cached_versions:
         return cached_versions[-count:]
@@ -362,7 +363,7 @@ def fetch_npm_versions(state: dict, count: int = 15) -> list[str]:
             capture_output=True, text=True, timeout=10,
         )
         if result.returncode == 0:
-            all_versions = json.loads(result.stdout)
+            all_versions: list[str] = json.loads(result.stdout)
             # Cache the full list
             state["npm_versions_cache"] = {
                 "fetched_at": time.time(),
@@ -382,7 +383,7 @@ def fetch_npm_versions(state: dict, count: int = 15) -> list[str]:
 # Individual discovery functions -- extracted from discover_options match/case
 # ---------------------------------------------------------------------------
 
-def _discover_directory_listing(config: dict, state: dict, ws: "Workspace") -> DiscoveryResult:
+def _discover_directory_listing(config: dict[str, Any], state: dict[str, Any], ws: "Workspace") -> DiscoveryResult:
     """Discover options from a directory of files (e.g., installed versions)."""
     disc = config["discovery"]
     path = Path(disc["path"]).expanduser()
@@ -396,7 +397,7 @@ def _discover_directory_listing(config: dict, state: dict, ws: "Workspace") -> D
     return DiscoveryResult()
 
 
-def _discover_npm_and_local(config: dict, state: dict, ws: "Workspace") -> DiscoveryResult:
+def _discover_npm_and_local(config: dict[str, Any], state: dict[str, Any], ws: "Workspace") -> DiscoveryResult:
     """Discover versions from npm registry + locally installed files."""
     disc = config["discovery"]
     local_path = Path(disc["path"]).expanduser()
@@ -412,7 +413,7 @@ def _discover_npm_and_local(config: dict, state: dict, ws: "Workspace") -> Disco
     return DiscoveryResult(values=all_versions, installed=installed)
 
 
-def _discover_npm_and_local_cached(config: dict, state: dict, ws: "Workspace") -> DiscoveryResult:
+def _discover_npm_and_local_cached(config: dict[str, Any], state: dict[str, Any], ws: "Workspace") -> DiscoveryResult:
     """Fast path for npm_and_local: use cached npm versions only if warm."""
     disc = config["discovery"]
     local_path = Path(disc["path"]).expanduser()
@@ -435,7 +436,7 @@ def _discover_npm_and_local_cached(config: dict, state: dict, ws: "Workspace") -
     return DiscoveryResult(values=all_versions, installed=installed)
 
 
-def _discover_directory_scan(config: dict, state: dict, ws: "Workspace") -> DiscoveryResult:
+def _discover_directory_scan(config: dict[str, Any], state: dict[str, Any], ws: "Workspace") -> DiscoveryResult:
     """Discover directories by scanning parent directories.
 
     Recent dirs from state are used as hints: validated (must exist on disk),
@@ -476,7 +477,7 @@ def _discover_directory_scan(config: dict, state: dict, ws: "Workspace") -> Disc
     return DiscoveryResult(values=merged)
 
 
-def _discover_profiles(config: dict, state: dict, ws: "Workspace") -> DiscoveryResult:
+def _discover_profiles(config: dict[str, Any], state: dict[str, Any], ws: "Workspace") -> DiscoveryResult:
     """Discover Claude Code profiles via ProfileStore enumeration.
 
     Profile identity comes solely from the store (profile dirs + tokens);
@@ -486,14 +487,14 @@ def _discover_profiles(config: dict, state: dict, ws: "Workspace") -> DiscoveryR
     """
     discovered = ws.profiles.enumerate()
     values: list[str] = [p.name for p in discovered]
-    metadata: dict[str, dict] = {
+    metadata: dict[str, dict[str, Any]] = {
         p.name: {"has_token": p.has_token, "has_credentials": p.has_credentials}
         for p in discovered
     }
     return DiscoveryResult(values=values, metadata=metadata)
 
 
-def _discover_gh_accounts(config: dict, state: dict, ws: "Workspace") -> DiscoveryResult:
+def _discover_gh_accounts(config: dict[str, Any], state: dict[str, Any], ws: "Workspace") -> DiscoveryResult:
     """Discover GitHub accounts from gh CLI auth status."""
     static_values = _parse_static_values(config)
     values = list(static_values)
@@ -517,7 +518,7 @@ def _discover_gh_accounts(config: dict, state: dict, ws: "Workspace") -> Discove
     return DiscoveryResult(values=values)
 
 
-def _discover_state_field(config: dict, state: dict, ws: "Workspace") -> DiscoveryResult:
+def _discover_state_field(config: dict[str, Any], state: dict[str, Any], ws: "Workspace") -> DiscoveryResult:
     """Discover options by merging state-tracked values with static defaults."""
     disc = config["discovery"]
     static_values = _parse_static_values(config)
@@ -531,7 +532,7 @@ def _discover_state_field(config: dict, state: dict, ws: "Workspace") -> Discove
     return DiscoveryResult(values=merged)
 
 
-def _parse_static_values(config: dict) -> list[str]:
+def _parse_static_values(config: dict[str, Any]) -> list[str]:
     """Extract plain string values from an options_def entry, stripping requires dicts."""
     raw = config.get("values", [])
     values: list[str] = []
@@ -543,7 +544,7 @@ def _parse_static_values(config: dict) -> list[str]:
     return values
 
 
-def _parse_requires(config: dict) -> dict[str, dict[str, str]]:
+def _parse_requires(config: dict[str, Any]) -> dict[str, dict[str, str]]:
     """Extract requires constraints from dict-style values in an options_def entry."""
     raw = config.get("values", [])
     requires: dict[str, dict[str, str]] = {}
@@ -582,7 +583,7 @@ DISCOVERY_REGISTRY: dict[str, DiscoveryEntry] = {
 # ---------------------------------------------------------------------------
 
 def run_slow_discovery_via_registry(
-    options_def: dict, state: dict, ws: "Workspace",
+    options_def: dict[str, Any], state: dict[str, Any], ws: "Workspace",
 ) -> dict[str, DiscoveryResult]:
     """Run only slow discovery types via the registry.
 
@@ -604,8 +605,8 @@ def run_slow_discovery_via_registry(
 
 def populate_segment_state(
     seg: "Segment",
-    options_def_entry: dict,
-    state: dict,
+    options_def_entry: dict[str, Any],
+    state: dict[str, Any],
     ws: "Workspace",
     *,
     skip_slow: bool = True,
@@ -630,9 +631,10 @@ def populate_segment_state(
 
     # Build verify_fn closure if the entry has a verify callback
     verify_fn = None
-    if entry.verify:
-        def verify_fn(val, _e=entry, _c=options_def_entry):
-            return _e.verify(val, _c)
+    if entry.verify is not None:
+        verify_cb = entry.verify
+        def verify_fn(val: str, _cb: Callable[..., bool] = verify_cb, _c: dict[str, Any] = options_def_entry) -> bool:
+            return _cb(val, _c)
 
     if entry.is_slow and skip_slow:
         # For npm_and_local, use the cached fast-path
@@ -676,7 +678,7 @@ def _update_auth_from_metadata(seg: "Segment") -> None:
 
 
 # Per-segment merge specs: collection_order and sort overrides
-_SEGMENT_MERGE_SPECS: dict[str, dict] = {
+_SEGMENT_MERGE_SPECS: dict[str, dict[str, Any]] = {
     "version": {"sort": "semver_desc"},
     "profile": {"collection_order": ["pinned", "discovered"]},
     "model": {"collection_order": ["pinned", "defaults"]},
@@ -771,8 +773,8 @@ def build_segment_bar(cfg: "AppConfigStore", *, skip_slow: bool = False) -> Segm
 def merge_slow_results(
     bar: SegmentBar,
     results: dict[str, DiscoveryResult],
-    state: dict,
-    options_def: dict | None = None,
+    state: dict[str, Any],
+    options_def: dict[str, Any] | None = None,
 ) -> None:
     """Merge background discovery results into the live segment bar.
 
@@ -795,9 +797,10 @@ def merge_slow_results(
             disc = opt.get("discovery")
             if disc:
                 entry = DISCOVERY_REGISTRY.get(disc["type"])
-                if entry and entry.verify:
-                    def verify_fn(val, _e=entry, _c=opt):
-                        return _e.verify(val, _c)
+                if entry and entry.verify is not None:
+                    verify_cb = entry.verify
+                    def verify_fn(val: str, _cb: Callable[..., bool] = verify_cb, _c: dict[str, Any] = opt) -> bool:
+                        return _cb(val, _c)
         # Remember current selection (use selected_value so virtual "+" is preserved)
         current_value = seg.selected_value
         # Update discovered options via state (cache auto-invalidates)

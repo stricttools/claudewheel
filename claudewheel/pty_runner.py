@@ -10,6 +10,7 @@ import signal
 import struct
 import termios
 import tty
+from types import FrameType
 
 
 def _copy_winsize(src_fd: int, dst_fd: int) -> None:
@@ -78,7 +79,7 @@ def run_under_pty(
     winch_installed = False
     tty_fd = tty_file.fileno() if tty_file is not None else None
 
-    def on_sigterm(signum, frame):
+    def on_sigterm(signum: int, frame: FrameType | None) -> None:
         try:
             os.kill(pid, signum)
         except ProcessLookupError:
@@ -97,7 +98,7 @@ def run_under_pty(
             # byte instead of SIGINT-ing this process.
             tty.setraw(tty_fd)
 
-            def on_winch(signum, frame):
+            def on_winch(signum: int, frame: FrameType | None) -> None:
                 _copy_winsize(tty_fd, master_fd)
                 try:
                     os.kill(pid, signal.SIGWINCH)
@@ -144,7 +145,7 @@ def run_under_pty(
             # prev_winch may be None if the previous handler was not
             # installed from Python; fall back to SIG_DFL (wizard.py pattern).
             signal.signal(signal.SIGWINCH, prev_winch or signal.SIG_DFL)
-        if old_attrs is not None:
+        if old_attrs is not None and tty_fd is not None:
             termios.tcsetattr(tty_fd, termios.TCSADRAIN, old_attrs)
         if tty_file is not None:
             tty_file.close()

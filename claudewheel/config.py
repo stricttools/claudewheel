@@ -15,7 +15,7 @@ import copy
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from .defaults import (
     DEFAULT_CONFIG,
@@ -71,7 +71,7 @@ HISTORICAL_DEFAULTS: dict[str, set[str]] = {
 
 
 def _migration_1_github_optional(
-    config: dict, segments_def: list[dict], theme: dict, options_def: dict,
+    config: dict[str, Any], segments_def: list[dict[str, Any]], theme: dict[str, Any], options_def: dict[str, Any],
 ) -> None:
     """Make github segment optional (was incorrectly required)."""
     for seg in segments_def:
@@ -80,7 +80,7 @@ def _migration_1_github_optional(
 
 
 def _migration_2_profile_paths(
-    config: dict, segments_def: list[dict], theme: dict, options_def: dict,
+    config: dict[str, Any], segments_def: list[dict[str, Any]], theme: dict[str, Any], options_def: dict[str, Any],
 ) -> None:
     """Rewrite profile metadata config_dir from ~/.claude-<name> to ~/.claudewheel/profiles/<name>.
 
@@ -103,7 +103,7 @@ def _migration_2_profile_paths(
 
 
 def _migration_3_classify_pinned(
-    config: dict, segments_def: list[dict], theme: dict, options_def: dict,
+    config: dict[str, Any], segments_def: list[dict[str, Any]], theme: dict[str, Any], options_def: dict[str, Any],
 ) -> None:
     """Classify existing 'values' into 'pinned' vs discard.
 
@@ -148,7 +148,7 @@ def _migration_3_classify_pinned(
 
 
 def _migration_4_drop_profile_metadata(
-    config: dict, segments_def: list[dict], theme: dict, options_def: dict,
+    config: dict[str, Any], segments_def: list[dict[str, Any]], theme: dict[str, Any], options_def: dict[str, Any],
 ) -> None:
     """Remove the legacy ``metadata`` block from the ``profile`` segment only.
 
@@ -163,7 +163,7 @@ def _migration_4_drop_profile_metadata(
         profile_seg.pop("metadata", None)
 
 
-_MIGRATIONS: list[dict] = [
+_MIGRATIONS: list[dict[str, Any]] = [
     {
         "version": 1,
         "description": "Make github segment optional",
@@ -214,15 +214,15 @@ class AppConfigStore:
     """
 
     workspace: "Workspace"
-    config: dict = field(default_factory=dict)
-    segments_def: list[dict] = field(default_factory=list)
-    options_def: dict = field(default_factory=dict)
-    state: dict = field(default_factory=dict)
+    config: dict[str, Any] = field(default_factory=dict)
+    segments_def: list[dict[str, Any]] = field(default_factory=list)
+    options_def: dict[str, Any] = field(default_factory=dict)
+    state: dict[str, Any] = field(default_factory=dict)
     # Written by the runtime theme-switch handler; never populated at
     # construction time (the store performs no theme resolution).
-    theme: dict = field(default_factory=dict)
+    theme: dict[str, Any] = field(default_factory=dict)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         ws = self.workspace
         self._root = ws.root
         self._config_file = ws.config_file
@@ -246,7 +246,7 @@ class AppConfigStore:
 
     # --- Theme access (no terminal I/O) ----------------------------------
 
-    def load_theme(self, name: str) -> dict:
+    def load_theme(self, name: str) -> dict[str, Any]:
         """Read ``themes/<name>.json`` and return a complete theme dict.
 
         Uses the same default-fallback + deep-merge-missing semantics the theme
@@ -255,11 +255,11 @@ class AppConfigStore:
         I/O. Callers resolve *name* via :func:`resolve_theme_name` first.
         """
         theme_default = DEFAULT_THEME_LIGHT if name == "light" else DEFAULT_THEME_DARK
-        theme = self._load_json(self._themes_dir / f"{name}.json", theme_default)
+        theme: dict[str, Any] = self._load_json(self._themes_dir / f"{name}.json", theme_default)
         self._deep_merge_missing(theme, theme_default)
         return theme
 
-    def _theme_specs(self) -> list[tuple[Path, dict]]:
+    def _theme_specs(self) -> list[tuple[Path, dict[str, Any]]]:
         """The (path, default) pairs for the built-in theme files.
 
         Migrations run against BOTH files uniformly (not just a
@@ -281,7 +281,7 @@ class AppConfigStore:
             canonical = build_canonical_shared_settings(self._scripts_dir)
             write_json_atomic(self._shared_settings_file, canonical)
 
-    def _ensure_dir(self):
+    def _ensure_dir(self) -> None:
         """Create config directories and write default files on first run."""
         self._root.mkdir(exist_ok=True)
         self._themes_dir.mkdir(exist_ok=True)
@@ -297,7 +297,7 @@ class AppConfigStore:
             if not path.exists():
                 write_json_atomic(path, default)
 
-    def _load_json(self, path: Path, default: dict | list) -> dict | list:
+    def _load_json(self, path: Path, default: Any) -> Any:
         try:
             with open(path) as f:
                 return json.load(f)
@@ -414,7 +414,7 @@ class AppConfigStore:
                 write_json_atomic(theme_file, tdict)
 
     @staticmethod
-    def _deep_merge_missing(target: dict, defaults: dict) -> bool:
+    def _deep_merge_missing(target: dict[str, Any], defaults: dict[str, Any]) -> bool:
         """Recursively add keys from *defaults* that are absent in *target*.
 
         Returns True if any key was added (i.e. the target was mutated).
@@ -435,7 +435,7 @@ class AppConfigStore:
             segment_key, value, self.options_def
         )
 
-    def save_state(self):
+    def save_state(self) -> None:
         """Save in-memory state to disk.
 
         Merges out-of-band keys (auth_browser) from disk before writing to

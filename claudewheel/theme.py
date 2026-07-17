@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any
 
 from .constants import fg_rgb, bg_rgb
 
@@ -64,7 +65,7 @@ class ThemeColors:
     forms_readonly_fg: str = ""
 
 
-def parse_theme(theme_dict: dict) -> ThemeColors:
+def parse_theme(theme_dict: dict[str, Any]) -> ThemeColors:
     """Parse a raw theme dict into a ThemeColors instance with ANSI sequences."""
     g = theme_dict.get("global", {})
 

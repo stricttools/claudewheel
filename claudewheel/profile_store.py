@@ -7,6 +7,7 @@ import os
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from .appdata import OptionsFile, StateFile
 from .fsutil import write_json_atomic
@@ -27,7 +28,7 @@ _PROFILE_SEGMENT = "profile"
 # mirrors DEFAULT_OPTIONS["profile"] minus the discovery block, which write ops
 # never touch -- an empty values/pinned segment is enough for add_pinned to
 # register a value and for rename/remove to no-op cleanly on a fresh store.
-_OPTIONS_DEFAULT: dict = {_PROFILE_SEGMENT: {"values": [], "pinned": []}}
+_OPTIONS_DEFAULT: dict[str, Any] = {_PROFILE_SEGMENT: {"values": [], "pinned": []}}
 
 # Breadcrumb file written into a profile dir mid-rename. Same name as
 # profile_ops.RENAME_PENDING_FILE so both engines recognize the same crumbs.
@@ -94,7 +95,7 @@ class ProfileStore:
             return self.claude_dir
         return self.profiles_dir / name
 
-    def enumerate(self, tokens: dict | None = None) -> list[Profile]:
+    def enumerate(self, tokens: dict[str, Any] | None = None) -> list[Profile]:
         """Discover all profiles, encoding the historical discovery rules verbatim.
 
         *tokens* ``None`` loads token data via ``token_store.load()`` (a corrupt
@@ -157,7 +158,7 @@ class ProfileStore:
         profiles.sort(key=lambda p: p.name)
         return profiles
 
-    def get(self, name: str, tokens: dict | None = None) -> Profile | None:
+    def get(self, name: str, tokens: dict[str, Any] | None = None) -> Profile | None:
         """Return the enumerated :class:`Profile` for *name*, or None if absent."""
         for profile in self.enumerate(tokens):
             if profile.name == name:
@@ -217,7 +218,7 @@ class ProfileStore:
         if not config_dir.is_dir():
             return
         path = config_dir / ".claude.json"
-        data: dict = {}
+        data: dict[str, Any] = {}
         if path.exists():
             try:
                 data = json.loads(path.read_text())
@@ -226,7 +227,7 @@ class ProfileStore:
         data["hasCompletedOnboarding"] = True
         write_json_atomic(path, data)
 
-    def create(self, name: str, settings: dict, *,
+    def create(self, name: str, settings: dict[str, Any], *,
                set_onboarding: bool = True,
                symlink_shared: bool = True) -> Profile:
         """Create a profile from FINAL *settings* content. Returns the Profile.
@@ -454,7 +455,7 @@ class ProfileStore:
         if breadcrumb.exists():
             breadcrumb.unlink()
 
-    def recover_incomplete_renames(self) -> list[dict]:
+    def recover_incomplete_renames(self) -> list[dict[str, Any]]:
         """Finish or unwind interrupted renames from breadcrumbs. Returns a summary.
 
         Scans ``profiles_dir/*/.rename_pending``. Two crash windows:
@@ -471,7 +472,7 @@ class ProfileStore:
         """
         self._require_write_stores()
         assert self.options is not None
-        actions: list[dict] = []
+        actions: list[dict[str, Any]] = []
         if not self.profiles_dir.is_dir():
             return actions
 

@@ -33,7 +33,9 @@ traceback.
 from __future__ import annotations
 
 import shutil
+from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
 from .binaries import BinaryLocator
 
@@ -60,7 +62,7 @@ class ClientContext:
     extra_flags: list[str]
     passthrough: list[str]
     locator: BinaryLocator
-    clients_config: dict
+    clients_config: dict[str, Any]
 
     def session_flags(self) -> list[str]:
         """The session-flag prefix of ``extra_flags`` with the passthrough tail removed."""
@@ -248,7 +250,7 @@ CLAUDE_ONLY_SELECTIONS: dict[str, object] = {
 # ---------------------------------------------------------------------------
 
 
-def resolve_default_client(config: dict) -> str:
+def resolve_default_client(config: dict[str, Any]) -> str:
     """Return the configured ``default_client``, validated against the registry.
 
     Reads ``config["default_client"]`` (falling back to :data:`DEFAULT_CLIENT`
@@ -261,11 +263,11 @@ def resolve_default_client(config: dict) -> str:
         raise ValueError(
             f"unknown client {name!r}; known: {', '.join(CLIENT_ADAPTERS)}"
         )
-    return name
+    return str(name)
 
 
 def client_available(
-    name: str, locator: BinaryLocator, clients_config: dict
+    name: str, locator: BinaryLocator, clients_config: dict[str, Any]
 ) -> bool:
     """Report whether *name*'s launch binary is resolvable right now.
 
@@ -289,7 +291,7 @@ def client_available(
 
 
 def build_client_choices(
-    locator: BinaryLocator, clients_config: dict, default_client: str
+    locator: BinaryLocator, clients_config: dict[str, Any], default_client: str
 ) -> tuple[list[tuple[str, str]], str]:
     """Build the ``(options, initial_key)`` pair for the client-selection step.
 
@@ -311,7 +313,7 @@ def build_client_choices(
     return options, default_client
 
 
-def resolve_client(explicit_client: str | None, prompt) -> str | None:
+def resolve_client(explicit_client: str | None, prompt: Callable[[], str | None]) -> str | None:
     """Resolve the launch client: explicit CLI flag wins, else prompt.
 
     *explicit_client* is the ``--client`` value when the user passed it, or

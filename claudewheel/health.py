@@ -8,7 +8,7 @@ import stat
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import IO, TYPE_CHECKING, Any
 
 from . import guardrail
 from .appdata import OptionsFile
@@ -93,7 +93,7 @@ def check_tmp_claude_size() -> HealthResult:
         return HealthResult(True, "/tmp/claude", f"check failed: {e}")
 
 
-def _discover_profiles(ws: "Workspace", tokens: dict | None = None) -> list[Profile]:
+def _discover_profiles(ws: "Workspace", tokens: dict[str, Any] | None = None) -> list[Profile]:
     """Enumerate profiles via the workspace's ProfileStore.
 
     *tokens* ``None`` loads token data via the store (a corrupt tokens.json
@@ -107,7 +107,7 @@ def _discover_profiles(ws: "Workspace", tokens: dict | None = None) -> list[Prof
 # -- Shared-store profile checks -------------------------------------------
 
 
-def check_shared_symlinks(ws: "Workspace", tokens: dict | None = None) -> HealthResult:
+def check_shared_symlinks(ws: "Workspace", tokens: dict[str, Any] | None = None) -> HealthResult:
     """Verify each profile's shared dirs are symlinks to ~/.claudewheel/shared/."""
     profiles = _discover_profiles(ws, tokens)
     if not profiles:
@@ -160,7 +160,7 @@ def _hook_wired(hooks: object, event: str, matcher: str, script: str,
     return False
 
 
-def check_hooks_wired(ws: "Workspace", tokens: dict | None = None) -> HealthResult:
+def check_hooks_wired(ws: "Workspace", tokens: dict[str, Any] | None = None) -> HealthResult:
     """Verify each profile wires every expected hook in settings.json.
 
     The canonical wirings are the (event, matcher, script-name) triples in
@@ -200,7 +200,7 @@ def check_hooks_wired(ws: "Workspace", tokens: dict | None = None) -> HealthResu
     return HealthResult(True, "hooks-wired", f"all {len(profiles)} profiles OK")
 
 
-def check_settings_defaults(ws: "Workspace", tokens: dict | None = None) -> HealthResult:
+def check_settings_defaults(ws: "Workspace", tokens: dict[str, Any] | None = None) -> HealthResult:
     """Verify each profile enforces expected defaults in settings.json."""
     profiles = _discover_profiles(ws, tokens)
     if not profiles:
@@ -265,7 +265,7 @@ def _diff_json(label: str, canonical: object, actual: object) -> list[str]:
     return diffs
 
 
-def check_shared_settings_drift(ws: "Workspace", tokens: dict | None = None) -> HealthResult:
+def check_shared_settings_drift(ws: "Workspace", tokens: dict[str, Any] | None = None) -> HealthResult:
     """Compare each profile's hooks and disallowedTools against shared-settings.json."""
     # Load shared settings
     shared_settings_file = ws.shared_settings_file
@@ -333,7 +333,7 @@ def _canonical_permission_diffs(label: str, perms: object) -> list[str]:
     return diffs
 
 
-def check_canonical_permissions_drift(ws: "Workspace", tokens: dict | None = None) -> HealthResult:
+def check_canonical_permissions_drift(ws: "Workspace", tokens: dict[str, Any] | None = None) -> HealthResult:
     """Compare each profile's permissions against the canonical guardrail model.
 
     For every profile settings.json and for shared-settings.json's
@@ -379,7 +379,7 @@ def check_canonical_permissions_drift(ws: "Workspace", tokens: dict | None = Non
     return HealthResult(True, "canonical-drift", f"{len(profiles)} profiles + profileDefaults match canonical")
 
 
-def check_auth_shadow(ws: "Workspace", tokens: dict | None = None) -> HealthResult:
+def check_auth_shadow(ws: "Workspace", tokens: dict[str, Any] | None = None) -> HealthResult:
     """Detect profiles where .credentials.json claudeAiOauth shadows a long-lived token."""
     from .profile_info import detect_auth_shadow
 
@@ -400,7 +400,7 @@ def check_auth_shadow(ws: "Workspace", tokens: dict | None = None) -> HealthResu
     return HealthResult(True, "auth-shadow", "no auth shadow detected")
 
 
-def check_token_expiry(ws: "Workspace", tokens: dict | None = None,
+def check_token_expiry(ws: "Workspace", tokens: dict[str, Any] | None = None,
                        token_error: TokenStoreError | None = None) -> HealthResult:
     """Warn if any token is approaching 1-year expiry (setup-token TTL).
 
@@ -435,7 +435,7 @@ def check_token_expiry(ws: "Workspace", tokens: dict | None = None,
     return HealthResult(True, "token-expiry", f"~{int(min_remaining)} days remaining")
 
 
-def check_tokens(ws: "Workspace", tokens: dict | None = None,
+def check_tokens(ws: "Workspace", tokens: dict[str, Any] | None = None,
                  token_error: TokenStoreError | None = None) -> HealthResult:
     """Verify each profile has a matching entry in ~/.claudewheel/tokens.json.
 
@@ -474,7 +474,7 @@ def check_tokens(ws: "Workspace", tokens: dict | None = None,
     return HealthResult(True, "tokens", f"all {len(profiles)} profiles OK")
 
 
-def check_orphan_profiles(ws: "Workspace", tokens: dict | None = None) -> HealthResult:
+def check_orphan_profiles(ws: "Workspace", tokens: dict[str, Any] | None = None) -> HealthResult:
     """Detect profile dirs in ~/.claudewheel/profiles/ that are not registered.
 
     A directory is "orphan" if it:
@@ -526,7 +526,7 @@ def check_orphan_profiles(ws: "Workspace", tokens: dict | None = None) -> Health
     return HealthResult(True, "orphan-profiles", "no orphan dirs found")
 
 
-def check_file_permissions(ws: "Workspace", tokens: dict | None = None) -> HealthResult:
+def check_file_permissions(ws: "Workspace", tokens: dict[str, Any] | None = None) -> HealthResult:
     """Verify sensitive files have restrictive permissions (0600)."""
     profiles = _discover_profiles(ws, tokens)
     issues: list[str] = []
@@ -686,7 +686,7 @@ def _stale_hook_command_paths(hooks: object, scripts_dir: Path) -> list[str]:
     return stale
 
 
-def check_relocated_hook_paths(ws: "Workspace", tokens: dict | None = None) -> HealthResult:
+def check_relocated_hook_paths(ws: "Workspace", tokens: dict[str, Any] | None = None) -> HealthResult:
     """Detect hook commands pointing at a scripts dir other than the current one.
 
     The deployed-hook drift check compares script CONTENT hashes and so cannot
@@ -743,7 +743,7 @@ def run_health_check(ws: "Workspace") -> list[HealthResult]:
     """
     token_error: TokenStoreError | None = None
     try:
-        tokens: dict = ws.tokens.load()
+        tokens = ws.tokens.load()
     except TokenStoreError as e:
         token_error = e
         tokens = {}
@@ -767,7 +767,7 @@ def run_health_check(ws: "Workspace") -> list[HealthResult]:
     ]
 
 
-def print_health_report(results: list[HealthResult], file=None) -> None:
+def print_health_report(results: list[HealthResult], file: IO[str] | None = None) -> None:
     """Print health check results. Defaults to stdout; pass file=sys.stderr for non-interactive mode."""
     for r in results:
         status = "OK" if r.ok else "WARN"

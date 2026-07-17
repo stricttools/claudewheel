@@ -6,7 +6,7 @@ import json
 import re
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from .fsutil import write_json_atomic
 
@@ -51,16 +51,17 @@ def validate_rule(rule: str) -> None:
             )
 
 
-def load_settings(settings_path: Path) -> dict:
+def load_settings(settings_path: Path) -> dict[str, Any]:
     """Read and parse a profile's settings.json.
 
     Raises FileNotFoundError if the file does not exist and
     json.JSONDecodeError if the content is not valid JSON.
     """
-    return json.loads(settings_path.read_text())
+    data: dict[str, Any] = json.loads(settings_path.read_text())
+    return data
 
 
-def save_settings(settings_path: Path, data: dict) -> None:
+def save_settings(settings_path: Path, data: dict[str, Any]) -> None:
     """Atomic-write *data* as JSON to *settings_path*.
 
     Writes to a temporary sibling file first, then renames over the
@@ -69,7 +70,7 @@ def save_settings(settings_path: Path, data: dict) -> None:
     write_json_atomic(settings_path, data)
 
 
-def add_rule(data: dict, category: str, rule: str) -> str:
+def add_rule(data: dict[str, Any], category: str, rule: str) -> str:
     """Append *rule* to ``data["permissions"][category]``.
 
     Returns ``"added"`` on success or ``"already present"`` if the rule
@@ -87,7 +88,7 @@ def add_rule(data: dict, category: str, rule: str) -> str:
     return "added"
 
 
-def remove_rule(data: dict, category: str, rule: str) -> str:
+def remove_rule(data: dict[str, Any], category: str, rule: str) -> str:
     """Remove *rule* from ``data["permissions"][category]``.
 
     Returns ``"removed"`` on success or ``"not found"`` if the rule

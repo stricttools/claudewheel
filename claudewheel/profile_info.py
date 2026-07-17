@@ -182,7 +182,8 @@ def gather_profile_info(ws: "Workspace", name: str) -> ProfileReport:
     shared_dirs: dict[str, str] = {}
     active_sessions = 0
     disk_usage_bytes = 0
-    settings_found, permission_counts = False, {}
+    settings_found = False
+    permission_counts: dict[str, int] = {}
     away, cleanup, auto_memory = None, None, None
     if exists:
         shared_dirs = ws.profiles.classify_shared_dirs(name)

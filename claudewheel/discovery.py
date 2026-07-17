@@ -83,18 +83,18 @@ def detect_browsers() -> list[tuple[str, str]]:
         if name in seen_names:
             continue
         for export_dir in _FLATPAK_EXPORT_DIRS:
-            path = export_dir / app_id
-            if path.exists():
-                browsers.append((str(path), name))
+            candidate = export_dir / app_id
+            if candidate.exists():
+                browsers.append((str(candidate), name))
                 seen_names.add(name)
                 break
 
     for binary, name in _SNAP_BROWSERS:
         if name in seen_names:
             continue
-        path = _SNAP_BIN_DIR / binary
-        if path.exists():
-            browsers.append((str(path), name))
+        candidate = _SNAP_BIN_DIR / binary
+        if candidate.exists():
+            browsers.append((str(candidate), name))
             seen_names.add(name)
 
     return browsers

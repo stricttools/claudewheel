@@ -334,9 +334,9 @@ def run_import(
 
     # 8. Copy with rewriting.
     for b in bundles:
-        target_dir, new_uuid = uuid_target_map[b.uuid]
-        effective_uuid = new_uuid if new_uuid else b.uuid
-        is_reided = new_uuid is not None
+        target_dir, mapped_uuid = uuid_target_map[b.uuid]
+        effective_uuid = mapped_uuid if mapped_uuid else b.uuid
+        is_reided = mapped_uuid is not None
 
         if is_reided:
             result.sessions_reided += 1
@@ -352,7 +352,7 @@ def run_import(
         lines_rewritten = _rewrite_jsonl(
             b.jsonl_path, target_jsonl, rewriters,
             old_uuid=b.uuid if is_reided else None,
-            new_uuid=new_uuid,
+            new_uuid=mapped_uuid,
             dry_run=dry_run,
         )
         result.lines_rewritten += lines_rewritten
@@ -382,7 +382,7 @@ def run_import(
                     lines_rewritten = _rewrite_jsonl(
                         item, dst, rewriters,
                         old_uuid=b.uuid if is_reided else None,
-                        new_uuid=new_uuid,
+                        new_uuid=mapped_uuid,
                         dry_run=dry_run,
                     )
                     result.lines_rewritten += lines_rewritten

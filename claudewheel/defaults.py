@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from . import guardrail
 
@@ -39,7 +40,7 @@ def canonical_hook_command(scripts_dir: Path, script: str) -> str:
     return str(scripts_dir / script)
 
 
-def _build_canonical_hooks(scripts_dir: Path) -> dict:
+def _build_canonical_hooks(scripts_dir: Path) -> dict[str, Any]:
     """Build the hooks dict from the guardrail model's EXPECTED_HOOK_WIRINGS.
 
     Each wiring is an (event, matcher, script-name) tuple. Wirings are grouped
@@ -48,7 +49,7 @@ def _build_canonical_hooks(scripts_dir: Path) -> dict:
     module is the single source of truth -- adding a wiring there flows through
     here automatically.
     """
-    hooks: dict[str, list] = {}
+    hooks: dict[str, list[dict[str, Any]]] = {}
     for event, matcher, script in guardrail.EXPECTED_HOOK_WIRINGS:
         entries = hooks.setdefault(event, [])
         entry = next((e for e in entries if e["matcher"] == matcher), None)
@@ -61,7 +62,7 @@ def _build_canonical_hooks(scripts_dir: Path) -> dict:
     return hooks
 
 
-def build_canonical_shared_settings(scripts_dir: Path) -> dict:
+def build_canonical_shared_settings(scripts_dir: Path) -> dict[str, Any]:
     """Build the canonical shared-settings dict from current defaults.
 
     The hooks section is derived from guardrail.EXPECTED_HOOK_WIRINGS.
@@ -201,7 +202,7 @@ DEFAULT_SEGMENTS = [
     },
 ]
 
-DEFAULT_OPTIONS = {
+DEFAULT_OPTIONS: dict[str, Any] = {
     "profile": {
         "values": [],
         "pinned": [],

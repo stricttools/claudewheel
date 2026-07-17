@@ -7,7 +7,7 @@ import time
 from dataclasses import dataclass
 from datetime import date, timedelta
 from pathlib import Path
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 from .fsutil import write_json_atomic_secret
 
@@ -24,8 +24,10 @@ def parse_entry(entry: object) -> str | None:
     """
     if isinstance(entry, str) and entry:
         return entry
-    if isinstance(entry, dict) and entry.get("token"):
-        return entry["token"]
+    if isinstance(entry, dict):
+        tok = entry.get("token")
+        if isinstance(tok, str) and tok:
+            return tok
     return None
 
 
@@ -79,7 +81,7 @@ def compute_expiry(entry: object, tokens_mtime: float,
     return TokenExpiry(created, expires, remaining)
 
 
-def _read_tokens_for_write(path: Path) -> dict:
+def _read_tokens_for_write(path: Path) -> dict[str, Any]:
     """Read a tokens.json for a write operation. Missing -> {}; corrupt -> OSError.
 
     Preserves the historical write-path contract: a corrupt file is a hard
@@ -88,7 +90,8 @@ def _read_tokens_for_write(path: Path) -> dict:
     of which path is targeted.
     """
     try:
-        return json.loads(path.read_text())
+        data: dict[str, Any] = json.loads(path.read_text())
+        return data
     except FileNotFoundError:
         return {}
     except json.JSONDecodeError as e:
@@ -105,7 +108,7 @@ def _write_token(path: Path, name: str, token: str, *,
     tokens = _read_tokens_for_write(path)
 
     created = date.today()
-    entry: dict = {
+    entry: dict[str, str] = {
         "token": token,
         "created": created.isoformat(),
         "expires_at": (created + timedelta(days=TOKEN_TTL_DAYS)).isoformat(),
@@ -160,7 +163,7 @@ class TokenStore:
 
     path: Path
 
-    def load(self) -> dict:
+    def load(self) -> dict[str, Any]:
         """Parse the tokens.json. Missing -> {}; corrupt/unreadable -> TokenStoreError."""
         try:
             raw = self.path.read_text()
