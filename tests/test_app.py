@@ -810,16 +810,28 @@ class InstallFlowFormTests(unittest.TestCase):
         cm.__exit__.side_effect = lambda *a: events.append("cooked_exit") or False
 
     def test_confirm_install_downloads_and_marks_installed(self) -> None:
-        """User confirms install -> download in cooked -> mark_installed -> success page."""
+        """User confirms install -> download in cooked -> mark_installed -> success page.
+
+        ``install_version`` is patched with ``autospec=True`` so the call in
+        ``_run_install_flow`` is validated against the real signature
+        ``(locator, version, progress_callback=None)``. This is the regression
+        guard for the TUI crash where the install flow called
+        ``install_version(version, progress_callback=...)`` without the
+        ``locator``: Python bound the version string to ``locator``, left
+        ``version`` unbound, and raised an uncaught ``TypeError``. A bare
+        MagicMock accepts any arguments, which is exactly why the bug slipped
+        through the earlier tests -- autospec makes the buggy call fail here.
+        """
         app, seg = self._make_app_with_uninstalled()
         events: list[str] = []
         self._track_cooked(app, events)
 
-        def fake_install(version, progress_callback=None):
+        def fake_install(locator, version, progress_callback=None):
             events.append("install")
 
         with mock.patch("claudewheel.ui.run_selection", return_value="install") as mock_sel, \
-             mock.patch("claudewheel.install.install_version", side_effect=fake_install), \
+             mock.patch("claudewheel.install.install_version", autospec=True,
+                        side_effect=fake_install) as mock_install, \
              mock.patch("claudewheel.ui.show_page") as mock_page, \
              redirect_stdout(io.StringIO()):
             result = app._handle_key("ENTER")
@@ -829,6 +841,10 @@ class InstallFlowFormTests(unittest.TestCase):
         self.assertIn("1.2.3", mock_sel.call_args[0][0])
         # Download happened inside cooked window
         self.assertEqual(events, ["cooked_enter", "install", "cooked_exit"])
+        # The app's BinaryLocator must be passed as the first positional arg,
+        # with the version second -- the exact contract the crash violated.
+        self.assertIs(mock_install.call_args[0][0], app._locator)
+        self.assertEqual(mock_install.call_args[0][1], "1.2.3")
         seg.state.mark_installed.assert_called_once_with("1.2.3")
         # Success page shown
         mock_page.assert_called_once()
@@ -864,11 +880,18 @@ class InstallFlowFormTests(unittest.TestCase):
         seg.state.mark_installed.assert_not_called()
 
     def test_install_failure_shows_error_page(self) -> None:
-        """Download fails -> show_page with error message, mark_installed not called."""
+        """Download fails -> show_page with error message, mark_installed not called.
+
+        ``install_version`` normalizes every failure (network, HTTP, checksum,
+        disk) into ``OSError`` (see its docstring), so a failed download must
+        surface the "Install failed" page rather than crash the TUI. autospec
+        keeps the signature honest while the OSError side effect simulates the
+        failure.
+        """
         app, seg = self._make_app_with_uninstalled()
 
         with mock.patch("claudewheel.ui.run_selection", return_value="install"), \
-             mock.patch("claudewheel.install.install_version",
+             mock.patch("claudewheel.install.install_version", autospec=True,
                         side_effect=OSError("network down")), \
              mock.patch("claudewheel.ui.show_page") as mock_page, \
              redirect_stdout(io.StringIO()):

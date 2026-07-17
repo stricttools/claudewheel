@@ -628,7 +628,7 @@ class App:
         with self.terminal.cooked():
             print(f"Downloading Claude Code {version}...")
             try:
-                install_version(version, progress_callback=on_progress)
+                install_version(self._locator, version, progress_callback=on_progress)
                 seg.state.mark_installed(version)
             except OSError as e:
                 error = str(e)
