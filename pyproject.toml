@@ -39,5 +39,17 @@ packages = ["claudewheel"]
 
 [dependency-groups]
 dev = [
+    "mypy>=2.3.0",
     "pytest>=9.1.1",
 ]
+
+[tool.mypy]
+strict = true
+files = ["claudewheel"]
+
+# strictcli ships no py.typed marker yet (upstream fix filed separately),
+# so it resolves as Any-typed. Suppress the missing-imports error until
+# strictcli ships py.typed.
+[[tool.mypy.overrides]]
+module = "strictcli.*"
+ignore_missing_imports = true

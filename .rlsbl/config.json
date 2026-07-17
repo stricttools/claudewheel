@@ -24,5 +24,12 @@
       "local": true
     }
   },
-  "coverage_unit": "commit"
+  "coverage_unit": "commit",
+  "external_checks": [
+    {
+      "name": "mypy-strict",
+      "command": "uv run mypy claudewheel",
+      "tag": "preflight"
+    }
+  ]
 }
