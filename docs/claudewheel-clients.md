@@ -1,6 +1,6 @@
 ---
 title: claudewheel.clients
-description: "How claudewheel turns resolved launch selections into a concrete argv for the official claude binary or the alternative miniclaude REPL client."
+description: "How claudewheel maps resolved launch selections to a client-specific argv: an adapter registry targets the official claude binary or the miniclaude REPL client, ignoring claude-only inputs for non-claude clients and raising clean ValueErrors on genuine conflicts."
 generated: true
 nav_group: "API Reference"
 nav_order: 8

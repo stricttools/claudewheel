@@ -1,6 +1,6 @@
 ---
 title: c CLI Reference
-description: "Complete CLI reference for claudewheel: profile management, health checks, permission reconciliation, session import, hook deployment, and every command."
+description: "Complete CLI reference for claudewheel: launch the TUI, manage profiles and permission rules, run pre-launch health checks, install and switch Claude Code versions, deploy hooks, and import, migrate, or inspect session data."
 generated: true
 nav_group: "CLI Reference"
 nav_order: 0
@@ -12,7 +12,7 @@ order: 91
 
 claudewheel - TUI launcher for Claude Code with profile, model, and directory selection
 
-Version: 0.23.0
+Version: 0.23.1
 
 ## Commands
 
