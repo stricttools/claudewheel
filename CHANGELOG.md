@@ -2,6 +2,32 @@
 
 # Changelog
 
+## 0.23.1
+
+Fixes a TUI crash when installing a Claude Code version from the launcher.
+
+<details>
+<summary>Context</summary>
+
+The TUI install flow called install_version without the BinaryLocator argument
+it gained when the CLI path was updated, crashing the launcher with a TypeError
+instead of downloading. The fix passes the app's existing locator, and failed
+downloads now surface the intended "Install failed" page. To catch this bug
+class statically, the codebase also adopted mypy in strict mode (282 errors
+fixed, zero suppressions) wired as a hard release preflight gate.
+
+</details>
+
+### Features
+
+- **Client selection step.** The interactive launcher now prompts for the launch client (`claude` or `miniclaude`) with the configured `default_client` pre-selected; pass `--client` to skip the step. Unavailable clients are marked `(not installed)`, and for non-Claude clients the version step is skipped.
+
+### Fixes
+
+- Launching with `--client miniclaude` no longer fails when a Claude version was remembered from a previous launch or set as a config default; the version is a Claude-only input and is now ignored for non-Claude clients.
+- **Fix.** Launching with `--client miniclaude` no longer fails when MCP strict mode was remembered from a previous launch; MCP selection is now treated as a claude-only input and ignored for non-Claude clients, alongside version and default flags.
+- **Fixed TUI crash when installing a Claude Code version.** Selecting a version to install from the launcher no longer crashes; failed downloads now show an "Install failed" page.
+
 ## 0.23.0
 
 Launch-target client adapters: the new --client flag can launch alternative clients (miniclaude) with mapped profile/model/permission selections.
