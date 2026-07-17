@@ -1,0 +1,1 @@
+{"id":"18c32ef83661a3986b1aa5e0d57f4f868e777aac5a8f11e5","commits":["47ca08ffffb3f2dced5c11721dc06e456b23646f"],"user_facing":true,"description":"**Breaking: strictcli v0.29.0 migration.** The _bind wrapper now accepts ctx as first parameter, threading it through to strictcli's new handler contract.","type":"breaking"}
