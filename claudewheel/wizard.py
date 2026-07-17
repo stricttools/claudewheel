@@ -9,7 +9,7 @@ import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from . import auth
 from .appdata import StateFile
@@ -19,6 +19,8 @@ from .fsutil import write_json_atomic
 from .patch_profiles import merge_hooks
 from .pty_runner import run_under_pty
 from .state import AUTH_BROWSER_KEY
+from .terminal import Terminal
+from .theme import ThemeColors
 from .ui import FormField, get_field, run_form, run_selection
 
 if TYPE_CHECKING:
@@ -131,7 +133,7 @@ def _build_result(ws: "Workspace", values: dict[str, object]) -> WizardResult:
     """Construct a WizardResult from submitted form values."""
     name = str(values["name"]).strip()
     source = values["settings_source"]
-    clone = None if source == _DEFAULTS_TEMPLATE else source
+    clone = None if source == _DEFAULTS_TEMPLATE else str(source)
     return WizardResult(
         name=name,
         config_dir=_real_config_dir(ws, name),
@@ -151,8 +153,8 @@ def _cancelled_result() -> WizardResult:
                         False, cancelled=True)
 
 
-def run_profile_wizard(ws: "Workspace", existing_profiles: list[str], theme,
-                       terminal) -> WizardResult:
+def run_profile_wizard(ws: "Workspace", existing_profiles: list[str], theme: ThemeColors,
+                       terminal: Terminal) -> WizardResult:
     """Run the profile creation form and return the user's choices.
 
     The form renders on *terminal* with *theme* colors via the ui widget
@@ -171,11 +173,12 @@ def run_profile_wizard(ws: "Workspace", existing_profiles: list[str], theme,
     return _build_result(ws, values)
 
 
-def _load_shared_settings(ws: "Workspace") -> dict:
+def _load_shared_settings(ws: "Workspace") -> dict[str, Any]:
     """Load shared-settings.json, falling back to canonical defaults if missing."""
     if ws.shared_settings_file.exists():
         try:
-            return json.loads(ws.shared_settings_file.read_text())
+            data: dict[str, Any] = json.loads(ws.shared_settings_file.read_text())
+            return data
         except (json.JSONDecodeError, OSError):
             pass
     return build_canonical_shared_settings(ws.scripts_dir)
@@ -196,7 +199,7 @@ def _set_onboarding_flag(config_dir: str) -> None:
     if not expanded.is_dir():
         return
     path = expanded / ".claude.json"
-    data: dict = {}
+    data: dict[str, Any] = {}
     if path.exists():
         try:
             data = json.loads(path.read_text())
@@ -221,7 +224,7 @@ def create_profile(ws: "Workspace", result: WizardResult) -> list[str]:
     shared = _load_shared_settings(ws)
 
     # Build settings.json content
-    settings: dict = {}
+    settings: dict[str, Any] = {}
     if result.clone_from:
         # Copy from existing profile
         source_dir = ws.profiles.path_for(result.clone_from)
@@ -298,7 +301,7 @@ def _find_claude_binary(locator: "BinaryLocator") -> str | None:
 
 
 def run_auth_flow(ws: "Workspace", locator: "BinaryLocator", config_dir: str,
-                  profile_name: str, theme, terminal,
+                  profile_name: str, theme: ThemeColors, terminal: Terminal,
                   skip_label: str = "Skip for now") -> str:
     """Prompt the user to set up authentication for a newly created profile.
 
@@ -414,7 +417,7 @@ def _capture_tier_from_credentials(ws: "Workspace", credentials: Path,
 
 
 def _auth_session_login(ws: "Workspace", locator: "BinaryLocator", config_dir: str,
-                        profile_name: str, browser: str, terminal) -> bool:
+                        profile_name: str, browser: str, terminal: Terminal) -> bool:
     """Run ``claude auth login`` with CLAUDE_CONFIG_DIR and BROWSER set.
 
     The whole body runs inside ``terminal.cooked()`` so the claude subprocess
@@ -526,7 +529,7 @@ def _save_token(ws: "Workspace", profile_name: str, token: str) -> bool:
 
 
 def _auth_paste_token(ws: "Workspace", config_dir: str, profile_name: str,
-                      theme, terminal) -> str:
+                      theme: ThemeColors, terminal: Terminal) -> str:
     """Prompt the user to paste a token directly, validate it, save it.
 
     Skips the browser selection and PTY capture entirely -- the user pastes
@@ -586,7 +589,7 @@ def _auth_paste_token(ws: "Workspace", config_dir: str, profile_name: str,
 
 def _auth_long_lived_token(ws: "Workspace", locator: "BinaryLocator", config_dir: str,
                            profile_name: str, browser: str,
-                           theme, terminal) -> str:
+                           theme: ThemeColors, terminal: Terminal) -> str:
     """Run ``claude setup-token``, scrape the token, validate it, save it.
 
     Every token (scraped or manually recovered) is probed against the API

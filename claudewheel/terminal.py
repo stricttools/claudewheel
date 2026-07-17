@@ -11,6 +11,8 @@ import shutil
 import struct
 import termios
 import tty
+from collections.abc import Iterator
+from typing import Any
 
 from .constants import (ALT_SCREEN_ON, ALT_SCREEN_OFF, HIDE_CURSOR, SHOW_CURSOR, CLEAR_SCREEN)
 
@@ -24,11 +26,11 @@ _TERMINAL_QUERY_TIMEOUT = 0.5
 class Terminal:
     """Low-level terminal I/O: raw mode, key reading, alt screen, and size detection."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Open /dev/tty directly so we work even when stdin is piped
         self._tty_file = open("/dev/tty", "r+b", buffering=0)
         self.fd = self._tty_file.fileno()
-        self.old_attrs = None
+        self.old_attrs: list[Any] | None = None
         self.rows = 24
         self.cols = 80
         self._in_raw = False
@@ -75,7 +77,7 @@ class Terminal:
             self._in_raw = False
 
     @contextlib.contextmanager
-    def cooked(self):
+    def cooked(self) -> Iterator[Terminal]:
         """Temporarily leave raw mode for the duration of the with-block.
 
         If the terminal is currently raw, exits raw mode on entry and
@@ -423,7 +425,7 @@ def _classify_rgb(rgb_str: str) -> str | None:
     def linearize(c: float) -> float:
         if c <= 0.04045:
             return c / 12.92
-        return ((c + 0.055) / 1.055) ** 2.4
+        return float(((c + 0.055) / 1.055) ** 2.4)
 
     r_lin = linearize(r)
     g_lin = linearize(g)

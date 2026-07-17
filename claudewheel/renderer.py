@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from typing import Any
+
 from .constants import (CLEAR_SCREEN, RESET, BOLD, DIM, move_to)
 from .fuzzy import fuzzy_match_positions
 from .segment import Segment, SegmentBar
@@ -31,7 +34,7 @@ class Renderer:
         # Tracks where each segment's value is drawn, for fan-out alignment
         self._segment_positions: dict[str, tuple[int, int]] = {}
 
-    def render(self, bar: SegmentBar, flash: str = "", *, show_provenance: bool = False, hints: list[str] = ()) -> None:
+    def render(self, bar: SegmentBar, flash: str = "", *, show_provenance: bool = False, hints: Sequence[str] = ()) -> None:
         self._show_provenance = show_provenance
         buf: list[str] = [CLEAR_SCREEN]
         center_row = self.term.rows // 2
@@ -46,7 +49,7 @@ class Renderer:
         self.term.write("".join(buf))
         self.term.flush()
 
-    def _hint_line_count(self, hints: list[str]) -> int:
+    def _hint_line_count(self, hints: Sequence[str]) -> int:
         """Return 1 or 2 depending on whether hints wrap to a second line."""
         if not hints:
             return 1
@@ -62,7 +65,7 @@ class Renderer:
 
     def _compute_bar_layout(
         self, bar: SegmentBar
-    ) -> tuple[list[dict], int]:
+    ) -> tuple[list[dict[str, Any]], int]:
         """Compute column positions and widths for each segment without rendering.
 
         Returns (layout, total_width) where layout is a list of dicts with keys:
@@ -72,7 +75,7 @@ class Renderer:
         th = self.theme
         col = 2  # 1-indexed, with left margin
         sep = th.separator_char
-        layout: list[dict] = []
+        layout: list[dict[str, Any]] = []
 
         for i, seg in enumerate(bar.segments):
             is_focused = i == bar.focus_idx
@@ -117,7 +120,7 @@ class Renderer:
 
         return layout, col
 
-    def _compute_viewport(self, layout: list[dict], total_width: int) -> int:
+    def _compute_viewport(self, layout: list[dict[str, Any]], total_width: int) -> int:
         """Compute horizontal viewport start offset for narrow terminals.
 
         When the bar fits in the terminal, returns 0. Otherwise, centers the
@@ -145,7 +148,7 @@ class Renderer:
         seg_center = focused["col"] + (focused["label_width"] + focused["value_width"]) // 2
         vp_start = seg_center - usable // 2
         vp_start = max(0, min(vp_start, total_width - usable))
-        return vp_start
+        return int(vp_start)
 
     def _render_center_line(
         self, buf: list[str], bar: SegmentBar, center_row: int
@@ -560,7 +563,7 @@ class Renderer:
             buf.append(self.theme.overflow_minimap_char)
             buf.append(RESET)
 
-    def _render_status(self, buf: list[str], bar: SegmentBar, flash: str = "", hints: list[str] = ()) -> None:
+    def _render_status(self, buf: list[str], bar: SegmentBar, flash: str = "", hints: Sequence[str] = ()) -> None:
         if flash:
             buf.append(move_to(self.term.rows, 2))
             # Show flash message prominently (bold + empty_value_fg for visibility)
@@ -600,7 +603,7 @@ class Renderer:
             buf.append(RESET)
 
     @staticmethod
-    def _split_hints(hints: list[str], max_width: int) -> tuple[str, str]:
+    def _split_hints(hints: Sequence[str], max_width: int) -> tuple[str, str]:
         """Split hints into two lines, filling the first line greedily."""
         sep = "   "
         line1_parts: list[str] = []

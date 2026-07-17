@@ -8,7 +8,8 @@ import sys
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from types import FrameType
+from typing import TYPE_CHECKING, Any
 
 from .config import AppConfigStore, resolve_theme_name
 
@@ -50,7 +51,7 @@ class Binding:
     keys: frozenset[str] | None  # None = match-any-printable
     label: str | None  # None = hidden from hints
     condition: Callable[[KeyContext], bool] | None  # None = unconditional
-    handler: Callable  # (app, key) -> str | None
+    handler: Callable[..., str | None]  # (app, key) -> str | None
     priority: int  # hint ordering (lower = shown first)
     mode: str | None  # "main" / "creating" / "freeform" / "install" / None (cross-mode)
 
@@ -64,7 +65,7 @@ class App:
                  overrides: dict[str, str] | None = None,
                  explicit_client: str | None = None,
                  default_client: str = "claude",
-                 clients_config: dict | None = None):
+                 clients_config: dict[str, Any] | None = None):
         self.workspace = workspace
         # Client-selection step inputs. explicit_client is the --client flag
         # value when the user passed it (else None -> the TUI prompts);
@@ -94,7 +95,7 @@ class App:
                         seg.select_value(val)
         # Start slow discovery in background thread
         self._slow_results: dict[str, DiscoveryResult] | None = None
-        self._slow_state_copy: dict | None = None  # isolated copy for bg thread
+        self._slow_state_copy: dict[str, Any] | None = None  # isolated copy for bg thread
         # Deferred discovery results for the focused segment (Phase 8)
         self._pending_discovery: dict[str, DiscoveryResult] = {}
         self._slow_thread = threading.Thread(
@@ -126,13 +127,13 @@ class App:
         if self._mode2031_supported:
             self.terminal.subscribe_mode2031()
 
-        def on_resize(signum, frame):
+        def on_resize(signum: int, frame: FrameType | None) -> None:
             self.terminal.rows, self.terminal.cols = self.terminal.get_size()
             self.renderer.render(self.bar, hints=self._compute_hints())
 
         signal.signal(signal.SIGWINCH, on_resize)
 
-        def on_term(signum, frame):
+        def on_term(signum: int, frame: FrameType | None) -> None:
             self.terminal.exit_raw()
             sys.exit(1)
 
@@ -166,6 +167,7 @@ class App:
                 self._flash = ""  # Clear flash after one render cycle
         finally:
             self.terminal.exit_raw()
+        return None
 
     def _select_client(self) -> bool:
         """Run the Client selection step and drop claude-only segments.
@@ -322,7 +324,7 @@ class App:
             and b.label is not None
         ]
         filtered.sort(key=lambda b: b.priority)
-        return [b.label for b in filtered]
+        return [b.label for b in filtered if b.label is not None]
 
     # ------------------------------------------------------------------
     # Registry-based dispatch
@@ -484,7 +486,10 @@ class App:
 
     def _h_main_freeform_seed(self, key: str) -> str | None:
         focused = self.bar.focused
-        focused.search_buffer = focused.value + key
+        # The binding condition guarantees focused.value is not None here.
+        value = focused.value
+        assert value is not None
+        focused.search_buffer = value + key
         focused._freeform_editing = True
         return None
 
@@ -946,6 +951,8 @@ class App:
         from .wizard import run_auth_flow
 
         profile_name = seg.value
+        # Callers only invoke this for a selected profile, so value is non-None.
+        assert profile_name is not None
         # config_dir is derived from the profile name via the ProfileStore's
         # single path_for convention, never from persisted metadata (which no
         # longer carries it).
@@ -973,10 +980,13 @@ class App:
         from .tokens import TokenStoreError
         from .ui import show_page
 
+        # The inspect binding guarantees a selected profile, so value is non-None.
+        name = seg.value
+        assert name is not None
         # A corrupt tokens.json surfaces as TokenStoreError from gather_profile_info.
         # Catch it narrowly and surface a clean flash instead of crashing the TUI.
         try:
-            report = gather_profile_info(self.workspace, seg.value)
+            report = gather_profile_info(self.workspace, name)
         except TokenStoreError as e:
             self._flash = f"Cannot inspect: {e}"
             return
@@ -984,10 +994,10 @@ class App:
             hint = "f: fix auth shadow   any key: close"
         else:
             hint = "any key: close"
-        key = show_page(f"Profile: {seg.value}", format_report(report),
+        key = show_page(f"Profile: {name}", format_report(report),
                         self.theme, self.terminal, hint=hint)
         if key == "f" and report.has_auth_shadow:
-            result = fix_auth_shadow(self.workspace, seg.value)
+            result = fix_auth_shadow(self.workspace, name)
             if result.ok:
                 self._flash = "Auth shadow fixed"
             else:
@@ -1006,7 +1016,9 @@ class App:
         from .profile_info import _format_size, gather_profile_info
         from .ui import run_selection, show_page
 
+        # The delete path only runs for a selected profile, so value is non-None.
         name = seg.value
+        assert name is not None
         report = gather_profile_info(self.workspace, name)
 
         if report.danger:

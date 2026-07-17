@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import os
 import sys
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 import strictcli
 from strictcli import App, Arg, CoRequired, Flag, FlagSet, MutexGroup
@@ -12,11 +14,16 @@ from . import __version__
 from .clients import CLIENT_NAMES, DEFAULT_CLIENT, resolve_default_client
 from .segment import version_sort_key
 
+if TYPE_CHECKING:
+    from .binaries import BinaryLocator
+    from .config import AppConfigStore
+    from .workspace import Workspace
+
 # Passthrough args after "--" are stashed here by main() before strictcli sees argv.
 _passthrough: list[str] = []
 
 
-def _do_uninstall(locator, version: str) -> int:
+def _do_uninstall(locator: "BinaryLocator", version: str) -> int:
     """Delete an installed Claude Code version binary.
 
     Refuses to delete the version the `claude` symlink currently points to,
@@ -48,7 +55,7 @@ def _do_uninstall(locator, version: str) -> int:
     return 0
 
 
-def _do_reset_options(ws) -> int:
+def _do_reset_options(ws: "Workspace") -> int:
     """Delete options.json so it regenerates from defaults on next run.
 
     Does NOT instantiate AppConfigStore -- the next normal run will recreate
@@ -67,7 +74,7 @@ def _do_reset_options(ws) -> int:
     return 0
 
 
-def _do_show(cfg: object) -> int:
+def _do_show(cfg: "AppConfigStore") -> int:
     """Print a git-status-like summary of last_config, segments, theme, and recent dirs."""
     enabled = cfg.config.get("enabled_segments", [])
     last_config = cfg.state.get("last_config", {})
@@ -102,7 +109,7 @@ def _do_show(cfg: object) -> int:
     return 0
 
 
-def _write_tier_stub(ws, profile: str | None, config_dir: str | None) -> None:
+def _write_tier_stub(ws: "Workspace", profile: str | None, config_dir: str | None) -> None:
     """Write a rateLimitTier stub into .credentials.json if tokens.json has tier data.
 
     This lets downstream tools (e.g. howmuchleft) read the tier from
@@ -153,9 +160,10 @@ def _write_tier_stub(ws, profile: str | None, config_dir: str | None) -> None:
 
 
 def _do_launch_sequence(
-    ws, locator, cfg: object, selections: dict, extra_flags: list[str] | None = None,
+    ws: "Workspace", locator: "BinaryLocator", cfg: "AppConfigStore",
+    selections: dict[str, str | None], extra_flags: list[str] | None = None,
     interactive: bool = True,
-    metadata: dict[str, dict[str, dict]] | None = None,
+    metadata: dict[str, dict[str, dict[str, Any]]] | None = None,
     client: str = DEFAULT_CLIENT,
     passthrough: list[str] | None = None,
 ) -> None:
@@ -186,7 +194,7 @@ def _do_launch_sequence(
     # Save state only after hooks succeed, so launch_count isn't inflated by aborts
     if interactive:
         save_launch_state(cfg, selections)
-        record_inode(ws.shared, selections.get("directory", os.getcwd()))
+        record_inode(ws.shared, selections.get("directory") or os.getcwd())
     # The workspace ProfileStore supplies both config dir and token via env(). A
     # stale/unknown profile name raises ValueError (the hard-error contract); a
     # corrupt tokens.json raises TokenStoreError. Both are caught here so the
@@ -219,7 +227,7 @@ def _do_launch_sequence(
 # command.  Handlers that need an AppConfigStore instantiate it lazily (only
 # the ones that actually need it), keeping the one-shot commands fast.
 
-def _handle_health(ws) -> int:
+def _handle_health(ws: "Workspace") -> int:
     from .health import run_health_check, print_health_report
     results = run_health_check(ws)
     print_health_report(results)
@@ -228,13 +236,13 @@ def _handle_health(ws) -> int:
     return 0
 
 
-def _handle_config(ws) -> int:
+def _handle_config(ws: "Workspace") -> int:
     editor = os.environ.get("EDITOR", os.environ.get("VISUAL", "vi"))
     os.execlp(editor, editor, str(ws.root))
     return 0
 
 
-def _handle_versions(locator) -> int:
+def _handle_versions(locator: "BinaryLocator") -> int:
     versions = locator.installed_versions()
 
     # Determine which version the symlink points to
@@ -250,7 +258,7 @@ def _handle_versions(locator) -> int:
     return 0
 
 
-def _handle_install(locator, version: str) -> int:
+def _handle_install(locator: "BinaryLocator", version: str) -> int:
     from .install import install_version
 
     def on_progress(downloaded: int, total: int) -> None:
@@ -270,21 +278,21 @@ def _handle_install(locator, version: str) -> int:
     return 0
 
 
-def _handle_uninstall(locator, version: str) -> int:
+def _handle_uninstall(locator: "BinaryLocator", version: str) -> int:
     rc = _do_uninstall(locator, version)
     if rc != 0:
         sys.exit(rc)
     return 0
 
 
-def _handle_reset_options(ws) -> int:
+def _handle_reset_options(ws: "Workspace") -> int:
     rc = _do_reset_options(ws)
     if rc != 0:
         sys.exit(rc)
     return 0
 
 
-def _handle_new_profile(ws, locator) -> int:
+def _handle_new_profile(ws: "Workspace", locator: "BinaryLocator") -> int:
     """Run the create-profile flow as one continuous alt-screen session.
 
     Mirrors the TUI path: wizard form, auth forms, and summary page all
@@ -342,7 +350,7 @@ def _handle_new_profile(ws, locator) -> int:
 
 @strictcli.flag("force-delete", type=bool, help="force deletion even if sessions appear active; skips the safety check")
 @strictcli.flag("force-delete-data", type=bool, help="delete even when shared-dir names hold REAL data instead of symlinks; this DESTROYS that data (e.g. conversation history)")
-def _handle_delete_profile(ws, name: str, force_delete: bool, force_delete_data: bool) -> int:
+def _handle_delete_profile(ws: "Workspace", name: str, force_delete: bool, force_delete_data: bool) -> int:
     """Delete a profile via ProfileStore. The running check is CLI policy."""
     from .profile_ops import _is_profile_running
 
@@ -380,7 +388,7 @@ def _handle_delete_profile(ws, name: str, force_delete: bool, force_delete_data:
     return 0
 
 
-def _handle_show_profile(ws, name: str) -> int:
+def _handle_show_profile(ws: "Workspace", name: str) -> int:
     from .profile_info import format_report, gather_profile_info
     from .tokens import TokenStoreError
 
@@ -404,7 +412,7 @@ def _handle_show_profile(ws, name: str) -> int:
     return 0
 
 
-def _handle_rename_profile(ws, old: str, new: str) -> int:
+def _handle_rename_profile(ws: "Workspace", old: str, new: str) -> int:
     """Rename a profile: validate inputs, then delegate to ProfileStore.rename.
 
     The charset, name-collision (options + tokens), and running checks stay
@@ -473,7 +481,7 @@ def _handle_rename_profile(ws, old: str, new: str) -> int:
     return 0
 
 
-def _handle_check_tokens(ws) -> int:
+def _handle_check_tokens(ws: "Workspace") -> int:
     """Validate stored tokens for all discovered profiles against the Anthropic API."""
     from .tokens import TokenStoreError, parse_entry
     from .auth import validate_token, VALID, INVALID, UNREACHABLE, INDETERMINATE
@@ -523,7 +531,7 @@ def _handle_check_tokens(ws) -> int:
     return 1 if any_bad else 0
 
 
-def _handle_fix_auth(ws, name: str) -> int:
+def _handle_fix_auth(ws: "Workspace", name: str) -> int:
     """Remove session credentials that shadow a long-lived token."""
     from .profile_ops import fix_auth_shadow
 
@@ -547,7 +555,7 @@ def _handle_fix_auth(ws, name: str) -> int:
     return 0
 
 
-def _handle_show(ws) -> int:
+def _handle_show(ws: "Workspace") -> int:
     cfg = ws.appconfig()
     rc = _do_show(cfg)
     if rc != 0:
@@ -555,7 +563,7 @@ def _handle_show(ws) -> int:
     return 0
 
 
-def _handle_migrate(ws, src: str, dst: str, uuid: str) -> int:
+def _handle_migrate(ws: "Workspace", src: str, dst: str, uuid: str) -> int:
     from .migrate import migrate_sessions
     uuid_filter = uuid if uuid else None
     try:
@@ -567,7 +575,7 @@ def _handle_migrate(ws, src: str, dst: str, uuid: str) -> int:
 
 
 @strictcli.flag("dry-run", type=bool, default=False, help="preview cleanup changes without writing anything to disk")
-def _handle_stats(ws, dry_run: bool) -> int:
+def _handle_stats(ws: "Workspace", dry_run: bool) -> int:
     from .stats import run_stats
     run_stats(ws.shared, dry_run=dry_run)
     return 0
@@ -575,7 +583,7 @@ def _handle_stats(ws, dry_run: bool) -> int:
 
 @strictcli.flag("dry-run", type=bool, default=False, help="preview the rename and session migration without writing anything to disk")
 @strictcli.flag("post-hoc", type=bool, default=False, help="skip filesystem rename, migrate sessions only (directory already renamed)")
-def _handle_mv(ws, old: str, new: str, dry_run: bool, post_hoc: bool) -> int:
+def _handle_mv(ws: "Workspace", old: str, new: str, dry_run: bool, post_hoc: bool) -> int:
     from .mv import run_mv
     try:
         run_mv(ws, old, new, dry_run=dry_run, post_hoc=post_hoc)
@@ -587,7 +595,7 @@ def _handle_mv(ws, old: str, new: str, dry_run: bool, post_hoc: bool) -> int:
 
 @strictcli.flag("dry-run", type=bool, default=False, help="preview the import operation without writing any session data to disk")
 @strictcli.flag("reid", type=bool, default=False, help="assign new UUIDs to sessions that collide with existing local sessions")
-def _handle_import(ws, source: str, from_: list[str], to: list[str], dry_run: bool, reid: bool) -> int:
+def _handle_import(ws: "Workspace", source: str, from_: list[str], to: list[str], dry_run: bool, reid: bool) -> int:
     from pathlib import Path
     from .import_ import run_import
 
@@ -624,7 +632,7 @@ def _handle_import(ws, source: str, from_: list[str], to: list[str], dry_run: bo
 
 @strictcli.flag("all", type=bool, default=False, help="deploy every known hook script from the built-in registry at once")
 @strictcli.flag("force-overwrite", type=bool, default=False, help="overwrite existing hook scripts on disk instead of skipping them")
-def _handle_deploy_hooks(ws, name: str, all: bool, force_overwrite: bool) -> int:
+def _handle_deploy_hooks(ws: "Workspace", name: str, all: bool, force_overwrite: bool) -> int:
     from .hook_scripts import HOOK_SCRIPTS, deploy_scripts
 
     if not name and not all:
@@ -653,7 +661,7 @@ def _handle_deploy_hooks(ws, name: str, all: bool, force_overwrite: bool) -> int
 
 @strictcli.flag("dry-run", type=bool, default=False,
                 help="preview the changes without writing anything to disk")
-def _handle_patch_profiles(ws, dry_run: bool) -> int:
+def _handle_patch_profiles(ws: "Workspace", dry_run: bool) -> int:
     from .patch_profiles import run_patch_profiles
     return run_patch_profiles(ws, dry_run=dry_run)
 
@@ -664,7 +672,7 @@ def _handle_patch_profiles(ws, dry_run: bool) -> int:
                 help="perform the reconciliation, writing each target atomically (mutually exclusive with --dry-run; you MUST pass exactly one of --dry-run or --apply)")
 @strictcli.flag("profile", type=str, default="",
                 help="reconcile only this single profile; when given, shared-settings.json profileDefaults is left untouched (omit to reconcile every profile AND shared-settings profileDefaults)")
-def _handle_reconcile_permissions(ws, dry_run: bool, apply: bool, profile: str) -> int:
+def _handle_reconcile_permissions(ws: "Workspace", dry_run: bool, apply: bool, profile: str) -> int:
     from .reconcile import run_reconcile
 
     if dry_run == apply:
@@ -680,7 +688,7 @@ def _handle_reconcile_permissions(ws, dry_run: bool, apply: bool, profile: str) 
     return run_reconcile(ws, dry_run=dry_run, profile=profile or None)
 
 
-def _handle_permission_add(ws, category: str, rule: str,
+def _handle_permission_add(ws: "Workspace", category: str, rule: str,
                            profile: str, all_profiles: bool) -> int:
     from .permission import validate_rule, resolve_profiles, load_settings, add_rule, save_settings
 
@@ -708,7 +716,7 @@ def _handle_permission_add(ws, category: str, rule: str,
     return 0
 
 
-def _handle_permission_remove(ws, category: str, rule: str,
+def _handle_permission_remove(ws: "Workspace", category: str, rule: str,
                               profile: str, all_profiles: bool) -> int:
     from .permission import resolve_profiles, load_settings, remove_rule, save_settings
 
@@ -738,7 +746,7 @@ def _handle_permission_remove(ws, category: str, rule: str,
                 choices=["grouped", "flat", "json"])
 @strictcli.flag("category", type=str, help="restrict output to a single permission category (allow, deny, or ask)",
                 default="")
-def _handle_permission_list(ws, profile: str, all_profiles: bool,
+def _handle_permission_list(ws: "Workspace", profile: str, all_profiles: bool,
                             format: str, category: str) -> int:
     import json as json_mod
     from .permission import resolve_profiles, load_settings
@@ -784,7 +792,7 @@ def _handle_permission_list(ws, profile: str, all_profiles: bool,
     return 0
 
 
-def _check_resume_session(ws, session_id: str, directory: str) -> None:
+def _check_resume_session(ws: "Workspace", session_id: str, directory: str) -> None:
     """Intercept --resume to detect and offer to fix directory renames.
 
     When a session exists under an old encoded path (because the project
@@ -883,7 +891,7 @@ def _check_resume_session(ws, session_id: str, directory: str) -> None:
     print("Done. Resuming session...")
 
 
-def _check_cont_session(ws, directory: str) -> None:
+def _check_cont_session(ws: "Workspace", directory: str) -> None:
     """Intercept --cont to detect and offer to fix directory renames.
 
     When the current directory has no sessions but an orphaned project
@@ -987,13 +995,13 @@ def _check_cont_session(ws, directory: str) -> None:
 # key -> predicate over the override value: True means the value is claude-only.
 # version: any value (it names a claudewheel-managed claude binary).
 # mcp: only "strict" (it maps to claude's --strict-mcp-config; "default" is a no-op).
-_CLAUDE_ONLY_OVERRIDES: dict[str, callable] = {
+_CLAUDE_ONLY_OVERRIDES: dict[str, Callable[[str], bool]] = {
     "version": lambda v: True,
     "mcp": lambda v: v == "strict",
 }
 
 
-def _reject_claude_only_overrides(client_val: str, segment_overrides: dict) -> None:
+def _reject_claude_only_overrides(client_val: str, segment_overrides: dict[str, Any]) -> None:
     """Hard-error on explicit claude-only overrides combined with a non-claude client.
 
     ``version`` and ``mcp=strict`` are claude-client-only inputs. An *ambient*
@@ -1018,7 +1026,7 @@ def _reject_claude_only_overrides(client_val: str, segment_overrides: dict) -> N
 
 
 def _handle_launch(
-    ws, locator,
+    ws: "Workspace", locator: "BinaryLocator",
     # Session flags (via tag); mutually exclusive, all optional
     cont: bool, resume: str, print_prompt: str, picker: bool,
     # Segment flags (via tag); empty string means "not provided"
@@ -1198,7 +1206,7 @@ def _handle_launch(
         _reject_claude_only_overrides(client_val, segment_overrides)
 
         # Extract per-segment metadata from the bar for resolve_launch_config
-        bar_metadata: dict[str, dict[str, dict]] = {}
+        bar_metadata: dict[str, dict[str, dict[str, Any]]] = {}
         for seg in app.bar.segments:
             if seg.state.metadata:
                 bar_metadata[seg.key] = seg.state.metadata
@@ -1249,7 +1257,7 @@ def _inject_launch(argv: list[str]) -> list[str]:
     return list(argv)
 
 
-def _bind(handler, *pre):
+def _bind(handler: Callable[..., int], *pre: Any) -> Callable[..., int]:
     """Pre-bind leading positional dependencies (workspace/locator) to a handler.
 
     strictcli dispatches handlers with keyword arguments (`handler(**parsed)`)
@@ -1267,14 +1275,15 @@ def _bind(handler, *pre):
     signature, re-triggering strict validation. Copying only the two strictcli
     attributes keeps the wrapper's signature a clean ``(**kwargs)``.
     """
-    def wrapper(**kwargs):
+    def wrapper(**kwargs: Any) -> int:
         return handler(*pre, **kwargs)
-    wrapper._strictcli_flags = getattr(handler, "_strictcli_flags", [])
-    wrapper._strictcli_args = getattr(handler, "_strictcli_args", [])
+    # strictcli reads these attributes off the callable to build the schema.
+    setattr(wrapper, "_strictcli_flags", getattr(handler, "_strictcli_flags", []))
+    setattr(wrapper, "_strictcli_args", getattr(handler, "_strictcli_args", []))
     return wrapper
 
 
-def _build_app(ws, locator) -> App:
+def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
     """Build the strictcli App with all subcommands registered."""
     app = App(name="c", version=__version__, help="claudewheel - TUI launcher for Claude Code with profile, model, and directory selection")
 

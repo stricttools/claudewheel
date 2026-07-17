@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import contextlib
 import signal
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
-from typing import Callable
+from types import FrameType
+from typing import Any
 
 from .constants import (
     BOLD, CLEAR_LINE, CLEAR_SCREEN, RESET,
@@ -21,7 +23,7 @@ def _erase_inline(term: Terminal, line_count: int) -> None:
 
 
 def run_selection(title: str, options: list[tuple[str, str]],
-                  theme: ThemeColors, terminal,
+                  theme: ThemeColors, terminal: Terminal,
                   use_alt_screen: bool = True,
                   initial_key: str | None = None) -> str | None:
     """Run a vertical selection list and return the chosen option's key.
@@ -41,7 +43,10 @@ def run_selection(title: str, options: list[tuple[str, str]],
     field = FormField("choice", "select", value=value, options=list(options))
     result = run_form(title, [field], theme, terminal,
                       use_alt_screen=use_alt_screen)
-    return result["choice"] if result is not None else None
+    if result is None:
+        return None
+    choice = result["choice"]
+    return choice if isinstance(choice, str) else None
 
 
 # ---------------------------------------------------------------------------
@@ -77,7 +82,7 @@ class FormField:
     field_type: str  # "text" | "radio" | "checkbox" | "readonly" | "button" | "select"
     label: str = ""
     value: str | bool | None = None
-    options: list | None = None
+    options: list[Any] | None = None
     visible: Callable[[list["FormField"]], bool] | None = None
     on_change: Callable[[list["FormField"]], None] | None = None
 
@@ -178,7 +183,7 @@ def _field_lines(f: FormField, focused: bool, th: ThemeColors) -> list[str]:
     return [f"{label_style}{f.label}{RESET}"]
 
 
-def _render_form_alt(term, th: ThemeColors, title: str,
+def _render_form_alt(term: Terminal, th: ThemeColors, title: str,
                      fields: list[FormField], focus: int, error: str) -> None:
     """Render the form centered on a full screen (absolute positioning)."""
     rows, cols = term.get_size()
@@ -222,7 +227,7 @@ def _render_form_alt(term, th: ThemeColors, title: str,
     term.write("".join(buf))
 
 
-def _render_form_inline(term, th: ThemeColors, title: str,
+def _render_form_inline(term: Terminal, th: ThemeColors, title: str,
                         fields: list[FormField], focus: int, error: str,
                         prev_lines: int) -> int:
     """Render the form in place at the cursor position (no alt screen).
@@ -252,7 +257,7 @@ def _render_form_inline(term, th: ThemeColors, title: str,
 
 
 @contextlib.contextmanager
-def _form_session(terminal, use_alt_screen: bool, render):
+def _form_session(terminal: Terminal, use_alt_screen: bool, render: Callable[[], None]) -> Iterator[None]:
     """Signal swap and raw-mode ownership around a form or page.
 
     Borrowed mode (terminal already raw): render only -- never enter or exit
@@ -266,13 +271,13 @@ def _form_session(terminal, use_alt_screen: bool, render):
     raising SystemExit; in borrowed mode it raises SystemExit directly
     (the outer owner is responsible for terminal cleanup).
     """
-    def on_resize(signum, frame):
+    def on_resize(signum: int, frame: FrameType | None) -> None:
         terminal.rows, terminal.cols = terminal.get_size()
         render()
 
     borrowed = bool(getattr(terminal, "_in_raw", False))
 
-    def on_term(signum, frame):
+    def on_term(signum: int, frame: FrameType | None) -> None:
         if not borrowed:
             terminal.exit_raw()
         raise SystemExit(1)
@@ -293,7 +298,7 @@ def _form_session(terminal, use_alt_screen: bool, render):
 
 
 def run_form(title: str, fields: list[FormField], theme: ThemeColors,
-             terminal, *, use_alt_screen: bool = True,
+             terminal: Terminal, *, use_alt_screen: bool = True,
              validate: Callable[[list[FormField]], str | None] | None = None,
              ) -> dict[str, object] | None:
     """Run a form's key loop and return ``{key: value}`` or None on cancel.
@@ -393,7 +398,8 @@ def run_form(title: str, fields: list[FormField], theme: ThemeColors,
                         f.on_change(fields)
                 elif f.field_type == "text" and len(key) == 1 \
                         and key.isprintable():
-                    f.value = (f.value or "") + key
+                    current = f.value if isinstance(f.value, str) else ""
+                    f.value = current + key
                     error = ""
                     if f.on_change:
                         f.on_change(fields)
@@ -404,7 +410,7 @@ def run_form(title: str, fields: list[FormField], theme: ThemeColors,
                 _erase_inline(terminal, drawn_lines)
 
 
-def show_page(title: str, lines: list[str], theme: ThemeColors, terminal, *,
+def show_page(title: str, lines: list[str], theme: ThemeColors, terminal: Terminal, *,
               hint: str = "press any key to continue") -> str:
     """Render a fullscreen page of text and wait for a single keypress.
 
