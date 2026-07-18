@@ -1,6 +1,6 @@
 ---
 title: c CLI Reference
-description: "Complete claudewheel CLI reference: launch the TUI, manage profiles and permissions, run health checks, install Claude Code versions, inspect sessions."
+description: "Complete claudewheel CLI reference: launch the TUI, manage profiles and permissions, run health checks, install Claude Code versions, inspect sessions, move project directories with full session migration."
 generated: true
 nav_group: "CLI Reference"
 nav_order: 0
