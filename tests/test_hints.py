@@ -38,8 +38,6 @@ def _make_app(
     segments = [seg] + (extra_segments or [])
     app.bar = SegmentBar(segments=segments, focus_idx=focus_idx)
     app._flash = ""
-    app._pending_install = None
-    app._pending_install_seg = None
     app._show_provenance = False
     app._pending_discovery = {}
     app._bindings = app._build_bindings()
@@ -67,7 +65,9 @@ class HintParityCreatingTests(unittest.TestCase):
 
     def test_creating_mode_hints(self) -> None:
         """In creating mode, hints include enter/esc/bksp."""
-        seg = Segment(key="model", label="Model", options=["opus"], creatable=True)
+        seg = Segment(
+            key="model", label="Model", _init_options=["opus"], creatable=True
+        )
         seg.creating = True
         seg.create_buffer = ""
         app = _make_app(seg)
@@ -83,7 +83,9 @@ class HintParityOnPlusTests(unittest.TestCase):
 
     def test_on_plus_hints(self) -> None:
         """When focused on '+', hints include enter/arrows/quit."""
-        seg = Segment(key="model", label="Model", options=["opus"], creatable=True)
+        seg = Segment(
+            key="model", label="Model", _init_options=["opus"], creatable=True
+        )
         seg.select_value("+")
         app = _make_app(seg)
         hints = app._compute_hints()
@@ -118,7 +120,10 @@ class HintParitySearchActiveTests(unittest.TestCase):
     def test_searchable_with_buffer_hints(self) -> None:
         """During active search, hints include clear/launch/navigate/next."""
         seg = Segment(
-            key="model", label="Model", options=["opus", "sonnet"], searchable=True
+            key="model",
+            label="Model",
+            _init_options=["opus", "sonnet"],
+            searchable=True,
         )
         seg.search_buffer = "op"
         app = _make_app(seg)
@@ -133,7 +138,10 @@ class HintParitySearchActiveTests(unittest.TestCase):
     def test_searchable_idle_hints(self) -> None:
         """Idle searchable segment shows sources hint and no quit."""
         seg = Segment(
-            key="model", label="Model", options=["opus", "sonnet"], searchable=True
+            key="model",
+            label="Model",
+            _init_options=["opus", "sonnet"],
+            searchable=True,
         )
         app = _make_app(seg)
         hints = app._compute_hints()
@@ -149,7 +157,7 @@ class HintParityDefaultTests(unittest.TestCase):
 
     def test_default_mode_hints(self) -> None:
         """Non-searchable segment shows navigate/launch/sources/quit."""
-        seg = Segment(key="mcp", label="MCP", options=["off", "on"])
+        seg = Segment(key="mcp", label="MCP", _init_options=["off", "on"])
         seg.select_value("off")
         app = _make_app(seg)
         hints = app._compute_hints()
@@ -174,7 +182,7 @@ class HintWrappingTests(unittest.TestCase):
         # These hints total well over 36 chars (40-4)
         hints = ["arrows: navigate", "enter: launch", "?: sources", "q: quit"]
         bar = SegmentBar(
-            segments=[Segment(key="x", label="X", options=["a"])],
+            segments=[Segment(key="x", label="X", _init_options=["a"])],
             focus_idx=0,
         )
         buf: list[str] = []
@@ -189,7 +197,7 @@ class HintWrappingTests(unittest.TestCase):
         renderer = _make_renderer(cols=120, rows=24)
         hints = ["enter: launch", "q: quit"]
         bar = SegmentBar(
-            segments=[Segment(key="x", label="X", options=["a"])],
+            segments=[Segment(key="x", label="X", _init_options=["a"])],
             focus_idx=0,
         )
         buf: list[str] = []
@@ -231,7 +239,7 @@ class FanOutBoundTests(unittest.TestCase):
         renderer = _make_renderer(cols=80, rows=rows)
         # Need enough options to fill from center to bottom of screen
         many_options = [f"opt{i:02d}" for i in range(30)]
-        seg = Segment(key="model", label="Model", options=many_options)
+        seg = Segment(key="model", label="Model", _init_options=many_options)
         seg.select_value("opt00")
         bar = SegmentBar(segments=[seg], focus_idx=0)
         # Pre-compute layout so _render_fan_out has segment positions
@@ -281,7 +289,7 @@ class FlashOverrideTests(unittest.TestCase):
         renderer = _make_renderer(cols=120, rows=24)
         hints = ["arrows: navigate", "enter: launch", "q: quit"]
         bar = SegmentBar(
-            segments=[Segment(key="x", label="X", options=["a"])],
+            segments=[Segment(key="x", label="X", _init_options=["a"])],
             focus_idx=0,
         )
         buf: list[str] = []
@@ -312,7 +320,9 @@ class FlashOverrideTests(unittest.TestCase):
         # The render() method computes reserved before rendering status,
         # so flash doesn't affect the fan-out bound. Verify by checking
         # that the same reserved value is used regardless of flash.
-        seg = Segment(key="model", label="Model", options=["a", "b", "c", "d", "e"])
+        seg = Segment(
+            key="model", label="Model", _init_options=["a", "b", "c", "d", "e"]
+        )
         seg.select_value("a")
         bar = SegmentBar(segments=[seg], focus_idx=0)
         # Full render with flash
@@ -351,7 +361,7 @@ class DualRoleHintTests(unittest.TestCase):
         profile_seg.state.add_pinned("default")
         profile_seg.select_value("default")
         model_seg = Segment(
-            key="model", label="Model", options=["opus"], searchable=True
+            key="model", label="Model", _init_options=["opus"], searchable=True
         )
         model_seg.select_value("opus")
         # Focus on model (index 1)
@@ -392,7 +402,7 @@ class PriorityOrderingTests(unittest.TestCase):
 
     def test_main_mode_priority_order(self) -> None:
         """In main mode, low-priority hints come first, high-priority last."""
-        seg = Segment(key="mcp", label="MCP", options=["off", "on"])
+        seg = Segment(key="mcp", label="MCP", _init_options=["off", "on"])
         seg.select_value("off")
         app = _make_app(seg)
         hints = app._compute_hints()
@@ -412,7 +422,9 @@ class PriorityOrderingTests(unittest.TestCase):
 
     def test_creating_mode_all_same_priority(self) -> None:
         """In creating mode, all hints have same priority (stable registration order)."""
-        seg = Segment(key="model", label="Model", options=["opus"], creatable=True)
+        seg = Segment(
+            key="model", label="Model", _init_options=["opus"], creatable=True
+        )
         seg.creating = True
         seg.create_buffer = ""
         app = _make_app(seg)

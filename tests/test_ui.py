@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import signal
 import unittest
+from typing import Any
 from unittest import mock
 
 from claudewheel.constants import ALT_SCREEN_ON, CLEAR_SCREEN
 from claudewheel.defaults import DEFAULT_THEME_DARK
+from claudewheel.terminal import Terminal
 from claudewheel.theme import parse_theme
 from claudewheel.ui import FormField, get_field, run_form, run_selection, show_page
 from claudewheel import ui as ui_mod
@@ -15,10 +17,10 @@ from claudewheel import ui as ui_mod
 THEME = parse_theme(DEFAULT_THEME_DARK)
 
 
-class FakeTerminal:
+class FakeTerminal(Terminal):
     """A mock Terminal that feeds pre-recorded keystrokes and captures output."""
 
-    def __init__(self, keys: list[str], in_raw: bool = False):
+    def __init__(self, keys: list[str], in_raw: bool = False) -> None:
         self._keys = list(keys)
         self._index = 0
         self.rows = 40
@@ -71,12 +73,18 @@ class RunSelectionTestBase(unittest.TestCase):
     def setUp(self) -> None:
         self._signal_patch = mock.patch(
             "claudewheel.ui.signal.signal",
+            autospec=True,
             return_value=signal.SIG_DFL,
         )
         self.signal_mock = self._signal_patch.start()
         self.addCleanup(self._signal_patch.stop)
 
-    def _run(self, keys: list[str], options=None, **kwargs) -> str | None:
+    def _run(
+        self,
+        keys: list[str],
+        options: list[tuple[str, str]] | None = None,
+        **kwargs: Any,
+    ) -> str | None:
         if options is None:
             options = OPTIONS
         self.term = FakeTerminal(keys)
@@ -112,8 +120,10 @@ class CancelTests(RunSelectionTestBase):
 
     def test_keyboard_interrupt_returns_none(self) -> None:
         term = FakeTerminal([])
-        term.read_key = mock.Mock(side_effect=KeyboardInterrupt)
-        self.assertIsNone(run_selection("Pick one", OPTIONS, THEME, term))
+        with mock.patch.object(
+            term, "read_key", side_effect=KeyboardInterrupt, autospec=True
+        ):
+            self.assertIsNone(run_selection("Pick one", OPTIONS, THEME, term))
 
     def test_empty_options_returns_none(self) -> None:
         term = FakeTerminal([])
@@ -285,6 +295,7 @@ class FormRunnerTestBase(unittest.TestCase):
     def setUp(self) -> None:
         self._signal_patch = mock.patch(
             "claudewheel.ui.signal.signal",
+            autospec=True,
             return_value=signal.SIG_DFL,
         )
         self.signal_mock = self._signal_patch.start()
@@ -295,8 +306,8 @@ class FormRunnerTestBase(unittest.TestCase):
         keys: list[str],
         fields: list[FormField] | None = None,
         in_raw: bool = False,
-        **kwargs,
-    ) -> dict | None:
+        **kwargs: Any,
+    ) -> dict[str, object] | None:
         if fields is None:
             fields = _sample_fields()
         self.fields = fields
@@ -312,6 +323,7 @@ class FormSubmitTests(FormRunnerTestBase):
 
     def test_enter_on_text_submits(self) -> None:
         result = self._run(list("abc") + ["ENTER"])
+        assert result is not None
         self.assertEqual(result["name"], "abc")
 
     def test_enter_on_button_submits(self) -> None:
@@ -355,9 +367,11 @@ class FormCancelTests(FormRunnerTestBase):
 
     def test_keyboard_interrupt_returns_none(self) -> None:
         term = FakeTerminal([])
-        term.read_key = mock.Mock(side_effect=KeyboardInterrupt)
         fields = _sample_fields()
-        self.assertIsNone(run_form("Sample", fields, THEME, term))
+        with mock.patch.object(
+            term, "read_key", side_effect=KeyboardInterrupt, autospec=True
+        ):
+            self.assertIsNone(run_form("Sample", fields, THEME, term))
 
 
 class FormTraversalTests(FormRunnerTestBase):
@@ -366,22 +380,26 @@ class FormTraversalTests(FormRunnerTestBase):
     def test_tab_skips_readonly(self) -> None:
         # TAB from Name lands on Mode (radio), where RIGHT cycles the value
         result = self._run(["TAB", "RIGHT", "SHIFT_TAB"] + list("n") + ["ENTER"])
+        assert result is not None
         self.assertEqual(result["mode"], "slow")
 
     def test_down_and_up_traverse(self) -> None:
         # DOWN from Name to Mode, cycle, UP back to Name, type, submit
         result = self._run(["DOWN", "RIGHT", "UP"] + list("x") + ["ENTER"])
+        assert result is not None
         self.assertEqual(result["mode"], "slow")
         self.assertEqual(result["name"], "x")
 
     def test_tab_wraps_forward(self) -> None:
         # 4 TABs: Name -> Mode -> Verbose -> Go -> Name (wrap)
         result = self._run(["TAB", "TAB", "TAB", "TAB"] + list("w") + ["ENTER"])
+        assert result is not None
         self.assertEqual(result["name"], "w")
 
     def test_shift_tab_wraps_backward(self) -> None:
         # SHIFT_TAB from Name wraps to Go (button); ENTER submits
         result = self._run(list("z") + ["SHIFT_TAB", "ENTER"])
+        assert result is not None
         self.assertEqual(result["name"], "z")
 
 
@@ -390,14 +408,17 @@ class FormRadioTests(FormRunnerTestBase):
 
     def test_right_cycles_forward(self) -> None:
         result = self._run(["TAB", "RIGHT", "SHIFT_TAB"] + list("a") + ["ENTER"])
+        assert result is not None
         self.assertEqual(result["mode"], "slow")
 
     def test_left_cycles_backward_with_wrap(self) -> None:
         result = self._run(["TAB", "LEFT", "SHIFT_TAB"] + list("a") + ["ENTER"])
+        assert result is not None
         self.assertEqual(result["mode"], "safe")
 
     def test_space_cycles_forward(self) -> None:
         result = self._run(["TAB", " ", " ", "SHIFT_TAB"] + list("a") + ["ENTER"])
+        assert result is not None
         self.assertEqual(result["mode"], "safe")
 
 
@@ -408,12 +429,14 @@ class FormCheckboxTests(FormRunnerTestBase):
         result = self._run(
             ["TAB", "TAB", " ", "SHIFT_TAB", "SHIFT_TAB"] + list("a") + ["ENTER"]
         )
+        assert result is not None
         self.assertFalse(result["verbose"])
 
     def test_space_toggles_back_on(self) -> None:
         result = self._run(
             ["TAB", "TAB", " ", " ", "SHIFT_TAB", "SHIFT_TAB"] + list("a") + ["ENTER"]
         )
+        assert result is not None
         self.assertTrue(result["verbose"])
 
 
@@ -422,18 +445,22 @@ class FormTextEditTests(FormRunnerTestBase):
 
     def test_typing_appends(self) -> None:
         result = self._run(list("hello") + ["ENTER"])
+        assert result is not None
         self.assertEqual(result["name"], "hello")
 
     def test_backspace_deletes(self) -> None:
         result = self._run(list("hey") + ["BACKSPACE"] + ["ENTER"])
+        assert result is not None
         self.assertEqual(result["name"], "he")
 
     def test_backspace_on_empty_is_safe(self) -> None:
         result = self._run(["BACKSPACE"] + list("ok") + ["ENTER"])
+        assert result is not None
         self.assertEqual(result["name"], "ok")
 
     def test_space_appends_to_text(self) -> None:
         result = self._run(list("a b") + ["ENTER"])
+        assert result is not None
         self.assertEqual(result["name"], "a b")
 
     def test_on_change_updates_dependent_field(self) -> None:
@@ -445,6 +472,7 @@ class FormTextEditTests(FormRunnerTestBase):
             FormField("echo", "readonly", label="Echo", value=""),
         ]
         result = self._run(list("ab") + ["BACKSPACE", "ENTER"], fields=fields)
+        assert result is not None
         self.assertEqual(result["echo"], "a")
 
 
@@ -466,6 +494,7 @@ class FormVisibilityTests(FormRunnerTestBase):
     def test_hidden_field_skipped_in_traversal(self) -> None:
         # Collapsed: TAB from adv goes straight to Go
         result = self._run(["TAB", "ENTER"], fields=self._toggle_fields())
+        assert result is not None
         self.assertTrue(result["extra"])  # untouched default
 
     def test_hidden_field_not_rendered(self) -> None:
@@ -477,6 +506,7 @@ class FormVisibilityTests(FormRunnerTestBase):
         result = self._run(
             ["RIGHT", "TAB", " ", "TAB", "ENTER"], fields=self._toggle_fields()
         )
+        assert result is not None
         self.assertFalse(result["extra"])
 
     def test_expanded_field_rendered(self) -> None:
@@ -485,6 +515,7 @@ class FormVisibilityTests(FormRunnerTestBase):
 
     def test_hidden_field_value_still_returned(self) -> None:
         result = self._run(["TAB", "ENTER"], fields=self._toggle_fields())
+        assert result is not None
         self.assertIn("extra", result)
 
 
@@ -506,6 +537,7 @@ class FormValidationTests(FormRunnerTestBase):
 
     def test_fix_then_submit_succeeds(self) -> None:
         result = self._run(["ENTER"] + list("ok") + ["ENTER"], validate=self._validate)
+        assert result is not None
         self.assertEqual(result["name"], "ok")
 
     def test_error_cleared_on_typing(self) -> None:
@@ -640,20 +672,24 @@ class SelectFieldTests(FormRunnerTestBase):
 
     def test_enter_returns_focused_key(self) -> None:
         result = self._run(["ENTER"], fields=self._select_fields())
+        assert result is not None
         self.assertEqual(result["choice"], "a")
 
     def test_down_cycles_and_wraps(self) -> None:
         result = self._run(
             ["DOWN", "DOWN", "DOWN", "DOWN", "ENTER"], fields=self._select_fields()
         )
+        assert result is not None
         self.assertEqual(result["choice"], "b")
 
     def test_up_wraps_to_last(self) -> None:
         result = self._run(["UP", "ENTER"], fields=self._select_fields())
+        assert result is not None
         self.assertEqual(result["choice"], "c")
 
     def test_unrelated_keys_ignored(self) -> None:
         result = self._run(["x", "LEFT", "ENTER"], fields=self._select_fields())
+        assert result is not None
         self.assertEqual(result["choice"], "a")
 
     def test_focused_option_rendered_with_focus_span(self) -> None:
@@ -665,7 +701,7 @@ class SelectFieldTests(FormRunnerTestBase):
 class ShowPageTests(FormRunnerTestBase):
     """show_page renders a fullscreen page and waits for one keypress."""
 
-    def _show(self, keys: list[str], in_raw: bool = False, **kwargs) -> None:
+    def _show(self, keys: list[str], in_raw: bool = False, **kwargs: Any) -> None:
         self.term = FakeTerminal(keys, in_raw=in_raw)
         show_page("Done", ["line one", "line two"], THEME, self.term, **kwargs)
 
@@ -699,9 +735,11 @@ class ShowPageTests(FormRunnerTestBase):
 
     def test_keyboard_interrupt_tolerated(self) -> None:
         term = FakeTerminal([])
-        term.read_key = mock.Mock(side_effect=KeyboardInterrupt)
         self.term = term
-        show_page("Done", ["l"], THEME, term)  # must not raise
+        with mock.patch.object(
+            term, "read_key", side_effect=KeyboardInterrupt, autospec=True
+        ):
+            show_page("Done", ["l"], THEME, term)  # must not raise
         self.assertIn("Done", self._output())
 
     def test_returns_pressed_key(self) -> None:
@@ -712,9 +750,11 @@ class ShowPageTests(FormRunnerTestBase):
 
     def test_returns_empty_string_on_interrupt(self) -> None:
         term = FakeTerminal([])
-        term.read_key = mock.Mock(side_effect=KeyboardInterrupt)
         self.term = term
-        result = show_page("Title", ["body"], THEME, term)
+        with mock.patch.object(
+            term, "read_key", side_effect=KeyboardInterrupt, autospec=True
+        ):
+            result = show_page("Title", ["body"], THEME, term)
         self.assertEqual(result, "")
 
 
@@ -724,6 +764,7 @@ class FormSessionSignalTests(unittest.TestCase):
     def setUp(self) -> None:
         self._signal_patch = mock.patch(
             "claudewheel.ui.signal.signal",
+            autospec=True,
             return_value=signal.SIG_DFL,
         )
         self.signal_mock = self._signal_patch.start()
@@ -773,6 +814,7 @@ class FormSessionSignalTests(unittest.TestCase):
                 handler = call.args[1]
                 break
         self.assertIsNotNone(handler, "SIGTERM handler not installed")
+        assert handler is not None
         # Calling the handler should raise SystemExit
         with self.assertRaises(SystemExit):
             handler(signal.SIGTERM, None)
@@ -787,28 +829,30 @@ class FormSessionSignalTests(unittest.TestCase):
                 handler = call.args[1]
                 break
         self.assertIsNotNone(handler, "SIGTERM handler not installed")
+        assert handler is not None
         with self.assertRaises(SystemExit):
             handler(signal.SIGTERM, None)
 
     def test_borrowed_mode_handler_does_not_call_exit_raw(self) -> None:
         """In borrowed mode, the handler must NOT call exit_raw (the outer owner does)."""
         term = FakeTerminal(["ESC"], in_raw=True)
-        term.exit_raw = mock.Mock()
-        run_form("T", [FormField("a", "text", label="A", value="")], THEME, term)
-        # exit_raw should not have been called during the form session
-        # (borrowed mode never calls exit_raw)
-        term.exit_raw.assert_not_called()
-        # Now call the SIGTERM handler -- it should also NOT call exit_raw
-        handler = None
-        for call in self.signal_mock.call_args_list:
-            if call.args[0] == signal.SIGTERM and callable(call.args[1]):
-                handler = call.args[1]
-                break
-        self.assertIsNotNone(handler)
-        term.exit_raw.reset_mock()
-        with self.assertRaises(SystemExit):
-            handler(signal.SIGTERM, None)
-        term.exit_raw.assert_not_called()
+        with mock.patch.object(term, "exit_raw", autospec=True) as exit_raw_mock:
+            run_form("T", [FormField("a", "text", label="A", value="")], THEME, term)
+            # exit_raw should not have been called during the form session
+            # (borrowed mode never calls exit_raw)
+            exit_raw_mock.assert_not_called()
+            # Now call the SIGTERM handler -- it should also NOT call exit_raw
+            handler = None
+            for call in self.signal_mock.call_args_list:
+                if call.args[0] == signal.SIGTERM and callable(call.args[1]):
+                    handler = call.args[1]
+                    break
+            self.assertIsNotNone(handler)
+            assert handler is not None
+            exit_raw_mock.reset_mock()
+            with self.assertRaises(SystemExit):
+                handler(signal.SIGTERM, None)
+            exit_raw_mock.assert_not_called()
 
 
 if __name__ == "__main__":

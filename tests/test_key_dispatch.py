@@ -27,7 +27,7 @@ def _make_segment(
     seg = Segment(
         key=key,
         label=label,
-        options=options or ["opus", "sonnet"],
+        _init_options=options or ["opus", "sonnet"],
         searchable=searchable,
         freeform=freeform,
         creatable=creatable,
@@ -78,7 +78,7 @@ def _make_app(
 class MainModeNavigationTests(unittest.TestCase):
     """LEFT, RIGHT, SHIFT_TAB, UP, DOWN navigation in main mode."""
 
-    def test_left_moves_focus_left(self):
+    def test_left_moves_focus_left(self) -> None:
         seg1 = _make_segment(key="a", label="A")
         seg2 = _make_segment(key="b", label="B")
         app = _make_app(seg1, extra_segments=[seg2], focus_idx=1)
@@ -86,7 +86,7 @@ class MainModeNavigationTests(unittest.TestCase):
         self.assertIsNone(result)
         self.assertEqual(app.bar.focus_idx, 0)
 
-    def test_shift_tab_moves_focus_left(self):
+    def test_shift_tab_moves_focus_left(self) -> None:
         seg1 = _make_segment(key="a", label="A")
         seg2 = _make_segment(key="b", label="B")
         app = _make_app(seg1, extra_segments=[seg2], focus_idx=1)
@@ -94,7 +94,7 @@ class MainModeNavigationTests(unittest.TestCase):
         self.assertIsNone(result)
         self.assertEqual(app.bar.focus_idx, 0)
 
-    def test_right_moves_focus_right(self):
+    def test_right_moves_focus_right(self) -> None:
         seg1 = _make_segment(key="a", label="A")
         seg2 = _make_segment(key="b", label="B")
         app = _make_app(seg1, extra_segments=[seg2])
@@ -102,35 +102,35 @@ class MainModeNavigationTests(unittest.TestCase):
         self.assertIsNone(result)
         self.assertEqual(app.bar.focus_idx, 1)
 
-    def test_up_cycles_selection_up(self):
+    def test_up_cycles_selection_up(self) -> None:
         seg = _make_segment(options=["a", "b", "c"])
         seg.select_value("b")
         app = _make_app(seg)
         app._handle_key("UP")
         self.assertEqual(seg.selected_value, "a")
 
-    def test_down_cycles_selection_down(self):
+    def test_down_cycles_selection_down(self) -> None:
         seg = _make_segment(options=["a", "b", "c"])
         seg.select_value("a")
         app = _make_app(seg)
         app._handle_key("DOWN")
         self.assertEqual(seg.selected_value, "b")
 
-    def test_up_clears_search_buffer(self):
+    def test_up_clears_search_buffer(self) -> None:
         seg = _make_segment(searchable=True)
         seg.search_buffer = "op"
         app = _make_app(seg)
         app._handle_key("UP")
         self.assertEqual(seg.search_buffer, "")
 
-    def test_down_clears_search_buffer(self):
+    def test_down_clears_search_buffer(self) -> None:
         seg = _make_segment(searchable=True)
         seg.search_buffer = "op"
         app = _make_app(seg)
         app._handle_key("DOWN")
         self.assertEqual(seg.search_buffer, "")
 
-    def test_up_clears_freeform_editing(self):
+    def test_up_clears_freeform_editing(self) -> None:
         seg = _make_segment(freeform=True)
         seg._freeform_editing = True
         seg.search_buffer = ""  # Not in freeform handler mode (no buffer)
@@ -138,7 +138,7 @@ class MainModeNavigationTests(unittest.TestCase):
         app._handle_key("UP")
         self.assertFalse(seg._freeform_editing)
 
-    def test_down_clears_freeform_editing(self):
+    def test_down_clears_freeform_editing(self) -> None:
         seg = _make_segment(freeform=True)
         seg._freeform_editing = True
         seg.search_buffer = ""
@@ -155,14 +155,14 @@ class MainModeNavigationTests(unittest.TestCase):
 class MainModeEnterTests(unittest.TestCase):
     """ENTER in main mode: launch, install, create, wizard."""
 
-    def test_enter_launches_when_valid(self):
+    def test_enter_launches_when_valid(self) -> None:
         seg = _make_segment()
         seg.select_value("opus")
         app = _make_app(seg)
         result = app._handle_key("ENTER")
         self.assertEqual(result, "launch")
 
-    def test_enter_flashes_missing_required(self):
+    def test_enter_flashes_missing_required(self) -> None:
         seg = _make_segment()
         seg.required = True
         seg.selected_value = None
@@ -171,7 +171,7 @@ class MainModeEnterTests(unittest.TestCase):
         self.assertIsNone(result)
         self.assertIn("Required", app._flash)
 
-    def test_enter_on_plus_starts_creation(self):
+    def test_enter_on_plus_starts_creation(self) -> None:
         seg = _make_segment(creatable=True)
         seg.selected_value = "+"
         app = _make_app(seg)
@@ -180,26 +180,28 @@ class MainModeEnterTests(unittest.TestCase):
         self.assertTrue(seg.creating)
         self.assertEqual(seg.create_buffer, "")
 
-    def test_enter_on_profile_plus_launches_wizard(self):
+    def test_enter_on_profile_plus_launches_wizard(self) -> None:
         seg = _make_profile_segment(discovered=["existing"])
         seg.selected_value = "+"
         app = _make_app(seg)
-        with mock.patch.object(app, "_launch_profile_wizard", return_value=None) as m:
+        with mock.patch.object(
+            app, "_launch_profile_wizard", autospec=True, return_value=None
+        ) as m:
             result = app._handle_key("ENTER")
         m.assert_called_once_with(seg)
         self.assertIsNone(result)
 
-    def test_enter_triggers_install_for_uninstalled(self):
+    def test_enter_triggers_install_for_uninstalled(self) -> None:
         seg = _make_segment(options=["1.0.0", "2.0.0"])
         seg.state.set_installed({"1.0.0"})
         seg.select_value("2.0.0")
         app = _make_app(seg)
-        with mock.patch.object(app, "_run_install_flow") as m:
+        with mock.patch.object(app, "_run_install_flow", autospec=True) as m:
             result = app._handle_key("ENTER")
         self.assertIsNone(result)
         m.assert_called_once_with(seg, "2.0.0")
 
-    def test_enter_flashes_unavailable(self):
+    def test_enter_flashes_unavailable(self) -> None:
         seg = _make_segment()
         seg.select_value("opus")
         seg.unavailable = {"opus"}
@@ -217,7 +219,7 @@ class MainModeEnterTests(unittest.TestCase):
 class MainModeTabTests(unittest.TestCase):
     """TAB in main mode: accept search, advance focus."""
 
-    def test_tab_accepts_fuzzy_match(self):
+    def test_tab_accepts_fuzzy_match(self) -> None:
         seg = _make_segment(searchable=True, options=["opus", "sonnet"])
         seg.search_buffer = "op"
         app = _make_app(seg)
@@ -225,22 +227,24 @@ class MainModeTabTests(unittest.TestCase):
         self.assertEqual(seg.selected_value, "opus")
         self.assertEqual(seg.search_buffer, "")
 
-    def test_tab_advances_focus(self):
+    def test_tab_advances_focus(self) -> None:
         seg1 = _make_segment(key="a", label="A", tab_advances=True)
         seg2 = _make_segment(key="b", label="B")
         app = _make_app(seg1, extra_segments=[seg2])
         app._handle_key("TAB")
         self.assertEqual(app.bar.focus_idx, 1)
 
-    def test_tab_on_profile_plus_launches_wizard(self):
+    def test_tab_on_profile_plus_launches_wizard(self) -> None:
         seg = _make_profile_segment(discovered=["existing"])
         seg.selected_value = "+"
         app = _make_app(seg)
-        with mock.patch.object(app, "_launch_profile_wizard", return_value=None) as m:
+        with mock.patch.object(
+            app, "_launch_profile_wizard", autospec=True, return_value=None
+        ) as m:
             app._handle_key("TAB")
         m.assert_called_once_with(seg)
 
-    def test_tab_on_plus_starts_creation(self):
+    def test_tab_on_plus_starts_creation(self) -> None:
         seg = _make_segment(creatable=True)
         seg.selected_value = "+"
         app = _make_app(seg)
@@ -256,14 +260,14 @@ class MainModeTabTests(unittest.TestCase):
 class MainModeBackspaceTests(unittest.TestCase):
     """BACKSPACE in main mode: search buffer, freeform seed."""
 
-    def test_backspace_removes_from_search_buffer(self):
+    def test_backspace_removes_from_search_buffer(self) -> None:
         seg = _make_segment(searchable=True)
         seg.search_buffer = "op"
         app = _make_app(seg)
         app._handle_key("BACKSPACE")
         self.assertEqual(seg.search_buffer, "o")
 
-    def test_backspace_on_freeform_seeds_from_value(self):
+    def test_backspace_on_freeform_seeds_from_value(self) -> None:
         seg = _make_segment(freeform=True)
         seg.select_value("opus")
         app = _make_app(seg)
@@ -271,7 +275,7 @@ class MainModeBackspaceTests(unittest.TestCase):
         self.assertEqual(seg.search_buffer, "opu")
         self.assertTrue(seg._freeform_editing)
 
-    def test_backspace_noop_without_buffer_or_freeform(self):
+    def test_backspace_noop_without_buffer_or_freeform(self) -> None:
         seg = _make_segment(searchable=True)
         seg.search_buffer = ""
         app = _make_app(seg)
@@ -288,7 +292,7 @@ class MainModeBackspaceTests(unittest.TestCase):
 class MainModeEscCtrlCTests(unittest.TestCase):
     """ESC clears search, CTRL_C quits."""
 
-    def test_esc_clears_search_buffer(self):
+    def test_esc_clears_search_buffer(self) -> None:
         seg = _make_segment(searchable=True)
         seg.search_buffer = "op"
         app = _make_app(seg)
@@ -296,7 +300,7 @@ class MainModeEscCtrlCTests(unittest.TestCase):
         self.assertIsNone(result)
         self.assertEqual(seg.search_buffer, "")
 
-    def test_esc_clears_freeform_editing(self):
+    def test_esc_clears_freeform_editing(self) -> None:
         seg = _make_segment(freeform=True)
         seg._freeform_editing = True
         seg.search_buffer = ""  # Not in freeform handler
@@ -304,7 +308,7 @@ class MainModeEscCtrlCTests(unittest.TestCase):
         app._handle_key("ESC")
         self.assertFalse(seg._freeform_editing)
 
-    def test_ctrl_c_returns_quit(self):
+    def test_ctrl_c_returns_quit(self) -> None:
         seg = _make_segment()
         app = _make_app(seg)
         result = app._handle_key("CTRL_C")
@@ -319,45 +323,45 @@ class MainModeEscCtrlCTests(unittest.TestCase):
 class MainModeDeleteTests(unittest.TestCase):
     """CTRL_D/DELETE triggers profile delete on profile segment."""
 
-    def test_ctrl_d_on_profile_with_value_calls_delete_flow(self):
+    def test_ctrl_d_on_profile_with_value_calls_delete_flow(self) -> None:
         seg = _make_profile_segment(discovered=["work"])
         seg.select_value("work")
         app = _make_app(seg)
-        with mock.patch.object(app, "_delete_profile_flow") as m:
+        with mock.patch.object(app, "_delete_profile_flow", autospec=True) as m:
             app._handle_key("CTRL_D")
         m.assert_called_once_with(seg)
 
-    def test_delete_on_profile_with_value_calls_delete_flow(self):
+    def test_delete_on_profile_with_value_calls_delete_flow(self) -> None:
         seg = _make_profile_segment(discovered=["work"])
         seg.select_value("work")
         app = _make_app(seg)
-        with mock.patch.object(app, "_delete_profile_flow") as m:
+        with mock.patch.object(app, "_delete_profile_flow", autospec=True) as m:
             app._handle_key("DELETE")
         m.assert_called_once_with(seg)
 
-    def test_ctrl_d_ignored_on_non_profile(self):
+    def test_ctrl_d_ignored_on_non_profile(self) -> None:
         seg = _make_segment()
         seg.select_value("opus")
         app = _make_app(seg)
-        with mock.patch.object(app, "_delete_profile_flow") as m:
+        with mock.patch.object(app, "_delete_profile_flow", autospec=True) as m:
             result = app._handle_key("CTRL_D")
         m.assert_not_called()
         self.assertIsNone(result)
 
-    def test_ctrl_d_ignored_when_searching(self):
+    def test_ctrl_d_ignored_when_searching(self) -> None:
         seg = _make_profile_segment(discovered=["work"])
         seg.select_value("work")
         seg.search_buffer = "w"
         app = _make_app(seg)
-        with mock.patch.object(app, "_delete_profile_flow") as m:
+        with mock.patch.object(app, "_delete_profile_flow", autospec=True) as m:
             app._handle_key("CTRL_D")
         m.assert_not_called()
 
-    def test_ctrl_d_ignored_on_plus(self):
+    def test_ctrl_d_ignored_on_plus(self) -> None:
         seg = _make_profile_segment(discovered=["work"])
         seg.selected_value = "+"
         app = _make_app(seg)
-        with mock.patch.object(app, "_delete_profile_flow") as m:
+        with mock.patch.object(app, "_delete_profile_flow", autospec=True) as m:
             app._handle_key("CTRL_D")
         m.assert_not_called()
 
@@ -370,7 +374,7 @@ class MainModeDeleteTests(unittest.TestCase):
 class MainModePrintableTests(unittest.TestCase):
     """Printable characters: q, ?, i, and search."""
 
-    def test_q_with_empty_search_returns_quit(self):
+    def test_q_with_empty_search_returns_quit(self) -> None:
         """q with empty search buffer quits."""
         seg = _make_segment(searchable=True)
         seg.search_buffer = ""
@@ -378,7 +382,7 @@ class MainModePrintableTests(unittest.TestCase):
         result = app._handle_key("q")
         self.assertEqual(result, "quit")
 
-    def test_q_with_active_search_appends_to_buffer(self):
+    def test_q_with_active_search_appends_to_buffer(self) -> None:
         """q with active search buffer is appended, not quit."""
         seg = _make_segment(searchable=True)
         seg.search_buffer = "o"
@@ -387,14 +391,14 @@ class MainModePrintableTests(unittest.TestCase):
         self.assertIsNone(result)
         self.assertEqual(seg.search_buffer, "oq")
 
-    def test_q_on_non_searchable_returns_quit(self):
+    def test_q_on_non_searchable_returns_quit(self) -> None:
         """q on a non-searchable segment quits."""
         seg = _make_segment(searchable=False)
         app = _make_app(seg)
         result = app._handle_key("q")
         self.assertEqual(result, "quit")
 
-    def test_question_mark_empty_buffer_toggles_provenance(self):
+    def test_question_mark_empty_buffer_toggles_provenance(self) -> None:
         """? with empty search buffer toggles provenance."""
         seg = _make_segment(searchable=True)
         app = _make_app(seg)
@@ -402,7 +406,7 @@ class MainModePrintableTests(unittest.TestCase):
         app._handle_key("?")
         self.assertTrue(app._show_provenance)
 
-    def test_question_mark_active_search_appends(self):
+    def test_question_mark_active_search_appends(self) -> None:
         """? with active search buffer is appended."""
         seg = _make_segment(searchable=True)
         seg.search_buffer = "x"
@@ -412,55 +416,55 @@ class MainModePrintableTests(unittest.TestCase):
         self.assertFalse(app._show_provenance)
         self.assertEqual(seg.search_buffer, "x?")
 
-    def test_i_on_profile_no_search_value_present_inspects(self):
+    def test_i_on_profile_no_search_value_present_inspects(self) -> None:
         """i on profile segment, no search, value present -> inspect called."""
         seg = _make_profile_segment(discovered=["work"])
         seg.select_value("work")
         app = _make_app(seg)
-        with mock.patch.object(app, "_show_profile_inspect") as m:
+        with mock.patch.object(app, "_show_profile_inspect", autospec=True) as m:
             result = app._handle_key("i")
         m.assert_called_once_with(seg)
         self.assertIsNone(result)
 
-    def test_i_on_non_profile_searches(self):
+    def test_i_on_non_profile_searches(self) -> None:
         """i on non-profile searchable segment -> appended to buffer."""
         seg = _make_segment(searchable=True)
         app = _make_app(seg)
         app._handle_key("i")
         self.assertEqual(seg.search_buffer, "i")
 
-    def test_i_on_profile_with_search_buffer_appends(self):
+    def test_i_on_profile_with_search_buffer_appends(self) -> None:
         """i on profile segment with active search -> appended."""
         seg = _make_profile_segment(discovered=["work"])
         seg.select_value("work")
         seg.searchable = True
         seg.search_buffer = "w"
         app = _make_app(seg)
-        with mock.patch.object(app, "_show_profile_inspect") as m:
+        with mock.patch.object(app, "_show_profile_inspect", autospec=True) as m:
             app._handle_key("i")
         m.assert_not_called()
         self.assertEqual(seg.search_buffer, "wi")
 
-    def test_i_on_profile_no_value_does_not_inspect(self):
+    def test_i_on_profile_no_value_does_not_inspect(self) -> None:
         """i on profile segment with no value (None) -> no inspect."""
         seg = _make_profile_segment(discovered=["work"])
         seg.selected_value = None
         seg.searchable = True
         app = _make_app(seg)
-        with mock.patch.object(app, "_show_profile_inspect") as m:
+        with mock.patch.object(app, "_show_profile_inspect", autospec=True) as m:
             app._handle_key("i")
         m.assert_not_called()
         # Should enter search on searchable segment
         self.assertEqual(seg.search_buffer, "i")
 
-    def test_printable_starts_search_on_searchable(self):
+    def test_printable_starts_search_on_searchable(self) -> None:
         """Any printable char starts search on a searchable segment."""
         seg = _make_segment(searchable=True)
         app = _make_app(seg)
         app._handle_key("x")
         self.assertEqual(seg.search_buffer, "x")
 
-    def test_printable_on_freeform_seeds_from_value(self):
+    def test_printable_on_freeform_seeds_from_value(self) -> None:
         """First printable on freeform segment seeds buffer from value."""
         seg = _make_segment(freeform=True, options=["opus", "sonnet"])
         seg.select_value("opus")
@@ -469,7 +473,7 @@ class MainModePrintableTests(unittest.TestCase):
         self.assertEqual(seg.search_buffer, "opusx")
         self.assertTrue(seg._freeform_editing)
 
-    def test_printable_on_non_searchable_non_freeform_ignored(self):
+    def test_printable_on_non_searchable_non_freeform_ignored(self) -> None:
         """Printable on non-searchable non-freeform segment is swallowed."""
         seg = _make_segment(searchable=False, freeform=False)
         app = _make_app(seg)
@@ -493,18 +497,18 @@ class CreatingModeTests(unittest.TestCase):
         app = _make_app(seg)
         return app, seg
 
-    def test_printable_appends_to_create_buffer(self):
+    def test_printable_appends_to_create_buffer(self) -> None:
         app, seg = self._make_creating_app()
         app._handle_key("h")
         self.assertEqual(seg.create_buffer, "h")
 
-    def test_backspace_removes_from_create_buffer(self):
+    def test_backspace_removes_from_create_buffer(self) -> None:
         app, seg = self._make_creating_app()
         seg.create_buffer = "he"
         app._handle_key("BACKSPACE")
         self.assertEqual(seg.create_buffer, "h")
 
-    def test_esc_cancels_creation(self):
+    def test_esc_cancels_creation(self) -> None:
         app, seg = self._make_creating_app()
         seg.create_buffer = "hello"
         result = app._handle_key("ESC")
@@ -512,24 +516,24 @@ class CreatingModeTests(unittest.TestCase):
         self.assertFalse(seg.creating)
         self.assertEqual(seg.create_buffer, "")
 
-    def test_enter_with_text_confirms_creation(self):
+    def test_enter_with_text_confirms_creation(self) -> None:
         app, seg = self._make_creating_app()
         seg.create_buffer = "new_val"
-        with mock.patch.object(app, "_confirm_create") as m:
+        with mock.patch.object(app, "_confirm_create", autospec=True) as m:
             result = app._handle_key("ENTER")
         m.assert_called_once_with(seg)
         self.assertIsNone(result)
 
-    def test_enter_with_empty_does_nothing(self):
+    def test_enter_with_empty_does_nothing(self) -> None:
         app, seg = self._make_creating_app()
         seg.create_buffer = "   "
-        with mock.patch.object(app, "_confirm_create") as m:
+        with mock.patch.object(app, "_confirm_create", autospec=True) as m:
             result = app._handle_key("ENTER")
         # Empty after strip -> no confirm
         m.assert_not_called()
         self.assertIsNone(result)
 
-    def test_ctrl_c_in_creating_mode_quits(self):
+    def test_ctrl_c_in_creating_mode_quits(self) -> None:
         app, seg = self._make_creating_app()
         seg.create_buffer = "partial"
         result = app._handle_key("CTRL_C")
@@ -553,49 +557,49 @@ class FreeformModeTests(unittest.TestCase):
         app = _make_app(seg)
         return app, seg
 
-    def test_printable_appends_to_buffer(self):
+    def test_printable_appends_to_buffer(self) -> None:
         app, seg = self._make_freeform_app("op")
         app._handle_key("x")
         self.assertEqual(seg.search_buffer, "opx")
 
-    def test_backspace_removes_from_buffer(self):
+    def test_backspace_removes_from_buffer(self) -> None:
         app, seg = self._make_freeform_app("opu")
         app._handle_key("BACKSPACE")
         self.assertEqual(seg.search_buffer, "op")
 
-    def test_backspace_exits_freeform_when_empty(self):
+    def test_backspace_exits_freeform_when_empty(self) -> None:
         app, seg = self._make_freeform_app("o")
         app._handle_key("BACKSPACE")
         self.assertEqual(seg.search_buffer, "")
         self.assertFalse(seg._freeform_editing)
 
-    def test_enter_submits_freeform_value(self):
+    def test_enter_submits_freeform_value(self) -> None:
         app, seg = self._make_freeform_app("custom_val")
         app._handle_key("ENTER")
         self.assertEqual(seg.selected_value, "custom_val")
         self.assertEqual(seg.search_buffer, "")
         self.assertFalse(seg._freeform_editing)
 
-    def test_enter_with_whitespace_strips(self):
+    def test_enter_with_whitespace_strips(self) -> None:
         app, seg = self._make_freeform_app("  hello  ")
         app._handle_key("ENTER")
         self.assertEqual(seg.selected_value, "hello")
 
-    def test_tab_accepts_top_fuzzy_match(self):
+    def test_tab_accepts_top_fuzzy_match(self) -> None:
         app, seg = self._make_freeform_app("op")
         app._handle_key("TAB")
         self.assertEqual(seg.selected_value, "opus")
         self.assertEqual(seg.search_buffer, "")
         self.assertFalse(seg._freeform_editing)
 
-    def test_esc_cancels_freeform(self):
+    def test_esc_cancels_freeform(self) -> None:
         app, seg = self._make_freeform_app("partial")
         result = app._handle_key("ESC")
         self.assertIsNone(result)
         self.assertEqual(seg.search_buffer, "")
         self.assertFalse(seg._freeform_editing)
 
-    def test_left_exits_and_moves_focus_left(self):
+    def test_left_exits_and_moves_focus_left(self) -> None:
         seg1 = _make_segment(key="a", label="A", freeform=True)
         seg1.search_buffer = "x"
         seg1._freeform_editing = True
@@ -605,7 +609,7 @@ class FreeformModeTests(unittest.TestCase):
         self.assertEqual(seg1.search_buffer, "")
         self.assertFalse(seg1._freeform_editing)
 
-    def test_right_exits_and_moves_focus_right(self):
+    def test_right_exits_and_moves_focus_right(self) -> None:
         seg1 = _make_segment(key="a", label="A", freeform=True)
         seg1.search_buffer = "x"
         seg1._freeform_editing = True
@@ -616,7 +620,7 @@ class FreeformModeTests(unittest.TestCase):
         self.assertFalse(seg1._freeform_editing)
         self.assertEqual(app.bar.focus_idx, 1)
 
-    def test_ctrl_c_in_freeform_quits(self):
+    def test_ctrl_c_in_freeform_quits(self) -> None:
         app, seg = self._make_freeform_app("partial")
         result = app._handle_key("CTRL_C")
         self.assertEqual(result, "quit")
@@ -637,14 +641,14 @@ class FreeformModeTests(unittest.TestCase):
 class DefocusCleanupTests(unittest.TestCase):
     """LEFT/RIGHT/SHIFT_TAB clear search buffer + freeform state via _defocus."""
 
-    def test_left_clears_search_buffer_on_defocus(self):
+    def test_left_clears_search_buffer_on_defocus(self) -> None:
         seg = _make_segment(searchable=True)
         seg.search_buffer = "abc"
         app = _make_app(seg)
         app._handle_key("LEFT")
         self.assertEqual(seg.search_buffer, "")
 
-    def test_left_clears_freeform_editing_on_defocus(self):
+    def test_left_clears_freeform_editing_on_defocus(self) -> None:
         seg = _make_segment(freeform=True)
         seg._freeform_editing = True
         seg.search_buffer = ""  # Not in freeform handler path (empty buffer)
@@ -661,7 +665,7 @@ class DefocusCleanupTests(unittest.TestCase):
 class ModeRoutingTests(unittest.TestCase):
     """Correct mode precedence: creating > freeform > main."""
 
-    def test_creating_takes_precedence_over_freeform(self):
+    def test_creating_takes_precedence_over_freeform(self) -> None:
         """Even if freeform conditions are met, creating intercepts."""
         seg = _make_segment(freeform=True, creatable=True)
         seg.creating = True
@@ -683,7 +687,7 @@ class ThemeSwitchTests(unittest.TestCase):
     """THEME_DARK / THEME_LIGHT keys dispatch via cross-mode (mode=None) bindings."""
 
     @staticmethod
-    def _stub_theme_loader(app):
+    def _stub_theme_loader(app: App) -> None:
         """Wire the app's (mock) store so load_theme returns the default themes.
 
         _h_theme_switch now reads its theme via ``self.cfg.load_theme(mode)``
@@ -692,11 +696,12 @@ class ThemeSwitchTests(unittest.TestCase):
         """
         from claudewheel.defaults import DEFAULT_THEME_DARK, DEFAULT_THEME_LIGHT
 
+        assert isinstance(app.cfg, mock.MagicMock)
         app.cfg.load_theme.side_effect = lambda mode: (
             DEFAULT_THEME_DARK if mode == "dark" else DEFAULT_THEME_LIGHT
         )
 
-    def test_theme_dark_dispatches_in_main_mode(self):
+    def test_theme_dark_dispatches_in_main_mode(self) -> None:
         """THEME_DARK key triggers _h_theme_switch from main mode."""
         seg = _make_segment()
         app = _make_app(seg)
@@ -707,7 +712,7 @@ class ThemeSwitchTests(unittest.TestCase):
         # Theme was swapped (no longer the original mock)
         self.assertIsNot(app.theme, original_theme)
 
-    def test_theme_light_dispatches_in_main_mode(self):
+    def test_theme_light_dispatches_in_main_mode(self) -> None:
         """THEME_LIGHT key triggers _h_theme_switch from main mode."""
         seg = _make_segment()
         app = _make_app(seg)
@@ -717,7 +722,7 @@ class ThemeSwitchTests(unittest.TestCase):
         self.assertIsNone(result)
         self.assertIsNot(app.theme, original_theme)
 
-    def test_theme_dark_dispatches_in_creating_mode(self):
+    def test_theme_dark_dispatches_in_creating_mode(self) -> None:
         """THEME_DARK works from creating mode (cross-mode binding)."""
         seg = _make_segment(creatable=True)
         seg.creating = True
@@ -729,7 +734,7 @@ class ThemeSwitchTests(unittest.TestCase):
         self.assertIsNone(result)
         self.assertIsNot(app.theme, original_theme)
 
-    def test_theme_light_dispatches_in_freeform_mode(self):
+    def test_theme_light_dispatches_in_freeform_mode(self) -> None:
         """THEME_LIGHT works from freeform mode (cross-mode binding)."""
         seg = _make_segment(freeform=True)
         seg.search_buffer = "text"
@@ -741,7 +746,7 @@ class ThemeSwitchTests(unittest.TestCase):
         self.assertIsNone(result)
         self.assertIsNot(app.theme, original_theme)
 
-    def test_handler_swaps_theme_and_renderer_theme(self):
+    def test_handler_swaps_theme_and_renderer_theme(self) -> None:
         """_h_theme_switch updates self.theme and self.renderer.theme."""
         seg = _make_segment()
         app = _make_app(seg)
@@ -757,7 +762,7 @@ class ThemeSwitchTests(unittest.TestCase):
         # renderer.theme was also updated
         self.assertIs(app.theme, app.renderer.theme)
 
-    def test_handler_updates_cfg_theme(self):
+    def test_handler_updates_cfg_theme(self) -> None:
         """_h_theme_switch updates self.cfg.theme with the raw dict."""
         seg = _make_segment()
         app = _make_app(seg)
@@ -767,7 +772,7 @@ class ThemeSwitchTests(unittest.TestCase):
 
         self.assertEqual(app.cfg.theme, DEFAULT_THEME_LIGHT)
 
-    def test_handler_does_not_disrupt_creating_mode(self):
+    def test_handler_does_not_disrupt_creating_mode(self) -> None:
         """THEME_DARK in creating mode does not cancel creation."""
         seg = _make_segment(creatable=True)
         seg.creating = True
