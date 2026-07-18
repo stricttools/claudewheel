@@ -1275,7 +1275,7 @@ def _bind(handler: Callable[..., int], *pre: Any) -> Callable[..., int]:
     signature, re-triggering strict validation. Copying only the two strictcli
     attributes keeps the wrapper's signature a clean ``(**kwargs)``.
     """
-    def wrapper(ctx, **kwargs: Any) -> int:
+    def wrapper(ctx: strictcli.Context, **kwargs: Any) -> int:
         return handler(*pre, **kwargs)
     # strictcli reads these attributes off the callable to build the schema.
     setattr(wrapper, "_strictcli_flags", getattr(handler, "_strictcli_flags", []))
