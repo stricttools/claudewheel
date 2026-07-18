@@ -3,16 +3,18 @@
 from __future__ import annotations
 
 import unittest
+from typing import Any
 
 from claudewheel.renderer import ARROW_MARGIN, Renderer
 from claudewheel.segment import Segment, SegmentBar
+from claudewheel.terminal import Terminal
 from claudewheel.theme import ThemeColors
 
 
-class _MockTerminal:
+class _MockTerminal(Terminal):
     """Lightweight stand-in for Terminal that avoids opening /dev/tty."""
 
-    def __init__(self, rows: int = 24, cols: int = 80):
+    def __init__(self, rows: int = 24, cols: int = 80) -> None:
         self.rows = rows
         self.cols = cols
 
@@ -25,7 +27,7 @@ class _MockTerminal:
 
 def _make_theme(**overrides: str) -> ThemeColors:
     """Build a ThemeColors with safe defaults and optional overrides."""
-    defaults = dict(
+    defaults: dict[str, Any] = dict(
         global_fg="",
         label_fg="",
         separator_fg="",
@@ -44,10 +46,10 @@ def _make_theme(**overrides: str) -> ThemeColors:
     return ThemeColors(**defaults)
 
 
-def _make_segment(key: str, label: str, **kwargs) -> Segment:
+def _make_segment(key: str, label: str, **kwargs: Any) -> Segment:
     """Shorthand for constructing a Segment with common defaults."""
-    defaults = dict(
-        options=["val1"],
+    defaults: dict[str, Any] = dict(
+        _init_options=["val1"],
         selected_value="val1",
         min_width=4,
         max_width=10,
@@ -186,7 +188,7 @@ class ViewportMathTests(unittest.TestCase):
                 _make_segment(
                     key,
                     label,
-                    options=[f"longvalue{i}"],
+                    _init_options=[f"longvalue{i}"],
                     selected_value=f"longvalue{i}",
                     min_width=10,
                     max_width=20,
@@ -292,7 +294,7 @@ class OffscreenCountTests(unittest.TestCase):
 
     def _fake_layout_item(
         self, key: str, col: int, label_width: int, value_width: int
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Build a minimal layout dict with only the fields _count_offscreen reads."""
         return {
             "key": key,

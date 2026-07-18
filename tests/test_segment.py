@@ -12,7 +12,7 @@ class SegmentCycleWrapTests(unittest.TestCase):
 
     def test_single_option_toggles_with_blank(self) -> None:
         """With one option, cycling alternates between None (blank) and "only"."""
-        seg = Segment(key="k", label="K", options=["only"], wrap=True)
+        seg = Segment(key="k", label="K", _init_options=["only"], wrap=True)
         seg.cycle(+1)
         self.assertEqual(seg.selected_idx, 0)
         seg.cycle(+1)
@@ -28,7 +28,7 @@ class SegmentCycleWrapTests(unittest.TestCase):
         seg = Segment(
             key="k",
             label="K",
-            options=["a", "b", "c"],
+            _init_options=["a", "b", "c"],
             wrap=True,
         )
         # Expected ring traversal: -1 -> 0 -> 1 -> 2 -> -1 -> 0 ...
@@ -43,7 +43,7 @@ class SegmentCycleWrapTests(unittest.TestCase):
         seg = Segment(
             key="k",
             label="K",
-            options=["a", "b", "c"],
+            _init_options=["a", "b", "c"],
             wrap=True,
         )
         # Expected ring traversal in reverse: -1 -> 2 -> 1 -> 0 -> -1 -> 2 ...
@@ -62,7 +62,7 @@ class SegmentCycleNoWrapTests(unittest.TestCase):
         seg = Segment(
             key="k",
             label="K",
-            options=["a", "b", "c"],
+            _init_options=["a", "b", "c"],
             wrap=False,
             selected_value="c",
         )
@@ -74,7 +74,7 @@ class SegmentCycleNoWrapTests(unittest.TestCase):
         seg = Segment(
             key="k",
             label="K",
-            options=["a", "b", "c"],
+            _init_options=["a", "b", "c"],
             wrap=False,
             selected_value="a",
         )
@@ -86,7 +86,7 @@ class SegmentCycleNoWrapTests(unittest.TestCase):
         seg = Segment(
             key="k",
             label="K",
-            options=["a", "b", "c"],
+            _init_options=["a", "b", "c"],
             wrap=False,
         )
         seg.cycle(-1)
@@ -100,7 +100,7 @@ class SegmentCycleNoWrapTests(unittest.TestCase):
         seg = Segment(
             key="k",
             label="K",
-            options=["a", "b", "c"],
+            _init_options=["a", "b", "c"],
             wrap=False,
             selected_value="c",
         )
@@ -118,7 +118,7 @@ class SegmentCycleNoWrapTests(unittest.TestCase):
         seg = Segment(
             key="k",
             label="K",
-            options=["a", "b", "c"],
+            _init_options=["a", "b", "c"],
             wrap=False,
             selected_value="a",
         )
@@ -133,7 +133,7 @@ class SegmentCycleNoWrapTests(unittest.TestCase):
 class SegmentCycleEmptyTests(unittest.TestCase):
     def test_empty_options_is_noop(self) -> None:
         """With no options, cycle() must not change selected_value or raise."""
-        seg = Segment(key="k", label="K", options=[], wrap=True)
+        seg = Segment(key="k", label="K", _init_options=[], wrap=True)
         seg.cycle(+1)
         self.assertEqual(seg.selected_idx, -1)
         seg.cycle(-1)
@@ -143,30 +143,34 @@ class SegmentCycleEmptyTests(unittest.TestCase):
 class SegmentValuePropertyTests(unittest.TestCase):
     def test_value_none_when_blank(self) -> None:
         """value is None whenever selected_value is None."""
-        seg = Segment(key="k", label="K", options=["a", "b"])
+        seg = Segment(key="k", label="K", _init_options=["a", "b"])
         self.assertIsNone(seg.value)
 
     def test_value_none_when_no_options(self) -> None:
         """value is None when selected_value is not in options."""
-        seg = Segment(key="k", label="K", options=[], selected_value="x")
+        seg = Segment(key="k", label="K", _init_options=[], selected_value="x")
         self.assertIsNone(seg.value)
 
     def test_value_returns_selected_option(self) -> None:
         """value returns the selected_value when it exists in options."""
-        seg = Segment(key="k", label="K", options=["a", "b", "c"], selected_value="b")
+        seg = Segment(
+            key="k", label="K", _init_options=["a", "b", "c"], selected_value="b"
+        )
         self.assertEqual(seg.value, "b")
 
 
 class SegmentSelectValueTests(unittest.TestCase):
     def test_select_existing_value_returns_true(self) -> None:
         """select_value sets selected_value and returns True when the value exists."""
-        seg = Segment(key="k", label="K", options=["a", "b", "c"])
+        seg = Segment(key="k", label="K", _init_options=["a", "b", "c"])
         self.assertTrue(seg.select_value("b"))
         self.assertEqual(seg.selected_idx, 1)
 
     def test_select_missing_value_returns_false_and_keeps_value(self) -> None:
         """select_value returns False and leaves selected_value untouched on miss."""
-        seg = Segment(key="k", label="K", options=["a", "b", "c"], selected_value="c")
+        seg = Segment(
+            key="k", label="K", _init_options=["a", "b", "c"], selected_value="c"
+        )
         self.assertFalse(seg.select_value("zzz"))
         self.assertEqual(seg.selected_idx, 2)
 
@@ -174,12 +178,12 @@ class SegmentSelectValueTests(unittest.TestCase):
 class SegmentFilteredOptionsTests(unittest.TestCase):
     def test_no_search_buffer_returns_all(self) -> None:
         """Without a search buffer, filtered_options is the full option list."""
-        seg = Segment(key="k", label="K", options=["abc", "xyz", "abd"])
+        seg = Segment(key="k", label="K", _init_options=["abc", "xyz", "abd"])
         self.assertEqual(seg.filtered_options, ["abc", "xyz", "abd"])
 
     def test_with_search_buffer_returns_ranked_subset(self) -> None:
         """A search buffer fuzzy-ranks the options and drops non-matches."""
-        seg = Segment(key="k", label="K", options=["abc", "xyz", "abd"])
+        seg = Segment(key="k", label="K", _init_options=["abc", "xyz", "abd"])
         seg.search_buffer = "ab"
         result = seg.filtered_options
         self.assertNotIn("xyz", result)
@@ -191,7 +195,9 @@ class SegmentValueBasedSelectionTests(unittest.TestCase):
 
     def test_cycling_after_option_mutation_preserves_value(self) -> None:
         """When options change but selected value still exists, cycling continues from it."""
-        seg = Segment(key="k", label="K", options=["a", "b", "c"], selected_value="b")
+        seg = Segment(
+            key="k", label="K", _init_options=["a", "b", "c"], selected_value="b"
+        )
         # Mutate options: "b" moves from index 1 to index 0
         seg.state.set_defaults(["b", "x", "y"])
         self.assertEqual(seg.value, "b")
@@ -202,13 +208,17 @@ class SegmentValueBasedSelectionTests(unittest.TestCase):
 
     def test_value_none_for_disappeared_option(self) -> None:
         """value returns None when selected_value is no longer in options."""
-        seg = Segment(key="k", label="K", options=["a", "b", "c"], selected_value="b")
+        seg = Segment(
+            key="k", label="K", _init_options=["a", "b", "c"], selected_value="b"
+        )
         seg.state.set_defaults(["x", "y", "z"])
         self.assertIsNone(seg.value)
 
     def test_cycling_when_value_disappeared_starts_from_blank(self) -> None:
         """When selected_value has disappeared, cycling treats it as blank."""
-        seg = Segment(key="k", label="K", options=["a", "b", "c"], selected_value="b")
+        seg = Segment(
+            key="k", label="K", _init_options=["a", "b", "c"], selected_value="b"
+        )
         seg.state.set_defaults(["x", "y", "z"])
         # selected_idx is -1 because "b" is not in new options
         self.assertEqual(seg.selected_idx, -1)
@@ -218,7 +228,7 @@ class SegmentValueBasedSelectionTests(unittest.TestCase):
 
     def test_computed_selected_idx_matches_position(self) -> None:
         """selected_idx correctly reports the position of selected_value."""
-        seg = Segment(key="k", label="K", options=["a", "b", "c", "d"])
+        seg = Segment(key="k", label="K", _init_options=["a", "b", "c", "d"])
         seg.select_value("c")
         self.assertEqual(seg.selected_idx, 2)
         seg.select_value("a")
@@ -232,24 +242,26 @@ class DisplayOptionsTests(unittest.TestCase):
 
     def test_creatable_appends_plus(self) -> None:
         """Creatable segments have '+' appended to display_options."""
-        seg = Segment(key="k", label="K", options=["a", "b"], creatable=True)
+        seg = Segment(key="k", label="K", _init_options=["a", "b"], creatable=True)
         self.assertEqual(seg.display_options, ["a", "b", "+"])
         # Real options do not contain "+"
         self.assertNotIn("+", seg.options)
 
     def test_non_creatable_no_plus(self) -> None:
         """Non-creatable segments have display_options == options."""
-        seg = Segment(key="k", label="K", options=["a", "b"], creatable=False)
+        seg = Segment(key="k", label="K", _init_options=["a", "b"], creatable=False)
         self.assertEqual(seg.display_options, ["a", "b"])
 
     def test_creatable_empty_options(self) -> None:
         """Creatable segment with no options has display_options == ['+']."""
-        seg = Segment(key="k", label="K", options=[], creatable=True)
+        seg = Segment(key="k", label="K", _init_options=[], creatable=True)
         self.assertEqual(seg.display_options, ["+"])
 
     def test_cycling_visits_plus_and_blank(self) -> None:
         """Cycling on a creatable segment visits all options + '+' + blank."""
-        seg = Segment(key="k", label="K", options=["a", "b"], creatable=True, wrap=True)
+        seg = Segment(
+            key="k", label="K", _init_options=["a", "b"], creatable=True, wrap=True
+        )
         # display_options = ["a", "b", "+"], ring size = 4 (None, a, b, +)
         # Starting from blank: +1 -> a, +1 -> b, +1 -> +, +1 -> blank
         expected_values = ["a", "b", "+", None]
@@ -260,14 +272,14 @@ class DisplayOptionsTests(unittest.TestCase):
 
     def test_selected_idx_maps_into_display_options(self) -> None:
         """selected_idx is the index in display_options, not options."""
-        seg = Segment(key="k", label="K", options=["a", "b"], creatable=True)
+        seg = Segment(key="k", label="K", _init_options=["a", "b"], creatable=True)
         seg.selected_value = "+"
         # "+" is at index 2 in display_options ["a", "b", "+"]
         self.assertEqual(seg.selected_idx, 2)
 
     def test_selected_idx_for_regular_option(self) -> None:
         """selected_idx for a regular option still works correctly."""
-        seg = Segment(key="k", label="K", options=["a", "b"], creatable=True)
+        seg = Segment(key="k", label="K", _init_options=["a", "b"], creatable=True)
         seg.selected_value = "a"
         self.assertEqual(seg.selected_idx, 0)
         seg.selected_value = "b"
@@ -275,31 +287,33 @@ class DisplayOptionsTests(unittest.TestCase):
 
     def test_is_on_plus_true(self) -> None:
         """is_on_plus returns True when selected_value is '+'."""
-        seg = Segment(key="k", label="K", options=["a"], creatable=True)
+        seg = Segment(key="k", label="K", _init_options=["a"], creatable=True)
         seg.selected_value = "+"
         self.assertTrue(seg.is_on_plus)
 
     def test_is_on_plus_false_not_creatable(self) -> None:
         """is_on_plus returns False for non-creatable segments."""
-        seg = Segment(key="k", label="K", options=["a"])
+        seg = Segment(key="k", label="K", _init_options=["a"])
         seg.selected_value = "+"
         self.assertFalse(seg.is_on_plus)
 
     def test_value_none_on_plus(self) -> None:
         """seg.value returns None when selected_value is '+'."""
-        seg = Segment(key="k", label="K", options=["a", "b"], creatable=True)
+        seg = Segment(key="k", label="K", _init_options=["a", "b"], creatable=True)
         seg.selected_value = "+"
         self.assertIsNone(seg.value)
 
     def test_value_returns_real_option(self) -> None:
         """seg.value returns the real option when not on '+'."""
-        seg = Segment(key="k", label="K", options=["a", "b"], creatable=True)
+        seg = Segment(key="k", label="K", _init_options=["a", "b"], creatable=True)
         seg.selected_value = "a"
         self.assertEqual(seg.value, "a")
 
     def test_plus_not_in_filtered_options(self) -> None:
         """'+' is excluded from filtered_options during search."""
-        seg = Segment(key="k", label="K", options=["alpha", "beta"], creatable=True)
+        seg = Segment(
+            key="k", label="K", _init_options=["alpha", "beta"], creatable=True
+        )
         seg.search_buffer = "al"
         # Only real options are searched
         filtered = seg.filtered_options
@@ -307,14 +321,16 @@ class DisplayOptionsTests(unittest.TestCase):
 
     def test_plus_not_in_filtered_options_empty_buffer(self) -> None:
         """With empty search buffer, filtered_options returns options (no '+')."""
-        seg = Segment(key="k", label="K", options=["a", "b"], creatable=True)
+        seg = Segment(key="k", label="K", _init_options=["a", "b"], creatable=True)
         # filtered_options without search returns self.options (no "+")
         self.assertEqual(seg.filtered_options, ["a", "b"])
         self.assertNotIn("+", seg.filtered_options)
 
     def test_cycle_backward_visits_plus(self) -> None:
         """Cycling backward from blank visits '+' first on creatable."""
-        seg = Segment(key="k", label="K", options=["a", "b"], creatable=True, wrap=True)
+        seg = Segment(
+            key="k", label="K", _init_options=["a", "b"], creatable=True, wrap=True
+        )
         # From blank, -1 should go to last display option: "+"
         seg.cycle(-1)
         self.assertEqual(seg.selected_value, "+")
@@ -324,7 +340,7 @@ class DisplayOptionsTests(unittest.TestCase):
 
     def test_non_creatable_cycle_unchanged(self) -> None:
         """Non-creatable segments cycle through options normally (regression check)."""
-        seg = Segment(key="k", label="K", options=["a", "b", "c"], wrap=True)
+        seg = Segment(key="k", label="K", _init_options=["a", "b", "c"], wrap=True)
         expected = [0, 1, 2, -1, 0]
         for step, want in enumerate(expected):
             with self.subTest(step=step):

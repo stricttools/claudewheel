@@ -88,6 +88,7 @@ class StructuralTests(unittest.TestCase):
             self.assertEqual(r.ask_rules, (), r.key)
             self.assertTrue(r.main_advice, r.key)
             self.assertTrue(r.subagent_advice, r.key)
+            assert r.subagent_advice is not None
             # Subagent advice is main advice plus the fixed suffix.
             self.assertTrue(
                 r.subagent_advice.endswith(guardrail.SUBAGENT_HARD_DENY_SUFFIX),
@@ -104,6 +105,7 @@ class StructuralTests(unittest.TestCase):
             # Main agent falls through silently -- no advice.
             self.assertIsNone(r.main_advice, r.key)
             self.assertTrue(r.subagent_advice, r.key)
+            assert r.subagent_advice is not None
             self.assertIn("parent agent", r.subagent_advice, r.key)
             self.assertIn("Explain in detail", r.subagent_advice, r.key)
 
@@ -167,6 +169,7 @@ class SentencePunctuationTests(unittest.TestCase):
         self.assertTrue(rules)
         for r in rules:
             self.assertTrue(r.main_advice, r.key)
+            assert r.main_advice is not None
             self.assertIn(r.main_advice[-1], self._TERMINALS, r.key)
 
     def test_hard_deny_subagent_advice_is_sentence_plus_suffix(self) -> None:
@@ -175,6 +178,8 @@ class SentencePunctuationTests(unittest.TestCase):
         for r in rules:
             # The subagent message is exactly the terminal-punctuated main
             # advice, a single space, then the fixed suffix.
+            assert r.main_advice is not None
+            assert r.subagent_advice is not None
             expected = r.main_advice + " " + guardrail.SUBAGENT_HARD_DENY_SUFFIX
             self.assertEqual(r.subagent_advice, expected, r.key)
             # The suffix always follows a terminal-punctuated sentence: the
@@ -190,6 +195,7 @@ class SentencePunctuationTests(unittest.TestCase):
         rules = guardrail.rules_by_tier(Tier.ESCALATE)
         self.assertTrue(rules)
         for r in rules:
+            assert r.subagent_advice is not None
             marker = " " + guardrail.ESCALATE_TAIL
             idx = r.subagent_advice.rfind(marker)
             self.assertGreater(idx, 0, r.key)

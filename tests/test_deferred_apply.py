@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import unittest
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 from claudewheel.segment import (
@@ -16,7 +17,8 @@ from claudewheel.segment import (
 def _make_bar(*keys: str) -> SegmentBar:
     """Build a minimal SegmentBar with segments for each key."""
     segments = [
-        Segment(key=k, label=k.capitalize(), options=["opt1", "opt2"]) for k in keys
+        Segment(key=k, label=k.capitalize(), _init_options=["opt1", "opt2"])
+        for k in keys
     ]
     return SegmentBar(segments=segments, focus_idx=0)
 
@@ -53,7 +55,7 @@ class ApplySlowDiscoveryDeferralTests(unittest.TestCase):
         dr_model = DiscoveryResult(values=["opus", "sonnet"])
         app._slow_results = {"version": dr_version, "model": dr_model}
 
-        with patch("claudewheel.app.merge_slow_results") as mock_merge:
+        with patch("claudewheel.app.merge_slow_results", autospec=True) as mock_merge:
             app._apply_slow_discovery()
 
             # Focused segment's results stored in pending, not merged
@@ -74,7 +76,7 @@ class ApplySlowDiscoveryDeferralTests(unittest.TestCase):
 
         app._slow_results = {"version": DiscoveryResult(values=["1.0"])}
 
-        with patch("claudewheel.app.merge_slow_results"):
+        with patch("claudewheel.app.merge_slow_results", autospec=True):
             app._apply_slow_discovery()
 
         self.assertTrue(bar.segments[0].has_pending)
@@ -88,7 +90,7 @@ class ApplySlowDiscoveryDeferralTests(unittest.TestCase):
 
         app._slow_results = {"model": DiscoveryResult(values=["opus"])}
 
-        with patch("claudewheel.app.merge_slow_results") as mock_merge:
+        with patch("claudewheel.app.merge_slow_results", autospec=True) as mock_merge:
             app._apply_slow_discovery()
 
         self.assertEqual(app._pending_discovery, {})
@@ -103,7 +105,7 @@ class ApplySlowDiscoveryDeferralTests(unittest.TestCase):
 
         app._slow_results = {"version": DiscoveryResult(values=["1.0"])}
 
-        with patch("claudewheel.app.merge_slow_results"):
+        with patch("claudewheel.app.merge_slow_results", autospec=True):
             app._apply_slow_discovery()
 
         self.assertIsNone(app._slow_results)
@@ -136,7 +138,7 @@ class ApplyPendingForSegmentTests(unittest.TestCase):
         dr = DiscoveryResult(values=["3.0", "4.0"], installed={"3.0"})
         app._pending_discovery = {"version": dr}
 
-        with patch("claudewheel.app.merge_slow_results") as mock_merge:
+        with patch("claudewheel.app.merge_slow_results", autospec=True) as mock_merge:
             app._apply_pending_for_segment(seg)
 
         mock_merge.assert_called_once()
@@ -153,7 +155,7 @@ class ApplyPendingForSegmentTests(unittest.TestCase):
         seg = bar.segments[0]
         app = self._make_app(bar)
 
-        with patch("claudewheel.app.merge_slow_results") as mock_merge:
+        with patch("claudewheel.app.merge_slow_results", autospec=True) as mock_merge:
             app._apply_pending_for_segment(seg)
 
         mock_merge.assert_not_called()
@@ -170,7 +172,7 @@ class ApplyPendingForSegmentTests(unittest.TestCase):
         bar.segments[0].has_pending = True
         bar.segments[1].has_pending = True
 
-        with patch("claudewheel.app.merge_slow_results"):
+        with patch("claudewheel.app.merge_slow_results", autospec=True):
             app._apply_pending_for_segment(bar.segments[0])
 
         self.assertNotIn("version", app._pending_discovery)
@@ -205,7 +207,7 @@ class DefocusTests(unittest.TestCase):
         seg._freeform_editing = True
         app = self._make_app(bar)
 
-        with patch("claudewheel.app.merge_slow_results"):
+        with patch("claudewheel.app.merge_slow_results", autospec=True):
             app._defocus()
 
         self.assertEqual(seg.search_buffer, "")
@@ -221,7 +223,7 @@ class DefocusTests(unittest.TestCase):
         dr = DiscoveryResult(values=["1.0"])
         app._pending_discovery = {"version": dr}
 
-        with patch("claudewheel.app.merge_slow_results") as mock_merge:
+        with patch("claudewheel.app.merge_slow_results", autospec=True) as mock_merge:
             app._defocus()
 
         mock_merge.assert_called_once()
@@ -296,7 +298,7 @@ class MergeSlowResultsDirectTests(unittest.TestCase):
     def test_merge_updates_discovered(self) -> None:
         """merge_slow_results sets discovered options on matching segments."""
         bar = _make_bar("version")
-        state = {}
+        state: dict[str, Any] = {}
         dr = DiscoveryResult(values=["1.0", "2.0"])
         merge_slow_results(bar, {"version": dr}, state)
         self.assertEqual(bar.segments[0].state._discovered, ["1.0", "2.0"])
@@ -304,7 +306,7 @@ class MergeSlowResultsDirectTests(unittest.TestCase):
     def test_merge_updates_installed(self) -> None:
         """merge_slow_results sets the installed set on matching segments."""
         bar = _make_bar("version")
-        state = {}
+        state: dict[str, Any] = {}
         dr = DiscoveryResult(values=["1.0"], installed={"1.0"})
         merge_slow_results(bar, {"version": dr}, state)
         self.assertTrue(bar.segments[0].state.is_installed("1.0"))
@@ -313,7 +315,7 @@ class MergeSlowResultsDirectTests(unittest.TestCase):
         """merge_slow_results restores the previous selection after updating options."""
         bar = _make_bar("version")
         bar.segments[0].select_value("opt1")
-        state = {}
+        state: dict[str, Any] = {}
         dr = DiscoveryResult(values=["opt1", "opt3", "opt4"])
         merge_slow_results(bar, {"version": dr}, state)
         self.assertEqual(bar.segments[0].selected_value, "opt1")

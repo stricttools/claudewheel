@@ -15,6 +15,7 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch, Mock
 
 from claudewheel.config import AppConfigStore, resolve_theme_name
@@ -54,11 +55,13 @@ class BoundaryThemeResolutionTests(unittest.TestCase):
 
     def _resolve_and_load(
         self, paths: dict[str, Path], detect_result: str | None
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Build the store (no TTY), then resolve+load the theme at the boundary."""
         store = _store(paths)
         with patch(
-            "claudewheel.config.detect_terminal_background", return_value=detect_result
+            "claudewheel.config.detect_terminal_background",
+            autospec=True,
+            return_value=detect_result,
         ):
             name = resolve_theme_name(store.config.get("theme", "auto"))
         return store.load_theme(name)
@@ -93,7 +96,9 @@ class BoundaryThemeResolutionTests(unittest.TestCase):
             self.tmp, config={**DEFAULT_CONFIG, "theme": "dark"}
         )
         store = _store(paths)
-        with patch("claudewheel.config.detect_terminal_background") as mock_detect:
+        with patch(
+            "claudewheel.config.detect_terminal_background", autospec=True
+        ) as mock_detect:
             name = resolve_theme_name(store.config.get("theme", "auto"))
         mock_detect.assert_not_called()
         self.assertEqual(store.load_theme(name)["name"], "dark")
@@ -104,7 +109,9 @@ class BoundaryThemeResolutionTests(unittest.TestCase):
             self.tmp, config={**DEFAULT_CONFIG, "theme": "light"}
         )
         store = _store(paths)
-        with patch("claudewheel.config.detect_terminal_background") as mock_detect:
+        with patch(
+            "claudewheel.config.detect_terminal_background", autospec=True
+        ) as mock_detect:
             name = resolve_theme_name(store.config.get("theme", "auto"))
         mock_detect.assert_not_called()
         self.assertEqual(store.load_theme(name)["name"], "light")
@@ -124,33 +131,39 @@ class ResolveThemeNameTests(unittest.TestCase):
     """resolve_theme_name() module-function unit tests."""
 
     def test_dark_passthrough(self) -> None:
-        with patch("claudewheel.config.detect_terminal_background") as m:
+        with patch("claudewheel.config.detect_terminal_background", autospec=True) as m:
             result = resolve_theme_name("dark")
         m.assert_not_called()
         self.assertEqual(result, "dark")
 
     def test_light_passthrough(self) -> None:
-        with patch("claudewheel.config.detect_terminal_background") as m:
+        with patch("claudewheel.config.detect_terminal_background", autospec=True) as m:
             result = resolve_theme_name("light")
         m.assert_not_called()
         self.assertEqual(result, "light")
 
     def test_auto_calls_detection(self) -> None:
         with patch(
-            "claudewheel.config.detect_terminal_background", return_value="dark"
+            "claudewheel.config.detect_terminal_background",
+            autospec=True,
+            return_value="dark",
         ) as m:
             result = resolve_theme_name("auto")
         m.assert_called_once()
         self.assertEqual(result, "dark")
 
     def test_auto_with_none_falls_back_to_dark(self) -> None:
-        with patch("claudewheel.config.detect_terminal_background", return_value=None):
+        with patch(
+            "claudewheel.config.detect_terminal_background",
+            autospec=True,
+            return_value=None,
+        ):
             result = resolve_theme_name("auto")
         self.assertEqual(result, "dark")
 
     def test_custom_theme_name_passthrough(self) -> None:
         """A custom theme name (e.g. 'solarized') passes through unchanged."""
-        with patch("claudewheel.config.detect_terminal_background") as m:
+        with patch("claudewheel.config.detect_terminal_background", autospec=True) as m:
             result = resolve_theme_name("solarized")
         m.assert_not_called()
         self.assertEqual(result, "solarized")
