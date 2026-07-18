@@ -1,6 +1,6 @@
 {
   "name": "claudewheel",
-  "version": "0.23.2",
+  "version": "0.23.3",
   "description": "TUI launcher for Claude Code — dial in your config and go",
   "license": "MIT",
   "bin": {
