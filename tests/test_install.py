@@ -53,7 +53,9 @@ class FetchManifestTests(unittest.TestCase):
             fp=None,
         )
         with mock.patch(
-            "claudewheel.install.urllib.request.urlopen", side_effect=http_err
+            "claudewheel.install.urllib.request.urlopen",
+            autospec=True,
+            side_effect=http_err,
         ):
             with self.assertRaises(OSError) as ctx:
                 install.fetch_manifest("99.99.99")
@@ -69,6 +71,7 @@ class FetchManifestTests(unittest.TestCase):
         payload = json.dumps(manifest).encode("utf-8")
         with mock.patch(
             "claudewheel.install.urllib.request.urlopen",
+            autospec=True,
             return_value=_FakeResponse(payload),
         ):
             result = install.fetch_manifest("2.1.110")
@@ -128,10 +131,10 @@ class InstallVersionTests(unittest.TestCase):
 
     def _patch_urlopen_returning(
         self, manifest_payload: bytes, binary_payload: bytes
-    ) -> mock._patch:
+    ) -> "mock._patch[mock.MagicMock]":
         """urlopen returns the manifest first, then the binary."""
 
-        def side_effect(*args, **kwargs):  # noqa: ANN001 - mock side effect signature
+        def side_effect(*args: object, **kwargs: object) -> _FakeResponse:
             # Each successive call returns the next planned response.
             return next(responses)
 
@@ -140,6 +143,7 @@ class InstallVersionTests(unittest.TestCase):
         )
         return mock.patch(
             "claudewheel.install.urllib.request.urlopen",
+            autospec=True,
             side_effect=side_effect,
         )
 
@@ -216,6 +220,7 @@ class InstallVersionTests(unittest.TestCase):
         # via our iter() side-effect if reached -- which is itself a useful safety net.
         with mock.patch(
             "claudewheel.install.urllib.request.urlopen",
+            autospec=True,
             return_value=_FakeResponse(manifest_bytes),
         ):
             with self.assertRaises(OSError) as ctx:
@@ -267,7 +272,7 @@ class InstallVersionTests(unittest.TestCase):
 
     def test_platforms_not_a_dict_raises_oserror(self) -> None:
         """A non-object 'platforms' value raises OSError, not AttributeError/TypeError."""
-        manifest = {"platforms": []}
+        manifest: dict[str, object] = {"platforms": []}
         manifest_bytes = json.dumps(manifest).encode("utf-8")
 
         with self._patch_urlopen_manifest_only(manifest_bytes):

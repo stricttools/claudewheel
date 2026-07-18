@@ -9,6 +9,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from typing import Any
 from unittest import mock
 
 from claudewheel.config import AppConfigStore
@@ -38,9 +39,10 @@ def _appconfig(paths: dict[str, Path]) -> AppConfigStore:
     return Workspace.open(paths["CONFIG_DIR"]).appconfig()
 
 
-def _read_json(path: Path) -> dict | list:
+def _read_json(path: Path) -> dict[str, Any]:
     with open(path) as f:
-        return json.load(f)
+        data: dict[str, Any] = json.load(f)
+        return data
 
 
 # ---------------------------------------------------------------------------
@@ -53,7 +55,7 @@ class DeepMergeTests(unittest.TestCase):
 
     def test_adds_missing_keys_returns_true(self) -> None:
         """Missing top-level keys are added and the method returns True."""
-        target: dict = {"a": 1}
+        target: dict[str, Any] = {"a": 1}
         defaults = {"a": 1, "b": 2}
         result = AppConfigStore._deep_merge_missing(target, defaults)
         self.assertTrue(result)
@@ -70,7 +72,7 @@ class DeepMergeTests(unittest.TestCase):
 
     def test_recursive_merge_into_nested_dicts(self) -> None:
         """Missing keys inside nested dicts are added recursively."""
-        target: dict = {"outer": {"existing": "keep"}}
+        target: dict[str, Any] = {"outer": {"existing": "keep"}}
         defaults = {"outer": {"existing": "default", "new_key": "added"}}
         result = AppConfigStore._deep_merge_missing(target, defaults)
         self.assertTrue(result)
@@ -79,8 +81,10 @@ class DeepMergeTests(unittest.TestCase):
 
     def test_adds_entire_missing_sections(self) -> None:
         """A completely absent nested dict is deep-copied from defaults."""
-        target: dict = {}
-        defaults = {"section": {"key1": "val1", "key2": {"nested": True}}}
+        target: dict[str, Any] = {}
+        defaults: dict[str, Any] = {
+            "section": {"key1": "val1", "key2": {"nested": True}}
+        }
         result = AppConfigStore._deep_merge_missing(target, defaults)
         self.assertTrue(result)
         self.assertEqual(target["section"]["key1"], "val1")
@@ -91,7 +95,7 @@ class DeepMergeTests(unittest.TestCase):
 
     def test_idempotent_second_run_returns_false(self) -> None:
         """Running merge twice with the same defaults returns False the second time."""
-        target: dict = {"a": 1}
+        target: dict[str, Any] = {"a": 1}
         defaults = {"a": 1, "b": 2, "c": {"d": 3}}
         AppConfigStore._deep_merge_missing(target, defaults)
         result = AppConfigStore._deep_merge_missing(target, defaults)
@@ -335,7 +339,7 @@ class Migration4Tests(unittest.TestCase):
     def _make_cm(self, paths: dict[str, Path]) -> AppConfigStore:
         return _appconfig(paths)
 
-    def _old_shape_options(self) -> dict:
+    def _old_shape_options(self) -> dict[str, Any]:
         """Options with legacy profile metadata AND surviving model metadata."""
         return {
             **DEFAULT_OPTIONS,

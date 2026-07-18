@@ -47,10 +47,10 @@ def _run_hook(
     which includes agent_id/agent_type only for subagent tool calls).
     """
     script = HOOK_SCRIPTS["hook-block-unsafe-commands"]
-    tool_input: dict = {}
+    tool_input: dict[str, str] = {}
     if command is not None:
         tool_input = {"command": command}
-    payload: dict = {"tool_name": tool_name, "tool_input": tool_input}
+    payload: dict[str, object] = {"tool_name": tool_name, "tool_input": tool_input}
     if agent_id is not None:
         payload["agent_id"] = agent_id
         payload["agent_type"] = "claude"
@@ -94,7 +94,7 @@ def _assert_denies(
     testcase.assertEqual(
         hso["permissionDecision"], "deny", f"expected deny for {command!r}"
     )
-    reason = hso["permissionDecisionReason"]
+    reason: str = hso["permissionDecisionReason"]
     testcase.assertTrue(reason, f"deny reason for {command!r} must be non-empty")
     return reason
 

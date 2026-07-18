@@ -71,7 +71,7 @@ class WriteTextAtomicTests(FsutilTestCase):
         # behavior instead of crashing.
         self.target.write_text("old")
         self.target.chmod(0o640)
-        with patch.object(Path, "stat", side_effect=FileNotFoundError):
+        with patch.object(Path, "stat", autospec=True, side_effect=FileNotFoundError):
             write_text_atomic(self.target, "new")
         self.assertEqual(self.target.read_text(), "new")
         self._assert_no_tmp_left()
@@ -108,7 +108,7 @@ class WriteJsonAtomicTests(FsutilTestCase):
 
     def test_stat_race_falls_back_to_fresh_file(self) -> None:
         self.target.write_text("{}")
-        with patch.object(Path, "stat", side_effect=FileNotFoundError):
+        with patch.object(Path, "stat", autospec=True, side_effect=FileNotFoundError):
             write_json_atomic(self.target, {"a": 1})
         self.assertEqual(json.loads(self.target.read_text()), {"a": 1})
         self._assert_no_tmp_left()
@@ -149,7 +149,7 @@ class WriteJsonAtomicSecretTests(FsutilTestCase):
         seen_modes: list[int] = []
         real_rename = Path.rename
 
-        def spy_rename(src: Path, dst: Path):
+        def spy_rename(src: Path, dst: Path) -> Path:
             seen_modes.append(src.stat().st_mode & 0o777)
             return real_rename(src, dst)
 

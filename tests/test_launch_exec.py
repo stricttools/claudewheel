@@ -35,7 +35,10 @@ class DoLaunchExecBoundaryTests(unittest.TestCase):
         """execvpe is called once with (argv[0], argv, env) exactly as given."""
         argv = ["/opt/claude/bin/claude", "--verbose", "--model", "m-1"]
         env = {"CLAUDE_CONFIG_DIR": "/cfg", "GH_TOKEN": "gh-tok"}
-        with mock.patch("os.chdir"), mock.patch("os.execvpe") as m_exec:
+        with (
+            mock.patch("os.chdir", autospec=True),
+            mock.patch("os.execvpe", autospec=True) as m_exec,
+        ):
             do_launch("/work/dir", argv, env)
 
         m_exec.assert_called_once_with(argv[0], argv, env)
@@ -46,7 +49,10 @@ class DoLaunchExecBoundaryTests(unittest.TestCase):
 
     def test_chdir_targets_selected_directory(self) -> None:
         """do_launch changes into the cwd argument."""
-        with mock.patch("os.chdir") as m_chdir, mock.patch("os.execvpe"):
+        with (
+            mock.patch("os.chdir", autospec=True) as m_chdir,
+            mock.patch("os.execvpe", autospec=True),
+        ):
             do_launch("/some/project", ["/bin/claude"], {})
 
         m_chdir.assert_called_once_with("/some/project")
@@ -75,7 +81,10 @@ class DoLaunchExecBoundaryTests(unittest.TestCase):
         resolve_launch_config.
         """
         minimal_env = {"ONLY_KEY": "only-val"}
-        with mock.patch("os.chdir"), mock.patch("os.execvpe") as m_exec:
+        with (
+            mock.patch("os.chdir", autospec=True),
+            mock.patch("os.execvpe", autospec=True) as m_exec,
+        ):
             do_launch("/dir", ["/bin/claude"], minimal_env)
 
         passed_env = m_exec.call_args[0][2]
@@ -105,14 +114,16 @@ class ResolveThenDoLaunchEndToEndTests(SandboxHomeTestCase):
         """A full launch selection flows through resolve -> do_launch to execvpe."""
         proj = self.home / "proj"
         proj.mkdir()
-        selections = {
+        selections: dict[str, str | None] = {
             "profile": "work",
             "github": "ghuser",
             "model": "claude-opus-4-8",
             "directory": str(proj),
         }
         with mock.patch(
-            "claudewheel.launch.fetch_gh_token", return_value="gh-live-tok"
+            "claudewheel.launch.fetch_gh_token",
+            autospec=True,
+            return_value="gh-live-tok",
         ):
             cwd, argv, env = resolve_launch_config(
                 selections,
@@ -122,7 +133,10 @@ class ResolveThenDoLaunchEndToEndTests(SandboxHomeTestCase):
                 profiles=self.profiles,
             )
 
-        with mock.patch("os.chdir") as m_chdir, mock.patch("os.execvpe") as m_exec:
+        with (
+            mock.patch("os.chdir", autospec=True) as m_chdir,
+            mock.patch("os.execvpe", autospec=True) as m_exec,
+        ):
             do_launch(cwd, argv, env)
 
         # chdir into the selected directory.
@@ -156,7 +170,9 @@ class ResolveThenDoLaunchEndToEndTests(SandboxHomeTestCase):
         unchanged through do_launch to execvpe.
         """
         with mock.patch.dict(os.environ, {"CW_SENTINEL_VAR": "sentinel-123"}):
-            with mock.patch("claudewheel.launch.fetch_gh_token", return_value=None):
+            with mock.patch(
+                "claudewheel.launch.fetch_gh_token", autospec=True, return_value=None
+            ):
                 cwd, argv, env = resolve_launch_config(
                     {"profile": "work"},
                     {},
@@ -167,7 +183,10 @@ class ResolveThenDoLaunchEndToEndTests(SandboxHomeTestCase):
 
         self.assertEqual(env["CW_SENTINEL_VAR"], "sentinel-123")
 
-        with mock.patch("os.chdir"), mock.patch("os.execvpe") as m_exec:
+        with (
+            mock.patch("os.chdir", autospec=True),
+            mock.patch("os.execvpe", autospec=True) as m_exec,
+        ):
             do_launch(cwd, argv, env)
 
         self.assertEqual(m_exec.call_args[0][2]["CW_SENTINEL_VAR"], "sentinel-123")

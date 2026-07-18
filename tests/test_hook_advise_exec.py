@@ -25,7 +25,7 @@ from claudewheel.hook_scripts import HOOK_SCRIPTS
 def _run_hook(command: str | None, tool_name: str = "Bash") -> tuple[int, str]:
     """Run the advise hook with a payload built from *command*/*tool_name*."""
     script = HOOK_SCRIPTS["hook-advise-commands"]
-    tool_input: dict = {}
+    tool_input: dict[str, str] = {}
     if command is not None:
         tool_input = {"command": command}
     payload = json.dumps({"tool_name": tool_name, "tool_input": tool_input})
@@ -65,7 +65,7 @@ def _assert_advises(testcase: unittest.TestCase, command: str) -> str:
         )
     hso = obj["hookSpecificOutput"]
     testcase.assertEqual(hso["hookEventName"], "PostToolUse")
-    ctx = hso["additionalContext"]
+    ctx: str = hso["additionalContext"]
     testcase.assertTrue(ctx, f"additionalContext for {command!r} must be non-empty")
     return ctx
 

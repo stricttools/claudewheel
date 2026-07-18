@@ -207,7 +207,9 @@ class RunMvValidationTests(unittest.TestCase):
         new = self.tmp_path / "new"
         old.mkdir()
 
-        with patch("claudewheel.mv._discover_profile_dirs", return_value=[]):
+        with patch(
+            "claudewheel.mv._discover_profile_dirs", autospec=True, return_value=[]
+        ):
             run_mv(self.ws, str(old), str(new))  # should not raise
 
     def test_default_old_not_exists(self) -> None:
@@ -237,7 +239,9 @@ class RunMvValidationTests(unittest.TestCase):
         new = self.tmp_path / "new"
         new.mkdir()
 
-        with patch("claudewheel.mv._discover_profile_dirs", return_value=[]):
+        with patch(
+            "claudewheel.mv._discover_profile_dirs", autospec=True, return_value=[]
+        ):
             run_mv(self.ws, str(old), str(new), post_hoc=True)  # should not raise
 
     def test_post_hoc_old_still_exists(self) -> None:
@@ -339,9 +343,10 @@ class RunMvIntegrationTests(unittest.TestCase):
     def _run(self, dry_run: bool = False) -> MvResult:
         """Run mv with patched home and profile discovery (post-hoc mode)."""
         with (
-            patch("claudewheel.mv.Path.home", return_value=self.home),
+            patch("claudewheel.mv.Path.home", autospec=True, return_value=self.home),
             patch(
                 "claudewheel.mv._discover_profile_dirs",
+                autospec=True,
                 return_value=[self.profile],
             ),
         ):
@@ -427,9 +432,10 @@ class RunMvIntegrationTests(unittest.TestCase):
         shared_json.write_text(json.dumps({"projects": {self.old_resolved: {"x": 1}}}))
 
         with (
-            patch("claudewheel.mv.Path.home", return_value=self.home),
+            patch("claudewheel.mv.Path.home", autospec=True, return_value=self.home),
             patch(
                 "claudewheel.mv._discover_profile_dirs",
+                autospec=True,
                 return_value=[self.profile, shared],
             ),
         ):
@@ -507,9 +513,10 @@ class MergeDirsTests(unittest.TestCase):
 
     def _run(self, dry_run: bool = False) -> MvResult:
         with (
-            patch("claudewheel.mv.Path.home", return_value=self.home),
+            patch("claudewheel.mv.Path.home", autospec=True, return_value=self.home),
             patch(
                 "claudewheel.mv._discover_profile_dirs",
+                autospec=True,
                 return_value=[self.profile],
             ),
         ):
@@ -657,7 +664,9 @@ class RenameModeTests(unittest.TestCase):
         old.mkdir()
         (old / "file.txt").write_text("content")
 
-        with patch("claudewheel.mv._discover_profile_dirs", return_value=[]):
+        with patch(
+            "claudewheel.mv._discover_profile_dirs", autospec=True, return_value=[]
+        ):
             run_mv(self.ws, str(old), str(new))
 
         self.assertFalse(old.exists())
@@ -686,7 +695,11 @@ class RenameModeTests(unittest.TestCase):
         session = old_project / "session.jsonl"
         session.write_text(json.dumps({"cwd": old_resolved, "type": "init"}) + "\n")
 
-        with patch("claudewheel.mv._discover_profile_dirs", return_value=[profile]):
+        with patch(
+            "claudewheel.mv._discover_profile_dirs",
+            autospec=True,
+            return_value=[profile],
+        ):
             result = run_mv(self.ws, str(old), str(new))
 
         # Directory renamed
@@ -711,7 +724,9 @@ class RenameModeTests(unittest.TestCase):
         old.mkdir()
         (old / "file.txt").write_text("content")
 
-        with patch("claudewheel.mv._discover_profile_dirs", return_value=[]):
+        with patch(
+            "claudewheel.mv._discover_profile_dirs", autospec=True, return_value=[]
+        ):
             run_mv(self.ws, str(old), str(new), dry_run=True)
 
         self.assertTrue(old.is_dir())
@@ -728,6 +743,7 @@ class RenameModeTests(unittest.TestCase):
         with patch.object(
             Path,
             "rename",
+            autospec=True,
             side_effect=OSError(errno.EXDEV, "Invalid cross-device link"),
         ):
             with self.assertRaises(OSError) as ctx:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import unittest
 import urllib.error
+from email.message import Message
 from unittest import mock
 
 from claudewheel.auth import (
@@ -23,7 +24,7 @@ def _http_error(code: int) -> urllib.error.HTTPError:
         "https://api.anthropic.com/v1/models?limit=1",
         code,
         "message",
-        {},
+        Message(),
         None,
     )
 

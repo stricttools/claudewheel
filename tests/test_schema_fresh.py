@@ -28,7 +28,7 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 _COMMITTED_SCHEMA = _REPO_ROOT / ".strictcli" / "schema.json"
 
 
-def _normalize(schema: dict) -> dict:
+def _normalize(schema: dict[str, object]) -> dict[str, object]:
     """Drop the non-structural fields (version + project_id) for comparison.
 
     ``version`` changes every release; ``project_id`` is added only by the
@@ -41,7 +41,7 @@ def _normalize(schema: dict) -> dict:
     return stripped
 
 
-def _fresh_schema() -> dict:
+def _fresh_schema() -> dict[str, object]:
     """Return the live CLI schema in-process. ``Workspace.default()`` and
     ``BinaryLocator.default()`` are pure value construction (no filesystem or
     terminal I/O), matching how ``main()`` builds the app."""

@@ -59,8 +59,8 @@ class ResolveLaunchConfigTestBase(unittest.TestCase):
 
     def _resolve(
         self,
-        selections: dict | None = None,
-        options_def: dict | None = None,
+        selections: dict[str, str | None] | None = None,
+        options_def: dict[str, object] | None = None,
         default_flags: list[str] | None = None,
         extra_flags: list[str] | None = None,
         locator: BinaryLocator | None = None,
@@ -74,7 +74,9 @@ class ResolveLaunchConfigTestBase(unittest.TestCase):
         if default_flags is None:
             default_flags = []
 
-        with mock.patch("claudewheel.launch.fetch_gh_token", return_value=None):
+        with mock.patch(
+            "claudewheel.launch.fetch_gh_token", autospec=True, return_value=None
+        ):
             return resolve_launch_config(
                 selections,
                 options_def,

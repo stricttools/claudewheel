@@ -15,7 +15,8 @@ from claudewheel.theme import parse_theme
 def _make_bar(*keys: str) -> SegmentBar:
     """Build a minimal SegmentBar with segments for each key."""
     segments = [
-        Segment(key=k, label=k.capitalize(), options=["opt1", "opt2"]) for k in keys
+        Segment(key=k, label=k.capitalize(), _init_options=["opt1", "opt2"])
+        for k in keys
     ]
     return SegmentBar(segments=segments, focus_idx=0)
 
@@ -123,7 +124,7 @@ class ProvenanceRenderOptionTests(unittest.TestCase):
     def test_no_glyph_when_overlay_off(self) -> None:
         """Without provenance overlay, no glyph prefix is emitted."""
         renderer = self._make_renderer(show_provenance=False)
-        seg = Segment(key="k", label="K", options=["alpha"])
+        seg = Segment(key="k", label="K", _init_options=["alpha"])
         seg.state.set_defaults(["alpha"])
         buf: list[str] = []
         renderer._render_option(buf, seg, "alpha", "alpha", "", "")
@@ -134,7 +135,7 @@ class ProvenanceRenderOptionTests(unittest.TestCase):
     def test_glyph_for_defaults_source(self) -> None:
         """Defaults source gets '.' glyph prefix."""
         renderer = self._make_renderer(show_provenance=True)
-        seg = Segment(key="k", label="K", options=["alpha"])
+        seg = Segment(key="k", label="K", _init_options=["alpha"])
         seg.state.set_defaults(["alpha"])
         buf: list[str] = []
         renderer._render_option(buf, seg, "alpha", "alpha", "", "")
@@ -174,7 +175,7 @@ class ProvenanceRenderOptionTests(unittest.TestCase):
     def test_no_glyph_for_plus_sentinel(self) -> None:
         """The '+' sentinel never gets a provenance glyph."""
         renderer = self._make_renderer(show_provenance=True)
-        seg = Segment(key="k", label="K", options=["a"], creatable=True)
+        seg = Segment(key="k", label="K", _init_options=["a"], creatable=True)
         buf: list[str] = []
         renderer._render_option(buf, seg, "+", "+", "", "")
         joined = "".join(buf)

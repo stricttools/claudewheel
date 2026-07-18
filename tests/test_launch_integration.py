@@ -40,8 +40,12 @@ class LaunchIntegrationTests(SandboxHomeTestCase):
             claude_symlink=self.home / "claude",
         )
 
-    def _resolve(self, selections):
-        with mock.patch("claudewheel.launch.fetch_gh_token", return_value=None):
+    def _resolve(
+        self, selections: dict[str, str | None]
+    ) -> tuple[str, list[str], dict[str, str]]:
+        with mock.patch(
+            "claudewheel.launch.fetch_gh_token", autospec=True, return_value=None
+        ):
             return resolve_launch_config(
                 selections,
                 {},

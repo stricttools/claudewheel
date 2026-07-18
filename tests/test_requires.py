@@ -24,13 +24,13 @@ def _make_bar(version_value: str | None) -> SegmentBar:
     version = Segment(
         key="version",
         label="Version",
-        options=_VERSION_OPTIONS,
+        _init_options=_VERSION_OPTIONS,
         selected_value=version_value,
     )
     permissions = Segment(
         key="permissions",
         label="Permissions",
-        options=["bypass", "auto"],
+        _init_options=["bypass", "auto"],
         selected_value="bypass",
         option_requires={"auto": {"version": ">=2.1.110"}},
     )

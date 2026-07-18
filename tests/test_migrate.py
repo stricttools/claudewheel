@@ -278,14 +278,20 @@ class MigrateSessionsTests(unittest.TestCase):
         todos.mkdir()
         (todos / f"{UUID_A}-agent-cleanup.json").write_text("{}")
 
-    def _run_migrate(self, *args, **kwargs):
+    def _run_migrate(
+        self,
+        src_profile: str,
+        dst_profile: str,
+        uuid_filter: str | None = None,
+        dry_run: bool = False,
+    ) -> MigrateResult:
         """Run migrate_sessions against a sandbox workspace."""
         from claudewheel.workspace import Workspace
 
         ws = Workspace.open(
             self.home / ".claudewheel", claude_dir=self.home / ".claude"
         )
-        return migrate_sessions(ws, *args, **kwargs)
+        return migrate_sessions(ws, src_profile, dst_profile, uuid_filter, dry_run)
 
     def test_moves_non_shared(self) -> None:
         """In non-shared mode, artifacts are moved to the destination."""
@@ -347,7 +353,13 @@ class MigrateSessionsTests(unittest.TestCase):
         orig_jsonl = self.src_dir / "projects" / "myproj" / f"{UUID_A}.jsonl"
         self.assertTrue(orig_jsonl.exists())
 
-    def _run_migrate_with_default(self, *args, **kwargs):
+    def _run_migrate_with_default(
+        self,
+        src_profile: str,
+        dst_profile: str,
+        uuid_filter: str | None = None,
+        dry_run: bool = False,
+    ) -> MigrateResult:
         """Run migrate_sessions with the sandbox's ~/.claude as the default dir.
 
         The workspace's claude_dir is set to the sandbox home's ~/.claude so
@@ -358,7 +370,7 @@ class MigrateSessionsTests(unittest.TestCase):
         ws = Workspace.open(
             self.home / ".claudewheel", claude_dir=self.home / ".claude"
         )
-        return migrate_sessions(ws, *args, **kwargs)
+        return migrate_sessions(ws, src_profile, dst_profile, uuid_filter, dry_run)
 
     def test_migrate_to_default(self) -> None:
         """Session data migrates INTO the ~/.claude default profile."""

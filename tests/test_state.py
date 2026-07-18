@@ -9,6 +9,7 @@ import unittest
 from pathlib import Path
 
 from claudewheel.appdata import StateFile
+from claudewheel.config import AppConfigStore
 from claudewheel.shared_store import SharedStore
 from claudewheel.state import (
     AUTH_BROWSER_KEY,
@@ -26,8 +27,9 @@ class StateFileTestCase(unittest.TestCase):
         self.tmp_path = Path(self._tmp.name)
         self.state_file = self.tmp_path / "state.json"
 
-    def _read(self) -> dict:
-        return json.loads(self.state_file.read_text())
+    def _read(self) -> dict[str, object]:
+        data: dict[str, object] = json.loads(self.state_file.read_text())
+        return data
 
 
 # ---------------------------------------------------------------------------
@@ -70,16 +72,19 @@ class RecordInodePermissionTests(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 
-class _StubCfg:
+class _StubCfg(AppConfigStore):
     """Minimal AppConfigStore stand-in: a state dict plus save_state().
 
-    Mirrors AppConfigStore.save_state()'s out-of-band merge logic so that
-    tests exercise the same contract (auth_browser survives clobber).
+    Subclasses AppConfigStore (bypassing its heavy __init__) so it is a genuine
+    subtype, and mirrors AppConfigStore.save_state()'s out-of-band merge logic so
+    that tests exercise the same contract (auth_browser survives clobber).
     """
 
-    def __init__(self, state_file: Path, state: dict | None = None) -> None:
+    def __init__(
+        self, state_file: Path, state: dict[str, object] | None = None
+    ) -> None:
         self._state_file = state_file
-        self.state: dict = state if state is not None else {}
+        self.state = state if state is not None else {}
 
     def save_state(self) -> None:
         # Merge out-of-band keys (same as AppConfigStore.save_state)
@@ -97,7 +102,7 @@ class _StubCfg:
 class SaveLaunchStateTests(StateFileTestCase):
     """Tests for state.save_launch_state()."""
 
-    def _cfg(self, state: dict | None = None) -> _StubCfg:
+    def _cfg(self, state: dict[str, object] | None = None) -> _StubCfg:
         return _StubCfg(self.state_file, state)
 
     def test_saves_non_none_selections(self) -> None:
@@ -119,6 +124,7 @@ class SaveLaunchStateTests(StateFileTestCase):
         cfg = self._cfg({"recent_dirs": [f"/d{i}" for i in range(20)]})
         save_launch_state(cfg, {"directory": "/new"})
         recent = self._read()["recent_dirs"]
+        assert isinstance(recent, list)
         self.assertEqual(len(recent), 20)
         self.assertEqual(recent[0], "/new")
 
@@ -157,10 +163,8 @@ class AppConfigStoreSaveStateMergeTests(StateFileTestCase):
     constant.
     """
 
-    def _make_cfg(self, state: dict | None = None):
+    def _make_cfg(self, state: dict[str, object] | None = None) -> AppConfigStore:
         """Build a bare AppConfigStore wired to our temp state file."""
-        from claudewheel.config import AppConfigStore
-
         cfg = object.__new__(AppConfigStore)
         cfg._state_file = self.state_file
         cfg.state = state if state is not None else {}

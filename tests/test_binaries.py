@@ -75,6 +75,7 @@ class BinaryLocatorTest(SandboxHomeTestCase):
         self.symlink_path.symlink_to(self.versions_dir / "2.1.120")
         target = self.loc.symlink_target()
         self.assertIsNotNone(target)
+        assert target is not None
         self.assertEqual(target.name, "2.1.120")
 
     def test_symlink_target_none_when_absent(self) -> None:
@@ -86,13 +87,14 @@ class BinaryLocatorTest(SandboxHomeTestCase):
         self.symlink_path.symlink_to(self.versions_dir / "gone")
         target = self.loc.symlink_target()
         self.assertIsNotNone(target)
+        assert target is not None
         self.assertEqual(target.name, "gone")
 
     # -- frozen dataclass --------------------------------------------------
 
     def test_is_frozen_dataclass(self) -> None:
         self.assertTrue(dataclasses.is_dataclass(self.loc))
-        params = self.loc.__dataclass_params__
+        params = getattr(self.loc, "__dataclass_params__")
         self.assertTrue(params.frozen)
         with self.assertRaises(dataclasses.FrozenInstanceError):
             self.loc.versions_dir = Path("/elsewhere")  # type: ignore[misc]
