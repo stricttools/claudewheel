@@ -40,6 +40,11 @@
       "name": "ruff-format",
       "command": "bash scripts/gates/ruff-format",
       "tag": "preflight"
+    },
+    {
+      "name": "autospec-tests",
+      "command": "python3 scripts/gates/check-autospec",
+      "tag": "preflight"
     }
   ]
 }

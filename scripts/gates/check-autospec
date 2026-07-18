@@ -49,9 +49,14 @@ _ALLOWED = frozenset({AUTOSPEC, SPEC, DICT, NEW})
 # The default ``patch`` roots, before any aliases are resolved:
 #   from unittest.mock import patch  ->  patch(...)
 #   from unittest import mock        ->  mock.patch(...)
+#   import unittest.mock             ->  unittest.mock.patch(...)
 # ``_collect_aliases`` extends these with any import asnames it finds.
+#
+# A module reference is a dotted-name *prefix* (tuple of parts) that, followed
+# by ``.patch``, forms a patch call: ``("mock",)`` matches ``mock.patch(...)``;
+# ``("unittest", "mock")`` matches the fully-qualified ``unittest.mock.patch(...)``.
 _DEFAULT_PATCH_NAMES = frozenset({"patch"})
-_DEFAULT_MODULE_NAMES = frozenset({"mock"})
+_DEFAULT_MODULE_PREFIXES = frozenset({("mock",)})
 
 # The mock module import paths whose aliases we track.
 _MOCK_MODULE_PATHS = frozenset({"unittest.mock", "mock"})
@@ -88,28 +93,42 @@ def _flatten_dotted(node: ast.expr) -> Optional[list[str]]:
     return parts
 
 
-def _collect_aliases(tree: ast.AST) -> tuple[frozenset[str], frozenset[str]]:
-    """Scan module imports and return (patch_names, module_names).
+def _collect_aliases(
+    tree: ast.AST,
+) -> tuple[frozenset[str], frozenset[tuple[str, ...]]]:
+    """Scan module imports and return (patch_names, module_prefixes).
 
     ``patch_names`` are local names bound directly to ``unittest.mock.patch``
-    (or ``mock.patch``); calling them is a top-level patch call. ``module_names``
-    are local names bound to the mock module; a patch call goes through
-    ``<module>.patch(...)``.
+    (or ``mock.patch``); calling them is a top-level patch call.
+    ``module_prefixes`` are dotted-name part tuples that reach the mock module;
+    a patch call goes through ``<prefix...>.patch(...)``.
 
-    Both the ``import unittest.mock as X`` and
-    ``from unittest.mock import patch as Y`` alias forms are resolved, plus the
-    third-party ``import mock`` / ``from mock import patch`` backport paths and
-    ``from unittest import mock as Z``. The canonical unaliased ``patch`` and
-    ``mock`` names are always included.
+    Every mock-module import form is resolved:
+
+    - ``import unittest.mock as X`` / ``import mock as X`` -> prefix ``(X,)``
+    - ``import unittest.mock`` (no asname) -> prefix ``("unittest", "mock")``,
+      so the fully-qualified ``unittest.mock.patch(...)`` idiom is classified
+    - ``import mock`` (no asname) -> prefix ``("mock",)``
+    - ``from unittest.mock import patch as Y`` / ``from mock import patch`` ->
+      patch name ``Y``
+    - ``from unittest import mock as Z`` -> prefix ``(Z,)``
+
+    The canonical unaliased ``patch`` name and ``("mock",)`` prefix are always
+    included.
     """
     patch_names: set[str] = set(_DEFAULT_PATCH_NAMES)
-    module_names: set[str] = set(_DEFAULT_MODULE_NAMES)
+    module_prefixes: set[tuple[str, ...]] = set(_DEFAULT_MODULE_PREFIXES)
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             for alias in node.names:
-                # import unittest.mock as X ; import mock as X
-                if alias.name in _MOCK_MODULE_PATHS and alias.asname:
-                    module_names.add(alias.asname)
+                if alias.name in _MOCK_MODULE_PATHS:
+                    if alias.asname:
+                        # import unittest.mock as X ; import mock as X
+                        module_prefixes.add((alias.asname,))
+                    else:
+                        # import unittest.mock -> unittest.mock.patch(...)
+                        # import mock          -> mock.patch(...)
+                        module_prefixes.add(tuple(alias.name.split(".")))
         elif isinstance(node, ast.ImportFrom):
             if node.module in _MOCK_MODULE_PATHS:
                 # from unittest.mock import patch as Y ; from mock import patch
@@ -119,41 +138,43 @@ def _collect_aliases(tree: ast.AST) -> tuple[frozenset[str], frozenset[str]]:
                     elif alias.name == "mock" and alias.asname:
                         # from unittest.mock import mock as Z -- degenerate, but
                         # a name bound to the module still routes through it.
-                        module_names.add(alias.asname)
+                        module_prefixes.add((alias.asname,))
             elif node.module == "unittest":
                 # from unittest import mock as Z
                 for alias in node.names:
                     if alias.name == "mock":
-                        module_names.add(alias.asname or alias.name)
-    return frozenset(patch_names), frozenset(module_names)
+                        module_prefixes.add((alias.asname or alias.name,))
+    return frozenset(patch_names), frozenset(module_prefixes)
 
 
 def patch_kind(
     func: ast.expr,
     patch_names: frozenset[str] = _DEFAULT_PATCH_NAMES,
-    module_names: frozenset[str] = _DEFAULT_MODULE_NAMES,
+    module_prefixes: frozenset[tuple[str, ...]] = _DEFAULT_MODULE_PREFIXES,
 ) -> Optional[str]:
     """Classify a call's ``func`` node as a patch flavor, or None.
 
     Returns ``"patch"``, ``"object"``, ``"dict"``, or ``"multiple"`` when the
-    call is a recognized ``patch`` / ``mock.patch`` (or one of its attribute or
-    aliased forms), else None. Anything named ``patch`` that is NOT rooted at a
-    known patch symbol or mock-module alias (e.g. ``self._home_patch.start``) is
-    rejected.
+    call is a recognized ``patch`` / ``mock.patch`` / ``unittest.mock.patch``
+    (or one of its attribute or aliased forms), else None. Anything named
+    ``patch`` that is NOT rooted at a known patch symbol or mock-module prefix
+    (e.g. ``self._home_patch.start``) is rejected.
     """
     parts = _flatten_dotted(func)
     if parts is None:
         return None
-    if parts[0] in module_names:
-        # <module>.patch(...) / <module>.patch.object(...)
-        if len(parts) < 2 or parts[1] != "patch":
-            return None
-        suffix = parts[2:]
-    elif parts[0] in patch_names:
-        # patch(...) / patch.object(...) (possibly an aliased ``patch``)
-        suffix = parts[1:]
+    for prefix in module_prefixes:
+        plen = len(prefix)
+        # <prefix...>.patch(...) / <prefix...>.patch.object(...)
+        if len(parts) > plen and tuple(parts[:plen]) == prefix and parts[plen] == "patch":
+            suffix = parts[plen + 1 :]
+            break
     else:
-        return None
+        if parts[0] in patch_names:
+            # patch(...) / patch.object(...) (possibly an aliased ``patch``)
+            suffix = parts[1:]
+        else:
+            return None
     if not suffix:
         return "patch"
     if len(suffix) == 1 and suffix[0] in _PATCH_SUFFIXES:
@@ -190,7 +211,7 @@ def _positional_count(call: ast.Call) -> int:
 def classify_patch_call(
     call: ast.Call,
     patch_names: frozenset[str] = _DEFAULT_PATCH_NAMES,
-    module_names: frozenset[str] = _DEFAULT_MODULE_NAMES,
+    module_prefixes: frozenset[tuple[str, ...]] = _DEFAULT_MODULE_PREFIXES,
 ) -> Optional[Result]:
     """Classify a Call node if it is a patch site; else None.
 
@@ -198,7 +219,7 @@ def classify_patch_call(
     manager, and ``x = patch(...); x.start()`` all produce the same Call node,
     so classifying the Call covers them all.
     """
-    kind = patch_kind(call.func, patch_names, module_names)
+    kind = patch_kind(call.func, patch_names, module_prefixes)
     if kind is None:
         return None
 
@@ -258,11 +279,11 @@ def classify_patch_call(
 def classify_source(source: str, filename: str = "<source>") -> list[Result]:
     """Parse *source* and classify every patch call site within it."""
     tree = ast.parse(source, filename=filename)
-    patch_names, module_names = _collect_aliases(tree)
+    patch_names, module_prefixes = _collect_aliases(tree)
     results: list[Result] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Call):
-            res = classify_patch_call(node, patch_names, module_names)
+            res = classify_patch_call(node, patch_names, module_prefixes)
             if res is not None:
                 results.append(res)
     return results

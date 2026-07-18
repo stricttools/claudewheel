@@ -179,6 +179,22 @@ class AliasResolutionTests(unittest.TestCase):
         src = "from unittest import mock as mk\nmk.patch('mod.thing')\n"
         self.assertEqual(_one(src), checker.BARE)
 
+    def test_fully_qualified_import_bare(self) -> None:
+        # import unittest.mock (no asname) -> unittest.mock.patch(...) roots at
+        # the dotted `unittest.mock` prefix and must classify like mock.patch.
+        src = "import unittest.mock\nunittest.mock.patch('mod.thing')\n"
+        self.assertEqual(_one(src), checker.BARE)
+
+    def test_fully_qualified_import_autospec(self) -> None:
+        src = "import unittest.mock\nunittest.mock.patch('mod.thing', autospec=True)\n"
+        self.assertEqual(_one(src), checker.AUTOSPEC)
+
+    def test_fully_qualified_import_patch_dict(self) -> None:
+        src = (
+            "import unittest.mock\nunittest.mock.patch.dict('os.environ', {'X': '1'})\n"
+        )
+        self.assertEqual(_one(src), checker.DICT)
+
     def test_unaliased_names_still_work_without_import(self) -> None:
         # Defaults (patch / mock) apply even when no import is present.
         self.assertEqual(_one("mock.patch('mod.thing')"), checker.BARE)
