@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import unittest
+from collections.abc import Callable
 from unittest import mock
 
 from claudewheel.constants import (
@@ -25,14 +26,18 @@ class TerminalRawModeTestBase(unittest.TestCase):
         self.fake_tty.closed = False
 
         patches = [
-            mock.patch("builtins.open", return_value=self.fake_tty),
+            mock.patch("builtins.open", autospec=True, return_value=self.fake_tty),
             mock.patch(
-                "claudewheel.terminal.termios.tcgetattr", return_value=["fake-attrs"]
+                "claudewheel.terminal.termios.tcgetattr",
+                autospec=True,
+                return_value=["fake-attrs"],
             ),
-            mock.patch("claudewheel.terminal.termios.tcsetattr"),
-            mock.patch("claudewheel.terminal.tty.setcbreak"),
-            mock.patch("claudewheel.terminal.atexit.register"),
-            mock.patch.object(Terminal, "get_size", return_value=(24, 80)),
+            mock.patch("claudewheel.terminal.termios.tcsetattr", autospec=True),
+            mock.patch("claudewheel.terminal.tty.setcbreak", autospec=True),
+            mock.patch("claudewheel.terminal.atexit.register", autospec=True),
+            mock.patch.object(
+                Terminal, "get_size", autospec=True, return_value=(24, 80)
+            ),
         ]
         for p in patches:
             p.start()
@@ -215,14 +220,14 @@ class CookedContextManagerTests(TerminalRawModeTestBase):
 class ReadKeyTests(TerminalRawModeTestBase):
     """read_key() decodes escape sequences without leaking residue bytes."""
 
-    def _feed(self, data: bytes):
+    def _feed(self, data: bytes) -> bytearray:
         """Patch os.read/select.select in terminal module to serve `data`.
 
         Returns the live buffer so tests can assert full consumption.
         """
         buf = bytearray(data)
 
-        def fake_read(fd, n):
+        def fake_read(fd: int, n: int) -> bytes:
             self.assertEqual(n, 1)
             if not buf:
                 self.fail("read_key tried to read past the fed bytes")
@@ -230,11 +235,20 @@ class ReadKeyTests(TerminalRawModeTestBase):
             del buf[:1]
             return byte
 
-        def fake_select(rlist, wlist, xlist, timeout=None):
+        def fake_select(
+            rlist: list[object],
+            wlist: list[object],
+            xlist: list[object],
+            timeout: float | None = None,
+        ) -> tuple[list[object], list[object], list[object]]:
             return (list(rlist) if buf else [], [], [])
 
-        p1 = mock.patch("claudewheel.terminal.os.read", side_effect=fake_read)
-        p2 = mock.patch("claudewheel.terminal.select.select", side_effect=fake_select)
+        p1 = mock.patch(
+            "claudewheel.terminal.os.read", autospec=True, side_effect=fake_read
+        )
+        p2 = mock.patch(
+            "claudewheel.terminal.select.select", autospec=True, side_effect=fake_select
+        )
         p1.start()
         p2.start()
         self.addCleanup(p1.stop)
@@ -476,16 +490,27 @@ class ExitRawMode2031Tests(TerminalRawModeTestBase):
 class DetectMode2031SupportTests(unittest.TestCase):
     """detect_mode2031_support queries the terminal for Mode 2031."""
 
-    def _mock_fd_response(self, data: bytes):
+    def _mock_fd_response(
+        self, data: bytes
+    ) -> tuple[
+        mock.MagicMock,
+        Callable[..., tuple[list[object], list[object], list[object]]],
+        Callable[..., bytes],
+    ]:
         """Set up mocks for a detect_mode2031_support call with given fd response."""
         fake_tty = mock.MagicMock()
         fake_tty.fileno.return_value = 99
         buf = bytearray(data)
 
-        def fake_select(rlist, wlist, xlist, timeout=None):
+        def fake_select(
+            rlist: list[object],
+            wlist: list[object],
+            xlist: list[object],
+            timeout: float | None = None,
+        ) -> tuple[list[object], list[object], list[object]]:
             return (list(rlist) if buf else [], [], [])
 
-        def fake_read(fd_arg, n):
+        def fake_read(fd_arg: int, n: int) -> bytes:
             chunk = bytes(buf[:n])
             del buf[:n]
             return chunk
@@ -518,18 +543,26 @@ class DetectMode2031SupportTests(unittest.TestCase):
             b"\x1b[?997;1n\x1b[?62;c"
         )
         with mock.patch.dict(os.environ, {"TERM": "xterm-256color"}):
-            with mock.patch("builtins.open", return_value=fake_tty):
+            with mock.patch("builtins.open", autospec=True, return_value=fake_tty):
                 with mock.patch(
-                    "claudewheel.terminal.termios.tcgetattr", return_value=["old"]
+                    "claudewheel.terminal.termios.tcgetattr",
+                    autospec=True,
+                    return_value=["old"],
                 ):
-                    with mock.patch("claudewheel.terminal.tty.setcbreak"):
-                        with mock.patch("claudewheel.terminal.termios.tcsetattr"):
+                    with mock.patch(
+                        "claudewheel.terminal.tty.setcbreak", autospec=True
+                    ):
+                        with mock.patch(
+                            "claudewheel.terminal.termios.tcsetattr", autospec=True
+                        ):
                             with mock.patch(
                                 "claudewheel.terminal.select.select",
+                                autospec=True,
                                 side_effect=fake_select,
                             ):
                                 with mock.patch(
                                     "claudewheel.terminal.os.read",
+                                    autospec=True,
                                     side_effect=fake_read,
                                 ):
                                     result = detect_mode2031_support()
@@ -543,18 +576,26 @@ class DetectMode2031SupportTests(unittest.TestCase):
             b"\x1b[?997;2n\x1b[?62;c"
         )
         with mock.patch.dict(os.environ, {"TERM": "xterm-256color"}):
-            with mock.patch("builtins.open", return_value=fake_tty):
+            with mock.patch("builtins.open", autospec=True, return_value=fake_tty):
                 with mock.patch(
-                    "claudewheel.terminal.termios.tcgetattr", return_value=["old"]
+                    "claudewheel.terminal.termios.tcgetattr",
+                    autospec=True,
+                    return_value=["old"],
                 ):
-                    with mock.patch("claudewheel.terminal.tty.setcbreak"):
-                        with mock.patch("claudewheel.terminal.termios.tcsetattr"):
+                    with mock.patch(
+                        "claudewheel.terminal.tty.setcbreak", autospec=True
+                    ):
+                        with mock.patch(
+                            "claudewheel.terminal.termios.tcsetattr", autospec=True
+                        ):
                             with mock.patch(
                                 "claudewheel.terminal.select.select",
+                                autospec=True,
                                 side_effect=fake_select,
                             ):
                                 with mock.patch(
                                     "claudewheel.terminal.os.read",
+                                    autospec=True,
                                     side_effect=fake_read,
                                 ):
                                     result = detect_mode2031_support()
@@ -566,18 +607,26 @@ class DetectMode2031SupportTests(unittest.TestCase):
 
         fake_tty, fake_select, fake_read = self._mock_fd_response(b"\x1b[?62;c")
         with mock.patch.dict(os.environ, {"TERM": "xterm-256color"}):
-            with mock.patch("builtins.open", return_value=fake_tty):
+            with mock.patch("builtins.open", autospec=True, return_value=fake_tty):
                 with mock.patch(
-                    "claudewheel.terminal.termios.tcgetattr", return_value=["old"]
+                    "claudewheel.terminal.termios.tcgetattr",
+                    autospec=True,
+                    return_value=["old"],
                 ):
-                    with mock.patch("claudewheel.terminal.tty.setcbreak"):
-                        with mock.patch("claudewheel.terminal.termios.tcsetattr"):
+                    with mock.patch(
+                        "claudewheel.terminal.tty.setcbreak", autospec=True
+                    ):
+                        with mock.patch(
+                            "claudewheel.terminal.termios.tcsetattr", autospec=True
+                        ):
                             with mock.patch(
                                 "claudewheel.terminal.select.select",
+                                autospec=True,
                                 side_effect=fake_select,
                             ):
                                 with mock.patch(
                                     "claudewheel.terminal.os.read",
+                                    autospec=True,
                                     side_effect=fake_read,
                                 ):
                                     result = detect_mode2031_support()
@@ -590,14 +639,21 @@ class DetectMode2031SupportTests(unittest.TestCase):
         fake_tty = mock.MagicMock()
         fake_tty.fileno.return_value = 99
         with mock.patch.dict(os.environ, {"TERM": "xterm-256color"}):
-            with mock.patch("builtins.open", return_value=fake_tty):
+            with mock.patch("builtins.open", autospec=True, return_value=fake_tty):
                 with mock.patch(
-                    "claudewheel.terminal.termios.tcgetattr", return_value=["old"]
+                    "claudewheel.terminal.termios.tcgetattr",
+                    autospec=True,
+                    return_value=["old"],
                 ):
-                    with mock.patch("claudewheel.terminal.tty.setcbreak"):
-                        with mock.patch("claudewheel.terminal.termios.tcsetattr"):
+                    with mock.patch(
+                        "claudewheel.terminal.tty.setcbreak", autospec=True
+                    ):
+                        with mock.patch(
+                            "claudewheel.terminal.termios.tcsetattr", autospec=True
+                        ):
                             with mock.patch(
                                 "claudewheel.terminal.select.select",
+                                autospec=True,
                                 return_value=([], [], []),
                             ):
                                 result = detect_mode2031_support()
@@ -607,7 +663,9 @@ class DetectMode2031SupportTests(unittest.TestCase):
         from claudewheel.terminal import detect_mode2031_support
 
         with mock.patch.dict(os.environ, {"TERM": "xterm-256color"}):
-            with mock.patch("builtins.open", side_effect=OSError("no tty")):
+            with mock.patch(
+                "builtins.open", autospec=True, side_effect=OSError("no tty")
+            ):
                 self.assertIsNone(detect_mode2031_support())
 
     def test_tcgetattr_failure_returns_none(self) -> None:
@@ -616,9 +674,10 @@ class DetectMode2031SupportTests(unittest.TestCase):
         fake_tty = mock.MagicMock()
         fake_tty.fileno.return_value = 99
         with mock.patch.dict(os.environ, {"TERM": "xterm-256color"}):
-            with mock.patch("builtins.open", return_value=fake_tty):
+            with mock.patch("builtins.open", autospec=True, return_value=fake_tty):
                 with mock.patch(
                     "claudewheel.terminal.termios.tcgetattr",
+                    autospec=True,
                     side_effect=__import__("termios").error("bad"),
                 ):
                     self.assertIsNone(detect_mode2031_support())

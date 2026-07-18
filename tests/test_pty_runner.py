@@ -7,6 +7,7 @@ import signal
 import sys
 import termios
 import unittest
+from typing import Any
 from unittest import mock
 
 from claudewheel.pty_runner import run_under_pty
@@ -93,6 +94,7 @@ class RobustnessTests(unittest.TestCase):
         # disappearing mid-session) and verify the child is still reaped.
         with mock.patch(
             "claudewheel.pty_runner.select.select",
+            autospec=True,
             side_effect=RuntimeError("simulated tty loss"),
         ):
             with self.assertRaises(RuntimeError):
@@ -114,7 +116,7 @@ class RobustnessTests(unittest.TestCase):
         payload = b"x" * 300 + b"\n"
         real_write = os.write
 
-        def chunked_write(fd: int, data) -> int:
+        def chunked_write(fd: int, data: bytes) -> int:
             data = bytes(data)
             chunk = data[: max(1, len(data) // 2)]
             return real_write(fd, chunk)
@@ -142,7 +144,7 @@ class RobustnessTests(unittest.TestCase):
 
 class DevTtyErrorTests(unittest.TestCase):
     def test_raises_clear_error_when_dev_tty_unavailable(self) -> None:
-        with mock.patch("builtins.open", side_effect=OSError("no tty")):
+        with mock.patch("builtins.open", autospec=True, side_effect=OSError("no tty")):
             with self.assertRaises(RuntimeError) as ctx:
                 run_under_pty(
                     [sys.executable, "-c", "print('x')"],
@@ -248,15 +250,17 @@ class SignalHandlerTests(unittest.TestCase):
         # We need to intercept the signal handler that is installed during
         # the proxy loop. Since the handler is defined inside run_under_pty,
         # we capture it by wrapping signal.signal.
-        captured_handlers = {}
+        captured_handlers: dict[int, Any] = {}
         real_signal = signal.signal
 
-        def capturing_signal(sig, handler):
+        def capturing_signal(sig: int, handler: Any) -> Any:
             captured_handlers[sig] = handler
             return real_signal(sig, handler)
 
         with mock.patch(
-            "claudewheel.pty_runner.signal.signal", side_effect=capturing_signal
+            "claudewheel.pty_runner.signal.signal",
+            autospec=True,
+            side_effect=capturing_signal,
         ):
             code, _ = run_under_pty(
                 [sys.executable, "-c", "pass"],

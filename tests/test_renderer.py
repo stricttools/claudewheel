@@ -5,40 +5,44 @@ from __future__ import annotations
 import unittest
 
 from claudewheel.constants import DIM
+from claudewheel.renderer import Renderer
 from claudewheel.segment import Segment
+from claudewheel.terminal import Terminal
+from claudewheel.theme import ThemeColors
 
 
 class RenderOptionAuthDimmingTests(unittest.TestCase):
     """_render_option dims unauthenticated profiles via unavail_fg."""
 
-    def _make_renderer(self):
-        """Create a minimal Renderer with stub terminal and theme."""
-        from claudewheel.renderer import Renderer
+    def _make_renderer(self) -> Renderer:
+        """Create a minimal Renderer with stub terminal and real theme."""
 
-        class StubTerminal:
-            rows = 40
-            cols = 120
+        class StubTerminal(Terminal):
+            def __init__(self) -> None:
+                self.rows = 40
+                self.cols = 120
 
-            def write(self, _):
+            def write(self, text: str) -> None:
                 pass
 
-            def flush(self):
+            def flush(self) -> None:
                 pass
 
-        class StubTheme:
-            empty_value_text = "---"
-            empty_value_fg = ""
-            search_match_fg = ""
-            search_cursor_fg = ""
-            search_no_match_fg = ""
-            label_fg = ""
-            separator_char = " | "
-            separator_fg = ""
-            overflow_arrow_fg = ""
-            overflow_minimap_fg = ""
-            overflow_minimap_focused_bg = ""
-            overflow_minimap_char = "█"
-            segment_colors = {
+        theme = ThemeColors(
+            global_fg="",
+            label_fg="",
+            separator_fg="",
+            separator_char=" | ",
+            empty_value_fg="",
+            empty_value_text="---",
+            search_cursor_fg="",
+            search_match_fg="",
+            search_no_match_fg="",
+            overflow_arrow_fg="",
+            overflow_minimap_fg="",
+            overflow_minimap_focused_bg="",
+            overflow_minimap_char="█",
+            segment_colors={
                 "profile": {
                     "focus_bg": "",
                     "focus_fg": "",
@@ -46,9 +50,9 @@ class RenderOptionAuthDimmingTests(unittest.TestCase):
                     "option_fg": DIM,
                     "unavailable_fg": "\x1b[38;2;85;85;85m",
                 },
-            }
-
-        return Renderer(StubTerminal(), StubTheme())
+            },
+        )
+        return Renderer(StubTerminal(), theme)
 
     def test_unauthenticated_option_gets_unavail_fg(self) -> None:
         """An unauthenticated profile option is rendered with unavail_fg color."""
