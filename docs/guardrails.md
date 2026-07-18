@@ -15,7 +15,7 @@ and drive both the deployed hook scripts and each profile's permission arrays.
 
 ## Enforcement tiers
 
-Every rule belongs to exactly one of four tiers. The tier decides where the
+Every rule belongs to exactly one of 4 tiers. The tier decides where the
 rule is enforced (a `PreToolUse`/`PostToolUse` hook, the settings
 `deny`/`ask` arrays, or both) and who it applies to. The hook is always the
 authoritative enforcer when a rule has one; the settings arrays are
@@ -80,7 +80,7 @@ anything to disk.
 
 The table below is generated directly from the canonical rule set, so it always
 reflects the guardrails shipped in this version. "Settings coverage" reports how
-completely a rule's `deny`/`ask` glob(s) track its hook surface (FULL, PARTIAL,
-or NONE), or `n/a` for tiers with no settings backstop.
+completely a rule's `deny`/`ask` glob(s) track its hook surface as 1 of 3
+levels (FULL, PARTIAL, or NONE), or `n/a` for tiers with no settings backstop.
 
 :-: table-guardrails
