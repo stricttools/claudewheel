@@ -13,6 +13,7 @@ from unittest.mock import patch
 from claudewheel.shared_store import SharedStore
 from claudewheel.mv import (
     MvResult,
+    _plan_migrations,
     _rewrite_jsonl_file,
     _update_claude_json,
     run_mv,
@@ -139,9 +140,10 @@ class UpdateClaudeJsonTests(unittest.TestCase):
             )
         )
 
-        result = _update_claude_json(f, "/old/proj", "/new/proj", dry_run=False)
+        keys, gh = _update_claude_json(f, [("/old/proj", "/new/proj")], dry_run=False)
 
-        self.assertTrue(result)
+        self.assertEqual(keys, 1)
+        self.assertEqual(gh, 0)
         data = json.loads(f.read_text())
         self.assertIn("/new/proj", data["projects"])
         self.assertNotIn("/old/proj", data["projects"])
@@ -149,31 +151,84 @@ class UpdateClaudeJsonTests(unittest.TestCase):
         self.assertIn("/other", data["projects"])
         self.assertTrue(data["topLevel"])
 
-    def test_returns_false_when_key_missing(self) -> None:
+    def test_returns_zero_when_key_missing(self) -> None:
         f = self.tmp_path / ".claude.json"
         f.write_text(json.dumps({"projects": {"/other": {}}}))
 
-        result = _update_claude_json(f, "/old/proj", "/new/proj", dry_run=False)
+        keys, gh = _update_claude_json(f, [("/old/proj", "/new/proj")], dry_run=False)
 
-        self.assertFalse(result)
+        self.assertEqual((keys, gh), (0, 0))
 
-    def test_returns_false_when_no_projects_key(self) -> None:
+    def test_returns_zero_when_no_projects_key(self) -> None:
         f = self.tmp_path / ".claude.json"
         f.write_text(json.dumps({"topLevel": True}))
 
-        result = _update_claude_json(f, "/old/proj", "/new/proj", dry_run=False)
+        keys, gh = _update_claude_json(f, [("/old/proj", "/new/proj")], dry_run=False)
 
-        self.assertFalse(result)
+        self.assertEqual((keys, gh), (0, 0))
 
-    def test_dry_run_returns_true_but_does_not_modify(self) -> None:
+    def test_dry_run_counts_but_does_not_modify(self) -> None:
         f = self.tmp_path / ".claude.json"
         original = json.dumps({"projects": {"/old/proj": {"val": 42}}})
         f.write_text(original)
 
-        result = _update_claude_json(f, "/old/proj", "/new/proj", dry_run=True)
+        keys, gh = _update_claude_json(f, [("/old/proj", "/new/proj")], dry_run=True)
 
-        self.assertTrue(result)
+        self.assertEqual((keys, gh), (1, 0))
         self.assertEqual(json.loads(f.read_text()), json.loads(original))
+
+    def test_renames_multiple_keys_including_descendants(self) -> None:
+        f = self.tmp_path / ".claude.json"
+        f.write_text(
+            json.dumps(
+                {
+                    "projects": {
+                        "/old/proj": {"a": 1},
+                        "/old/proj/child": {"b": 2},
+                        "/other": {"c": 3},
+                    }
+                }
+            )
+        )
+
+        migrations = [
+            ("/old/proj/child", "/new/proj/child"),
+            ("/old/proj", "/new/proj"),
+        ]
+        keys, gh = _update_claude_json(f, migrations, dry_run=False)
+
+        self.assertEqual(keys, 2)
+        data = json.loads(f.read_text())
+        self.assertEqual(
+            sorted(data["projects"].keys()),
+            ["/new/proj", "/new/proj/child", "/other"],
+        )
+        self.assertEqual(data["projects"]["/new/proj/child"], {"b": 2})
+
+    def test_rewrites_github_repo_paths_exact_and_nested(self) -> None:
+        f = self.tmp_path / ".claude.json"
+        f.write_text(
+            json.dumps(
+                {
+                    "projects": {},
+                    "githubRepoPaths": {
+                        "o/exact": ["/old/proj"],
+                        "o/deep": ["/old/proj/sub/dir", "/elsewhere"],
+                        "o/unrelated": ["/somewhere/else"],
+                    },
+                }
+            )
+        )
+
+        keys, gh = _update_claude_json(f, [("/old/proj", "/new/proj")], dry_run=False)
+
+        self.assertEqual(keys, 0)
+        self.assertEqual(gh, 2)
+        data = json.loads(f.read_text())
+        repo_paths = data["githubRepoPaths"]
+        self.assertEqual(repo_paths["o/exact"], ["/new/proj"])
+        self.assertEqual(repo_paths["o/deep"], ["/new/proj/sub/dir", "/elsewhere"])
+        self.assertEqual(repo_paths["o/unrelated"], ["/somewhere/else"])
 
 
 # ---------------------------------------------------------------------------
@@ -750,6 +805,293 @@ class RenameModeTests(unittest.TestCase):
                 run_mv(self.ws, str(old), str(new))
 
         self.assertIn("failed to rename directory", str(ctx.exception))
+
+
+# ---------------------------------------------------------------------------
+# Migration planning (ordering)
+# ---------------------------------------------------------------------------
+
+
+class PlanMigrationsTests(unittest.TestCase):
+    """Longest-first ordering of the migration plan (prefix-shadowing prevention)."""
+
+    def test_longest_paths_first(self) -> None:
+        old = "/home/u/old"
+        new = "/home/u/new"
+        descendants = {
+            "/home/u/old/a",
+            "/home/u/old/a/deep/child",
+            "/home/u/old/b",
+        }
+
+        plan = _plan_migrations(old, new, descendants)
+
+        old_paths = [mo for mo, _ in plan]
+        # Parent is included exactly once, and every prefix comes after all
+        # of its own descendants (longest first).
+        self.assertEqual(sorted(old_paths), sorted({old} | descendants))
+        lengths = [len(p) for p in old_paths]
+        self.assertEqual(lengths, sorted(lengths, reverse=True))
+        self.assertEqual(old_paths[0], "/home/u/old/a/deep/child")
+        self.assertEqual(old_paths[-1], old)
+
+    def test_destinations_are_new_plus_suffix(self) -> None:
+        plan = _plan_migrations("/old", "/new", {"/old/x", "/old/x/y"})
+        self.assertEqual(dict(plan)["/old/x/y"], "/new/x/y")
+        self.assertEqual(dict(plan)["/old/x"], "/new/x")
+        self.assertEqual(dict(plan)["/old"], "/new")
+
+
+# ---------------------------------------------------------------------------
+# Nested (descendant) project migration
+# ---------------------------------------------------------------------------
+
+
+class NestedMigrationTests(unittest.TestCase):
+    """A moved parent directory migrates every descendant project's data."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.home = Path(self._tmp.name) / "home"
+        self.home.mkdir()
+        from claudewheel.workspace import Workspace
+
+        self.ws = Workspace.open(
+            self.home / ".claudewheel", claude_dir=self.home / ".claude"
+        )
+
+        self._stdout_trap = contextlib.redirect_stdout(io.StringIO())
+        self._stdout_trap.__enter__()
+
+        # Post-hoc scenario: only the NEW tree exists on disk, with a child.
+        self.old_dir = self.home / "Projects" / "OldName"
+        self.new_dir = self.home / "Projects" / "NewName"
+        (self.new_dir / "child").mkdir(parents=True)
+
+        self.old_resolved = str(self.old_dir)
+        self.new_resolved = str(self.new_dir)
+        self.old_child = f"{self.old_resolved}/child"
+        self.new_child = f"{self.new_resolved}/child"
+
+        self.old_encoded = SharedStore.encode_path(self.old_resolved)
+        self.new_encoded = SharedStore.encode_path(self.new_resolved)
+        self.old_child_encoded = SharedStore.encode_path(self.old_child)
+        self.new_child_encoded = SharedStore.encode_path(self.new_child)
+
+        # Profile dir with projects/ and .claude.json
+        self.profile = self.home / ".claudewheel" / "profiles" / "personal"
+        self.profile.mkdir(parents=True)
+        self.projects = self.profile / "projects"
+        self.projects.mkdir()
+
+        # Parent project dir + session
+        self.old_project = self.projects / self.old_encoded
+        self.old_project.mkdir()
+        (self.old_project / "parent.jsonl").write_text(
+            json.dumps({"cwd": self.old_resolved, "type": "init"}) + "\n"
+        )
+
+        # Child project dir (encoded sibling) + session
+        self.old_child_project = self.projects / self.old_child_encoded
+        self.old_child_project.mkdir()
+        (self.old_child_project / "child.jsonl").write_text(
+            json.dumps({"cwd": self.old_child, "type": "init"}) + "\n"
+        )
+
+        # .claude.json with parent + child keys and githubRepoPaths
+        self.claude_json = self.profile / ".claude.json"
+        self.claude_json.write_text(
+            json.dumps(
+                {
+                    "projects": {
+                        self.old_resolved: {"lastSession": "parent"},
+                        self.old_child: {"lastSession": "child"},
+                        "/other/project": {"lastSession": "xyz"},
+                    },
+                    "githubRepoPaths": {
+                        "o/parent": [self.old_resolved],
+                        "o/deep": [f"{self.old_child}/nested/sub"],
+                        "o/unrelated": ["/somewhere/else", f"{self.old_resolved}x"],
+                    },
+                }
+            )
+        )
+
+    def tearDown(self) -> None:
+        self._stdout_trap.__exit__(None, None, None)
+        self._tmp.cleanup()
+
+    def _run(self, dry_run: bool = False) -> MvResult:
+        with patch(
+            "claudewheel.mv._discover_profile_dirs",
+            autospec=True,
+            return_value=[self.profile],
+        ):
+            return run_mv(
+                self.ws,
+                str(self.old_dir),
+                str(self.new_dir),
+                dry_run=dry_run,
+                post_hoc=True,
+            )
+
+    def test_nested_child_migrated(self) -> None:
+        """Child encoded dir renamed, child JSONL rewritten, child key updated."""
+        result = self._run()
+
+        # Both project dirs renamed
+        self.assertEqual(result.dirs_renamed, 2)
+        self.assertEqual(result.paths_migrated, 2)
+        self.assertTrue((self.projects / self.new_encoded).is_dir())
+        self.assertTrue((self.projects / self.new_child_encoded).is_dir())
+        self.assertFalse(self.old_project.exists())
+        self.assertFalse(self.old_child_project.exists())
+
+        # Child JSONL rewritten
+        child_jsonl = self.projects / self.new_child_encoded / "child.jsonl"
+        content = child_jsonl.read_text()
+        self.assertNotIn(self.old_child, content)
+        self.assertIn(self.new_child, content)
+
+        # Both keys updated; unrelated key preserved
+        self.assertEqual(result.project_keys_updated, 2)
+        data = json.loads(self.claude_json.read_text())
+        projects = data["projects"]
+        self.assertIn(self.new_resolved, projects)
+        self.assertIn(self.new_child, projects)
+        self.assertNotIn(self.old_resolved, projects)
+        self.assertNotIn(self.old_child, projects)
+        self.assertEqual(projects[self.new_child], {"lastSession": "child"})
+        self.assertIn("/other/project", projects)
+
+    def test_github_repo_paths_rewritten(self) -> None:
+        """githubRepoPaths values equal to or under OLD are rewritten."""
+        result = self._run()
+
+        self.assertEqual(result.github_repo_paths_updated, 2)
+        data = json.loads(self.claude_json.read_text())
+        gh = data["githubRepoPaths"]
+        self.assertEqual(gh["o/parent"], [self.new_resolved])
+        self.assertEqual(gh["o/deep"], [f"{self.new_child}/nested/sub"])
+        # Near-miss prefix (OLDx) and unrelated paths must be untouched
+        self.assertEqual(
+            gh["o/unrelated"], ["/somewhere/else", f"{self.old_resolved}x"]
+        )
+
+    def test_descendant_missing_destination_hard_error(self) -> None:
+        """A descendant key with no NEW/<suffix> on disk aborts the whole move."""
+        data = json.loads(self.claude_json.read_text())
+        ghost = f"{self.old_resolved}/ghost"
+        data["projects"][ghost] = {"lastSession": "ghost"}
+        self.claude_json.write_text(json.dumps(data))
+        original_json = self.claude_json.read_text()
+
+        with self.assertRaises(FileNotFoundError) as ctx:
+            self._run()
+
+        self.assertIn(ghost, str(ctx.exception))
+        # Nothing migrated (atomic check-then-act)
+        self.assertTrue(self.old_project.is_dir())
+        self.assertTrue(self.old_child_project.is_dir())
+        self.assertFalse((self.projects / self.new_encoded).exists())
+        self.assertEqual(self.claude_json.read_text(), original_json)
+
+    def test_encoded_ambiguity_hard_error(self) -> None:
+        """An encoded dir decoding to multiple real paths aborts the move."""
+        # NEW/a/b and NEW/a.b both exist -> old_encoded + "-a-b" is ambiguous
+        (self.new_dir / "a" / "b").mkdir(parents=True)
+        (self.new_dir / "a.b").mkdir()
+        ambiguous = f"{self.old_encoded}-a-b"
+        (self.projects / ambiguous).mkdir()
+
+        with self.assertRaises(ValueError) as ctx:
+            self._run()
+
+        self.assertIn(ambiguous, str(ctx.exception))
+        # Nothing migrated
+        self.assertTrue(self.old_project.is_dir())
+        self.assertFalse((self.projects / self.new_encoded).exists())
+
+    def test_undecodable_encoded_dir_hard_error(self) -> None:
+        """An encoded dir under the OLD prefix that decodes to nothing aborts."""
+        mystery = f"{self.old_encoded}-mystery"
+        (self.projects / mystery).mkdir()
+
+        with self.assertRaises(ValueError) as ctx:
+            self._run()
+
+        self.assertIn(mystery, str(ctx.exception))
+        self.assertTrue(self.old_project.is_dir())
+        self.assertFalse((self.projects / self.new_encoded).exists())
+
+    def test_sibling_encoded_dir_skipped(self) -> None:
+        """An encoded dir resolving to a sibling (not under OLD) is left alone."""
+        sibling = f"{self.old_resolved}.ish"
+        sibling_encoded = SharedStore.encode_path(sibling)
+        sibling_project = self.projects / sibling_encoded
+        sibling_project.mkdir()
+        (sibling_project / "s.jsonl").write_text(
+            json.dumps({"cwd": sibling, "type": "init"}) + "\n"
+        )
+        data = json.loads(self.claude_json.read_text())
+        data["projects"][sibling] = {"lastSession": "sib"}
+        self.claude_json.write_text(json.dumps(data))
+
+        result = self._run()
+
+        # Sibling untouched, parent + child migrated
+        self.assertTrue(sibling_project.is_dir())
+        self.assertIn(sibling, (sibling_project / "s.jsonl").read_text())
+        self.assertIn(sibling, json.loads(self.claude_json.read_text())["projects"])
+        self.assertEqual(result.paths_migrated, 2)
+        self.assertTrue((self.projects / self.new_encoded).is_dir())
+        self.assertTrue((self.projects / self.new_child_encoded).is_dir())
+
+    def test_dry_run_reports_descendants_and_github(self) -> None:
+        """Dry run counts descendant and githubRepoPaths work, changes nothing."""
+        original_json = self.claude_json.read_text()
+        original_child = (self.old_child_project / "child.jsonl").read_text()
+
+        result = self._run(dry_run=True)
+
+        self.assertEqual(result.dirs_renamed, 2)
+        self.assertEqual(result.paths_migrated, 2)
+        self.assertEqual(result.project_keys_updated, 2)
+        self.assertEqual(result.github_repo_paths_updated, 2)
+        self.assertGreaterEqual(result.lines_replaced, 2)
+
+        # Disk unchanged
+        self.assertTrue(self.old_project.is_dir())
+        self.assertTrue(self.old_child_project.is_dir())
+        self.assertFalse((self.projects / self.new_encoded).exists())
+        self.assertFalse((self.projects / self.new_child_encoded).exists())
+        self.assertEqual(self.claude_json.read_text(), original_json)
+        self.assertEqual(
+            (self.old_child_project / "child.jsonl").read_text(), original_child
+        )
+
+    def test_default_mode_nested_child_migrated(self) -> None:
+        """Non-post-hoc: OLD exists on disk, gets renamed, descendants migrate."""
+        # Rebuild the on-disk tree so OLD exists and NEW does not
+        (self.new_dir / "child").rmdir()
+        self.new_dir.rmdir()
+        (self.old_dir / "child").mkdir(parents=True)
+
+        with patch(
+            "claudewheel.mv._discover_profile_dirs",
+            autospec=True,
+            return_value=[self.profile],
+        ):
+            result = run_mv(self.ws, str(self.old_dir), str(self.new_dir))
+
+        self.assertFalse(self.old_dir.exists())
+        self.assertTrue((self.new_dir / "child").is_dir())
+        self.assertEqual(result.dirs_renamed, 2)
+        self.assertTrue((self.projects / self.new_child_encoded).is_dir())
+        data = json.loads(self.claude_json.read_text())
+        self.assertIn(self.new_child, data["projects"])
+        gh = data["githubRepoPaths"]
+        self.assertEqual(gh["o/parent"], [self.new_resolved])
 
 
 if __name__ == "__main__":
