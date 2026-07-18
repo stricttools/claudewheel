@@ -8,6 +8,7 @@ import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 from claudewheel import cli
@@ -38,7 +39,9 @@ class _PatchProfilesTestCase(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
         self.home = Path(self._tmp.name)
-        self._home_patch = patch.object(Path, "home", return_value=self.home)
+        self._home_patch = patch.object(
+            Path, "home", autospec=True, return_value=self.home
+        )
         self._home_patch.start()
         self.addCleanup(self._home_patch.stop)
 
@@ -54,20 +57,23 @@ class _PatchProfilesTestCase(unittest.TestCase):
 
     # -- fixture helpers ---------------------------------------------------
 
-    def canonical(self) -> dict:
+    def canonical(self) -> dict[str, Any]:
         return build_canonical_shared_settings(self.scripts_dir)
 
-    def make_profile(self, name: str, settings: dict) -> Path:
+    def make_profile(self, name: str, settings: dict[str, Any]) -> Path:
         pdir = self.profiles_dir / name
         pdir.mkdir(parents=True, exist_ok=True)
         (pdir / ".credentials.json").write_text("{}")
         (pdir / "settings.json").write_text(json.dumps(settings, indent=2) + "\n")
         return pdir
 
-    def read_settings(self, name: str) -> dict:
-        return json.loads((self.profiles_dir / name / "settings.json").read_text())
+    def read_settings(self, name: str) -> dict[str, Any]:
+        data: dict[str, Any] = json.loads(
+            (self.profiles_dir / name / "settings.json").read_text()
+        )
+        return data
 
-    def stale_profile_settings(self) -> dict:
+    def stale_profile_settings(self) -> dict[str, Any]:
         """A profile mirroring the pre-patch live state: has hook-timestamp and
         the Agent worktree hook, but no Bash hook and missing the 3 new tools."""
         c = self.canonical()
@@ -138,7 +144,7 @@ class MergeHooksTests(_PatchProfilesTestCase):
         workspace must be healed, so patch-profiles now rewrites the command
         rather than silently keeping the stale root.)"""
         c = self.canonical()
-        existing = {
+        existing: dict[str, Any] = {
             "UserPromptSubmit": [
                 {
                     "matcher": "",
@@ -323,9 +329,9 @@ class RunPatchProfilesTests(_PatchProfilesTestCase):
         out = self._run_patch()
         self.assertIn("no profiles found", out)
 
-    def _relocated_hooks(self, old_scripts: str) -> dict:
+    def _relocated_hooks(self, old_scripts: str) -> dict[str, Any]:
         """Canonical hooks with every command rerooted at *old_scripts*."""
-        hooks = json.loads(json.dumps(self.canonical()["hooks"]))
+        hooks: dict[str, Any] = json.loads(json.dumps(self.canonical()["hooks"]))
         for entries in hooks.values():
             for entry in entries:
                 for h in entry["hooks"]:

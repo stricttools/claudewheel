@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import os
 import unittest
+from typing import Any
 
 from claudewheel.profile import resolve_profile
 from claudewheel.tokens import TokenStoreError
@@ -50,7 +51,7 @@ class ResolveProfileTests(SandboxHomeTestCase):
         else:
             os.environ["CLAUDEWHEEL_CONFIG_DIR"] = self._orig_cw
 
-    def _write_tokens(self, tokens: dict) -> None:
+    def _write_tokens(self, tokens: dict[str, Any]) -> None:
         write_json(self.launcher_dir / "tokens.json", tokens)
 
     def test_valid_profile_with_token(self) -> None:

@@ -67,6 +67,7 @@ import contextlib
 import io
 import os
 from pathlib import Path
+from typing import Any
 from unittest import mock
 
 from claudewheel.appdata import OptionsFile, StateFile
@@ -83,6 +84,7 @@ from tests.wheelhelpers import (
     MISSING,
     REAL_HOME,
     SandboxHomeTestCase,
+    _Missing,
     hash_snapshot,
 )
 
@@ -114,7 +116,7 @@ def _real_home_allowlist_paths() -> list[Path]:
     return paths
 
 
-def _snapshot_real_home() -> dict[str, str | object]:
+def _snapshot_real_home() -> dict[str, str | _Missing]:
     """Content-hash the current real-home allowlist surface."""
     return hash_snapshot(_real_home_allowlist_paths())
 
@@ -127,7 +129,7 @@ def _fmt(value: object) -> str:
 
 
 def _diff_snapshots(
-    before: dict[str, str | object], after: dict[str, str | object]
+    before: dict[str, str | _Missing], after: dict[str, str | _Missing]
 ) -> list[str]:
     """Return one ``path: before -> after`` line per differing file (empty = equal)."""
     lines: list[str] = []
@@ -166,7 +168,9 @@ class SandboxEscapeGuardTest(SandboxHomeTestCase):
         ).appconfig()
 
         # 2. ProfileStore.create (settings dict; one create suffices).
-        base_settings = {"permissions": {"allow": [], "deny": [], "ask": []}}
+        base_settings: dict[str, Any] = {
+            "permissions": {"allow": [], "deny": [], "ask": []}
+        }
         ws.profiles.create("gp-store", dict(base_settings))
 
         # 3. Programmatic wizard create_profile (WizardResult built directly).
@@ -247,7 +251,9 @@ class SandboxEscapeGuardTest(SandboxHomeTestCase):
             '{"cwd":"/guard/proj","sessionId":"' + _A_UUID + '"}\n'
         )
         with mock.patch(
-            "claudewheel.import_.get_session_cwd", return_value="/guard/proj"
+            "claudewheel.import_.get_session_cwd",
+            autospec=True,
+            return_value="/guard/proj",
         ):
             run_import(
                 ws.shared,
@@ -300,7 +306,7 @@ class SandboxEscapeGuardTest(SandboxHomeTestCase):
         (monitored / "a.json").write_text("{}\n")
         (monitored / "b.json").write_text("[]\n")
 
-        def watched():
+        def watched() -> list[Path]:
             return sorted(p for p in monitored.rglob("*") if p.is_file())
 
         before = hash_snapshot(watched())

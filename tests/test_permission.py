@@ -9,6 +9,7 @@ import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 import contextlib
+from typing import Any
 from unittest import mock
 
 from claudewheel import permission, cli
@@ -76,37 +77,37 @@ class ValidateRuleTests(unittest.TestCase):
 
 class AddRuleTests(unittest.TestCase):
     def test_add_to_empty_list(self) -> None:
-        data: dict = {"permissions": {"allow": []}}
+        data: dict[str, Any] = {"permissions": {"allow": []}}
         result = permission.add_rule(data, "allow", "Bash")
         self.assertEqual(result, "added")
         self.assertIn("Bash", data["permissions"]["allow"])
 
     def test_add_to_existing_list(self) -> None:
-        data: dict = {"permissions": {"allow": ["Read"]}}
+        data: dict[str, Any] = {"permissions": {"allow": ["Read"]}}
         result = permission.add_rule(data, "allow", "Bash")
         self.assertEqual(result, "added")
         self.assertEqual(data["permissions"]["allow"], ["Read", "Bash"])
 
     def test_add_duplicate(self) -> None:
-        data: dict = {"permissions": {"allow": ["Bash"]}}
+        data: dict[str, Any] = {"permissions": {"allow": ["Bash"]}}
         result = permission.add_rule(data, "allow", "Bash")
         self.assertEqual(result, "already present")
         self.assertEqual(data["permissions"]["allow"], ["Bash"])
 
     def test_add_creates_missing_category(self) -> None:
-        data: dict = {"permissions": {}}
+        data: dict[str, Any] = {"permissions": {}}
         result = permission.add_rule(data, "allow", "Bash")
         self.assertEqual(result, "added")
         self.assertEqual(data["permissions"]["allow"], ["Bash"])
 
     def test_add_creates_missing_permissions_key(self) -> None:
-        data: dict = {}
+        data: dict[str, Any] = {}
         result = permission.add_rule(data, "deny", "Bash")
         self.assertEqual(result, "added")
         self.assertEqual(data["permissions"]["deny"], ["Bash"])
 
     def test_add_invalid_category(self) -> None:
-        data: dict = {"permissions": {}}
+        data: dict[str, Any] = {"permissions": {}}
         with self.assertRaises(ValueError):
             permission.add_rule(data, "foo", "Bash")
 
@@ -118,19 +119,19 @@ class AddRuleTests(unittest.TestCase):
 
 class RemoveRuleTests(unittest.TestCase):
     def test_remove_existing(self) -> None:
-        data: dict = {"permissions": {"allow": ["Bash", "Read"]}}
+        data: dict[str, Any] = {"permissions": {"allow": ["Bash", "Read"]}}
         result = permission.remove_rule(data, "allow", "Bash")
         self.assertEqual(result, "removed")
         self.assertEqual(data["permissions"]["allow"], ["Read"])
 
     def test_remove_nonexistent(self) -> None:
-        data: dict = {"permissions": {"allow": ["Read"]}}
+        data: dict[str, Any] = {"permissions": {"allow": ["Read"]}}
         result = permission.remove_rule(data, "allow", "Bash")
         self.assertEqual(result, "not found")
         self.assertEqual(data["permissions"]["allow"], ["Read"])
 
     def test_remove_invalid_category(self) -> None:
-        data: dict = {"permissions": {}}
+        data: dict[str, Any] = {"permissions": {}}
         with self.assertRaises(ValueError):
             permission.remove_rule(data, "foo", "Bash")
 
@@ -233,7 +234,7 @@ class ResolveProfilesTests(unittest.TestCase):
             ),
         ]
 
-    def _ws_with(self, profiles) -> mock.MagicMock:
+    def _ws_with(self, profiles: list[Profile]) -> mock.MagicMock:
         ws = mock.MagicMock()
         ws.profiles.enumerate.return_value = profiles
         return ws
@@ -279,11 +280,12 @@ class _PermissionCLIBase(unittest.TestCase):
         self.settings_path = self.profile_dir / "settings.json"
         self.ws = mock.MagicMock()
 
-    def _write_settings(self, data: dict) -> None:
+    def _write_settings(self, data: dict[str, Any]) -> None:
         self.settings_path.write_text(json.dumps(data, indent=2) + "\n")
 
-    def _read_settings(self) -> dict:
-        return json.loads(self.settings_path.read_text())
+    def _read_settings(self) -> dict[str, Any]:
+        data: dict[str, Any] = json.loads(self.settings_path.read_text())
+        return data
 
     def _fake_profiles(self) -> list[Profile]:
         return [
@@ -330,7 +332,7 @@ class PermissionCLIAddTests(_PermissionCLIBase):
         with contextlib.nullcontext():
             buf = io.StringIO()
             with redirect_stdout(buf):
-                rc = cli._handle_permission_add(self.ws, "allow", "Read", None, True)
+                rc = cli._handle_permission_add(self.ws, "allow", "Read", "", True)
 
         self.assertEqual(rc, 0)
         out = buf.getvalue()

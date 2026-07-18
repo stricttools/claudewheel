@@ -7,6 +7,7 @@ import tempfile
 import unittest
 from datetime import date, timedelta
 from pathlib import Path
+from typing import Any
 from unittest import mock
 
 from claudewheel import profile_info
@@ -44,7 +45,7 @@ class ProfileInfoFixture(unittest.TestCase):
             (self.profile / d).symlink_to(self.shared_dir / d)
         (self.profile / "skills").symlink_to(self.skills_dir)
 
-    def _write_tokens(self, entries: dict) -> None:
+    def _write_tokens(self, entries: dict[str, Any]) -> None:
         self.tokens_file.write_text(json.dumps(entries))
 
     def _write_options(self, values: list[str], pinned: list[str]) -> None:
@@ -193,7 +194,9 @@ class GatherSessionsTests(ProfileInfoFixture):
             if pid != 111:
                 raise OSError("no such process")
 
-        with mock.patch("claudewheel.profile_info.os.kill", side_effect=fake_kill):
+        with mock.patch(
+            "claudewheel.profile_info.os.kill", autospec=True, side_effect=fake_kill
+        ):
             report = profile_info.gather_profile_info(self.ws, "work")
         self.assertEqual(report.active_sessions, 1)
 

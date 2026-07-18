@@ -28,6 +28,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from typing import TYPE_CHECKING, Any, Callable
 from unittest import mock
 
 from claudewheel.defaults import (
@@ -48,14 +49,14 @@ from tests.wheelhelpers import (
 )
 
 
-def _write_json(path: Path, data) -> None:
+def _write_json(path: Path, data: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w") as f:
         json.dump(data, f, indent=2)
         f.write("\n")
 
 
-def _build_fake_home(home: Path, *, tokens: str | dict | None) -> Path:
+def _build_fake_home(home: Path, *, tokens: str | dict[str, Any] | None) -> Path:
     """Populate *home* with a complete ~/.claudewheel tree and profile 'alpha'.
 
     Creates every dir/file AppConfigStore.__post_init__ would otherwise create,
@@ -98,7 +99,13 @@ def _write_corrupt_tokens(home: Path) -> None:
 class _FakeHomeMixin:
     """Patch every path constant + Path.home + $HOME onto a tmp fake home."""
 
-    def _patch_env(self, home: Path, *, detect):
+    if TYPE_CHECKING:
+        # Mixed into unittest.TestCase; declare the borrowed members for mypy.
+        def addCleanup(
+            self, func: Callable[..., object], /, *args: object, **kwargs: object
+        ) -> None: ...
+
+    def _patch_env(self, home: Path, *, detect: str | mock.Mock) -> None:
         """Start patches redirecting all IO to *home*. Returns nothing; uses addCleanup.
 
         *detect* is the replacement for config.detect_terminal_background
@@ -127,6 +134,7 @@ class _FakeHomeMixin:
             dp = mock.patch.object(
                 cfg_mod,
                 "detect_terminal_background",
+                autospec=True,
                 return_value=detect,
             )
         dp.start()

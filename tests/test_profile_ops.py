@@ -13,6 +13,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 
@@ -25,7 +26,9 @@ class _ProfileOpsTestCase(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
         self.home = Path(self._tmp.name)
-        self._patcher_home = patch.object(Path, "home", return_value=self.home)
+        self._patcher_home = patch.object(
+            Path, "home", autospec=True, return_value=self.home
+        )
         self._patcher_home.start()
 
         self.launcher_dir = self.home / ".claudewheel"
@@ -40,7 +43,7 @@ class _ProfileOpsTestCase(unittest.TestCase):
         self._patcher_home.stop()
         self._tmp.cleanup()
 
-    def _write_tokens(self, tokens: dict) -> None:
+    def _write_tokens(self, tokens: dict[str, Any]) -> None:
         self.tokens_file.write_text(json.dumps(tokens, indent=2) + "\n")
 
     def _make_profile_dir(self, name: str) -> Path:
@@ -90,7 +93,7 @@ class IsProfileRunningTests(_ProfileOpsTestCase):
 class FixAuthShadowTests(_ProfileOpsTestCase):
     """Tests for fix_auth_shadow: remove claudeAiOauth from .credentials.json."""
 
-    def _write_credentials(self, pdir: Path, data: dict) -> None:
+    def _write_credentials(self, pdir: Path, data: dict[str, Any]) -> None:
         creds = pdir / ".credentials.json"
         creds.write_text(json.dumps(data))
         creds.chmod(0o600)

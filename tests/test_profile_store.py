@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 
 from claudewheel.profile_store import Profile, ProfileStore
 from claudewheel.tokens import TokenStore, TokenStoreError
@@ -10,10 +11,10 @@ from claudewheel.workspace import Workspace
 from tests.wheelhelpers import SandboxHomeTestCase, write_json
 
 
-def _tree_mode(root, dir_mode: int, file_mode: int) -> None:
+def _tree_mode(root: Path, dir_mode: int, file_mode: int) -> None:
     """chmod every file/dir under *root* (inclusive). Files first, then dirs."""
-    dirs = [root]
-    files = []
+    dirs: list[str | Path] = [root]
+    files: list[str] = []
     for dp, dns, fns in os.walk(root):
         for d in dns:
             dirs.append(os.path.join(dp, d))
@@ -21,8 +22,8 @@ def _tree_mode(root, dir_mode: int, file_mode: int) -> None:
             files.append(os.path.join(dp, f))
     for f in files:
         os.chmod(f, file_mode)
-    for d in dirs:
-        os.chmod(d, dir_mode)
+    for dpath in dirs:
+        os.chmod(dpath, dir_mode)
 
 
 class ProfileStoreEnumerateTests(SandboxHomeTestCase):
@@ -40,7 +41,7 @@ class ProfileStoreEnumerateTests(SandboxHomeTestCase):
             token_store=TokenStore(self.sandbox_paths["TOKENS_FILE"]),
         )
 
-    def _tuples(self, profiles) -> list[tuple]:
+    def _tuples(self, profiles: list[Profile]) -> list[tuple[str, Path, bool, bool]]:
         return [(p.name, p.path, p.has_credentials, p.has_token) for p in profiles]
 
     # --- default profile variants ---------------------------------------
@@ -215,6 +216,7 @@ class ProfileStoreContractTests(SandboxHomeTestCase):
         store = self._store()
         got = store.get("alpha")
         self.assertIsInstance(got, Profile)
+        assert got is not None
         self.assertEqual(got.path, p)
         self.assertEqual(got.config_dir, p)
         self.assertIsNone(store.get("missing"))

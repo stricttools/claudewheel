@@ -9,6 +9,7 @@ import time
 import unittest
 from datetime import date, timedelta
 from pathlib import Path
+from typing import Any
 
 from claudewheel.tokens import (
     TOKEN_TTL_DAYS,
@@ -154,7 +155,7 @@ class TokenStoreAddTests(unittest.TestCase):
         self.tokens_file = self.launcher_dir / "tokens.json"
         self.store = TokenStore(self.tokens_file)
 
-    def _write_tokens(self, tokens: dict) -> None:
+    def _write_tokens(self, tokens: dict[str, Any]) -> None:
         self.tokens_file.write_text(json.dumps(tokens, indent=2) + "\n")
 
     def test_creates_fresh_file(self) -> None:
@@ -284,7 +285,7 @@ class TokenStoreSetTierTests(unittest.TestCase):
         self.tokens_file = self.launcher_dir / "tokens.json"
         self.store = TokenStore(self.tokens_file)
 
-    def _write_tokens(self, tokens: dict) -> None:
+    def _write_tokens(self, tokens: dict[str, Any]) -> None:
         self.tokens_file.write_text(json.dumps(tokens, indent=2) + "\n")
 
     def test_creates_tier_only_entry(self) -> None:
@@ -359,7 +360,7 @@ class TokenStoreTests(unittest.TestCase):
         self.path = Path(self._tmp.name) / "tokens.json"
         self.store = TokenStore(self.path)
 
-    def _write(self, tokens: dict | list | str) -> None:
+    def _write(self, tokens: dict[str, Any] | list[Any] | str) -> None:
         if isinstance(tokens, str):
             self.path.write_text(tokens)
         else:
@@ -446,6 +447,7 @@ class TokenStoreTests(unittest.TestCase):
         )
         result = self.store.expiry_for("prof")
         self.assertIsNotNone(result)
+        assert result is not None
         self.assertEqual(result.expires, date(2026, 12, 31))
 
     def test_expiry_for_legacy_uses_file_mtime(self) -> None:
@@ -454,6 +456,7 @@ class TokenStoreTests(unittest.TestCase):
         os.utime(self.path, (ten_days_ago, ten_days_ago))
         result = self.store.expiry_for("prof")
         self.assertIsNotNone(result)
+        assert result is not None
         self.assertEqual(result.created, date.fromtimestamp(ten_days_ago))
         self.assertAlmostEqual(result.remaining_days, TOKEN_TTL_DAYS - 10, delta=0.5)
 

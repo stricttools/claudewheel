@@ -8,6 +8,7 @@ import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 from claudewheel import cli
@@ -30,7 +31,9 @@ class _ReconcileTestCase(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
         self.home = Path(self._tmp.name)
-        self._home_patch = patch.object(Path, "home", return_value=self.home)
+        self._home_patch = patch.object(
+            Path, "home", autospec=True, return_value=self.home
+        )
         self._home_patch.start()
         self.addCleanup(self._home_patch.stop)
 
@@ -46,7 +49,7 @@ class _ReconcileTestCase(unittest.TestCase):
 
     # -- fixture helpers ---------------------------------------------------
 
-    def make_profile(self, name: str, settings: dict) -> Path:
+    def make_profile(self, name: str, settings: dict[str, Any]) -> Path:
         pdir = self.profiles_dir / name
         pdir.mkdir(parents=True, exist_ok=True)
         (pdir / ".credentials.json").write_text("{}")
@@ -56,10 +59,11 @@ class _ReconcileTestCase(unittest.TestCase):
     def settings_path(self, name: str) -> Path:
         return self.profiles_dir / name / "settings.json"
 
-    def read_settings(self, name: str) -> dict:
-        return json.loads(self.settings_path(name).read_text())
+    def read_settings(self, name: str) -> dict[str, Any]:
+        data: dict[str, Any] = json.loads(self.settings_path(name).read_text())
+        return data
 
-    def drifted_settings(self) -> dict:
+    def drifted_settings(self) -> dict[str, Any]:
         """A profile whose permissions have drifted from canonical.
 
         - deny has one canonical entry present (git stash) plus one bogus extra,
@@ -86,7 +90,7 @@ class _ReconcileTestCase(unittest.TestCase):
             "claudewheel": {"disallowedTools": ["Artifact"]},
         }
 
-    def canonical_settings(self) -> dict:
+    def canonical_settings(self) -> dict[str, Any]:
         """A profile already exactly canonical (a clean no-op target)."""
         return {
             "permissions": {

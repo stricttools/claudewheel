@@ -6,6 +6,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 from claudewheel import guardrail
@@ -19,7 +20,9 @@ class _HomeDirTestCase(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
         self.home = Path(self._tmp.name)
-        self._patcher = patch.object(Path, "home", return_value=self.home)
+        self._patcher = patch.object(
+            Path, "home", autospec=True, return_value=self.home
+        )
         self._patcher.start()
         self._profiles_dir = self.home / ".claudewheel" / "profiles"
         self._shared_settings = self.home / ".claudewheel" / "shared-settings.json"
@@ -42,16 +45,16 @@ class _HomeDirTestCase(unittest.TestCase):
         (pdir / ".credentials.json").write_text("{}")
         return pdir
 
-    def _write_shared_settings(self, data: dict) -> None:
+    def _write_shared_settings(self, data: dict[str, Any]) -> None:
         """Write shared-settings.json in the temp home."""
         self._shared_settings.parent.mkdir(parents=True, exist_ok=True)
         self._shared_settings.write_text(json.dumps(data, indent=2) + "\n")
 
-    def _write_profile_settings(self, pdir: Path, settings: dict) -> None:
+    def _write_profile_settings(self, pdir: Path, settings: dict[str, Any]) -> None:
         """Write settings.json into a profile directory."""
         (pdir / "settings.json").write_text(json.dumps(settings, indent=2) + "\n")
 
-    def _canonical(self) -> dict:
+    def _canonical(self) -> dict[str, Any]:
         """Return canonical shared settings using the test scripts dir."""
         return build_canonical_shared_settings(self._scripts_dir)
 
@@ -366,6 +369,7 @@ class BuildCanonicalSharedSettingsTests(unittest.TestCase):
             entries = hooks.get(event, [])
             entry = next((e for e in entries if e.get("matcher") == matcher), None)
             self.assertIsNotNone(entry, f"missing {event}[{matcher}] wiring")
+            assert entry is not None
             cmds = [h["command"] for h in entry["hooks"]]
             self.assertTrue(
                 any(c == str(scripts / script) for c in cmds),
