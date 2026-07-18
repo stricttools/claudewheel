@@ -14,6 +14,7 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+from typing import Any
 from unittest import mock
 
 from claudewheel.binaries import BinaryLocator
@@ -63,12 +64,12 @@ class MiniclaudeAdapterTestBase(unittest.TestCase):
 
     def _resolve(
         self,
-        selections: dict | None = None,
+        selections: dict[str, str | None] | None = None,
         *,
-        options_def: dict | None = None,
+        options_def: dict[str, Any] | None = None,
         extra_flags: list[str] | None = None,
         passthrough: list[str] | None = None,
-        clients_config: dict | None = None,
+        clients_config: dict[str, Any] | None = None,
     ) -> tuple[str, list[str], dict[str, str]]:
         """Call resolve_launch_config for the miniclaude client."""
         if selections is None:
@@ -78,7 +79,9 @@ class MiniclaudeAdapterTestBase(unittest.TestCase):
         if clients_config is None:
             clients_config = {"miniclaude": {"binary": self.MC_BINARY}}
 
-        with mock.patch("claudewheel.launch.fetch_gh_token", return_value=None):
+        with mock.patch(
+            "claudewheel.launch.fetch_gh_token", autospec=True, return_value=None
+        ):
             return resolve_launch_config(
                 selections,
                 options_def,
@@ -140,7 +143,9 @@ class MiniclaudeArgvTests(MiniclaudeAdapterTestBase):
     def test_binary_from_path_when_unconfigured(self) -> None:
         """With no config binary, shutil.which('miniclaude') supplies argv[0]."""
         with mock.patch(
-            "claudewheel.clients.shutil.which", return_value="/usr/bin/miniclaude"
+            "claudewheel.clients.shutil.which",
+            autospec=True,
+            return_value="/usr/bin/miniclaude",
         ) as which:
             _, argv, _ = self._resolve(clients_config={})
         which.assert_called_once_with("miniclaude")
@@ -199,7 +204,9 @@ class MiniclaudeHardErrorTests(MiniclaudeAdapterTestBase):
 
     def test_missing_binary_raises(self) -> None:
         """No config binary and no PATH miniclaude -> hard error naming the config key."""
-        with mock.patch("claudewheel.clients.shutil.which", return_value=None):
+        with mock.patch(
+            "claudewheel.clients.shutil.which", autospec=True, return_value=None
+        ):
             with self.assertRaises(ValueError) as ctx:
                 self._resolve(clients_config={})
         msg = str(ctx.exception)
@@ -380,14 +387,18 @@ class ClientAvailabilityTests(MiniclaudeAdapterTestBase):
         from claudewheel.clients import client_available
 
         with mock.patch(
-            "claudewheel.clients.shutil.which", return_value="/usr/bin/miniclaude"
+            "claudewheel.clients.shutil.which",
+            autospec=True,
+            return_value="/usr/bin/miniclaude",
         ):
             self.assertTrue(client_available("miniclaude", self.locator, {}))
 
     def test_miniclaude_unavailable_when_missing(self) -> None:
         from claudewheel.clients import client_available
 
-        with mock.patch("claudewheel.clients.shutil.which", return_value=None):
+        with mock.patch(
+            "claudewheel.clients.shutil.which", autospec=True, return_value=None
+        ):
             self.assertFalse(client_available("miniclaude", self.locator, {}))
 
 
@@ -426,7 +437,9 @@ class BuildClientChoicesTests(MiniclaudeAdapterTestBase):
         from claudewheel.clients import build_client_choices
 
         # claude fallback missing -> "(not installed)"; miniclaude missing too.
-        with mock.patch("claudewheel.clients.shutil.which", return_value=None):
+        with mock.patch(
+            "claudewheel.clients.shutil.which", autospec=True, return_value=None
+        ):
             options, _ = build_client_choices(self.locator, {}, "claude")
         labels = dict(options)
         self.assertEqual(labels["claude"], "claude (not installed)")
@@ -466,7 +479,9 @@ class UnknownClientTests(MiniclaudeAdapterTestBase):
     """resolve_launch_config rejects an unknown client name."""
 
     def test_unknown_client_raises(self) -> None:
-        with mock.patch("claudewheel.launch.fetch_gh_token", return_value=None):
+        with mock.patch(
+            "claudewheel.launch.fetch_gh_token", autospec=True, return_value=None
+        ):
             with self.assertRaises(ValueError) as ctx:
                 resolve_launch_config(
                     {"profile": "work"},
