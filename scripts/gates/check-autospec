@@ -46,10 +46,15 @@ BARE = "BARE"
 # Categories that satisfy the gate (do not count as violations).
 _ALLOWED = frozenset({AUTOSPEC, SPEC, DICT, NEW})
 
-# The two ``patch`` roots we recognize:
+# The default ``patch`` roots, before any aliases are resolved:
 #   from unittest.mock import patch  ->  patch(...)
 #   from unittest import mock        ->  mock.patch(...)
-_PATCH_ROOTS = frozenset({"patch", "mock"})
+# ``_collect_aliases`` extends these with any import asnames it finds.
+_DEFAULT_PATCH_NAMES = frozenset({"patch"})
+_DEFAULT_MODULE_NAMES = frozenset({"mock"})
+
+# The mock module import paths whose aliases we track.
+_MOCK_MODULE_PATHS = frozenset({"unittest.mock", "mock"})
 
 # Attribute suffixes after ``patch`` that name a distinct patch flavor.
 _PATCH_SUFFIXES = frozenset({"object", "dict", "multiple"})
@@ -83,25 +88,72 @@ def _flatten_dotted(node: ast.expr) -> Optional[list[str]]:
     return parts
 
 
-def patch_kind(func: ast.expr) -> Optional[str]:
+def _collect_aliases(tree: ast.AST) -> tuple[frozenset[str], frozenset[str]]:
+    """Scan module imports and return (patch_names, module_names).
+
+    ``patch_names`` are local names bound directly to ``unittest.mock.patch``
+    (or ``mock.patch``); calling them is a top-level patch call. ``module_names``
+    are local names bound to the mock module; a patch call goes through
+    ``<module>.patch(...)``.
+
+    Both the ``import unittest.mock as X`` and
+    ``from unittest.mock import patch as Y`` alias forms are resolved, plus the
+    third-party ``import mock`` / ``from mock import patch`` backport paths and
+    ``from unittest import mock as Z``. The canonical unaliased ``patch`` and
+    ``mock`` names are always included.
+    """
+    patch_names: set[str] = set(_DEFAULT_PATCH_NAMES)
+    module_names: set[str] = set(_DEFAULT_MODULE_NAMES)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                # import unittest.mock as X ; import mock as X
+                if alias.name in _MOCK_MODULE_PATHS and alias.asname:
+                    module_names.add(alias.asname)
+        elif isinstance(node, ast.ImportFrom):
+            if node.module in _MOCK_MODULE_PATHS:
+                # from unittest.mock import patch as Y ; from mock import patch
+                for alias in node.names:
+                    if alias.name == "patch":
+                        patch_names.add(alias.asname or alias.name)
+                    elif alias.name == "mock" and alias.asname:
+                        # from unittest.mock import mock as Z -- degenerate, but
+                        # a name bound to the module still routes through it.
+                        module_names.add(alias.asname)
+            elif node.module == "unittest":
+                # from unittest import mock as Z
+                for alias in node.names:
+                    if alias.name == "mock":
+                        module_names.add(alias.asname or alias.name)
+    return frozenset(patch_names), frozenset(module_names)
+
+
+def patch_kind(
+    func: ast.expr,
+    patch_names: frozenset[str] = _DEFAULT_PATCH_NAMES,
+    module_names: frozenset[str] = _DEFAULT_MODULE_NAMES,
+) -> Optional[str]:
     """Classify a call's ``func`` node as a patch flavor, or None.
 
     Returns ``"patch"``, ``"object"``, ``"dict"``, or ``"multiple"`` when the
-    call is a recognized ``patch`` / ``mock.patch`` (or one of its attribute
-    forms), else None. Anything named ``patch`` that is NOT rooted at the
-    ``patch`` symbol or the ``mock`` module (e.g. ``self._home_patch.start``)
-    is rejected.
+    call is a recognized ``patch`` / ``mock.patch`` (or one of its attribute or
+    aliased forms), else None. Anything named ``patch`` that is NOT rooted at a
+    known patch symbol or mock-module alias (e.g. ``self._home_patch.start``) is
+    rejected.
     """
     parts = _flatten_dotted(func)
-    if parts is None or "patch" not in parts:
+    if parts is None:
         return None
-    i = parts.index("patch")
-    # Root must be exactly ``patch`` (i == 0) or ``mock.patch`` (parts[0] == mock).
-    if not (i == 0 or (i == 1 and parts[0] == "mock")):
+    if parts[0] in module_names:
+        # <module>.patch(...) / <module>.patch.object(...)
+        if len(parts) < 2 or parts[1] != "patch":
+            return None
+        suffix = parts[2:]
+    elif parts[0] in patch_names:
+        # patch(...) / patch.object(...) (possibly an aliased ``patch``)
+        suffix = parts[1:]
+    else:
         return None
-    if parts[0] not in _PATCH_ROOTS:
-        return None
-    suffix = parts[i + 1:]
     if not suffix:
         return "patch"
     if len(suffix) == 1 and suffix[0] in _PATCH_SUFFIXES:
@@ -135,14 +187,18 @@ def _positional_count(call: ast.Call) -> int:
     return len(call.args)
 
 
-def classify_patch_call(call: ast.Call) -> Optional[Result]:
+def classify_patch_call(
+    call: ast.Call,
+    patch_names: frozenset[str] = _DEFAULT_PATCH_NAMES,
+    module_names: frozenset[str] = _DEFAULT_MODULE_NAMES,
+) -> Optional[Result]:
     """Classify a Call node if it is a patch site; else None.
 
     Applies to every syntactic form uniformly -- decorator, ``with`` context
     manager, and ``x = patch(...); x.start()`` all produce the same Call node,
     so classifying the Call covers them all.
     """
-    kind = patch_kind(call.func)
+    kind = patch_kind(call.func, patch_names, module_names)
     if kind is None:
         return None
 
@@ -159,16 +215,29 @@ def classify_patch_call(call: ast.Call) -> Optional[Result]:
     if autospec_kw is not None and not _is_disabled(autospec_kw.value):
         return Result(call.lineno, AUTOSPEC, "autospec present")
 
-    # spec= / spec_set= bind the mock to a real object's shape.
-    if _kwarg(call, "spec") is not None:
+    # spec= / spec_set= bind the mock to a real object's shape -- but only when
+    # given a real spec. Both kwargs default to None, so mock treats an explicit
+    # spec=None / spec_set=None (or =False) as "no spec at all". A disabled value
+    # must therefore NOT count as protection; it falls through to BARE.
+    spec_kw = _kwarg(call, "spec")
+    if spec_kw is not None and not _is_disabled(spec_kw.value):
         return Result(call.lineno, SPEC, "spec present")
-    if _kwarg(call, "spec_set") is not None:
+    spec_set_kw = _kwarg(call, "spec_set")
+    if spec_set_kw is not None and not _is_disabled(spec_set_kw.value):
         return Result(call.lineno, SPEC, "spec_set present")
 
-    # new= / new_callable= supply an explicit replacement (autospec-incompatible).
+    # new= supplies an explicit replacement object (autospec-incompatible).
+    # patch's ``new`` parameter uses a DEFAULT sentinel (not None) to signal
+    # "not supplied", so an explicit new=None (or new=False) IS a genuine
+    # replacement -- the target is replaced with that literal object. ``new`` is
+    # thus NOT subject to the disabled-value logic: mere presence => NEW.
     if _kwarg(call, "new") is not None:
         return Result(call.lineno, NEW, "new= replacement, allowed")
-    if _kwarg(call, "new_callable") is not None:
+    # new_callable= supplies a replacement factory. Unlike ``new`` it defaults to
+    # None, so an explicit new_callable=None (or =False) provides no factory and
+    # must NOT count as NEW -- it falls through to BARE.
+    new_callable_kw = _kwarg(call, "new_callable")
+    if new_callable_kw is not None and not _is_disabled(new_callable_kw.value):
         return Result(call.lineno, NEW, "new_callable= replacement, allowed")
 
     # Positional replacement object:
@@ -189,10 +258,11 @@ def classify_patch_call(call: ast.Call) -> Optional[Result]:
 def classify_source(source: str, filename: str = "<source>") -> list[Result]:
     """Parse *source* and classify every patch call site within it."""
     tree = ast.parse(source, filename=filename)
+    patch_names, module_names = _collect_aliases(tree)
     results: list[Result] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Call):
-            res = classify_patch_call(node)
+            res = classify_patch_call(node, patch_names, module_names)
             if res is not None:
                 results.append(res)
     return results

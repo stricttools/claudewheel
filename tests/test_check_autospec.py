@@ -67,6 +67,20 @@ class BareDetectionTests(unittest.TestCase):
     def test_autospec_none_is_bare(self) -> None:
         self.assertEqual(_one("patch('mod.thing', autospec=None)"), checker.BARE)
 
+    def test_spec_none_is_bare(self) -> None:
+        # spec defaults to None -> an explicit spec=None applies no spec at all.
+        self.assertEqual(_one("patch('mod.thing', spec=None)"), checker.BARE)
+
+    def test_spec_false_is_bare(self) -> None:
+        self.assertEqual(_one("patch('mod.thing', spec=False)"), checker.BARE)
+
+    def test_spec_set_none_is_bare(self) -> None:
+        self.assertEqual(_one("patch('mod.thing', spec_set=None)"), checker.BARE)
+
+    def test_new_callable_none_is_bare(self) -> None:
+        # new_callable defaults to None -> explicit None supplies no factory.
+        self.assertEqual(_one("patch('mod.thing', new_callable=None)"), checker.BARE)
+
 
 class AutospecTests(unittest.TestCase):
     def test_autospec_true(self) -> None:
@@ -124,6 +138,83 @@ class NewTests(unittest.TestCase):
     def test_two_positionals_on_object_is_bare(self) -> None:
         # patch.object(target, attr) with no replacement is still bare.
         self.assertEqual(_one("patch.object(Foo, 'bar')"), checker.BARE)
+
+    def test_new_none_is_new(self) -> None:
+        # patch's `new` parameter uses a DEFAULT sentinel (not None) to mean
+        # "not supplied", so an explicit new=None IS a real replacement object
+        # (the target is replaced with None). Unlike spec/new_callable, a None
+        # value here is legitimate and must stay NEW.
+        self.assertEqual(_one("patch('mod.thing', new=None)"), checker.NEW)
+
+    def test_new_false_is_new(self) -> None:
+        # Same reasoning as new=None: an explicit new=False replaces the target
+        # with the literal False object.
+        self.assertEqual(_one("patch('mod.thing', new=False)"), checker.NEW)
+
+
+class AliasResolutionTests(unittest.TestCase):
+    """Imports that rename patch/mock must still be classified."""
+
+    def test_aliased_patch_bare(self) -> None:
+        src = (
+            "from unittest.mock import patch as p\n"
+            "p('mod.thing')\n"
+        )
+        self.assertEqual(_one(src), checker.BARE)
+
+    def test_aliased_patch_autospec(self) -> None:
+        src = (
+            "from unittest.mock import patch as p\n"
+            "p('mod.thing', autospec=True)\n"
+        )
+        self.assertEqual(_one(src), checker.AUTOSPEC)
+
+    def test_aliased_patch_object_bare(self) -> None:
+        src = (
+            "from unittest.mock import patch as p\n"
+            "p.object(Foo, 'bar')\n"
+        )
+        self.assertEqual(_one(src), checker.BARE)
+
+    def test_aliased_patch_dict(self) -> None:
+        src = (
+            "from unittest.mock import patch as p\n"
+            "p.dict('os.environ', {'X': '1'})\n"
+        )
+        self.assertEqual(_one(src), checker.DICT)
+
+    def test_aliased_module_import_bare(self) -> None:
+        src = (
+            "import unittest.mock as um\n"
+            "um.patch('mod.thing')\n"
+        )
+        self.assertEqual(_one(src), checker.BARE)
+
+    def test_aliased_module_import_autospec(self) -> None:
+        src = (
+            "import unittest.mock as um\n"
+            "um.patch('mod.thing', autospec=True)\n"
+        )
+        self.assertEqual(_one(src), checker.AUTOSPEC)
+
+    def test_aliased_from_unittest_import_mock(self) -> None:
+        src = (
+            "from unittest import mock as mk\n"
+            "mk.patch('mod.thing')\n"
+        )
+        self.assertEqual(_one(src), checker.BARE)
+
+    def test_unaliased_names_still_work_without_import(self) -> None:
+        # Defaults (patch / mock) apply even when no import is present.
+        self.assertEqual(_one("mock.patch('mod.thing')"), checker.BARE)
+
+    def test_alias_does_not_leak_to_unrelated_name(self) -> None:
+        # A name that is not the alias and not a default is uncounted.
+        src = (
+            "from unittest.mock import patch as p\n"
+            "q('mod.thing')\n"
+        )
+        self.assertEqual(_categories(src), [])
 
 
 class SyntacticFormTests(unittest.TestCase):
