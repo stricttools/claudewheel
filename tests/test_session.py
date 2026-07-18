@@ -32,7 +32,7 @@ class GetSessionCwdTests(unittest.TestCase):
     def tearDown(self) -> None:
         self._tmp.cleanup()
 
-    def _write_jsonl(self, name: str, lines: list[dict | str]) -> Path:
+    def _write_jsonl(self, name: str, lines: list[dict[str, object] | str]) -> Path:
         """Write *lines* to a JSONL file.  Dicts are JSON-encoded; strings
         are written verbatim (useful for corrupt-line tests)."""
         p = self.tmp_path / name
@@ -117,7 +117,9 @@ class GetSessionCwdTests(unittest.TestCase):
 
     def test_get_session_cwd_beyond_scan_limit(self) -> None:
         """cwd exists but only on line 15 — beyond the default scan limit."""
-        lines: list[dict | str] = [{"type": "metadata", "line": i} for i in range(14)]
+        lines: list[dict[str, object] | str] = [
+            {"type": "metadata", "line": i} for i in range(14)
+        ]
         lines.append({"type": "user", "cwd": "/too/late"})
         p = self._write_jsonl("late_cwd.jsonl", lines)
         self.assertIsNone(get_session_cwd(p))
@@ -145,7 +147,7 @@ class FindSessionTests(unittest.TestCase):
         self,
         encoded_cwd: str,
         session_id: str,
-        lines: list[dict] | None = None,
+        lines: list[dict[str, object]] | None = None,
     ) -> Path:
         """Create a session JSONL file under the given encoded_cwd directory."""
         cwd_dir = self.projects_dir / encoded_cwd
@@ -248,7 +250,7 @@ class FindOrphanedProjectDirsTests(unittest.TestCase):
                 return False
             return _real_isdir(path)
 
-        with mock.patch("os.path.isdir", side_effect=_fake_isdir):
+        with mock.patch("os.path.isdir", autospec=True, side_effect=_fake_isdir):
             results = find_orphaned_project_dirs(
                 shared_projects_dir=self.projects_dir,
             )
@@ -264,7 +266,7 @@ class FindOrphanedProjectDirsTests(unittest.TestCase):
             "/home/other/project",
             session_count=1,
         )
-        with mock.patch("os.path.isdir", return_value=True):
+        with mock.patch("os.path.isdir", autospec=True, return_value=True):
             results = find_orphaned_project_dirs(
                 shared_projects_dir=self.projects_dir,
             )
@@ -277,7 +279,7 @@ class FindOrphanedProjectDirsTests(unittest.TestCase):
             "/home/user/still-here",
             session_count=2,
         )
-        with mock.patch("os.path.isdir", return_value=True):
+        with mock.patch("os.path.isdir", autospec=True, return_value=True):
             results = find_orphaned_project_dirs(
                 shared_projects_dir=self.projects_dir,
             )
@@ -300,7 +302,7 @@ class FindOrphanedProjectDirsTests(unittest.TestCase):
                 return False
             return _real_isdir(path)
 
-        with mock.patch("os.path.isdir", side_effect=_fake_isdir):
+        with mock.patch("os.path.isdir", autospec=True, side_effect=_fake_isdir):
             results = find_orphaned_project_dirs(
                 shared_projects_dir=self.projects_dir,
             )
