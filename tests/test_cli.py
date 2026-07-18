@@ -14,9 +14,17 @@ import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 from unittest import mock
+from unittest.mock import MagicMock
 
 from claudewheel import cli
+from claudewheel.config import AppConfigStore
+
+if TYPE_CHECKING:
+    from claudewheel.profile_info import ProfileReport
+    from claudewheel.profile_store import DeletionResult, Profile
 
 
 class DoUninstallTests(unittest.TestCase):
@@ -131,15 +139,15 @@ class DoResetOptionsTests(unittest.TestCase):
         self.assertIn("does not exist", buf.getvalue())
 
 
-class _FakeCfg:
+class _FakeCfg(AppConfigStore):
     """Minimal AppConfigStore stand-in -- only the attributes touched by tested helpers."""
 
     def __init__(
         self,
-        config: dict,
-        segments_def: list[dict],
-        state: dict,
-        options_def: dict | None = None,
+        config: dict[str, Any],
+        segments_def: list[dict[str, Any]],
+        state: dict[str, Any],
+        options_def: dict[str, Any] | None = None,
     ) -> None:
         self.config = config
         self.segments_def = segments_def
@@ -272,7 +280,7 @@ class PrintModeTests(unittest.TestCase):
         "permissions": "bypass",
     }
 
-    def _make_cfg(self, last_config: dict | None = None) -> _FakeCfg:
+    def _make_cfg(self, last_config: dict[str, Any] | None = None) -> _FakeCfg:
         """Build a _FakeCfg pre-loaded with all segments enabled."""
         return _FakeCfg(
             config={
@@ -291,7 +299,7 @@ class PrintModeTests(unittest.TestCase):
         )
 
     def _run_main(
-        self, argv: list[str], last_config: dict | None = None
+        self, argv: list[str], last_config: dict[str, Any] | None = None
     ) -> mock.MagicMock:
         """Invoke cli.main() with patched argv, AppConfigStore, and _do_launch_sequence.
 
@@ -303,9 +311,13 @@ class PrintModeTests(unittest.TestCase):
 
         with (
             mock.patch("sys.argv", argv),
-            mock.patch("claudewheel.config.AppConfigStore", return_value=fake_cfg),
+            mock.patch(
+                "claudewheel.config.AppConfigStore",
+                autospec=True,
+                return_value=fake_cfg,
+            ),
             mock.patch("claudewheel.cli._do_launch_sequence", launch_mock),
-            mock.patch("os.getcwd", return_value="/test/dir"),
+            mock.patch("os.getcwd", autospec=True, return_value="/test/dir"),
         ):
             try:
                 cli.main()
@@ -370,10 +382,14 @@ class PrintModeTests(unittest.TestCase):
                     "/some/dir",
                 ],
             ),
-            mock.patch("claudewheel.config.AppConfigStore", return_value=fake_cfg),
+            mock.patch(
+                "claudewheel.config.AppConfigStore",
+                autospec=True,
+                return_value=fake_cfg,
+            ),
             mock.patch("claudewheel.cli._do_launch_sequence", launch_mock),
-            mock.patch("claudewheel.cli._check_cont_session"),
-            mock.patch("os.getcwd", return_value="/test/dir"),
+            mock.patch("claudewheel.cli._check_cont_session", autospec=True),
+            mock.patch("os.getcwd", autospec=True, return_value="/test/dir"),
         ):
             try:
                 cli.main()
@@ -410,9 +426,13 @@ class PrintModeTests(unittest.TestCase):
 
         with (
             mock.patch("sys.argv", ["c", "-p", "test"]),
-            mock.patch("claudewheel.config.AppConfigStore", return_value=fake_cfg),
+            mock.patch(
+                "claudewheel.config.AppConfigStore",
+                autospec=True,
+                return_value=fake_cfg,
+            ),
             mock.patch("claudewheel.cli._do_launch_sequence", launch_mock),
-            mock.patch("os.getcwd", return_value="/test/dir"),
+            mock.patch("os.getcwd", autospec=True, return_value="/test/dir"),
             redirect_stderr(err),
         ):
             try:
@@ -435,9 +455,13 @@ class PrintModeTests(unittest.TestCase):
 
         with (
             mock.patch("sys.argv", ["c", "-p", "test"]),
-            mock.patch("claudewheel.config.AppConfigStore", return_value=fake_cfg),
+            mock.patch(
+                "claudewheel.config.AppConfigStore",
+                autospec=True,
+                return_value=fake_cfg,
+            ),
             mock.patch("claudewheel.cli._do_launch_sequence", launch_mock),
-            mock.patch("os.getcwd", return_value="/test/dir"),
+            mock.patch("os.getcwd", autospec=True, return_value="/test/dir"),
             redirect_stderr(err),
         ):
             try:
@@ -470,7 +494,10 @@ class ClientSelectionCliTests(unittest.TestCase):
     ALL_ENABLED = PrintModeTests.ALL_ENABLED
 
     def _make_cfg(
-        self, *, default_client: str | None = None, last_config: dict | None = None
+        self,
+        *,
+        default_client: str | None = None,
+        last_config: dict[str, Any] | None = None,
     ) -> _FakeCfg:
         config = {
             "theme": "dark",
@@ -491,7 +518,9 @@ class ClientSelectionCliTests(unittest.TestCase):
             options_def={},
         )
 
-    def _run(self, argv: list[str], cfg: _FakeCfg, app_mock: object | None = None):
+    def _run(
+        self, argv: list[str], cfg: _FakeCfg, app_mock: object | None = None
+    ) -> tuple[MagicMock, str]:
         """Run cli.main() with AppConfigStore + _do_launch_sequence patched.
 
         Returns (launch_mock, stderr_text). When *app_mock* is given, the TUI
@@ -505,12 +534,18 @@ class ClientSelectionCliTests(unittest.TestCase):
         with ExitStack() as stack:
             stack.enter_context(mock.patch("sys.argv", argv))
             stack.enter_context(
-                mock.patch("claudewheel.config.AppConfigStore", return_value=cfg)
+                mock.patch(
+                    "claudewheel.config.AppConfigStore",
+                    autospec=True,
+                    return_value=cfg,
+                )
             )
             stack.enter_context(
                 mock.patch("claudewheel.cli._do_launch_sequence", launch_mock)
             )
-            stack.enter_context(mock.patch("os.getcwd", return_value="/test/dir"))
+            stack.enter_context(
+                mock.patch("os.getcwd", autospec=True, return_value="/test/dir")
+            )
             stack.enter_context(redirect_stderr(stderr))
             if app_mock is not None:
                 stack.enter_context(mock.patch("claudewheel.app.App", app_mock))
@@ -578,7 +613,9 @@ class ClientSelectionCliTests(unittest.TestCase):
 
     # -- Interactive path threads the client inputs into the App --
 
-    def _make_app_mock(self, selections: dict, selected_client: str):
+    def _make_app_mock(
+        self, selections: dict[str, str], selected_client: str
+    ) -> tuple[MagicMock, MagicMock]:
         app_instance = mock.MagicMock()
         app_instance.run_tui.return_value = selections
         app_instance.selected_client = selected_client
@@ -645,12 +682,16 @@ class LaunchCorruptTokensTests(unittest.TestCase):
         err = io.StringIO()
         with (
             mock.patch("sys.argv", ["c", "--profile", "work", "-p", "hi"]),
-            mock.patch("claudewheel.config.AppConfigStore", return_value=fake_cfg),
-            mock.patch("claudewheel.hooks.run_hooks", return_value=True),
+            mock.patch(
+                "claudewheel.config.AppConfigStore",
+                autospec=True,
+                return_value=fake_cfg,
+            ),
+            mock.patch("claudewheel.hooks.run_hooks", autospec=True, return_value=True),
             mock.patch.dict(
                 "os.environ", {"CLAUDEWHEEL_CONFIG_DIR": str(Path(tmp.name))}
             ),
-            mock.patch("os.getcwd", return_value="/test/dir"),
+            mock.patch("os.getcwd", autospec=True, return_value="/test/dir"),
             redirect_stderr(err),
         ):
             with self.assertRaises(SystemExit) as ctx:
@@ -701,12 +742,16 @@ class LaunchStaleProfileTests(unittest.TestCase):
         err = io.StringIO()
         with (
             mock.patch("sys.argv", ["c", "--profile", "work", "-p", "hi"]),
-            mock.patch("claudewheel.config.AppConfigStore", return_value=fake_cfg),
-            mock.patch("claudewheel.hooks.run_hooks", return_value=True),
+            mock.patch(
+                "claudewheel.config.AppConfigStore",
+                autospec=True,
+                return_value=fake_cfg,
+            ),
+            mock.patch("claudewheel.hooks.run_hooks", autospec=True, return_value=True),
             mock.patch.dict(
                 "os.environ", {"CLAUDEWHEEL_CONFIG_DIR": str(Path(tmp.name))}
             ),
-            mock.patch("os.getcwd", return_value="/test/dir"),
+            mock.patch("os.getcwd", autospec=True, return_value="/test/dir"),
             redirect_stderr(err),
         ):
             with self.assertRaises(SystemExit) as ctx:
@@ -758,7 +803,7 @@ class DuplicateSetKeyTests(unittest.TestCase):
     ALL_ENABLED = PrintModeTests.ALL_ENABLED
     FULL_LAST_CONFIG = PrintModeTests.FULL_LAST_CONFIG
 
-    def _make_cfg(self, last_config: dict | None = None) -> _FakeCfg:
+    def _make_cfg(self, last_config: dict[str, Any] | None = None) -> _FakeCfg:
         return _FakeCfg(
             config={
                 "theme": "dark",
@@ -776,15 +821,19 @@ class DuplicateSetKeyTests(unittest.TestCase):
         )
 
     def _run_main(
-        self, argv: list[str], last_config: dict | None = None
+        self, argv: list[str], last_config: dict[str, Any] | None = None
     ) -> mock.MagicMock:
         fake_cfg = self._make_cfg(last_config)
         launch_mock = mock.MagicMock()
         with (
             mock.patch("sys.argv", argv),
-            mock.patch("claudewheel.config.AppConfigStore", return_value=fake_cfg),
+            mock.patch(
+                "claudewheel.config.AppConfigStore",
+                autospec=True,
+                return_value=fake_cfg,
+            ),
             mock.patch("claudewheel.cli._do_launch_sequence", launch_mock),
-            mock.patch("os.getcwd", return_value="/test/dir"),
+            mock.patch("os.getcwd", autospec=True, return_value="/test/dir"),
         ):
             try:
                 cli.main()
@@ -879,7 +928,7 @@ class PickerFlagTests(unittest.TestCase):
     ALL_ENABLED = PrintModeTests.ALL_ENABLED
     FULL_LAST_CONFIG = PrintModeTests.FULL_LAST_CONFIG
 
-    def _make_cfg(self, last_config: dict | None = None) -> _FakeCfg:
+    def _make_cfg(self, last_config: dict[str, Any] | None = None) -> _FakeCfg:
         return _FakeCfg(
             config={
                 "theme": "dark",
@@ -897,15 +946,19 @@ class PickerFlagTests(unittest.TestCase):
         )
 
     def _run_main(
-        self, argv: list[str], last_config: dict | None = None
+        self, argv: list[str], last_config: dict[str, Any] | None = None
     ) -> mock.MagicMock:
         fake_cfg = self._make_cfg(last_config)
         launch_mock = mock.MagicMock()
         with (
             mock.patch("sys.argv", argv),
-            mock.patch("claudewheel.config.AppConfigStore", return_value=fake_cfg),
+            mock.patch(
+                "claudewheel.config.AppConfigStore",
+                autospec=True,
+                return_value=fake_cfg,
+            ),
             mock.patch("claudewheel.cli._do_launch_sequence", launch_mock),
-            mock.patch("os.getcwd", return_value="/test/dir"),
+            mock.patch("os.getcwd", autospec=True, return_value="/test/dir"),
         ):
             try:
                 cli.main()
@@ -1048,7 +1101,7 @@ class CheckResumeSessionTests(unittest.TestCase):
             '{"cwd":"/home/user/my-project"}\n'
         )
 
-        with mock.patch("claudewheel.session.find_session") as mock_find:
+        with mock.patch("claudewheel.session.find_session", autospec=True) as mock_find:
             cli._check_resume_session(self.ws, session_id, current_dir)
 
         mock_find.assert_not_called()
@@ -1081,12 +1134,16 @@ class CheckResumeSessionTests(unittest.TestCase):
         real_result.files_rewritten = 2
 
         with (
-            mock.patch("claudewheel.session.find_session", return_value=info),
             mock.patch(
-                "claudewheel.mv.run_mv", side_effect=[dry_result, real_result]
+                "claudewheel.session.find_session", autospec=True, return_value=info
+            ),
+            mock.patch(
+                "claudewheel.mv.run_mv",
+                autospec=True,
+                side_effect=[dry_result, real_result],
             ) as mock_mv,
-            mock.patch("builtins.input", side_effect=["y", "y"]),
-            mock.patch("os.path.isdir", return_value=False),
+            mock.patch("builtins.input", autospec=True, side_effect=["y", "y"]),
+            mock.patch("os.path.isdir", autospec=True, return_value=False),
             redirect_stdout(io.StringIO()),
         ):
             # Should return normally (no sys.exit)
@@ -1126,10 +1183,12 @@ class CheckResumeSessionTests(unittest.TestCase):
         )
 
         with (
-            mock.patch("claudewheel.session.find_session", return_value=info),
-            mock.patch("claudewheel.mv.run_mv") as mock_mv,
-            mock.patch("builtins.input", return_value="n"),
-            mock.patch("os.path.isdir", return_value=False),
+            mock.patch(
+                "claudewheel.session.find_session", autospec=True, return_value=info
+            ),
+            mock.patch("claudewheel.mv.run_mv", autospec=True) as mock_mv,
+            mock.patch("builtins.input", autospec=True, return_value="n"),
+            mock.patch("os.path.isdir", autospec=True, return_value=False),
             redirect_stdout(io.StringIO()),
         ):
             with self.assertRaises(SystemExit) as ctx:
@@ -1168,10 +1227,14 @@ class CheckResumeSessionTests(unittest.TestCase):
         dry_result.project_keys_updated = 1
 
         with (
-            mock.patch("claudewheel.session.find_session", return_value=info),
-            mock.patch("claudewheel.mv.run_mv", return_value=dry_result) as mock_mv,
-            mock.patch("builtins.input", side_effect=["y", "n"]),
-            mock.patch("os.path.isdir", return_value=False),
+            mock.patch(
+                "claudewheel.session.find_session", autospec=True, return_value=info
+            ),
+            mock.patch(
+                "claudewheel.mv.run_mv", autospec=True, return_value=dry_result
+            ) as mock_mv,
+            mock.patch("builtins.input", autospec=True, side_effect=["y", "n"]),
+            mock.patch("os.path.isdir", autospec=True, return_value=False),
             redirect_stdout(io.StringIO()),
         ):
             with self.assertRaises(SystemExit) as ctx:
@@ -1193,7 +1256,9 @@ class CheckResumeSessionTests(unittest.TestCase):
 
         err = io.StringIO()
         with (
-            mock.patch("claudewheel.session.find_session", return_value=None),
+            mock.patch(
+                "claudewheel.session.find_session", autospec=True, return_value=None
+            ),
             redirect_stderr(err),
         ):
             with self.assertRaises(SystemExit) as ctx:
@@ -1222,8 +1287,10 @@ class CheckResumeSessionTests(unittest.TestCase):
 
         err = io.StringIO()
         with (
-            mock.patch("claudewheel.session.find_session", return_value=info),
-            mock.patch("os.path.isdir", return_value=True),
+            mock.patch(
+                "claudewheel.session.find_session", autospec=True, return_value=info
+            ),
+            mock.patch("os.path.isdir", autospec=True, return_value=True),
             redirect_stderr(err),
         ):
             with self.assertRaises(SystemExit) as ctx:
@@ -1278,10 +1345,16 @@ class CheckResumeSessionTests(unittest.TestCase):
                     "/some/dir",
                 ],
             ),
-            mock.patch("claudewheel.config.AppConfigStore", return_value=fake_cfg),
+            mock.patch(
+                "claudewheel.config.AppConfigStore",
+                autospec=True,
+                return_value=fake_cfg,
+            ),
             mock.patch("claudewheel.cli._do_launch_sequence", mock.MagicMock()),
-            mock.patch("claudewheel.cli._check_resume_session") as mock_check,
-            mock.patch("os.getcwd", return_value="/test/dir"),
+            mock.patch(
+                "claudewheel.cli._check_resume_session", autospec=True
+            ) as mock_check,
+            mock.patch("os.getcwd", autospec=True, return_value="/test/dir"),
         ):
             try:
                 cli.main()
@@ -1330,7 +1403,9 @@ class CheckContSessionTests(unittest.TestCase):
         encoded = SharedStore.encode_path(os.path.abspath(current_dir))
         self._create_project(encoded, session_count=2, cwd=current_dir)
 
-        with mock.patch("claudewheel.session.find_orphaned_project_dirs") as mock_find:
+        with mock.patch(
+            "claudewheel.session.find_orphaned_project_dirs", autospec=True
+        ) as mock_find:
             cli._check_cont_session(self.ws, current_dir)
 
         mock_find.assert_not_called()
@@ -1362,12 +1437,16 @@ class CheckContSessionTests(unittest.TestCase):
 
         with (
             mock.patch(
-                "claudewheel.session.find_orphaned_project_dirs", return_value=[orphan]
+                "claudewheel.session.find_orphaned_project_dirs",
+                autospec=True,
+                return_value=[orphan],
             ),
             mock.patch(
-                "claudewheel.mv.run_mv", side_effect=[dry_result, real_result]
+                "claudewheel.mv.run_mv",
+                autospec=True,
+                side_effect=[dry_result, real_result],
             ) as mock_mv,
-            mock.patch("builtins.input", side_effect=["y", "y"]),
+            mock.patch("builtins.input", autospec=True, side_effect=["y", "y"]),
             redirect_stdout(io.StringIO()),
         ):
             cli._check_cont_session(self.ws, current_dir)
@@ -1397,10 +1476,12 @@ class CheckContSessionTests(unittest.TestCase):
 
         with (
             mock.patch(
-                "claudewheel.session.find_orphaned_project_dirs", return_value=[orphan]
+                "claudewheel.session.find_orphaned_project_dirs",
+                autospec=True,
+                return_value=[orphan],
             ),
-            mock.patch("claudewheel.mv.run_mv") as mock_mv,
-            mock.patch("builtins.input", return_value="n"),
+            mock.patch("claudewheel.mv.run_mv", autospec=True) as mock_mv,
+            mock.patch("builtins.input", autospec=True, return_value="n"),
             redirect_stdout(io.StringIO()),
         ):
             # Should return normally (no sys.exit)
@@ -1416,10 +1497,12 @@ class CheckContSessionTests(unittest.TestCase):
 
         with (
             mock.patch(
-                "claudewheel.session.find_orphaned_project_dirs", return_value=[]
+                "claudewheel.session.find_orphaned_project_dirs",
+                autospec=True,
+                return_value=[],
             ),
-            mock.patch("claudewheel.mv.run_mv") as mock_mv,
-            mock.patch("builtins.input") as mock_input,
+            mock.patch("claudewheel.mv.run_mv", autospec=True) as mock_mv,
+            mock.patch("builtins.input", autospec=True) as mock_input,
         ):
             cli._check_cont_session(self.ws, current_dir)
 
@@ -1460,12 +1543,15 @@ class CheckContSessionTests(unittest.TestCase):
         with (
             mock.patch(
                 "claudewheel.session.find_orphaned_project_dirs",
+                autospec=True,
                 return_value=[orphan1, orphan2],
             ),
             mock.patch(
-                "claudewheel.mv.run_mv", side_effect=[dry_result, real_result]
+                "claudewheel.mv.run_mv",
+                autospec=True,
+                side_effect=[dry_result, real_result],
             ) as mock_mv,
-            mock.patch("builtins.input", side_effect=["2", "y"]),
+            mock.patch("builtins.input", autospec=True, side_effect=["2", "y"]),
             redirect_stdout(io.StringIO()),
         ):
             cli._check_cont_session(self.ws, current_dir)
@@ -1484,7 +1570,7 @@ class MvPostHocFlagTests(unittest.TestCase):
         """When --post-hoc is given, run_mv is called with post_hoc=True."""
         with (
             mock.patch("sys.argv", ["c", "mv", "/old/path", "/new/path", "--post-hoc"]),
-            mock.patch("claudewheel.mv.run_mv") as mock_run_mv,
+            mock.patch("claudewheel.mv.run_mv", autospec=True) as mock_run_mv,
         ):
             try:
                 cli.main()
@@ -1499,7 +1585,7 @@ class MvPostHocFlagTests(unittest.TestCase):
         """When --post-hoc is not given, run_mv is called with post_hoc=False."""
         with (
             mock.patch("sys.argv", ["c", "mv", "/old/path", "/new/path"]),
-            mock.patch("claudewheel.mv.run_mv") as mock_run_mv,
+            mock.patch("claudewheel.mv.run_mv", autospec=True) as mock_run_mv,
         ):
             try:
                 cli.main()
@@ -1534,14 +1620,17 @@ class NewProfileFlowTests(unittest.TestCase):
 
         self._patches = {
             "terminal_cls": mock.patch(
-                "claudewheel.terminal.Terminal", return_value=self.terminal
+                "claudewheel.terminal.Terminal",
+                autospec=True,
+                return_value=self.terminal,
             ),
-            "config": mock.patch("claudewheel.config.AppConfigStore"),
+            "config": mock.patch("claudewheel.config.AppConfigStore", autospec=True),
             "wizard": mock.patch(
                 "claudewheel.wizard.run_profile_wizard", autospec=True
             ),
             "create": mock.patch(
                 "claudewheel.wizard.create_profile",
+                autospec=True,
                 return_value=["Created profile 'p':", "  Config dir: /x"],
             ),
             "auth": mock.patch(
@@ -1549,7 +1638,7 @@ class NewProfileFlowTests(unittest.TestCase):
                 autospec=True,
                 return_value="authenticated",
             ),
-            "page": mock.patch("claudewheel.ui.show_page"),
+            "page": mock.patch("claudewheel.ui.show_page", autospec=True),
         }
         self.mocks = {}
         for name, p in self._patches.items():
@@ -1663,11 +1752,11 @@ class ShowProfileCommandTests(unittest.TestCase):
         for name in ("new-profile", "delete-profile", "show-profile"):
             self.assertIn(name, cli._SUBCOMMANDS)
 
-    def _report(self, **overrides):
+    def _report(self, **overrides: Any) -> "ProfileReport":
         from claudewheel.profile_info import ProfileReport
         from pathlib import Path as _P
 
-        kwargs = dict(
+        kwargs: dict[str, Any] = dict(
             name="work",
             config_dir=_P("/fake/profiles/work"),
             exists=True,
@@ -1685,7 +1774,9 @@ class ShowProfileCommandTests(unittest.TestCase):
         buf = io.StringIO()
         with (
             mock.patch(
-                "claudewheel.profile_info.gather_profile_info", return_value=report
+                "claudewheel.profile_info.gather_profile_info",
+                autospec=True,
+                return_value=report,
             ) as mock_gather,
             redirect_stdout(buf),
         ):
@@ -1701,7 +1792,9 @@ class ShowProfileCommandTests(unittest.TestCase):
         err = io.StringIO()
         with (
             mock.patch(
-                "claudewheel.profile_info.gather_profile_info", return_value=report
+                "claudewheel.profile_info.gather_profile_info",
+                autospec=True,
+                return_value=report,
             ),
             redirect_stderr(err),
         ):
@@ -1718,7 +1811,9 @@ class ShowProfileCommandTests(unittest.TestCase):
         buf = io.StringIO()
         with (
             mock.patch(
-                "claudewheel.profile_info.gather_profile_info", return_value=report
+                "claudewheel.profile_info.gather_profile_info",
+                autospec=True,
+                return_value=report,
             ),
             redirect_stdout(buf),
         ):
@@ -1735,6 +1830,7 @@ class ShowProfileCommandTests(unittest.TestCase):
         with (
             mock.patch(
                 "claudewheel.profile_info.gather_profile_info",
+                autospec=True,
                 side_effect=TokenStoreError("/x/tokens.json is corrupt; retry."),
             ),
             redirect_stderr(err),
@@ -1750,7 +1846,7 @@ class ShowProfileCommandTests(unittest.TestCase):
 class DeleteProfileHandlerTests(unittest.TestCase):
     """_handle_delete_profile: running check (CLI policy) + ProfileStore.delete."""
 
-    def _ok_result(self):
+    def _ok_result(self) -> "DeletionResult":
         from claudewheel.profile_store import DeletionResult
 
         return DeletionResult(
@@ -1769,7 +1865,9 @@ class DeleteProfileHandlerTests(unittest.TestCase):
         ws = mock.MagicMock()
         ws.profiles = mock_store
         with (
-            mock.patch("claudewheel.profile_ops._is_profile_running") as mock_run,
+            mock.patch(
+                "claudewheel.profile_ops._is_profile_running", autospec=True
+            ) as mock_run,
             redirect_stdout(io.StringIO()),
         ):
             rc = cli._handle_delete_profile(
@@ -1787,7 +1885,9 @@ class DeleteProfileHandlerTests(unittest.TestCase):
         ws.profiles = mock_store
         with (
             mock.patch(
-                "claudewheel.profile_ops._is_profile_running", return_value=False
+                "claudewheel.profile_ops._is_profile_running",
+                autospec=True,
+                return_value=False,
             ) as mock_run,
             redirect_stdout(io.StringIO()),
         ):
@@ -1806,7 +1906,9 @@ class DeleteProfileHandlerTests(unittest.TestCase):
         ws.profiles = mock_store
         with (
             mock.patch(
-                "claudewheel.profile_ops._is_profile_running", return_value=True
+                "claudewheel.profile_ops._is_profile_running",
+                autospec=True,
+                return_value=True,
             ),
             redirect_stderr(err),
         ):
@@ -1827,7 +1929,9 @@ class DeleteProfileHandlerTests(unittest.TestCase):
         ws.profiles = mock_store
         with (
             mock.patch(
-                "claudewheel.profile_ops._is_profile_running", return_value=False
+                "claudewheel.profile_ops._is_profile_running",
+                autospec=True,
+                return_value=False,
             ),
             redirect_stderr(err),
         ):
@@ -1847,7 +1951,7 @@ class ProfileGroupDispatchTests(unittest.TestCase):
         with (
             mock.patch("sys.argv", ["c", "profile", "create"]),
             mock.patch.object(
-                cli, "_handle_new_profile", return_value=0
+                cli, "_handle_new_profile", autospec=True, return_value=0
             ) as mock_handler,
         ):
             try:
@@ -1858,12 +1962,32 @@ class ProfileGroupDispatchTests(unittest.TestCase):
 
     def test_profile_delete_dispatches(self) -> None:
         """'claudewheel profile delete work' calls _handle_delete_profile."""
+        # _build_app reads the handler's strictcli flag/arg metadata to register
+        # the command (including the required --force-delete / --force-delete-data
+        # bool flags). autospec mirrors those private attributes as strings rather
+        # than the real Flag lists, so capture and restore them on the mock; the
+        # invocation then supplies both required flags for a valid dispatch.
+        handler: Any = cli._handle_delete_profile
+        real_flags = handler._strictcli_flags
+        real_args = getattr(handler, "_strictcli_args", [])
         with (
-            mock.patch("sys.argv", ["c", "profile", "delete", "work"]),
+            mock.patch(
+                "sys.argv",
+                [
+                    "c",
+                    "profile",
+                    "delete",
+                    "work",
+                    "--force-delete",
+                    "--force-delete-data",
+                ],
+            ),
             mock.patch.object(
-                cli, "_handle_delete_profile", return_value=0
+                cli, "_handle_delete_profile", autospec=True, return_value=0
             ) as mock_handler,
         ):
+            mock_handler._strictcli_flags = real_flags
+            mock_handler._strictcli_args = real_args
             try:
                 cli.main()
             except SystemExit:
@@ -1871,13 +1995,15 @@ class ProfileGroupDispatchTests(unittest.TestCase):
         mock_handler.assert_called_once()
         # strictcli passes args as kwargs
         self.assertEqual(mock_handler.call_args.kwargs["name"], "work")
+        self.assertTrue(mock_handler.call_args.kwargs["force_delete"])
+        self.assertTrue(mock_handler.call_args.kwargs["force_delete_data"])
 
     def test_profile_show_dispatches(self) -> None:
         """'claudewheel profile show work' calls _handle_show_profile."""
         with (
             mock.patch("sys.argv", ["c", "profile", "show", "work"]),
             mock.patch.object(
-                cli, "_handle_show_profile", return_value=0
+                cli, "_handle_show_profile", autospec=True, return_value=0
             ) as mock_handler,
         ):
             try:
@@ -1955,25 +2081,25 @@ class FixAuthTests(unittest.TestCase):
         pdir.mkdir(parents=True, exist_ok=True)
         return pdir
 
-    def _write_tokens(self, data: dict) -> None:
+    def _write_tokens(self, data: dict[str, Any]) -> None:
         import json
 
         self.tokens_file.parent.mkdir(parents=True, exist_ok=True)
         self.tokens_file.write_text(json.dumps(data))
         self.tokens_file.chmod(0o600)
 
-    def _write_credentials(self, pdir: Path, data: dict) -> None:
+    def _write_credentials(self, pdir: Path, data: dict[str, Any]) -> None:
         import json
 
         creds = pdir / ".credentials.json"
         creds.write_text(json.dumps(data))
         creds.chmod(0o600)
 
-    def _run_fix_auth(self, name: str) -> tuple[int | None, str, str]:
+    def _run_fix_auth(self, name: str) -> tuple[int | str | None, str, str]:
         """Run _handle_fix_auth with patched constants. Returns (rc, stdout, stderr)."""
         out = io.StringIO()
         err = io.StringIO()
-        rc = None
+        rc: int | str | None = None
         with redirect_stdout(out), redirect_stderr(err):
             try:
                 rc = cli._handle_fix_auth(self.ws, name)
@@ -2091,15 +2217,18 @@ class WriteTierStubTests(unittest.TestCase):
 
         self.ws = Workspace.open(self.root, claude_dir=self.root / ".claude")
 
-    def _write_tokens(self, data: dict) -> None:
+    def _write_tokens(self, data: dict[str, Any]) -> None:
         import json
 
         self.tokens_file.write_text(json.dumps(data))
 
-    def _read_creds(self) -> dict:
+    def _read_creds(self) -> dict[str, Any]:
         import json
 
-        return json.loads((self.config_dir / ".credentials.json").read_text())
+        data: dict[str, Any] = json.loads(
+            (self.config_dir / ".credentials.json").read_text()
+        )
+        return data
 
     def test_writes_tier_stub(self) -> None:
         """When tokens.json has tier data, .credentials.json gets a stub."""
@@ -2264,7 +2393,7 @@ class CheckTokensTests(unittest.TestCase):
             "work": {"token": self.FULL_TOKEN.replace("A", "B")},
         }
 
-        def fake_validate(token, timeout=5.0):
+        def fake_validate(token: str, timeout: float = 5.0) -> str:
             return "valid"
 
         rc, out = self._run_with_patches(profiles, tokens_data, fake_validate)
@@ -2294,7 +2423,7 @@ class CheckTokensTests(unittest.TestCase):
         }
         token_good = self.FULL_TOKEN
 
-        def fake_validate(token, timeout=5.0):
+        def fake_validate(token: str, timeout: float = 5.0) -> str:
             if token == token_good:
                 return "valid"
             return "invalid"
@@ -2318,7 +2447,7 @@ class CheckTokensTests(unittest.TestCase):
         ]
         tokens_data = {"offline": self.FULL_TOKEN}
 
-        def fake_validate(token, timeout=5.0):
+        def fake_validate(token: str, timeout: float = 5.0) -> str:
             return "unreachable"
 
         rc, out = self._run_with_patches(profiles, tokens_data, fake_validate)
@@ -2337,9 +2466,9 @@ class CheckTokensTests(unittest.TestCase):
                 has_token=False,
             ),
         ]
-        tokens_data = {}
+        tokens_data: dict[str, Any] = {}
 
-        def fake_validate(token, timeout=5.0):
+        def fake_validate(token: str, timeout: float = 5.0) -> str:
             raise AssertionError(
                 "validate_token should not be called for no-token profiles"
             )
@@ -2363,7 +2492,7 @@ class CheckTokensTests(unittest.TestCase):
         ]
         tokens_data = {"secret": self.FULL_TOKEN}
 
-        def fake_validate(token, timeout=5.0):
+        def fake_validate(token: str, timeout: float = 5.0) -> str:
             return "valid"
 
         rc, out = self._run_with_patches(profiles, tokens_data, fake_validate)
@@ -2386,7 +2515,7 @@ class CheckTokensTests(unittest.TestCase):
         ]
         tokens_data = {"weird": self.FULL_TOKEN}
 
-        def fake_validate(token, timeout=5.0):
+        def fake_validate(token: str, timeout: float = 5.0) -> str:
             return "indeterminate"
 
         rc, out = self._run_with_patches(profiles, tokens_data, fake_validate)
@@ -2407,7 +2536,7 @@ class CheckTokensTests(unittest.TestCase):
         ]
         tokens_data = {"test": self.FULL_TOKEN}
 
-        def fake_validate(token, timeout=5.0):
+        def fake_validate(token: str, timeout: float = 5.0) -> str:
             return "valid"
 
         rc, out = self._run_with_patches(profiles, tokens_data, fake_validate)
@@ -2422,7 +2551,7 @@ class CheckTokensTests(unittest.TestCase):
         with (
             mock.patch("sys.argv", ["c", "profile", "check-tokens"]),
             mock.patch.object(
-                cli, "_handle_check_tokens", return_value=0
+                cli, "_handle_check_tokens", autospec=True, return_value=0
             ) as mock_handler,
         ):
             try:
@@ -2451,7 +2580,7 @@ class CheckTokensTests(unittest.TestCase):
         ]
         tokens_data = {"has_tok": self.FULL_TOKEN}
 
-        def fake_validate(token, timeout=5.0):
+        def fake_validate(token: str, timeout: float = 5.0) -> str:
             return "valid"
 
         rc, out = self._run_with_patches(profiles, tokens_data, fake_validate)
@@ -2480,7 +2609,12 @@ class CheckTokensTests(unittest.TestCase):
         self.assertIn("corrupt", msg)
         self.assertNotIn("Traceback", msg)
 
-    def _run_with_patches(self, profiles, tokens_data, validate_fn):
+    def _run_with_patches(
+        self,
+        profiles: list["Profile"],
+        tokens_data: dict[str, Any],
+        validate_fn: Callable[..., str],
+    ) -> tuple[int, str]:
         """Helper to run _handle_check_tokens with clean patches."""
 
         buf = io.StringIO()
@@ -2489,7 +2623,11 @@ class CheckTokensTests(unittest.TestCase):
         ws.profiles.enumerate.return_value = profiles
 
         with (
-            mock.patch("claudewheel.auth.validate_token", side_effect=validate_fn),
+            mock.patch(
+                "claudewheel.auth.validate_token",
+                autospec=True,
+                side_effect=validate_fn,
+            ),
             redirect_stdout(buf),
         ):
             rc = cli._handle_check_tokens(ws)
@@ -2509,7 +2647,7 @@ class RenameProfileDispatchTests(unittest.TestCase):
         with (
             mock.patch("sys.argv", ["c", "profile", "rename", "alpha", "beta"]),
             mock.patch.object(
-                cli, "_handle_rename_profile", return_value=0
+                cli, "_handle_rename_profile", autospec=True, return_value=0
             ) as mock_handler,
         ):
             try:
@@ -2588,7 +2726,9 @@ class RenameProfileHandlerTests(unittest.TestCase):
         self.tokens_file.write_text("{}")
         with (
             mock.patch(
-                "claudewheel.profile_ops._is_profile_running", return_value=True
+                "claudewheel.profile_ops._is_profile_running",
+                autospec=True,
+                return_value=True,
             ),
             self.assertRaises(SystemExit) as ctx,
         ):
@@ -2602,14 +2742,21 @@ class RenameProfileHandlerTests(unittest.TestCase):
         buf = io.StringIO()
         with (
             mock.patch(
-                "claudewheel.profile_ops._is_profile_running", return_value=False
+                "claudewheel.profile_ops._is_profile_running",
+                autospec=True,
+                return_value=False,
             ),
-            mock.patch("claudewheel.profile_store.ProfileStore.rename") as mock_rename,
+            mock.patch(
+                "claudewheel.profile_store.ProfileStore.rename", autospec=True
+            ) as mock_rename,
             redirect_stdout(buf),
         ):
             rc = cli._handle_rename_profile(self.ws, "old", "new-name")
         self.assertEqual(rc, 0)
-        mock_rename.assert_called_once_with("old", "new-name")
+        # autospec on a class method records the instance as the first positional
+        # arg (self); assert the remaining args match the rename request exactly.
+        mock_rename.assert_called_once()
+        self.assertEqual(mock_rename.call_args.args[1:], ("old", "new-name"))
         self.assertIn("Renamed", buf.getvalue())
 
     def test_token_conflict_exits(self) -> None:
