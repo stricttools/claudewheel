@@ -1,6 +1,6 @@
 ---
 title: Guardrails
-description: "How claudewheel guardrails work: the four enforcement tiers, subagent-versus-main-agent handling, command-string caveats, and upgrading existing profiles."
+description: "How claudewheel guardrails work: the 4 enforcement tiers, subagent-versus-main-agent handling, command-string caveats, and upgrading existing profiles."
 nav_group: "Concepts"
 order: 5
 ---
