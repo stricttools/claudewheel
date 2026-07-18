@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import unittest
 
-from claudewheel.constants import DIM, RESET
-from claudewheel.segment import Segment, SegmentState
+from claudewheel.constants import DIM
+from claudewheel.segment import Segment
 
 
 class RenderOptionAuthDimmingTests(unittest.TestCase):

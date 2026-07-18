@@ -7,9 +7,7 @@ import io
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
-from claudewheel import migrate as migrate_mod
 from claudewheel.migrate import (
     MigrateResult,
     _discover_uuids,

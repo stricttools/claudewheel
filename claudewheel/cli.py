@@ -12,7 +12,6 @@ from strictcli import App, Arg, CoRequired, Flag, FlagSet, MutexGroup
 
 from . import __version__
 from .clients import CLIENT_NAMES, DEFAULT_CLIENT, resolve_default_client
-from .segment import version_sort_key
 
 if TYPE_CHECKING:
     from .binaries import BinaryLocator
@@ -484,7 +483,7 @@ def _handle_rename_profile(ws: "Workspace", old: str, new: str) -> int:
 def _handle_check_tokens(ws: "Workspace") -> int:
     """Validate stored tokens for all discovered profiles against the Anthropic API."""
     from .tokens import TokenStoreError, parse_entry
-    from .auth import validate_token, VALID, INVALID, UNREACHABLE, INDETERMINATE
+    from .auth import validate_token, INVALID, UNREACHABLE, INDETERMINATE
 
     # Load tokens.json via TokenStore. A corrupt/unreadable file raises
     # TokenStoreError -- catch it narrowly here so the user sees the actionable

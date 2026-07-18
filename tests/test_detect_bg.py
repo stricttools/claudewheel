@@ -84,7 +84,6 @@ class ParseOsc11ResponseTests(unittest.TestCase):
         """Return a fake fd that yields *data* then times out."""
         fd = 42
         buf = bytearray(data)
-        call_count = [0]
 
         def fake_select(rlist, wlist, xlist, timeout=None):
             if buf:

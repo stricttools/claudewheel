@@ -15,8 +15,6 @@ from unittest import mock
 
 from claudewheel.wizard import WizardResult, create_profile, run_profile_wizard
 from claudewheel.shared_store import SharedStore
-from claudewheel import wizard as wizard_mod
-from claudewheel import profile_ops as profile_ops_mod
 from claudewheel.defaults import (
     DEFAULT_CONFIG,
     DEFAULT_SEGMENTS,
@@ -270,7 +268,7 @@ class CloneFromDefaultTests(CreateProfileTestBase):
         # (b) The summary claims the settings came from "default". That claim
         # must be backed by reality: the created settings genuinely carry the
         # default profile's non-overridden data.
-        source_line = next(l for l in lines if "Settings from:" in l)
+        source_line = next(line for line in lines if "Settings from:" in line)
         self.assertIn("default", source_line)
         settings = self._read_settings("fromdef2")
         self.assertEqual(settings.get("env"), source["env"])

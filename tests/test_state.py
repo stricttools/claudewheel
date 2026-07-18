@@ -7,7 +7,6 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
 
 from claudewheel.appdata import StateFile
 from claudewheel.shared_store import SharedStore

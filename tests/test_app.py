@@ -454,7 +454,6 @@ class AuthInterceptTests(unittest.TestCase):
             },
         )
 
-        from claudewheel.workspace import Workspace
 
         with mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="authenticated") as mock_flow, \
              mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result) as mock_disc, \
@@ -854,7 +853,7 @@ class InstallFlowFormTests(unittest.TestCase):
         """User cancels at the confirm dialog -> no download, no page."""
         app, seg = self._make_app_with_uninstalled()
 
-        with mock.patch("claudewheel.ui.run_selection", return_value="cancel") as mock_sel, \
+        with mock.patch("claudewheel.ui.run_selection", return_value="cancel"), \
              mock.patch("claudewheel.install.install_version") as mock_install, \
              mock.patch("claudewheel.ui.show_page") as mock_page:
             result = app._handle_key("ENTER")

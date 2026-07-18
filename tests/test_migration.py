@@ -17,7 +17,6 @@ from claudewheel.defaults import (
     DEFAULT_CONFIG,
     DEFAULT_OPTIONS,
     DEFAULT_SEGMENTS,
-    DEFAULT_STATE,
     DEFAULT_THEME_DARK,
 )
 from tests.wheelhelpers import (

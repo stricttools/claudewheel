@@ -11,7 +11,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 from claudewheel.shared_store import SharedStore
-from claudewheel.shared_store import SharedStore
 from claudewheel.import_ import (
     ImportResult,
     _apply_rewrites,

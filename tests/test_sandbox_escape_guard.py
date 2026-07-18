@@ -289,7 +289,8 @@ class SandboxEscapeGuardTest(SandboxHomeTestCase):
         monitored.mkdir()
         (monitored / "a.json").write_text("{}\n")
         (monitored / "b.json").write_text("[]\n")
-        watched = lambda: sorted(p for p in monitored.rglob("*") if p.is_file())
+        def watched():
+            return sorted(p for p in monitored.rglob("*") if p.is_file())
 
         before = hash_snapshot(watched())
         (monitored / "c.json").write_text('{"planted": true}\n')  # new file

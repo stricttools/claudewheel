@@ -353,7 +353,6 @@ class HookPatternDocumentation(unittest.TestCase):
     def test_git_add_should_match(self) -> None:
         """Commands that should be caught by the git add pattern."""
         # The pattern: (^|[;&|]|&&|\|\|)\s*git\s+add\s+(-[AuU]|--all|\.)
-        import re
         pattern = r'(^|[;&|]|&&|\|\|)\s*git\s+add\s+(-[AuU]|--all|\.)'
         # Should match
         self.assertRegex("git add .", pattern)
@@ -382,7 +381,6 @@ class HookPatternDocumentation(unittest.TestCase):
 
     def test_git_checkout_doubledash_should_match(self) -> None:
         """git checkout -- <file> should be caught."""
-        import re
         pattern = r'(^|[;&|]|&&|\|\|)\s*git\s+checkout\s+--\s'
         # Should match
         self.assertRegex("git checkout -- file.txt", pattern)
@@ -391,7 +389,6 @@ class HookPatternDocumentation(unittest.TestCase):
 
     def test_git_stash_all_forms_match(self) -> None:
         """All git stash subcommands should match."""
-        import re
         pattern = r'(^|[;&|]|&&|\|\|)\s*git\s+stash'
         self.assertRegex("git stash", pattern)
         self.assertRegex("git stash push", pattern)
@@ -401,7 +398,6 @@ class HookPatternDocumentation(unittest.TestCase):
 
     def test_git_restore_matches(self) -> None:
         """git restore in any form should match."""
-        import re
         pattern = r'(^|[;&|]|&&|\|\|)\s*git\s+restore'
         self.assertRegex("git restore file.txt", pattern)
         self.assertRegex("git restore --staged file.txt", pattern)
@@ -409,7 +405,6 @@ class HookPatternDocumentation(unittest.TestCase):
 
     def test_rm_with_args_matches(self) -> None:
         """rm with arguments should match."""
-        import re
         pattern = r'(^|[;&|]|&&|\|\|)\s*rm\s'
         self.assertRegex("rm file.txt", pattern)
         self.assertRegex("rm -rf dir/", pattern)

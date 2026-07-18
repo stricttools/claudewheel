@@ -33,7 +33,6 @@ from unittest.mock import patch
 
 import claudewheel.profile_store as ps_mod
 import claudewheel.wizard as wiz
-from claudewheel.appdata import OptionsFile, StateFile
 from claudewheel.profile_store import (
     DeletionResult,
     Profile,

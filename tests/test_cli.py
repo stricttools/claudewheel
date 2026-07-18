@@ -640,7 +640,6 @@ class LaunchStaleProfileTests(unittest.TestCase):
         # Empty profiles dir + no tokens file: "work" is not discoverable.
         profiles_dir = Path(tmp.name) / "profiles"
         profiles_dir.mkdir()
-        tokens_file = Path(tmp.name) / "tokens.json"
 
         fake_cfg = self._make_cfg()
         err = io.StringIO()
@@ -1763,7 +1762,6 @@ class FixAuthTests(unittest.TestCase):
     """Tests for _handle_fix_auth: remove session credentials shadowing tokens."""
 
     def setUp(self) -> None:
-        import json
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
         self.home = Path(self._tmp.name)
@@ -1898,7 +1896,6 @@ class WriteTierStubTests(unittest.TestCase):
 
     def test_writes_tier_stub(self) -> None:
         """When tokens.json has tier data, .credentials.json gets a stub."""
-        import json
         self._write_tokens({"work": {
             "token": "tok-1",
             "rateLimitTier": "default_claude_pro",
@@ -2046,7 +2043,6 @@ class CheckTokensTests(unittest.TestCase):
             "bad": self.FULL_TOKEN.replace("A", "C"),
         }
         token_good = self.FULL_TOKEN
-        token_bad = self.FULL_TOKEN.replace("A", "C")
 
         def fake_validate(token, timeout=5.0):
             if token == token_good:
@@ -2203,7 +2199,6 @@ class CheckTokensTests(unittest.TestCase):
 
     def _run_with_patches(self, profiles, tokens_data, validate_fn):
         """Helper to run _handle_check_tokens with clean patches."""
-        import json
 
         buf = io.StringIO()
         ws = mock.MagicMock()

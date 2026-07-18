@@ -15,7 +15,7 @@ import unittest
 from unittest.mock import MagicMock
 
 from claudewheel.app import App
-from claudewheel.constants import BOLD, DIM, RESET, move_to
+from claudewheel.constants import move_to
 from claudewheel.renderer import Renderer
 from claudewheel.segment import Segment, SegmentBar
 from claudewheel.theme import parse_theme
@@ -315,9 +315,7 @@ class FlashOverrideTests(unittest.TestCase):
         bar = SegmentBar(segments=[seg], focus_idx=0)
         # Full render with flash
         renderer.render(bar, flash="Error!", hints=hints)
-        # The write() was called -- verify fan-out didn't extend to row 23
-        written = renderer.term.write.call_args[0][0]
-        center_row = 24 // 2  # row 12
+        # The write() was called -- verify fan-out didn't extend to row 23.
         # With 4 options below and reserved=2, max below row = 24-2 = 22
         # So row 23 should NOT have fan-out content from model segment
         # (This is a structural check -- if the code path is correct,

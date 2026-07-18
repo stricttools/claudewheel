@@ -307,7 +307,6 @@ class ClaudeConfigScanDiscoveryTests(unittest.TestCase):
 
     def test_profiles_returned_when_found(self) -> None:
         """When the store enumerates profiles, their names are returned."""
-        from unittest.mock import patch
         from claudewheel.profile_store import Profile
 
         mock_profiles = [
@@ -325,7 +324,6 @@ class ClaudeConfigScanDiscoveryTests(unittest.TestCase):
 
     def test_empty_when_no_profiles_found(self) -> None:
         """When the store enumerates nothing, values are empty."""
-        from unittest.mock import patch
 
         config = {
             "values": ["stale-profile"],
@@ -338,7 +336,6 @@ class ClaudeConfigScanDiscoveryTests(unittest.TestCase):
     def test_metadata_carries_auth_fields_only(self) -> None:
         """Metadata carries has_token/has_credentials -- never a config_dir
         (profile identity comes from the store, not persisted metadata)."""
-        from unittest.mock import patch
         from claudewheel.profile_store import Profile
 
         mock_profiles = [
