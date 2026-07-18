@@ -52,7 +52,9 @@ select = ["E4", "E7", "E9", "F"]
 
 [tool.mypy]
 strict = true
-files = ["claudewheel"]
+# No `files` here on purpose: the mypy scope is owned solely by the
+# scripts/gates/mypy wrapper. A bare `uv run mypy` (no args) errors with
+# "no files to check" rather than silently checking a subset.
 
 # strictcli ships no py.typed marker yet (upstream fix filed separately),
 # so it resolves as Any-typed. Suppress the missing-imports error until

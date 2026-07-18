@@ -28,7 +28,17 @@
   "external_checks": [
     {
       "name": "mypy-strict",
-      "command": "uv run mypy claudewheel",
+      "command": "bash scripts/gates/mypy",
+      "tag": "preflight"
+    },
+    {
+      "name": "ruff-check",
+      "command": "bash scripts/gates/ruff-check",
+      "tag": "preflight"
+    },
+    {
+      "name": "ruff-format",
+      "command": "bash scripts/gates/ruff-format",
       "tag": "preflight"
     }
   ]

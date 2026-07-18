@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Canonical mypy gate invocation. This is the ONE place the mypy scope lives.
+# Scope currently covers the package only; widening it (e.g. to also type-check
+# tests/) happens HERE and only here -- never in pyproject.toml or the rlsbl
+# external_checks entry, both of which defer to this wrapper.
+set -euo pipefail
+exec uv run mypy claudewheel

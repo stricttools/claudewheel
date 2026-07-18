@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Canonical ruff format gate invocation. Targets are spelled out explicitly
+# (rather than ".") so the enforced scope is unambiguous and lives in one place.
+# These four directories hold every formattable .py file in the repo.
+set -euo pipefail
+exec uv run ruff format --check claudewheel tests scripts docs
