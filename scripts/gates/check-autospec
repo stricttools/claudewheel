@@ -1,0 +1,250 @@
+#!/usr/bin/env python3
+"""Autospec enforcement gate for the claudewheel test suite.
+
+Every ``unittest.mock`` patch site in ``tests/`` must be specced. A bare
+``patch(...)`` / ``patch.object(...)`` replaces the target with a free-floating
+``MagicMock`` that accepts ANY attribute access, ANY call signature, and ANY
+return -- so a test keeps passing even after the real API it mocks has changed
+shape. ``autospec=True`` (or an explicit ``spec=`` / ``spec_set=``) binds the
+mock to the real object's signature, turning that silent drift into a loud
+failure.
+
+This checker classifies every patch call site via the ``ast`` module (never
+regex, so string literals and comments cannot fool it) into one of:
+
+- AUTOSPEC -- ``autospec=`` present (and not disabled) -- GOOD.
+- SPEC     -- ``spec=`` or ``spec_set=`` present -- GOOD.
+- DICT     -- ``patch.dict(...)`` -- allowed by design (patches a mapping's
+              contents, not a callable; autospec is meaningless here).
+- NEW      -- a ``new=`` / ``new_callable=`` kwarg, or a positional replacement
+              object -- allowed by design because autospec is mutually
+              exclusive with supplying your own replacement.
+- BARE     -- none of the above -- VIOLATION.
+
+Exit status is non-zero when any BARE site exists.
+
+Design note (agent-experience-over-convenience): there are NO escape hatches.
+No per-site pragma, no skip flag, no config file. The only way out of BARE is
+to make the patch structurally specced. That is deliberate.
+"""
+
+from __future__ import annotations
+
+import ast
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Optional
+
+# Category labels.
+AUTOSPEC = "AUTOSPEC"
+SPEC = "SPEC"
+DICT = "DICT"
+NEW = "NEW"
+BARE = "BARE"
+
+# Categories that satisfy the gate (do not count as violations).
+_ALLOWED = frozenset({AUTOSPEC, SPEC, DICT, NEW})
+
+# The two ``patch`` roots we recognize:
+#   from unittest.mock import patch  ->  patch(...)
+#   from unittest import mock        ->  mock.patch(...)
+_PATCH_ROOTS = frozenset({"patch", "mock"})
+
+# Attribute suffixes after ``patch`` that name a distinct patch flavor.
+_PATCH_SUFFIXES = frozenset({"object", "dict", "multiple"})
+
+
+@dataclass(frozen=True)
+class Result:
+    """One classified patch call site."""
+
+    lineno: int
+    category: str
+    reason: str
+
+
+def _flatten_dotted(node: ast.expr) -> Optional[list[str]]:
+    """Return the dotted-name parts of an attribute chain, or None.
+
+    ``mock.patch.object`` -> ``["mock", "patch", "object"]``. Returns None if
+    the chain bottoms out in anything other than a bare Name (e.g. a call or a
+    subscript in the middle), which means it is not a simple dotted reference.
+    """
+    parts: list[str] = []
+    cur: ast.expr = node
+    while isinstance(cur, ast.Attribute):
+        parts.append(cur.attr)
+        cur = cur.value
+    if not isinstance(cur, ast.Name):
+        return None
+    parts.append(cur.id)
+    parts.reverse()
+    return parts
+
+
+def patch_kind(func: ast.expr) -> Optional[str]:
+    """Classify a call's ``func`` node as a patch flavor, or None.
+
+    Returns ``"patch"``, ``"object"``, ``"dict"``, or ``"multiple"`` when the
+    call is a recognized ``patch`` / ``mock.patch`` (or one of its attribute
+    forms), else None. Anything named ``patch`` that is NOT rooted at the
+    ``patch`` symbol or the ``mock`` module (e.g. ``self._home_patch.start``)
+    is rejected.
+    """
+    parts = _flatten_dotted(func)
+    if parts is None or "patch" not in parts:
+        return None
+    i = parts.index("patch")
+    # Root must be exactly ``patch`` (i == 0) or ``mock.patch`` (parts[0] == mock).
+    if not (i == 0 or (i == 1 and parts[0] == "mock")):
+        return None
+    if parts[0] not in _PATCH_ROOTS:
+        return None
+    suffix = parts[i + 1:]
+    if not suffix:
+        return "patch"
+    if len(suffix) == 1 and suffix[0] in _PATCH_SUFFIXES:
+        return suffix[0]
+    # e.g. patch.object.whatever -- not a real patch call site.
+    return None
+
+
+def _kwarg(call: ast.Call, name: str) -> Optional[ast.keyword]:
+    for kw in call.keywords:
+        if kw.arg == name:
+            return kw
+    return None
+
+
+def _is_disabled(value: ast.expr) -> bool:
+    """True when a kwarg value is an explicit False / None disable."""
+    return isinstance(value, ast.Constant) and value.value in (False, None)
+
+
+def _positional_count(call: ast.Call) -> int:
+    """Count positional args, treating ``*args`` unpacking as unknown (>=99).
+
+    A ``*args`` spread makes the positional replacement undecidable; we return a
+    large sentinel so callers conservatively treat it as "has a replacement"
+    rather than silently misclassifying it as BARE.
+    """
+    for a in call.args:
+        if isinstance(a, ast.Starred):
+            return 99
+    return len(call.args)
+
+
+def classify_patch_call(call: ast.Call) -> Optional[Result]:
+    """Classify a Call node if it is a patch site; else None.
+
+    Applies to every syntactic form uniformly -- decorator, ``with`` context
+    manager, and ``x = patch(...); x.start()`` all produce the same Call node,
+    so classifying the Call covers them all.
+    """
+    kind = patch_kind(call.func)
+    if kind is None:
+        return None
+
+    if kind == "dict":
+        return Result(call.lineno, DICT, "patch.dict -- mapping patch, allowed")
+
+    if kind == "multiple":
+        # patch.multiple supplies replacements (or DEFAULT sentinels) as
+        # keyword targets; autospec does not apply. Treated as NEW.
+        return Result(call.lineno, NEW, "patch.multiple -- supplies replacements, allowed")
+
+    # autospec=<truthy> wins outright.
+    autospec_kw = _kwarg(call, "autospec")
+    if autospec_kw is not None and not _is_disabled(autospec_kw.value):
+        return Result(call.lineno, AUTOSPEC, "autospec present")
+
+    # spec= / spec_set= bind the mock to a real object's shape.
+    if _kwarg(call, "spec") is not None:
+        return Result(call.lineno, SPEC, "spec present")
+    if _kwarg(call, "spec_set") is not None:
+        return Result(call.lineno, SPEC, "spec_set present")
+
+    # new= / new_callable= supply an explicit replacement (autospec-incompatible).
+    if _kwarg(call, "new") is not None:
+        return Result(call.lineno, NEW, "new= replacement, allowed")
+    if _kwarg(call, "new_callable") is not None:
+        return Result(call.lineno, NEW, "new_callable= replacement, allowed")
+
+    # Positional replacement object:
+    #   patch(target, new)              -> 2nd positional
+    #   patch.object(target, attr, new) -> 3rd positional
+    npos = _positional_count(call)
+    replacement_at = 2 if kind == "patch" else 3
+    if npos >= replacement_at:
+        return Result(call.lineno, NEW, "positional replacement object, allowed")
+
+    return Result(
+        call.lineno,
+        BARE,
+        "bare patch -- add autospec=True (or spec=/new=)",
+    )
+
+
+def classify_source(source: str, filename: str = "<source>") -> list[Result]:
+    """Parse *source* and classify every patch call site within it."""
+    tree = ast.parse(source, filename=filename)
+    results: list[Result] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            res = classify_patch_call(node)
+            if res is not None:
+                results.append(res)
+    return results
+
+
+def scan_file(path: Path) -> list[Result]:
+    return classify_source(path.read_text(encoding="utf-8"), str(path))
+
+
+def _default_target() -> Path:
+    # scripts/gates/check-autospec -> repo root is two levels up.
+    return Path(__file__).resolve().parents[2] / "tests"
+
+
+def main(argv: list[str]) -> int:
+    targets = [Path(a) for a in argv[1:]] or [_default_target()]
+
+    files: list[Path] = []
+    for t in targets:
+        if t.is_dir():
+            files.extend(sorted(t.rglob("*.py")))
+        elif t.is_file():
+            files.append(t)
+        else:
+            print(f"error: no such path: {t}", file=sys.stderr)
+            return 2
+
+    counts = {AUTOSPEC: 0, SPEC: 0, DICT: 0, NEW: 0, BARE: 0}
+    violations: list[tuple[Path, Result]] = []
+
+    for f in files:
+        for res in scan_file(f):
+            counts[res.category] += 1
+            if res.category == BARE:
+                violations.append((f, res))
+
+    for f, res in violations:
+        print(f"{f}:{res.lineno}: {res.reason}")
+
+    total = sum(counts.values())
+    print()
+    print("autospec gate summary (patch sites under tests/):")
+    for cat in (AUTOSPEC, SPEC, DICT, NEW, BARE):
+        print(f"  {cat:<9} {counts[cat]}")
+    print(f"  {'TOTAL':<9} {total}")
+
+    if counts[BARE]:
+        print(f"\nFAIL: {counts[BARE]} bare patch site(s) must be specced.", file=sys.stderr)
+        return 1
+    print("\nOK: no bare patch sites.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
