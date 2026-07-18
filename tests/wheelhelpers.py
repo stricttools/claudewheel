@@ -24,7 +24,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
-from typing import Iterable
+from typing import Any, Iterable
 from unittest.mock import patch
 
 from claudewheel.shared_store import SharedStore
@@ -42,7 +42,7 @@ from claudewheel.defaults import (
 REAL_HOME: Path = Path(os.path.expanduser("~"))
 
 
-def write_json(path: Path, data: dict | list) -> None:
+def write_json(path: Path, data: dict[str, Any] | list[Any]) -> None:
     """Write *data* to *path* as pretty JSON, creating parent dirs as needed."""
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w") as f:
@@ -83,10 +83,10 @@ def set_tree_mode(root: Path, dir_mode: int, file_mode: int) -> None:
             dirs.append(Path(dp) / d)
         for f in fns:
             files.append(Path(dp) / f)
-    for f in files:
-        os.chmod(f, file_mode)
-    for d in dirs:
-        os.chmod(d, dir_mode)
+    for fp in files:
+        os.chmod(fp, file_mode)
+    for dp2 in dirs:
+        os.chmod(dp2, dir_mode)
 
 
 def snapshot_tree(root: Path) -> dict[str, tuple[float, int]]:
@@ -133,11 +133,11 @@ def hash_snapshot(paths: Iterable[Path]) -> dict[str, str | _Missing]:
 def setup_temp_config_dir(
     tmp: Path,
     *,
-    config: dict | None = None,
-    segments: list[dict] | None = None,
-    options: dict | None = None,
-    state: dict | None = None,
-    theme: dict | None = None,
+    config: dict[str, Any] | None = None,
+    segments: list[dict[str, Any]] | None = None,
+    options: dict[str, Any] | None = None,
+    state: dict[str, Any] | None = None,
+    theme: dict[str, Any] | None = None,
 ) -> dict[str, Path]:
     """Create a ``~/.claudewheel``-shaped config dir under *tmp*.
 
@@ -234,7 +234,7 @@ class SandboxHomeTestCase(unittest.TestCase):
         self.addCleanup(self._restore_home)
 
         # POISONED HOME: runtime Path.home() resolves into the sandbox.
-        self._home_patch = patch.object(Path, "home", return_value=self.home)
+        self._home_patch = patch.object(Path, "home", autospec=True, return_value=self.home)
         self._home_patch.start()
         self.addCleanup(self._home_patch.stop)
 
