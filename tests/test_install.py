@@ -71,6 +71,40 @@ class FetchManifestTests(unittest.TestCase):
             result = install.fetch_manifest("2.1.110")
         self.assertEqual(result, manifest)
 
+    def test_invalid_json_body_raises_oserror(self) -> None:
+        """Invalid JSON in the response body is normalized to OSError (contract)."""
+        payload = b"not-valid-json{{{"
+        with mock.patch("claudewheel.install.urllib.request.urlopen",
+                        autospec=True,
+                        return_value=_FakeResponse(payload)):
+            with self.assertRaises(OSError) as ctx:
+                install.fetch_manifest("2.1.110")
+        self.assertIn("2.1.110", str(ctx.exception))
+
+    def test_non_dict_manifest_body_raises_oserror(self) -> None:
+        """A valid-JSON body that is not an object is rejected as malformed."""
+        payload = json.dumps([1, 2, 3]).encode("utf-8")
+        with mock.patch("claudewheel.install.urllib.request.urlopen",
+                        autospec=True,
+                        return_value=_FakeResponse(payload)):
+            with self.assertRaises(OSError) as ctx:
+                install.fetch_manifest("2.1.110")
+        msg = str(ctx.exception)
+        self.assertIn("malformed", msg)
+        self.assertIn("2.1.110", msg)
+
+    def test_non_dict_platforms_value_raises_oserror(self) -> None:
+        """A manifest whose 'platforms' value is not an object is rejected as malformed."""
+        payload = json.dumps({"platforms": [1, 2, 3]}).encode("utf-8")
+        with mock.patch("claudewheel.install.urllib.request.urlopen",
+                        autospec=True,
+                        return_value=_FakeResponse(payload)):
+            with self.assertRaises(OSError) as ctx:
+                install.fetch_manifest("2.1.110")
+        msg = str(ctx.exception)
+        self.assertIn("malformed", msg)
+        self.assertIn("2.1.110", msg)
+
 
 class InstallVersionTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -176,6 +210,64 @@ class InstallVersionTests(unittest.TestCase):
         msg = str(ctx.exception)
         self.assertIn("not available", msg)
         self.assertIn("made-up-platform", msg)
+
+    def _patch_urlopen_manifest_only(self, manifest_payload: bytes) -> "mock._patch[mock.MagicMock]":
+        """Patch urlopen (autospec) to return only the manifest response.
+
+        Malformed-manifest errors must be raised before any binary download, so a
+        second urlopen call would be a bug; return_value serves every call, but the
+        test asserts the error fires first.
+        """
+        return mock.patch(
+            "claudewheel.install.urllib.request.urlopen",
+            autospec=True,
+            return_value=_FakeResponse(manifest_payload),
+        )
+
+    def test_entry_missing_checksum_raises_oserror(self) -> None:
+        """A platform entry lacking a 'checksum' key raises OSError, not KeyError."""
+        plat = install._detect_platform()
+        manifest = {"platforms": {plat: {"binary": "claude", "size": 0}}}
+        manifest_bytes = json.dumps(manifest).encode("utf-8")
+
+        with self._patch_urlopen_manifest_only(manifest_bytes):
+            with self.assertRaises(OSError) as ctx:
+                install.install_version(self.locator, "2.1.999")
+        msg = str(ctx.exception)
+        self.assertIn("checksum", msg)
+        self.assertIn("2.1.999", msg)
+
+    def test_entry_not_a_dict_raises_oserror(self) -> None:
+        """A platform entry that is not an object raises OSError, not TypeError."""
+        plat = install._detect_platform()
+        manifest = {"platforms": {plat: "not-a-dict"}}
+        manifest_bytes = json.dumps(manifest).encode("utf-8")
+
+        with self._patch_urlopen_manifest_only(manifest_bytes):
+            with self.assertRaises(OSError) as ctx:
+                install.install_version(self.locator, "2.1.999")
+        msg = str(ctx.exception)
+        self.assertIn("malformed", msg)
+        self.assertIn("2.1.999", msg)
+
+    def test_platforms_not_a_dict_raises_oserror(self) -> None:
+        """A non-object 'platforms' value raises OSError, not AttributeError/TypeError."""
+        manifest = {"platforms": []}
+        manifest_bytes = json.dumps(manifest).encode("utf-8")
+
+        with self._patch_urlopen_manifest_only(manifest_bytes):
+            with self.assertRaises(OSError) as ctx:
+                install.install_version(self.locator, "2.1.999")
+        self.assertIn("2.1.999", str(ctx.exception))
+
+    def test_non_dict_manifest_body_raises_oserror(self) -> None:
+        """A valid-JSON, non-object manifest body raises OSError, not AttributeError."""
+        manifest_bytes = json.dumps([1, 2, 3]).encode("utf-8")
+
+        with self._patch_urlopen_manifest_only(manifest_bytes):
+            with self.assertRaises(OSError) as ctx:
+                install.install_version(self.locator, "2.1.999")
+        self.assertIn("2.1.999", str(ctx.exception))
 
 
 if __name__ == "__main__":

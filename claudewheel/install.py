@@ -52,12 +52,28 @@ def fetch_manifest(version: str) -> dict[str, Any]:
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "claudewheel"})
         with urllib.request.urlopen(req, timeout=10) as resp:
-            data: dict[str, Any] = json.loads(resp.read())
-            return data
+            parsed: Any = json.loads(resp.read())
     except urllib.error.HTTPError as e:
         raise OSError(f"Version {version} not found on server (HTTP {e.code})") from e
     except Exception as e:
         raise OSError(f"Failed to fetch manifest for {version}: {e}") from e
+
+    # Validate the parsed structure so callers only ever see OSError (not
+    # AttributeError/TypeError) when the server returns a well-formed-JSON but
+    # semantically-malformed manifest.
+    if not isinstance(parsed, dict):
+        raise OSError(
+            f"Manifest for {version} is malformed: expected a JSON object, "
+            f"got {type(parsed).__name__}"
+        )
+    platforms = parsed.get("platforms")
+    if platforms is not None and not isinstance(platforms, dict):
+        raise OSError(
+            f"Manifest for {version} is malformed: \"platforms\" must be a "
+            f"JSON object, got {type(platforms).__name__}"
+        )
+    data: dict[str, Any] = parsed
+    return data
 
 
 def install_version(locator: "BinaryLocator", version: str,
@@ -87,6 +103,15 @@ def install_version(locator: "BinaryLocator", version: str,
         )
 
     entry = platforms[plat]
+    if not isinstance(entry, dict):
+        raise OSError(
+            f"Manifest entry for {plat} in {version} is malformed: "
+            f"expected a JSON object, got {type(entry).__name__}"
+        )
+    if "checksum" not in entry:
+        raise OSError(
+            f"Manifest entry for {plat} in {version} is missing a checksum"
+        )
     expected_checksum = entry["checksum"]
     binary_name = entry.get("binary", "claude")
     total_size = entry.get("size", 0)
