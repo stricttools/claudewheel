@@ -8,6 +8,7 @@ import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
+from typing import Any
 from unittest import mock
 
 from claudewheel.binaries import BinaryLocator
@@ -36,7 +37,9 @@ def _make_profile_segment(
     return seg
 
 
-def _wizard_mocks(wizard_result, fresh_result=None):
+def _wizard_mocks(
+    wizard_result: mock.MagicMock, fresh_result: DiscoveryResult | None = None
+) -> list[Any]:
     """Context manager stack for mocking wizard internals.
 
     Patches the lazy imports inside _launch_profile_wizard: wizard functions
@@ -48,15 +51,17 @@ def _wizard_mocks(wizard_result, fresh_result=None):
             autospec=True,
             return_value=wizard_result,
         ),
-        mock.patch("claudewheel.wizard.create_profile"),
+        mock.patch("claudewheel.wizard.create_profile", autospec=True),
         mock.patch(
             "claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"
         ),
-        mock.patch("claudewheel.ui.show_page"),
+        mock.patch("claudewheel.ui.show_page", autospec=True),
     ]
     if fresh_result is not None:
         patches.append(
-            mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result)
+            mock.patch.object(
+                app_mod, "_discover_profiles", autospec=True, return_value=fresh_result
+            )
         )
     return patches
 
@@ -81,14 +86,21 @@ class LocatorInjectionTests(unittest.TestCase):
         )
 
     def test_constructing_without_locator_raises(self) -> None:
+        app_cls: Any = app_mod.App
         with self.assertRaises(TypeError):
-            app_mod.App(mock.MagicMock())
+            app_cls(mock.MagicMock())
 
 
 class WizardRefreshDiscoveryTests(unittest.TestCase):
     """After wizard creates a profile, _discover_profiles is re-run."""
 
-    def _run_wizard_on_app(self, seg, wizard_result, fresh_result, mock_auth=True):
+    def _run_wizard_on_app(
+        self,
+        seg: Segment,
+        wizard_result: mock.MagicMock,
+        fresh_result: DiscoveryResult,
+        mock_auth: bool = True,
+    ) -> list[Any]:
         """Run _launch_profile_wizard with all necessary mocks."""
         app = object.__new__(app_mod.App)
         app._locator = BinaryLocator.default()
@@ -99,17 +111,21 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
         app.cfg = mock.MagicMock()
 
         patches = [
-            mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result),
-            mock.patch("claudewheel.wizard.create_profile"),
+            mock.patch.object(
+                app_mod, "_discover_profiles", autospec=True, return_value=fresh_result
+            ),
+            mock.patch("claudewheel.wizard.create_profile", autospec=True),
             mock.patch(
                 "claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"
             ),
-            mock.patch("claudewheel.ui.show_page"),
+            mock.patch("claudewheel.ui.show_page", autospec=True),
         ]
         if mock_auth:
-            patches.append(mock.patch.object(app_mod, "_update_auth_from_metadata"))
+            patches.append(
+                mock.patch.object(app_mod, "_update_auth_from_metadata", autospec=True)
+            )
 
-        entered = []
+        entered: list[Any] = []
         try:
             for p in patches:
                 entered.append(p.start())
@@ -161,11 +177,13 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
 
         with (
             mock.patch.object(
-                app_mod, "_discover_profiles", return_value=fresh_result
+                app_mod, "_discover_profiles", autospec=True, return_value=fresh_result
             ) as mock_disc,
-            mock.patch.object(app_mod, "_update_auth_from_metadata") as mock_auth,
-            mock.patch("claudewheel.wizard.create_profile"),
-            mock.patch("claudewheel.ui.show_page"),
+            mock.patch.object(
+                app_mod, "_update_auth_from_metadata", autospec=True
+            ) as mock_auth,
+            mock.patch("claudewheel.wizard.create_profile", autospec=True),
+            mock.patch("claudewheel.ui.show_page", autospec=True),
             mock.patch(
                 "claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"
             ),
@@ -213,10 +231,12 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
         app.cfg = mock.MagicMock()
 
         with (
-            mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result),
-            mock.patch.object(app_mod, "_update_auth_from_metadata"),
-            mock.patch("claudewheel.wizard.create_profile"),
-            mock.patch("claudewheel.ui.show_page"),
+            mock.patch.object(
+                app_mod, "_discover_profiles", autospec=True, return_value=fresh_result
+            ),
+            mock.patch.object(app_mod, "_update_auth_from_metadata", autospec=True),
+            mock.patch("claudewheel.wizard.create_profile", autospec=True),
+            mock.patch("claudewheel.ui.show_page", autospec=True),
             mock.patch(
                 "claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"
             ),
@@ -265,10 +285,12 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
         app.cfg = mock.MagicMock()
 
         with (
-            mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result),
-            mock.patch.object(app_mod, "_update_auth_from_metadata"),
-            mock.patch("claudewheel.wizard.create_profile"),
-            mock.patch("claudewheel.ui.show_page"),
+            mock.patch.object(
+                app_mod, "_discover_profiles", autospec=True, return_value=fresh_result
+            ),
+            mock.patch.object(app_mod, "_update_auth_from_metadata", autospec=True),
+            mock.patch("claudewheel.wizard.create_profile", autospec=True),
+            mock.patch("claudewheel.ui.show_page", autospec=True),
             mock.patch(
                 "claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"
             ),
@@ -319,10 +341,12 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
         app.cfg = mock.MagicMock()
 
         with (
-            mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result),
-            mock.patch.object(app_mod, "_update_auth_from_metadata"),
-            mock.patch("claudewheel.wizard.create_profile"),
-            mock.patch("claudewheel.ui.show_page"),
+            mock.patch.object(
+                app_mod, "_discover_profiles", autospec=True, return_value=fresh_result
+            ),
+            mock.patch.object(app_mod, "_update_auth_from_metadata", autospec=True),
+            mock.patch("claudewheel.wizard.create_profile", autospec=True),
+            mock.patch("claudewheel.ui.show_page", autospec=True),
             mock.patch(
                 "claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"
             ),
@@ -374,9 +398,11 @@ class WizardRefreshAuthTests(unittest.TestCase):
 
         # Use real _update_auth_from_metadata (not mocked) to verify it works
         with (
-            mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result),
-            mock.patch("claudewheel.wizard.create_profile"),
-            mock.patch("claudewheel.ui.show_page"),
+            mock.patch.object(
+                app_mod, "_discover_profiles", autospec=True, return_value=fresh_result
+            ),
+            mock.patch("claudewheel.wizard.create_profile", autospec=True),
+            mock.patch("claudewheel.ui.show_page", autospec=True),
             mock.patch(
                 "claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"
             ),
@@ -426,9 +452,11 @@ class WizardRefreshAuthTests(unittest.TestCase):
         app.cfg = mock.MagicMock()
 
         with (
-            mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result),
-            mock.patch("claudewheel.wizard.create_profile"),
-            mock.patch("claudewheel.ui.show_page"),
+            mock.patch.object(
+                app_mod, "_discover_profiles", autospec=True, return_value=fresh_result
+            ),
+            mock.patch("claudewheel.wizard.create_profile", autospec=True),
+            mock.patch("claudewheel.ui.show_page", autospec=True),
             mock.patch(
                 "claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"
             ),
@@ -464,10 +492,14 @@ class WizardCancelledTests(unittest.TestCase):
         app.cfg = mock.MagicMock()
 
         with (
-            mock.patch.object(app_mod, "_discover_profiles") as mock_disc,
-            mock.patch.object(app_mod, "_update_auth_from_metadata") as mock_auth,
-            mock.patch("claudewheel.wizard.create_profile"),
-            mock.patch("claudewheel.ui.show_page"),
+            mock.patch.object(
+                app_mod, "_discover_profiles", autospec=True
+            ) as mock_disc,
+            mock.patch.object(
+                app_mod, "_update_auth_from_metadata", autospec=True
+            ) as mock_auth,
+            mock.patch("claudewheel.wizard.create_profile", autospec=True),
+            mock.patch("claudewheel.ui.show_page", autospec=True),
             mock.patch(
                 "claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"
             ),
@@ -486,7 +518,12 @@ class WizardCancelledTests(unittest.TestCase):
 class AuthInterceptTests(unittest.TestCase):
     """When Enter is pressed to launch, unauthenticated profiles trigger an auth prompt."""
 
-    def _make_app_with_profile(self, profile_name, authenticated, metadata=None):
+    def _make_app_with_profile(
+        self,
+        profile_name: str,
+        authenticated: bool,
+        metadata: dict[str, dict[str, Any]] | None = None,
+    ) -> tuple[Any, Segment]:
         """Create a minimal App with a profile segment configured for auth testing."""
         seg = _make_profile_segment(discovered=[profile_name])
         if metadata is None:
@@ -526,7 +563,7 @@ class AuthInterceptTests(unittest.TestCase):
         app._bindings = app._build_bindings()
         return app, seg
 
-    def test_launch_intercepted_when_unauthenticated(self):
+    def test_launch_intercepted_when_unauthenticated(self) -> None:
         """When profile is unauthenticated, _intercept_unauth is called before launch."""
         app, seg = self._make_app_with_profile("noauth", authenticated=False)
         # Verify the segment is indeed unauthenticated
@@ -534,26 +571,28 @@ class AuthInterceptTests(unittest.TestCase):
         self.assertFalse(seg.state.is_authenticated("noauth"))
 
         with mock.patch.object(
-            app, "_intercept_unauth", return_value="skip"
+            app, "_intercept_unauth", autospec=True, return_value="skip"
         ) as mock_intercept:
             result = app._handle_key("ENTER")
 
         mock_intercept.assert_called_once_with(seg)
         self.assertEqual(result, "launch")
 
-    def test_launch_proceeds_when_authenticated(self):
+    def test_launch_proceeds_when_authenticated(self) -> None:
         """When profile is authenticated, _intercept_unauth is not called."""
         app, seg = self._make_app_with_profile("authed", authenticated=True)
         self.assertTrue(seg.state.has_auth_status)
         self.assertTrue(seg.state.is_authenticated("authed"))
 
-        with mock.patch.object(app, "_intercept_unauth") as mock_intercept:
+        with mock.patch.object(
+            app, "_intercept_unauth", autospec=True
+        ) as mock_intercept:
             result = app._handle_key("ENTER")
 
         mock_intercept.assert_not_called()
         self.assertEqual(result, "launch")
 
-    def test_intercept_reruns_discovery_on_auth_success(self):
+    def test_intercept_reruns_discovery_on_auth_success(self) -> None:
         """After successful auth, discovery is re-run and auth status updated."""
         app, seg = self._make_app_with_profile("noauth", authenticated=False)
 
@@ -575,10 +614,10 @@ class AuthInterceptTests(unittest.TestCase):
                 return_value="authenticated",
             ) as mock_flow,
             mock.patch.object(
-                app_mod, "_discover_profiles", return_value=fresh_result
+                app_mod, "_discover_profiles", autospec=True, return_value=fresh_result
             ) as mock_disc,
             mock.patch.object(
-                app_mod, "_update_auth_from_metadata"
+                app_mod, "_update_auth_from_metadata", autospec=True
             ) as mock_auth_update,
         ):
             outcome = app._intercept_unauth(seg)
@@ -601,7 +640,7 @@ class AuthInterceptTests(unittest.TestCase):
         app.terminal.exit_raw.assert_not_called()
         app.terminal.enter_raw.assert_not_called()
 
-    def test_intercept_reruns_discovery_on_auth_failure(self):
+    def test_intercept_reruns_discovery_on_auth_failure(self) -> None:
         """On 'failed', discovery IS re-run (credentials may be partially written)."""
         app, seg = self._make_app_with_profile("noauth", authenticated=False)
 
@@ -621,10 +660,10 @@ class AuthInterceptTests(unittest.TestCase):
                 "claudewheel.wizard.run_auth_flow", autospec=True, return_value="failed"
             ),
             mock.patch.object(
-                app_mod, "_discover_profiles", return_value=fresh_result
+                app_mod, "_discover_profiles", autospec=True, return_value=fresh_result
             ) as mock_disc,
             mock.patch.object(
-                app_mod, "_update_auth_from_metadata"
+                app_mod, "_update_auth_from_metadata", autospec=True
             ) as mock_auth_update,
         ):
             outcome = app._intercept_unauth(seg)
@@ -633,7 +672,7 @@ class AuthInterceptTests(unittest.TestCase):
         mock_disc.assert_called_once_with({}, {}, app.workspace)
         mock_auth_update.assert_called_once_with(seg)
 
-    def test_intercept_skips_discovery_on_skip(self):
+    def test_intercept_skips_discovery_on_skip(self) -> None:
         """When auth is skipped, discovery is not re-run."""
         app, seg = self._make_app_with_profile("noauth", authenticated=False)
 
@@ -641,9 +680,11 @@ class AuthInterceptTests(unittest.TestCase):
             mock.patch(
                 "claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"
             ),
-            mock.patch.object(app_mod, "_discover_profiles") as mock_disc,
             mock.patch.object(
-                app_mod, "_update_auth_from_metadata"
+                app_mod, "_discover_profiles", autospec=True
+            ) as mock_disc,
+            mock.patch.object(
+                app_mod, "_update_auth_from_metadata", autospec=True
             ) as mock_auth_update,
         ):
             outcome = app._intercept_unauth(seg)
@@ -655,7 +696,7 @@ class AuthInterceptTests(unittest.TestCase):
         app.terminal.exit_raw.assert_not_called()
         app.terminal.enter_raw.assert_not_called()
 
-    def test_intercept_skips_discovery_on_cancel(self):
+    def test_intercept_skips_discovery_on_cancel(self) -> None:
         """When the auth form is cancelled, discovery is not re-run."""
         app, seg = self._make_app_with_profile("noauth", authenticated=False)
 
@@ -663,9 +704,11 @@ class AuthInterceptTests(unittest.TestCase):
             mock.patch(
                 "claudewheel.wizard.run_auth_flow", autospec=True, return_value="cancel"
             ),
-            mock.patch.object(app_mod, "_discover_profiles") as mock_disc,
             mock.patch.object(
-                app_mod, "_update_auth_from_metadata"
+                app_mod, "_discover_profiles", autospec=True
+            ) as mock_disc,
+            mock.patch.object(
+                app_mod, "_update_auth_from_metadata", autospec=True
             ) as mock_auth_update,
         ):
             outcome = app._intercept_unauth(seg)
@@ -674,7 +717,7 @@ class AuthInterceptTests(unittest.TestCase):
         mock_disc.assert_not_called()
         mock_auth_update.assert_not_called()
 
-    def test_skip_auth_still_returns_launch(self):
+    def test_skip_auth_still_returns_launch(self) -> None:
         """Even when auth is skipped, _handle_key returns 'launch'."""
         app, seg = self._make_app_with_profile("noauth", authenticated=False)
 
@@ -685,67 +728,79 @@ class AuthInterceptTests(unittest.TestCase):
 
         self.assertEqual(result, "launch")
 
-    def test_enter_outcome_skip_launches(self):
+    def test_enter_outcome_skip_launches(self) -> None:
         """Outcome 'skip' from the intercept falls through to launch, no flash."""
         app, seg = self._make_app_with_profile("noauth", authenticated=False)
 
-        with mock.patch.object(app, "_intercept_unauth", return_value="skip"):
+        with mock.patch.object(
+            app, "_intercept_unauth", autospec=True, return_value="skip"
+        ):
             result = app._handle_key("ENTER")
 
         self.assertEqual(result, "launch")
         self.assertEqual(app._flash, "")
 
-    def test_enter_outcome_authenticated_suppresses_launch(self):
+    def test_enter_outcome_authenticated_suppresses_launch(self) -> None:
         """Outcome 'authenticated' suppresses launch and flashes 'Authenticated'."""
         app, seg = self._make_app_with_profile("noauth", authenticated=False)
 
-        with mock.patch.object(app, "_intercept_unauth", return_value="authenticated"):
+        with mock.patch.object(
+            app, "_intercept_unauth", autospec=True, return_value="authenticated"
+        ):
             result = app._handle_key("ENTER")
 
         self.assertIsNone(result)
         self.assertEqual(app._flash, "Authenticated")
 
-    def test_enter_outcome_cancel_suppresses_launch(self):
+    def test_enter_outcome_cancel_suppresses_launch(self) -> None:
         """Outcome 'cancel' suppresses launch and flashes 'Auth cancelled'."""
         app, seg = self._make_app_with_profile("noauth", authenticated=False)
 
-        with mock.patch.object(app, "_intercept_unauth", return_value="cancel"):
+        with mock.patch.object(
+            app, "_intercept_unauth", autospec=True, return_value="cancel"
+        ):
             result = app._handle_key("ENTER")
 
         self.assertIsNone(result)
         self.assertEqual(app._flash, "Auth cancelled")
 
-    def test_enter_outcome_failed_suppresses_launch(self):
+    def test_enter_outcome_failed_suppresses_launch(self) -> None:
         """Outcome 'failed' suppresses launch and flashes 'Auth failed'."""
         app, seg = self._make_app_with_profile("noauth", authenticated=False)
 
-        with mock.patch.object(app, "_intercept_unauth", return_value="failed"):
+        with mock.patch.object(
+            app, "_intercept_unauth", autospec=True, return_value="failed"
+        ):
             result = app._handle_key("ENTER")
 
         self.assertIsNone(result)
         self.assertEqual(app._flash, "Auth failed")
 
-    def test_enter_outcome_unverified_suppresses_launch(self):
+    def test_enter_outcome_unverified_suppresses_launch(self) -> None:
         """Outcome 'unverified' suppresses launch and flashes the save note."""
         app, seg = self._make_app_with_profile("noauth", authenticated=False)
 
-        with mock.patch.object(app, "_intercept_unauth", return_value="unverified"):
+        with mock.patch.object(
+            app, "_intercept_unauth", autospec=True, return_value="unverified"
+        ):
             result = app._handle_key("ENTER")
 
         self.assertIsNone(result)
         self.assertEqual(app._flash, "Saved unverified token")
 
-    def test_enter_unknown_outcome_fails_closed(self):
+    def test_enter_unknown_outcome_fails_closed(self) -> None:
         """An unknown outcome string must never fall through to launch."""
         app, seg = self._make_app_with_profile("noauth", authenticated=False)
 
-        with mock.patch.object(app, "_intercept_unauth", return_value="something-new"):
+        with mock.patch.object(
+            app, "_intercept_unauth", autospec=True, return_value="something-new"
+        ):
             result = app._handle_key("ENTER")
 
         self.assertIsNone(result)
         self.assertIn("something-new", app._flash)
 
-    def test_intercept_reruns_discovery_on_unverified(self):
+    def test_intercept_reruns_discovery_on_unverified(self) -> None:
         """On 'unverified' a token was written -- discovery IS re-run."""
         app, seg = self._make_app_with_profile("noauth", authenticated=False)
 
@@ -767,10 +822,10 @@ class AuthInterceptTests(unittest.TestCase):
                 return_value="unverified",
             ),
             mock.patch.object(
-                app_mod, "_discover_profiles", return_value=fresh_result
+                app_mod, "_discover_profiles", autospec=True, return_value=fresh_result
             ) as mock_disc,
             mock.patch.object(
-                app_mod, "_update_auth_from_metadata"
+                app_mod, "_update_auth_from_metadata", autospec=True
             ) as mock_auth_update,
         ):
             outcome = app._intercept_unauth(seg)
@@ -779,18 +834,20 @@ class AuthInterceptTests(unittest.TestCase):
         mock_disc.assert_called_once_with({}, {}, app.workspace)
         mock_auth_update.assert_called_once_with(seg)
 
-    def test_authenticated_profile_launches_without_intercept_or_flash(self):
+    def test_authenticated_profile_launches_without_intercept_or_flash(self) -> None:
         """An authenticated profile launches directly: no intercept, no flash."""
         app, seg = self._make_app_with_profile("authed", authenticated=True)
 
-        with mock.patch.object(app, "_intercept_unauth") as mock_intercept:
+        with mock.patch.object(
+            app, "_intercept_unauth", autospec=True
+        ) as mock_intercept:
             result = app._handle_key("ENTER")
 
         mock_intercept.assert_not_called()
         self.assertEqual(result, "launch")
         self.assertEqual(app._flash, "")
 
-    def test_intercept_updates_auth_status_on_success(self):
+    def test_intercept_updates_auth_status_on_success(self) -> None:
         """After successful auth, the profile appears in the authenticated set."""
         app, seg = self._make_app_with_profile("noauth", authenticated=False)
 
@@ -812,14 +869,16 @@ class AuthInterceptTests(unittest.TestCase):
                 autospec=True,
                 return_value="authenticated",
             ),
-            mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result),
+            mock.patch.object(
+                app_mod, "_discover_profiles", autospec=True, return_value=fresh_result
+            ),
         ):
             app._intercept_unauth(seg)
 
         self.assertTrue(seg.state.has_auth_status)
         self.assertTrue(seg.state.is_authenticated("noauth"))
 
-    def test_no_intercept_when_no_auth_tracking(self):
+    def test_no_intercept_when_no_auth_tracking(self) -> None:
         """When auth tracking is not active, launch proceeds without intercept."""
         seg = _make_profile_segment(discovered=["myprofile"])
         seg.select_value("myprofile")
@@ -840,7 +899,9 @@ class AuthInterceptTests(unittest.TestCase):
         app._pending_discovery = {}
         app._bindings = app._build_bindings()
 
-        with mock.patch.object(app, "_intercept_unauth") as mock_intercept:
+        with mock.patch.object(
+            app, "_intercept_unauth", autospec=True
+        ) as mock_intercept:
             result = app._handle_key("ENTER")
 
         mock_intercept.assert_not_called()
@@ -851,7 +912,7 @@ class ContinuousSessionTests(unittest.TestCase):
     """The create-profile flow runs as one continuous alt-screen session:
     the app terminal stays raw, and a summary page is shown after auth."""
 
-    def _make_app(self):
+    def _make_app(self) -> Any:
         app = object.__new__(app_mod.App)
         app._locator = BinaryLocator.default()
         app.workspace = mock.MagicMock()
@@ -861,7 +922,7 @@ class ContinuousSessionTests(unittest.TestCase):
         app.cfg = mock.MagicMock()
         return app
 
-    def _wizard_result(self, cancelled: bool = False):
+    def _wizard_result(self, cancelled: bool = False) -> mock.MagicMock:
         wizard_result = mock.MagicMock()
         wizard_result.cancelled = cancelled
         wizard_result.name = "newprof"
@@ -874,10 +935,12 @@ class ContinuousSessionTests(unittest.TestCase):
         fresh = DiscoveryResult(values=["existing", "newprof"], metadata={})
 
         with (
-            mock.patch.object(app_mod, "_discover_profiles", return_value=fresh),
-            mock.patch.object(app_mod, "_update_auth_from_metadata"),
-            mock.patch("claudewheel.wizard.create_profile"),
-            mock.patch("claudewheel.ui.show_page"),
+            mock.patch.object(
+                app_mod, "_discover_profiles", autospec=True, return_value=fresh
+            ),
+            mock.patch.object(app_mod, "_update_auth_from_metadata", autospec=True),
+            mock.patch("claudewheel.wizard.create_profile", autospec=True),
+            mock.patch("claudewheel.ui.show_page", autospec=True),
             mock.patch(
                 "claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"
             ),
@@ -900,12 +963,14 @@ class ContinuousSessionTests(unittest.TestCase):
 
         manager = mock.MagicMock()
         with (
-            mock.patch.object(app_mod, "_discover_profiles", return_value=fresh),
-            mock.patch.object(app_mod, "_update_auth_from_metadata"),
+            mock.patch.object(
+                app_mod, "_discover_profiles", autospec=True, return_value=fresh
+            ),
+            mock.patch.object(app_mod, "_update_auth_from_metadata", autospec=True),
             mock.patch(
-                "claudewheel.wizard.create_profile", return_value=summary
+                "claudewheel.wizard.create_profile", autospec=True, return_value=summary
             ) as mock_create,
-            mock.patch("claudewheel.ui.show_page") as mock_page,
+            mock.patch("claudewheel.ui.show_page", autospec=True) as mock_page,
             mock.patch(
                 "claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"
             ) as mock_auth,
@@ -934,8 +999,10 @@ class ContinuousSessionTests(unittest.TestCase):
         seg = _make_profile_segment(discovered=["existing"])
 
         with (
-            mock.patch("claudewheel.wizard.create_profile") as mock_create,
-            mock.patch("claudewheel.ui.show_page") as mock_page,
+            mock.patch(
+                "claudewheel.wizard.create_profile", autospec=True
+            ) as mock_create,
+            mock.patch("claudewheel.ui.show_page", autospec=True) as mock_page,
             mock.patch(
                 "claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"
             ),
@@ -955,7 +1022,9 @@ class InstallFlowFormTests(unittest.TestCase):
     """Install flow uses run_selection for confirm, cooked window for download,
     and show_page for the result."""
 
-    def _make_app_with_uninstalled(self, version: str = "1.2.3"):
+    def _make_app_with_uninstalled(
+        self, version: str = "1.2.3"
+    ) -> tuple[Any, mock.MagicMock]:
         """Build a minimal App where ENTER triggers the install flow."""
         app = object.__new__(app_mod.App)
         app._locator = BinaryLocator.default()
@@ -987,10 +1056,15 @@ class InstallFlowFormTests(unittest.TestCase):
         app._bindings = app._build_bindings()
         return app, seg
 
-    def _track_cooked(self, app, events: list[str]) -> None:
+    def _track_cooked(self, app: Any, events: list[str]) -> None:
         cm = app.terminal.cooked.return_value
+
+        def _cooked_exit(*a: object) -> bool:
+            events.append("cooked_exit")
+            return False
+
         cm.__enter__.side_effect = lambda *a: events.append("cooked_enter")
-        cm.__exit__.side_effect = lambda *a: events.append("cooked_exit") or False
+        cm.__exit__.side_effect = _cooked_exit
 
     def test_confirm_install_downloads_and_marks_installed(self) -> None:
         """User confirms install -> download in cooked -> mark_installed -> success page.
@@ -1009,19 +1083,21 @@ class InstallFlowFormTests(unittest.TestCase):
         events: list[str] = []
         self._track_cooked(app, events)
 
-        def fake_install(locator, version, progress_callback=None):
+        def fake_install(
+            locator: BinaryLocator, version: str, progress_callback: Any = None
+        ) -> None:
             events.append("install")
 
         with (
             mock.patch(
-                "claudewheel.ui.run_selection", return_value="install"
+                "claudewheel.ui.run_selection", autospec=True, return_value="install"
             ) as mock_sel,
             mock.patch(
                 "claudewheel.install.install_version",
                 autospec=True,
                 side_effect=fake_install,
             ) as mock_install,
-            mock.patch("claudewheel.ui.show_page") as mock_page,
+            mock.patch("claudewheel.ui.show_page", autospec=True) as mock_page,
             redirect_stdout(io.StringIO()),
         ):
             result = app._handle_key("ENTER")
@@ -1045,9 +1121,13 @@ class InstallFlowFormTests(unittest.TestCase):
         app, seg = self._make_app_with_uninstalled()
 
         with (
-            mock.patch("claudewheel.ui.run_selection", return_value="cancel"),
-            mock.patch("claudewheel.install.install_version") as mock_install,
-            mock.patch("claudewheel.ui.show_page") as mock_page,
+            mock.patch(
+                "claudewheel.ui.run_selection", autospec=True, return_value="cancel"
+            ),
+            mock.patch(
+                "claudewheel.install.install_version", autospec=True
+            ) as mock_install,
+            mock.patch("claudewheel.ui.show_page", autospec=True) as mock_page,
         ):
             result = app._handle_key("ENTER")
 
@@ -1062,9 +1142,13 @@ class InstallFlowFormTests(unittest.TestCase):
         app, seg = self._make_app_with_uninstalled()
 
         with (
-            mock.patch("claudewheel.ui.run_selection", return_value=None),
-            mock.patch("claudewheel.install.install_version") as mock_install,
-            mock.patch("claudewheel.ui.show_page") as mock_page,
+            mock.patch(
+                "claudewheel.ui.run_selection", autospec=True, return_value=None
+            ),
+            mock.patch(
+                "claudewheel.install.install_version", autospec=True
+            ) as mock_install,
+            mock.patch("claudewheel.ui.show_page", autospec=True) as mock_page,
         ):
             result = app._handle_key("ENTER")
 
@@ -1085,13 +1169,15 @@ class InstallFlowFormTests(unittest.TestCase):
         app, seg = self._make_app_with_uninstalled()
 
         with (
-            mock.patch("claudewheel.ui.run_selection", return_value="install"),
+            mock.patch(
+                "claudewheel.ui.run_selection", autospec=True, return_value="install"
+            ),
             mock.patch(
                 "claudewheel.install.install_version",
                 autospec=True,
                 side_effect=OSError("network down"),
             ),
-            mock.patch("claudewheel.ui.show_page") as mock_page,
+            mock.patch("claudewheel.ui.show_page", autospec=True) as mock_page,
             redirect_stdout(io.StringIO()),
         ):
             result = app._handle_key("ENTER")
@@ -1146,8 +1232,8 @@ class ApplySlowDiscoverySaveStateTests(unittest.TestCase):
 
             def __init__(self) -> None:
                 # In-memory state loaded at startup -- no auth_browser yet.
-                self.state: dict = {"launch_count": 1}
-                self.options_def: dict = {}
+                self.state: dict[str, Any] = {"launch_count": 1}
+                self.options_def: dict[str, Any] = {}
 
             def save_state(self) -> None:
                 try:
@@ -1160,7 +1246,8 @@ class ApplySlowDiscoverySaveStateTests(unittest.TestCase):
                     pass
                 state_file.write_text(json.dumps(self.state, indent=2) + "\n")
 
-        app.cfg = _StubCfg()
+        stub_cfg: Any = _StubCfg()
+        app.cfg = stub_cfg
         app.bar = SegmentBar(segments=[_make_profile_segment(discovered=["default"])])
         app._slow_results = {}  # non-None so the save path runs
         app._slow_state_copy = None
@@ -1206,15 +1293,20 @@ class ProfileInspectKeyTests(unittest.TestCase):
         app._bindings = app._build_bindings()
         return app
 
-    def _inspect_mocks(self):
+    def _inspect_mocks(self) -> tuple[Any, Any, Any]:
         """Patch the lazy imports inside _show_profile_inspect."""
         return (
             mock.patch(
                 "claudewheel.profile_info.gather_profile_info",
+                autospec=True,
                 return_value=mock.MagicMock(),
             ),
-            mock.patch("claudewheel.profile_info.format_report", return_value=["line"]),
-            mock.patch("claudewheel.ui.show_page"),
+            mock.patch(
+                "claudewheel.profile_info.format_report",
+                autospec=True,
+                return_value=["line"],
+            ),
+            mock.patch("claudewheel.ui.show_page", autospec=True),
         )
 
     def test_i_opens_page_on_profile_segment(self) -> None:
@@ -1238,9 +1330,10 @@ class ProfileInspectKeyTests(unittest.TestCase):
         with (
             mock.patch(
                 "claudewheel.profile_info.gather_profile_info",
+                autospec=True,
                 side_effect=TokenStoreError("tokens.json is corrupt"),
             ),
-            mock.patch("claudewheel.ui.show_page") as mock_page,
+            mock.patch("claudewheel.ui.show_page", autospec=True) as mock_page,
         ):
             app._show_profile_inspect(seg)
         mock_page.assert_not_called()
@@ -1278,7 +1371,7 @@ class ProfileInspectKeyTests(unittest.TestCase):
         self.assertEqual(seg.search_buffer, "woi")
 
     def test_i_ignored_on_other_segments(self) -> None:
-        seg = Segment(key="model", label="Model", options=["opus", "sonnet"])
+        seg = Segment(key="model", label="Model", _init_options=["opus", "sonnet"])
         seg.select_value("opus")
         app = self._make_app(seg)
         gather, fmt, page = self._inspect_mocks()
@@ -1288,7 +1381,7 @@ class ProfileInspectKeyTests(unittest.TestCase):
         self.assertIsNone(result)  # not a quit, not a launch
 
     def test_i_searches_on_other_searchable_segments(self) -> None:
-        seg = Segment(key="model", label="Model", options=["opus", "sonnet"])
+        seg = Segment(key="model", label="Model", _init_options=["opus", "sonnet"])
         seg.searchable = True
         app = self._make_app(seg)
         gather, fmt, page = self._inspect_mocks()
@@ -1327,12 +1420,21 @@ class InspectAuthShadowFixTests(unittest.TestCase):
         report = mock.MagicMock(has_auth_shadow=True)
         with (
             mock.patch(
-                "claudewheel.profile_info.gather_profile_info", return_value=report
+                "claudewheel.profile_info.gather_profile_info",
+                autospec=True,
+                return_value=report,
             ),
-            mock.patch("claudewheel.profile_info.format_report", return_value=["line"]),
-            mock.patch("claudewheel.ui.show_page", return_value="f") as mock_page,
+            mock.patch(
+                "claudewheel.profile_info.format_report",
+                autospec=True,
+                return_value=["line"],
+            ),
+            mock.patch(
+                "claudewheel.ui.show_page", autospec=True, return_value="f"
+            ) as mock_page,
             mock.patch(
                 "claudewheel.profile_ops.fix_auth_shadow",
+                autospec=True,
                 return_value=FixAuthResult(ok=True),
             ) as mock_fix,
         ):
@@ -1350,11 +1452,19 @@ class InspectAuthShadowFixTests(unittest.TestCase):
         report = mock.MagicMock(has_auth_shadow=True)
         with (
             mock.patch(
-                "claudewheel.profile_info.gather_profile_info", return_value=report
+                "claudewheel.profile_info.gather_profile_info",
+                autospec=True,
+                return_value=report,
             ),
-            mock.patch("claudewheel.profile_info.format_report", return_value=["line"]),
-            mock.patch("claudewheel.ui.show_page", return_value="q"),
-            mock.patch("claudewheel.profile_ops.fix_auth_shadow") as mock_fix,
+            mock.patch(
+                "claudewheel.profile_info.format_report",
+                autospec=True,
+                return_value=["line"],
+            ),
+            mock.patch("claudewheel.ui.show_page", autospec=True, return_value="q"),
+            mock.patch(
+                "claudewheel.profile_ops.fix_auth_shadow", autospec=True
+            ) as mock_fix,
         ):
             app._show_profile_inspect(seg)
         mock_fix.assert_not_called()
@@ -1367,11 +1477,21 @@ class InspectAuthShadowFixTests(unittest.TestCase):
         report = mock.MagicMock(has_auth_shadow=False)
         with (
             mock.patch(
-                "claudewheel.profile_info.gather_profile_info", return_value=report
+                "claudewheel.profile_info.gather_profile_info",
+                autospec=True,
+                return_value=report,
             ),
-            mock.patch("claudewheel.profile_info.format_report", return_value=["line"]),
-            mock.patch("claudewheel.ui.show_page", return_value="f") as mock_page,
-            mock.patch("claudewheel.profile_ops.fix_auth_shadow") as mock_fix,
+            mock.patch(
+                "claudewheel.profile_info.format_report",
+                autospec=True,
+                return_value=["line"],
+            ),
+            mock.patch(
+                "claudewheel.ui.show_page", autospec=True, return_value="f"
+            ) as mock_page,
+            mock.patch(
+                "claudewheel.profile_ops.fix_auth_shadow", autospec=True
+            ) as mock_fix,
         ):
             app._show_profile_inspect(seg)
         mock_fix.assert_not_called()
@@ -1384,7 +1504,12 @@ class InspectAuthShadowFixTests(unittest.TestCase):
 class ProfileDeleteKeyTests(unittest.TestCase):
     """CTRL_D/DELETE run the profile delete flow (Phase 5c)."""
 
-    def _make_app(self, seg: Segment, state: dict | None = None) -> app_mod.App:
+    _refresh_mock: mock.MagicMock
+    _store: mock.MagicMock
+
+    def _make_app(
+        self, seg: Segment, state: dict[str, Any] | None = None
+    ) -> app_mod.App:
         """Minimal App with a real _handle_key bound and *seg* focused."""
         app = object.__new__(app_mod.App)
         app._locator = BinaryLocator.default()
@@ -1402,11 +1527,15 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         app._pending_discovery = {}
         app._bindings = app._build_bindings()
         # The flow re-runs discovery on success; keep it out of unit tests.
-        app._refresh_profile_segment = mock.MagicMock()
+        refresh_patcher = mock.patch.object(
+            app, "_refresh_profile_segment", autospec=True
+        )
+        self._refresh_mock = refresh_patcher.start()
+        self.addCleanup(refresh_patcher.stop)
         return app
 
     def _report(
-        self, danger: bool = False, shared_dirs: dict | None = None
+        self, danger: bool = False, shared_dirs: dict[str, str] | None = None
     ) -> mock.MagicMock:
         report = mock.MagicMock()
         report.danger = danger
@@ -1418,8 +1547,13 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         return report
 
     def _flow_mocks(
-        self, app, report=None, selection="cancel", result=None, raises=None
-    ):
+        self,
+        app: Any,
+        report: mock.MagicMock | None = None,
+        selection: str | None = "cancel",
+        result: Any = None,
+        raises: BaseException | None = None,
+    ) -> tuple[Any, Any, Any, Any]:
         """Patch the lazy imports inside _delete_profile_flow.
 
         The delete goes through the injected ``app.workspace.profiles`` store, so
@@ -1453,11 +1587,15 @@ class ProfileDeleteKeyTests(unittest.TestCase):
 
         return (
             mock.patch(
-                "claudewheel.profile_info.gather_profile_info", return_value=report
+                "claudewheel.profile_info.gather_profile_info",
+                autospec=True,
+                return_value=report,
             ),
             contextlib.nullcontext(),
-            mock.patch("claudewheel.ui.run_selection", return_value=selection),
-            mock.patch("claudewheel.ui.show_page"),
+            mock.patch(
+                "claudewheel.ui.run_selection", autospec=True, return_value=selection
+            ),
+            mock.patch("claudewheel.ui.show_page", autospec=True),
         )
 
     # -- guards ------------------------------------------------------------
@@ -1502,7 +1640,7 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         self.assertEqual(seg.search_buffer, "wo")  # buffer untouched
 
     def test_ignored_on_other_segments(self) -> None:
-        seg = Segment(key="model", label="Model", options=["opus", "sonnet"])
+        seg = Segment(key="model", label="Model", _init_options=["opus", "sonnet"])
         seg.select_value("opus")
         app = self._make_app(seg)
         gather, ws, sel, page = self._flow_mocks(
@@ -1611,7 +1749,7 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         # 4. selection cleared
         self.assertIsNone(seg.selected_value)
         # 5. segment refreshed
-        app._refresh_profile_segment.assert_called_once_with(seg)
+        self._refresh_mock.assert_called_once_with(seg)
         # flash
         self.assertIn("Deleted profile 'work'", app._flash)
 
@@ -1641,8 +1779,9 @@ class ProfileDeleteKeyTests(unittest.TestCase):
 
         # Simulate the app's later wholesale save: selections come from the
         # segments (profile now None, so it is dropped from last_config).
-        saved = {}
-        app.cfg.save_state = lambda: saved.update(app.cfg.state)
+        saved: dict[str, Any] = {}
+        cfg_any: Any = app.cfg
+        cfg_any.save_state = lambda: saved.update(app.cfg.state)
         save_launch_state(app.cfg, {"profile": seg.value, "model": "opus"})
         self.assertNotIn("profile", saved["last_config"])
 
@@ -1665,7 +1804,7 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         # No cleanup: selection and last_config untouched
         self.assertEqual(seg.value, "work")
         self.assertEqual(state["last_config"]["profile"], "work")
-        app._refresh_profile_segment.assert_not_called()
+        self._refresh_mock.assert_not_called()
 
     def test_store_refusal_flashes_message(self) -> None:
         """A ValueError refusal from the store surfaces as a flash; no cleanup."""
@@ -1683,13 +1822,20 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         self.assertIn("projects", app._flash)
         self.assertEqual(seg.value, "work")
         self.assertEqual(state["last_config"]["profile"], "work")
-        app._refresh_profile_segment.assert_not_called()
+        self._refresh_mock.assert_not_called()
 
 
 class SelectClientStepTests(unittest.TestCase):
     """App._select_client: explicit skips the picker; non-claude drops version."""
 
-    def _app_with_bar(self, seg_keys, *, explicit=None, default="claude", focus_idx=0):
+    def _app_with_bar(
+        self,
+        seg_keys: list[str],
+        *,
+        explicit: str | None = None,
+        default: str = "claude",
+        focus_idx: int = 0,
+    ) -> app_mod.App:
         app = object.__new__(app_mod.App)
         app._explicit_client = explicit
         app._default_client = default
@@ -1706,7 +1852,7 @@ class SelectClientStepTests(unittest.TestCase):
 
     def test_explicit_non_claude_drops_version_without_prompt(self) -> None:
         app = self._app_with_bar(["profile", "version", "model"], explicit="miniclaude")
-        with mock.patch("claudewheel.ui.run_selection") as picker:
+        with mock.patch("claudewheel.ui.run_selection", autospec=True) as picker:
             self.assertTrue(app._select_client())
         picker.assert_not_called()  # explicit --client skips the step
         self.assertEqual([s.key for s in app.bar.segments], ["profile", "model"])
@@ -1714,20 +1860,26 @@ class SelectClientStepTests(unittest.TestCase):
 
     def test_picked_claude_keeps_version(self) -> None:
         app = self._app_with_bar(["profile", "version"])
-        with mock.patch("claudewheel.ui.run_selection", return_value="claude"):
+        with mock.patch(
+            "claudewheel.ui.run_selection", autospec=True, return_value="claude"
+        ):
             self.assertTrue(app._select_client())
         self.assertIn("version", [s.key for s in app.bar.segments])
         self.assertEqual(app.selected_client, "claude")
 
     def test_picked_non_claude_drops_version(self) -> None:
         app = self._app_with_bar(["profile", "version"])
-        with mock.patch("claudewheel.ui.run_selection", return_value="miniclaude"):
+        with mock.patch(
+            "claudewheel.ui.run_selection", autospec=True, return_value="miniclaude"
+        ):
             self.assertTrue(app._select_client())
         self.assertNotIn("version", [s.key for s in app.bar.segments])
 
     def test_cancel_returns_false(self) -> None:
         app = self._app_with_bar(["profile", "version"])
-        with mock.patch("claudewheel.ui.run_selection", return_value=None):
+        with mock.patch(
+            "claudewheel.ui.run_selection", autospec=True, return_value=None
+        ):
             self.assertFalse(app._select_client())
 
     def test_focus_clamped_when_version_dropped(self) -> None:
