@@ -120,7 +120,11 @@ class ScanSourceTests(unittest.TestCase):
         jsonl = enc / f"{UUID_A}.jsonl"
         jsonl.write_text(_make_jsonl_line(cwd="/home/m/test") + "\n")
 
-        with patch("claudewheel.import_.get_session_cwd", return_value="/home/m/test"):
+        with patch(
+            "claudewheel.import_.get_session_cwd",
+            autospec=True,
+            return_value="/home/m/test",
+        ):
             bundles = _scan_source(self.root)
 
         self.assertEqual(len(bundles), 1)
@@ -139,7 +143,11 @@ class ScanSourceTests(unittest.TestCase):
         companion = enc / UUID_A
         companion.mkdir()
 
-        with patch("claudewheel.import_.get_session_cwd", return_value="/home/m/test"):
+        with patch(
+            "claudewheel.import_.get_session_cwd",
+            autospec=True,
+            return_value="/home/m/test",
+        ):
             bundles = _scan_source(self.root)
 
         self.assertEqual(len(bundles), 1)
@@ -152,7 +160,7 @@ class ScanSourceTests(unittest.TestCase):
         (enc / "readme.md").write_text("hello")
         (enc / "not-a-uuid.jsonl").write_text("{}\n")
 
-        with patch("claudewheel.import_.get_session_cwd"):
+        with patch("claudewheel.import_.get_session_cwd", autospec=True):
             bundles = _scan_source(self.root)
 
         self.assertEqual(len(bundles), 0)
@@ -163,7 +171,9 @@ class ScanSourceTests(unittest.TestCase):
         enc.mkdir()
         (enc / f"{UUID_A}.jsonl").write_text("{}\n")
 
-        with patch("claudewheel.import_.get_session_cwd", return_value=None):
+        with patch(
+            "claudewheel.import_.get_session_cwd", autospec=True, return_value=None
+        ):
             with self.assertRaises(ValueError) as ctx:
                 _scan_source(self.root)
 
@@ -183,7 +193,9 @@ class ScanSourceTests(unittest.TestCase):
             enc.mkdir()
             (enc / f"{uuid}.jsonl").write_text(_make_jsonl_line(cwd="/test") + "\n")
 
-        with patch("claudewheel.import_.get_session_cwd", return_value="/test"):
+        with patch(
+            "claudewheel.import_.get_session_cwd", autospec=True, return_value="/test"
+        ):
             bundles = _scan_source(self.root)
 
         self.assertEqual(len(bundles), 2)
@@ -196,7 +208,9 @@ class ScanSourceTests(unittest.TestCase):
         enc.mkdir()
         (enc / f"{UUID_A}.jsonl").write_text(_make_jsonl_line(cwd="/test") + "\n")
 
-        with patch("claudewheel.import_.get_session_cwd", return_value="/test"):
+        with patch(
+            "claudewheel.import_.get_session_cwd", autospec=True, return_value="/test"
+        ):
             bundles = _scan_source(self.root)
 
         self.assertEqual(bundles[0].source_encoded_dir, "my-encoded-proj")
@@ -579,7 +593,9 @@ class CollisionTests(unittest.TestCase):
         """When no collisions exist, sessions are imported."""
         self._write_source_session(UUID_A)
 
-        with patch("claudewheel.import_.get_session_cwd", return_value="/test"):
+        with patch(
+            "claudewheel.import_.get_session_cwd", autospec=True, return_value="/test"
+        ):
             result = run_import(
                 self.store,
                 str(self.source),
@@ -597,7 +613,9 @@ class CollisionTests(unittest.TestCase):
         target_dir.mkdir(parents=True)
         (target_dir / f"{UUID_A}.jsonl").write_text("{}\n")
 
-        with patch("claudewheel.import_.get_session_cwd", return_value="/test"):
+        with patch(
+            "claudewheel.import_.get_session_cwd", autospec=True, return_value="/test"
+        ):
             result = run_import(
                 self.store,
                 str(self.source),
@@ -616,7 +634,9 @@ class CollisionTests(unittest.TestCase):
         target_dir.mkdir(parents=True)
         (target_dir / f"{UUID_A}.jsonl").write_text("{}\n")
 
-        with patch("claudewheel.import_.get_session_cwd", return_value="/test"):
+        with patch(
+            "claudewheel.import_.get_session_cwd", autospec=True, return_value="/test"
+        ):
             result = run_import(
                 self.store,
                 str(self.source),
@@ -640,7 +660,9 @@ class CollisionTests(unittest.TestCase):
         target_dir.mkdir(parents=True)
         (target_dir / UUID_A).mkdir()  # companion dir collision
 
-        with patch("claudewheel.import_.get_session_cwd", return_value="/test"):
+        with patch(
+            "claudewheel.import_.get_session_cwd", autospec=True, return_value="/test"
+        ):
             result = run_import(
                 self.store,
                 str(self.source),
@@ -683,7 +705,9 @@ class MappingValidationTests(unittest.TestCase):
             _make_session_jsonl("/test", UUID_A)
         )
 
-        with patch("claudewheel.import_.get_session_cwd", return_value="/test"):
+        with patch(
+            "claudewheel.import_.get_session_cwd", autospec=True, return_value="/test"
+        ):
             result = run_import(
                 self.store,
                 str(self.source),
@@ -698,7 +722,11 @@ class MappingValidationTests(unittest.TestCase):
             _make_session_jsonl("/unmapped", UUID_A)
         )
 
-        with patch("claudewheel.import_.get_session_cwd", return_value="/unmapped"):
+        with patch(
+            "claudewheel.import_.get_session_cwd",
+            autospec=True,
+            return_value="/unmapped",
+        ):
             with self.assertRaises(ValueError) as ctx:
                 run_import(
                     self.store,
@@ -717,12 +745,14 @@ class MappingValidationTests(unittest.TestCase):
         enc_b.mkdir()
         (enc_b / f"{UUID_B}.jsonl").write_text(_make_session_jsonl("/path-b", UUID_B))
 
-        def mock_cwd(path, **kwargs):
+        def mock_cwd(path: Path, **kwargs: object) -> str:
             if UUID_A in str(path):
                 return "/path-a"
             return "/path-b"
 
-        with patch("claudewheel.import_.get_session_cwd", side_effect=mock_cwd):
+        with patch(
+            "claudewheel.import_.get_session_cwd", autospec=True, side_effect=mock_cwd
+        ):
             result = run_import(
                 self.store,
                 str(self.source),
@@ -741,7 +771,9 @@ class MappingValidationTests(unittest.TestCase):
         )
 
         with patch(
-            "claudewheel.import_.get_session_cwd", return_value="C:\\Users\\m\\"
+            "claudewheel.import_.get_session_cwd",
+            autospec=True,
+            return_value="C:\\Users\\m\\",
         ):
             # Mapping uses lowercase drive letter without trailing slash
             result = run_import(
@@ -831,6 +863,7 @@ class IntegrationTests(unittest.TestCase):
         """Complete import: JSONL rewritten, companions copied, artifacts moved."""
         with patch(
             "claudewheel.import_.get_session_cwd",
+            autospec=True,
             return_value="c:/Users/m/test",
         ):
             result = run_import(
@@ -887,6 +920,7 @@ class IntegrationTests(unittest.TestCase):
 
         with patch(
             "claudewheel.import_.get_session_cwd",
+            autospec=True,
             return_value="c:/Users/m/test",
         ):
             run_import(
@@ -908,6 +942,7 @@ class IntegrationTests(unittest.TestCase):
 
         with patch(
             "claudewheel.import_.get_session_cwd",
+            autospec=True,
             return_value="/old/project",
         ):
             result = run_import(
@@ -985,6 +1020,7 @@ class DryRunTests(unittest.TestCase):
         """Dry run reports the expected session and artifact counts."""
         with patch(
             "claudewheel.import_.get_session_cwd",
+            autospec=True,
             return_value="c:/Users/m/test",
         ):
             result = run_import(
@@ -1003,6 +1039,7 @@ class DryRunTests(unittest.TestCase):
         """Dry run does not create any files in the shared store."""
         with patch(
             "claudewheel.import_.get_session_cwd",
+            autospec=True,
             return_value="c:/Users/m/test",
         ):
             run_import(
@@ -1027,12 +1064,14 @@ class DryRunTests(unittest.TestCase):
         target_dir.mkdir(parents=True)
         (target_dir / f"{UUID_B}.jsonl").write_text("{}\n")
 
-        def mock_cwd(path, **kwargs):
+        def mock_cwd(path: Path, **kwargs: object) -> str:
             if UUID_A in str(path):
                 return "c:/Users/m/test"
             return "/test2"
 
-        with patch("claudewheel.import_.get_session_cwd", side_effect=mock_cwd):
+        with patch(
+            "claudewheel.import_.get_session_cwd", autospec=True, side_effect=mock_cwd
+        ):
             result = run_import(
                 self.store,
                 str(self.source),
@@ -1120,7 +1159,9 @@ class ReidCompanionDirTests(unittest.TestCase):
 
     def test_companion_dir_copied_under_new_uuid(self) -> None:
         """Companion dir uses the new UUID, not the old one."""
-        with patch("claudewheel.import_.get_session_cwd", return_value="/test"):
+        with patch(
+            "claudewheel.import_.get_session_cwd", autospec=True, return_value="/test"
+        ):
             result = run_import(
                 self.store,
                 str(self.source),
@@ -1147,7 +1188,9 @@ class ReidCompanionDirTests(unittest.TestCase):
 
     def test_agent_jsonl_session_id_rewritten(self) -> None:
         """Agent JSONL inside the companion dir has the new sessionId."""
-        with patch("claudewheel.import_.get_session_cwd", return_value="/test"):
+        with patch(
+            "claudewheel.import_.get_session_cwd", autospec=True, return_value="/test"
+        ):
             run_import(
                 self.store,
                 str(self.source),
@@ -1167,7 +1210,9 @@ class ReidCompanionDirTests(unittest.TestCase):
 
     def test_main_jsonl_has_new_uuid_filename_and_session_id(self) -> None:
         """The session JSONL file has the new UUID as filename and updated sessionId."""
-        with patch("claudewheel.import_.get_session_cwd", return_value="/test"):
+        with patch(
+            "claudewheel.import_.get_session_cwd", autospec=True, return_value="/test"
+        ):
             run_import(
                 self.store,
                 str(self.source),
@@ -1231,7 +1276,9 @@ class ReidSimpleArtifactsTests(unittest.TestCase):
 
     def test_todos_file_renamed_with_new_uuid(self) -> None:
         """Todos file has both UUID positions replaced with the new UUID."""
-        with patch("claudewheel.import_.get_session_cwd", return_value="/test"):
+        with patch(
+            "claudewheel.import_.get_session_cwd", autospec=True, return_value="/test"
+        ):
             result = run_import(
                 self.store,
                 str(self.source),
@@ -1256,7 +1303,9 @@ class ReidSimpleArtifactsTests(unittest.TestCase):
 
     def test_session_env_dir_renamed_to_new_uuid(self) -> None:
         """Session-env directory is renamed to the new UUID."""
-        with patch("claudewheel.import_.get_session_cwd", return_value="/test"):
+        with patch(
+            "claudewheel.import_.get_session_cwd", autospec=True, return_value="/test"
+        ):
             run_import(
                 self.store,
                 str(self.source),
@@ -1317,7 +1366,9 @@ class PasteCacheDedupTests(unittest.TestCase):
 
     def test_paste_files_copied_counts_only_new(self) -> None:
         """paste_files_copied reflects only newly copied files."""
-        with patch("claudewheel.import_.get_session_cwd", return_value="/test"):
+        with patch(
+            "claudewheel.import_.get_session_cwd", autospec=True, return_value="/test"
+        ):
             result = run_import(
                 self.store,
                 str(self.source),
@@ -1329,7 +1380,9 @@ class PasteCacheDedupTests(unittest.TestCase):
 
     def test_preexisting_paste_file_not_overwritten(self) -> None:
         """The pre-existing paste-cache file retains its original content."""
-        with patch("claudewheel.import_.get_session_cwd", return_value="/test"):
+        with patch(
+            "claudewheel.import_.get_session_cwd", autospec=True, return_value="/test"
+        ):
             run_import(
                 self.store,
                 str(self.source),
@@ -1366,7 +1419,9 @@ class EmptyJsonlSkipTests(unittest.TestCase):
         # Create a non-empty file for comparison
         (enc / f"{UUID_B}.jsonl").write_text(_make_jsonl_line(cwd="/test") + "\n")
 
-        with patch("claudewheel.import_.get_session_cwd", return_value="/test"):
+        with patch(
+            "claudewheel.import_.get_session_cwd", autospec=True, return_value="/test"
+        ):
             bundles = _scan_source(self.root)
 
         # Only the non-empty file should produce a bundle
@@ -1380,7 +1435,7 @@ class EmptyJsonlSkipTests(unittest.TestCase):
         (enc / f"{UUID_A}.jsonl").write_text("")
         (enc / f"{UUID_B}.jsonl").write_text("")
 
-        with patch("claudewheel.import_.get_session_cwd"):
+        with patch("claudewheel.import_.get_session_cwd", autospec=True):
             bundles = _scan_source(self.root)
 
         self.assertEqual(len(bundles), 0)
@@ -1427,7 +1482,9 @@ class ReidNonJsonlPathTests(unittest.TestCase):
 
     def test_non_jsonl_copied_under_new_uuid_path(self) -> None:
         """Non-JSONL file with UUID in relative path gets the UUID replaced."""
-        with patch("claudewheel.import_.get_session_cwd", return_value="/test"):
+        with patch(
+            "claudewheel.import_.get_session_cwd", autospec=True, return_value="/test"
+        ):
             result = run_import(
                 self.store,
                 str(self.source),
