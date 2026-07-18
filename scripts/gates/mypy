@@ -4,4 +4,4 @@
 # tests/) happens HERE and only here -- never in pyproject.toml or the rlsbl
 # external_checks entry, both of which defer to this wrapper.
 set -euo pipefail
-exec uv run mypy claudewheel
+exec uv run mypy claudewheel tests
