@@ -28,10 +28,11 @@ from __future__ import annotations
 
 import json
 import os
+from contextlib import AbstractContextManager
 from pathlib import Path
-from unittest.mock import patch
+from typing import Any
+from unittest.mock import MagicMock, patch
 
-import claudewheel.profile_store as ps_mod
 import claudewheel.wizard as wiz
 from claudewheel.profile_store import (
     DeletionResult,
@@ -61,16 +62,19 @@ class _WriteBase(SandboxHomeTestCase):
         self.shared_dir = self.sandbox_paths["SHARED_DIR"]
         self.skills_dir = self.sandbox_paths["SKILLS_DIR"]
 
-    def _read_options(self) -> dict:
-        return json.loads(self.options_file.read_text())
+    def _read_options(self) -> dict[str, Any]:
+        data: dict[str, Any] = json.loads(self.options_file.read_text())
+        return data
 
-    def _read_tokens(self) -> dict:
-        return json.loads(self.tokens_file.read_text())
+    def _read_tokens(self) -> dict[str, Any]:
+        data: dict[str, Any] = json.loads(self.tokens_file.read_text())
+        return data
 
-    def _read_state(self) -> dict:
-        return json.loads(self.state_file.read_text())
+    def _read_state(self) -> dict[str, Any]:
+        data: dict[str, Any] = json.loads(self.state_file.read_text())
+        return data
 
-    def _set_profile_options(self, section: dict) -> None:
+    def _set_profile_options(self, section: dict[str, Any]) -> None:
         options = self._read_options()
         options["profile"] = section
         write_json(self.options_file, options)
@@ -200,7 +204,9 @@ class CreateTests(_WriteBase):
         # docstring. Inject a failure at the atomic rename step; the target
         # settings.json must be absent -- never a truncated partial file.
         target = self.profiles_dir / "atomic"
-        with patch.object(Path, "rename", side_effect=OSError("injected")):
+        with patch.object(
+            Path, "rename", autospec=True, side_effect=OSError("injected")
+        ):
             with self.assertRaises(OSError):
                 self.store.create("atomic", self._SETTINGS)
         self.assertFalse((target / "settings.json").exists())
@@ -210,7 +216,9 @@ class CreateTests(_WriteBase):
         # target dir (everything under it was made by this call), so a retry is
         # not blocked by the pre-mkdir FileExistsError guard.
         target = self.profiles_dir / "retry"
-        with patch.object(Path, "rename", side_effect=OSError("injected")):
+        with patch.object(
+            Path, "rename", autospec=True, side_effect=OSError("injected")
+        ):
             with self.assertRaises(OSError):
                 self.store.create("retry", self._SETTINGS)
         # The debris is gone -- the whole target dir was cleaned up.
@@ -241,7 +249,10 @@ class CreateTests(_WriteBase):
         (self.shared_dir / "projects" / "payload.jsonl").write_text("keep me")
         target = self.profiles_dir / "symsafe"
         with patch.object(
-            self.store.options, "add_pinned", side_effect=OSError("injected")
+            self.store.options,
+            "add_pinned",
+            autospec=True,
+            side_effect=OSError("injected"),
         ):
             with self.assertRaises(OSError):
                 self.store.create("symsafe", self._SETTINGS)
@@ -400,6 +411,7 @@ class DeleteTests(_WriteBase):
     def test_delete_full_cleanup(self) -> None:
         self.store.create("full", self._SETTINGS)
         self.store.token_store.add("full", "TOKEN")
+        assert self.store.state is not None
         self.store.state.set_value("last_config", {"profile": "full", "model": "m"})
 
         result = self.store.delete("full")
@@ -435,6 +447,7 @@ class RenameTests(_WriteBase):
             }
         )
         write_json(self.tokens_file, {"old": {"token": "T", "created": "2026-01-01"}})
+        assert self.store.state is not None
         self.store.state.set_value("last_config", {"profile": "old"})
 
     def _assert_clean_rename(self) -> None:
@@ -498,17 +511,22 @@ class RenameTests(_WriteBase):
 
     # --- crash-window fault injection ------------------------------------
 
-    def _fail_dir_rename(self):
+    def _fail_dir_rename(self) -> AbstractContextManager[MagicMock]:
         """Patch os.rename to fail ONLY the directory rename, not the atomic
         breadcrumb file write (which also renames a tmp file into place)."""
         real = os.rename
 
-        def side(src, dst, *a, **k):
+        def side(
+            src: "str | os.PathLike[str]",
+            dst: "str | os.PathLike[str]",
+            *a: object,
+            **k: object,
+        ) -> None:
             if Path(src).is_dir():
                 raise OSError("boom")
-            return real(src, dst, *a, **k)
+            real(src, dst)
 
-        return patch.object(ps_mod.os, "rename", side_effect=side)
+        return patch.object(os, "rename", autospec=True, side_effect=side)
 
     def test_crash_after_breadcrumb_before_os_rename(self) -> None:
         self._seed()
@@ -523,7 +541,7 @@ class RenameTests(_WriteBase):
     def test_crash_after_os_rename_before_tokens(self) -> None:
         self._seed()
         with patch.object(
-            self.store.token_store, "rename", side_effect=OSError("boom")
+            self.store.token_store, "rename", autospec=True, side_effect=OSError("boom")
         ):
             with self.assertRaises(OSError):
                 self.store.rename("old", "new")
@@ -535,7 +553,10 @@ class RenameTests(_WriteBase):
     def test_crash_after_tokens_before_options(self) -> None:
         self._seed()
         with patch.object(
-            self.store.options, "rename_value", side_effect=OSError("boom")
+            self.store.options,
+            "rename_value",
+            autospec=True,
+            side_effect=OSError("boom"),
         ):
             with self.assertRaises(OSError):
                 self.store.rename("old", "new")
@@ -544,7 +565,9 @@ class RenameTests(_WriteBase):
 
     def test_crash_after_options_before_state(self) -> None:
         self._seed()
-        with patch.object(self.store.state, "set_value", side_effect=OSError("boom")):
+        with patch.object(
+            self.store.state, "set_value", autospec=True, side_effect=OSError("boom")
+        ):
             with self.assertRaises(OSError):
                 self.store.rename("old", "new")
         self.store.recover_incomplete_renames()
@@ -554,10 +577,10 @@ class RenameTests(_WriteBase):
         self._seed()
         real_unlink = Path.unlink
 
-        def fail_crumb_unlink(self_path, *a, **k):
+        def fail_crumb_unlink(self_path: Path, *a: object, **k: object) -> None:
             if self_path.name == _RENAME_PENDING_FILE:
                 raise OSError("boom")
-            return real_unlink(self_path, *a, **k)
+            real_unlink(self_path)
 
         with patch.object(Path, "unlink", fail_crumb_unlink):
             with self.assertRaises(OSError):
@@ -581,7 +604,7 @@ class RenameTests(_WriteBase):
     def test_recovery_reports_completed_action(self) -> None:
         self._seed()
         with patch.object(
-            self.store.token_store, "rename", side_effect=OSError("boom")
+            self.store.token_store, "rename", autospec=True, side_effect=OSError("boom")
         ):
             with self.assertRaises(OSError):
                 self.store.rename("old", "new")
@@ -632,7 +655,7 @@ class RenameTests(_WriteBase):
         # Crash after the directory rename but before token migration: leaves the
         # 'new' dir with a pending breadcrumb; the roll-forward completes it.
         with patch.object(
-            self.store.token_store, "rename", side_effect=OSError("boom")
+            self.store.token_store, "rename", autospec=True, side_effect=OSError("boom")
         ):
             with self.assertRaises(OSError):
                 self.store.rename("old", "new")

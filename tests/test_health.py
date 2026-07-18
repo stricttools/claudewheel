@@ -6,6 +6,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 from claudewheel import guardrail, health
@@ -32,7 +33,9 @@ class _HomeDirTestCase(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
         self.home = Path(self._tmp.name)
-        self._patcher = patch.object(Path, "home", return_value=self.home)
+        self._patcher = patch.object(
+            Path, "home", autospec=True, return_value=self.home
+        )
         self._patcher.start()
         # Patch module-level path constants that were computed at import time
         self._shared_dir = self.home / ".claudewheel" / "shared"
@@ -45,7 +48,7 @@ class _HomeDirTestCase(unittest.TestCase):
         self.ws = Workspace.open(
             self.home / ".claudewheel", claude_dir=self.home / ".claude"
         )
-        self._dir_patches = []
+        self._dir_patches: list[Any] = []
 
     def tearDown(self) -> None:
         for p in self._dir_patches:
@@ -213,11 +216,11 @@ class CheckSharedSymlinksTests(_HomeDirTestCase):
 class CheckHooksWiredTests(_HomeDirTestCase):
     """Tests for check_hooks_wired(self.ws)."""
 
-    def _write_settings(self, pdir: Path, settings: dict) -> None:
+    def _write_settings(self, pdir: Path, settings: dict[str, Any]) -> None:
         """Write settings.json into a profile directory."""
         (pdir / "settings.json").write_text(json.dumps(settings))
 
-    def _good_settings(self) -> dict:
+    def _good_settings(self) -> dict[str, Any]:
         """Return settings with all four canonical hook wirings present.
 
         Commands are rooted at the workspace's current scripts dir because
@@ -225,7 +228,7 @@ class CheckHooksWiredTests(_HomeDirTestCase):
         """
         return self._settings_under(self.ws.scripts_dir)
 
-    def _three_hook_settings(self) -> dict:
+    def _three_hook_settings(self) -> dict[str, Any]:
         """Return settings with only the three old hooks (no PostToolUse advise)."""
         settings = self._good_settings()
         del settings["hooks"]["PostToolUse"]
@@ -313,7 +316,7 @@ class CheckHooksWiredTests(_HomeDirTestCase):
         self.assertTrue(result.ok)
         self.assertIn("no profiles found", result.detail)
 
-    def _settings_under(self, scripts_dir) -> dict:
+    def _settings_under(self, scripts_dir: str | Path) -> dict[str, Any]:
         """Build all four canonical wirings with commands rooted at *scripts_dir*."""
         scripts_dir = Path(scripts_dir)
         return {
@@ -394,10 +397,10 @@ class CheckHooksWiredTests(_HomeDirTestCase):
 class CheckSettingsDefaultsTests(_HomeDirTestCase):
     """Tests for check_settings_defaults(self.ws)."""
 
-    def _write_settings(self, pdir: Path, settings: dict) -> None:
+    def _write_settings(self, pdir: Path, settings: dict[str, Any]) -> None:
         (pdir / "settings.json").write_text(json.dumps(settings))
 
-    def _good_settings(self) -> dict:
+    def _good_settings(self) -> dict[str, Any]:
         # Permission-array content is now the canonical-drift check's job, so
         # check_settings_defaults no longer enforces any deny/ask count. These
         # arrays are deliberately empty to prove the old thresholds are gone.
@@ -546,7 +549,7 @@ class CheckTokensTests(_HomeDirTestCase):
         # import time), so we redirect it at the temp home's .claudewheel/tokens.json.
         self._tokens_file = self.home / ".claudewheel" / "tokens.json"
 
-    def _write_tokens(self, tokens: dict) -> None:
+    def _write_tokens(self, tokens: dict[str, Any]) -> None:
         """Write tokens.json in the temp home's .claudewheel/ dir."""
         self._tokens_file.parent.mkdir(parents=True, exist_ok=True)
         self._tokens_file.write_text(json.dumps(tokens))
@@ -733,11 +736,11 @@ class CheckAuthShadowTests(_HomeDirTestCase):
         super().setUp()
         self._tokens_file = self.home / ".claudewheel" / "tokens.json"
 
-    def _write_tokens(self, tokens: dict) -> None:
+    def _write_tokens(self, tokens: dict[str, Any]) -> None:
         self._tokens_file.parent.mkdir(parents=True, exist_ok=True)
         self._tokens_file.write_text(json.dumps(tokens))
 
-    def _write_credentials(self, pdir: Path, data: dict) -> None:
+    def _write_credentials(self, pdir: Path, data: dict[str, Any]) -> None:
         (pdir / ".credentials.json").write_text(json.dumps(data))
 
     def test_flagged_when_both_token_and_claude_ai_oauth(self) -> None:
@@ -883,7 +886,9 @@ class CheckTmpClaudeSizeTests(unittest.TestCase):
         big.write_bytes(b"\x00" * 5_000_000)
         (self.tmp_dir / "link.bin").symlink_to(big)
 
-        with patch.object(health, "_tmp_claude_dir", return_value=self.tmp_dir):
+        with patch.object(
+            health, "_tmp_claude_dir", autospec=True, return_value=self.tmp_dir
+        ):
             result = check_tmp_claude_size()
         self.assertTrue(result.ok)
         self.assertEqual(result.label, "/tmp/claude")
@@ -893,7 +898,9 @@ class CheckTmpClaudeSizeTests(unittest.TestCase):
     def test_not_present(self) -> None:
         """Returns OK 'not present' when the dir does not exist."""
         missing = Path(self._tmp.name) / "does-not-exist"
-        with patch.object(health, "_tmp_claude_dir", return_value=missing):
+        with patch.object(
+            health, "_tmp_claude_dir", autospec=True, return_value=missing
+        ):
             result = check_tmp_claude_size()
         self.assertTrue(result.ok)
         self.assertIn("not present", result.detail)
@@ -902,8 +909,10 @@ class CheckTmpClaudeSizeTests(unittest.TestCase):
         """Usage above 1024 MB warns with the '>1 GB threshold' message."""
         over = 1025 * 1024 * 1024
         with (
-            patch.object(health, "_tmp_claude_dir", return_value=self.tmp_dir),
-            patch.object(health, "_real_disk_usage", return_value=over),
+            patch.object(
+                health, "_tmp_claude_dir", autospec=True, return_value=self.tmp_dir
+            ),
+            patch.object(health, "_real_disk_usage", autospec=True, return_value=over),
         ):
             result = check_tmp_claude_size()
         self.assertFalse(result.ok)
@@ -913,8 +922,10 @@ class CheckTmpClaudeSizeTests(unittest.TestCase):
         """Usage of exactly 1024 MB is OK (boundary is inclusive)."""
         at = 1024 * 1024 * 1024
         with (
-            patch.object(health, "_tmp_claude_dir", return_value=self.tmp_dir),
-            patch.object(health, "_real_disk_usage", return_value=at),
+            patch.object(
+                health, "_tmp_claude_dir", autospec=True, return_value=self.tmp_dir
+            ),
+            patch.object(health, "_real_disk_usage", autospec=True, return_value=at),
         ):
             result = check_tmp_claude_size()
         self.assertTrue(result.ok)
@@ -935,7 +946,7 @@ class CheckCanonicalPermissionsDriftTests(_HomeDirTestCase):
         # redirect it into the temp home.
         self._shared_settings_file = self.home / ".claudewheel" / "shared-settings.json"
 
-    def _canonical_perms(self) -> dict:
+    def _canonical_perms(self) -> dict[str, Any]:
         """A permissions block that exactly matches the canonical guardrail model."""
         return {
             "deny": guardrail.canonical_deny_rules(),
@@ -944,10 +955,10 @@ class CheckCanonicalPermissionsDriftTests(_HomeDirTestCase):
             "allow": ["Bash(git rm:*)"],
         }
 
-    def _write_settings(self, pdir: Path, permissions: dict) -> None:
+    def _write_settings(self, pdir: Path, permissions: dict[str, Any]) -> None:
         (pdir / "settings.json").write_text(json.dumps({"permissions": permissions}))
 
-    def _write_shared(self, permissions: dict) -> None:
+    def _write_shared(self, permissions: dict[str, Any]) -> None:
         self._shared_settings_file.parent.mkdir(parents=True, exist_ok=True)
         self._shared_settings_file.write_text(
             json.dumps({"profileDefaults": {"permissions": permissions}})
@@ -1177,10 +1188,10 @@ class CheckRelocatedHookPathsTests(_HomeDirTestCase):
         self._scripts_dir = self.home / ".claudewheel" / "scripts"
         self._shared_settings = self.home / ".claudewheel" / "shared-settings.json"
 
-    def _write_settings(self, pdir: Path, settings: dict) -> None:
+    def _write_settings(self, pdir: Path, settings: dict[str, Any]) -> None:
         (pdir / "settings.json").write_text(json.dumps(settings))
 
-    def _timestamp_hooks(self, scripts_dir) -> dict:
+    def _timestamp_hooks(self, scripts_dir: str | Path) -> dict[str, Any]:
         return {
             "UserPromptSubmit": [
                 {
