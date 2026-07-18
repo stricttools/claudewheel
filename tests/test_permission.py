@@ -182,7 +182,9 @@ class SaveSettingsTests(unittest.TestCase):
             p = Path(tmp) / "settings.json"
             permission.save_settings(p, {"a": 1})
             tmp_file = p.with_suffix(".tmp")
-            self.assertFalse(tmp_file.exists(), ".tmp file should not remain after save")
+            self.assertFalse(
+                tmp_file.exists(), ".tmp file should not remain after save"
+            )
 
     def test_save_format(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -217,8 +219,18 @@ class SaveSettingsTests(unittest.TestCase):
 class ResolveProfilesTests(unittest.TestCase):
     def _make_profiles(self) -> list[Profile]:
         return [
-            Profile(name="work", path=Path("/fake/work"), has_credentials=True, has_token=False),
-            Profile(name="personal", path=Path("/fake/personal"), has_credentials=True, has_token=False),
+            Profile(
+                name="work",
+                path=Path("/fake/work"),
+                has_credentials=True,
+                has_token=False,
+            ),
+            Profile(
+                name="personal",
+                path=Path("/fake/personal"),
+                has_credentials=True,
+                has_token=False,
+            ),
         ]
 
     def _ws_with(self, profiles) -> mock.MagicMock:
@@ -291,7 +303,9 @@ class PermissionCLIAddTests(_PermissionCLIBase):
         with contextlib.nullcontext():
             buf = io.StringIO()
             with redirect_stdout(buf):
-                rc = cli._handle_permission_add(self.ws, "allow", "Bash", "testprofile", False)
+                rc = cli._handle_permission_add(
+                    self.ws, "allow", "Bash", "testprofile", False
+                )
         self.assertEqual(rc, 0)
         self.assertIn("added", buf.getvalue())
         data = self._read_settings()
@@ -303,10 +317,14 @@ class PermissionCLIAddTests(_PermissionCLIBase):
         second_dir.mkdir(parents=True)
         second_settings = second_dir / "settings.json"
         self._write_settings({"permissions": {"allow": []}})
-        second_settings.write_text(json.dumps({"permissions": {"allow": []}}, indent=2) + "\n")
+        second_settings.write_text(
+            json.dumps({"permissions": {"allow": []}}, indent=2) + "\n"
+        )
 
         profiles = self._fake_profiles() + [
-            Profile(name="second", path=second_dir, has_credentials=True, has_token=False),
+            Profile(
+                name="second", path=second_dir, has_credentials=True, has_token=False
+            ),
         ]
         self.ws.profiles.enumerate.return_value = profiles
         with contextlib.nullcontext():
@@ -330,7 +348,9 @@ class PermissionCLIAddTests(_PermissionCLIBase):
         with contextlib.nullcontext():
             buf = io.StringIO()
             with redirect_stdout(buf):
-                rc = cli._handle_permission_add(self.ws, "allow", "Bash", "testprofile", False)
+                rc = cli._handle_permission_add(
+                    self.ws, "allow", "Bash", "testprofile", False
+                )
         self.assertEqual(rc, 0)
         self.assertIn("already", buf.getvalue())
 
@@ -342,7 +362,9 @@ class PermissionCLIRemoveTests(_PermissionCLIBase):
         with contextlib.nullcontext():
             buf = io.StringIO()
             with redirect_stdout(buf):
-                rc = cli._handle_permission_remove(self.ws, "allow", "Bash", "testprofile", False)
+                rc = cli._handle_permission_remove(
+                    self.ws, "allow", "Bash", "testprofile", False
+                )
         self.assertEqual(rc, 0)
         self.assertIn("removed", buf.getvalue())
         data = self._read_settings()
@@ -355,21 +377,31 @@ class PermissionCLIRemoveTests(_PermissionCLIBase):
         with contextlib.nullcontext():
             buf = io.StringIO()
             with redirect_stdout(buf):
-                rc = cli._handle_permission_remove(self.ws, "allow", "Bash", "testprofile", False)
+                rc = cli._handle_permission_remove(
+                    self.ws, "allow", "Bash", "testprofile", False
+                )
         self.assertEqual(rc, 0)
         self.assertIn("not found", buf.getvalue())
 
 
 class PermissionCLIListTests(_PermissionCLIBase):
     def test_list_grouped_format(self) -> None:
-        self._write_settings({
-            "permissions": {"allow": ["Bash", "Read"], "deny": ["WebSearch"], "ask": []},
-        })
+        self._write_settings(
+            {
+                "permissions": {
+                    "allow": ["Bash", "Read"],
+                    "deny": ["WebSearch"],
+                    "ask": [],
+                },
+            }
+        )
         self.ws.profiles.enumerate.return_value = self._fake_profiles()
         with contextlib.nullcontext():
             buf = io.StringIO()
             with redirect_stdout(buf):
-                rc = cli._handle_permission_list(self.ws, "testprofile", False, format="grouped", category="")
+                rc = cli._handle_permission_list(
+                    self.ws, "testprofile", False, format="grouped", category=""
+                )
         self.assertEqual(rc, 0)
         out = buf.getvalue()
         self.assertIn("allow:", out)
@@ -379,14 +411,18 @@ class PermissionCLIListTests(_PermissionCLIBase):
         self.assertIn("WebSearch", out)
 
     def test_list_flat_format(self) -> None:
-        self._write_settings({
-            "permissions": {"allow": ["Bash"], "deny": ["WebSearch"], "ask": []},
-        })
+        self._write_settings(
+            {
+                "permissions": {"allow": ["Bash"], "deny": ["WebSearch"], "ask": []},
+            }
+        )
         self.ws.profiles.enumerate.return_value = self._fake_profiles()
         with contextlib.nullcontext():
             buf = io.StringIO()
             with redirect_stdout(buf):
-                rc = cli._handle_permission_list(self.ws, "testprofile", False, format="flat", category="")
+                rc = cli._handle_permission_list(
+                    self.ws, "testprofile", False, format="flat", category=""
+                )
         self.assertEqual(rc, 0)
         out = buf.getvalue()
         # Flat format: category<tab>rule
@@ -394,28 +430,40 @@ class PermissionCLIListTests(_PermissionCLIBase):
         self.assertIn("deny\tWebSearch", out)
 
     def test_list_json_format(self) -> None:
-        self._write_settings({
-            "permissions": {"allow": ["Bash"], "deny": [], "ask": []},
-        })
+        self._write_settings(
+            {
+                "permissions": {"allow": ["Bash"], "deny": [], "ask": []},
+            }
+        )
         self.ws.profiles.enumerate.return_value = self._fake_profiles()
         with contextlib.nullcontext():
             buf = io.StringIO()
             with redirect_stdout(buf):
-                rc = cli._handle_permission_list(self.ws, "testprofile", False, format="json", category="")
+                rc = cli._handle_permission_list(
+                    self.ws, "testprofile", False, format="json", category=""
+                )
         self.assertEqual(rc, 0)
         parsed = json.loads(buf.getvalue())
         self.assertIn("allow", parsed)
         self.assertEqual(parsed["allow"], ["Bash"])
 
     def test_list_with_category_filter(self) -> None:
-        self._write_settings({
-            "permissions": {"allow": ["Bash", "Read"], "deny": ["WebSearch"], "ask": []},
-        })
+        self._write_settings(
+            {
+                "permissions": {
+                    "allow": ["Bash", "Read"],
+                    "deny": ["WebSearch"],
+                    "ask": [],
+                },
+            }
+        )
         self.ws.profiles.enumerate.return_value = self._fake_profiles()
         with contextlib.nullcontext():
             buf = io.StringIO()
             with redirect_stdout(buf):
-                rc = cli._handle_permission_list(self.ws, "testprofile", False, format="grouped", category="deny")
+                rc = cli._handle_permission_list(
+                    self.ws, "testprofile", False, format="grouped", category="deny"
+                )
         self.assertEqual(rc, 0)
         out = buf.getvalue()
         self.assertIn("deny:", out)
@@ -429,7 +477,9 @@ class PermissionCLIListTests(_PermissionCLIBase):
         self.ws.profiles.enumerate.return_value = self._fake_profiles()
         with contextlib.nullcontext():
             with self.assertRaises(json.JSONDecodeError):
-                cli._handle_permission_list(self.ws, "testprofile", False, format="grouped", category="")
+                cli._handle_permission_list(
+                    self.ws, "testprofile", False, format="grouped", category=""
+                )
 
     def test_unknown_profile_errors(self) -> None:
         profiles = self._fake_profiles()
@@ -437,7 +487,9 @@ class PermissionCLIListTests(_PermissionCLIBase):
         with contextlib.nullcontext():
             err = io.StringIO()
             with redirect_stderr(err), self.assertRaises(SystemExit) as ctx:
-                cli._handle_permission_add(self.ws, "allow", "Bash", "nonexistent", False)
+                cli._handle_permission_add(
+                    self.ws, "allow", "Bash", "nonexistent", False
+                )
             self.assertEqual(ctx.exception.code, 1)
             self.assertIn("nonexistent", err.getvalue())
 

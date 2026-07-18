@@ -9,8 +9,14 @@ from claudewheel.defaults import DEFAULT_THEME_DARK, DEFAULT_THEME_LIGHT
 from claudewheel.theme import ThemeColors, parse_hex, parse_theme
 
 FORMS_KEYS = (
-    "title_fg", "focus_bg", "focus_fg", "field_fg",
-    "error_fg", "hint_fg", "cursor_fg", "readonly_fg",
+    "title_fg",
+    "focus_bg",
+    "focus_fg",
+    "field_fg",
+    "error_fg",
+    "hint_fg",
+    "cursor_fg",
+    "readonly_fg",
 )
 
 
@@ -59,9 +65,14 @@ class FormsParsingTests(unittest.TestCase):
         """parse_theme({}) yields empty strings for all forms fields."""
         colors = parse_theme({})
         for attr in (
-            "forms_title_fg", "forms_focus_bg", "forms_focus_fg",
-            "forms_field_fg", "forms_error_fg", "forms_hint_fg",
-            "forms_cursor_fg", "forms_readonly_fg",
+            "forms_title_fg",
+            "forms_focus_bg",
+            "forms_focus_fg",
+            "forms_field_fg",
+            "forms_error_fg",
+            "forms_hint_fg",
+            "forms_cursor_fg",
+            "forms_readonly_fg",
         ):
             self.assertEqual(getattr(colors, attr), "", f"{attr} should be empty")
 
@@ -100,12 +111,18 @@ class DefaultThemeFormsTests(unittest.TestCase):
         for theme in (DEFAULT_THEME_DARK, DEFAULT_THEME_LIGHT):
             colors = parse_theme(theme)
             for attr in (
-                "forms_title_fg", "forms_focus_bg", "forms_focus_fg",
-                "forms_field_fg", "forms_error_fg", "forms_hint_fg",
-                "forms_cursor_fg", "forms_readonly_fg",
+                "forms_title_fg",
+                "forms_focus_bg",
+                "forms_focus_fg",
+                "forms_field_fg",
+                "forms_error_fg",
+                "forms_hint_fg",
+                "forms_cursor_fg",
+                "forms_readonly_fg",
             ):
                 self.assertNotEqual(
-                    getattr(colors, attr), "",
+                    getattr(colors, attr),
+                    "",
                     f"{theme['name']}: {attr} should be non-empty",
                 )
 

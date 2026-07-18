@@ -86,14 +86,19 @@ def merge_hooks(existing: dict[str, Any], canonical: dict[str, Any]) -> list[str
             c_hooks = c_entry.get("hooks", [])
             label = matcher or "*"
             target = next(
-                (e for e in existing_entries
-                 if isinstance(e, dict) and e.get("matcher", "") == matcher),
+                (
+                    e
+                    for e in existing_entries
+                    if isinstance(e, dict) and e.get("matcher", "") == matcher
+                ),
                 None,
             )
             if target is None:
                 existing_entries.append(deepcopy(c_entry))
                 for h in c_hooks:
-                    added.append(f"{event}[{label}] {_script_basename(h.get('command', ''))}")
+                    added.append(
+                        f"{event}[{label}] {_script_basename(h.get('command', ''))}"
+                    )
                 continue
             target_hooks = target.setdefault("hooks", [])
             for h in c_hooks:
@@ -102,7 +107,8 @@ def merge_hooks(existing: dict[str, Any], canonical: dict[str, Any]) -> list[str
                     continue
                 canonical_cmd = h.get("command", "")
                 matches = [
-                    th for th in target_hooks
+                    th
+                    for th in target_hooks
                     if isinstance(th, dict)
                     and _script_basename(th.get("command", "")) == base
                 ]
@@ -134,7 +140,9 @@ def _append_missing(current: list[str], wanted: list[str]) -> list[str]:
     return added
 
 
-def sync_profile_settings(settings: dict[str, Any], canonical: dict[str, Any]) -> list[str]:
+def sync_profile_settings(
+    settings: dict[str, Any], canonical: dict[str, Any]
+) -> list[str]:
     """Additively sync one profile's settings dict toward canonical (mutated).
 
     Returns descriptions of every change. Empty list means already in sync.
@@ -166,7 +174,9 @@ def sync_profile_settings(settings: dict[str, Any], canonical: dict[str, Any]) -
     return changes
 
 
-def sync_shared_settings(shared: dict[str, Any], canonical: dict[str, Any]) -> list[str]:
+def sync_shared_settings(
+    shared: dict[str, Any], canonical: dict[str, Any]
+) -> list[str]:
     """Additively sync shared-settings.json dict toward canonical (mutated).
 
     Returns descriptions of every change. Empty list means already in sync.
@@ -198,7 +208,11 @@ def _referenced_scripts(hooks: dict[str, Any]) -> list[str]:
         for entry in entries:
             entry_hooks = entry.get("hooks", []) if isinstance(entry, dict) else []
             for h in entry_hooks:
-                base = _script_basename(h.get("command", "")) if isinstance(h, dict) else ""
+                base = (
+                    _script_basename(h.get("command", ""))
+                    if isinstance(h, dict)
+                    else ""
+                )
                 if base and base not in names:
                     names.append(base)
     return names
@@ -219,8 +233,7 @@ def run_patch_profiles(ws: "Workspace", dry_run: bool = False) -> int:
     # 1. Deploy any missing built-in hook scripts referenced by canonical hooks.
     referenced = _referenced_scripts(canonical.get("hooks", {}))
     missing_scripts = [
-        n for n in referenced
-        if n in HOOK_SCRIPTS and not (scripts_dir / n).exists()
+        n for n in referenced if n in HOOK_SCRIPTS and not (scripts_dir / n).exists()
     ]
     if missing_scripts:
         changed_any = True

@@ -33,6 +33,7 @@ class _ProfileOpsTestCase(unittest.TestCase):
         self.tokens_file = self.launcher_dir / "tokens.json"
         self.profiles_dir = self.launcher_dir / "profiles"
         from claudewheel.workspace import Workspace
+
         self.ws = Workspace.open(self.launcher_dir, claude_dir=self.home / ".claude")
 
     def tearDown(self) -> None:
@@ -132,14 +133,17 @@ class FixAuthShadowTests(_ProfileOpsTestCase):
     def test_strips_shadow_and_saves_tier(self) -> None:
         """Shadow is stripped, tier data saved to tokens.json."""
         pdir = self._make_profile_dir("work")
-        self._write_credentials(pdir, {
-            "claudeAiOauth": {
-                "accessToken": "short-lived",
-                "rateLimitTier": "default_claude_pro",
-                "subscriptionType": "claude_pro",
+        self._write_credentials(
+            pdir,
+            {
+                "claudeAiOauth": {
+                    "accessToken": "short-lived",
+                    "rateLimitTier": "default_claude_pro",
+                    "subscriptionType": "claude_pro",
+                },
+                "mcpOAuth": {"keep": "this"},
             },
-            "mcpOAuth": {"keep": "this"},
-        })
+        )
         self._write_tokens({"work": {"token": "tok-work"}})
 
         result = profile_ops.fix_auth_shadow(self.ws, "work")
@@ -161,9 +165,12 @@ class FixAuthShadowTests(_ProfileOpsTestCase):
     def test_strips_shadow_no_tier_data(self) -> None:
         """Shadow stripped even without tier fields; no tier saved."""
         pdir = self._make_profile_dir("notier")
-        self._write_credentials(pdir, {
-            "claudeAiOauth": {"accessToken": "short"},
-        })
+        self._write_credentials(
+            pdir,
+            {
+                "claudeAiOauth": {"accessToken": "short"},
+            },
+        )
         self._write_tokens({"notier": {"token": "tok-nt"}})
 
         result = profile_ops.fix_auth_shadow(self.ws, "notier")
@@ -181,12 +188,15 @@ class FixAuthShadowTests(_ProfileOpsTestCase):
     def test_bare_string_token_upgraded_to_dict_with_tier(self) -> None:
         """When token entry is a bare string, it's upgraded to a dict to hold tier."""
         pdir = self._make_profile_dir("legacy")
-        self._write_credentials(pdir, {
-            "claudeAiOauth": {
-                "accessToken": "ephemeral",
-                "rateLimitTier": "tier_max",
+        self._write_credentials(
+            pdir,
+            {
+                "claudeAiOauth": {
+                    "accessToken": "ephemeral",
+                    "rateLimitTier": "tier_max",
+                },
             },
-        })
+        )
         self._write_tokens({"legacy": "bare-tok-string"})
 
         result = profile_ops.fix_auth_shadow(self.ws, "legacy")
@@ -201,10 +211,13 @@ class FixAuthShadowTests(_ProfileOpsTestCase):
     def test_atomic_write_preserves_credentials_permissions(self) -> None:
         """The atomic write to .credentials.json preserves 0600 permissions."""
         pdir = self._make_profile_dir("perms")
-        self._write_credentials(pdir, {
-            "claudeAiOauth": {"accessToken": "x"},
-            "other": "keep",
-        })
+        self._write_credentials(
+            pdir,
+            {
+                "claudeAiOauth": {"accessToken": "x"},
+                "other": "keep",
+            },
+        )
         creds_path = pdir / ".credentials.json"
         creds_path.chmod(0o600)
         self._write_tokens({"perms": {"token": "tok-p"}})

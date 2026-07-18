@@ -487,10 +487,20 @@ class AuthFromMetadataTests(unittest.TestCase):
         from claudewheel.segment import Segment, _update_auth_from_metadata
 
         seg = Segment(key="profile", label="Profile")
-        seg.state.set_metadata({
-            "alice": {"config_dir": "/a", "has_token": True, "has_credentials": True},
-            "bob": {"config_dir": "/b", "has_token": False, "has_credentials": False},
-        })
+        seg.state.set_metadata(
+            {
+                "alice": {
+                    "config_dir": "/a",
+                    "has_token": True,
+                    "has_credentials": True,
+                },
+                "bob": {
+                    "config_dir": "/b",
+                    "has_token": False,
+                    "has_credentials": False,
+                },
+            }
+        )
         _update_auth_from_metadata(seg)
         self.assertTrue(seg.state.has_auth_status)
         self.assertTrue(seg.state.is_authenticated("alice"))
@@ -510,9 +520,15 @@ class AuthFromMetadataTests(unittest.TestCase):
         from claudewheel.segment import Segment, _update_auth_from_metadata
 
         seg = Segment(key="profile", label="Profile")
-        seg.state.set_metadata({
-            "tok": {"config_dir": "/t", "has_token": True, "has_credentials": False},
-        })
+        seg.state.set_metadata(
+            {
+                "tok": {
+                    "config_dir": "/t",
+                    "has_token": True,
+                    "has_credentials": False,
+                },
+            }
+        )
         _update_auth_from_metadata(seg)
         self.assertTrue(seg.state.is_authenticated("tok"))
 
@@ -521,9 +537,15 @@ class AuthFromMetadataTests(unittest.TestCase):
         from claudewheel.segment import Segment, _update_auth_from_metadata
 
         seg = Segment(key="profile", label="Profile")
-        seg.state.set_metadata({
-            "cred": {"config_dir": "/c", "has_token": False, "has_credentials": True},
-        })
+        seg.state.set_metadata(
+            {
+                "cred": {
+                    "config_dir": "/c",
+                    "has_token": False,
+                    "has_credentials": True,
+                },
+            }
+        )
         _update_auth_from_metadata(seg)
         self.assertTrue(seg.state.is_authenticated("cred"))
 
@@ -532,9 +554,15 @@ class AuthFromMetadataTests(unittest.TestCase):
         from claudewheel.segment import Segment, _update_auth_from_metadata
 
         seg = Segment(key="profile", label="Profile")
-        seg.state.set_metadata({
-            "existing": {"config_dir": "/e", "has_token": True, "has_credentials": True},
-        })
+        seg.state.set_metadata(
+            {
+                "existing": {
+                    "config_dir": "/e",
+                    "has_token": True,
+                    "has_credentials": True,
+                },
+            }
+        )
         seg.state.add_pinned("new-profile")
         _update_auth_from_metadata(seg)
         self.assertTrue(seg.state.has_auth_status)
@@ -552,9 +580,24 @@ class DiscoverProfilesMetadataTests(unittest.TestCase):
         from claudewheel.segment import _discover_profiles
 
         mock_profiles = [
-            Profile(name="default", path="/home/.claude", has_credentials=True, has_token=True),
-            Profile(name="work", path="/home/.claudewheel/profiles/work", has_credentials=True, has_token=False),
-            Profile(name="new", path="/home/.claudewheel/profiles/new", has_credentials=False, has_token=False),
+            Profile(
+                name="default",
+                path="/home/.claude",
+                has_credentials=True,
+                has_token=True,
+            ),
+            Profile(
+                name="work",
+                path="/home/.claudewheel/profiles/work",
+                has_credentials=True,
+                has_token=False,
+            ),
+            Profile(
+                name="new",
+                path="/home/.claudewheel/profiles/new",
+                has_credentials=False,
+                has_token=False,
+            ),
         ]
         mock_ws = MagicMock()
         mock_ws.profiles.enumerate.return_value = mock_profiles

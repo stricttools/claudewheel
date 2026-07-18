@@ -122,7 +122,10 @@ class ProfileStore:
         found_names: set[str] = set()
 
         # Rule 1: bare claude_dir as "default".
-        if self.claude_dir.is_dir() and (self.claude_dir / ".credentials.json").exists():
+        if (
+            self.claude_dir.is_dir()
+            and (self.claude_dir / ".credentials.json").exists()
+        ):
             records.append(("default", self.claude_dir, True))
             found_names.add("default")
 
@@ -227,9 +230,14 @@ class ProfileStore:
         data["hasCompletedOnboarding"] = True
         write_json_atomic(path, data)
 
-    def create(self, name: str, settings: dict[str, Any], *,
-               set_onboarding: bool = True,
-               symlink_shared: bool = True) -> Profile:
+    def create(
+        self,
+        name: str,
+        settings: dict[str, Any],
+        *,
+        set_onboarding: bool = True,
+        symlink_shared: bool = True,
+    ) -> Profile:
         """Create a profile from FINAL *settings* content. Returns the Profile.
 
         Settings assembly (clone/defaults/checkbox overrides/hook merging) stays
@@ -277,8 +285,11 @@ class ProfileStore:
                     sub_target.mkdir(parents=True, exist_ok=True)
                     link.symlink_to(sub_target)
                 skills_link = target / "skills"
-                if (self.shared.skills_dir.is_dir()
-                        and not skills_link.exists() and not skills_link.is_symlink()):
+                if (
+                    self.shared.skills_dir.is_dir()
+                    and not skills_link.exists()
+                    and not skills_link.is_symlink()
+                ):
                     skills_link.symlink_to(self.shared.skills_dir)
 
             # Register in options.json (pinned). No metadata -- config_dir dropped.
@@ -286,8 +297,12 @@ class ProfileStore:
 
             has_credentials = (target / ".credentials.json").exists()
             has_token = name in self.token_store.load()
-            return Profile(name=name, path=target,
-                           has_credentials=has_credentials, has_token=has_token)
+            return Profile(
+                name=name,
+                path=target,
+                has_credentials=has_credentials,
+                has_token=has_token,
+            )
         except BaseException:
             self._remove_profile_dir(name)
             raise
@@ -355,8 +370,9 @@ class ProfileStore:
         self.state.set_value("last_config", last_config)
         return True
 
-    def delete(self, name: str, *,
-               allow_data_destruction: bool = False) -> DeletionResult:
+    def delete(
+        self, name: str, *, allow_data_destruction: bool = False
+    ) -> DeletionResult:
         """Delete a profile and clean up its stores. Refusals raise; success returns.
 
         Mirrors ``profile_ops.delete_profile_core``'s decision flow MINUS the
@@ -485,14 +501,24 @@ class ProfileStore:
             try:
                 data = json.loads(pending.read_text())
             except (json.JSONDecodeError, OSError):
-                actions.append({"action": "skipped", "reason": "unparseable",
-                                "profile": profile_dir.name})
+                actions.append(
+                    {
+                        "action": "skipped",
+                        "reason": "unparseable",
+                        "profile": profile_dir.name,
+                    }
+                )
                 continue
             old = data.get("from") if isinstance(data, dict) else None
             new = data.get("to") if isinstance(data, dict) else None
             if not old or not new:
-                actions.append({"action": "skipped", "reason": "missing-fields",
-                                "profile": profile_dir.name})
+                actions.append(
+                    {
+                        "action": "skipped",
+                        "reason": "missing-fields",
+                        "profile": profile_dir.name,
+                    }
+                )
                 continue
 
             if profile_dir.name == new:
@@ -507,7 +533,12 @@ class ProfileStore:
                 pending.unlink()
                 actions.append({"action": "reverted", "from": old, "to": new})
             else:
-                actions.append({"action": "skipped", "reason": "name-mismatch",
-                                "profile": profile_dir.name})
+                actions.append(
+                    {
+                        "action": "skipped",
+                        "reason": "name-mismatch",
+                        "profile": profile_dir.name,
+                    }
+                )
 
         return actions

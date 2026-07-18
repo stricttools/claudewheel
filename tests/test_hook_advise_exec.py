@@ -30,9 +30,7 @@ def _run_hook(command: str | None, tool_name: str = "Bash") -> tuple[int, str]:
         tool_input = {"command": command}
     payload = json.dumps({"tool_name": tool_name, "tool_input": tool_input})
 
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".sh", delete=False
-    ) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=False) as f:
         f.write(script)
         path = f.name
     try:

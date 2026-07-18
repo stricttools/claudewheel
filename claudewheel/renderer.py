@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-from .constants import (CLEAR_SCREEN, RESET, BOLD, DIM, move_to)
+from .constants import CLEAR_SCREEN, RESET, BOLD, DIM, move_to
 from .fuzzy import fuzzy_match_positions
 from .segment import Segment, SegmentBar
 from .terminal import Terminal
@@ -26,7 +26,9 @@ PROVENANCE_GLYPHS: dict[str, str] = {
 class Renderer:
     """Renders the segment bar centered, with fan-out options and themed colors."""
 
-    def __init__(self, terminal: Terminal, theme: ThemeColors, minimap_mode: str = "auto"):
+    def __init__(
+        self, terminal: Terminal, theme: ThemeColors, minimap_mode: str = "auto"
+    ):
         self.term = terminal
         self.theme = theme
         self.minimap_mode = minimap_mode
@@ -34,7 +36,14 @@ class Renderer:
         # Tracks where each segment's value is drawn, for fan-out alignment
         self._segment_positions: dict[str, tuple[int, int]] = {}
 
-    def render(self, bar: SegmentBar, flash: str = "", *, show_provenance: bool = False, hints: Sequence[str] = ()) -> None:
+    def render(
+        self,
+        bar: SegmentBar,
+        flash: str = "",
+        *,
+        show_provenance: bool = False,
+        hints: Sequence[str] = (),
+    ) -> None:
         self._show_provenance = show_provenance
         buf: list[str] = [CLEAR_SCREEN]
         center_row = self.term.rows // 2
@@ -63,9 +72,7 @@ class Renderer:
         """Get per-segment color dict, falling back to empty strings."""
         return self.theme.segment_colors.get(key, {})
 
-    def _compute_bar_layout(
-        self, bar: SegmentBar
-    ) -> tuple[list[dict[str, Any]], int]:
+    def _compute_bar_layout(self, bar: SegmentBar) -> tuple[list[dict[str, Any]], int]:
         """Compute column positions and widths for each segment without rendering.
 
         Returns (layout, total_width) where layout is a list of dicts with keys:
@@ -101,16 +108,18 @@ class Renderer:
             )
             extra = 1 if has_cursor else 0
 
-            layout.append({
-                "key": seg.key,
-                "col": col,
-                "label_str": label_str,
-                "label_width": len(label_str),
-                "display_value": display_value,
-                "value_width": len(display_value),
-                "has_cursor": has_cursor,
-                "is_focused": is_focused,
-            })
+            layout.append(
+                {
+                    "key": seg.key,
+                    "col": col,
+                    "label_str": label_str,
+                    "label_width": len(label_str),
+                    "display_value": display_value,
+                    "value_width": len(display_value),
+                    "has_cursor": has_cursor,
+                    "is_focused": is_focused,
+                }
+            )
 
             col += len(label_str) + len(display_value) + extra
 
@@ -145,7 +154,9 @@ class Renderer:
         if focused is None:
             return 0
 
-        seg_center = focused["col"] + (focused["label_width"] + focused["value_width"]) // 2
+        seg_center = (
+            focused["col"] + (focused["label_width"] + focused["value_width"]) // 2
+        )
         vp_start = seg_center - usable // 2
         vp_start = max(0, min(vp_start, total_width - usable))
         return int(vp_start)
@@ -179,7 +190,9 @@ class Renderer:
             if self._scrolling:
                 screen_col = col - vp_start + ARROW_MARGIN
                 cursor_extra = 1 if li["has_cursor"] else 0
-                seg_right = screen_col + li["label_width"] + li["value_width"] + cursor_extra
+                seg_right = (
+                    screen_col + li["label_width"] + li["value_width"] + cursor_extra
+                )
                 right_margin = self.term.cols - ARROW_MARGIN
                 # Visible if right edge past left margin AND left edge before right margin
                 if seg_right <= ARROW_MARGIN or screen_col >= right_margin:
@@ -277,7 +290,9 @@ class Renderer:
                     buf.append(unavail)
                     buf.append(display_value)
                     buf.append(RESET)
-                elif seg.state.has_auth_status and not seg.state.is_authenticated(seg.value):
+                elif seg.state.has_auth_status and not seg.state.is_authenticated(
+                    seg.value
+                ):
                     # Unauthenticated profile: render dimly
                     unavail = sc.get("unavailable_fg", "") or DIM
                     buf.append(unavail)
@@ -290,11 +305,19 @@ class Renderer:
 
             # Separator between segments (not after the last one)
             # Compute separator col from the actual (possibly clipped) strings
-            sep_col = render_col + len(label_str) + len(display_value) + (1 if li["has_cursor"] else 0)
+            sep_col = (
+                render_col
+                + len(label_str)
+                + len(display_value)
+                + (1 if li["has_cursor"] else 0)
+            )
             if seg is not bar.segments[-1]:
                 # When scrolling, skip separators that fall outside the visible area
                 if self._scrolling:
-                    if sep_col + len(sep) <= ARROW_MARGIN or sep_col >= self.term.cols - ARROW_MARGIN:
+                    if (
+                        sep_col + len(sep) <= ARROW_MARGIN
+                        or sep_col >= self.term.cols - ARROW_MARGIN
+                    ):
                         continue
                 buf.append(move_to(center_row, sep_col))
                 buf.append(th.separator_fg)
@@ -338,7 +361,10 @@ class Renderer:
             buf.append(RESET)
 
     def _render_fan_out(
-        self, buf: list[str], bar: SegmentBar, center_row: int,
+        self,
+        buf: list[str],
+        bar: SegmentBar,
+        center_row: int,
         reserved_bottom_rows: int = 1,
     ) -> None:
         """Render non-selected options vertically above/below the focused segment."""
@@ -373,7 +399,7 @@ class Renderer:
                 # Options before selected go above (reversed so closest is nearest)
                 above = list(reversed(opts[:sel_idx]))
                 # Options after selected go below
-                below = opts[sel_idx + 1:]
+                below = opts[sel_idx + 1 :]
                 # Show "---" (blank state) in fan-out when wrap is enabled
                 if seg.wrap:
                     above.append(self.theme.empty_value_text)
@@ -394,9 +420,7 @@ class Renderer:
                         continue
                     display = display[:avail]
             buf.append(move_to(row, value_col))
-            self._render_option(
-                buf, seg, opt_text, display, option_fg, unavail_fg
-            )
+            self._render_option(buf, seg, opt_text, display, option_fg, unavail_fg)
 
         # Render below options
         for offset, opt_text in enumerate(below, start=1):
@@ -414,9 +438,7 @@ class Renderer:
                         continue
                     display = display[:avail]
             buf.append(move_to(row, value_col))
-            self._render_option(
-                buf, seg, opt_text, display, option_fg, unavail_fg
-            )
+            self._render_option(buf, seg, opt_text, display, option_fg, unavail_fg)
 
     def _render_option(
         self,
@@ -442,7 +464,7 @@ class Renderer:
             glyph = PROVENANCE_GLYPHS.get(source or "", " ")
             provenance_prefix = glyph + " "
             # Shorten display to compensate for the 2-char prefix
-            display = display[:max(0, len(display) - 2)]
+            display = display[: max(0, len(display) - 2)]
 
         # Special entries: own color, no match highlighting
         if opt_text == self.theme.empty_value_text:
@@ -563,7 +585,13 @@ class Renderer:
             buf.append(self.theme.overflow_minimap_char)
             buf.append(RESET)
 
-    def _render_status(self, buf: list[str], bar: SegmentBar, flash: str = "", hints: Sequence[str] = ()) -> None:
+    def _render_status(
+        self,
+        buf: list[str],
+        bar: SegmentBar,
+        flash: str = "",
+        hints: Sequence[str] = (),
+    ) -> None:
         if flash:
             buf.append(move_to(self.term.rows, 2))
             # Show flash message prominently (bold + empty_value_fg for visibility)

@@ -35,8 +35,12 @@ class StoreConstructionNoTTYTests(unittest.TestCase):
 
     def test_construction_never_queries_terminal(self) -> None:
         """Building the store must not call detect_terminal_background."""
-        paths = _setup_temp_config_dir(self.tmp, config={**DEFAULT_CONFIG, "theme": "auto"})
-        spy = Mock(side_effect=AssertionError("terminal I/O attempted during construction"))
+        paths = _setup_temp_config_dir(
+            self.tmp, config={**DEFAULT_CONFIG, "theme": "auto"}
+        )
+        spy = Mock(
+            side_effect=AssertionError("terminal I/O attempted during construction")
+        )
         with patch("claudewheel.config.detect_terminal_background", spy):
             _store(paths)
         self.assertFalse(spy.called, "construction must not query the terminal")
@@ -48,34 +52,46 @@ class BoundaryThemeResolutionTests(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = Path(tempfile.mkdtemp())
 
-    def _resolve_and_load(self, paths: dict[str, Path], detect_result: str | None) -> dict:
+    def _resolve_and_load(
+        self, paths: dict[str, Path], detect_result: str | None
+    ) -> dict:
         """Build the store (no TTY), then resolve+load the theme at the boundary."""
         store = _store(paths)
-        with patch("claudewheel.config.detect_terminal_background", return_value=detect_result):
+        with patch(
+            "claudewheel.config.detect_terminal_background", return_value=detect_result
+        ):
             name = resolve_theme_name(store.config.get("theme", "auto"))
         return store.load_theme(name)
 
     def test_auto_theme_detects_dark(self) -> None:
         """theme=auto + detection 'dark' -> dark theme at the boundary."""
-        paths = _setup_temp_config_dir(self.tmp, config={**DEFAULT_CONFIG, "theme": "auto"})
+        paths = _setup_temp_config_dir(
+            self.tmp, config={**DEFAULT_CONFIG, "theme": "auto"}
+        )
         theme = self._resolve_and_load(paths, detect_result="dark")
         self.assertEqual(theme["name"], "dark")
 
     def test_auto_theme_detects_light(self) -> None:
         """theme=auto + detection 'light' -> light theme at the boundary."""
-        paths = _setup_temp_config_dir(self.tmp, config={**DEFAULT_CONFIG, "theme": "auto"})
+        paths = _setup_temp_config_dir(
+            self.tmp, config={**DEFAULT_CONFIG, "theme": "auto"}
+        )
         theme = self._resolve_and_load(paths, detect_result="light")
         self.assertEqual(theme["name"], "light")
 
     def test_auto_theme_detection_returns_none_falls_back_to_dark(self) -> None:
         """theme=auto + detection None (unsupported terminal) -> dark."""
-        paths = _setup_temp_config_dir(self.tmp, config={**DEFAULT_CONFIG, "theme": "auto"})
+        paths = _setup_temp_config_dir(
+            self.tmp, config={**DEFAULT_CONFIG, "theme": "auto"}
+        )
         theme = self._resolve_and_load(paths, detect_result=None)
         self.assertEqual(theme["name"], "dark")
 
     def test_explicit_dark_respected(self) -> None:
         """theme=dark: detection is not called; dark theme loaded."""
-        paths = _setup_temp_config_dir(self.tmp, config={**DEFAULT_CONFIG, "theme": "dark"})
+        paths = _setup_temp_config_dir(
+            self.tmp, config={**DEFAULT_CONFIG, "theme": "dark"}
+        )
         store = _store(paths)
         with patch("claudewheel.config.detect_terminal_background") as mock_detect:
             name = resolve_theme_name(store.config.get("theme", "auto"))
@@ -84,7 +100,9 @@ class BoundaryThemeResolutionTests(unittest.TestCase):
 
     def test_explicit_light_respected(self) -> None:
         """theme=light: detection is not called; light theme loaded."""
-        paths = _setup_temp_config_dir(self.tmp, config={**DEFAULT_CONFIG, "theme": "light"})
+        paths = _setup_temp_config_dir(
+            self.tmp, config={**DEFAULT_CONFIG, "theme": "light"}
+        )
         store = _store(paths)
         with patch("claudewheel.config.detect_terminal_background") as mock_detect:
             name = resolve_theme_name(store.config.get("theme", "auto"))
@@ -118,7 +136,9 @@ class ResolveThemeNameTests(unittest.TestCase):
         self.assertEqual(result, "light")
 
     def test_auto_calls_detection(self) -> None:
-        with patch("claudewheel.config.detect_terminal_background", return_value="dark") as m:
+        with patch(
+            "claudewheel.config.detect_terminal_background", return_value="dark"
+        ) as m:
             result = resolve_theme_name("auto")
         m.assert_called_once()
         self.assertEqual(result, "dark")

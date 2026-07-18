@@ -54,8 +54,10 @@ class DoLaunchExecBoundaryTests(unittest.TestCase):
     def test_chdir_happens_before_execvpe(self) -> None:
         """The working directory is switched before the process image is replaced."""
         parent = mock.Mock()
-        with mock.patch("os.chdir", parent.chdir), \
-                mock.patch("os.execvpe", parent.execvpe):
+        with (
+            mock.patch("os.chdir", parent.chdir),
+            mock.patch("os.execvpe", parent.execvpe),
+        ):
             do_launch("/dir", ["/bin/claude"], {})
 
         self.assertEqual(
@@ -113,8 +115,11 @@ class ResolveThenDoLaunchEndToEndTests(SandboxHomeTestCase):
             "claudewheel.launch.fetch_gh_token", return_value="gh-live-tok"
         ):
             cwd, argv, env = resolve_launch_config(
-                selections, {}, ["--verbose"],
-                locator=self.locator, profiles=self.profiles,
+                selections,
+                {},
+                ["--verbose"],
+                locator=self.locator,
+                profiles=self.profiles,
             )
 
         with mock.patch("os.chdir") as m_chdir, mock.patch("os.execvpe") as m_exec:
@@ -151,12 +156,13 @@ class ResolveThenDoLaunchEndToEndTests(SandboxHomeTestCase):
         unchanged through do_launch to execvpe.
         """
         with mock.patch.dict(os.environ, {"CW_SENTINEL_VAR": "sentinel-123"}):
-            with mock.patch(
-                "claudewheel.launch.fetch_gh_token", return_value=None
-            ):
+            with mock.patch("claudewheel.launch.fetch_gh_token", return_value=None):
                 cwd, argv, env = resolve_launch_config(
-                    {"profile": "work"}, {}, [],
-                    locator=self.locator, profiles=self.profiles,
+                    {"profile": "work"},
+                    {},
+                    [],
+                    locator=self.locator,
+                    profiles=self.profiles,
                 )
 
         self.assertEqual(env["CW_SENTINEL_VAR"], "sentinel-123")

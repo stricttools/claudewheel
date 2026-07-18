@@ -15,8 +15,7 @@ from claudewheel.theme import parse_theme
 def _make_bar(*keys: str) -> SegmentBar:
     """Build a minimal SegmentBar with segments for each key."""
     segments = [
-        Segment(key=k, label=k.capitalize(), options=["opt1", "opt2"])
-        for k in keys
+        Segment(key=k, label=k.capitalize(), options=["opt1", "opt2"]) for k in keys
     ]
     return SegmentBar(segments=segments, focus_idx=0)
 

@@ -55,9 +55,7 @@ def _run_hook(
         payload["agent_id"] = agent_id
         payload["agent_type"] = "claude"
 
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".sh", delete=False
-    ) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".sh", delete=False) as f:
         f.write(script)
         path = f.name
     try:
@@ -373,9 +371,7 @@ class HookGitPushDeleteMatrixTests(unittest.TestCase):
         for remote in _DELETE_REMOTES:
             for form_name, template in _DELETE_FORMS:
                 command = template.format(remote=remote)
-                with self.subTest(
-                    remote=remote, form=form_name, caller="subagent"
-                ):
+                with self.subTest(remote=remote, form=form_name, caller="subagent"):
                     reason = _assert_denies(self, command, agent_id="sub-1")
                     self.assertIn(_DELETE_ADVICE_MARKER, reason)
                     self.assertIn(SUBAGENT_HARD_DENY_SUFFIX, reason)

@@ -70,40 +70,52 @@ class BarLayoutTests(unittest.TestCase):
 
     def test_first_segment_col_is_2(self) -> None:
         """The first segment starts at column 2 (left margin)."""
-        bar = SegmentBar(segments=[
-            _make_segment("a", "AA"),
-            _make_segment("b", "BB"),
-            _make_segment("c", "CC"),
-        ], focus_idx=0)
+        bar = SegmentBar(
+            segments=[
+                _make_segment("a", "AA"),
+                _make_segment("b", "BB"),
+                _make_segment("c", "CC"),
+            ],
+            focus_idx=0,
+        )
         r = Renderer(_MockTerminal(), self.theme)
         layout, _ = r._compute_bar_layout(bar)
         self.assertEqual(layout[0]["col"], 2)
 
     def test_subsequent_cols_follow_prev_width_plus_separator(self) -> None:
         """Each segment's col = prev col + prev label_width + prev value_width + len(sep)."""
-        bar = SegmentBar(segments=[
-            _make_segment("a", "AA"),
-            _make_segment("b", "BB"),
-            _make_segment("c", "CC"),
-        ], focus_idx=0)
+        bar = SegmentBar(
+            segments=[
+                _make_segment("a", "AA"),
+                _make_segment("b", "BB"),
+                _make_segment("c", "CC"),
+            ],
+            focus_idx=0,
+        )
         r = Renderer(_MockTerminal(), self.theme)
         layout, _ = r._compute_bar_layout(bar)
 
         for i in range(1, len(layout)):
             prev = layout[i - 1]
-            expected_col = prev["col"] + prev["label_width"] + prev["value_width"] + len(self.sep)
+            expected_col = (
+                prev["col"] + prev["label_width"] + prev["value_width"] + len(self.sep)
+            )
             self.assertEqual(
-                layout[i]["col"], expected_col,
+                layout[i]["col"],
+                expected_col,
                 f"segment {i} col mismatch: expected {expected_col}, got {layout[i]['col']}",
             )
 
     def test_total_width_equals_last_segment_end(self) -> None:
         """total_width = last segment's col + label_width + value_width."""
-        bar = SegmentBar(segments=[
-            _make_segment("a", "AA"),
-            _make_segment("b", "BB"),
-            _make_segment("c", "CC"),
-        ], focus_idx=0)
+        bar = SegmentBar(
+            segments=[
+                _make_segment("a", "AA"),
+                _make_segment("b", "BB"),
+                _make_segment("c", "CC"),
+            ],
+            focus_idx=0,
+        )
         r = Renderer(_MockTerminal(), self.theme)
         layout, total_width = r._compute_bar_layout(bar)
 
@@ -120,7 +132,9 @@ class BarLayoutTests(unittest.TestCase):
 
         self.assertTrue(layout[0]["has_cursor"])
         # total_width should be col + label_width + value_width + 1 (cursor)
-        expected = layout[0]["col"] + layout[0]["label_width"] + layout[0]["value_width"] + 1
+        expected = (
+            layout[0]["col"] + layout[0]["label_width"] + layout[0]["value_width"] + 1
+        )
         self.assertEqual(total_width, expected)
 
     def test_cursor_extra_shifts_subsequent_cols(self) -> None:
@@ -168,20 +182,26 @@ class ViewportMathTests(unittest.TestCase):
         for i in range(count):
             key = f"seg{i}"
             label = f"Segment-{i}"
-            segs.append(_make_segment(
-                key, label,
-                options=[f"longvalue{i}"],
-                selected_value=f"longvalue{i}",
-                min_width=10,
-                max_width=20,
-            ))
+            segs.append(
+                _make_segment(
+                    key,
+                    label,
+                    options=[f"longvalue{i}"],
+                    selected_value=f"longvalue{i}",
+                    min_width=10,
+                    max_width=20,
+                )
+            )
         return segs
 
     def test_no_scrolling_when_fits(self) -> None:
         """When total_width <= term.cols, viewport start is 0."""
-        bar = SegmentBar(segments=[
-            _make_segment("a", "A"),
-        ], focus_idx=0)
+        bar = SegmentBar(
+            segments=[
+                _make_segment("a", "A"),
+            ],
+            focus_idx=0,
+        )
         r = Renderer(_MockTerminal(cols=200), self.theme)
         layout, total_width = r._compute_bar_layout(bar)
         vp = r._compute_viewport(layout, total_width)
@@ -221,7 +241,9 @@ class ViewportMathTests(unittest.TestCase):
         vp = r._compute_viewport(layout, total_width)
         usable = 60 - 2 * ARROW_MARGIN
         focused = layout[mid]
-        seg_center = focused["col"] + (focused["label_width"] + focused["value_width"]) // 2
+        seg_center = (
+            focused["col"] + (focused["label_width"] + focused["value_width"]) // 2
+        )
         expected = seg_center - usable // 2
         # Clamp to valid range
         expected = max(0, min(expected, total_width - usable))
@@ -241,9 +263,12 @@ class ViewportMathTests(unittest.TestCase):
         """When total_width == term.cols exactly, viewport returns 0 (the <= check)."""
         # Build a single segment and compute its layout to learn total_width,
         # then set term.cols to match exactly.
-        bar = SegmentBar(segments=[
-            _make_segment("a", "A"),
-        ], focus_idx=0)
+        bar = SegmentBar(
+            segments=[
+                _make_segment("a", "A"),
+            ],
+            focus_idx=0,
+        )
         r = Renderer(_MockTerminal(cols=9999), self.theme)
         layout, total_width = r._compute_bar_layout(bar)
 
@@ -360,7 +385,9 @@ class OffscreenCountTests(unittest.TestCase):
         # cols - ARROW_MARGIN = 80 - 4 = 76
         # screen_col = col - vp_start + ARROW_MARGIN = col - 14 + 4
         # Want screen_col == 76 => col = 76 + 14 - 4 = 86
-        right_seg = self._fake_layout_item("right", col=86, label_width=3, value_width=3)
+        right_seg = self._fake_layout_item(
+            "right", col=86, label_width=3, value_width=3
+        )
 
         # A visible segment in between so we can confirm it is NOT counted
         mid_seg = self._fake_layout_item("mid", col=50, label_width=4, value_width=6)
@@ -369,7 +396,9 @@ class OffscreenCountTests(unittest.TestCase):
         r._viewport_start = 14
         left, right = r._count_offscreen()
         self.assertEqual(left, 1, "seg_right == ARROW_MARGIN should be left-offscreen")
-        self.assertEqual(right, 1, "screen_col == cols - ARROW_MARGIN should be right-offscreen")
+        self.assertEqual(
+            right, 1, "screen_col == cols - ARROW_MARGIN should be right-offscreen"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -381,10 +410,13 @@ class MinimapVisibilityTests(unittest.TestCase):
     """Test that _render_minimap appends to buf under the right conditions."""
 
     def _make_bar(self) -> SegmentBar:
-        return SegmentBar(segments=[
-            _make_segment("a", "AA"),
-            _make_segment("b", "BB"),
-        ], focus_idx=0)
+        return SegmentBar(
+            segments=[
+                _make_segment("a", "AA"),
+                _make_segment("b", "BB"),
+            ],
+            focus_idx=0,
+        )
 
     def _make_renderer(
         self, minimap_mode: str = "auto", cols: int = 80, scrolling: bool = False

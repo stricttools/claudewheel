@@ -26,8 +26,9 @@ class TerminalRawModeTestBase(unittest.TestCase):
 
         patches = [
             mock.patch("builtins.open", return_value=self.fake_tty),
-            mock.patch("claudewheel.terminal.termios.tcgetattr",
-                       return_value=["fake-attrs"]),
+            mock.patch(
+                "claudewheel.terminal.termios.tcgetattr", return_value=["fake-attrs"]
+            ),
             mock.patch("claudewheel.terminal.termios.tcsetattr"),
             mock.patch("claudewheel.terminal.tty.setcbreak"),
             mock.patch("claudewheel.terminal.atexit.register"),
@@ -233,8 +234,7 @@ class ReadKeyTests(TerminalRawModeTestBase):
             return (list(rlist) if buf else [], [], [])
 
         p1 = mock.patch("claudewheel.terminal.os.read", side_effect=fake_read)
-        p2 = mock.patch("claudewheel.terminal.select.select",
-                        side_effect=fake_select)
+        p2 = mock.patch("claudewheel.terminal.select.select", side_effect=fake_select)
         p1.start()
         p2.start()
         self.addCleanup(p1.stop)
@@ -494,103 +494,133 @@ class DetectMode2031SupportTests(unittest.TestCase):
 
     def test_dumb_term_returns_none(self) -> None:
         from claudewheel.terminal import detect_mode2031_support
+
         with mock.patch.dict(os.environ, {"TERM": "dumb"}):
             self.assertIsNone(detect_mode2031_support())
 
     def test_screen_term_returns_none(self) -> None:
         from claudewheel.terminal import detect_mode2031_support
+
         with mock.patch.dict(os.environ, {"TERM": "screen"}):
             self.assertIsNone(detect_mode2031_support())
 
     def test_eterm_returns_none(self) -> None:
         from claudewheel.terminal import detect_mode2031_support
+
         with mock.patch.dict(os.environ, {"TERM": "Eterm"}):
             self.assertIsNone(detect_mode2031_support())
 
     def test_dark_response(self) -> None:
         """CSI ?997;1n response -> 'dark'."""
         from claudewheel.terminal import detect_mode2031_support
+
         fake_tty, fake_select, fake_read = self._mock_fd_response(
-            b"\x1b[?997;1n\x1b[?62;c")
+            b"\x1b[?997;1n\x1b[?62;c"
+        )
         with mock.patch.dict(os.environ, {"TERM": "xterm-256color"}):
             with mock.patch("builtins.open", return_value=fake_tty):
-                with mock.patch("claudewheel.terminal.termios.tcgetattr",
-                                return_value=["old"]):
+                with mock.patch(
+                    "claudewheel.terminal.termios.tcgetattr", return_value=["old"]
+                ):
                     with mock.patch("claudewheel.terminal.tty.setcbreak"):
                         with mock.patch("claudewheel.terminal.termios.tcsetattr"):
-                            with mock.patch("claudewheel.terminal.select.select",
-                                            side_effect=fake_select):
-                                with mock.patch("claudewheel.terminal.os.read",
-                                                side_effect=fake_read):
+                            with mock.patch(
+                                "claudewheel.terminal.select.select",
+                                side_effect=fake_select,
+                            ):
+                                with mock.patch(
+                                    "claudewheel.terminal.os.read",
+                                    side_effect=fake_read,
+                                ):
                                     result = detect_mode2031_support()
         self.assertEqual(result, "dark")
 
     def test_light_response(self) -> None:
         """CSI ?997;2n response -> 'light'."""
         from claudewheel.terminal import detect_mode2031_support
+
         fake_tty, fake_select, fake_read = self._mock_fd_response(
-            b"\x1b[?997;2n\x1b[?62;c")
+            b"\x1b[?997;2n\x1b[?62;c"
+        )
         with mock.patch.dict(os.environ, {"TERM": "xterm-256color"}):
             with mock.patch("builtins.open", return_value=fake_tty):
-                with mock.patch("claudewheel.terminal.termios.tcgetattr",
-                                return_value=["old"]):
+                with mock.patch(
+                    "claudewheel.terminal.termios.tcgetattr", return_value=["old"]
+                ):
                     with mock.patch("claudewheel.terminal.tty.setcbreak"):
                         with mock.patch("claudewheel.terminal.termios.tcsetattr"):
-                            with mock.patch("claudewheel.terminal.select.select",
-                                            side_effect=fake_select):
-                                with mock.patch("claudewheel.terminal.os.read",
-                                                side_effect=fake_read):
+                            with mock.patch(
+                                "claudewheel.terminal.select.select",
+                                side_effect=fake_select,
+                            ):
+                                with mock.patch(
+                                    "claudewheel.terminal.os.read",
+                                    side_effect=fake_read,
+                                ):
                                     result = detect_mode2031_support()
         self.assertEqual(result, "light")
 
     def test_unsupported_da1_only(self) -> None:
         """DA1 response only (no ?997) -> None."""
         from claudewheel.terminal import detect_mode2031_support
-        fake_tty, fake_select, fake_read = self._mock_fd_response(
-            b"\x1b[?62;c")
+
+        fake_tty, fake_select, fake_read = self._mock_fd_response(b"\x1b[?62;c")
         with mock.patch.dict(os.environ, {"TERM": "xterm-256color"}):
             with mock.patch("builtins.open", return_value=fake_tty):
-                with mock.patch("claudewheel.terminal.termios.tcgetattr",
-                                return_value=["old"]):
+                with mock.patch(
+                    "claudewheel.terminal.termios.tcgetattr", return_value=["old"]
+                ):
                     with mock.patch("claudewheel.terminal.tty.setcbreak"):
                         with mock.patch("claudewheel.terminal.termios.tcsetattr"):
-                            with mock.patch("claudewheel.terminal.select.select",
-                                            side_effect=fake_select):
-                                with mock.patch("claudewheel.terminal.os.read",
-                                                side_effect=fake_read):
+                            with mock.patch(
+                                "claudewheel.terminal.select.select",
+                                side_effect=fake_select,
+                            ):
+                                with mock.patch(
+                                    "claudewheel.terminal.os.read",
+                                    side_effect=fake_read,
+                                ):
                                     result = detect_mode2031_support()
         self.assertIsNone(result)
 
     def test_timeout_returns_none(self) -> None:
         """No response at all -> timeout -> None."""
         from claudewheel.terminal import detect_mode2031_support
+
         fake_tty = mock.MagicMock()
         fake_tty.fileno.return_value = 99
         with mock.patch.dict(os.environ, {"TERM": "xterm-256color"}):
             with mock.patch("builtins.open", return_value=fake_tty):
-                with mock.patch("claudewheel.terminal.termios.tcgetattr",
-                                return_value=["old"]):
+                with mock.patch(
+                    "claudewheel.terminal.termios.tcgetattr", return_value=["old"]
+                ):
                     with mock.patch("claudewheel.terminal.tty.setcbreak"):
                         with mock.patch("claudewheel.terminal.termios.tcsetattr"):
-                            with mock.patch("claudewheel.terminal.select.select",
-                                            return_value=([], [], [])):
+                            with mock.patch(
+                                "claudewheel.terminal.select.select",
+                                return_value=([], [], []),
+                            ):
                                 result = detect_mode2031_support()
         self.assertIsNone(result)
 
     def test_tty_open_failure_returns_none(self) -> None:
         from claudewheel.terminal import detect_mode2031_support
+
         with mock.patch.dict(os.environ, {"TERM": "xterm-256color"}):
             with mock.patch("builtins.open", side_effect=OSError("no tty")):
                 self.assertIsNone(detect_mode2031_support())
 
     def test_tcgetattr_failure_returns_none(self) -> None:
         from claudewheel.terminal import detect_mode2031_support
+
         fake_tty = mock.MagicMock()
         fake_tty.fileno.return_value = 99
         with mock.patch.dict(os.environ, {"TERM": "xterm-256color"}):
             with mock.patch("builtins.open", return_value=fake_tty):
-                with mock.patch("claudewheel.terminal.termios.tcgetattr",
-                                side_effect=__import__("termios").error("bad")):
+                with mock.patch(
+                    "claudewheel.terminal.termios.tcgetattr",
+                    side_effect=__import__("termios").error("bad"),
+                ):
                     self.assertIsNone(detect_mode2031_support())
         fake_tty.close.assert_called()
 
@@ -600,6 +630,7 @@ class TerminalQueryTimeoutConstantTests(unittest.TestCase):
 
     def test_constant_exists_and_value(self) -> None:
         from claudewheel.terminal import _TERMINAL_QUERY_TIMEOUT
+
         self.assertEqual(_TERMINAL_QUERY_TIMEOUT, 0.5)
 
 

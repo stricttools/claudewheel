@@ -37,7 +37,6 @@ from tests.wheelhelpers import (
 
 
 class ResolveProfileTests(SandboxHomeTestCase):
-
     def setUp(self) -> None:
         super().setUp()
         # The public mechanism: point Workspace.default() at the sandbox root.

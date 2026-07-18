@@ -10,12 +10,19 @@ from __future__ import annotations
 import unittest
 
 from claudewheel.segment import (
-    DiscoveryResult, Segment, SegmentBar, merge_slow_results,
+    DiscoveryResult,
+    Segment,
+    SegmentBar,
+    merge_slow_results,
 )
 
 
-def _make_segment(key: str, discovered: list[str], selected_value: str | None = None,
-                  creatable: bool = False) -> Segment:
+def _make_segment(
+    key: str,
+    discovered: list[str],
+    selected_value: str | None = None,
+    creatable: bool = False,
+) -> Segment:
     """Build a segment with values seeded as discovered (not defaults).
 
     This mirrors the real flow: build_segment_bar calls set_discovered()
@@ -69,7 +76,9 @@ class MergeSlowResultsTests(unittest.TestCase):
 
     def test_plus_present_for_creatable_segment(self) -> None:
         """Creatable segments keep '+' from ephemeral after merge."""
-        seg = _make_segment("profile", ["default"], selected_value="default", creatable=True)
+        seg = _make_segment(
+            "profile", ["default"], selected_value="default", creatable=True
+        )
         bar = SegmentBar(segments=[seg])
         # Results replace discovered; "+" stays in ephemeral from build time
         results = {"profile": DiscoveryResult(values=["default", "work"])}
@@ -87,7 +96,9 @@ class MergeSlowResultsTests(unittest.TestCase):
 
     def test_plus_not_duplicated(self) -> None:
         """Even if results contain '+', it only appears once (ephemeral dedup)."""
-        seg = _make_segment("profile", ["default"], selected_value="default", creatable=True)
+        seg = _make_segment(
+            "profile", ["default"], selected_value="default", creatable=True
+        )
         bar = SegmentBar(segments=[seg])
         # Discovery returns "+" in the list, but ephemeral already has it
         results = {"profile": DiscoveryResult(values=["default", "work", "+"])}

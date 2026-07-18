@@ -226,6 +226,7 @@ class SandboxHomeTestCase(unittest.TestCase):
         # Workspace.default() would resolve here too, but the explicit open() is
         # clearer and independent of env state.
         from claudewheel.workspace import Workspace
+
         self.ws = Workspace.open(self.launcher_dir, claude_dir=self.home / ".claude")
 
         # HOME env var (affects os.path.expanduser)
@@ -234,7 +235,9 @@ class SandboxHomeTestCase(unittest.TestCase):
         self.addCleanup(self._restore_home)
 
         # POISONED HOME: runtime Path.home() resolves into the sandbox.
-        self._home_patch = patch.object(Path, "home", autospec=True, return_value=self.home)
+        self._home_patch = patch.object(
+            Path, "home", autospec=True, return_value=self.home
+        )
         self._home_patch.start()
         self.addCleanup(self._home_patch.stop)
 
@@ -253,7 +256,14 @@ class SandboxHomeTestCase(unittest.TestCase):
         themes_dir = ld / "themes"
         scripts_dir = ld / "scripts"
         hooks_dir = ld / "hooks"
-        for d in (profiles_dir, shared_dir, skills_dir, themes_dir, scripts_dir, hooks_dir):
+        for d in (
+            profiles_dir,
+            shared_dir,
+            skills_dir,
+            themes_dir,
+            scripts_dir,
+            hooks_dir,
+        ):
             d.mkdir(parents=True, exist_ok=True)
         for sub in SharedStore.SHARED_SUBDIRS:
             (shared_dir / sub).mkdir(parents=True, exist_ok=True)

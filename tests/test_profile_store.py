@@ -99,7 +99,9 @@ class ProfileStoreEnumerateTests(SandboxHomeTestCase):
         )
 
     def test_empty_profile_dir_is_invisible(self) -> None:
-        (self.sandbox_paths["PROFILES_DIR"] / "empty").mkdir(parents=True, exist_ok=True)
+        (self.sandbox_paths["PROFILES_DIR"] / "empty").mkdir(
+            parents=True, exist_ok=True
+        )
         self.assertEqual(self._store().enumerate(), [])
 
     # --- token entry variants -------------------------------------------

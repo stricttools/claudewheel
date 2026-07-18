@@ -18,7 +18,9 @@ def fetch_gh_token(account: str) -> str | None:
     try:
         result = subprocess.run(
             ["gh", "auth", "token", "--user", account],
-            capture_output=True, text=True, timeout=5
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         if result.returncode == 0:
             return result.stdout.strip()

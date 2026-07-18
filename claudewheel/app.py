@@ -15,7 +15,16 @@ from .config import AppConfigStore, resolve_theme_name
 
 if TYPE_CHECKING:
     from .binaries import BinaryLocator
-from .segment import DiscoveryResult, Segment, build_segment_bar, evaluate_requires, merge_slow_results, run_slow_discovery_via_registry, _discover_profiles, _update_auth_from_metadata
+from .segment import (
+    DiscoveryResult,
+    Segment,
+    build_segment_bar,
+    evaluate_requires,
+    merge_slow_results,
+    run_slow_discovery_via_registry,
+    _discover_profiles,
+    _update_auth_from_metadata,
+)
 from .terminal import Terminal, detect_mode2031_support
 from .theme import parse_theme
 from .renderer import Renderer
@@ -56,16 +65,19 @@ class Binding:
     mode: str | None  # "main" / "creating" / "freeform" / "install" / None (cross-mode)
 
 
-
 class App:
     """TUI application managing the event loop, keyboard handling, and segment interaction."""
 
-    def __init__(self, workspace: Workspace, locator: "BinaryLocator",
-                 cfg: AppConfigStore | None = None,
-                 overrides: dict[str, str] | None = None,
-                 explicit_client: str | None = None,
-                 default_client: str = "claude",
-                 clients_config: dict[str, Any] | None = None):
+    def __init__(
+        self,
+        workspace: Workspace,
+        locator: "BinaryLocator",
+        cfg: AppConfigStore | None = None,
+        overrides: dict[str, str] | None = None,
+        explicit_client: str | None = None,
+        default_client: str = "claude",
+        clients_config: dict[str, Any] | None = None,
+    ):
         self.workspace = workspace
         # Client-selection step inputs. explicit_client is the --client flag
         # value when the user passed it (else None -> the TUI prompts);
@@ -95,7 +107,9 @@ class App:
                         seg.select_value(val)
         # Start slow discovery in background thread
         self._slow_results: dict[str, DiscoveryResult] | None = None
-        self._slow_state_copy: dict[str, Any] | None = None  # isolated copy for bg thread
+        self._slow_state_copy: dict[str, Any] | None = (
+            None  # isolated copy for bg thread
+        )
         # Deferred discovery results for the focused segment (Phase 8)
         self._pending_discovery: dict[str, DiscoveryResult] = {}
         self._slow_thread = threading.Thread(
@@ -107,7 +121,8 @@ class App:
         theme_name = resolve_theme_name(self.cfg.config.get("theme", "auto"))
         self.theme = parse_theme(self.cfg.load_theme(theme_name))
         self.renderer = Renderer(
-            self.terminal, self.theme,
+            self.terminal,
+            self.theme,
             minimap_mode=self.cfg.config.get("minimap", "auto"),
         )
         self.running = False
@@ -147,7 +162,11 @@ class App:
             if not self._select_client():
                 return None
             evaluate_requires(self.bar)
-            self.renderer.render(self.bar, show_provenance=self._show_provenance, hints=self._compute_hints())
+            self.renderer.render(
+                self.bar,
+                show_provenance=self._show_provenance,
+                hints=self._compute_hints(),
+            )
             while self.running:
                 try:
                     key = self.terminal.read_key()
@@ -163,7 +182,12 @@ class App:
                 if self._slow_results is not None and not self._slow_thread.is_alive():
                     self._apply_slow_discovery()
                 evaluate_requires(self.bar)
-                self.renderer.render(self.bar, self._flash, show_provenance=self._show_provenance, hints=self._compute_hints())
+                self.renderer.render(
+                    self.bar,
+                    self._flash,
+                    show_provenance=self._show_provenance,
+                    hints=self._compute_hints(),
+                )
                 self._flash = ""  # Clear flash after one render cycle
         finally:
             self.terminal.exit_raw()
@@ -190,7 +214,10 @@ class App:
                 self._locator, self._clients_config, self._default_client
             )
             return run_selection(
-                "Client", options, self.theme, self.terminal,
+                "Client",
+                options,
+                self.theme,
+                self.terminal,
                 initial_key=initial,
             )
 
@@ -200,9 +227,7 @@ class App:
         self.selected_client = client
 
         if client != "claude":
-            self.bar.segments = [
-                s for s in self.bar.segments if s.key != "version"
-            ]
+            self.bar.segments = [s for s in self.bar.segments if s.key != "version"]
             if self.bar.focus_idx >= len(self.bar.segments):
                 self.bar.focus_idx = 0
         return True
@@ -220,7 +245,8 @@ class App:
         state_copy = copy.deepcopy(self.cfg.state)
         self._slow_state_copy = state_copy
         self._slow_results = run_slow_discovery_via_registry(
-            self.cfg.options_def, state_copy, self.workspace)
+            self.cfg.options_def, state_copy, self.workspace
+        )
 
     def _apply_slow_discovery(self) -> None:
         """Merge slow discovery results into the live segment bar.
@@ -253,11 +279,15 @@ class App:
                 immediate[key] = dr
 
         if immediate:
-            merge_slow_results(self.bar, immediate, self.cfg.state, options_def=self.cfg.options_def)
+            merge_slow_results(
+                self.bar, immediate, self.cfg.state, options_def=self.cfg.options_def
+            )
 
         # Copy npm cache from the isolated state copy back to the live state
         if self._slow_state_copy:
-            self.cfg.state["npm_versions_cache"] = self._slow_state_copy.get("npm_versions_cache", {})
+            self.cfg.state["npm_versions_cache"] = self._slow_state_copy.get(
+                "npm_versions_cache", {}
+            )
             self._slow_state_copy = None
         self.cfg.save_state()
 
@@ -318,7 +348,8 @@ class App:
         """Compute visible hint labels from the binding registry for the current state."""
         ctx = self._build_context()
         filtered = [
-            b for b in self._bindings
+            b
+            for b in self._bindings
             if (b.mode is None or b.mode == ctx.mode)
             and (b.condition is None or b.condition(ctx))
             and b.label is not None
@@ -391,11 +422,7 @@ class App:
             focused.create_buffer = ""
             return None
         # Check for required segments without a selection
-        missing = [
-            s.label
-            for s in self.bar.segments
-            if s.required and s.value is None
-        ]
+        missing = [s.label for s in self.bar.segments if s.required and s.value is None]
         if missing:
             self._flash = f"Required: {', '.join(missing)}"
             return None
@@ -421,8 +448,7 @@ class App:
                             "cancel": "Auth cancelled",
                             "failed": "Auth failed",
                         }
-                        self._flash = flashes.get(
-                            outcome, f"Auth outcome: {outcome}")
+                        self._flash = flashes.get(outcome, f"Auth outcome: {outcome}")
                         return None
                 break
         return "launch"
@@ -470,9 +496,11 @@ class App:
 
     def _h_main_delete(self, key: str) -> str | None:
         focused = self.bar.focused
-        if (focused.key == "profile"
-                and not focused.search_buffer
-                and focused.value is not None):
+        if (
+            focused.key == "profile"
+            and not focused.search_buffer
+            and focused.value is not None
+        ):
             self._delete_profile_flow(focused)
         return None
 
@@ -615,7 +643,8 @@ class App:
         choice = run_selection(
             f"Install Claude Code v{version}?",
             [("install", "Install"), ("cancel", "Cancel")],
-            self.theme, self.terminal,
+            self.theme,
+            self.terminal,
         )
         if choice != "install":
             return
@@ -627,7 +656,9 @@ class App:
                 mb_done = downloaded / (1024 * 1024)
                 mb_total = total / (1024 * 1024)
                 pct = downloaded * 100 // total
-                print(f"\r  {mb_done:.0f}/{mb_total:.0f} MB ({pct}%)", end="", flush=True)
+                print(
+                    f"\r  {mb_done:.0f}/{mb_total:.0f} MB ({pct}%)", end="", flush=True
+                )
 
         error: str | None = None
         with self.terminal.cooked():
@@ -639,15 +670,25 @@ class App:
                 error = str(e)
 
         if error:
-            show_page("Install failed", [
-                f"Version: {version}",
-                "",
-                f"Error: {error}",
-            ], self.theme, self.terminal)
+            show_page(
+                "Install failed",
+                [
+                    f"Version: {version}",
+                    "",
+                    f"Error: {error}",
+                ],
+                self.theme,
+                self.terminal,
+            )
         else:
-            show_page("Install complete", [
-                f"Claude Code {version} installed successfully.",
-            ], self.theme, self.terminal)
+            show_page(
+                "Install complete",
+                [
+                    f"Claude Code {version} installed successfully.",
+                ],
+                self.theme,
+                self.terminal,
+            )
 
     # ------------------------------------------------------------------
     # Registry builder (called from __init__)
@@ -899,9 +940,7 @@ class App:
                 keys=None,  # match-any-printable
                 label=None,
                 condition=lambda ctx: (
-                    ctx.freeform
-                    and not ctx.freeform_editing
-                    and ctx.value is not None
+                    ctx.freeform and not ctx.freeform_editing and ctx.value is not None
                 ),
                 handler=App._h_main_freeform_seed,
                 priority=70,
@@ -958,10 +997,15 @@ class App:
         # longer carries it).
         config_dir = str(self.workspace.profiles.path_for(profile_name))
 
-        outcome = run_auth_flow(self.workspace, self._locator,
-                                config_dir, profile_name,
-                                self.theme, self.terminal,
-                                skip_label="Launch without auth")
+        outcome = run_auth_flow(
+            self.workspace,
+            self._locator,
+            config_dir,
+            profile_name,
+            self.theme,
+            self.terminal,
+            skip_label="Launch without auth",
+        )
 
         if outcome in ("authenticated", "unverified", "failed"):
             self._refresh_profile_segment(seg)
@@ -994,8 +1038,13 @@ class App:
             hint = "f: fix auth shadow   any key: close"
         else:
             hint = "any key: close"
-        key = show_page(f"Profile: {name}", format_report(report),
-                        self.theme, self.terminal, hint=hint)
+        key = show_page(
+            f"Profile: {name}",
+            format_report(report),
+            self.theme,
+            self.terminal,
+            hint=hint,
+        )
         if key == "f" and report.has_auth_shadow:
             result = fix_auth_shadow(self.workspace, name)
             if result.ok:
@@ -1022,8 +1071,9 @@ class App:
         report = gather_profile_info(self.workspace, name)
 
         if report.danger:
-            at_risk = sorted(d for d, s in report.shared_dirs.items()
-                             if s == "real-dir")
+            at_risk = sorted(
+                d for d, s in report.shared_dirs.items() if s == "real-dir"
+            )
             show_page(
                 f"Cannot delete '{name}'",
                 [
@@ -1035,7 +1085,9 @@ class App:
                     f"  claudewheel profile delete {name} "
                     "--no-force-delete --force-delete-data",
                 ],
-                self.theme, self.terminal)
+                self.theme,
+                self.terminal,
+            )
             return
 
         if report.has_credentials and report.has_token:
@@ -1046,12 +1098,17 @@ class App:
             auth = "token"
         else:
             auth = "no auth"
-        facts = (f"{auth}, {_format_size(report.disk_usage_bytes)}, "
-                 f"{report.active_sessions} active sessions")
+        facts = (
+            f"{auth}, {_format_size(report.disk_usage_bytes)}, "
+            f"{report.active_sessions} active sessions"
+        )
         choice = run_selection(
             f"Delete profile '{name}'?",
             [("cancel", "Cancel"), ("delete", f"Delete ({facts})")],
-            self.theme, self.terminal, initial_key="cancel")
+            self.theme,
+            self.terminal,
+            initial_key="cancel",
+        )
         if choice != "delete":
             return
 
@@ -1096,14 +1153,20 @@ class App:
         """
         from .ui import show_page
         from .wizard import run_profile_wizard, create_profile, run_auth_flow
+
         existing = [p.name for p in self.workspace.profiles.enumerate()]
         result = run_profile_wizard(self.workspace, existing, self.theme, self.terminal)
         if not result.cancelled:
             summary = create_profile(self.workspace, result)
-            run_auth_flow(self.workspace, self._locator,
-                          result.config_dir, result.name,
-                          self.theme, self.terminal,
-                          skip_label="Skip for now")
+            run_auth_flow(
+                self.workspace,
+                self._locator,
+                result.config_dir,
+                result.name,
+                self.theme,
+                self.terminal,
+                skip_label="Skip for now",
+            )
             show_page("Profile created", summary, self.theme, self.terminal)
             # Add the new profile to the segment's live options (pinned)
             seg.state.add_pinned(result.name)

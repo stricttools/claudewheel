@@ -149,4 +149,5 @@ class Workspace:
         workspace must not import ``config`` at module top.
         """
         from .config import AppConfigStore
+
         return AppConfigStore(self)

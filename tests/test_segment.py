@@ -26,7 +26,10 @@ class SegmentCycleWrapTests(unittest.TestCase):
     def test_three_options_forward_includes_blank(self) -> None:
         """Forward cycling traverses [-1, 0, 1, 2] before wrapping back to -1."""
         seg = Segment(
-            key="k", label="K", options=["a", "b", "c"], wrap=True,
+            key="k",
+            label="K",
+            options=["a", "b", "c"],
+            wrap=True,
         )
         # Expected ring traversal: -1 -> 0 -> 1 -> 2 -> -1 -> 0 ...
         expected = [0, 1, 2, -1, 0]
@@ -38,7 +41,10 @@ class SegmentCycleWrapTests(unittest.TestCase):
     def test_three_options_backward_includes_blank(self) -> None:
         """Backward cycling traverses [-1, 2, 1, 0] before wrapping back to -1."""
         seg = Segment(
-            key="k", label="K", options=["a", "b", "c"], wrap=True,
+            key="k",
+            label="K",
+            options=["a", "b", "c"],
+            wrap=True,
         )
         # Expected ring traversal in reverse: -1 -> 2 -> 1 -> 0 -> -1 -> 2 ...
         expected = [2, 1, 0, -1, 2]
@@ -54,7 +60,11 @@ class SegmentCycleNoWrapTests(unittest.TestCase):
     def test_forward_from_last_reaches_blank(self) -> None:
         """Going +1 from the last option lands on -1 (blank) -- symmetric with UP-from-first."""
         seg = Segment(
-            key="k", label="K", options=["a", "b", "c"], wrap=False, selected_value="c",
+            key="k",
+            label="K",
+            options=["a", "b", "c"],
+            wrap=False,
+            selected_value="c",
         )
         seg.cycle(+1)
         self.assertEqual(seg.selected_idx, -1)
@@ -62,7 +72,11 @@ class SegmentCycleNoWrapTests(unittest.TestCase):
     def test_backward_from_first_reaches_blank(self) -> None:
         """Going -1 from the first option lands on -1 (blank) -- existing behavior preserved."""
         seg = Segment(
-            key="k", label="K", options=["a", "b", "c"], wrap=False, selected_value="a",
+            key="k",
+            label="K",
+            options=["a", "b", "c"],
+            wrap=False,
+            selected_value="a",
         )
         seg.cycle(-1)
         self.assertEqual(seg.selected_idx, -1)
@@ -70,7 +84,10 @@ class SegmentCycleNoWrapTests(unittest.TestCase):
     def test_past_blank_stays_at_blank(self) -> None:
         """Once at blank, going further in either direction stays at blank (no continuous wrap)."""
         seg = Segment(
-            key="k", label="K", options=["a", "b", "c"], wrap=False,
+            key="k",
+            label="K",
+            options=["a", "b", "c"],
+            wrap=False,
         )
         seg.cycle(-1)
         self.assertEqual(seg.selected_idx, -1)
@@ -81,7 +98,11 @@ class SegmentCycleNoWrapTests(unittest.TestCase):
     def test_forward_past_last_then_again_stays_at_blank(self) -> None:
         """DOWN from last -> blank, then DOWN again re-enters at first."""
         seg = Segment(
-            key="k", label="K", options=["a", "b", "c"], wrap=False, selected_value="c",
+            key="k",
+            label="K",
+            options=["a", "b", "c"],
+            wrap=False,
+            selected_value="c",
         )
         seg.cycle(+1)
         self.assertEqual(seg.selected_idx, -1)
@@ -95,7 +116,11 @@ class SegmentCycleNoWrapTests(unittest.TestCase):
     def test_normal_steps_still_work(self) -> None:
         """Non-boundary cycling still moves one step at a time."""
         seg = Segment(
-            key="k", label="K", options=["a", "b", "c"], wrap=False, selected_value="a",
+            key="k",
+            label="K",
+            options=["a", "b", "c"],
+            wrap=False,
+            selected_value="a",
         )
         seg.cycle(+1)
         self.assertEqual(seg.selected_idx, 1)
@@ -310,9 +335,7 @@ class DisplayOptionsTests(unittest.TestCase):
 class VersionSortKeyTests(unittest.TestCase):
     def test_numeric_ordering_not_alphabetical(self) -> None:
         """2.1.10 must sort *higher* than 2.1.9 (the alphabetical order is the opposite)."""
-        self.assertGreater(
-            version_sort_key("2.1.10"), version_sort_key("2.1.9")
-        )
+        self.assertGreater(version_sort_key("2.1.10"), version_sort_key("2.1.9"))
 
     def test_full_sort_round_trip(self) -> None:
         """Sorting a list of versions with this key gives numeric semver order."""

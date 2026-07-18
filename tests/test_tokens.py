@@ -35,8 +35,11 @@ class ParseEntryTests(unittest.TestCase):
         self.assertEqual(parse_entry(entry), "tok-dict")
 
     def test_dict_with_all_fields(self) -> None:
-        entry = {"token": "tok-full", "created": "2025-01-01",
-                 "expires_at": "2026-01-01"}
+        entry = {
+            "token": "tok-full",
+            "created": "2025-01-01",
+            "expires_at": "2026-01-01",
+        }
         self.assertEqual(parse_entry(entry), "tok-full")
 
     def test_empty_string_returns_none(self) -> None:
@@ -71,13 +74,11 @@ class ComputeExpiryTests(unittest.TestCase):
 
     def test_expires_at_takes_precedence(self) -> None:
         """Explicit expires_at wins even when created is also present."""
-        entry = {"token": "t", "created": "2026-01-01",
-                 "expires_at": "2026-12-31"}
+        entry = {"token": "t", "created": "2026-01-01", "expires_at": "2026-12-31"}
         result = compute_expiry(entry, self.MTIME, today=self.TODAY)
         self.assertEqual(result.created, date(2026, 1, 1))
         self.assertEqual(result.expires, date(2026, 12, 31))
-        self.assertEqual(result.remaining_days,
-                         (date(2026, 12, 31) - self.TODAY).days)
+        self.assertEqual(result.remaining_days, (date(2026, 12, 31) - self.TODAY).days)
 
     def test_expires_at_without_created(self) -> None:
         entry = {"token": "t", "expires_at": "2026-08-01"}
@@ -90,15 +91,15 @@ class ComputeExpiryTests(unittest.TestCase):
         entry = {"token": "t", "created": "2026-01-01"}
         result = compute_expiry(entry, self.MTIME, today=self.TODAY)
         self.assertEqual(result.created, date(2026, 1, 1))
-        self.assertEqual(result.expires,
-                         date(2026, 1, 1) + timedelta(days=TOKEN_TTL_DAYS))
+        self.assertEqual(
+            result.expires, date(2026, 1, 1) + timedelta(days=TOKEN_TTL_DAYS)
+        )
         elapsed = (self.TODAY - date(2026, 1, 1)).days
         self.assertEqual(result.remaining_days, TOKEN_TTL_DAYS - elapsed)
 
     def test_invalid_expires_at_assumes_fresh(self) -> None:
         """Unparseable expires_at yields (None, None, TTL) -- historical behavior."""
-        entry = {"token": "t", "created": "2026-01-01",
-                 "expires_at": "not-a-date"}
+        entry = {"token": "t", "created": "2026-01-01", "expires_at": "not-a-date"}
         result = compute_expiry(entry, self.MTIME, today=self.TODAY)
         self.assertIsNone(result.created)
         self.assertIsNone(result.expires)
@@ -124,10 +125,10 @@ class ComputeExpiryTests(unittest.TestCase):
         result = compute_expiry("tok-legacy", mtime)
         expected_created = date.fromtimestamp(mtime)
         self.assertEqual(result.created, expected_created)
-        self.assertEqual(result.expires,
-                         expected_created + timedelta(days=TOKEN_TTL_DAYS))
-        self.assertAlmostEqual(result.remaining_days,
-                               TOKEN_TTL_DAYS - 10, delta=0.1)
+        self.assertEqual(
+            result.expires, expected_created + timedelta(days=TOKEN_TTL_DAYS)
+        )
+        self.assertAlmostEqual(result.remaining_days, TOKEN_TTL_DAYS - 10, delta=0.1)
 
     def test_default_today_is_today(self) -> None:
         """Omitting today uses date.today()."""
@@ -251,8 +252,9 @@ class TokenStoreAddTierTests(unittest.TestCase):
         self.store = TokenStore(self.tokens_file)
 
     def test_tier_included_when_provided(self) -> None:
-        self.store.add("prof", "tok-1", tier="default_claude_pro",
-                       subscription="claude_pro")
+        self.store.add(
+            "prof", "tok-1", tier="default_claude_pro", subscription="claude_pro"
+        )
         entry = json.loads(self.tokens_file.read_text())["prof"]
         self.assertEqual(entry["rateLimitTier"], "default_claude_pro")
         self.assertEqual(entry["subscriptionType"], "claude_pro")
@@ -287,8 +289,9 @@ class TokenStoreSetTierTests(unittest.TestCase):
 
     def test_creates_tier_only_entry(self) -> None:
         """When no prior entry exists, creates a tier-only entry (no token)."""
-        self.store.set_tier("newprof", tier="default_claude_pro",
-                            subscription="claude_pro")
+        self.store.set_tier(
+            "newprof", tier="default_claude_pro", subscription="claude_pro"
+        )
         tokens = json.loads(self.tokens_file.read_text())
         entry = tokens["newprof"]
         self.assertEqual(entry["rateLimitTier"], "default_claude_pro")
@@ -297,10 +300,15 @@ class TokenStoreSetTierTests(unittest.TestCase):
 
     def test_merges_into_existing_token_entry(self) -> None:
         """Adds tier fields to an existing token entry without overwriting the token."""
-        self._write_tokens({"prof": {
-            "token": "tok-x", "created": "2025-01-01",
-            "expires_at": "2026-01-01",
-        }})
+        self._write_tokens(
+            {
+                "prof": {
+                    "token": "tok-x",
+                    "created": "2025-01-01",
+                    "expires_at": "2026-01-01",
+                }
+            }
+        )
         self.store.set_tier("prof", tier="default_claude_max_5x")
         tokens = json.loads(self.tokens_file.read_text())
         entry = tokens["prof"]
@@ -427,8 +435,15 @@ class TokenStoreTests(unittest.TestCase):
         self.assertIsNone(self.store.expiry_for("prof"))
 
     def test_expiry_for_dict_entry(self) -> None:
-        self._write({"prof": {"token": "t", "created": "2026-01-01",
-                              "expires_at": "2026-12-31"}})
+        self._write(
+            {
+                "prof": {
+                    "token": "t",
+                    "created": "2026-01-01",
+                    "expires_at": "2026-12-31",
+                }
+            }
+        )
         result = self.store.expiry_for("prof")
         self.assertIsNotNone(result)
         self.assertEqual(result.expires, date(2026, 12, 31))
@@ -440,8 +455,7 @@ class TokenStoreTests(unittest.TestCase):
         result = self.store.expiry_for("prof")
         self.assertIsNotNone(result)
         self.assertEqual(result.created, date.fromtimestamp(ten_days_ago))
-        self.assertAlmostEqual(result.remaining_days, TOKEN_TTL_DAYS - 10,
-                               delta=0.5)
+        self.assertAlmostEqual(result.remaining_days, TOKEN_TTL_DAYS - 10, delta=0.5)
 
     # -- add / set_tier ----------------------------------------------------
 
@@ -450,8 +464,9 @@ class TokenStoreTests(unittest.TestCase):
         self.assertEqual(self.store.token_for("prof"), "tok-add")
 
     def test_add_with_tier(self) -> None:
-        self.store.add("prof", "tok-x", tier="default_claude_pro",
-                       subscription="claude_pro")
+        self.store.add(
+            "prof", "tok-x", tier="default_claude_pro", subscription="claude_pro"
+        )
         entry = self.store.load()["prof"]
         self.assertEqual(entry["rateLimitTier"], "default_claude_pro")
         self.assertEqual(entry["subscriptionType"], "claude_pro")

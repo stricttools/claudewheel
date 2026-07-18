@@ -234,9 +234,15 @@ def _wrapped_matcher(cmd: str) -> str:
     """
     tail = r"(\s|$)"
     return (
-        SEP + cmd + tail
-        + r"|(^|\s)(sudo|env|xargs)\s+(-\S+\s+)*" + cmd + tail
-        + r"|(^|\s)-(exec|execdir|ok|okdir)\s+" + cmd + tail
+        SEP
+        + cmd
+        + tail
+        + r"|(^|\s)(sudo|env|xargs)\s+(-\S+\s+)*"
+        + cmd
+        + tail
+        + r"|(^|\s)-(exec|execdir|ok|okdir)\s+"
+        + cmd
+        + tail
     )
 
 
@@ -534,13 +540,13 @@ def _match_condition(rule: GuardrailRule) -> str:
     patterns are OR-joined with ``||`` so the rule fires if ANY pattern hits.
     """
     parts = [
-        'printf \'%s\' "$command" | grep -qE ' + _bash_squote(pattern)
+        "printf '%s' \"$command\" | grep -qE " + _bash_squote(pattern)
         for pattern in rule.hook_patterns
     ]
     return " || ".join(parts)
 
 
-_BLOCKER_HEADER = '''\
+_BLOCKER_HEADER = """\
 #!/usr/bin/env bash
 # PreToolUse hook that blocks unsafe commands and suggests safe alternatives.
 #
@@ -576,7 +582,7 @@ deny() {
     jq -cn --arg reason "$1" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: $reason}}'
     exit 0
 }
-'''
+"""
 
 
 def generate_blocker_script() -> str:
@@ -606,9 +612,7 @@ def generate_blocker_script() -> str:
     for rule in rules_by_tier(Tier.ESCALATE):
         assert rule.subagent_advice is not None
         lines.append(f"# {rule.key} (ESCALATE, subagent-only)")
-        lines.append(
-            f'if [[ -n "$agent_id" ]] && ( {_match_condition(rule)} ); then'
-        )
+        lines.append(f'if [[ -n "$agent_id" ]] && ( {_match_condition(rule)} ); then')
         lines.append(f'    deny "{_bash_dquote_body(rule.subagent_advice)}"')
         lines.append("fi")
         lines.append("")
@@ -617,7 +621,7 @@ def generate_blocker_script() -> str:
     return "\n".join(lines) + "\n"
 
 
-_ADVISE_HEADER = '''\
+_ADVISE_HEADER = """\
 #!/usr/bin/env bash
 # PostToolUse hook that nudges the agent after certain commands run.
 #
@@ -646,7 +650,7 @@ advise() {
     jq -cn --arg ctx "$1" '{hookSpecificOutput: {hookEventName: "PostToolUse", additionalContext: $ctx}}'
     exit 0
 }
-'''
+"""
 
 
 def generate_advise_script() -> str:

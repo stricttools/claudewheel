@@ -17,7 +17,13 @@ from .fsutil import write_json_atomic
 from .hook_scripts import HOOK_SCRIPTS
 from .profile_store import Profile
 from .shared_store import SharedStore
-from .tokens import TOKEN_TTL_DAYS, TokenStore, TokenStoreError, compute_expiry, parse_entry
+from .tokens import (
+    TOKEN_TTL_DAYS,
+    TokenStore,
+    TokenStoreError,
+    compute_expiry,
+    parse_entry,
+)
 
 if TYPE_CHECKING:
     from .workspace import Workspace
@@ -36,8 +42,7 @@ def check_tmpfs_quota() -> HealthResult:
     """Check /tmp usage percentage via df."""
     try:
         result = subprocess.run(
-            ["df", "--output=pcent", "/tmp"],
-            capture_output=True, text=True, timeout=3
+            ["df", "--output=pcent", "/tmp"], capture_output=True, text=True, timeout=3
         )
         lines = result.stdout.strip().split("\n")
         if len(lines) >= 2:
@@ -93,7 +98,9 @@ def check_tmp_claude_size() -> HealthResult:
         return HealthResult(True, "/tmp/claude", f"check failed: {e}")
 
 
-def _discover_profiles(ws: "Workspace", tokens: dict[str, Any] | None = None) -> list[Profile]:
+def _discover_profiles(
+    ws: "Workspace", tokens: dict[str, Any] | None = None
+) -> list[Profile]:
     """Enumerate profiles via the workspace's ProfileStore.
 
     *tokens* ``None`` loads token data via the store (a corrupt tokens.json
@@ -107,7 +114,9 @@ def _discover_profiles(ws: "Workspace", tokens: dict[str, Any] | None = None) ->
 # -- Shared-store profile checks -------------------------------------------
 
 
-def check_shared_symlinks(ws: "Workspace", tokens: dict[str, Any] | None = None) -> HealthResult:
+def check_shared_symlinks(
+    ws: "Workspace", tokens: dict[str, Any] | None = None
+) -> HealthResult:
     """Verify each profile's shared dirs are symlinks to ~/.claudewheel/shared/."""
     profiles = _discover_profiles(ws, tokens)
     if not profiles:
@@ -131,8 +140,9 @@ def check_shared_symlinks(ws: "Workspace", tokens: dict[str, Any] | None = None)
     return HealthResult(True, "shared-symlinks", f"all {len(profiles)} profiles OK")
 
 
-def _hook_wired(hooks: object, event: str, matcher: str, script: str,
-                scripts_dir: Path) -> bool:
+def _hook_wired(
+    hooks: object, event: str, matcher: str, script: str, scripts_dir: Path
+) -> bool:
     """Return True if *hooks* wires *script* under *event* with *matcher*.
 
     An entry matches when its ``matcher`` equals *matcher* (an absent matcher
@@ -160,7 +170,9 @@ def _hook_wired(hooks: object, event: str, matcher: str, script: str,
     return False
 
 
-def check_hooks_wired(ws: "Workspace", tokens: dict[str, Any] | None = None) -> HealthResult:
+def check_hooks_wired(
+    ws: "Workspace", tokens: dict[str, Any] | None = None
+) -> HealthResult:
     """Verify each profile wires every expected hook in settings.json.
 
     The canonical wirings are the (event, matcher, script-name) triples in
@@ -194,13 +206,16 @@ def check_hooks_wired(ws: "Workspace", tokens: dict[str, Any] | None = None) -> 
 
     if missing:
         return HealthResult(
-            False, "hooks-wired",
+            False,
+            "hooks-wired",
             "; ".join(missing) + " -- run 'claudewheel patch-profiles' to sync",
         )
     return HealthResult(True, "hooks-wired", f"all {len(profiles)} profiles OK")
 
 
-def check_settings_defaults(ws: "Workspace", tokens: dict[str, Any] | None = None) -> HealthResult:
+def check_settings_defaults(
+    ws: "Workspace", tokens: dict[str, Any] | None = None
+) -> HealthResult:
     """Verify each profile enforces expected defaults in settings.json."""
     profiles = _discover_profiles(ws, tokens)
     if not profiles:
@@ -232,9 +247,13 @@ def check_settings_defaults(ws: "Workspace", tokens: dict[str, Any] | None = Non
         current_disallowed = set(cw.get("disallowedTools", []))
         missing_tools = sorted(set(DISALLOWED_TOOLS) - current_disallowed)
         if missing_tools:
-            issues.append(f"{p.name}: missing disallowedTools: {', '.join(missing_tools)} (run 'claudewheel patch-profiles')")
+            issues.append(
+                f"{p.name}: missing disallowedTools: {', '.join(missing_tools)} (run 'claudewheel patch-profiles')"
+            )
         if "disallowedTools" in s:
-            issues.append(f"{p.name}: has inert top-level disallowedTools key (run 'claudewheel patch-profiles')")
+            issues.append(
+                f"{p.name}: has inert top-level disallowedTools key (run 'claudewheel patch-profiles')"
+            )
 
     if issues:
         return HealthResult(False, "settings-defaults", "; ".join(issues))
@@ -247,13 +266,19 @@ def _diff_json(label: str, canonical: object, actual: object) -> list[str]:
     if isinstance(canonical, dict) and isinstance(actual, dict):
         for key in sorted(set(canonical) | set(actual)):
             if key not in actual:
-                diffs.append(f"{label}.{key}: missing (expected {json.dumps(canonical[key])})")
+                diffs.append(
+                    f"{label}.{key}: missing (expected {json.dumps(canonical[key])})"
+                )
             elif key not in canonical:
                 diffs.append(f"{label}.{key}: extra (unexpected)")
             elif canonical[key] != actual[key]:
                 diffs.extend(_diff_json(f"{label}.{key}", canonical[key], actual[key]))
     elif isinstance(canonical, list) and isinstance(actual, list):
-        if set(canonical) != set(actual) if all(isinstance(x, str) for x in canonical + actual) else canonical != actual:
+        if (
+            set(canonical) != set(actual)
+            if all(isinstance(x, str) for x in canonical + actual)
+            else canonical != actual
+        ):
             missing = [x for x in canonical if x not in actual]
             extra = [x for x in actual if x not in canonical]
             if missing:
@@ -261,21 +286,31 @@ def _diff_json(label: str, canonical: object, actual: object) -> list[str]:
             if extra:
                 diffs.append(f"{label}: extra {extra}")
     else:
-        diffs.append(f"{label}: expected {json.dumps(canonical)}, got {json.dumps(actual)}")
+        diffs.append(
+            f"{label}: expected {json.dumps(canonical)}, got {json.dumps(actual)}"
+        )
     return diffs
 
 
-def check_shared_settings_drift(ws: "Workspace", tokens: dict[str, Any] | None = None) -> HealthResult:
+def check_shared_settings_drift(
+    ws: "Workspace", tokens: dict[str, Any] | None = None
+) -> HealthResult:
     """Compare each profile's hooks and disallowedTools against shared-settings.json."""
     # Load shared settings
     shared_settings_file = ws.shared_settings_file
     if not shared_settings_file.exists():
-        return HealthResult(True, "settings-drift", "shared-settings.json not found (will be created on next launch)")
+        return HealthResult(
+            True,
+            "settings-drift",
+            "shared-settings.json not found (will be created on next launch)",
+        )
 
     try:
         shared = json.loads(shared_settings_file.read_text())
     except (json.JSONDecodeError, OSError) as e:
-        return HealthResult(False, "settings-drift", f"unreadable shared-settings.json: {e}")
+        return HealthResult(
+            False, "settings-drift", f"unreadable shared-settings.json: {e}"
+        )
 
     canonical_hooks = shared.get("hooks", {})
     canonical_disallowed = shared.get("disallowedTools", [])
@@ -304,7 +339,9 @@ def check_shared_settings_drift(ws: "Workspace", tokens: dict[str, Any] | None =
 
         # Compare disallowedTools
         profile_disallowed = settings.get("claudewheel", {}).get("disallowedTools", [])
-        tool_diffs = _diff_json("disallowedTools", canonical_disallowed, profile_disallowed)
+        tool_diffs = _diff_json(
+            "disallowedTools", canonical_disallowed, profile_disallowed
+        )
         for d in tool_diffs:
             all_diffs.append(f"{p.name}: {d}")
 
@@ -325,15 +362,27 @@ def _canonical_permission_diffs(label: str, perms: object) -> list[str]:
     if not isinstance(perms, dict):
         perms = {}
     diffs: list[str] = []
-    diffs.extend(_diff_json(f"{label}.deny", guardrail.canonical_deny_rules(), perms.get("deny", [])))
-    diffs.extend(_diff_json(f"{label}.ask", guardrail.canonical_ask_rules(), perms.get("ask", [])))
-    conflicting = [a for a in perms.get("allow", []) if a in set(guardrail.ALLOW_CONFLICTS)]
+    diffs.extend(
+        _diff_json(
+            f"{label}.deny", guardrail.canonical_deny_rules(), perms.get("deny", [])
+        )
+    )
+    diffs.extend(
+        _diff_json(
+            f"{label}.ask", guardrail.canonical_ask_rules(), perms.get("ask", [])
+        )
+    )
+    conflicting = [
+        a for a in perms.get("allow", []) if a in set(guardrail.ALLOW_CONFLICTS)
+    ]
     if conflicting:
         diffs.append(f"{label}.allow: dead/conflicting {conflicting}")
     return diffs
 
 
-def check_canonical_permissions_drift(ws: "Workspace", tokens: dict[str, Any] | None = None) -> HealthResult:
+def check_canonical_permissions_drift(
+    ws: "Workspace", tokens: dict[str, Any] | None = None
+) -> HealthResult:
     """Compare each profile's permissions against the canonical guardrail model.
 
     For every profile settings.json and for shared-settings.json's
@@ -376,10 +425,16 @@ def check_canonical_permissions_drift(ws: "Workspace", tokens: dict[str, Any] | 
 
     if all_diffs:
         return HealthResult(False, "canonical-drift", "; ".join(all_diffs))
-    return HealthResult(True, "canonical-drift", f"{len(profiles)} profiles + profileDefaults match canonical")
+    return HealthResult(
+        True,
+        "canonical-drift",
+        f"{len(profiles)} profiles + profileDefaults match canonical",
+    )
 
 
-def check_auth_shadow(ws: "Workspace", tokens: dict[str, Any] | None = None) -> HealthResult:
+def check_auth_shadow(
+    ws: "Workspace", tokens: dict[str, Any] | None = None
+) -> HealthResult:
     """Detect profiles where .credentials.json claudeAiOauth shadows a long-lived token."""
     from .profile_info import detect_auth_shadow
 
@@ -394,14 +449,18 @@ def check_auth_shadow(ws: "Workspace", tokens: dict[str, Any] | None = None) -> 
 
     if shadowed:
         return HealthResult(
-            False, "auth-shadow",
-            f"shadowed: {', '.join(shadowed)} — session credentials override long-lived tokens"
+            False,
+            "auth-shadow",
+            f"shadowed: {', '.join(shadowed)} — session credentials override long-lived tokens",
         )
     return HealthResult(True, "auth-shadow", "no auth shadow detected")
 
 
-def check_token_expiry(ws: "Workspace", tokens: dict[str, Any] | None = None,
-                       token_error: TokenStoreError | None = None) -> HealthResult:
+def check_token_expiry(
+    ws: "Workspace",
+    tokens: dict[str, Any] | None = None,
+    token_error: TokenStoreError | None = None,
+) -> HealthResult:
     """Warn if any token is approaching 1-year expiry (setup-token TTL).
 
     Token corruption surfaces here as a FAILED check: a *token_error* recorded by
@@ -420,6 +479,7 @@ def check_token_expiry(ws: "Workspace", tokens: dict[str, Any] | None = None,
         except TokenStoreError as e:
             return HealthResult(False, "token-expiry", str(e))
     from datetime import date
+
     today = date.today()
     mtime = tokens_file.stat().st_mtime
     expiring: list[str] = []
@@ -430,13 +490,19 @@ def check_token_expiry(ws: "Workspace", tokens: dict[str, Any] | None = None,
         if remaining < 30:
             expiring.append(f"{name} (~{max(0, int(remaining))}d)")
     if expiring:
-        return HealthResult(False, "token-expiry",
-                            f"expiring soon: {', '.join(expiring)} — run claude setup-token")
+        return HealthResult(
+            False,
+            "token-expiry",
+            f"expiring soon: {', '.join(expiring)} — run claude setup-token",
+        )
     return HealthResult(True, "token-expiry", f"~{int(min_remaining)} days remaining")
 
 
-def check_tokens(ws: "Workspace", tokens: dict[str, Any] | None = None,
-                 token_error: TokenStoreError | None = None) -> HealthResult:
+def check_tokens(
+    ws: "Workspace",
+    tokens: dict[str, Any] | None = None,
+    token_error: TokenStoreError | None = None,
+) -> HealthResult:
     """Verify each profile has a matching entry in ~/.claudewheel/tokens.json.
 
     A corrupt tokens.json is the FAILED-check carve-out: when *token_error* is
@@ -474,7 +540,9 @@ def check_tokens(ws: "Workspace", tokens: dict[str, Any] | None = None,
     return HealthResult(True, "tokens", f"all {len(profiles)} profiles OK")
 
 
-def check_orphan_profiles(ws: "Workspace", tokens: dict[str, Any] | None = None) -> HealthResult:
+def check_orphan_profiles(
+    ws: "Workspace", tokens: dict[str, Any] | None = None
+) -> HealthResult:
     """Detect profile dirs in ~/.claudewheel/profiles/ that are not registered.
 
     A directory is "orphan" if it:
@@ -526,7 +594,9 @@ def check_orphan_profiles(ws: "Workspace", tokens: dict[str, Any] | None = None)
     return HealthResult(True, "orphan-profiles", "no orphan dirs found")
 
 
-def check_file_permissions(ws: "Workspace", tokens: dict[str, Any] | None = None) -> HealthResult:
+def check_file_permissions(
+    ws: "Workspace", tokens: dict[str, Any] | None = None
+) -> HealthResult:
     """Verify sensitive files have restrictive permissions (0600)."""
     profiles = _discover_profiles(ws, tokens)
     issues: list[str] = []
@@ -577,8 +647,7 @@ def check_inode_renames(ws: "Workspace") -> HealthResult:
             new = existing[0]
             for old in missing:
                 renames.append(
-                    f"{old} -> {new}. "
-                    f"Run: claudewheel mv --post-hoc {old} {new}"
+                    f"{old} -> {new}. Run: claudewheel mv --post-hoc {old} {new}"
                 )
 
     # Clean up stale entries (deleted dirs with no matching inode elsewhere).
@@ -599,11 +668,14 @@ def check_inode_renames(ws: "Workspace") -> HealthResult:
         return HealthResult(False, "inode-renames", "; ".join(renames))
     if stale:
         if persisted:
-            return HealthResult(True, "inode-renames", f"cleaned {len(stale)} stale entries")
+            return HealthResult(
+                True, "inode-renames", f"cleaned {len(stale)} stale entries"
+            )
         # The run itself is diagnostic, so a read-only tree is not a failure of
         # THIS check -- ok stays True. The honest detail is the fix.
         return HealthResult(
-            True, "inode-renames",
+            True,
+            "inode-renames",
             f"found {len(stale)} stale entries but could not persist cleanup "
             "(workspace likely read-only)",
         )
@@ -646,13 +718,16 @@ def check_deployed_hook_drift(ws: "Workspace") -> HealthResult:
 
     if drifted:
         return HealthResult(
-            False, "hook-drift",
+            False,
+            "hook-drift",
             f"deployed scripts differ from model: {', '.join(drifted)} "
             "-- run 'claudewheel deploy-hooks <name> --force-overwrite'",
         )
     if checked == 0:
         return HealthResult(True, "hook-drift", "no model hook scripts deployed")
-    return HealthResult(True, "hook-drift", f"all {checked} deployed hook scripts match model")
+    return HealthResult(
+        True, "hook-drift", f"all {checked} deployed hook scripts match model"
+    )
 
 
 def _stale_hook_command_paths(hooks: object, scripts_dir: Path) -> list[str]:
@@ -686,7 +761,9 @@ def _stale_hook_command_paths(hooks: object, scripts_dir: Path) -> list[str]:
     return stale
 
 
-def check_relocated_hook_paths(ws: "Workspace", tokens: dict[str, Any] | None = None) -> HealthResult:
+def check_relocated_hook_paths(
+    ws: "Workspace", tokens: dict[str, Any] | None = None
+) -> HealthResult:
     """Detect hook commands pointing at a scripts dir other than the current one.
 
     The deployed-hook drift check compares script CONTENT hashes and so cannot
@@ -724,12 +801,14 @@ def check_relocated_hook_paths(ws: "Workspace", tokens: dict[str, Any] | None = 
 
     if issues:
         return HealthResult(
-            False, "hook-path-drift",
-            "; ".join(issues)
-            + f" -- hook commands should live under {scripts_dir}; "
+            False,
+            "hook-path-drift",
+            "; ".join(issues) + f" -- hook commands should live under {scripts_dir}; "
             "run 'claudewheel patch-profiles' to fix",
         )
-    return HealthResult(True, "hook-path-drift", "all hook commands under current scripts dir")
+    return HealthResult(
+        True, "hook-path-drift", "all hook commands under current scripts dir"
+    )
 
 
 def run_health_check(ws: "Workspace") -> list[HealthResult]:
@@ -767,7 +846,9 @@ def run_health_check(ws: "Workspace") -> list[HealthResult]:
     ]
 
 
-def print_health_report(results: list[HealthResult], file: IO[str] | None = None) -> None:
+def print_health_report(
+    results: list[HealthResult], file: IO[str] | None = None
+) -> None:
     """Print health check results. Defaults to stdout; pass file=sys.stderr for non-interactive mode."""
     for r in results:
         status = "OK" if r.ok else "WARN"

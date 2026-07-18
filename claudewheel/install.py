@@ -75,15 +75,18 @@ def fetch_manifest(version: str) -> dict[str, Any]:
     if "platforms" in parsed and not isinstance(parsed["platforms"], dict):
         platforms = parsed["platforms"]
         raise OSError(
-            f"Manifest for {version} is malformed: \"platforms\" must be a "
+            f'Manifest for {version} is malformed: "platforms" must be a '
             f"JSON object, got {type(platforms).__name__}"
         )
     data: dict[str, Any] = parsed
     return data
 
 
-def install_version(locator: "BinaryLocator", version: str,
-                    progress_callback: Callable[[int, int], None] | None = None) -> Path:
+def install_version(
+    locator: "BinaryLocator",
+    version: str,
+    progress_callback: Callable[[int, int], None] | None = None,
+) -> Path:
     """Download and install a Claude Code version binary.
 
     Args:
@@ -104,8 +107,7 @@ def install_version(locator: "BinaryLocator", version: str,
     if plat not in platforms:
         available = ", ".join(sorted(platforms.keys()))
         raise OSError(
-            f"Platform {plat} not available for {version}. "
-            f"Available: {available}"
+            f"Platform {plat} not available for {version}. Available: {available}"
         )
 
     entry = platforms[plat]
@@ -115,9 +117,7 @@ def install_version(locator: "BinaryLocator", version: str,
             f"expected a JSON object, got {type(entry).__name__}"
         )
     if "checksum" not in entry:
-        raise OSError(
-            f"Manifest entry for {plat} in {version} is missing a checksum"
-        )
+        raise OSError(f"Manifest entry for {plat} in {version} is missing a checksum")
     expected_checksum = entry["checksum"]
     binary_name = entry.get("binary", "claude")
     total_size = entry.get("size", 0)
@@ -125,9 +125,7 @@ def install_version(locator: "BinaryLocator", version: str,
     download_url = f"{GCS_BASE}/{version}/{plat}/{binary_name}"
 
     # Download with progress reporting
-    req = urllib.request.Request(
-        download_url, headers={"User-Agent": "claudewheel"}
-    )
+    req = urllib.request.Request(download_url, headers={"User-Agent": "claudewheel"})
     try:
         resp = urllib.request.urlopen(req, timeout=DOWNLOAD_TIMEOUT)
     except Exception as e:

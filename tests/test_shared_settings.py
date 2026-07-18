@@ -26,8 +26,10 @@ class _HomeDirTestCase(unittest.TestCase):
         self._scripts_dir = self.home / ".claudewheel" / "scripts"
         self._tokens_file = self.home / ".claudewheel" / "tokens.json"
         from claudewheel.workspace import Workspace
-        self.ws = Workspace.open(self.home / ".claudewheel",
-                                 claude_dir=self.home / ".claude")
+
+        self.ws = Workspace.open(
+            self.home / ".claudewheel", claude_dir=self.home / ".claude"
+        )
 
     def tearDown(self) -> None:
         self._patcher.stop()
@@ -68,15 +70,21 @@ class CheckSharedSettingsDriftTests(_HomeDirTestCase):
         self._write_shared_settings(canonical)
 
         pdir = self._make_profile("alpha")
-        self._write_profile_settings(pdir, {
-            "hooks": canonical["hooks"],
-            "claudewheel": {"disallowedTools": canonical["disallowedTools"]},
-        })
+        self._write_profile_settings(
+            pdir,
+            {
+                "hooks": canonical["hooks"],
+                "claudewheel": {"disallowedTools": canonical["disallowedTools"]},
+            },
+        )
         pdir2 = self._make_profile("beta")
-        self._write_profile_settings(pdir2, {
-            "hooks": canonical["hooks"],
-            "claudewheel": {"disallowedTools": canonical["disallowedTools"]},
-        })
+        self._write_profile_settings(
+            pdir2,
+            {
+                "hooks": canonical["hooks"],
+                "claudewheel": {"disallowedTools": canonical["disallowedTools"]},
+            },
+        )
 
         result = check_shared_settings_drift(self.ws)
         self.assertTrue(result.ok)
@@ -99,10 +107,13 @@ class CheckSharedSettingsDriftTests(_HomeDirTestCase):
                 }
             ]
         }
-        self._write_profile_settings(pdir, {
-            "hooks": hooks,
-            "claudewheel": {"disallowedTools": canonical["disallowedTools"]},
-        })
+        self._write_profile_settings(
+            pdir,
+            {
+                "hooks": hooks,
+                "claudewheel": {"disallowedTools": canonical["disallowedTools"]},
+            },
+        )
 
         result = check_shared_settings_drift(self.ws)
         self.assertFalse(result.ok)
@@ -126,10 +137,13 @@ class CheckSharedSettingsDriftTests(_HomeDirTestCase):
                 }
             ]
         }
-        self._write_profile_settings(pdir, {
-            "hooks": hooks,
-            "claudewheel": {"disallowedTools": canonical["disallowedTools"]},
-        })
+        self._write_profile_settings(
+            pdir,
+            {
+                "hooks": hooks,
+                "claudewheel": {"disallowedTools": canonical["disallowedTools"]},
+            },
+        )
 
         result = check_shared_settings_drift(self.ws)
         self.assertFalse(result.ok)
@@ -143,10 +157,13 @@ class CheckSharedSettingsDriftTests(_HomeDirTestCase):
         pdir = self._make_profile("tools-off")
         # Remove one tool from the profile's disallowed list
         partial_tools = canonical["disallowedTools"][:-1]
-        self._write_profile_settings(pdir, {
-            "hooks": canonical["hooks"],
-            "claudewheel": {"disallowedTools": partial_tools},
-        })
+        self._write_profile_settings(
+            pdir,
+            {
+                "hooks": canonical["hooks"],
+                "claudewheel": {"disallowedTools": partial_tools},
+            },
+        )
 
         result = check_shared_settings_drift(self.ws)
         self.assertFalse(result.ok)
@@ -187,10 +204,13 @@ class CheckSharedSettingsDriftTests(_HomeDirTestCase):
 
         pdir = self._make_profile("surplus")
         extra_tools = canonical["disallowedTools"] + ["ExtraTool"]
-        self._write_profile_settings(pdir, {
-            "hooks": canonical["hooks"],
-            "claudewheel": {"disallowedTools": extra_tools},
-        })
+        self._write_profile_settings(
+            pdir,
+            {
+                "hooks": canonical["hooks"],
+                "claudewheel": {"disallowedTools": extra_tools},
+            },
+        )
 
         result = check_shared_settings_drift(self.ws)
         self.assertFalse(result.ok)
@@ -239,7 +259,9 @@ class BuildCanonicalSharedSettingsTests(unittest.TestCase):
         # Agent matcher
         ptu_agent = result["hooks"]["PreToolUse"][0]
         self.assertEqual(ptu_agent["matcher"], "Agent")
-        self.assertTrue(any("hook-block-worktree" in h["command"] for h in ptu_agent["hooks"]))
+        self.assertTrue(
+            any("hook-block-worktree" in h["command"] for h in ptu_agent["hooks"])
+        )
         for h in ptu_agent["hooks"]:
             self.assertTrue(h["command"].startswith(str(scripts)))
 
@@ -250,7 +272,9 @@ class BuildCanonicalSharedSettingsTests(unittest.TestCase):
         ptu_list = result["hooks"]["PreToolUse"]
         # Find the Bash matcher entry
         bash_entries = [e for e in ptu_list if e.get("matcher") == "Bash"]
-        self.assertEqual(len(bash_entries), 1, "Expected exactly one Bash matcher entry")
+        self.assertEqual(
+            len(bash_entries), 1, "Expected exactly one Bash matcher entry"
+        )
         bash_entry = bash_entries[0]
         hook_commands = [h["command"] for h in bash_entry["hooks"]]
         self.assertTrue(
@@ -341,9 +365,7 @@ class BuildCanonicalSharedSettingsTests(unittest.TestCase):
         for event, matcher, script in guardrail.EXPECTED_HOOK_WIRINGS:
             entries = hooks.get(event, [])
             entry = next((e for e in entries if e.get("matcher") == matcher), None)
-            self.assertIsNotNone(
-                entry, f"missing {event}[{matcher}] wiring"
-            )
+            self.assertIsNotNone(entry, f"missing {event}[{matcher}] wiring")
             cmds = [h["command"] for h in entry["hooks"]]
             self.assertTrue(
                 any(c == str(scripts / script) for c in cmds),

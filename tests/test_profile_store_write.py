@@ -295,9 +295,7 @@ class CreateTests(_WriteBase):
         )
         # Symlink target parity
         for sub in list(SharedStore.SHARED_SUBDIRS) + ["skills"]:
-            self.assertEqual(
-                (wiz_dir / sub).resolve(), (st_dir / sub).resolve(), sub
-            )
+            self.assertEqual((wiz_dir / sub).resolve(), (st_dir / sub).resolve(), sub)
 
 
 # ---------------------------------------------------------------------------
@@ -524,7 +522,9 @@ class RenameTests(_WriteBase):
 
     def test_crash_after_os_rename_before_tokens(self) -> None:
         self._seed()
-        with patch.object(self.store.token_store, "rename", side_effect=OSError("boom")):
+        with patch.object(
+            self.store.token_store, "rename", side_effect=OSError("boom")
+        ):
             with self.assertRaises(OSError):
                 self.store.rename("old", "new")
         self.assertTrue((self.profiles_dir / "new").is_dir())
@@ -534,7 +534,9 @@ class RenameTests(_WriteBase):
 
     def test_crash_after_tokens_before_options(self) -> None:
         self._seed()
-        with patch.object(self.store.options, "rename_value", side_effect=OSError("boom")):
+        with patch.object(
+            self.store.options, "rename_value", side_effect=OSError("boom")
+        ):
             with self.assertRaises(OSError):
                 self.store.rename("old", "new")
         self.store.recover_incomplete_renames()
@@ -578,13 +580,13 @@ class RenameTests(_WriteBase):
 
     def test_recovery_reports_completed_action(self) -> None:
         self._seed()
-        with patch.object(self.store.token_store, "rename", side_effect=OSError("boom")):
+        with patch.object(
+            self.store.token_store, "rename", side_effect=OSError("boom")
+        ):
             with self.assertRaises(OSError):
                 self.store.rename("old", "new")
         actions = self.store.recover_incomplete_renames()
-        self.assertEqual(
-            actions, [{"action": "completed", "from": "old", "to": "new"}]
-        )
+        self.assertEqual(actions, [{"action": "completed", "from": "old", "to": "new"}])
 
     def test_recovery_reports_reverted_action(self) -> None:
         self._seed()
@@ -592,9 +594,7 @@ class RenameTests(_WriteBase):
             with self.assertRaises(OSError):
                 self.store.rename("old", "new")
         actions = self.store.recover_incomplete_renames()
-        self.assertEqual(
-            actions, [{"action": "reverted", "from": "old", "to": "new"}]
-        )
+        self.assertEqual(actions, [{"action": "reverted", "from": "old", "to": "new"}])
 
     def test_recovery_tolerates_malformed_breadcrumb(self) -> None:
         bad = self.profiles_dir / "weird"
@@ -605,7 +605,9 @@ class RenameTests(_WriteBase):
         (missing / _RENAME_PENDING_FILE).write_text(json.dumps({"from": "partial"}))
 
         actions = self.store.recover_incomplete_renames()
-        reasons = {a["profile"]: a["reason"] for a in actions if a["action"] == "skipped"}
+        reasons = {
+            a["profile"]: a["reason"] for a in actions if a["action"] == "skipped"
+        }
         self.assertEqual(reasons.get("weird"), "unparseable")
         self.assertEqual(reasons.get("partial"), "missing-fields")
         # Malformed breadcrumbs are left in place (tolerant, like the old code).

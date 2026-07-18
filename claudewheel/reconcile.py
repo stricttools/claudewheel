@@ -80,7 +80,9 @@ class PermissionDiff:
         )
 
 
-def _reconcile_list(current: list[str], canonical: list[str]) -> tuple[list[str], list[str]]:
+def _reconcile_list(
+    current: list[str], canonical: list[str]
+) -> tuple[list[str], list[str]]:
     """Compute (to_add, to_remove) so *current* becomes exactly *canonical*.
 
     ``to_add`` preserves canonical order (missing canonical entries in the order
@@ -225,8 +227,12 @@ def run_reconcile(ws: "Workspace", dry_run: bool, profile: str | None) -> int:
                 print(f"shared-settings.json: unreadable ({e}), skipping")
             if shared is not None:
                 pd = shared.get("profileDefaults")
-                if not isinstance(pd, dict) or not isinstance(pd.get("permissions"), dict):
-                    print("shared-settings.json: no profileDefaults.permissions, skipping")
+                if not isinstance(pd, dict) or not isinstance(
+                    pd.get("permissions"), dict
+                ):
+                    print(
+                        "shared-settings.json: no profileDefaults.permissions, skipping"
+                    )
                 else:
                     diff = compute_settings_diff(pd)
                     label = "shared-settings.json profileDefaults"

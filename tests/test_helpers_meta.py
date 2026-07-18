@@ -37,8 +37,14 @@ class PoisonedHomeTests(SandboxHomeTestCase):
         ld = self.home / ".claudewheel"
         for sub in ("profiles", "shared", "skills", "themes", "scripts", "hooks"):
             self.assertTrue((ld / sub).is_dir(), f"missing {sub}/")
-        for f in ("config.json", "state.json", "options.json", "segments.json",
-                  "tokens.json", "shared-settings.json"):
+        for f in (
+            "config.json",
+            "state.json",
+            "options.json",
+            "segments.json",
+            "tokens.json",
+            "shared-settings.json",
+        ):
             self.assertTrue((ld / f).is_file(), f"missing {f}")
 
 

@@ -23,10 +23,10 @@ from claudewheel.segment import (
 )
 
 
-
 def _mock_ws(profiles):
     """A workspace stand-in whose profiles.enumerate() returns *profiles*."""
     from unittest.mock import MagicMock
+
     ws = MagicMock()
     ws.profiles.enumerate.return_value = profiles
     return ws
@@ -122,7 +122,9 @@ class DirectoryScanDiscoveryTests(unittest.TestCase):
         recent_dir.mkdir()
 
         config = {
-            "values": ["/static/path"],  # static values are ignored (handled by defaults)
+            "values": [
+                "/static/path"
+            ],  # static values are ignored (handled by defaults)
             "discovery": {
                 "type": "directory_scan",
                 "parents": [str(parent)],
@@ -212,7 +214,9 @@ class DirectoryScanDiscoveryTests(unittest.TestCase):
             },
         }
         result = _discover_directory_scan(
-            config, state={"recent_dirs": ["/should-not-appear"]}, ws=None,
+            config,
+            state={"recent_dirs": ["/should-not-appear"]},
+            ws=None,
         )
         self.assertNotIn("/should-not-appear", result.values)
         # Only scanned dirs
@@ -310,8 +314,18 @@ class ClaudeConfigScanDiscoveryTests(unittest.TestCase):
         from claudewheel.profile_store import Profile
 
         mock_profiles = [
-            Profile(name="work", path=Path("/fake/work"), has_credentials=True, has_token=False),
-            Profile(name="personal", path=Path("/fake/personal"), has_credentials=True, has_token=False),
+            Profile(
+                name="work",
+                path=Path("/fake/work"),
+                has_credentials=True,
+                has_token=False,
+            ),
+            Profile(
+                name="personal",
+                path=Path("/fake/personal"),
+                has_credentials=True,
+                has_token=False,
+            ),
         ]
 
         config = {
@@ -339,8 +353,18 @@ class ClaudeConfigScanDiscoveryTests(unittest.TestCase):
         from claudewheel.profile_store import Profile
 
         mock_profiles = [
-            Profile(name="default", path=Path("/fake/default"), has_credentials=True, has_token=False),
-            Profile(name="myprof", path=Path("/fake/myprof"), has_credentials=False, has_token=True),
+            Profile(
+                name="default",
+                path=Path("/fake/default"),
+                has_credentials=True,
+                has_token=False,
+            ),
+            Profile(
+                name="myprof",
+                path=Path("/fake/myprof"),
+                has_credentials=False,
+                has_token=True,
+            ),
         ]
 
         config = {
@@ -482,7 +506,11 @@ class NpmAndLocalCachedDiscoveryTests(unittest.TestCase):
         # Sorted descending
         self.assertEqual(
             result.values,
-            sorted(result.values, key=lambda v: [int(p) for p in v.split(".")], reverse=True),
+            sorted(
+                result.values,
+                key=lambda v: [int(p) for p in v.split(".")],
+                reverse=True,
+            ),
         )
 
     def test_local_only_versions_included(self) -> None:
@@ -709,7 +737,8 @@ class DetectBrowsersTests(unittest.TestCase):
         with patch("claudewheel.discovery.shutil.which", return_value=None):
             result = detect_browsers()
         self.assertEqual(
-            result, [(str(self.flatpak_dir / "com.brave.Browser"), "Brave")],
+            result,
+            [(str(self.flatpak_dir / "com.brave.Browser"), "Brave")],
         )
 
     def test_snap_browser_found_in_snap_dir(self) -> None:

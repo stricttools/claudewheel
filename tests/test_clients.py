@@ -47,7 +47,9 @@ class MiniclaudeAdapterTestBase(unittest.TestCase):
         )
         self.token_store = TokenStore(self.tokens_file)
         self.profiles = ProfileStore(
-            self.profiles_dir, self.claude_dir, self.token_store,
+            self.profiles_dir,
+            self.claude_dir,
+            self.token_store,
         )
         # Every test that reaches the binary step gets a discoverable "work"
         # profile so profile resolution succeeds.
@@ -78,7 +80,9 @@ class MiniclaudeAdapterTestBase(unittest.TestCase):
 
         with mock.patch("claudewheel.launch.fetch_gh_token", return_value=None):
             return resolve_launch_config(
-                selections, options_def, [],
+                selections,
+                options_def,
+                [],
                 locator=self.locator,
                 profiles=self.profiles,
                 extra_flags=extra_flags,
@@ -93,18 +97,27 @@ class MiniclaudeArgvTests(MiniclaudeAdapterTestBase):
 
     def test_typical_selection_full_argv(self) -> None:
         """A typical selection set maps to `miniclaude repl` with model + perm mode."""
-        _, argv, _ = self._resolve(selections={
-            "profile": "work",
-            "model": "claude-opus-4-8",
-            "permissions": "bypass",
-            "directory": str(self.tmp),
-        })
-        self.assertEqual(argv, [
-            self.MC_BINARY, "repl",
-            "--profile", "work",
-            "--model", "claude-opus-4-8",
-            "--permission-mode", "bypassPermissions",
-        ])
+        _, argv, _ = self._resolve(
+            selections={
+                "profile": "work",
+                "model": "claude-opus-4-8",
+                "permissions": "bypass",
+                "directory": str(self.tmp),
+            }
+        )
+        self.assertEqual(
+            argv,
+            [
+                self.MC_BINARY,
+                "repl",
+                "--profile",
+                "work",
+                "--model",
+                "claude-opus-4-8",
+                "--permission-mode",
+                "bypassPermissions",
+            ],
+        )
 
     def test_model_omitted_when_not_selected(self) -> None:
         """No model selection -> no --model flag."""
@@ -126,7 +139,9 @@ class MiniclaudeArgvTests(MiniclaudeAdapterTestBase):
 
     def test_binary_from_path_when_unconfigured(self) -> None:
         """With no config binary, shutil.which('miniclaude') supplies argv[0]."""
-        with mock.patch("claudewheel.clients.shutil.which", return_value="/usr/bin/miniclaude") as which:
+        with mock.patch(
+            "claudewheel.clients.shutil.which", return_value="/usr/bin/miniclaude"
+        ) as which:
             _, argv, _ = self._resolve(clients_config={})
         which.assert_called_once_with("miniclaude")
         self.assertEqual(argv[0], "/usr/bin/miniclaude")
@@ -164,7 +179,8 @@ class MiniclaudeSessionFlagTests(MiniclaudeAdapterTestBase):
     def test_continue_maps_to_continue_session(self) -> None:
         """claude --continue -> miniclaude --continue-session."""
         _, argv, _ = self._resolve(
-            selections={"profile": "work"}, extra_flags=["--continue"],
+            selections={"profile": "work"},
+            extra_flags=["--continue"],
         )
         self.assertEqual(argv[-1], "--continue-session")
         self.assertNotIn("--continue", argv)
@@ -172,7 +188,8 @@ class MiniclaudeSessionFlagTests(MiniclaudeAdapterTestBase):
     def test_resume_with_id_passes_through(self) -> None:
         """claude --resume <id> -> miniclaude --resume <id>."""
         _, argv, _ = self._resolve(
-            selections={"profile": "work"}, extra_flags=["--resume", "sess-123"],
+            selections={"profile": "work"},
+            extra_flags=["--resume", "sess-123"],
         )
         self.assertEqual(argv[-2:], ["--resume", "sess-123"])
 
@@ -252,18 +269,27 @@ class MiniclaudeAmbientSelectionTests(MiniclaudeAdapterTestBase):
 
     def test_version_alongside_model_and_perms_still_builds(self) -> None:
         """Version is dropped while model/permissions still map through."""
-        _, argv, _ = self._resolve(selections={
-            "profile": "work",
-            "version": "2.1.202",
-            "model": "claude-opus-4-8",
-            "permissions": "bypass",
-        })
-        self.assertEqual(argv, [
-            self.MC_BINARY, "repl",
-            "--profile", "work",
-            "--model", "claude-opus-4-8",
-            "--permission-mode", "bypassPermissions",
-        ])
+        _, argv, _ = self._resolve(
+            selections={
+                "profile": "work",
+                "version": "2.1.202",
+                "model": "claude-opus-4-8",
+                "permissions": "bypass",
+            }
+        )
+        self.assertEqual(
+            argv,
+            [
+                self.MC_BINARY,
+                "repl",
+                "--profile",
+                "work",
+                "--model",
+                "claude-opus-4-8",
+                "--permission-mode",
+                "bypassPermissions",
+            ],
+        )
 
     def test_mcp_strict_is_ignored_not_an_error(self) -> None:
         """An ambient mcp='strict' builds a normal argv (no strict-MCP flag)."""
@@ -276,19 +302,28 @@ class MiniclaudeAmbientSelectionTests(MiniclaudeAdapterTestBase):
 
     def test_mcp_strict_alongside_other_selections_still_builds(self) -> None:
         """mcp='strict' is dropped while model/permissions still map through."""
-        _, argv, _ = self._resolve(selections={
-            "profile": "work",
-            "mcp": "strict",
-            "version": "2.1.202",
-            "model": "claude-opus-4-8",
-            "permissions": "plan",
-        })
-        self.assertEqual(argv, [
-            self.MC_BINARY, "repl",
-            "--profile", "work",
-            "--model", "claude-opus-4-8",
-            "--permission-mode", "plan",
-        ])
+        _, argv, _ = self._resolve(
+            selections={
+                "profile": "work",
+                "mcp": "strict",
+                "version": "2.1.202",
+                "model": "claude-opus-4-8",
+                "permissions": "plan",
+            }
+        )
+        self.assertEqual(
+            argv,
+            [
+                self.MC_BINARY,
+                "repl",
+                "--profile",
+                "work",
+                "--model",
+                "claude-opus-4-8",
+                "--permission-mode",
+                "plan",
+            ],
+        )
 
 
 class ResolveDefaultClientTests(unittest.TestCase):
@@ -296,15 +331,19 @@ class ResolveDefaultClientTests(unittest.TestCase):
 
     def test_absent_key_defaults_to_claude(self) -> None:
         from claudewheel.clients import resolve_default_client
+
         self.assertEqual(resolve_default_client({}), "claude")
 
     def test_valid_value_returned(self) -> None:
         from claudewheel.clients import resolve_default_client
+
         self.assertEqual(
-            resolve_default_client({"default_client": "miniclaude"}), "miniclaude")
+            resolve_default_client({"default_client": "miniclaude"}), "miniclaude"
+        )
 
     def test_unknown_value_is_hard_error(self) -> None:
         from claudewheel.clients import resolve_default_client
+
         with self.assertRaises(ValueError) as ctx:
             resolve_default_client({"default_client": "bogus"})
         msg = str(ctx.exception)
@@ -318,26 +357,36 @@ class ClientAvailabilityTests(MiniclaudeAdapterTestBase):
 
     def test_claude_available_when_fallback_exists(self) -> None:
         from claudewheel.clients import client_available
+
         self.symlink_path.write_text("#!/bin/sh\n")  # fallback now exists
         self.assertTrue(client_available("claude", self.locator, {}))
 
     def test_claude_unavailable_when_fallback_missing(self) -> None:
         from claudewheel.clients import client_available
+
         self.assertFalse(self.symlink_path.exists())
         self.assertFalse(client_available("claude", self.locator, {}))
 
     def test_miniclaude_available_via_config_binary(self) -> None:
         from claudewheel.clients import client_available
-        self.assertTrue(client_available(
-            "miniclaude", self.locator, {"miniclaude": {"binary": self.MC_BINARY}}))
+
+        self.assertTrue(
+            client_available(
+                "miniclaude", self.locator, {"miniclaude": {"binary": self.MC_BINARY}}
+            )
+        )
 
     def test_miniclaude_available_via_path(self) -> None:
         from claudewheel.clients import client_available
-        with mock.patch("claudewheel.clients.shutil.which", return_value="/usr/bin/miniclaude"):
+
+        with mock.patch(
+            "claudewheel.clients.shutil.which", return_value="/usr/bin/miniclaude"
+        ):
             self.assertTrue(client_available("miniclaude", self.locator, {}))
 
     def test_miniclaude_unavailable_when_missing(self) -> None:
         from claudewheel.clients import client_available
+
         with mock.patch("claudewheel.clients.shutil.which", return_value=None):
             self.assertFalse(client_available("miniclaude", self.locator, {}))
 
@@ -347,28 +396,35 @@ class BuildClientChoicesTests(MiniclaudeAdapterTestBase):
 
     def test_options_are_the_registry_in_order(self) -> None:
         from claudewheel.clients import CLIENT_ADAPTERS, build_client_choices
+
         self.symlink_path.write_text("#!/bin/sh\n")
         options, _ = build_client_choices(
-            self.locator, {"miniclaude": {"binary": self.MC_BINARY}}, "claude")
+            self.locator, {"miniclaude": {"binary": self.MC_BINARY}}, "claude"
+        )
         keys = [key for key, _label in options]
         self.assertEqual(keys, list(CLIENT_ADAPTERS))
 
     def test_initial_key_honors_default_client(self) -> None:
         from claudewheel.clients import build_client_choices
+
         _, initial = build_client_choices(
-            self.locator, {"miniclaude": {"binary": self.MC_BINARY}}, "miniclaude")
+            self.locator, {"miniclaude": {"binary": self.MC_BINARY}}, "miniclaude"
+        )
         self.assertEqual(initial, "miniclaude")
 
     def test_available_client_label_is_bare_name(self) -> None:
         from claudewheel.clients import build_client_choices
+
         self.symlink_path.write_text("#!/bin/sh\n")  # claude available
         options, _ = build_client_choices(
-            self.locator, {"miniclaude": {"binary": self.MC_BINARY}}, "claude")
+            self.locator, {"miniclaude": {"binary": self.MC_BINARY}}, "claude"
+        )
         labels = dict(options)
         self.assertEqual(labels["claude"], "claude")
 
     def test_unavailable_client_gets_not_installed_suffix(self) -> None:
         from claudewheel.clients import build_client_choices
+
         # claude fallback missing -> "(not installed)"; miniclaude missing too.
         with mock.patch("claudewheel.clients.shutil.which", return_value=None):
             options, _ = build_client_choices(self.locator, {}, "claude")
@@ -385,6 +441,7 @@ class ResolveClientTests(unittest.TestCase):
 
     def test_explicit_client_skips_prompt(self) -> None:
         from claudewheel.clients import resolve_client
+
         prompt = mock.MagicMock()
         result = resolve_client("miniclaude", prompt)
         self.assertEqual(result, "miniclaude")
@@ -392,6 +449,7 @@ class ResolveClientTests(unittest.TestCase):
 
     def test_no_explicit_client_invokes_prompt(self) -> None:
         from claudewheel.clients import resolve_client
+
         prompt = mock.MagicMock(return_value="claude")
         result = resolve_client(None, prompt)
         self.assertEqual(result, "claude")
@@ -399,6 +457,7 @@ class ResolveClientTests(unittest.TestCase):
 
     def test_prompt_cancellation_propagates_none(self) -> None:
         from claudewheel.clients import resolve_client
+
         prompt = mock.MagicMock(return_value=None)
         self.assertIsNone(resolve_client(None, prompt))
 
@@ -410,7 +469,9 @@ class UnknownClientTests(MiniclaudeAdapterTestBase):
         with mock.patch("claudewheel.launch.fetch_gh_token", return_value=None):
             with self.assertRaises(ValueError) as ctx:
                 resolve_launch_config(
-                    {"profile": "work"}, {}, [],
+                    {"profile": "work"},
+                    {},
+                    [],
                     locator=self.locator,
                     profiles=self.profiles,
                     client="bogus",

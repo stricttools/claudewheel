@@ -10,11 +10,16 @@ from types import FrameType
 from typing import Any
 
 from .constants import (
-    BOLD, CLEAR_LINE, CLEAR_SCREEN, RESET,
-    csi, move_to,
+    BOLD,
+    CLEAR_LINE,
+    CLEAR_SCREEN,
+    RESET,
+    csi,
+    move_to,
 )
 from .terminal import Terminal
 from .theme import ThemeColors
+
 
 def _erase_inline(term: Terminal, line_count: int) -> None:
     """Erase the inline form so subsequent output flows cleanly."""
@@ -22,10 +27,14 @@ def _erase_inline(term: Terminal, line_count: int) -> None:
     term.write(csi(f"{line_count}A") + "\r" + csi("0J"))
 
 
-def run_selection(title: str, options: list[tuple[str, str]],
-                  theme: ThemeColors, terminal: Terminal,
-                  use_alt_screen: bool = True,
-                  initial_key: str | None = None) -> str | None:
+def run_selection(
+    title: str,
+    options: list[tuple[str, str]],
+    theme: ThemeColors,
+    terminal: Terminal,
+    use_alt_screen: bool = True,
+    initial_key: str | None = None,
+) -> str | None:
     """Run a vertical selection list and return the chosen option's key.
 
     ``options`` is a list of ``(key, label)`` pairs. Returns the focused
@@ -41,8 +50,7 @@ def run_selection(title: str, options: list[tuple[str, str]],
     keys = [key for key, _label in options]
     value = initial_key if initial_key in keys else keys[0]
     field = FormField("choice", "select", value=value, options=list(options))
-    result = run_form(title, [field], theme, terminal,
-                      use_alt_screen=use_alt_screen)
+    result = run_form(title, [field], theme, terminal, use_alt_screen=use_alt_screen)
     if result is None:
         return None
     choice = result["choice"]
@@ -97,15 +105,15 @@ def get_field(fields: list[FormField], key: str) -> FormField:
 
 def _visible_indices(fields: list[FormField]) -> set[int]:
     """Indices of fields whose ``visible`` predicate allows rendering."""
-    return {i for i, f in enumerate(fields)
-            if f.visible is None or f.visible(fields)}
+    return {i for i, f in enumerate(fields) if f.visible is None or f.visible(fields)}
 
 
 def _focusable_indices(fields: list[FormField]) -> list[int]:
     """Indices of fields that are visible and interactive."""
     visible = _visible_indices(fields)
-    return [i for i, f in enumerate(fields)
-            if i in visible and f.field_type != "readonly"]
+    return [
+        i for i, f in enumerate(fields) if i in visible and f.field_type != "readonly"
+    ]
 
 
 def _move_focus(fields: list[FormField], focus: int, step: int) -> int:
@@ -148,7 +156,7 @@ def _field_lines(f: FormField, focused: bool, th: ThemeColors) -> list[str]:
     """
     if f.field_type == "select":
         lines: list[str] = []
-        for key, label in (f.options or []):
+        for key, label in f.options or []:
             pointer = "> " if key == f.value else "  "
             if focused and key == f.value:
                 style = th.forms_focus_bg + th.forms_focus_fg
@@ -157,21 +165,26 @@ def _field_lines(f: FormField, focused: bool, th: ThemeColors) -> list[str]:
             lines.append(f"{style}{pointer}{label}{RESET}")
         return lines
 
-    label_style = (th.forms_focus_bg + th.forms_focus_fg) if focused \
-        else th.forms_field_fg
+    label_style = (
+        (th.forms_focus_bg + th.forms_focus_fg) if focused else th.forms_field_fg
+    )
 
     if f.field_type == "button":
         return [f"{label_style}[ {f.label} ]{RESET}"]
     if f.field_type == "text":
         cursor = f"{th.forms_cursor_fg}_{RESET}" if focused else ""
-        return [f"{label_style}{f.label}:{RESET} "
-                f"{th.forms_field_fg}[{f.value or ''}{RESET}{cursor}"
-                f"{th.forms_field_fg}]{RESET}"]
+        return [
+            f"{label_style}{f.label}:{RESET} "
+            f"{th.forms_field_fg}[{f.value or ''}{RESET}{cursor}"
+            f"{th.forms_field_fg}]{RESET}"
+        ]
     if f.field_type == "readonly":
-        return [f"{th.forms_field_fg}{f.label}:{RESET} {th.forms_readonly_fg}{f.value}{RESET}"]
+        return [
+            f"{th.forms_field_fg}{f.label}:{RESET} {th.forms_readonly_fg}{f.value}{RESET}"
+        ]
     if f.field_type == "radio":
         parts: list[str] = []
-        for opt in (f.options or []):
+        for opt in f.options or []:
             if opt == f.value:
                 parts.append(f"{BOLD}{th.forms_field_fg}(*) {opt}{RESET}")
             else:
@@ -183,8 +196,14 @@ def _field_lines(f: FormField, focused: bool, th: ThemeColors) -> list[str]:
     return [f"{label_style}{f.label}{RESET}"]
 
 
-def _render_form_alt(term: Terminal, th: ThemeColors, title: str,
-                     fields: list[FormField], focus: int, error: str) -> None:
+def _render_form_alt(
+    term: Terminal,
+    th: ThemeColors,
+    title: str,
+    fields: list[FormField],
+    focus: int,
+    error: str,
+) -> None:
     """Render the form centered on a full screen (absolute positioning)."""
     rows, cols = term.get_size()
     visible = _visible_indices(fields)
@@ -199,8 +218,7 @@ def _render_form_alt(term: Terminal, th: ThemeColors, title: str,
     buf: list[str] = [CLEAR_SCREEN]
 
     title_col = max(1, (cols - len(title)) // 2)
-    buf.append(move_to(start_row, title_col)
-               + BOLD + th.forms_title_fg + title + RESET)
+    buf.append(move_to(start_row, title_col) + BOLD + th.forms_title_fg + title + RESET)
 
     left_col = max(1, (cols - _FIELD_AREA_WIDTH) // 2)
     row = start_row + 2
@@ -218,8 +236,9 @@ def _render_form_alt(term: Terminal, th: ThemeColors, title: str,
     # Error message on the row above the hints (bottom - 1)
     if error:
         error_col = max(1, (cols - len(error)) // 2)
-        buf.append(move_to(rows - 1, error_col)
-                   + BOLD + th.forms_error_fg + error + RESET)
+        buf.append(
+            move_to(rows - 1, error_col) + BOLD + th.forms_error_fg + error + RESET
+        )
 
     # Keyboard hints on the bottom row, column 2 (the status-row convention)
     hints = _hints_for_field(fields[focus])
@@ -227,9 +246,15 @@ def _render_form_alt(term: Terminal, th: ThemeColors, title: str,
     term.write("".join(buf))
 
 
-def _render_form_inline(term: Terminal, th: ThemeColors, title: str,
-                        fields: list[FormField], focus: int, error: str,
-                        prev_lines: int) -> int:
+def _render_form_inline(
+    term: Terminal,
+    th: ThemeColors,
+    title: str,
+    fields: list[FormField],
+    focus: int,
+    error: str,
+    prev_lines: int,
+) -> int:
     """Render the form in place at the cursor position (no alt screen).
 
     On redraw the cursor sits just below the form: move up *prev_lines* and
@@ -257,7 +282,9 @@ def _render_form_inline(term: Terminal, th: ThemeColors, title: str,
 
 
 @contextlib.contextmanager
-def _form_session(terminal: Terminal, use_alt_screen: bool, render: Callable[[], None]) -> Iterator[None]:
+def _form_session(
+    terminal: Terminal, use_alt_screen: bool, render: Callable[[], None]
+) -> Iterator[None]:
     """Signal swap and raw-mode ownership around a form or page.
 
     Borrowed mode (terminal already raw): render only -- never enter or exit
@@ -271,6 +298,7 @@ def _form_session(terminal: Terminal, use_alt_screen: bool, render: Callable[[],
     raising SystemExit; in borrowed mode it raises SystemExit directly
     (the outer owner is responsible for terminal cleanup).
     """
+
     def on_resize(signum: int, frame: FrameType | None) -> None:
         terminal.rows, terminal.cols = terminal.get_size()
         render()
@@ -297,10 +325,15 @@ def _form_session(terminal: Terminal, use_alt_screen: bool, render: Callable[[],
         signal.signal(signal.SIGHUP, prev_hup or signal.SIG_DFL)
 
 
-def run_form(title: str, fields: list[FormField], theme: ThemeColors,
-             terminal: Terminal, *, use_alt_screen: bool = True,
-             validate: Callable[[list[FormField]], str | None] | None = None,
-             ) -> dict[str, object] | None:
+def run_form(
+    title: str,
+    fields: list[FormField],
+    theme: ThemeColors,
+    terminal: Terminal,
+    *,
+    use_alt_screen: bool = True,
+    validate: Callable[[list[FormField]], str | None] | None = None,
+) -> dict[str, object] | None:
     """Run a form's key loop and return ``{key: value}`` or None on cancel.
 
     The runner owns focus traversal (TAB/SHIFT_TAB/UP/DOWN), radio cycling
@@ -330,7 +363,8 @@ def run_form(title: str, fields: list[FormField], theme: ThemeColors,
             _render_form_alt(terminal, theme, title, fields, focus, error)
         else:
             drawn_lines = _render_form_inline(
-                terminal, theme, title, fields, focus, error, drawn_lines)
+                terminal, theme, title, fields, focus, error, drawn_lines
+            )
 
     def try_submit() -> dict[str, object] | None:
         nonlocal error
@@ -386,18 +420,21 @@ def run_form(title: str, fields: list[FormField], theme: ThemeColors,
                 elif key == " " and f.field_type == "checkbox":
                     f.value = not f.value
                     error = ""
-                elif (key in ("LEFT", "RIGHT") or key == " ") \
-                        and f.field_type == "radio":
+                elif (
+                    key in ("LEFT", "RIGHT") or key == " "
+                ) and f.field_type == "radio":
                     _cycle_radio(f, -1 if key == "LEFT" else 1)
                     error = ""
-                elif key == "BACKSPACE" and f.field_type == "text" \
-                        and isinstance(f.value, str):
+                elif (
+                    key == "BACKSPACE"
+                    and f.field_type == "text"
+                    and isinstance(f.value, str)
+                ):
                     f.value = f.value[:-1]
                     error = ""
                     if f.on_change:
                         f.on_change(fields)
-                elif f.field_type == "text" and len(key) == 1 \
-                        and key.isprintable():
+                elif f.field_type == "text" and len(key) == 1 and key.isprintable():
                     current = f.value if isinstance(f.value, str) else ""
                     f.value = current + key
                     error = ""
@@ -410,8 +447,14 @@ def run_form(title: str, fields: list[FormField], theme: ThemeColors,
                 _erase_inline(terminal, drawn_lines)
 
 
-def show_page(title: str, lines: list[str], theme: ThemeColors, terminal: Terminal, *,
-              hint: str = "press any key to continue") -> str:
+def show_page(
+    title: str,
+    lines: list[str],
+    theme: ThemeColors,
+    terminal: Terminal,
+    *,
+    hint: str = "press any key to continue",
+) -> str:
     """Render a fullscreen page of text and wait for a single keypress.
 
     Uses the same terminal semantics as run_form: borrowed when the terminal
@@ -419,19 +462,20 @@ def show_page(title: str, lines: list[str], theme: ThemeColors, terminal: Termin
 
     Returns the key string that was pressed (empty string on interrupt).
     """
+
     def render() -> None:
         rows, cols = terminal.get_size()
         total_height = 2 + len(lines)
         start_row = max(1, (rows - total_height) // 2)
         buf: list[str] = [CLEAR_SCREEN]
         title_col = max(1, (cols - len(title)) // 2)
-        buf.append(move_to(start_row, title_col)
-                   + BOLD + theme.forms_title_fg + title + RESET)
+        buf.append(
+            move_to(start_row, title_col) + BOLD + theme.forms_title_fg + title + RESET
+        )
         left_col = max(1, (cols - _FIELD_AREA_WIDTH) // 2)
         row = start_row + 2
         for line in lines:
-            buf.append(move_to(row, left_col)
-                       + theme.forms_field_fg + line + RESET)
+            buf.append(move_to(row, left_col) + theme.forms_field_fg + line + RESET)
             row += 1
         buf.append(move_to(rows, 2) + theme.forms_hint_fg + hint + RESET)
         terminal.write("".join(buf))

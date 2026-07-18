@@ -51,8 +51,9 @@ def _make_profile_segment(
     return seg
 
 
-def _make_app(seg: Segment, extra_segments: list[Segment] | None = None,
-              focus_idx: int = 0) -> App:
+def _make_app(
+    seg: Segment, extra_segments: list[Segment] | None = None, focus_idx: int = 0
+) -> App:
     """Build a minimal App with a real _handle_key and seg focused."""
     app = object.__new__(App)
     app.terminal = mock.MagicMock()
@@ -690,6 +691,7 @@ class ThemeSwitchTests(unittest.TestCase):
         reads. The stub returns the canonical dark/light dicts by mode.
         """
         from claudewheel.defaults import DEFAULT_THEME_DARK, DEFAULT_THEME_LIGHT
+
         app.cfg.load_theme.side_effect = lambda mode: (
             DEFAULT_THEME_DARK if mode == "dark" else DEFAULT_THEME_LIGHT
         )
@@ -746,6 +748,7 @@ class ThemeSwitchTests(unittest.TestCase):
         self._stub_theme_loader(app)
         from claudewheel.defaults import DEFAULT_THEME_DARK
         from claudewheel.theme import ThemeColors, parse_theme
+
         app._h_theme_switch("THEME_DARK")
         # Theme was replaced with a ThemeColors from the default dark dict
         self.assertIsInstance(app.theme, ThemeColors)
@@ -761,6 +764,7 @@ class ThemeSwitchTests(unittest.TestCase):
         self._stub_theme_loader(app)
         app._h_theme_switch("THEME_LIGHT")
         from claudewheel.defaults import DEFAULT_THEME_LIGHT
+
         self.assertEqual(app.cfg.theme, DEFAULT_THEME_LIGHT)
 
     def test_handler_does_not_disrupt_creating_mode(self):

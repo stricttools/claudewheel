@@ -7,9 +7,9 @@ import urllib.error
 import urllib.request
 
 # validate_token() result states.
-VALID = "valid"                  # API accepted the token (HTTP 200)
-INVALID = "invalid"              # API rejected the token (HTTP 401)
-UNREACHABLE = "unreachable"      # network failure: DNS, timeout, refused
+VALID = "valid"  # API accepted the token (HTTP 200)
+INVALID = "invalid"  # API rejected the token (HTTP 401)
+UNREACHABLE = "unreachable"  # network failure: DNS, timeout, refused
 INDETERMINATE = "indeterminate"  # any other HTTP status (400/429/5xx/...)
 
 _MODELS_URL = "https://api.anthropic.com/v1/models?limit=1"
@@ -74,7 +74,7 @@ def extract_token(captured: bytes) -> str | None:
 
     label_pos = joined.rfind(_LABEL)
     if label_pos != -1:
-        region = joined[label_pos + len(_LABEL):]
+        region = joined[label_pos + len(_LABEL) :]
         candidate = _best_candidate(region)
         if candidate is not None:
             return candidate
@@ -85,8 +85,11 @@ def extract_token(captured: bytes) -> str | None:
 
 def _best_candidate(data: bytes) -> str | None:
     """Pick the best token-looking match in data, or None."""
-    matches = [m.group(0) for m in _TOKEN_RE.finditer(data)
-               if len(m.group(0)) >= _MIN_TOKEN_LEN]
+    matches = [
+        m.group(0)
+        for m in _TOKEN_RE.finditer(data)
+        if len(m.group(0)) >= _MIN_TOKEN_LEN
+    ]
     if not matches:
         return None
     # Prefer candidates with the known "oat01" infix; among ties take the

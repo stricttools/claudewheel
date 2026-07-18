@@ -26,8 +26,9 @@ from claudewheel.theme import parse_theme
 # ---------------------------------------------------------------------------
 
 
-def _make_app(seg: Segment, extra_segments: list[Segment] | None = None,
-              focus_idx: int = 0) -> App:
+def _make_app(
+    seg: Segment, extra_segments: list[Segment] | None = None, focus_idx: int = 0
+) -> App:
     """Build a minimal App with real _compute_hints."""
     app = object.__new__(App)
     app.terminal = MagicMock()
@@ -116,8 +117,9 @@ class HintParitySearchActiveTests(unittest.TestCase):
 
     def test_searchable_with_buffer_hints(self) -> None:
         """During active search, hints include clear/launch/navigate/next."""
-        seg = Segment(key="model", label="Model", options=["opus", "sonnet"],
-                      searchable=True)
+        seg = Segment(
+            key="model", label="Model", options=["opus", "sonnet"], searchable=True
+        )
         seg.search_buffer = "op"
         app = _make_app(seg)
         hints = app._compute_hints()
@@ -130,8 +132,9 @@ class HintParitySearchActiveTests(unittest.TestCase):
 
     def test_searchable_idle_hints(self) -> None:
         """Idle searchable segment shows sources hint and no quit."""
-        seg = Segment(key="model", label="Model", options=["opus", "sonnet"],
-                      searchable=True)
+        seg = Segment(
+            key="model", label="Model", options=["opus", "sonnet"], searchable=True
+        )
         app = _make_app(seg)
         hints = app._compute_hints()
         joined = "   ".join(hints)
@@ -309,8 +312,7 @@ class FlashOverrideTests(unittest.TestCase):
         # The render() method computes reserved before rendering status,
         # so flash doesn't affect the fan-out bound. Verify by checking
         # that the same reserved value is used regardless of flash.
-        seg = Segment(key="model", label="Model",
-                      options=["a", "b", "c", "d", "e"])
+        seg = Segment(key="model", label="Model", options=["a", "b", "c", "d", "e"])
         seg.select_value("a")
         bar = SegmentBar(segments=[seg], focus_idx=0)
         # Full render with flash
@@ -333,8 +335,7 @@ class DualRoleHintTests(unittest.TestCase):
 
     def test_profile_focused_with_value_shows_inspect_and_delete(self) -> None:
         """When profile is focused with a value, both conditional hints appear."""
-        seg = Segment(key="profile", label="Profile", searchable=True,
-                      creatable=True)
+        seg = Segment(key="profile", label="Profile", searchable=True, creatable=True)
         seg.state.add_pinned("default")
         seg.select_value("default")
         app = _make_app(seg)
@@ -344,12 +345,14 @@ class DualRoleHintTests(unittest.TestCase):
 
     def test_non_profile_segment_hides_inspect_and_delete(self) -> None:
         """When a non-profile segment is focused, those hints disappear."""
-        profile_seg = Segment(key="profile", label="Profile", searchable=True,
-                              creatable=True)
+        profile_seg = Segment(
+            key="profile", label="Profile", searchable=True, creatable=True
+        )
         profile_seg.state.add_pinned("default")
         profile_seg.select_value("default")
-        model_seg = Segment(key="model", label="Model", options=["opus"],
-                            searchable=True)
+        model_seg = Segment(
+            key="model", label="Model", options=["opus"], searchable=True
+        )
         model_seg.select_value("opus")
         # Focus on model (index 1)
         app = _make_app(profile_seg, extra_segments=[model_seg], focus_idx=1)
@@ -359,8 +362,7 @@ class DualRoleHintTests(unittest.TestCase):
 
     def test_profile_without_value_hides_inspect_and_delete(self) -> None:
         """Profile segment with no value selected hides conditional hints."""
-        seg = Segment(key="profile", label="Profile", searchable=True,
-                      creatable=True)
+        seg = Segment(key="profile", label="Profile", searchable=True, creatable=True)
         seg.state.add_pinned("default")
         # Do NOT select any value
         app = _make_app(seg)
@@ -370,8 +372,7 @@ class DualRoleHintTests(unittest.TestCase):
 
     def test_profile_with_search_buffer_hides_inspect_and_delete(self) -> None:
         """Profile segment with active search hides inspect/delete (condition requires no search)."""
-        seg = Segment(key="profile", label="Profile", searchable=True,
-                      creatable=True)
+        seg = Segment(key="profile", label="Profile", searchable=True, creatable=True)
         seg.state.add_pinned("default")
         seg.select_value("default")
         seg.search_buffer = "de"
@@ -421,8 +422,7 @@ class PriorityOrderingTests(unittest.TestCase):
 
     def test_profile_conditional_hints_after_navigation(self) -> None:
         """Conditional profile hints (p=50) appear after navigation (p=40)."""
-        seg = Segment(key="profile", label="Profile", searchable=True,
-                      creatable=True)
+        seg = Segment(key="profile", label="Profile", searchable=True, creatable=True)
         seg.state.add_pinned("default")
         seg.select_value("default")
         app = _make_app(seg)
@@ -444,9 +444,7 @@ class SplitHintsTests(unittest.TestCase):
 
     def test_greedy_fill_first_line(self) -> None:
         """First line gets as many hints as fit within max_width."""
-        line1, line2 = Renderer._split_hints(
-            ["aaa", "bbb", "ccc", "ddd"], max_width=15
-        )
+        line1, line2 = Renderer._split_hints(["aaa", "bbb", "ccc", "ddd"], max_width=15)
         # "aaa   bbb" = 9 chars, fits
         # "aaa   bbb   ccc" = 15 chars, fits exactly
         self.assertEqual(line1, "aaa   bbb   ccc")
@@ -462,9 +460,7 @@ class SplitHintsTests(unittest.TestCase):
 
     def test_all_fit_on_line1(self) -> None:
         """When all items fit, line2 is empty."""
-        line1, line2 = Renderer._split_hints(
-            ["a", "b"], max_width=100
-        )
+        line1, line2 = Renderer._split_hints(["a", "b"], max_width=100)
         self.assertEqual(line1, "a   b")
         self.assertEqual(line2, "")
 

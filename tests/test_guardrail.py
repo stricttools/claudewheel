@@ -138,9 +138,7 @@ class ExactArrayTests(unittest.TestCase):
 class SettingsRuleHygieneTests(unittest.TestCase):
     def test_no_duplicate_settings_rules(self) -> None:
         allrules = guardrail.all_settings_rules()
-        self.assertEqual(
-            len(allrules), len(set(allrules)), "duplicate settings rules"
-        )
+        self.assertEqual(len(allrules), len(set(allrules)), "duplicate settings rules")
 
     def test_rm_kill_pkill_ask_rules_absent(self) -> None:
         ask = guardrail.canonical_ask_rules()
@@ -177,9 +175,7 @@ class SentencePunctuationTests(unittest.TestCase):
         for r in rules:
             # The subagent message is exactly the terminal-punctuated main
             # advice, a single space, then the fixed suffix.
-            expected = (
-                r.main_advice + " " + guardrail.SUBAGENT_HARD_DENY_SUFFIX
-            )
+            expected = r.main_advice + " " + guardrail.SUBAGENT_HARD_DENY_SUFFIX
             self.assertEqual(r.subagent_advice, expected, r.key)
             # The suffix always follows a terminal-punctuated sentence: the
             # char immediately before " " + suffix is one of . ! ?
@@ -188,9 +184,7 @@ class SentencePunctuationTests(unittest.TestCase):
             self.assertGreater(idx, 0, r.key)
             self.assertIn(r.subagent_advice[idx - 1], self._TERMINALS, r.key)
             # The exact old broken join must not appear.
-            self.assertNotIn(
-                "'rm' You are a subagent", r.subagent_advice, r.key
-            )
+            self.assertNotIn("'rm' You are a subagent", r.subagent_advice, r.key)
 
     def test_escalate_tail_follows_terminal_punctuation(self) -> None:
         rules = guardrail.rules_by_tier(Tier.ESCALATE)
@@ -255,9 +249,7 @@ class SettingsCoverageTests(unittest.TestCase):
         # Every HARD_DENY/ESCALATE rule must carry a coverage value.
         for r in RULES:
             if r.tier in (Tier.HARD_DENY, Tier.ESCALATE):
-                self.assertIsInstance(
-                    r.settings_coverage, SettingsCoverage, r.key
-                )
+                self.assertIsInstance(r.settings_coverage, SettingsCoverage, r.key)
 
     def test_advise_and_ask_carry_no_coverage(self) -> None:
         for r in RULES:

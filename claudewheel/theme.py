@@ -37,12 +37,12 @@ def _hex_to_bg(hex_str: str | None) -> str:
 class ThemeColors:
     """Pre-parsed ANSI escape sequences for all theme colors."""
 
-    global_fg: str          # ANSI fg sequence
-    label_fg: str           # ANSI fg for labels
-    separator_fg: str       # ANSI fg for separators
-    separator_char: str     # literal string like " | "
-    empty_value_fg: str     # ANSI fg for "---"
-    empty_value_text: str   # literal string like "---"
+    global_fg: str  # ANSI fg sequence
+    label_fg: str  # ANSI fg for labels
+    separator_fg: str  # ANSI fg for separators
+    separator_char: str  # literal string like " | "
+    empty_value_fg: str  # ANSI fg for "---"
+    empty_value_text: str  # literal string like "---"
     # Per-segment colors: dict mapping segment key to dict of ANSI sequences
     segment_colors: dict[str, dict[str, str]] = field(default_factory=dict)
     # Search colors

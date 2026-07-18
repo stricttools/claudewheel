@@ -52,8 +52,9 @@ class FetchManifestTests(unittest.TestCase):
             hdrs=None,  # type: ignore[arg-type]
             fp=None,
         )
-        with mock.patch("claudewheel.install.urllib.request.urlopen",
-                        side_effect=http_err):
+        with mock.patch(
+            "claudewheel.install.urllib.request.urlopen", side_effect=http_err
+        ):
             with self.assertRaises(OSError) as ctx:
                 install.fetch_manifest("99.99.99")
         self.assertIn("99.99.99", str(ctx.exception))
@@ -66,17 +67,21 @@ class FetchManifestTests(unittest.TestCase):
             }
         }
         payload = json.dumps(manifest).encode("utf-8")
-        with mock.patch("claudewheel.install.urllib.request.urlopen",
-                        return_value=_FakeResponse(payload)):
+        with mock.patch(
+            "claudewheel.install.urllib.request.urlopen",
+            return_value=_FakeResponse(payload),
+        ):
             result = install.fetch_manifest("2.1.110")
         self.assertEqual(result, manifest)
 
     def test_invalid_json_body_raises_oserror(self) -> None:
         """Invalid JSON in the response body is normalized to OSError (contract)."""
         payload = b"not-valid-json{{{"
-        with mock.patch("claudewheel.install.urllib.request.urlopen",
-                        autospec=True,
-                        return_value=_FakeResponse(payload)):
+        with mock.patch(
+            "claudewheel.install.urllib.request.urlopen",
+            autospec=True,
+            return_value=_FakeResponse(payload),
+        ):
             with self.assertRaises(OSError) as ctx:
                 install.fetch_manifest("2.1.110")
         self.assertIn("2.1.110", str(ctx.exception))
@@ -84,9 +89,11 @@ class FetchManifestTests(unittest.TestCase):
     def test_non_dict_manifest_body_raises_oserror(self) -> None:
         """A valid-JSON body that is not an object is rejected as malformed."""
         payload = json.dumps([1, 2, 3]).encode("utf-8")
-        with mock.patch("claudewheel.install.urllib.request.urlopen",
-                        autospec=True,
-                        return_value=_FakeResponse(payload)):
+        with mock.patch(
+            "claudewheel.install.urllib.request.urlopen",
+            autospec=True,
+            return_value=_FakeResponse(payload),
+        ):
             with self.assertRaises(OSError) as ctx:
                 install.fetch_manifest("2.1.110")
         msg = str(ctx.exception)
@@ -96,9 +103,11 @@ class FetchManifestTests(unittest.TestCase):
     def test_non_dict_platforms_value_raises_oserror(self) -> None:
         """A manifest whose 'platforms' value is not an object is rejected as malformed."""
         payload = json.dumps({"platforms": [1, 2, 3]}).encode("utf-8")
-        with mock.patch("claudewheel.install.urllib.request.urlopen",
-                        autospec=True,
-                        return_value=_FakeResponse(payload)):
+        with mock.patch(
+            "claudewheel.install.urllib.request.urlopen",
+            autospec=True,
+            return_value=_FakeResponse(payload),
+        ):
             with self.assertRaises(OSError) as ctx:
                 install.fetch_manifest("2.1.110")
         msg = str(ctx.exception)
@@ -117,16 +126,18 @@ class InstallVersionTests(unittest.TestCase):
             claude_symlink=Path(self._tmp.name) / "claude",
         )
 
-    def _patch_urlopen_returning(self, manifest_payload: bytes,
-                                 binary_payload: bytes) -> mock._patch:
+    def _patch_urlopen_returning(
+        self, manifest_payload: bytes, binary_payload: bytes
+    ) -> mock._patch:
         """urlopen returns the manifest first, then the binary."""
 
         def side_effect(*args, **kwargs):  # noqa: ANN001 - mock side effect signature
             # Each successive call returns the next planned response.
             return next(responses)
 
-        responses = iter([_FakeResponse(manifest_payload),
-                          _FakeResponse(binary_payload)])
+        responses = iter(
+            [_FakeResponse(manifest_payload), _FakeResponse(binary_payload)]
+        )
         return mock.patch(
             "claudewheel.install.urllib.request.urlopen",
             side_effect=side_effect,
@@ -193,7 +204,9 @@ class InstallVersionTests(unittest.TestCase):
         manifest = {
             "platforms": {
                 "made-up-platform": {
-                    "checksum": "x", "binary": "claude", "size": 0,
+                    "checksum": "x",
+                    "binary": "claude",
+                    "size": 0,
                 }
             }
         }
@@ -211,7 +224,9 @@ class InstallVersionTests(unittest.TestCase):
         self.assertIn("not available", msg)
         self.assertIn("made-up-platform", msg)
 
-    def _patch_urlopen_manifest_only(self, manifest_payload: bytes) -> "mock._patch[mock.MagicMock]":
+    def _patch_urlopen_manifest_only(
+        self, manifest_payload: bytes
+    ) -> "mock._patch[mock.MagicMock]":
         """Patch urlopen (autospec) to return only the manifest response.
 
         Malformed-manifest errors must be raised before any binary download, so a

@@ -25,7 +25,9 @@ class OptionsFile:
         except (FileNotFoundError, json.JSONDecodeError):
             return default
 
-    def add_pinned(self, segment_key: str, value: str, default: dict[str, Any]) -> dict[str, Any]:
+    def add_pinned(
+        self, segment_key: str, value: str, default: dict[str, Any]
+    ) -> dict[str, Any]:
         """Append *value* to a segment's pinned list, write, and return the fresh dict.
 
         Fresh read (falling back to *default*), ensures the segment dict and its
@@ -41,7 +43,13 @@ class OptionsFile:
             write_json_atomic(self.path, options)
         return options
 
-    def set_metadata(self, segment_key: str, value: str, meta: dict[str, Any], default: dict[str, Any]) -> dict[str, Any]:
+    def set_metadata(
+        self,
+        segment_key: str,
+        value: str,
+        meta: dict[str, Any],
+        default: dict[str, Any],
+    ) -> dict[str, Any]:
         """Set metadata for a segment value, write, and return the fresh dict."""
         options = self.load(default)
         seg = options.setdefault(segment_key, {"values": []})
@@ -49,7 +57,9 @@ class OptionsFile:
         write_json_atomic(self.path, options)
         return options
 
-    def rename_value(self, segment_key: str, old: str, new: str, default: dict[str, Any]) -> dict[str, Any]:
+    def rename_value(
+        self, segment_key: str, old: str, new: str, default: dict[str, Any]
+    ) -> dict[str, Any]:
         """Swap ``old`` -> ``new`` in a segment's values, pinned, and metadata key.
 
         Swaps ``old`` -> ``new`` in the values list and pinned list (in-place
@@ -85,7 +95,9 @@ class OptionsFile:
             write_json_atomic(self.path, options)
         return options
 
-    def remove_value(self, segment_key: str, name: str, default: dict[str, Any]) -> dict[str, Any]:
+    def remove_value(
+        self, segment_key: str, name: str, default: dict[str, Any]
+    ) -> dict[str, Any]:
         """Remove ``name`` from a segment's values, pinned, and metadata.
 
         Drops ``name`` from the values list, the pinned list, and the metadata
@@ -140,7 +152,11 @@ class StateFile:
         except (FileNotFoundError, json.JSONDecodeError):
             return default
 
-    def save(self, state: dict[str, Any], out_of_band_keys: tuple[str, ...] = ("auth_browser",)) -> None:
+    def save(
+        self,
+        state: dict[str, Any],
+        out_of_band_keys: tuple[str, ...] = ("auth_browser",),
+    ) -> None:
         """Write *state* to disk, letting fresh on-disk out-of-band keys win.
 
         Re-reads the disk copy and, for each name in *out_of_band_keys*, copies a

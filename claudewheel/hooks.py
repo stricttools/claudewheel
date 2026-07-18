@@ -28,21 +28,24 @@ def run_hooks(hooks_dir: Path, stage: str, selections: dict[str, str | None]) ->
 
     # Find and run matching hooks sorted by name
     hooks = sorted(
-        [f for f in hooks_dir.iterdir() if f.name.startswith(stage) and os.access(f, os.X_OK)],
-        key=lambda f: f.name
+        [
+            f
+            for f in hooks_dir.iterdir()
+            if f.name.startswith(stage) and os.access(f, os.X_OK)
+        ],
+        key=lambda f: f.name,
     )
 
     for hook in hooks:
         try:
             result = subprocess.run(
-                [str(hook)],
-                env=env,
-                capture_output=True,
-                text=True,
-                timeout=10
+                [str(hook)], env=env, capture_output=True, text=True, timeout=10
             )
             if result.returncode != 0:
-                print(f"Hook '{hook.name}' failed (exit {result.returncode}):", file=sys.stderr)
+                print(
+                    f"Hook '{hook.name}' failed (exit {result.returncode}):",
+                    file=sys.stderr,
+                )
                 if result.stderr.strip():
                     print(result.stderr.strip(), file=sys.stderr)
                 return False

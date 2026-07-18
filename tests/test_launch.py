@@ -45,7 +45,9 @@ class ResolveLaunchConfigTestBase(unittest.TestCase):
         )
         self.token_store = TokenStore(self.tokens_file)
         self.profiles = ProfileStore(
-            self.profiles_dir, self.claude_dir, self.token_store,
+            self.profiles_dir,
+            self.claude_dir,
+            self.token_store,
         )
 
     def _make_profile(self, name: str) -> Path:
@@ -74,7 +76,9 @@ class ResolveLaunchConfigTestBase(unittest.TestCase):
 
         with mock.patch("claudewheel.launch.fetch_gh_token", return_value=None):
             return resolve_launch_config(
-                selections, options_def, default_flags,
+                selections,
+                options_def,
+                default_flags,
                 locator=locator or self.locator,
                 profiles=profiles or self.profiles,
                 extra_flags=extra_flags,
@@ -112,11 +116,13 @@ class ResolveDisallowedToolsTests(ResolveLaunchConfigTestBase):
         idx_disallowed = argv.index("--disallowedTools")
 
         self.assertGreater(
-            idx_disallowed, idx_verbose,
+            idx_disallowed,
+            idx_verbose,
             "--disallowedTools should appear after --verbose",
         )
         self.assertGreater(
-            idx_disallowed, idx_bypass,
+            idx_disallowed,
+            idx_bypass,
             "--disallowedTools should appear after --dangerously-skip-permissions",
         )
 

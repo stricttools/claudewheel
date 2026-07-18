@@ -43,8 +43,11 @@ class LaunchIntegrationTests(SandboxHomeTestCase):
     def _resolve(self, selections):
         with mock.patch("claudewheel.launch.fetch_gh_token", return_value=None):
             return resolve_launch_config(
-                selections, {}, [],
-                locator=self.locator, profiles=self.profiles,
+                selections,
+                {},
+                [],
+                locator=self.locator,
+                profiles=self.profiles,
             )
 
     def test_created_profile_is_discovered(self) -> None:

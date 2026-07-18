@@ -41,8 +41,10 @@ class _HomeDirTestCase(unittest.TestCase):
         self._tokens_file = self.home / ".claudewheel" / "tokens.json"
         # Health now takes an explicit workspace; build one rooted at the sandbox.
         from claudewheel.workspace import Workspace
-        self.ws = Workspace.open(self.home / ".claudewheel",
-                                 claude_dir=self.home / ".claude")
+
+        self.ws = Workspace.open(
+            self.home / ".claudewheel", claude_dir=self.home / ".claude"
+        )
         self._dir_patches = []
 
     def tearDown(self) -> None:
@@ -134,7 +136,14 @@ class DiscoverProfilesTests(_HomeDirTestCase):
 class CheckSharedSymlinksTests(_HomeDirTestCase):
     """Tests for check_shared_symlinks(self.ws)."""
 
-    EXPECTED_DIRS = ["projects", "session-env", "file-history", "tasks", "todos", "paste-cache"]
+    EXPECTED_DIRS = [
+        "projects",
+        "session-env",
+        "file-history",
+        "tasks",
+        "todos",
+        "paste-cache",
+    ]
 
     def _setup_shared(self) -> Path:
         """Create ~/.claudewheel/shared/ with all expected subdirs."""
@@ -279,7 +288,7 @@ class CheckHooksWiredTests(_HomeDirTestCase):
                         "matcher": "Agent",
                         "hooks": [
                             {"command": str(sd / "hook-block-worktree")},
-                        ]
+                        ],
                     }
                 ],
             }
@@ -310,22 +319,38 @@ class CheckHooksWiredTests(_HomeDirTestCase):
         return {
             "hooks": {
                 "UserPromptSubmit": [
-                    {"matcher": "", "hooks": [
-                        {"command": str(scripts_dir / "hook-timestamp")},
-                    ]},
+                    {
+                        "matcher": "",
+                        "hooks": [
+                            {"command": str(scripts_dir / "hook-timestamp")},
+                        ],
+                    },
                 ],
                 "PreToolUse": [
-                    {"matcher": "Agent", "hooks": [
-                        {"command": str(scripts_dir / "hook-block-worktree")},
-                    ]},
-                    {"matcher": "Bash", "hooks": [
-                        {"command": str(scripts_dir / "hook-block-unsafe-commands")},
-                    ]},
+                    {
+                        "matcher": "Agent",
+                        "hooks": [
+                            {"command": str(scripts_dir / "hook-block-worktree")},
+                        ],
+                    },
+                    {
+                        "matcher": "Bash",
+                        "hooks": [
+                            {
+                                "command": str(
+                                    scripts_dir / "hook-block-unsafe-commands"
+                                )
+                            },
+                        ],
+                    },
                 ],
                 "PostToolUse": [
-                    {"matcher": "Bash", "hooks": [
-                        {"command": str(scripts_dir / "hook-advise-commands")},
-                    ]},
+                    {
+                        "matcher": "Bash",
+                        "hooks": [
+                            {"command": str(scripts_dir / "hook-advise-commands")},
+                        ],
+                    },
                 ],
             }
         }
@@ -718,7 +743,15 @@ class CheckAuthShadowTests(_HomeDirTestCase):
     def test_flagged_when_both_token_and_claude_ai_oauth(self) -> None:
         """Profile with both tokens.json entry AND claudeAiOauth in .credentials.json is flagged."""
         pdir = self._make_profile("work")
-        self._write_tokens({"work": {"token": "tok-xxx", "created": "2025-01-01", "expires_at": "2026-01-01"}})
+        self._write_tokens(
+            {
+                "work": {
+                    "token": "tok-xxx",
+                    "created": "2025-01-01",
+                    "expires_at": "2026-01-01",
+                }
+            }
+        )
         self._write_credentials(pdir, {"claudeAiOauth": {"accessToken": "short-lived"}})
 
         result = check_auth_shadow(self.ws)
@@ -868,8 +901,10 @@ class CheckTmpClaudeSizeTests(unittest.TestCase):
     def test_threshold_warns_above_1gb(self) -> None:
         """Usage above 1024 MB warns with the '>1 GB threshold' message."""
         over = 1025 * 1024 * 1024
-        with patch.object(health, "_tmp_claude_dir", return_value=self.tmp_dir), \
-             patch.object(health, "_real_disk_usage", return_value=over):
+        with (
+            patch.object(health, "_tmp_claude_dir", return_value=self.tmp_dir),
+            patch.object(health, "_real_disk_usage", return_value=over),
+        ):
             result = check_tmp_claude_size()
         self.assertFalse(result.ok)
         self.assertIn("1 GB threshold", result.detail)
@@ -877,8 +912,10 @@ class CheckTmpClaudeSizeTests(unittest.TestCase):
     def test_threshold_ok_at_1gb_boundary(self) -> None:
         """Usage of exactly 1024 MB is OK (boundary is inclusive)."""
         at = 1024 * 1024 * 1024
-        with patch.object(health, "_tmp_claude_dir", return_value=self.tmp_dir), \
-             patch.object(health, "_real_disk_usage", return_value=at):
+        with (
+            patch.object(health, "_tmp_claude_dir", return_value=self.tmp_dir),
+            patch.object(health, "_real_disk_usage", return_value=at),
+        ):
             result = check_tmp_claude_size()
         self.assertTrue(result.ok)
         self.assertNotIn("threshold", result.detail)
@@ -931,7 +968,9 @@ class CheckCanonicalPermissionsDriftTests(_HomeDirTestCase):
         pdir = self._make_profile("missingDeny")
         perms = self._canonical_perms()
         # Drop two canonical deny rules.
-        perms["deny"] = [d for d in perms["deny"] if d not in ("Bash(rm:*)", "Bash(git stash:*)")]
+        perms["deny"] = [
+            d for d in perms["deny"] if d not in ("Bash(rm:*)", "Bash(git stash:*)")
+        ]
         self._write_settings(pdir, perms)
 
         result = check_canonical_permissions_drift(self.ws)
@@ -1005,8 +1044,10 @@ class CheckDeployedHookDriftTests(unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
         from claudewheel.workspace import Workspace
-        self.ws = Workspace.open(Path(self._tmp.name),
-                                 claude_dir=Path(self._tmp.name) / ".claude")
+
+        self.ws = Workspace.open(
+            Path(self._tmp.name), claude_dir=Path(self._tmp.name) / ".claude"
+        )
         self._scripts_dir = self.ws.scripts_dir
         self._patches = [
             patch("claudewheel.health.HOOK_SCRIPTS", self.MODEL),
@@ -1142,10 +1183,15 @@ class CheckRelocatedHookPathsTests(_HomeDirTestCase):
     def _timestamp_hooks(self, scripts_dir) -> dict:
         return {
             "UserPromptSubmit": [
-                {"matcher": "", "hooks": [
-                    {"type": "command",
-                     "command": str(Path(scripts_dir) / "hook-timestamp")},
-                ]},
+                {
+                    "matcher": "",
+                    "hooks": [
+                        {
+                            "type": "command",
+                            "command": str(Path(scripts_dir) / "hook-timestamp"),
+                        },
+                    ],
+                },
             ],
         }
 
@@ -1179,12 +1225,22 @@ class CheckRelocatedHookPathsTests(_HomeDirTestCase):
     def test_user_custom_hook_under_other_dir_passes(self) -> None:
         """A non-claudewheel hook command under any dir is ignored (not flagged)."""
         pdir = self._make_profile("custom")
-        settings = {"hooks": {"UserPromptSubmit": [
-            {"matcher": "", "hooks": [
-                {"type": "command", "command": str(self._scripts_dir / "hook-timestamp")},
-                {"type": "command", "command": "/opt/mine/my-own-hook"},
-            ]},
-        ]}}
+        settings = {
+            "hooks": {
+                "UserPromptSubmit": [
+                    {
+                        "matcher": "",
+                        "hooks": [
+                            {
+                                "type": "command",
+                                "command": str(self._scripts_dir / "hook-timestamp"),
+                            },
+                            {"type": "command", "command": "/opt/mine/my-own-hook"},
+                        ],
+                    },
+                ]
+            }
+        }
         self._write_settings(pdir, settings)
 
         result = check_relocated_hook_paths(self.ws)

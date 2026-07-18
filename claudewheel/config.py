@@ -71,7 +71,10 @@ HISTORICAL_DEFAULTS: dict[str, set[str]] = {
 
 
 def _migration_1_github_optional(
-    config: dict[str, Any], segments_def: list[dict[str, Any]], theme: dict[str, Any], options_def: dict[str, Any],
+    config: dict[str, Any],
+    segments_def: list[dict[str, Any]],
+    theme: dict[str, Any],
+    options_def: dict[str, Any],
 ) -> None:
     """Make github segment optional (was incorrectly required)."""
     for seg in segments_def:
@@ -80,7 +83,10 @@ def _migration_1_github_optional(
 
 
 def _migration_2_profile_paths(
-    config: dict[str, Any], segments_def: list[dict[str, Any]], theme: dict[str, Any], options_def: dict[str, Any],
+    config: dict[str, Any],
+    segments_def: list[dict[str, Any]],
+    theme: dict[str, Any],
+    options_def: dict[str, Any],
 ) -> None:
     """Rewrite profile metadata config_dir from ~/.claude-<name> to ~/.claudewheel/profiles/<name>.
 
@@ -92,6 +98,7 @@ def _migration_2_profile_paths(
     migration 4 removes its output in the same forward pass.
     """
     import re
+
     metadata = options_def.get("profile", {}).get("metadata", {})
     for name, meta in metadata.items():
         cd = meta.get("config_dir", "")
@@ -103,7 +110,10 @@ def _migration_2_profile_paths(
 
 
 def _migration_3_classify_pinned(
-    config: dict[str, Any], segments_def: list[dict[str, Any]], theme: dict[str, Any], options_def: dict[str, Any],
+    config: dict[str, Any],
+    segments_def: list[dict[str, Any]],
+    theme: dict[str, Any],
+    options_def: dict[str, Any],
 ) -> None:
     """Classify existing 'values' into 'pinned' vs discard.
 
@@ -148,7 +158,10 @@ def _migration_3_classify_pinned(
 
 
 def _migration_4_drop_profile_metadata(
-    config: dict[str, Any], segments_def: list[dict[str, Any]], theme: dict[str, Any], options_def: dict[str, Any],
+    config: dict[str, Any],
+    segments_def: list[dict[str, Any]],
+    theme: dict[str, Any],
+    options_def: dict[str, Any],
 ) -> None:
     """Remove the legacy ``metadata`` block from the ``profile`` segment only.
 
@@ -255,7 +268,9 @@ class AppConfigStore:
         I/O. Callers resolve *name* via :func:`resolve_theme_name` first.
         """
         theme_default = DEFAULT_THEME_LIGHT if name == "light" else DEFAULT_THEME_DARK
-        theme: dict[str, Any] = self._load_json(self._themes_dir / f"{name}.json", theme_default)
+        theme: dict[str, Any] = self._load_json(
+            self._themes_dir / f"{name}.json", theme_default
+        )
         self._deep_merge_missing(theme, theme_default)
         return theme
 

@@ -79,16 +79,18 @@ def _display_config_dir(ws: "Workspace", name: str) -> str:
     real = _real_config_dir(ws, name)
     home = str(Path.home())
     if real == home or real.startswith(home + os.sep):
-        return "~" + real[len(home):]
+        return "~" + real[len(home) :]
     return real
 
 
-def _validate_name(ws: "Workspace", name: str, existing_profiles: list[str]) -> str | None:
+def _validate_name(
+    ws: "Workspace", name: str, existing_profiles: list[str]
+) -> str | None:
     """Return error message, or None if valid."""
     name = name.strip()
     if not name:
         return "Name cannot be empty"
-    if not re.match(r'^[a-z0-9][a-z0-9-]*$', name):
+    if not re.match(r"^[a-z0-9][a-z0-9-]*$", name):
         return "Use lowercase letters, digits, hyphens only"
     if name == "default":
         return f"'{name}' is a reserved name"
@@ -112,19 +114,34 @@ def _build_fields(ws: "Workspace", existing_profiles: list[str]) -> list[FormFie
         get_field(fields, "config_dir").value = _display_config_dir(ws, name)
 
     fields = [
-        FormField("name", "text", label="Name", value="",
-                  on_change=sync_config_dir),
-        FormField("config_dir", "readonly", label="Config dir",
-                  value=_display_config_dir(ws, "")),
-        FormField("settings_source", "radio", label="Settings source",
-                  value=radio_opts[0], options=radio_opts),
-        FormField("advanced", "radio", label="Advanced",
-                  value="Hide advanced",
-                  options=["Hide advanced", "Show advanced"]),
+        FormField("name", "text", label="Name", value="", on_change=sync_config_dir),
+        FormField(
+            "config_dir",
+            "readonly",
+            label="Config dir",
+            value=_display_config_dir(ws, ""),
+        ),
+        FormField(
+            "settings_source",
+            "radio",
+            label="Settings source",
+            value=radio_opts[0],
+            options=radio_opts,
+        ),
+        FormField(
+            "advanced",
+            "radio",
+            label="Advanced",
+            value="Hide advanced",
+            options=["Hide advanced", "Show advanced"],
+        ),
     ]
     for key, label in _CHECKBOX_DEFS:
-        fields.append(FormField(key, "checkbox", label=label, value=True,
-                                visible=advanced_expanded))
+        fields.append(
+            FormField(
+                key, "checkbox", label=label, value=True, visible=advanced_expanded
+            )
+        )
     fields.append(FormField("create", "button", label="Create"))
     return fields
 
@@ -149,12 +166,17 @@ def _build_result(ws: "Workspace", values: dict[str, object]) -> WizardResult:
 
 def _cancelled_result() -> WizardResult:
     """Return a cancelled WizardResult with zero-value fields."""
-    return WizardResult("", "", None, False, False, False, False, False,
-                        False, cancelled=True)
+    return WizardResult(
+        "", "", None, False, False, False, False, False, False, cancelled=True
+    )
 
 
-def run_profile_wizard(ws: "Workspace", existing_profiles: list[str], theme: ThemeColors,
-                       terminal: Terminal) -> WizardResult:
+def run_profile_wizard(
+    ws: "Workspace",
+    existing_profiles: list[str],
+    theme: ThemeColors,
+    terminal: Terminal,
+) -> WizardResult:
     """Run the profile creation form and return the user's choices.
 
     The form renders on *terminal* with *theme* colors via the ui widget
@@ -166,8 +188,7 @@ def run_profile_wizard(ws: "Workspace", existing_profiles: list[str], theme: The
         name = str(get_field(fields, "name").value or "").strip()
         return _validate_name(ws, name, existing_profiles)
 
-    values = run_form("New Profile", fields, theme, terminal,
-                      validate=validate)
+    values = run_form("New Profile", fields, theme, terminal, validate=validate)
     if values is None:
         return _cancelled_result()
     return _build_result(ws, values)
@@ -253,7 +274,9 @@ def create_profile(ws: "Workspace", result: WizardResult) -> list[str]:
     # Disable auto mode
     settings.setdefault("permissions", {})["disableAutoMode"] = "disable"
     # Record which tools claudewheel manages (enforcement is via --disallowedTools CLI flag in launch.py)
-    settings.setdefault("claudewheel", {})["disallowedTools"] = shared.get("disallowedTools", DISALLOWED_TOOLS[:])
+    settings.setdefault("claudewheel", {})["disallowedTools"] = shared.get(
+        "disallowedTools", DISALLOWED_TOOLS[:]
+    )
 
     # Wire hooks -- when the profile already has a hooks section (e.g. cloned),
     # additively merge ALL canonical events/matchers (reusing the matcher-based,
@@ -300,9 +323,15 @@ def _find_claude_binary(locator: "BinaryLocator") -> str | None:
     return found
 
 
-def run_auth_flow(ws: "Workspace", locator: "BinaryLocator", config_dir: str,
-                  profile_name: str, theme: ThemeColors, terminal: Terminal,
-                  skip_label: str = "Skip for now") -> str:
+def run_auth_flow(
+    ws: "Workspace",
+    locator: "BinaryLocator",
+    config_dir: str,
+    profile_name: str,
+    theme: ThemeColors,
+    terminal: Terminal,
+    skip_label: str = "Skip for now",
+) -> str:
     """Prompt the user to set up authentication for a newly created profile.
 
     Presents a selection form with three choices: session login
@@ -333,7 +362,8 @@ def run_auth_flow(ws: "Workspace", locator: "BinaryLocator", config_dir: str,
             ("paste", "Paste token directly"),
             ("skip", skip_label),
         ],
-        theme, terminal,
+        theme,
+        terminal,
     )
 
     if choice == "skip":
@@ -354,18 +384,22 @@ def run_auth_flow(ws: "Workspace", locator: "BinaryLocator", config_dir: str,
         browser = run_selection(
             "Choose browser",
             detect_browsers() + [("copy", "Copy URL instead")],
-            theme, terminal,
+            theme,
+            terminal,
             initial_key=remembered,
         )
         if browser is None:
             return "cancel"
 
         if choice == "session":
-            ok = _auth_session_login(ws, locator, config_dir, profile_name, browser, terminal)
+            ok = _auth_session_login(
+                ws, locator, config_dir, profile_name, browser, terminal
+            )
             outcome = "authenticated" if ok else "failed"
         else:
-            outcome = _auth_long_lived_token(ws, locator, config_dir, profile_name,
-                                             browser, theme, terminal)
+            outcome = _auth_long_lived_token(
+                ws, locator, config_dir, profile_name, browser, theme, terminal
+            )
 
     if outcome in ("authenticated", "unverified"):
         # Remember the working browser choice for the next auth flow. An
@@ -392,8 +426,9 @@ def _apply_browser_env(env: dict[str, str], browser: str) -> None:
         env["BROWSER"] = browser
 
 
-def _capture_tier_from_credentials(ws: "Workspace", credentials: Path,
-                                   profile_name: str) -> None:
+def _capture_tier_from_credentials(
+    ws: "Workspace", credentials: Path, profile_name: str
+) -> None:
     """Read rateLimitTier/subscriptionType from .credentials.json and store in tokens.json.
 
     Best-effort: silently skips if the credentials file cannot be parsed or
@@ -416,8 +451,14 @@ def _capture_tier_from_credentials(ws: "Workspace", credentials: Path,
         pass  # best-effort: don't fail auth flow over tier storage
 
 
-def _auth_session_login(ws: "Workspace", locator: "BinaryLocator", config_dir: str,
-                        profile_name: str, browser: str, terminal: Terminal) -> bool:
+def _auth_session_login(
+    ws: "Workspace",
+    locator: "BinaryLocator",
+    config_dir: str,
+    profile_name: str,
+    browser: str,
+    terminal: Terminal,
+) -> bool:
     """Run ``claude auth login`` with CLAUDE_CONFIG_DIR and BROWSER set.
 
     The whole body runs inside ``terminal.cooked()`` so the claude subprocess
@@ -473,7 +514,9 @@ def _read_pasted_token(prompt: str) -> str | None:
     return "".join(raw.split())
 
 
-def _capture_setup_token(locator: "BinaryLocator", config_dir: str, browser: str) -> str | None:
+def _capture_setup_token(
+    locator: "BinaryLocator", config_dir: str, browser: str
+) -> str | None:
     """Run ``claude setup-token`` under a PTY and scrape the token.
 
     Must run inside a cooked window: run_under_pty proxies the real terminal
@@ -528,8 +571,13 @@ def _save_token(ws: "Workspace", profile_name: str, token: str) -> bool:
     return True
 
 
-def _auth_paste_token(ws: "Workspace", config_dir: str, profile_name: str,
-                      theme: ThemeColors, terminal: Terminal) -> str:
+def _auth_paste_token(
+    ws: "Workspace",
+    config_dir: str,
+    profile_name: str,
+    theme: ThemeColors,
+    terminal: Terminal,
+) -> str:
     """Prompt the user to paste a token directly, validate it, save it.
 
     Skips the browser selection and PTY capture entirely -- the user pastes
@@ -549,7 +597,9 @@ def _auth_paste_token(ws: "Workspace", config_dir: str, profile_name: str,
         status = auth.validate_token(token)
         if status == auth.INVALID:
             print("Error: the token was rejected by the API (401).")
-            token = _read_pasted_token("Paste the corrected token, or press Enter to abort: ")
+            token = _read_pasted_token(
+                "Paste the corrected token, or press Enter to abort: "
+            )
             if not token:
                 print("No token provided.")
                 return "failed"
@@ -567,15 +617,17 @@ def _auth_paste_token(ws: "Workspace", config_dir: str, profile_name: str,
     # UNREACHABLE or INDETERMINATE: the token cannot be verified right now.
     # The cooked window is closed, so the choice form renders borrowed in
     # the caller's session (raw terminal) like the other auth forms.
-    reason = ("API unreachable" if status == auth.UNREACHABLE
-              else "validation inconclusive")
+    reason = (
+        "API unreachable" if status == auth.UNREACHABLE else "validation inconclusive"
+    )
     choice = run_selection(
         f"Token could not be validated ({reason})",
         [
             ("save", "Save unvalidated"),
             ("abort", "Abort"),
         ],
-        theme, terminal,
+        theme,
+        terminal,
     )
     if choice != "save":
         return "failed"
@@ -587,9 +639,15 @@ def _auth_paste_token(ws: "Workspace", config_dir: str, profile_name: str,
     return "unverified"
 
 
-def _auth_long_lived_token(ws: "Workspace", locator: "BinaryLocator", config_dir: str,
-                           profile_name: str, browser: str,
-                           theme: ThemeColors, terminal: Terminal) -> str:
+def _auth_long_lived_token(
+    ws: "Workspace",
+    locator: "BinaryLocator",
+    config_dir: str,
+    profile_name: str,
+    browser: str,
+    theme: ThemeColors,
+    terminal: Terminal,
+) -> str:
     """Run ``claude setup-token``, scrape the token, validate it, save it.
 
     Every token (scraped or manually recovered) is probed against the API
@@ -629,15 +687,17 @@ def _auth_long_lived_token(ws: "Workspace", locator: "BinaryLocator", config_dir
     # UNREACHABLE or INDETERMINATE: the token cannot be verified right now.
     # The cooked window is closed, so the choice form renders borrowed in
     # the caller's session (raw terminal) like the other auth forms.
-    reason = ("API unreachable" if status == auth.UNREACHABLE
-              else "validation inconclusive")
+    reason = (
+        "API unreachable" if status == auth.UNREACHABLE else "validation inconclusive"
+    )
     choice = run_selection(
         f"Token could not be validated ({reason})",
         [
             ("save", "Save unvalidated"),
             ("abort", "Abort"),
         ],
-        theme, terminal,
+        theme,
+        terminal,
     )
     if choice != "save":
         return "failed"

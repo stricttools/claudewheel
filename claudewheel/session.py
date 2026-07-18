@@ -56,9 +56,7 @@ def get_session_cwd(
     return None
 
 
-def find_session(
-    session_id: str, shared_projects_dir: Path
-) -> SessionInfo | None:
+def find_session(session_id: str, shared_projects_dir: Path) -> SessionInfo | None:
     """Locate a session by UUID in the shared projects store.
 
     Globs ``<shared_projects_dir>/*/<session_id>.jsonl`` and returns a
@@ -115,12 +113,14 @@ def find_orphaned_project_dirs(
             continue
 
         total_size = sum(f.stat().st_size for f in jsonl_files)
-        results.append(OrphanedProject(
-            encoded_cwd=project_dir.name,
-            cwd=cwd,
-            session_count=len(jsonl_files),
-            total_size_bytes=total_size,
-            projects_dir=project_dir,
-        ))
+        results.append(
+            OrphanedProject(
+                encoded_cwd=project_dir.name,
+                cwd=cwd,
+                session_count=len(jsonl_files),
+                total_size_bytes=total_size,
+                projects_dir=project_dir,
+            )
+        )
 
     return results

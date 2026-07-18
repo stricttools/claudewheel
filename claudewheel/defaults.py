@@ -29,6 +29,7 @@ DISALLOWED_TOOLS = [
     "TaskUpdate",
 ]
 
+
 def canonical_hook_command(scripts_dir: Path, script: str) -> str:
     """Return the canonical hook command string for *script* under *scripts_dir*.
 
@@ -232,7 +233,15 @@ DEFAULT_OPTIONS: dict[str, Any] = {
         "pinned": [],
         "discovery": {
             "type": "directory_scan",
-            "parents": ["~/Projects", "~/repos", "~/src", "~/code", "~/dev", "~/Work", "~/work"],
+            "parents": [
+                "~/Projects",
+                "~/repos",
+                "~/src",
+                "~/code",
+                "~/dev",
+                "~/Work",
+                "~/work",
+            ],
             "state_field": "recent_dirs",
         },
     },

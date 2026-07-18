@@ -20,7 +20,14 @@ class SharedStore:
     # Directories inside each profile that are symlinked to the shared store.
     # This module is the canonical home of the shared-store layout -- it must
     # NOT import from constants (constants is now ANSI/terminal-only).
-    SHARED_SUBDIRS = ("projects", "session-env", "file-history", "tasks", "todos", "paste-cache")
+    SHARED_SUBDIRS = (
+        "projects",
+        "session-env",
+        "file-history",
+        "tasks",
+        "todos",
+        "paste-cache",
+    )
 
     @property
     def projects_dir(self) -> Path:

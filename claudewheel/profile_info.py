@@ -21,17 +21,17 @@ class ProfileReport:
 
     name: str
     config_dir: Path
-    exists: bool                       # config_dir is a directory on disk
-    registered: bool                   # in options.json profile values
-    pinned: bool                       # in options.json profile pinned list
-    has_credentials: bool              # .credentials.json present
-    has_token: bool                    # entry in tokens.json
-    token_expiry: TokenExpiry | None   # only when has_token
-    has_auth_shadow: bool = False      # claudeAiOauth in creds AND valid token
-    rate_limit_tier: str | None = None       # from tokens.json entry
-    subscription_type: str | None = None     # from tokens.json entry
+    exists: bool  # config_dir is a directory on disk
+    registered: bool  # in options.json profile values
+    pinned: bool  # in options.json profile pinned list
+    has_credentials: bool  # .credentials.json present
+    has_token: bool  # entry in tokens.json
+    token_expiry: TokenExpiry | None  # only when has_token
+    has_auth_shadow: bool = False  # claudeAiOauth in creds AND valid token
+    rate_limit_tier: str | None = None  # from tokens.json entry
+    subscription_type: str | None = None  # from tokens.json entry
     shared_dirs: dict[str, str] = field(default_factory=dict)
-    danger: bool = False               # any shared entry is a real dir/file
+    danger: bool = False  # any shared entry is a real dir/file
     settings_found: bool = False
     permission_counts: dict[str, int] = field(default_factory=dict)
     away_summary_enabled: bool | None = None
@@ -51,8 +51,9 @@ def _read_options_registration(ws: "Workspace", name: str) -> tuple[bool, bool]:
     )
 
 
-def _read_token_state(ws: "Workspace", name: str) -> tuple[bool, TokenExpiry | None,
-                                          str | None, str | None]:
+def _read_token_state(
+    ws: "Workspace", name: str
+) -> tuple[bool, TokenExpiry | None, str | None, str | None]:
     """Return (has_token, expiry, tier, subscription) for *name* from tokens.json.
 
     A corrupt tokens.json raises :class:`TokenStoreError` (the hard-error
@@ -112,19 +113,16 @@ def _disk_usage(config_dir: Path) -> int:
     return total
 
 
-def _read_settings(config_dir: Path) -> tuple[bool, dict[str, int],
-                                              bool | None, int | None,
-                                              bool | None]:
+def _read_settings(
+    config_dir: Path,
+) -> tuple[bool, dict[str, int], bool | None, int | None, bool | None]:
     """Summarize settings.json; tolerate a missing/corrupt file and keys."""
     try:
         settings = json.loads((config_dir / "settings.json").read_text())
     except (FileNotFoundError, json.JSONDecodeError, OSError):
         return False, {}, None, None, None
     perms = settings.get("permissions", {})
-    counts = {
-        cat: len(perms.get(cat, []) or [])
-        for cat in ("allow", "deny", "ask")
-    }
+    counts = {cat: len(perms.get(cat, []) or []) for cat in ("allow", "deny", "ask")}
     return (
         True,
         counts,
@@ -176,7 +174,9 @@ def gather_profile_info(ws: "Workspace", name: str) -> ProfileReport:
     config_dir = ws.profiles.path_for(name)
     exists = config_dir.is_dir()
     registered, pinned = _read_options_registration(ws, name)
-    has_token, token_expiry, rate_limit_tier, subscription_type = _read_token_state(ws, name)
+    has_token, token_expiry, rate_limit_tier, subscription_type = _read_token_state(
+        ws, name
+    )
     has_credentials = (config_dir / ".credentials.json").exists()
 
     shared_dirs: dict[str, str] = {}
@@ -189,8 +189,9 @@ def gather_profile_info(ws: "Workspace", name: str) -> ProfileReport:
         shared_dirs = ws.profiles.classify_shared_dirs(name)
         active_sessions = _count_active_sessions(config_dir)
         disk_usage_bytes = _disk_usage(config_dir)
-        (settings_found, permission_counts,
-         away, cleanup, auto_memory) = _read_settings(config_dir)
+        (settings_found, permission_counts, away, cleanup, auto_memory) = (
+            _read_settings(config_dir)
+        )
 
     has_auth_shadow = detect_auth_shadow(ws, name)
 
@@ -244,14 +245,18 @@ def format_report(report: ProfileReport) -> list[str]:
     else:
         lines.append("Registered: no")
 
-    lines.append(f"Credentials file: {'present' if report.has_credentials else 'missing'}")
+    lines.append(
+        f"Credentials file: {'present' if report.has_credentials else 'missing'}"
+    )
 
     if report.has_token and report.token_expiry is not None:
         exp = report.token_expiry
         created = exp.created.isoformat() if exp.created else "unknown"
         expires = exp.expires.isoformat() if exp.expires else "unknown"
-        lines.append(f"Token: present (created {created}, expires {expires}, "
-                     f"{exp.remaining_days:.0f} days left)")
+        lines.append(
+            f"Token: present (created {created}, expires {expires}, "
+            f"{exp.remaining_days:.0f} days left)"
+        )
     else:
         lines.append("Token: none")
 
@@ -275,8 +280,10 @@ def format_report(report: ProfileReport) -> list[str]:
 
     if report.settings_found:
         c = report.permission_counts
-        lines.append(f"Permissions: {c.get('allow', 0)} allow, "
-                     f"{c.get('deny', 0)} deny, {c.get('ask', 0)} ask")
+        lines.append(
+            f"Permissions: {c.get('allow', 0)} allow, "
+            f"{c.get('deny', 0)} deny, {c.get('ask', 0)} ask"
+        )
         lines.append(f"awaySummaryEnabled: {report.away_summary_enabled}")
         lines.append(f"cleanupPeriodDays: {report.cleanup_period_days}")
         lines.append(f"autoMemoryEnabled: {report.auto_memory_enabled}")

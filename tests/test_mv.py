@@ -28,13 +28,20 @@ class EncodePathTests(unittest.TestCase):
     """Slash-and-dot-to-dash encoding used by Claude Code for project directory names."""
 
     def test_replaces_slashes_with_dashes(self) -> None:
-        self.assertEqual(SharedStore.encode_path("/home/m/Projects/Foo"), "-home-m-Projects-Foo")
+        self.assertEqual(
+            SharedStore.encode_path("/home/m/Projects/Foo"), "-home-m-Projects-Foo"
+        )
 
     def test_replaces_dots_with_dashes(self) -> None:
-        self.assertEqual(SharedStore.encode_path("/home/m/Projects/foo.bar"), "-home-m-Projects-foo-bar")
+        self.assertEqual(
+            SharedStore.encode_path("/home/m/Projects/foo.bar"),
+            "-home-m-Projects-foo-bar",
+        )
 
     def test_replaces_both_slashes_and_dots(self) -> None:
-        self.assertEqual(SharedStore.encode_path("/home/m/.config/app"), "-home-m--config-app")
+        self.assertEqual(
+            SharedStore.encode_path("/home/m/.config/app"), "-home-m--config-app"
+        )
 
     def test_empty_string(self) -> None:
         self.assertEqual(SharedStore.encode_path(""), "")
@@ -123,10 +130,14 @@ class UpdateClaudeJsonTests(unittest.TestCase):
 
     def test_renames_matching_key(self) -> None:
         f = self.tmp_path / ".claude.json"
-        f.write_text(json.dumps({
-            "projects": {"/old/proj": {"setting": 1}, "/other": {"x": 2}},
-            "topLevel": True,
-        }))
+        f.write_text(
+            json.dumps(
+                {
+                    "projects": {"/old/proj": {"setting": 1}, "/other": {"x": 2}},
+                    "topLevel": True,
+                }
+            )
+        )
 
         result = _update_claude_json(f, "/old/proj", "/new/proj", dry_run=False)
 
@@ -177,8 +188,10 @@ class RunMvValidationTests(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory()
         self.tmp_path = Path(self._tmp.name)
         from claudewheel.workspace import Workspace
-        self.ws = Workspace.open(self.tmp_path / ".claudewheel",
-                                 claude_dir=self.tmp_path / ".claude")
+
+        self.ws = Workspace.open(
+            self.tmp_path / ".claudewheel", claude_dir=self.tmp_path / ".claude"
+        )
         self._stdout_trap = contextlib.redirect_stdout(io.StringIO())
         self._stdout_trap.__enter__()
 
@@ -265,8 +278,10 @@ class RunMvIntegrationTests(unittest.TestCase):
         self.home = Path(self._tmp.name) / "home"
         self.home.mkdir()
         from claudewheel.workspace import Workspace
-        self.ws = Workspace.open(self.home / ".claudewheel",
-                                 claude_dir=self.home / ".claude")
+
+        self.ws = Workspace.open(
+            self.home / ".claudewheel", claude_dir=self.home / ".claude"
+        )
 
         self._stdout_trap = contextlib.redirect_stdout(io.StringIO())
         self._stdout_trap.__enter__()
@@ -296,19 +311,26 @@ class RunMvIntegrationTests(unittest.TestCase):
         self.old_project.mkdir()
         self.session_jsonl = self.old_project / "session.jsonl"
         self.session_jsonl.write_text(
-            json.dumps({"cwd": self.old_resolved, "type": "init"}) + "\n"
-            + json.dumps({"msg": "hello"}) + "\n"
-            + json.dumps({"cwd": self.old_resolved, "type": "resume"}) + "\n"
+            json.dumps({"cwd": self.old_resolved, "type": "init"})
+            + "\n"
+            + json.dumps({"msg": "hello"})
+            + "\n"
+            + json.dumps({"cwd": self.old_resolved, "type": "resume"})
+            + "\n"
         )
 
         # .claude.json with old path as a key under "projects"
         self.claude_json = self.profile / ".claude.json"
-        self.claude_json.write_text(json.dumps({
-            "projects": {
-                self.old_resolved: {"lastSession": "abc123"},
-                "/other/project": {"lastSession": "xyz"},
-            },
-        }))
+        self.claude_json.write_text(
+            json.dumps(
+                {
+                    "projects": {
+                        self.old_resolved: {"lastSession": "abc123"},
+                        "/other/project": {"lastSession": "xyz"},
+                    },
+                }
+            )
+        )
 
     def tearDown(self) -> None:
         self._stdout_trap.__exit__(None, None, None)
@@ -316,15 +338,19 @@ class RunMvIntegrationTests(unittest.TestCase):
 
     def _run(self, dry_run: bool = False) -> MvResult:
         """Run mv with patched home and profile discovery (post-hoc mode)."""
-        with patch("claudewheel.mv.Path.home", return_value=self.home), \
-             patch(
-                 "claudewheel.mv._discover_profile_dirs",
-                 return_value=[self.profile],
-             ):
+        with (
+            patch("claudewheel.mv.Path.home", return_value=self.home),
+            patch(
+                "claudewheel.mv._discover_profile_dirs",
+                return_value=[self.profile],
+            ),
+        ):
             return run_mv(
                 self.ws,
-                str(self.old_dir), str(self.new_dir),
-                dry_run=dry_run, post_hoc=True,
+                str(self.old_dir),
+                str(self.new_dir),
+                dry_run=dry_run,
+                post_hoc=True,
             )
 
     def test_full_mv(self) -> None:
@@ -400,12 +426,16 @@ class RunMvIntegrationTests(unittest.TestCase):
         shared_json = shared / ".claude.json"
         shared_json.write_text(json.dumps({"projects": {self.old_resolved: {"x": 1}}}))
 
-        with patch("claudewheel.mv.Path.home", return_value=self.home), \
-             patch(
-                 "claudewheel.mv._discover_profile_dirs",
-                 return_value=[self.profile, shared],
-             ):
-            result = run_mv(self.ws, str(self.old_dir), str(self.new_dir), post_hoc=True)
+        with (
+            patch("claudewheel.mv.Path.home", return_value=self.home),
+            patch(
+                "claudewheel.mv._discover_profile_dirs",
+                return_value=[self.profile, shared],
+            ),
+        ):
+            result = run_mv(
+                self.ws, str(self.old_dir), str(self.new_dir), post_hoc=True
+            )
 
         # Only the profile's .claude.json was updated, not shared's
         self.assertEqual(result.project_keys_updated, 1)
@@ -427,8 +457,10 @@ class MergeDirsTests(unittest.TestCase):
         self.home = Path(self._tmp.name) / "home"
         self.home.mkdir()
         from claudewheel.workspace import Workspace
-        self.ws = Workspace.open(self.home / ".claudewheel",
-                                 claude_dir=self.home / ".claude")
+
+        self.ws = Workspace.open(
+            self.home / ".claudewheel", claude_dir=self.home / ".claude"
+        )
 
         self._stdout_trap = contextlib.redirect_stdout(io.StringIO())
         self._stdout_trap.__enter__()
@@ -461,42 +493,44 @@ class MergeDirsTests(unittest.TestCase):
 
         # .claude.json (needed for run_mv to complete)
         self.claude_json = self.profile / ".claude.json"
-        self.claude_json.write_text(json.dumps({
-            "projects": {self.old_resolved: {"lastSession": "old"}},
-        }))
+        self.claude_json.write_text(
+            json.dumps(
+                {
+                    "projects": {self.old_resolved: {"lastSession": "old"}},
+                }
+            )
+        )
 
     def tearDown(self) -> None:
         self._stdout_trap.__exit__(None, None, None)
         self._tmp.cleanup()
 
     def _run(self, dry_run: bool = False) -> MvResult:
-        with patch("claudewheel.mv.Path.home", return_value=self.home), \
-             patch(
-                 "claudewheel.mv._discover_profile_dirs",
-                 return_value=[self.profile],
-             ):
+        with (
+            patch("claudewheel.mv.Path.home", return_value=self.home),
+            patch(
+                "claudewheel.mv._discover_profile_dirs",
+                return_value=[self.profile],
+            ),
+        ):
             return run_mv(
                 self.ws,
-                str(self.old_dir), str(self.new_dir),
-                dry_run=dry_run, post_hoc=True,
+                str(self.old_dir),
+                str(self.new_dir),
+                dry_run=dry_run,
+                post_hoc=True,
             )
 
     def test_mv_merge_when_target_exists(self) -> None:
         """Old sessions are merged into existing new_project; paths rewritten."""
         # Old dir has 2 session files referencing old path
         uuid1 = self.old_project / "uuid1.jsonl"
-        uuid1.write_text(
-            json.dumps({"cwd": self.old_resolved, "type": "init"}) + "\n"
-        )
+        uuid1.write_text(json.dumps({"cwd": self.old_resolved, "type": "init"}) + "\n")
         uuid2 = self.old_project / "uuid2.jsonl"
-        uuid2.write_text(
-            json.dumps({"cwd": self.old_resolved, "type": "init"}) + "\n"
-        )
+        uuid2.write_text(json.dumps({"cwd": self.old_resolved, "type": "init"}) + "\n")
         # New dir already has 1 session file (created after rename)
         uuid3 = self.new_project / "uuid3.jsonl"
-        uuid3.write_text(
-            json.dumps({"cwd": self.new_resolved, "type": "init"}) + "\n"
-        )
+        uuid3.write_text(json.dumps({"cwd": self.new_resolved, "type": "init"}) + "\n")
 
         result = self._run()
 
@@ -523,17 +557,11 @@ class MergeDirsTests(unittest.TestCase):
     def test_mv_merge_dry_run(self) -> None:
         """Dry run reports merge actions but leaves both dirs intact."""
         uuid1 = self.old_project / "uuid1.jsonl"
-        uuid1.write_text(
-            json.dumps({"cwd": self.old_resolved, "type": "init"}) + "\n"
-        )
+        uuid1.write_text(json.dumps({"cwd": self.old_resolved, "type": "init"}) + "\n")
         uuid2 = self.old_project / "uuid2.jsonl"
-        uuid2.write_text(
-            json.dumps({"cwd": self.old_resolved, "type": "init"}) + "\n"
-        )
+        uuid2.write_text(json.dumps({"cwd": self.old_resolved, "type": "init"}) + "\n")
         uuid3 = self.new_project / "uuid3.jsonl"
-        uuid3.write_text(
-            json.dumps({"cwd": self.new_resolved, "type": "init"}) + "\n"
-        )
+        uuid3.write_text(json.dumps({"cwd": self.new_resolved, "type": "init"}) + "\n")
 
         original_old_files = sorted(f.name for f in self.old_project.iterdir())
         original_new_files = sorted(f.name for f in self.new_project.iterdir())
@@ -564,13 +592,9 @@ class MergeDirsTests(unittest.TestCase):
         """A file with the same name in both dirs is skipped (kept in new)."""
         collision_name = "same-uuid.jsonl"
         old_file = self.old_project / collision_name
-        old_file.write_text(
-            json.dumps({"cwd": self.old_resolved, "src": "old"}) + "\n"
-        )
+        old_file.write_text(json.dumps({"cwd": self.old_resolved, "src": "old"}) + "\n")
         new_file = self.new_project / collision_name
-        new_file.write_text(
-            json.dumps({"cwd": self.new_resolved, "src": "new"}) + "\n"
-        )
+        new_file.write_text(json.dumps({"cwd": self.new_resolved, "src": "new"}) + "\n")
         # Also have a non-colliding file to verify it does get moved
         other_file = self.old_project / "other.jsonl"
         other_file.write_text(
@@ -615,8 +639,10 @@ class RenameModeTests(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory()
         self.tmp_path = Path(self._tmp.name)
         from claudewheel.workspace import Workspace
-        self.ws = Workspace.open(self.tmp_path / ".claudewheel",
-                                 claude_dir=self.tmp_path / ".claude")
+
+        self.ws = Workspace.open(
+            self.tmp_path / ".claudewheel", claude_dir=self.tmp_path / ".claude"
+        )
         self._stdout_trap = contextlib.redirect_stdout(io.StringIO())
         self._stdout_trap.__enter__()
 
@@ -658,9 +684,7 @@ class RenameModeTests(unittest.TestCase):
         old_project = projects / old_encoded
         old_project.mkdir()
         session = old_project / "session.jsonl"
-        session.write_text(
-            json.dumps({"cwd": old_resolved, "type": "init"}) + "\n"
-        )
+        session.write_text(json.dumps({"cwd": old_resolved, "type": "init"}) + "\n")
 
         with patch("claudewheel.mv._discover_profile_dirs", return_value=[profile]):
             result = run_mv(self.ws, str(old), str(new))
@@ -702,7 +726,8 @@ class RenameModeTests(unittest.TestCase):
         old.mkdir()
 
         with patch.object(
-            Path, "rename",
+            Path,
+            "rename",
             side_effect=OSError(errno.EXDEV, "Invalid cross-device link"),
         ):
             with self.assertRaises(OSError) as ctx:

@@ -75,7 +75,9 @@ def _advice_for(rule, mod):
         tail = mod.ESCALATE_TAIL
         if message.endswith(tail):
             message = message[: -len(tail)].strip()
-        return message or "Subagents are denied; the main agent is prompted via settings."
+        return (
+            message or "Subagents are denied; the main agent is prompted via settings."
+        )
     if rule.tier is mod.Tier.ASK:
         return "Prompted via the settings ask rule (no hook)."
     return ""

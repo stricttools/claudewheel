@@ -14,7 +14,13 @@ import tty
 from collections.abc import Iterator
 from typing import Any
 
-from .constants import (ALT_SCREEN_ON, ALT_SCREEN_OFF, HIDE_CURSOR, SHOW_CURSOR, CLEAR_SCREEN)
+from .constants import (
+    ALT_SCREEN_ON,
+    ALT_SCREEN_OFF,
+    HIDE_CURSOR,
+    SHOW_CURSOR,
+    CLEAR_SCREEN,
+)
 
 # Timeout (seconds) for the initial select() in terminal query responses
 # (OSC 11 background color, Mode 2031 dark/light). Shorter than the follow-up
@@ -111,8 +117,7 @@ class Terminal:
                         # byte (0x40-0x7E) so nothing leaks into the next read.
                         params = ch3
                         while True:
-                            nxt = os.read(self.fd, 1).decode(
-                                "utf-8", errors="replace")
+                            nxt = os.read(self.fd, 1).decode("utf-8", errors="replace")
                             if "\x20" <= nxt <= "\x3f":
                                 params += nxt
                                 continue
@@ -310,7 +315,7 @@ def _parse_mode2031_response(fd: int) -> str | None:
         return None
 
     # Parse the mode digit(s) after the marker, up to 'n'
-    rest = response[idx + len(marker):]
+    rest = response[idx + len(marker) :]
     digits = b""
     for byte in rest:
         if byte == ord("n"):
@@ -363,10 +368,10 @@ def _parse_osc11_response(fd: int) -> str | None:
     # The ESC] prefix may also be \x9d (8-bit OSC introducer).
     osc_start = -1
     for i, byte in enumerate(response):
-        if byte == 0x1b and i + 1 < len(response) and response[i + 1] == ord("]"):
+        if byte == 0x1B and i + 1 < len(response) and response[i + 1] == ord("]"):
             osc_start = i + 2
             break
-        if byte == 0x9d:
+        if byte == 0x9D:
             osc_start = i + 1
             break
 
@@ -379,9 +384,13 @@ def _parse_osc11_response(fd: int) -> str | None:
     while j < len(response):
         if response[j] == 0x07:
             break
-        if response[j] == 0x9c:
+        if response[j] == 0x9C:
             break
-        if response[j] == 0x1b and j + 1 < len(response) and response[j + 1] == ord("\\"):
+        if (
+            response[j] == 0x1B
+            and j + 1 < len(response)
+            and response[j + 1] == ord("\\")
+        ):
             break
         payload += bytes([response[j]])
         j += 1

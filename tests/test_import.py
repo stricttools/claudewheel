@@ -39,12 +39,18 @@ def _make_session_jsonl(cwd: str, session_id: str) -> str:
     """
     lines = [
         _make_jsonl_line(
-            cwd=cwd, sessionId=session_id, type="user",
-            uuid="u1", message={"content": "hi"},
+            cwd=cwd,
+            sessionId=session_id,
+            type="user",
+            uuid="u1",
+            message={"content": "hi"},
         ),
         _make_jsonl_line(
-            cwd=cwd, sessionId=session_id, type="assistant",
-            uuid="u2", parentUuid="u1",
+            cwd=cwd,
+            sessionId=session_id,
+            type="assistant",
+            uuid="u2",
+            parentUuid="u1",
         ),
     ]
     return "\n".join(lines) + "\n"
@@ -77,7 +83,8 @@ class NormalizeCwdTests(unittest.TestCase):
     def test_drive_letter_only_at_position_zero(self) -> None:
         """A colon at position 1 mid-path is not case-folded."""
         self.assertEqual(
-            _normalize_cwd("/some/C:/path"), "/some/C:/path",
+            _normalize_cwd("/some/C:/path"),
+            "/some/C:/path",
         )
 
     def test_empty_string(self) -> None:
@@ -174,9 +181,7 @@ class ScanSourceTests(unittest.TestCase):
         for name, uuid in [("proj-a", UUID_A), ("proj-b", UUID_B)]:
             enc = self.projects / name
             enc.mkdir()
-            (enc / f"{uuid}.jsonl").write_text(
-                _make_jsonl_line(cwd="/test") + "\n"
-            )
+            (enc / f"{uuid}.jsonl").write_text(_make_jsonl_line(cwd="/test") + "\n")
 
         with patch("claudewheel.import_.get_session_cwd", return_value="/test"):
             bundles = _scan_source(self.root)
@@ -189,9 +194,7 @@ class ScanSourceTests(unittest.TestCase):
         """The source_encoded_dir field captures the encoded project dir name."""
         enc = self.projects / "my-encoded-proj"
         enc.mkdir()
-        (enc / f"{UUID_A}.jsonl").write_text(
-            _make_jsonl_line(cwd="/test") + "\n"
-        )
+        (enc / f"{UUID_A}.jsonl").write_text(_make_jsonl_line(cwd="/test") + "\n")
 
         with patch("claudewheel.import_.get_session_cwd", return_value="/test"):
             bundles = _scan_source(self.root)
@@ -214,10 +217,12 @@ class BuildRewritersTests(unittest.TestCase):
 
     def test_multiple_mappings_sorted_longest_first(self) -> None:
         """Longer from_paths appear before shorter ones."""
-        rewriters = _build_rewriters([
-            ("c:\\a", "/x"),
-            ("c:\\a\\b\\c", "/x/b/c"),
-        ])
+        rewriters = _build_rewriters(
+            [
+                ("c:\\a", "/x"),
+                ("c:\\a\\b\\c", "/x/b/c"),
+            ]
+        )
         # 4 patterns total: 2 per mapping
         self.assertEqual(len(rewriters), 4)
         # The first two should be for the longer path.
@@ -267,7 +272,8 @@ class ApplyRewritesTests(unittest.TestCase):
         line = json.dumps({"cwd": "c:/Users/m/test"})
 
         result, changed = self._rewrite(
-            line, [("c:\\Users\\m\\test", "/home/m/test")],
+            line,
+            [("c:\\Users\\m\\test", "/home/m/test")],
         )
 
         self.assertTrue(changed)
@@ -279,7 +285,8 @@ class ApplyRewritesTests(unittest.TestCase):
         line = json.dumps({"file_path": "c:/Users/m/test/src/app.js"})
 
         result, changed = self._rewrite(
-            line, [("c:\\Users\\m\\test", "/home/m/test")],
+            line,
+            [("c:\\Users\\m\\test", "/home/m/test")],
         )
 
         self.assertTrue(changed)
@@ -293,7 +300,8 @@ class ApplyRewritesTests(unittest.TestCase):
         line = json.dumps({"cwd": "c:\\Users\\m\\test"})
 
         result, changed = self._rewrite(
-            line, [("c:\\Users\\m\\test", "/home/m/test")],
+            line,
+            [("c:\\Users\\m\\test", "/home/m/test")],
         )
 
         self.assertTrue(changed)
@@ -306,7 +314,8 @@ class ApplyRewritesTests(unittest.TestCase):
         line = json.dumps({"file_path": "c:\\Users\\m\\test\\src\\app.js"})
 
         result, changed = self._rewrite(
-            line, [("c:\\Users\\m\\test", "/home/m/test")],
+            line,
+            [("c:\\Users\\m\\test", "/home/m/test")],
         )
 
         self.assertTrue(changed)
@@ -319,7 +328,8 @@ class ApplyRewritesTests(unittest.TestCase):
             line = json.dumps({"cwd": f"{drive}:/Users/m/test"})
 
             result, changed = self._rewrite(
-                line, [("c:\\Users\\m\\test", "/home/m/test")],
+                line,
+                [("c:\\Users\\m\\test", "/home/m/test")],
             )
 
             self.assertTrue(changed, f"failed for drive letter '{drive}'")
@@ -348,7 +358,8 @@ class ApplyRewritesTests(unittest.TestCase):
         line = '{"cwd": "/home/linux/path", "msg": "hello"}'
 
         result, changed = self._rewrite(
-            line, [("c:\\Users\\m\\test", "/home/m/test")],
+            line,
+            [("c:\\Users\\m\\test", "/home/m/test")],
         )
 
         self.assertFalse(changed)
@@ -364,7 +375,8 @@ class ApplyRewritesTests(unittest.TestCase):
         line = json.dumps(obj)
 
         result, _ = self._rewrite(
-            line, [("c:\\Users\\m\\test", "/home/m/test")],
+            line,
+            [("c:\\Users\\m\\test", "/home/m/test")],
         )
 
         parsed = json.loads(result)
@@ -381,7 +393,8 @@ class ApplyRewritesTests(unittest.TestCase):
         line = json.dumps(obj)
 
         result, changed = self._rewrite(
-            line, [("c:\\Users\\m\\proj", "/home/m/proj")],
+            line,
+            [("c:\\Users\\m\\proj", "/home/m/proj")],
         )
 
         self.assertTrue(changed)
@@ -394,7 +407,8 @@ class ApplyRewritesTests(unittest.TestCase):
         line = json.dumps({"cwd": "/old/path/subdir"})
 
         result, changed = self._rewrite(
-            line, [("/old/path", "/new/path")],
+            line,
+            [("/old/path", "/new/path")],
         )
 
         self.assertTrue(changed)
@@ -515,9 +529,7 @@ class RewriteJsonlTests(unittest.TestCase):
         """Reid handles sessionId with spaces around the colon."""
         src = self.root / "src.jsonl"
         # Write a line with "sessionId": "uuid" (space after colon)
-        src.write_text(
-            json.dumps({"sessionId": UUID_A, "type": "user"}) + "\n"
-        )
+        src.write_text(json.dumps({"sessionId": UUID_A, "type": "user"}) + "\n")
         dst = self.root / "dst.jsonl"
 
         rewriters = _build_rewriters([])
@@ -700,14 +712,10 @@ class MappingValidationTests(unittest.TestCase):
         """Multiple from-paths mapping to the same to-path is allowed."""
         enc_a = self.source / "projects" / "proj-a"
         enc_a.mkdir()
-        (enc_a / f"{UUID_A}.jsonl").write_text(
-            _make_session_jsonl("/path-a", UUID_A)
-        )
+        (enc_a / f"{UUID_A}.jsonl").write_text(_make_session_jsonl("/path-a", UUID_A))
         enc_b = self.source / "projects" / "proj-b"
         enc_b.mkdir()
-        (enc_b / f"{UUID_B}.jsonl").write_text(
-            _make_session_jsonl("/path-b", UUID_B)
-        )
+        (enc_b / f"{UUID_B}.jsonl").write_text(_make_session_jsonl("/path-b", UUID_B))
 
         def mock_cwd(path, **kwargs):
             if UUID_A in str(path):
@@ -732,7 +740,9 @@ class MappingValidationTests(unittest.TestCase):
             _make_session_jsonl("C:\\Users\\m\\", UUID_A)
         )
 
-        with patch("claudewheel.import_.get_session_cwd", return_value="C:\\Users\\m\\"):
+        with patch(
+            "claudewheel.import_.get_session_cwd", return_value="C:\\Users\\m\\"
+        ):
             # Mapping uses lowercase drive letter without trailing slash
             result = run_import(
                 self.store,
@@ -783,7 +793,9 @@ class IntegrationTests(unittest.TestCase):
         agent_jsonl = self.companion / "agent.jsonl"
         agent_jsonl.write_text(
             _make_jsonl_line(
-                cwd="c:/Users/m/test", sessionId=UUID_A, type="assistant",
+                cwd="c:/Users/m/test",
+                sessionId=UUID_A,
+                type="assistant",
             )
             + "\n"
         )
@@ -818,9 +830,9 @@ class IntegrationTests(unittest.TestCase):
     def test_full_import(self) -> None:
         """Complete import: JSONL rewritten, companions copied, artifacts moved."""
         with patch(
-                 "claudewheel.import_.get_session_cwd",
-                 return_value="c:/Users/m/test",
-             ):
+            "claudewheel.import_.get_session_cwd",
+            return_value="c:/Users/m/test",
+        ):
             result = run_import(
                 self.store,
                 str(self.source),
@@ -874,9 +886,9 @@ class IntegrationTests(unittest.TestCase):
         )
 
         with patch(
-                 "claudewheel.import_.get_session_cwd",
-                 return_value="c:/Users/m/test",
-             ):
+            "claudewheel.import_.get_session_cwd",
+            return_value="c:/Users/m/test",
+        ):
             run_import(
                 self.store,
                 str(self.source),
@@ -892,14 +904,12 @@ class IntegrationTests(unittest.TestCase):
     def test_linux_to_linux_import(self) -> None:
         """A pure Linux-path source imports correctly."""
         # Override source data with Linux paths
-        self.source_proj_jsonl.write_text(
-            _make_session_jsonl("/old/project", UUID_A)
-        )
+        self.source_proj_jsonl.write_text(_make_session_jsonl("/old/project", UUID_A))
 
         with patch(
-                 "claudewheel.import_.get_session_cwd",
-                 return_value="/old/project",
-             ):
+            "claudewheel.import_.get_session_cwd",
+            return_value="/old/project",
+        ):
             result = run_import(
                 self.store,
                 str(self.source),
@@ -974,9 +984,9 @@ class DryRunTests(unittest.TestCase):
     def test_dry_run_counts_correct(self) -> None:
         """Dry run reports the expected session and artifact counts."""
         with patch(
-                 "claudewheel.import_.get_session_cwd",
-                 return_value="c:/Users/m/test",
-             ):
+            "claudewheel.import_.get_session_cwd",
+            return_value="c:/Users/m/test",
+        ):
             result = run_import(
                 self.store,
                 str(self.source),
@@ -992,9 +1002,9 @@ class DryRunTests(unittest.TestCase):
     def test_dry_run_no_files_created(self) -> None:
         """Dry run does not create any files in the shared store."""
         with patch(
-                 "claudewheel.import_.get_session_cwd",
-                 return_value="c:/Users/m/test",
-             ):
+            "claudewheel.import_.get_session_cwd",
+            return_value="c:/Users/m/test",
+        ):
             run_import(
                 self.store,
                 str(self.source),
@@ -1011,9 +1021,7 @@ class DryRunTests(unittest.TestCase):
     def test_dry_run_collision_without_reid(self) -> None:
         """Dry run with collisions still returns collision list."""
         proj = self.source / "projects" / "proj"
-        (proj / f"{UUID_B}.jsonl").write_text(
-            _make_session_jsonl("/test2", UUID_B)
-        )
+        (proj / f"{UUID_B}.jsonl").write_text(_make_session_jsonl("/test2", UUID_B))
         # Create collision in shared store
         target_dir = self.shared / "projects" / SharedStore.encode_path("/local/test2")
         target_dir.mkdir(parents=True)
@@ -1127,10 +1135,7 @@ class ReidCompanionDirTests(unittest.TestCase):
         # The old collision file should still exist
         self.assertTrue((target_dir / f"{UUID_A}.jsonl").exists())
         # Find the new UUID -- should be a JSONL file that is NOT UUID_A
-        new_jsonl_files = [
-            f for f in target_dir.glob("*.jsonl")
-            if f.stem != UUID_A
-        ]
+        new_jsonl_files = [f for f in target_dir.glob("*.jsonl") if f.stem != UUID_A]
         self.assertEqual(len(new_jsonl_files), 1)
         new_uuid = new_jsonl_files[0].stem
 
@@ -1151,10 +1156,7 @@ class ReidCompanionDirTests(unittest.TestCase):
             )
 
         target_dir = self.shared / "projects" / SharedStore.encode_path("/local/test")
-        new_jsonl_files = [
-            f for f in target_dir.glob("*.jsonl")
-            if f.stem != UUID_A
-        ]
+        new_jsonl_files = [f for f in target_dir.glob("*.jsonl") if f.stem != UUID_A]
         new_uuid = new_jsonl_files[0].stem
 
         agent_jsonl = target_dir / new_uuid / "subagents" / "agent.jsonl"
@@ -1174,10 +1176,7 @@ class ReidCompanionDirTests(unittest.TestCase):
             )
 
         target_dir = self.shared / "projects" / SharedStore.encode_path("/local/test")
-        new_jsonl_files = [
-            f for f in target_dir.glob("*.jsonl")
-            if f.stem != UUID_A
-        ]
+        new_jsonl_files = [f for f in target_dir.glob("*.jsonl") if f.stem != UUID_A]
         self.assertEqual(len(new_jsonl_files), 1)
         new_uuid = new_jsonl_files[0].stem
 
@@ -1206,9 +1205,7 @@ class ReidSimpleArtifactsTests(unittest.TestCase):
         self.source = self.root / "source"
         proj = self.source / "projects" / "proj"
         proj.mkdir(parents=True)
-        (proj / f"{UUID_A}.jsonl").write_text(
-            _make_session_jsonl("/test", UUID_A)
-        )
+        (proj / f"{UUID_A}.jsonl").write_text(_make_session_jsonl("/test", UUID_A))
 
         # Todos file: <uuid>-agent-<uuid>.json (both positions use the same UUID)
         todos = self.source / "todos"
@@ -1246,10 +1243,7 @@ class ReidSimpleArtifactsTests(unittest.TestCase):
 
         # Find the new UUID from the imported JSONL
         target_dir = self.shared / "projects" / SharedStore.encode_path("/local/test")
-        new_uuid = [
-            f.stem for f in target_dir.glob("*.jsonl")
-            if f.stem != UUID_A
-        ][0]
+        new_uuid = [f.stem for f in target_dir.glob("*.jsonl") if f.stem != UUID_A][0]
 
         # The todos file should use the new UUID in both positions
         expected_name = f"{new_uuid}-agent-{new_uuid}.json"
@@ -1271,10 +1265,7 @@ class ReidSimpleArtifactsTests(unittest.TestCase):
             )
 
         target_dir = self.shared / "projects" / SharedStore.encode_path("/local/test")
-        new_uuid = [
-            f.stem for f in target_dir.glob("*.jsonl")
-            if f.stem != UUID_A
-        ][0]
+        new_uuid = [f.stem for f in target_dir.glob("*.jsonl") if f.stem != UUID_A][0]
 
         # The session-env dir should use the new UUID
         env_dst = self.shared / "session-env" / new_uuid
@@ -1306,9 +1297,7 @@ class PasteCacheDedupTests(unittest.TestCase):
         self.source = self.root / "source"
         proj = self.source / "projects" / "proj"
         proj.mkdir(parents=True)
-        (proj / f"{UUID_C}.jsonl").write_text(
-            _make_session_jsonl("/test", UUID_C)
-        )
+        (proj / f"{UUID_C}.jsonl").write_text(_make_session_jsonl("/test", UUID_C))
         paste_src = self.source / "paste-cache"
         paste_src.mkdir()
         (paste_src / "abcdef123456.txt").write_text("duplicate content")
@@ -1375,9 +1364,7 @@ class EmptyJsonlSkipTests(unittest.TestCase):
         # Create a 0-byte file with a valid UUID name
         (enc / f"{UUID_A}.jsonl").write_text("")
         # Create a non-empty file for comparison
-        (enc / f"{UUID_B}.jsonl").write_text(
-            _make_jsonl_line(cwd="/test") + "\n"
-        )
+        (enc / f"{UUID_B}.jsonl").write_text(_make_jsonl_line(cwd="/test") + "\n")
 
         with patch("claudewheel.import_.get_session_cwd", return_value="/test"):
             bundles = _scan_source(self.root)
@@ -1417,9 +1404,7 @@ class ReidNonJsonlPathTests(unittest.TestCase):
         self.source = self.root / "source"
         proj = self.source / "projects" / "proj"
         proj.mkdir(parents=True)
-        (proj / f"{UUID_A}.jsonl").write_text(
-            _make_session_jsonl("/test", UUID_A)
-        )
+        (proj / f"{UUID_A}.jsonl").write_text(_make_session_jsonl("/test", UUID_A))
 
         # Companion dir with nested non-JSONL file containing UUID in path
         # e.g. <uuid>/tool-results/<uuid>/output.txt
@@ -1453,10 +1438,7 @@ class ReidNonJsonlPathTests(unittest.TestCase):
         self.assertEqual(result.sessions_reided, 1)
 
         target_dir = self.shared / "projects" / SharedStore.encode_path("/local/test")
-        new_uuid = [
-            f.stem for f in target_dir.glob("*.jsonl")
-            if f.stem != UUID_A
-        ][0]
+        new_uuid = [f.stem for f in target_dir.glob("*.jsonl") if f.stem != UUID_A][0]
 
         # The file should be under new_uuid/tool-results/new_uuid/output.txt
         expected = target_dir / new_uuid / "tool-results" / new_uuid / "output.txt"

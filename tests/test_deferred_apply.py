@@ -16,8 +16,7 @@ from claudewheel.segment import (
 def _make_bar(*keys: str) -> SegmentBar:
     """Build a minimal SegmentBar with segments for each key."""
     segments = [
-        Segment(key=k, label=k.capitalize(), options=["opt1", "opt2"])
-        for k in keys
+        Segment(key=k, label=k.capitalize(), options=["opt1", "opt2"]) for k in keys
     ]
     return SegmentBar(segments=segments, focus_idx=0)
 
@@ -38,7 +37,9 @@ class ApplySlowDiscoveryDeferralTests(unittest.TestCase):
         app.cfg.options_def = {}
         # Bind the real methods to our mock
         app._apply_slow_discovery = App._apply_slow_discovery.__get__(app, App)
-        app._apply_pending_for_segment = App._apply_pending_for_segment.__get__(app, App)
+        app._apply_pending_for_segment = App._apply_pending_for_segment.__get__(
+            app, App
+        )
         app._defocus = App._defocus.__get__(app, App)
         return app
 
@@ -120,7 +121,9 @@ class ApplyPendingForSegmentTests(unittest.TestCase):
         app.cfg = MagicMock()
         app.cfg.state = {}
         app.cfg.options_def = {}
-        app._apply_pending_for_segment = App._apply_pending_for_segment.__get__(app, App)
+        app._apply_pending_for_segment = App._apply_pending_for_segment.__get__(
+            app, App
+        )
         return app
 
     def test_applies_and_clears_pending(self) -> None:
@@ -188,7 +191,9 @@ class DefocusTests(unittest.TestCase):
         app.cfg = MagicMock()
         app.cfg.state = {}
         app.cfg.options_def = {}
-        app._apply_pending_for_segment = App._apply_pending_for_segment.__get__(app, App)
+        app._apply_pending_for_segment = App._apply_pending_for_segment.__get__(
+            app, App
+        )
         app._defocus = App._defocus.__get__(app, App)
         return app
 

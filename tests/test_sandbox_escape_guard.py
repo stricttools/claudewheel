@@ -161,8 +161,9 @@ class SandboxEscapeGuardTest(SandboxHomeTestCase):
         # 1. appconfig() on a FRESH sandbox root: dir seeding + schema migrations.
         fresh_parent = self.home / "fresh"
         fresh_parent.mkdir()
-        Workspace.open(fresh_parent / ".claudewheel",
-                       claude_dir=self.home / ".claude").appconfig()
+        Workspace.open(
+            fresh_parent / ".claudewheel", claude_dir=self.home / ".claude"
+        ).appconfig()
 
         # 2. ProfileStore.create (settings dict; one create suffices).
         base_settings = {"permissions": {"allow": [], "deny": [], "ask": []}}
@@ -195,24 +196,31 @@ class SandboxEscapeGuardTest(SandboxHomeTestCase):
         stale_dir = ws.profiles_dir / "gp-stale"
         stale_dir.mkdir(parents=True)
         (stale_dir / ".credentials.json").write_text("{}")
-        save_settings(stale_dir / "settings.json", {
-            "hooks": {
-                "UserPromptSubmit": [
-                    {"matcher": "", "hooks": [
-                        {"type": "command",
-                         "command": "/nonexistent/old-scripts/hook-timestamp"},
-                    ]},
-                ],
+        save_settings(
+            stale_dir / "settings.json",
+            {
+                "hooks": {
+                    "UserPromptSubmit": [
+                        {
+                            "matcher": "",
+                            "hooks": [
+                                {
+                                    "type": "command",
+                                    "command": "/nonexistent/old-scripts/hook-timestamp",
+                                },
+                            ],
+                        },
+                    ],
+                },
             },
-        })
+        )
         run_patch_profiles(ws)
 
         # 6. run_reconcile across all profiles + shared-settings profileDefaults.
         run_reconcile(ws, dry_run=False, profile=None)
 
         # 7. hook_scripts.deploy_scripts into the sandbox scripts dir.
-        deploy_scripts(list(HOOK_SCRIPTS.keys()), ws.scripts_dir,
-                       force_overwrite=True)
+        deploy_scripts(list(HOOK_SCRIPTS.keys()), ws.scripts_dir, force_overwrite=True)
 
         # 8. OptionsFile add_pinned + write (sandbox options.json).
         opts = OptionsFile(ws.options_file)
@@ -238,8 +246,9 @@ class SandboxEscapeGuardTest(SandboxHomeTestCase):
         (src_proj / f"{_A_UUID}.jsonl").write_text(
             '{"cwd":"/guard/proj","sessionId":"' + _A_UUID + '"}\n'
         )
-        with mock.patch("claudewheel.import_.get_session_cwd",
-                        return_value="/guard/proj"):
+        with mock.patch(
+            "claudewheel.import_.get_session_cwd", return_value="/guard/proj"
+        ):
             run_import(
                 ws.shared,
                 str(source),
@@ -273,7 +282,8 @@ class SandboxEscapeGuardTest(SandboxHomeTestCase):
 
         diff = _diff_snapshots(before, after)
         self.assertEqual(
-            diff, [],
+            diff,
+            [],
             "SANDBOX ESCAPE: a write path mutated the REAL home's claudewheel "
             "config surface. Changed files:\n  " + "\n  ".join(diff),
         )
@@ -289,6 +299,7 @@ class SandboxEscapeGuardTest(SandboxHomeTestCase):
         monitored.mkdir()
         (monitored / "a.json").write_text("{}\n")
         (monitored / "b.json").write_text("[]\n")
+
         def watched():
             return sorted(p for p in monitored.rglob("*") if p.is_file())
 

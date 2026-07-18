@@ -108,7 +108,9 @@ def _do_show(cfg: "AppConfigStore") -> int:
     return 0
 
 
-def _write_tier_stub(ws: "Workspace", profile: str | None, config_dir: str | None) -> None:
+def _write_tier_stub(
+    ws: "Workspace", profile: str | None, config_dir: str | None
+) -> None:
     """Write a rateLimitTier stub into .credentials.json if tokens.json has tier data.
 
     This lets downstream tools (e.g. howmuchleft) read the tier from
@@ -159,8 +161,11 @@ def _write_tier_stub(ws: "Workspace", profile: str | None, config_dir: str | Non
 
 
 def _do_launch_sequence(
-    ws: "Workspace", locator: "BinaryLocator", cfg: "AppConfigStore",
-    selections: dict[str, str | None], extra_flags: list[str] | None = None,
+    ws: "Workspace",
+    locator: "BinaryLocator",
+    cfg: "AppConfigStore",
+    selections: dict[str, str | None],
+    extra_flags: list[str] | None = None,
     interactive: bool = True,
     metadata: dict[str, dict[str, dict[str, Any]]] | None = None,
     client: str = DEFAULT_CLIENT,
@@ -200,7 +205,9 @@ def _do_launch_sequence(
     # user sees a clean message, never a traceback.
     try:
         cwd, argv, env = resolve_launch_config(
-            selections, cfg.options_def, cfg.config.get("default_flags", []),
+            selections,
+            cfg.options_def,
+            cfg.config.get("default_flags", []),
             locator=locator,
             profiles=ws.profiles,
             extra_flags=extra_flags,
@@ -226,8 +233,10 @@ def _do_launch_sequence(
 # command.  Handlers that need an AppConfigStore instantiate it lazily (only
 # the ones that actually need it), keeping the one-shot commands fast.
 
+
 def _handle_health(ws: "Workspace") -> int:
     from .health import run_health_check, print_health_report
+
     results = run_health_check(ws)
     print_health_report(results)
     if not all(r.ok for r in results):
@@ -323,8 +332,9 @@ def _handle_new_profile(ws: "Workspace", locator: "BinaryLocator") -> int:
                 cancelled = True
             else:
                 summary = create_profile(ws, result)
-                outcome = run_auth_flow(ws, locator, result.config_dir, result.name,
-                                        theme, terminal)
+                outcome = run_auth_flow(
+                    ws, locator, result.config_dir, result.name, theme, terminal
+                )
                 show_page("Profile created", summary, theme, terminal)
         finally:
             terminal.exit_raw()
@@ -341,15 +351,27 @@ def _handle_new_profile(ws: "Workspace", locator: "BinaryLocator") -> int:
     elif outcome == "unverified":
         print("Token saved without validation (API unreachable).")
     elif outcome == "cancel":
-        print("Auth setup cancelled -- you can authenticate later by launching the profile.")
+        print(
+            "Auth setup cancelled -- you can authenticate later by launching the profile."
+        )
     elif outcome == "failed":
         print("Auth setup failed -- you can retry by launching the profile.")
     return 0
 
 
-@strictcli.flag("force-delete", type=bool, help="force deletion even if sessions appear active; skips the safety check")
-@strictcli.flag("force-delete-data", type=bool, help="delete even when shared-dir names hold REAL data instead of symlinks; this DESTROYS that data (e.g. conversation history)")
-def _handle_delete_profile(ws: "Workspace", name: str, force_delete: bool, force_delete_data: bool) -> int:
+@strictcli.flag(
+    "force-delete",
+    type=bool,
+    help="force deletion even if sessions appear active; skips the safety check",
+)
+@strictcli.flag(
+    "force-delete-data",
+    type=bool,
+    help="delete even when shared-dir names hold REAL data instead of symlinks; this DESTROYS that data (e.g. conversation history)",
+)
+def _handle_delete_profile(
+    ws: "Workspace", name: str, force_delete: bool, force_delete_data: bool
+) -> int:
     """Delete a profile via ProfileStore. The running check is CLI policy."""
     from .profile_ops import _is_profile_running
 
@@ -371,8 +393,10 @@ def _handle_delete_profile(ws: "Workspace", name: str, force_delete: bool, force
         sys.exit(1)
 
     print(f"Deleting profile '{name}'...")
-    print(f"  Removed dir: {result.removed_symlinks} symlinks unlinked, "
-          f"{result.removed_real} real entries removed")
+    print(
+        f"  Removed dir: {result.removed_symlinks} symlinks unlinked, "
+        f"{result.removed_real} real entries removed"
+    )
     if result.removed_from_options:
         print("  Removed from options.json")
     else:
@@ -401,10 +425,12 @@ def _handle_show_profile(ws: "Workspace", name: str) -> int:
         sys.exit(1)
     # Unknown = no dir on disk, not registered/pinned, and no token entry.
     # "default" (~/.claude) is inspectable like any other profile.
-    if not (report.exists or report.registered or report.pinned
-            or report.has_token):
-        print(f"Profile '{name}' not found: no profile directory, "
-              "no options.json registration, no token.", file=sys.stderr)
+    if not (report.exists or report.registered or report.pinned or report.has_token):
+        print(
+            f"Profile '{name}' not found: no profile directory, "
+            "no options.json registration, no token.",
+            file=sys.stderr,
+        )
         sys.exit(1)
     for line in format_report(report):
         print(line)
@@ -428,15 +454,20 @@ def _handle_rename_profile(ws: "Workspace", old: str, new: str) -> int:
     old_dir = ws.profiles.path_for(old)
     options = OptionsFile(ws.options_file).load({})
     profile_sec = options.get("profile", {})
-    registered = old in profile_sec.get("values", []) or old in profile_sec.get("pinned", [])
+    registered = old in profile_sec.get("values", []) or old in profile_sec.get(
+        "pinned", []
+    )
     if not registered and not old_dir.is_dir():
         print(f"Profile '{old}' not found.", file=sys.stderr)
         sys.exit(1)
 
     # Validate new name charset
-    if not re.match(r'^[a-z0-9][a-z0-9-]*$', new):
-        print("Invalid name: use lowercase letters, digits, hyphens only "
-              "(must start with letter or digit).", file=sys.stderr)
+    if not re.match(r"^[a-z0-9][a-z0-9-]*$", new):
+        print(
+            "Invalid name: use lowercase letters, digits, hyphens only "
+            "(must start with letter or digit).",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     # Validate not reserved
@@ -465,8 +496,10 @@ def _handle_rename_profile(ws: "Workspace", old: str, new: str) -> int:
 
     # Check not running
     if _is_profile_running(ws, old):
-        print(f"Profile '{old}' has active sessions. "
-              "Stop them before renaming.", file=sys.stderr)
+        print(
+            f"Profile '{old}' has active sessions. Stop them before renaming.",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     # Perform rename
@@ -517,16 +550,17 @@ def _handle_check_tokens(ws: "Workspace") -> int:
     col_status = max(len("Status"), max(len(r[1]) for r in results))
     col_token = max(len("Token"), max(len(r[2]) for r in results))
 
-    header = f"{'Profile':<{col_name}}  {'Status':<{col_status}}  {'Token':<{col_token}}"
+    header = (
+        f"{'Profile':<{col_name}}  {'Status':<{col_status}}  {'Token':<{col_token}}"
+    )
     print(header)
     for name, status, token_display in results:
-        print(f"{name:<{col_name}}  {status:<{col_status}}  {token_display:<{col_token}}")
+        print(
+            f"{name:<{col_name}}  {status:<{col_status}}  {token_display:<{col_token}}"
+        )
 
     # Exit 1 if any profile has invalid, unreachable, or indeterminate status
-    any_bad = any(
-        s in (INVALID, UNREACHABLE, INDETERMINATE)
-        for _, s, _ in results
-    )
+    any_bad = any(s in (INVALID, UNREACHABLE, INDETERMINATE) for _, s, _ in results)
     return 1 if any_bad else 0
 
 
@@ -548,7 +582,9 @@ def _handle_fix_auth(ws: "Workspace", name: str) -> int:
             print(f"No auth shadow detected for '{name}'.")
             return 0
 
-    print(f"Removed session credentials from {name}. Long-lived token will now be used.")
+    print(
+        f"Removed session credentials from {name}. Long-lived token will now be used."
+    )
     if result.tier_saved:
         print(f"Saved rate-limit tier: {result.tier_saved}")
     return 0
@@ -564,6 +600,7 @@ def _handle_show(ws: "Workspace") -> int:
 
 def _handle_migrate(ws: "Workspace", src: str, dst: str, uuid: str) -> int:
     from .migrate import migrate_sessions
+
     uuid_filter = uuid if uuid else None
     try:
         migrate_sessions(ws, src, dst, uuid_filter=uuid_filter, dry_run=False)
@@ -573,17 +610,36 @@ def _handle_migrate(ws: "Workspace", src: str, dst: str, uuid: str) -> int:
     return 0
 
 
-@strictcli.flag("dry-run", type=bool, default=False, help="preview cleanup changes without writing anything to disk")
+@strictcli.flag(
+    "dry-run",
+    type=bool,
+    default=False,
+    help="preview cleanup changes without writing anything to disk",
+)
 def _handle_stats(ws: "Workspace", dry_run: bool) -> int:
     from .stats import run_stats
+
     run_stats(ws.shared, dry_run=dry_run)
     return 0
 
 
-@strictcli.flag("dry-run", type=bool, default=False, help="preview the rename and session migration without writing anything to disk")
-@strictcli.flag("post-hoc", type=bool, default=False, help="skip filesystem rename, migrate sessions only (directory already renamed)")
-def _handle_mv(ws: "Workspace", old: str, new: str, dry_run: bool, post_hoc: bool) -> int:
+@strictcli.flag(
+    "dry-run",
+    type=bool,
+    default=False,
+    help="preview the rename and session migration without writing anything to disk",
+)
+@strictcli.flag(
+    "post-hoc",
+    type=bool,
+    default=False,
+    help="skip filesystem rename, migrate sessions only (directory already renamed)",
+)
+def _handle_mv(
+    ws: "Workspace", old: str, new: str, dry_run: bool, post_hoc: bool
+) -> int:
     from .mv import run_mv
+
     try:
         run_mv(ws, old, new, dry_run=dry_run, post_hoc=post_hoc)
     except (ValueError, FileNotFoundError, FileExistsError, OSError) as e:
@@ -592,9 +648,26 @@ def _handle_mv(ws: "Workspace", old: str, new: str, dry_run: bool, post_hoc: boo
     return 0
 
 
-@strictcli.flag("dry-run", type=bool, default=False, help="preview the import operation without writing any session data to disk")
-@strictcli.flag("reid", type=bool, default=False, help="assign new UUIDs to sessions that collide with existing local sessions")
-def _handle_import(ws: "Workspace", source: str, from_: list[str], to: list[str], dry_run: bool, reid: bool) -> int:
+@strictcli.flag(
+    "dry-run",
+    type=bool,
+    default=False,
+    help="preview the import operation without writing any session data to disk",
+)
+@strictcli.flag(
+    "reid",
+    type=bool,
+    default=False,
+    help="assign new UUIDs to sessions that collide with existing local sessions",
+)
+def _handle_import(
+    ws: "Workspace",
+    source: str,
+    from_: list[str],
+    to: list[str],
+    dry_run: bool,
+    reid: bool,
+) -> int:
     from pathlib import Path
     from .import_ import run_import
 
@@ -610,7 +683,10 @@ def _handle_import(ws: "Workspace", source: str, from_: list[str], to: list[str]
     for f, t in zip(from_, to):
         resolved = Path(t).expanduser().resolve()
         if not resolved.is_dir():
-            print(f"Error: --to path does not exist or is not a directory: {t}", file=sys.stderr)
+            print(
+                f"Error: --to path does not exist or is not a directory: {t}",
+                file=sys.stderr,
+            )
             return 1
         mappings.append((f, str(resolved)))
 
@@ -629,16 +705,30 @@ def _handle_import(ws: "Workspace", source: str, from_: list[str], to: list[str]
     return 0
 
 
-@strictcli.flag("all", type=bool, default=False, help="deploy every known hook script from the built-in registry at once")
-@strictcli.flag("force-overwrite", type=bool, default=False, help="overwrite existing hook scripts on disk instead of skipping them")
-def _handle_deploy_hooks(ws: "Workspace", name: str, all: bool, force_overwrite: bool) -> int:
+@strictcli.flag(
+    "all",
+    type=bool,
+    default=False,
+    help="deploy every known hook script from the built-in registry at once",
+)
+@strictcli.flag(
+    "force-overwrite",
+    type=bool,
+    default=False,
+    help="overwrite existing hook scripts on disk instead of skipping them",
+)
+def _handle_deploy_hooks(
+    ws: "Workspace", name: str, all: bool, force_overwrite: bool
+) -> int:
     from .hook_scripts import HOOK_SCRIPTS, deploy_scripts
 
     if not name and not all:
         print("Error: provide a script name or --all", file=sys.stderr)
         sys.exit(1)
     if name and all:
-        print("Error: --all and a positional name are mutually exclusive", file=sys.stderr)
+        print(
+            "Error: --all and a positional name are mutually exclusive", file=sys.stderr
+        )
         sys.exit(1)
 
     if name and name not in HOOK_SCRIPTS:
@@ -658,20 +748,39 @@ def _handle_deploy_hooks(ws: "Workspace", name: str, all: bool, force_overwrite:
     return 0
 
 
-@strictcli.flag("dry-run", type=bool, default=False,
-                help="preview the changes without writing anything to disk")
+@strictcli.flag(
+    "dry-run",
+    type=bool,
+    default=False,
+    help="preview the changes without writing anything to disk",
+)
 def _handle_patch_profiles(ws: "Workspace", dry_run: bool) -> int:
     from .patch_profiles import run_patch_profiles
+
     return run_patch_profiles(ws, dry_run=dry_run)
 
 
-@strictcli.flag("dry-run", type=bool, default=False,
-                help="print the per-target permissions diff and change NOTHING (mutually exclusive with --apply; you MUST pass exactly one of --dry-run or --apply)")
-@strictcli.flag("apply", type=bool, default=False,
-                help="perform the reconciliation, writing each target atomically (mutually exclusive with --dry-run; you MUST pass exactly one of --dry-run or --apply)")
-@strictcli.flag("profile", type=str, default="",
-                help="reconcile only this single profile; when given, shared-settings.json profileDefaults is left untouched (omit to reconcile every profile AND shared-settings profileDefaults)")
-def _handle_reconcile_permissions(ws: "Workspace", dry_run: bool, apply: bool, profile: str) -> int:
+@strictcli.flag(
+    "dry-run",
+    type=bool,
+    default=False,
+    help="print the per-target permissions diff and change NOTHING (mutually exclusive with --apply; you MUST pass exactly one of --dry-run or --apply)",
+)
+@strictcli.flag(
+    "apply",
+    type=bool,
+    default=False,
+    help="perform the reconciliation, writing each target atomically (mutually exclusive with --dry-run; you MUST pass exactly one of --dry-run or --apply)",
+)
+@strictcli.flag(
+    "profile",
+    type=str,
+    default="",
+    help="reconcile only this single profile; when given, shared-settings.json profileDefaults is left untouched (omit to reconcile every profile AND shared-settings profileDefaults)",
+)
+def _handle_reconcile_permissions(
+    ws: "Workspace", dry_run: bool, apply: bool, profile: str
+) -> int:
     from .reconcile import run_reconcile
 
     if dry_run == apply:
@@ -687,14 +796,23 @@ def _handle_reconcile_permissions(ws: "Workspace", dry_run: bool, apply: bool, p
     return run_reconcile(ws, dry_run=dry_run, profile=profile or None)
 
 
-def _handle_permission_add(ws: "Workspace", category: str, rule: str,
-                           profile: str, all_profiles: bool) -> int:
-    from .permission import validate_rule, resolve_profiles, load_settings, add_rule, save_settings
+def _handle_permission_add(
+    ws: "Workspace", category: str, rule: str, profile: str, all_profiles: bool
+) -> int:
+    from .permission import (
+        validate_rule,
+        resolve_profiles,
+        load_settings,
+        add_rule,
+        save_settings,
+    )
 
     valid_categories = ("allow", "deny", "ask")
     if category not in valid_categories:
-        print(f"Error: category must be one of {', '.join(valid_categories)}, got {category!r}",
-              file=sys.stderr)
+        print(
+            f"Error: category must be one of {', '.join(valid_categories)}, got {category!r}",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     try:
@@ -715,14 +833,17 @@ def _handle_permission_add(ws: "Workspace", category: str, rule: str,
     return 0
 
 
-def _handle_permission_remove(ws: "Workspace", category: str, rule: str,
-                              profile: str, all_profiles: bool) -> int:
+def _handle_permission_remove(
+    ws: "Workspace", category: str, rule: str, profile: str, all_profiles: bool
+) -> int:
     from .permission import resolve_profiles, load_settings, remove_rule, save_settings
 
     valid_categories = ("allow", "deny", "ask")
     if category not in valid_categories:
-        print(f"Error: category must be one of {', '.join(valid_categories)}, got {category!r}",
-              file=sys.stderr)
+        print(
+            f"Error: category must be one of {', '.join(valid_categories)}, got {category!r}",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     if not rule.strip():
@@ -741,19 +862,30 @@ def _handle_permission_remove(ws: "Workspace", category: str, rule: str,
     return 0
 
 
-@strictcli.flag("format", type=str, help="output format: grouped (indented tree), flat (tsv), or json",
-                choices=["grouped", "flat", "json"])
-@strictcli.flag("category", type=str, help="restrict output to a single permission category (allow, deny, or ask)",
-                default="")
-def _handle_permission_list(ws: "Workspace", profile: str, all_profiles: bool,
-                            format: str, category: str) -> int:
+@strictcli.flag(
+    "format",
+    type=str,
+    help="output format: grouped (indented tree), flat (tsv), or json",
+    choices=["grouped", "flat", "json"],
+)
+@strictcli.flag(
+    "category",
+    type=str,
+    help="restrict output to a single permission category (allow, deny, or ask)",
+    default="",
+)
+def _handle_permission_list(
+    ws: "Workspace", profile: str, all_profiles: bool, format: str, category: str
+) -> int:
     import json as json_mod
     from .permission import resolve_profiles, load_settings
 
     valid_categories = ("allow", "deny", "ask")
     if category and category not in valid_categories:
-        print(f"Error: category must be one of {', '.join(valid_categories)}, got {category!r}",
-              file=sys.stderr)
+        print(
+            f"Error: category must be one of {', '.join(valid_categories)}, got {category!r}",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     targets = resolve_profiles(ws, profile if profile else None, all_profiles)
@@ -839,7 +971,9 @@ def _check_resume_session(ws: "Workspace", session_id: str, directory: str) -> N
     # Step 4: Confirmed rename -- old path gone, session found under old encoded dir
     current_dir = os.path.abspath(directory)
     old_project_dir = store.projects_dir / info.encoded_cwd
-    jsonl_files = list(old_project_dir.glob("*.jsonl")) if old_project_dir.is_dir() else []
+    jsonl_files = (
+        list(old_project_dir.glob("*.jsonl")) if old_project_dir.is_dir() else []
+    )
     n = len(jsonl_files)
     size_bytes = sum(f.stat().st_size for f in jsonl_files)
     size_mb = size_bytes / (1024 * 1024)
@@ -944,8 +1078,14 @@ def _check_cont_session(ws: "Workspace", directory: str) -> None:
         print("Found sessions under multiple directories that no longer exist:")
         for i, orphan in enumerate(candidates, 1):
             size_mb = orphan.total_size_bytes / (1024 * 1024)
-            print(f"  {i}. {orphan.cwd} ({orphan.session_count} sessions, {size_mb:.1f} MB)")
-        print(f"Move sessions from which directory? [1-{len(candidates)}/n to skip] ", end="", flush=True)
+            print(
+                f"  {i}. {orphan.cwd} ({orphan.session_count} sessions, {size_mb:.1f} MB)"
+            )
+        print(
+            f"Move sessions from which directory? [1-{len(candidates)}/n to skip] ",
+            end="",
+            flush=True,
+        )
         try:
             answer = input()
         except (EOFError, KeyboardInterrupt):
@@ -1000,7 +1140,9 @@ _CLAUDE_ONLY_OVERRIDES: dict[str, Callable[[str], bool]] = {
 }
 
 
-def _reject_claude_only_overrides(client_val: str, segment_overrides: dict[str, Any]) -> None:
+def _reject_claude_only_overrides(
+    client_val: str, segment_overrides: dict[str, Any]
+) -> None:
     """Hard-error on explicit claude-only overrides combined with a non-claude client.
 
     ``version`` and ``mcp=strict`` are claude-client-only inputs. An *ambient*
@@ -1025,12 +1167,20 @@ def _reject_claude_only_overrides(client_val: str, segment_overrides: dict[str, 
 
 
 def _handle_launch(
-    ws: "Workspace", locator: "BinaryLocator",
+    ws: "Workspace",
+    locator: "BinaryLocator",
     # Session flags (via tag); mutually exclusive, all optional
-    cont: bool, resume: str, print_prompt: str, picker: bool,
+    cont: bool,
+    resume: str,
+    print_prompt: str,
+    picker: bool,
     # Segment flags (via tag); empty string means "not provided"
-    profile: str, github: str, model: str,
-    directory: str, mcp: str, permissions: str,
+    profile: str,
+    github: str,
+    model: str,
+    directory: str,
+    mcp: str,
+    permissions: str,
     # Repeatable set flag (via tag)
     set: list[str],
     # Launch target adapter (via tag). None means "--client not passed": the
@@ -1056,8 +1206,10 @@ def _handle_launch(
 
     provided = sum([cont, resume_val is not None, print_prompt_val is not None, picker])
     if provided > 1:
-        print("Error: --cont, --resume, --print-prompt, and --picker are mutually exclusive",
-              file=sys.stderr)
+        print(
+            "Error: --cont, --resume, --print-prompt, and --picker are mutually exclusive",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     from .app import App as TuiApp
@@ -1071,8 +1223,12 @@ def _handle_launch(
     segment_overrides: dict[str, str] = {}
     segment_sources: dict[str, str] = {}
     flag_values = {
-        "profile": profile, "github": github, "model": model,
-        "directory": directory, "mcp": mcp, "permissions": permissions,
+        "profile": profile,
+        "github": github,
+        "model": model,
+        "directory": directory,
+        "mcp": mcp,
+        "permissions": permissions,
     }
     for key in segment_keys:
         val = flag_values.get(key)
@@ -1087,7 +1243,10 @@ def _handle_launch(
             sys.exit(1)
         key, _, value = item.partition("=")
         if key not in segment_keys:
-            print(f"Unknown segment: {key!r} (available: {', '.join(segment_keys)})", file=sys.stderr)
+            print(
+                f"Unknown segment: {key!r} (available: {', '.join(segment_keys)})",
+                file=sys.stderr,
+            )
             sys.exit(1)
         if key in segment_overrides:
             prior_value = segment_overrides[key]
@@ -1130,8 +1289,11 @@ def _handle_launch(
         _check_cont_session(ws, segment_overrides.get("directory", os.getcwd()))
 
     # Skip TUI when args cover every required segment, or when print mode is active.
-    required_keys = {s["key"] for s in cfg.segments_def
-                     if s["key"] in enabled and s.get("required", False)}
+    required_keys = {
+        s["key"]
+        for s in cfg.segments_def
+        if s["key"] in enabled and s.get("required", False)
+    }
     skip_tui = print_prompt_val is not None or (
         required_keys and all(k in segment_overrides for k in required_keys)
     )
@@ -1149,6 +1311,7 @@ def _handle_launch(
     # sequence. Catch it narrowly at this handler boundary so the user sees a
     # clean, actionable message instead of a Python traceback.
     from .tokens import TokenStoreError
+
     try:
         if skip_tui:
             # Non-interactive: explicit --client wins, else the config default.
@@ -1165,8 +1328,11 @@ def _handle_launch(
                 for _key in _CLAUDE_ONLY_OVERRIDES:
                     merged.pop(_key, None)
             if print_prompt_val is not None:
-                print_keys = {s["key"] for s in cfg.segments_def
-                              if s["key"] in enabled and s.get("print_mode", True)}
+                print_keys = {
+                    s["key"]
+                    for s in cfg.segments_def
+                    if s["key"] in enabled and s.get("print_mode", True)
+                }
                 merged = {k: v for k, v in merged.items() if k in print_keys}
                 missing = [k for k in required_keys & print_keys if not merged.get(k)]
                 if missing:
@@ -1176,9 +1342,16 @@ def _handle_launch(
                         "to populate last_config.",
                         file=sys.stderr,
                     )
-            _do_launch_sequence(ws, locator, cfg, merged, extra_flags=extra_flags,
-                                interactive=print_prompt_val is None,
-                                client=client_val, passthrough=list(_passthrough))
+            _do_launch_sequence(
+                ws,
+                locator,
+                cfg,
+                merged,
+                extra_flags=extra_flags,
+                interactive=print_prompt_val is None,
+                client=client_val,
+                passthrough=list(_passthrough),
+            )
             return 0
 
         # Explicit --client is known up front; reject contradictory explicit
@@ -1190,10 +1363,15 @@ def _handle_launch(
         # The app runs the Client step first (unless --client was explicit),
         # then the segment bar; it drops the version segment for non-claude
         # clients.
-        app = TuiApp(ws, cfg=cfg, overrides=segment_overrides, locator=locator,
-                     explicit_client=client,
-                     default_client=resolved_default_client,
-                     clients_config=cfg.config.get("clients", {}))
+        app = TuiApp(
+            ws,
+            cfg=cfg,
+            overrides=segment_overrides,
+            locator=locator,
+            explicit_client=client,
+            default_client=resolved_default_client,
+            clients_config=cfg.config.get("clients", {}),
+        )
         selections = app.run_tui()
         if selections is None:
             return 0
@@ -1211,9 +1389,14 @@ def _handle_launch(
                 bar_metadata[seg.key] = seg.state.metadata
 
         _do_launch_sequence(
-            ws, locator, app.cfg, selections, extra_flags=extra_flags,
+            ws,
+            locator,
+            app.cfg,
+            selections,
+            extra_flags=extra_flags,
             metadata=bar_metadata or None,
-            client=client_val, passthrough=list(_passthrough),
+            client=client_val,
+            passthrough=list(_passthrough),
         )
         return 0
     except TokenStoreError as e:
@@ -1224,17 +1407,33 @@ def _handle_launch(
 # ---------------------------------------------------------------------------
 # Subcommand names for routing
 # ---------------------------------------------------------------------------
-_SUBCOMMANDS = frozenset({
-    "health", "config", "versions", "install", "uninstall",
-    "reset-options", "show",
-    "migrate", "stats", "mv", "import", "deploy-hooks", "patch-profiles",
-    "reconcile-permissions", "launch",
-    "permission", "profile",
-    # Deprecated top-level names kept here so main() doesn't rewrite
-    # e.g. "c new-profile" to "c launch new-profile" before the
-    # deprecation handler can fire.
-    "new-profile", "delete-profile", "show-profile",
-})
+_SUBCOMMANDS = frozenset(
+    {
+        "health",
+        "config",
+        "versions",
+        "install",
+        "uninstall",
+        "reset-options",
+        "show",
+        "migrate",
+        "stats",
+        "mv",
+        "import",
+        "deploy-hooks",
+        "patch-profiles",
+        "reconcile-permissions",
+        "launch",
+        "permission",
+        "profile",
+        # Deprecated top-level names kept here so main() doesn't rewrite
+        # e.g. "c new-profile" to "c launch new-profile" before the
+        # deprecation handler can fire.
+        "new-profile",
+        "delete-profile",
+        "show-profile",
+    }
+)
 
 # Flags that must be handled at the app level rather than routed to the
 # "launch" subcommand. --help/--version show the app-wide help/version, and
@@ -1274,8 +1473,10 @@ def _bind(handler: Callable[..., int], *pre: Any) -> Callable[..., int]:
     signature, re-triggering strict validation. Copying only the two strictcli
     attributes keeps the wrapper's signature a clean ``(**kwargs)``.
     """
+
     def wrapper(ctx: strictcli.Context, **kwargs: Any) -> int:
         return handler(*pre, **kwargs)
+
     # strictcli reads these attributes off the callable to build the schema.
     setattr(wrapper, "_strictcli_flags", getattr(handler, "_strictcli_flags", []))
     setattr(wrapper, "_strictcli_args", getattr(handler, "_strictcli_args", []))
@@ -1284,229 +1485,426 @@ def _bind(handler: Callable[..., int], *pre: Any) -> Callable[..., int]:
 
 def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
     """Build the strictcli App with all subcommands registered."""
-    app = App(name="c", version=__version__, help="claudewheel - TUI launcher for Claude Code with profile, model, and directory selection")
+    app = App(
+        name="c",
+        version=__version__,
+        help="claudewheel - TUI launcher for Claude Code with profile, model, and directory selection",
+    )
 
     # -- One-shot commands --
 
-    app.command("health", help="run diagnostic health checks on profiles, tokens, and hooks, then exit")(
-        _bind(_handle_health, ws)
-    )
+    app.command(
+        "health",
+        help="run diagnostic health checks on profiles, tokens, and hooks, then exit",
+    )(_bind(_handle_health, ws))
 
-    app.command("config", help="open the ~/.claudewheel/ config directory in your $EDITOR")(
-        _bind(_handle_config, ws)
-    )
+    app.command(
+        "config", help="open the ~/.claudewheel/ config directory in your $EDITOR"
+    )(_bind(_handle_config, ws))
 
-    app.command("versions", help="list all installed Claude Code versions, marking the current symlink target")(
-        _bind(_handle_versions, locator)
-    )
+    app.command(
+        "versions",
+        help="list all installed Claude Code versions, marking the current symlink target",
+    )(_bind(_handle_versions, locator))
 
-    app.command("install", help="download and install a specific Claude Code version",
-                args=[Arg(name="version", help="semver version string to download and install (e.g. 2.1.119)")])(
-        _bind(_handle_install, locator)
-    )
+    app.command(
+        "install",
+        help="download and install a specific Claude Code version",
+        args=[
+            Arg(
+                name="version",
+                help="semver version string to download and install (e.g. 2.1.119)",
+            )
+        ],
+    )(_bind(_handle_install, locator))
 
-    app.command("uninstall", help="delete an installed Claude Code version binary from the versions directory",
-                args=[Arg(name="version", help="semver version string to remove (refuses if it is the current symlink target)")])(
-        _bind(_handle_uninstall, locator)
-    )
+    app.command(
+        "uninstall",
+        help="delete an installed Claude Code version binary from the versions directory",
+        args=[
+            Arg(
+                name="version",
+                help="semver version string to remove (refuses if it is the current symlink target)",
+            )
+        ],
+    )(_bind(_handle_uninstall, locator))
 
-    app.command("reset-options", help="delete options.json so it regenerates from defaults")(
-        _bind(_handle_reset_options, ws)
-    )
+    app.command(
+        "reset-options", help="delete options.json so it regenerates from defaults"
+    )(_bind(_handle_reset_options, ws))
 
     # -- Profile group --
-    profile_grp = app.group("profile", help="create, inspect, rename, delete, and manage Claude Code profiles and their stored tokens")
-
-    profile_grp.command("create", help="create a new profile interactively through a guided wizard, then set up its authentication")(
-        _bind(_handle_new_profile, ws, locator)
+    profile_grp = app.group(
+        "profile",
+        help="create, inspect, rename, delete, and manage Claude Code profiles and their stored tokens",
     )
 
-    profile_grp.command("delete", help="delete a registered profile and clean up its directory, tokens, and options entries",
-                        args=[Arg(name="name", help="name of the profile to delete (e.g. work, personal, lisa)")])(
-        _bind(_handle_delete_profile, ws)
-    )
+    profile_grp.command(
+        "create",
+        help="create a new profile interactively through a guided wizard, then set up its authentication",
+    )(_bind(_handle_new_profile, ws, locator))
 
-    profile_grp.command("show", help="inspect a profile's configuration, authentication status, and session data in a detailed report",
-                        args=[Arg(name="name", help="name of the profile to inspect (e.g. work, personal, default)")])(
-        _bind(_handle_show_profile, ws)
-    )
+    profile_grp.command(
+        "delete",
+        help="delete a registered profile and clean up its directory, tokens, and options entries",
+        args=[
+            Arg(
+                name="name",
+                help="name of the profile to delete (e.g. work, personal, lisa)",
+            )
+        ],
+    )(_bind(_handle_delete_profile, ws))
 
-    profile_grp.command("rename", help="rename a profile, moving its directory, tokens, and session data to the new name",
-                        args=[Arg(name="old", help="current name of the profile to rename (must be an existing, non-running profile)"),
-                              Arg(name="new", help="new name for the profile (lowercase letters, digits, and hyphens; must be unused)")])(
-        _bind(_handle_rename_profile, ws)
-    )
+    profile_grp.command(
+        "show",
+        help="inspect a profile's configuration, authentication status, and session data in a detailed report",
+        args=[
+            Arg(
+                name="name",
+                help="name of the profile to inspect (e.g. work, personal, default)",
+            )
+        ],
+    )(_bind(_handle_show_profile, ws))
 
-    profile_grp.command("fix-auth", help="remove session credentials that shadow a long-lived token",
-                        args=[Arg(name="name", help="name of the profile whose shadowing session credentials should be removed")])(
-        _bind(_handle_fix_auth, ws)
-    )
+    profile_grp.command(
+        "rename",
+        help="rename a profile, moving its directory, tokens, and session data to the new name",
+        args=[
+            Arg(
+                name="old",
+                help="current name of the profile to rename (must be an existing, non-running profile)",
+            ),
+            Arg(
+                name="new",
+                help="new name for the profile (lowercase letters, digits, and hyphens; must be unused)",
+            ),
+        ],
+    )(_bind(_handle_rename_profile, ws))
 
-    profile_grp.command("check-tokens", help="validate every discovered profile's stored OAuth token against the Anthropic API")(
-        _bind(_handle_check_tokens, ws)
-    )
+    profile_grp.command(
+        "fix-auth",
+        help="remove session credentials that shadow a long-lived token",
+        args=[
+            Arg(
+                name="name",
+                help="name of the profile whose shadowing session credentials should be removed",
+            )
+        ],
+    )(_bind(_handle_fix_auth, ws))
+
+    profile_grp.command(
+        "check-tokens",
+        help="validate every discovered profile's stored OAuth token against the Anthropic API",
+    )(_bind(_handle_check_tokens, ws))
 
     # Hard-break old top-level names so they fail loudly with migration guidance
-    app.deprecate("new-profile", message="Renamed: use 'claudewheel profile create' instead.")
-    app.deprecate("delete-profile", message="Renamed: use 'claudewheel profile delete <name>' instead.")
-    app.deprecate("show-profile", message="Renamed: use 'claudewheel profile show <name>' instead.")
-
-    app.command("show", help="print a summary of current segment selections, theme, and recent directories")(
-        _bind(_handle_show, ws)
+    app.deprecate(
+        "new-profile", message="Renamed: use 'claudewheel profile create' instead."
+    )
+    app.deprecate(
+        "delete-profile",
+        message="Renamed: use 'claudewheel profile delete <name>' instead.",
+    )
+    app.deprecate(
+        "show-profile",
+        message="Renamed: use 'claudewheel profile show <name>' instead.",
     )
 
-    app.command("migrate", help="move session data files from one profile to another, optionally filtered by UUID",
-                args=[
-                    Arg(name="src", help="source profile name whose sessions will be moved (e.g. work)"),
-                    Arg(name="dst", help="destination profile name to receive the migrated sessions (e.g. personal)"),
-                    Arg(name="uuid", help="optional UUID substring to migrate only matching sessions", required=False, default=""),
-                ])(
-        _bind(_handle_migrate, ws)
-    )
+    app.command(
+        "show",
+        help="print a summary of current segment selections, theme, and recent directories",
+    )(_bind(_handle_show, ws))
+
+    app.command(
+        "migrate",
+        help="move session data files from one profile to another, optionally filtered by UUID",
+        args=[
+            Arg(
+                name="src",
+                help="source profile name whose sessions will be moved (e.g. work)",
+            ),
+            Arg(
+                name="dst",
+                help="destination profile name to receive the migrated sessions (e.g. personal)",
+            ),
+            Arg(
+                name="uuid",
+                help="optional UUID substring to migrate only matching sessions",
+                required=False,
+                default="",
+            ),
+        ],
+    )(_bind(_handle_migrate, ws))
 
     app.command("stats", help="report shared-store stats and clean up legacy data")(
         _bind(_handle_stats, ws)
     )
 
-    app.command("mv", help="rename a project directory and migrate session data",
-                args=[
-                    Arg(name="old", help="current path of the project directory to rename (absolute or relative)"),
-                    Arg(name="new", help="target path for the renamed project directory (absolute or relative)"),
-                ])(
-        _bind(_handle_mv, ws)
-    )
+    app.command(
+        "mv",
+        help="rename a project directory and migrate session data",
+        args=[
+            Arg(
+                name="old",
+                help="current path of the project directory to rename (absolute or relative)",
+            ),
+            Arg(
+                name="new",
+                help="target path for the renamed project directory (absolute or relative)",
+            ),
+        ],
+    )(_bind(_handle_mv, ws))
 
-    app.command("import", help="import session data from an external Claude Code directory",
-                args=[
-                    Arg(name="source", help="path to the source directory (e.g., /path/to/backup/.claude)"),
+    app.command(
+        "import",
+        help="import session data from an external Claude Code directory",
+        args=[
+            Arg(
+                name="source",
+                help="path to the source directory (e.g., /path/to/backup/.claude)",
+            ),
+        ],
+        flag_sets=[
+            FlagSet(
+                name="mapping",
+                flags=[
+                    Flag(
+                        name="from",
+                        type=str,
+                        repeatable=True,
+                        unique=False,
+                        help="original project path as recorded in the source session data (repeatable)",
+                    ),
+                    Flag(
+                        name="to",
+                        type=str,
+                        repeatable=True,
+                        unique=False,
+                        help="local directory path that corresponds to the --from path on this machine (repeatable)",
+                    ),
                 ],
-                flag_sets=[
-                    FlagSet(name="mapping", flags=[
-                        Flag(name="from", type=str, repeatable=True, unique=False,
-                             help="original project path as recorded in the source session data (repeatable)"),
-                        Flag(name="to", type=str, repeatable=True, unique=False,
-                             help="local directory path that corresponds to the --from path on this machine (repeatable)"),
-                    ]),
-                ],
-                dependencies=[
-                    CoRequired(flags=["from", "to"]),
-                ])(
-        _bind(_handle_import, ws)
-    )
+            ),
+        ],
+        dependencies=[
+            CoRequired(flags=["from", "to"]),
+        ],
+    )(_bind(_handle_import, ws))
 
-    app.command("deploy-hooks", help="deploy built-in hook scripts to the ~/.claudewheel/scripts/ directory",
-                args=[Arg(name="name", help="name of the specific hook script to deploy (omit to use --all)", required=False, default="")])(
-        _bind(_handle_deploy_hooks, ws)
-    )
+    app.command(
+        "deploy-hooks",
+        help="deploy built-in hook scripts to the ~/.claudewheel/scripts/ directory",
+        args=[
+            Arg(
+                name="name",
+                help="name of the specific hook script to deploy (omit to use --all)",
+                required=False,
+                default="",
+            )
+        ],
+    )(_bind(_handle_deploy_hooks, ws))
 
-    app.command("patch-profiles", help="sync existing profiles and shared-settings.json to canonical hook and disallowedTools defaults")(
-        _bind(_handle_patch_profiles, ws)
-    )
+    app.command(
+        "patch-profiles",
+        help="sync existing profiles and shared-settings.json to canonical hook and disallowedTools defaults",
+    )(_bind(_handle_patch_profiles, ws))
 
-    app.command("reconcile-permissions", help="reconcile profile and shared-settings permissions (deny/ask/allow) to the canonical guardrail model; requires exactly one of --dry-run or --apply")(
-        _bind(_handle_reconcile_permissions, ws)
-    )
+    app.command(
+        "reconcile-permissions",
+        help="reconcile profile and shared-settings permissions (deny/ask/allow) to the canonical guardrail model; requires exactly one of --dry-run or --apply",
+    )(_bind(_handle_reconcile_permissions, ws))
 
     # -- Permission group --
-    _profile_mutex = MutexGroup(flags=[
-        Flag(name="profile", type=str, help="target a specific profile by name (mutually exclusive with --all-profiles)"),
-        Flag(name="all-profiles", type=bool, default=False, help="apply the operation to every registered profile at once"),
-    ])
-
-    perm_grp = app.group("permission", help="add, remove, and list permission rules across Claude profiles")
-
-    perm_grp.command("add", help=(
-                         "Add a permission rule to a profile's settings.json. Takes a category"
-                         " (allow, deny, or ask) and a rule string such as Bash or Read(//home/**)."
-                         " Writes the rule into the specified category array. Use --profile to target"
-                         " a single profile or --all-profiles to apply the rule across every registered"
-                         " profile. Skips duplicates if the rule already exists in the category."
-                     ),
-                     args=[
-                         Arg(name="category", help="permission category to add the rule to: allow, deny, or ask"),
-                         Arg(name="rule", help="permission rule string to add (e.g. Bash, Read(//home/**), Edit)")
-                     ],
-                     mutex=[_profile_mutex])(
-        _bind(_handle_permission_add, ws)
+    _profile_mutex = MutexGroup(
+        flags=[
+            Flag(
+                name="profile",
+                type=str,
+                help="target a specific profile by name (mutually exclusive with --all-profiles)",
+            ),
+            Flag(
+                name="all-profiles",
+                type=bool,
+                default=False,
+                help="apply the operation to every registered profile at once",
+            ),
+        ]
     )
 
-    perm_grp.command("remove", help=(
-                         "Remove a permission rule from a profile's settings.json. Takes a category"
-                         " (allow, deny, or ask) and the exact rule string to delete. The rule is"
-                         " removed from the specified category array and the file is saved. Use"
-                         " --profile to target a single profile or --all-profiles to remove the rule"
-                         " from every registered profile. Reports whether the rule was found."
-                     ),
-                     args=[
-                         Arg(name="category", help="permission category to remove the rule from: allow, deny, or ask"),
-                         Arg(name="rule", help="exact permission rule string to remove (must match an existing entry)"),
-                     ],
-                     mutex=[_profile_mutex])(
-        _bind(_handle_permission_remove, ws)
+    perm_grp = app.group(
+        "permission",
+        help="add, remove, and list permission rules across Claude profiles",
     )
 
-    perm_grp.command("list", help=(
-                         "List permission rules from a profile's settings.json. Displays rules in"
-                         " grouped, flat, or JSON format controlled by --format. Use --category to"
-                         " filter output to a single category (allow, deny, or ask). Use --profile"
-                         " to inspect a single profile or --all-profiles to show rules from every"
-                         " registered profile, with each profile's rules displayed under a header."
-                     ),
-                     mutex=[_profile_mutex])(
-        _bind(_handle_permission_list, ws)
-    )
+    perm_grp.command(
+        "add",
+        help=(
+            "Add a permission rule to a profile's settings.json. Takes a category"
+            " (allow, deny, or ask) and a rule string such as Bash or Read(//home/**)."
+            " Writes the rule into the specified category array. Use --profile to target"
+            " a single profile or --all-profiles to apply the rule across every registered"
+            " profile. Skips duplicates if the rule already exists in the category."
+        ),
+        args=[
+            Arg(
+                name="category",
+                help="permission category to add the rule to: allow, deny, or ask",
+            ),
+            Arg(
+                name="rule",
+                help="permission rule string to add (e.g. Bash, Read(//home/**), Edit)",
+            ),
+        ],
+        mutex=[_profile_mutex],
+    )(_bind(_handle_permission_add, ws))
+
+    perm_grp.command(
+        "remove",
+        help=(
+            "Remove a permission rule from a profile's settings.json. Takes a category"
+            " (allow, deny, or ask) and the exact rule string to delete. The rule is"
+            " removed from the specified category array and the file is saved. Use"
+            " --profile to target a single profile or --all-profiles to remove the rule"
+            " from every registered profile. Reports whether the rule was found."
+        ),
+        args=[
+            Arg(
+                name="category",
+                help="permission category to remove the rule from: allow, deny, or ask",
+            ),
+            Arg(
+                name="rule",
+                help="exact permission rule string to remove (must match an existing entry)",
+            ),
+        ],
+        mutex=[_profile_mutex],
+    )(_bind(_handle_permission_remove, ws))
+
+    perm_grp.command(
+        "list",
+        help=(
+            "List permission rules from a profile's settings.json. Displays rules in"
+            " grouped, flat, or JSON format controlled by --format. Use --category to"
+            " filter output to a single category (allow, deny, or ask). Use --profile"
+            " to inspect a single profile or --all-profiles to show rules from every"
+            " registered profile, with each profile's rules displayed under a header."
+        ),
+        mutex=[_profile_mutex],
+    )(_bind(_handle_permission_list, ws))
 
     # -- Launch command (default when no subcommand given) --
     _UNSET = "\x00__unset__"  # sentinel to distinguish "not passed" from ""
-    _session_flag_set = FlagSet(name="session", flags=[
-        Flag(name="cont", short="c", type=bool, default=False,
-             help="continue the most recent conversation in the current directory"),
-        Flag(name="resume", short="r", type=str, default=_UNSET,
-             help="resume a specific session by its UUID, or pass empty string to open the picker"),
-        Flag(name="print-prompt", short="p", type=str, default=_UNSET,
-             help="run in non-interactive print mode with the given prompt"),
-        Flag(name="picker", type=bool, default=False,
-             help="open the interactive session resume picker to browse and select a session"),
-    ])
-
-    _segment_flag_set = FlagSet(name="segments", flags=[
-        Flag(name="profile", type=str, default="",
-             help="preset the Profile segment to this value, skipping TUI selection for it"),
-        Flag(name="github", type=str, default="",
-             help="preset the GitHub account segment to this value, skipping TUI selection for it"),
-        Flag(name="model", type=str, default="",
-             help="preset the Model segment to this value (e.g. opus, sonnet), skipping TUI selection"),
-        Flag(name="directory", type=str, default="",
-             help="preset the Directory segment to this path, skipping TUI selection for it"),
-        Flag(name="mcp", type=str, default="",
-             help="preset the MCP mode segment to this value, skipping TUI selection for it"),
-        Flag(name="permissions", type=str, default="",
-             help="preset the Permissions segment to this value, skipping TUI selection for it"),
-        Flag(name="set", short="s", type=str, repeatable=True, unique=False,
-             help="set any segment value as KEY=VALUE (e.g. -s version=2.1.119); repeatable"),
-    ])
-
-    _client_flag_set = FlagSet(name="client", flags=[
-        # Empty string means "not passed" (same convention as the segment
-        # flags), so the launcher can tell an explicit choice from the absence
-        # of one. Choices are validated in the handler against CLIENT_NAMES.
-        Flag(name="client", type=str, default="",
-             help=(
-                 "launch target client (one of: " + ", ".join(CLIENT_NAMES) + "). "
-                 "When omitted, the interactive launcher prompts with a Client "
-                 "step (cursor on config default_client, else claude) and "
-                 "non-interactive launches use default_client. Passing it "
-                 "explicitly skips that step. 'miniclaude' launches the "
-                 "miniclaude REPL instead; version and strict-MCP selections, "
-                 "config default_flags, and the disallowedTools list are "
-                 "claude-client-only"
-             )),
-    ])
-
-    app.command("launch", help="start the interactive TUI launcher to select a profile, model, and directory",
-                flag_sets=[_session_flag_set, _segment_flag_set, _client_flag_set])(
-        _bind(_handle_launch, ws, locator)
+    _session_flag_set = FlagSet(
+        name="session",
+        flags=[
+            Flag(
+                name="cont",
+                short="c",
+                type=bool,
+                default=False,
+                help="continue the most recent conversation in the current directory",
+            ),
+            Flag(
+                name="resume",
+                short="r",
+                type=str,
+                default=_UNSET,
+                help="resume a specific session by its UUID, or pass empty string to open the picker",
+            ),
+            Flag(
+                name="print-prompt",
+                short="p",
+                type=str,
+                default=_UNSET,
+                help="run in non-interactive print mode with the given prompt",
+            ),
+            Flag(
+                name="picker",
+                type=bool,
+                default=False,
+                help="open the interactive session resume picker to browse and select a session",
+            ),
+        ],
     )
+
+    _segment_flag_set = FlagSet(
+        name="segments",
+        flags=[
+            Flag(
+                name="profile",
+                type=str,
+                default="",
+                help="preset the Profile segment to this value, skipping TUI selection for it",
+            ),
+            Flag(
+                name="github",
+                type=str,
+                default="",
+                help="preset the GitHub account segment to this value, skipping TUI selection for it",
+            ),
+            Flag(
+                name="model",
+                type=str,
+                default="",
+                help="preset the Model segment to this value (e.g. opus, sonnet), skipping TUI selection",
+            ),
+            Flag(
+                name="directory",
+                type=str,
+                default="",
+                help="preset the Directory segment to this path, skipping TUI selection for it",
+            ),
+            Flag(
+                name="mcp",
+                type=str,
+                default="",
+                help="preset the MCP mode segment to this value, skipping TUI selection for it",
+            ),
+            Flag(
+                name="permissions",
+                type=str,
+                default="",
+                help="preset the Permissions segment to this value, skipping TUI selection for it",
+            ),
+            Flag(
+                name="set",
+                short="s",
+                type=str,
+                repeatable=True,
+                unique=False,
+                help="set any segment value as KEY=VALUE (e.g. -s version=2.1.119); repeatable",
+            ),
+        ],
+    )
+
+    _client_flag_set = FlagSet(
+        name="client",
+        flags=[
+            # Empty string means "not passed" (same convention as the segment
+            # flags), so the launcher can tell an explicit choice from the absence
+            # of one. Choices are validated in the handler against CLIENT_NAMES.
+            Flag(
+                name="client",
+                type=str,
+                default="",
+                help=(
+                    "launch target client (one of: " + ", ".join(CLIENT_NAMES) + "). "
+                    "When omitted, the interactive launcher prompts with a Client "
+                    "step (cursor on config default_client, else claude) and "
+                    "non-interactive launches use default_client. Passing it "
+                    "explicitly skips that step. 'miniclaude' launches the "
+                    "miniclaude REPL instead; version and strict-MCP selections, "
+                    "config default_flags, and the disallowedTools list are "
+                    "claude-client-only"
+                ),
+            ),
+        ],
+    )
+
+    app.command(
+        "launch",
+        help="start the interactive TUI launcher to select a profile, model, and directory",
+        flag_sets=[_session_flag_set, _segment_flag_set, _client_flag_set],
+    )(_bind(_handle_launch, ws, locator))
 
     return app
 
@@ -1519,7 +1917,7 @@ def main() -> None:
     argv = list(sys.argv)
     if "--" in argv:
         idx = argv.index("--")
-        _passthrough = argv[idx + 1:]
+        _passthrough = argv[idx + 1 :]
         sys.argv = argv[:idx]
     else:
         _passthrough = []

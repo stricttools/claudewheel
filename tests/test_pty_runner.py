@@ -25,8 +25,7 @@ class HeadlessCaptureTests(unittest.TestCase):
 
     def test_captures_child_stdout(self) -> None:
         code, captured = run_under_pty(
-            [sys.executable, "-c",
-             "print('hello'); import sys; sys.stdout.flush()"],
+            [sys.executable, "-c", "print('hello'); import sys; sys.stdout.flush()"],
             dict(os.environ),
             proxy_terminal=False,
         )
@@ -45,8 +44,11 @@ class HeadlessCaptureTests(unittest.TestCase):
         env = dict(os.environ)
         env["PTY_RUNNER_TEST_VAR"] = "marker-value-42"
         code, captured = run_under_pty(
-            [sys.executable, "-c",
-             "import os; print(os.environ['PTY_RUNNER_TEST_VAR'])"],
+            [
+                sys.executable,
+                "-c",
+                "import os; print(os.environ['PTY_RUNNER_TEST_VAR'])",
+            ],
             env,
             proxy_terminal=False,
         )
@@ -55,8 +57,7 @@ class HeadlessCaptureTests(unittest.TestCase):
 
     def test_scripted_input_drives_interactive_child(self) -> None:
         code, captured = run_under_pty(
-            [sys.executable, "-c",
-             "x = input(); print('GOT:' + x)"],
+            [sys.executable, "-c", "x = input(); print('GOT:' + x)"],
             dict(os.environ),
             input_bytes=b"ping\n",
             proxy_terminal=False,
@@ -75,8 +76,7 @@ class HeadlessCaptureTests(unittest.TestCase):
     def test_captures_stderr_too(self) -> None:
         # Under a PTY the child's stderr shares the slave with stdout.
         code, captured = run_under_pty(
-            [sys.executable, "-c",
-             "import sys; print('oops', file=sys.stderr)"],
+            [sys.executable, "-c", "import sys; print('oops', file=sys.stderr)"],
             dict(os.environ),
             proxy_terminal=False,
         )
@@ -161,8 +161,11 @@ class RealTtyProxyTests(unittest.TestCase):
         prev_winch = signal.getsignal(signal.SIGWINCH)
 
         code, captured = run_under_pty(
-            [sys.executable, "-c",
-             "print('proxied-marker'); import sys; sys.stdout.flush()"],
+            [
+                sys.executable,
+                "-c",
+                "print('proxied-marker'); import sys; sys.stdout.flush()",
+            ],
             dict(os.environ),
         )
 
@@ -252,8 +255,9 @@ class SignalHandlerTests(unittest.TestCase):
             captured_handlers[sig] = handler
             return real_signal(sig, handler)
 
-        with mock.patch("claudewheel.pty_runner.signal.signal",
-                        side_effect=capturing_signal):
+        with mock.patch(
+            "claudewheel.pty_runner.signal.signal", side_effect=capturing_signal
+        ):
             code, _ = run_under_pty(
                 [sys.executable, "-c", "pass"],
                 dict(os.environ),
@@ -261,8 +265,9 @@ class SignalHandlerTests(unittest.TestCase):
             )
         self.assertEqual(code, 0)
         # A SIGTERM handler should have been installed
-        self.assertIn(signal.SIGTERM, captured_handlers,
-                      "SIGTERM handler not installed")
+        self.assertIn(
+            signal.SIGTERM, captured_handlers, "SIGTERM handler not installed"
+        )
 
 
 if __name__ == "__main__":

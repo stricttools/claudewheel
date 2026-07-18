@@ -41,6 +41,7 @@ class _ReconcileTestCase(unittest.TestCase):
         cw.mkdir(parents=True, exist_ok=True)
 
         from claudewheel.workspace import Workspace
+
         self.ws = Workspace.open(cw, claude_dir=self.home / ".claude")
 
     # -- fixture helpers ---------------------------------------------------
@@ -167,8 +168,12 @@ class ComputeDiffTests(_ReconcileTestCase):
 
     def test_no_allow_array_means_no_allow_removals(self) -> None:
         diff = compute_settings_diff(
-            {"permissions": {"deny": list(canonical_deny_rules()),
-                             "ask": list(canonical_ask_rules())}}
+            {
+                "permissions": {
+                    "deny": list(canonical_deny_rules()),
+                    "ask": list(canonical_ask_rules()),
+                }
+            }
         )
         self.assertEqual(diff.allow_remove, [])
         self.assertTrue(diff.is_empty())
@@ -189,11 +194,15 @@ class ApplyDiffTests(_ReconcileTestCase):
         self.assertEqual(
             set(settings["permissions"]["deny"]), set(canonical_deny_rules())
         )
-        self.assertEqual(len(settings["permissions"]["deny"]), len(canonical_deny_rules()))
+        self.assertEqual(
+            len(settings["permissions"]["deny"]), len(canonical_deny_rules())
+        )
         self.assertEqual(
             set(settings["permissions"]["ask"]), set(canonical_ask_rules())
         )
-        self.assertEqual(len(settings["permissions"]["ask"]), len(canonical_ask_rules()))
+        self.assertEqual(
+            len(settings["permissions"]["ask"]), len(canonical_ask_rules())
+        )
 
     def test_apply_removes_conflicts_keeps_other_allow(self) -> None:
         settings = self.drifted_settings()
@@ -338,7 +347,9 @@ class ReconcileCliTests(_ReconcileTestCase):
             try:
                 cli.main()
             except SystemExit as e:
-                code = e.code if isinstance(e.code, int) else (0 if e.code is None else 1)
+                code = (
+                    e.code if isinstance(e.code, int) else (0 if e.code is None else 1)
+                )
         return out.getvalue(), err.getvalue(), code
 
     def test_command_registered_dry_run(self) -> None:

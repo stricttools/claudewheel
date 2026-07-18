@@ -24,7 +24,8 @@ class DeployHooksTests(unittest.TestCase):
         self._launcher = Path(self._tmp.name) / "cw"
         self.scripts_dir = self._launcher / "scripts"
         self._env_patch = mock.patch.dict(
-            "os.environ", {"CLAUDEWHEEL_CONFIG_DIR": str(self._launcher)})
+            "os.environ", {"CLAUDEWHEEL_CONFIG_DIR": str(self._launcher)}
+        )
         self._env_patch.start()
         self.addCleanup(self._env_patch.stop)
 
@@ -142,7 +143,9 @@ class DeployHooksTests(unittest.TestCase):
         existing = self.scripts_dir / name
         existing.write_text("old content")
 
-        stdout, _, _ = self._run_deploy(["c", "deploy-hooks", "--force-overwrite", name])
+        stdout, _, _ = self._run_deploy(
+            ["c", "deploy-hooks", "--force-overwrite", name]
+        )
 
         self.assertIn(f"overwritten: {existing}", stdout)
         # Content must be replaced with the registry template
@@ -169,9 +172,13 @@ class HookBlockUnsafeCommandsTests(unittest.TestCase):
             try:
                 result = subprocess.run(
                     ["bash", "-n", f.name],
-                    capture_output=True, text=True, timeout=5,
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
                 )
-                self.assertEqual(result.returncode, 0, f"bash -n failed: {result.stderr}")
+                self.assertEqual(
+                    result.returncode, 0, f"bash -n failed: {result.stderr}"
+                )
             finally:
                 os.unlink(f.name)
 
@@ -260,15 +267,20 @@ class HookBlockUnsafeCommandsTests(unittest.TestCase):
         launcher = Path(tmp.name) / "cw"
         scripts_dir = launcher / "scripts"
         out = io.StringIO()
-        with mock.patch.dict("os.environ", {"CLAUDEWHEEL_CONFIG_DIR": str(launcher)}), \
-             mock.patch("sys.argv", ["c", "deploy-hooks", "--all"]), \
-             redirect_stdout(out), redirect_stderr(io.StringIO()):
+        with (
+            mock.patch.dict("os.environ", {"CLAUDEWHEEL_CONFIG_DIR": str(launcher)}),
+            mock.patch("sys.argv", ["c", "deploy-hooks", "--all"]),
+            redirect_stdout(out),
+            redirect_stderr(io.StringIO()),
+        ):
             try:
                 cli.main()
             except SystemExit:
                 pass
         dest = scripts_dir / "hook-block-unsafe-commands"
-        self.assertTrue(dest.exists(), "hook-block-unsafe-commands should be deployed by --all")
+        self.assertTrue(
+            dest.exists(), "hook-block-unsafe-commands should be deployed by --all"
+        )
         self.assertEqual(dest.read_text(), HOOK_SCRIPTS["hook-block-unsafe-commands"])
 
 
@@ -290,9 +302,13 @@ class HookAdviseCommandsTests(unittest.TestCase):
             try:
                 result = subprocess.run(
                     ["bash", "-n", f.name],
-                    capture_output=True, text=True, timeout=5,
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
                 )
-                self.assertEqual(result.returncode, 0, f"bash -n failed: {result.stderr}")
+                self.assertEqual(
+                    result.returncode, 0, f"bash -n failed: {result.stderr}"
+                )
             finally:
                 os.unlink(f.name)
 
@@ -330,15 +346,20 @@ class HookAdviseCommandsTests(unittest.TestCase):
         launcher = Path(tmp.name) / "cw"
         scripts_dir = launcher / "scripts"
         out = io.StringIO()
-        with mock.patch.dict("os.environ", {"CLAUDEWHEEL_CONFIG_DIR": str(launcher)}), \
-             mock.patch("sys.argv", ["c", "deploy-hooks", "--all"]), \
-             redirect_stdout(out), redirect_stderr(io.StringIO()):
+        with (
+            mock.patch.dict("os.environ", {"CLAUDEWHEEL_CONFIG_DIR": str(launcher)}),
+            mock.patch("sys.argv", ["c", "deploy-hooks", "--all"]),
+            redirect_stdout(out),
+            redirect_stderr(io.StringIO()),
+        ):
             try:
                 cli.main()
             except SystemExit:
                 pass
         dest = scripts_dir / "hook-advise-commands"
-        self.assertTrue(dest.exists(), "hook-advise-commands should be deployed by --all")
+        self.assertTrue(
+            dest.exists(), "hook-advise-commands should be deployed by --all"
+        )
         self.assertEqual(dest.read_text(), HOOK_SCRIPTS["hook-advise-commands"])
 
 
@@ -353,7 +374,7 @@ class HookPatternDocumentation(unittest.TestCase):
     def test_git_add_should_match(self) -> None:
         """Commands that should be caught by the git add pattern."""
         # The pattern: (^|[;&|]|&&|\|\|)\s*git\s+add\s+(-[AuU]|--all|\.)
-        pattern = r'(^|[;&|]|&&|\|\|)\s*git\s+add\s+(-[AuU]|--all|\.)'
+        pattern = r"(^|[;&|]|&&|\|\|)\s*git\s+add\s+(-[AuU]|--all|\.)"
         # Should match
         self.assertRegex("git add .", pattern)
         self.assertRegex("git add -A", pattern)
@@ -365,7 +386,8 @@ class HookPatternDocumentation(unittest.TestCase):
     def test_git_add_should_not_match_specific_files(self) -> None:
         """git add <specific-file> should NOT be caught (safegit might not be needed)."""
         import re
-        pattern = r'(^|[;&|]|&&|\|\|)\s*git\s+add\s+(-[AuU]|--all|\.)'
+
+        pattern = r"(^|[;&|]|&&|\|\|)\s*git\s+add\s+(-[AuU]|--all|\.)"
         # Should NOT match -- specific file
         self.assertIsNone(re.search(pattern, "git add myfile.txt"))
         self.assertIsNone(re.search(pattern, "git add src/main.py"))
@@ -373,7 +395,8 @@ class HookPatternDocumentation(unittest.TestCase):
     def test_git_checkout_branch_should_not_match(self) -> None:
         """git checkout <branch> should NOT be caught."""
         import re
-        pattern = r'(^|[;&|]|&&|\|\|)\s*git\s+checkout\s+--\s'
+
+        pattern = r"(^|[;&|]|&&|\|\|)\s*git\s+checkout\s+--\s"
         # Should NOT match -- branch switching
         self.assertIsNone(re.search(pattern, "git checkout main"))
         self.assertIsNone(re.search(pattern, "git checkout -b new-branch"))
@@ -381,7 +404,7 @@ class HookPatternDocumentation(unittest.TestCase):
 
     def test_git_checkout_doubledash_should_match(self) -> None:
         """git checkout -- <file> should be caught."""
-        pattern = r'(^|[;&|]|&&|\|\|)\s*git\s+checkout\s+--\s'
+        pattern = r"(^|[;&|]|&&|\|\|)\s*git\s+checkout\s+--\s"
         # Should match
         self.assertRegex("git checkout -- file.txt", pattern)
         self.assertRegex("git checkout -- .", pattern)
@@ -389,7 +412,7 @@ class HookPatternDocumentation(unittest.TestCase):
 
     def test_git_stash_all_forms_match(self) -> None:
         """All git stash subcommands should match."""
-        pattern = r'(^|[;&|]|&&|\|\|)\s*git\s+stash'
+        pattern = r"(^|[;&|]|&&|\|\|)\s*git\s+stash"
         self.assertRegex("git stash", pattern)
         self.assertRegex("git stash push", pattern)
         self.assertRegex("git stash pop", pattern)
@@ -398,14 +421,14 @@ class HookPatternDocumentation(unittest.TestCase):
 
     def test_git_restore_matches(self) -> None:
         """git restore in any form should match."""
-        pattern = r'(^|[;&|]|&&|\|\|)\s*git\s+restore'
+        pattern = r"(^|[;&|]|&&|\|\|)\s*git\s+restore"
         self.assertRegex("git restore file.txt", pattern)
         self.assertRegex("git restore --staged file.txt", pattern)
         self.assertRegex("git restore .", pattern)
 
     def test_rm_with_args_matches(self) -> None:
         """rm with arguments should match."""
-        pattern = r'(^|[;&|]|&&|\|\|)\s*rm\s'
+        pattern = r"(^|[;&|]|&&|\|\|)\s*rm\s"
         self.assertRegex("rm file.txt", pattern)
         self.assertRegex("rm -rf dir/", pattern)
         self.assertRegex("rm -f old.log", pattern)
@@ -414,7 +437,8 @@ class HookPatternDocumentation(unittest.TestCase):
     def test_rm_in_variable_does_not_match(self) -> None:
         """Strings containing 'rm' as part of another word should not match."""
         import re
-        pattern = r'(^|[;&|]|&&|\|\|)\s*rm\s'
+
+        pattern = r"(^|[;&|]|&&|\|\|)\s*rm\s"
         # Should NOT match -- rm is part of a word
         self.assertIsNone(re.search(pattern, "echo inform the user"))
         self.assertIsNone(re.search(pattern, "firmware update"))

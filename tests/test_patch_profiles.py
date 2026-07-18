@@ -49,6 +49,7 @@ class _PatchProfilesTestCase(unittest.TestCase):
         self.tokens_file = cw / "tokens.json"
 
         from claudewheel.workspace import Workspace
+
         self.ws = Workspace.open(cw, claude_dir=self.home / ".claude")
 
     # -- fixture helpers ---------------------------------------------------
@@ -139,12 +140,17 @@ class MergeHooksTests(_PatchProfilesTestCase):
         c = self.canonical()
         existing = {
             "UserPromptSubmit": [
-                {"matcher": "", "hooks": [
-                    {"type": "command", "command": "/old/scripts/hook-timestamp"},
-                ]},
+                {
+                    "matcher": "",
+                    "hooks": [
+                        {"type": "command", "command": "/old/scripts/hook-timestamp"},
+                    ],
+                },
             ],
         }
-        added = merge_hooks(existing, {"UserPromptSubmit": c["hooks"]["UserPromptSubmit"]})
+        added = merge_hooks(
+            existing, {"UserPromptSubmit": c["hooks"]["UserPromptSubmit"]}
+        )
         # Repathed, not duplicated.
         self.assertEqual(len(existing["UserPromptSubmit"][0]["hooks"]), 1)
         self.assertEqual(
@@ -235,7 +241,9 @@ class RunPatchProfilesTests(_PatchProfilesTestCase):
         s = self.read_settings("work")
         matchers = [e.get("matcher") for e in s["hooks"]["PreToolUse"]]
         self.assertIn("Bash", matchers)
-        self.assertTrue(set(DISALLOWED_TOOLS).issubset(s["claudewheel"]["disallowedTools"]))
+        self.assertTrue(
+            set(DISALLOWED_TOOLS).issubset(s["claudewheel"]["disallowedTools"])
+        )
         # Shared settings now a superset too.
         shared = json.loads(self.shared_settings.read_text())
         self.assertTrue(set(DISALLOWED_TOOLS).issubset(shared["disallowedTools"]))
@@ -248,8 +256,14 @@ class RunPatchProfilesTests(_PatchProfilesTestCase):
 
         self._run_patch()
 
-        for name in ("hook-timestamp", "hook-block-worktree", "hook-block-unsafe-commands"):
-            self.assertTrue((self.scripts_dir / name).exists(), f"{name} should be deployed")
+        for name in (
+            "hook-timestamp",
+            "hook-block-worktree",
+            "hook-block-unsafe-commands",
+        ):
+            self.assertTrue(
+                (self.scripts_dir / name).exists(), f"{name} should be deployed"
+            )
 
     def test_idempotent_second_run_no_changes(self) -> None:
         self.shared_settings.parent.mkdir(parents=True, exist_ok=True)
@@ -364,7 +378,11 @@ class PatchProfilesCliTests(_PatchProfilesTestCase):
     def _run_cli(self, argv: list[str]) -> tuple[str, bool]:
         out = io.StringIO()
         exited = False
-        with patch("sys.argv", argv), redirect_stdout(out), redirect_stderr(io.StringIO()):
+        with (
+            patch("sys.argv", argv),
+            redirect_stdout(out),
+            redirect_stderr(io.StringIO()),
+        ):
             try:
                 cli.main()
             except SystemExit:

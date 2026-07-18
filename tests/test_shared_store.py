@@ -61,7 +61,14 @@ class SharedSubdirsTests(unittest.TestCase):
     def test_subdirs_are_the_pinned_set(self) -> None:
         self.assertEqual(
             list(SharedStore.SHARED_SUBDIRS),
-            ["projects", "session-env", "file-history", "tasks", "todos", "paste-cache"],
+            [
+                "projects",
+                "session-env",
+                "file-history",
+                "tasks",
+                "todos",
+                "paste-cache",
+            ],
         )
 
     def test_no_constants_import(self) -> None:

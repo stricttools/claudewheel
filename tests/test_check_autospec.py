@@ -57,9 +57,7 @@ class BareDetectionTests(unittest.TestCase):
 
     def test_bare_with_unrelated_kwargs(self) -> None:
         # return_value / side_effect do NOT spec the mock.
-        self.assertEqual(
-            _one("patch('mod.thing', return_value=5)"), checker.BARE
-        )
+        self.assertEqual(_one("patch('mod.thing', return_value=5)"), checker.BARE)
 
     def test_autospec_false_is_bare(self) -> None:
         self.assertEqual(_one("patch('mod.thing', autospec=False)"), checker.BARE)
@@ -131,9 +129,7 @@ class NewTests(unittest.TestCase):
 
     def test_positional_new_on_patch_object(self) -> None:
         # patch.object(target, attr, new) -- third positional is the replacement.
-        self.assertEqual(
-            _one("patch.object(Foo, 'bar', my_replacement)"), checker.NEW
-        )
+        self.assertEqual(_one("patch.object(Foo, 'bar', my_replacement)"), checker.NEW)
 
     def test_two_positionals_on_object_is_bare(self) -> None:
         # patch.object(target, attr) with no replacement is still bare.
@@ -156,52 +152,31 @@ class AliasResolutionTests(unittest.TestCase):
     """Imports that rename patch/mock must still be classified."""
 
     def test_aliased_patch_bare(self) -> None:
-        src = (
-            "from unittest.mock import patch as p\n"
-            "p('mod.thing')\n"
-        )
+        src = "from unittest.mock import patch as p\np('mod.thing')\n"
         self.assertEqual(_one(src), checker.BARE)
 
     def test_aliased_patch_autospec(self) -> None:
-        src = (
-            "from unittest.mock import patch as p\n"
-            "p('mod.thing', autospec=True)\n"
-        )
+        src = "from unittest.mock import patch as p\np('mod.thing', autospec=True)\n"
         self.assertEqual(_one(src), checker.AUTOSPEC)
 
     def test_aliased_patch_object_bare(self) -> None:
-        src = (
-            "from unittest.mock import patch as p\n"
-            "p.object(Foo, 'bar')\n"
-        )
+        src = "from unittest.mock import patch as p\np.object(Foo, 'bar')\n"
         self.assertEqual(_one(src), checker.BARE)
 
     def test_aliased_patch_dict(self) -> None:
-        src = (
-            "from unittest.mock import patch as p\n"
-            "p.dict('os.environ', {'X': '1'})\n"
-        )
+        src = "from unittest.mock import patch as p\np.dict('os.environ', {'X': '1'})\n"
         self.assertEqual(_one(src), checker.DICT)
 
     def test_aliased_module_import_bare(self) -> None:
-        src = (
-            "import unittest.mock as um\n"
-            "um.patch('mod.thing')\n"
-        )
+        src = "import unittest.mock as um\num.patch('mod.thing')\n"
         self.assertEqual(_one(src), checker.BARE)
 
     def test_aliased_module_import_autospec(self) -> None:
-        src = (
-            "import unittest.mock as um\n"
-            "um.patch('mod.thing', autospec=True)\n"
-        )
+        src = "import unittest.mock as um\num.patch('mod.thing', autospec=True)\n"
         self.assertEqual(_one(src), checker.AUTOSPEC)
 
     def test_aliased_from_unittest_import_mock(self) -> None:
-        src = (
-            "from unittest import mock as mk\n"
-            "mk.patch('mod.thing')\n"
-        )
+        src = "from unittest import mock as mk\nmk.patch('mod.thing')\n"
         self.assertEqual(_one(src), checker.BARE)
 
     def test_unaliased_names_still_work_without_import(self) -> None:
@@ -210,10 +185,7 @@ class AliasResolutionTests(unittest.TestCase):
 
     def test_alias_does_not_leak_to_unrelated_name(self) -> None:
         # A name that is not the alias and not a default is uncounted.
-        src = (
-            "from unittest.mock import patch as p\n"
-            "q('mod.thing')\n"
-        )
+        src = "from unittest.mock import patch as p\nq('mod.thing')\n"
         self.assertEqual(_categories(src), [])
 
 
@@ -221,11 +193,7 @@ class SyntacticFormTests(unittest.TestCase):
     """Every syntactic patch form reduces to the same Call node."""
 
     def test_decorator_bare(self) -> None:
-        src = (
-            "@patch('mod.thing')\n"
-            "def test_it(mock_thing):\n"
-            "    pass\n"
-        )
+        src = "@patch('mod.thing')\ndef test_it(mock_thing):\n    pass\n"
         self.assertEqual(_one(src), checker.BARE)
 
     def test_decorator_autospec(self) -> None:
@@ -237,11 +205,7 @@ class SyntacticFormTests(unittest.TestCase):
         self.assertEqual(_one(src), checker.AUTOSPEC)
 
     def test_context_manager_bare(self) -> None:
-        src = (
-            "def test_it():\n"
-            "    with patch('mod.thing') as m:\n"
-            "        m()\n"
-        )
+        src = "def test_it():\n    with patch('mod.thing') as m:\n        m()\n"
         self.assertEqual(_one(src), checker.BARE)
 
     def test_context_manager_autospec(self) -> None:
@@ -254,9 +218,7 @@ class SyntacticFormTests(unittest.TestCase):
 
     def test_start_assignment_bare(self) -> None:
         src = (
-            "def setUp(self):\n"
-            "    self._p = patch('mod.thing')\n"
-            "    self._p.start()\n"
+            "def setUp(self):\n    self._p = patch('mod.thing')\n    self._p.start()\n"
         )
         # Only the patch(...) call is a patch site; .start() is not counted.
         self.assertEqual(_one(src), checker.BARE)
@@ -290,6 +252,7 @@ class NonPatchTests(unittest.TestCase):
 class ChmodAndCliTests(unittest.TestCase):
     def test_script_is_executable(self) -> None:
         import os
+
         repo_root = Path(__file__).resolve().parents[1]
         script = repo_root / "scripts" / "gates" / "check-autospec"
         self.assertTrue(os.access(script, os.X_OK), "checker must be chmod +x")
@@ -297,6 +260,7 @@ class ChmodAndCliTests(unittest.TestCase):
     def test_main_returns_nonzero_on_bare(self) -> None:
         # Point main at this test file's own dir via a temp file with a bare patch.
         import tempfile
+
         with tempfile.TemporaryDirectory() as d:
             p = Path(d) / "bad.py"
             p.write_text("patch('x')\n")
@@ -305,6 +269,7 @@ class ChmodAndCliTests(unittest.TestCase):
 
     def test_main_returns_zero_when_clean(self) -> None:
         import tempfile
+
         with tempfile.TemporaryDirectory() as d:
             p = Path(d) / "good.py"
             p.write_text("patch('x', autospec=True)\n")

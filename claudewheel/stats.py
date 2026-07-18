@@ -1,4 +1,5 @@
 """Report shared-store statistics and clean up legacy data."""
+
 from __future__ import annotations
 import shutil
 from typing import TYPE_CHECKING

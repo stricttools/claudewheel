@@ -12,9 +12,7 @@ from .fsutil import write_text_atomic
 from .session import get_session_cwd
 from .shared_store import SharedStore
 
-UUID_RE = re.compile(
-    r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
-)
+UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 
 # Directories whose children are keyed by session UUID.
 SIMPLE_DIRS = ("todos", "session-env", "file-history", "tasks")
@@ -113,6 +111,7 @@ def _apply_rewrites(
     """
     changed = False
     for pattern, to_path in rewriters:
+
         def _replace(m: re.Match[str], _to: str = to_path) -> str:
             suffix = m.group(1)
             if suffix:
@@ -120,6 +119,7 @@ def _apply_rewrites(
                 normalized = suffix.replace("\\\\", "/").replace("\\", "/")
                 return _to + normalized
             return _to
+
         new_line = pattern.sub(_replace, line)
         if new_line != line:
             changed = True
@@ -151,12 +151,14 @@ def _rewrite_jsonl(
         result_line, changed = _apply_rewrites(line, rewriters)
         if old_uuid and new_uuid and old_uuid != new_uuid:
             new_result = result_line.replace(
-                f'"sessionId":"{old_uuid}"', f'"sessionId":"{new_uuid}"',
+                f'"sessionId":"{old_uuid}"',
+                f'"sessionId":"{new_uuid}"',
             )
             if new_result == result_line:
                 # Try with spaces around colon (some formatters).
                 new_result = result_line.replace(
-                    f'"sessionId": "{old_uuid}"', f'"sessionId": "{new_uuid}"',
+                    f'"sessionId": "{old_uuid}"',
+                    f'"sessionId": "{new_uuid}"',
                 )
             if new_result != result_line:
                 changed = True
@@ -212,13 +214,15 @@ def _scan_source(source: Path) -> list[_SessionBundle]:
                     f"file has no cwd field in the first lines"
                 )
             companion = encoded_dir / stem
-            bundles.append(_SessionBundle(
-                uuid=stem,
-                jsonl_path=entry,
-                companion_dir=companion if companion.is_dir() else None,
-                cwd=cwd,
-                source_encoded_dir=encoded_dir.name,
-            ))
+            bundles.append(
+                _SessionBundle(
+                    uuid=stem,
+                    jsonl_path=entry,
+                    companion_dir=companion if companion.is_dir() else None,
+                    cwd=cwd,
+                    source_encoded_dir=encoded_dir.name,
+                )
+            )
 
     return bundles
 
@@ -315,9 +319,7 @@ def run_import(
                 new_uuid = str(uuid_mod.uuid4())
                 uuid_target_map[b.uuid] = (target_dir, new_uuid)
             else:
-                result.collisions.append(
-                    f"{b.uuid} -> {target_dir} (from {b.cwd})"
-                )
+                result.collisions.append(f"{b.uuid} -> {target_dir} (from {b.cwd})")
                 uuid_target_map[b.uuid] = (target_dir, None)
         else:
             uuid_target_map[b.uuid] = (target_dir, None)
@@ -350,7 +352,9 @@ def run_import(
             _log(f"  copying {b.jsonl_path} -> {target_jsonl}")
 
         lines_rewritten = _rewrite_jsonl(
-            b.jsonl_path, target_jsonl, rewriters,
+            b.jsonl_path,
+            target_jsonl,
+            rewriters,
             old_uuid=b.uuid if is_reided else None,
             new_uuid=mapped_uuid,
             dry_run=dry_run,
@@ -380,7 +384,9 @@ def run_import(
                     else:
                         _log(f"    rewriting {rel}")
                     lines_rewritten = _rewrite_jsonl(
-                        item, dst, rewriters,
+                        item,
+                        dst,
+                        rewriters,
                         old_uuid=b.uuid if is_reided else None,
                         new_uuid=mapped_uuid,
                         dry_run=dry_run,
@@ -398,8 +404,14 @@ def run_import(
         # Scan SIMPLE_DIRS in the source root for UUID-keyed artifacts.
         for d in SIMPLE_DIRS:
             _copy_simple_artifacts(
-                source_path, d, b.uuid, effective_uuid, is_reided,
-                result, dry_run, store,
+                source_path,
+                d,
+                b.uuid,
+                effective_uuid,
+                is_reided,
+                result,
+                dry_run,
+                store,
             )
 
     # 9. Paste cache.

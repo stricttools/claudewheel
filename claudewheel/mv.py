@@ -52,7 +52,10 @@ def _discover_profile_dirs(ws: "Workspace") -> list[Path]:
 
 
 def _rewrite_jsonl_file(
-    path: Path, old_path: str, new_path: str, dry_run: bool,
+    path: Path,
+    old_path: str,
+    new_path: str,
+    dry_run: bool,
 ) -> int:
     """Replace old_path with new_path in every line of a JSONL file.
 
@@ -84,7 +87,10 @@ def _rewrite_jsonl_file(
 
 
 def _update_claude_json(
-    path: Path, old_path: str, new_path: str, dry_run: bool,
+    path: Path,
+    old_path: str,
+    new_path: str,
+    dry_run: bool,
 ) -> bool:
     """Rename a project key in .claude.json. Returns True if updated.
 
@@ -111,8 +117,12 @@ def _update_claude_json(
 
 
 def run_mv(
-    ws: "Workspace", old_path: str, new_path: str, dry_run: bool = False,
-    quiet: bool = False, post_hoc: bool = False,
+    ws: "Workspace",
+    old_path: str,
+    new_path: str,
+    dry_run: bool = False,
+    quiet: bool = False,
+    post_hoc: bool = False,
 ) -> MvResult:
     """Rename a project directory and migrate Claude Code session data.
 
@@ -134,13 +144,19 @@ def run_mv(
     if post_hoc:
         # Session-only migration: directory already renamed externally
         if not Path(new_resolved).is_dir():
-            raise FileNotFoundError(f"target does not exist as a directory: {new_resolved}")
+            raise FileNotFoundError(
+                f"target does not exist as a directory: {new_resolved}"
+            )
         if Path(old_resolved).exists():
-            raise FileExistsError(f"source still exists: {old_resolved} -- use 'mv' without --post-hoc to rename it")
+            raise FileExistsError(
+                f"source still exists: {old_resolved} -- use 'mv' without --post-hoc to rename it"
+            )
     else:
         # Rename mode: rename directory then migrate sessions
         if not Path(old_resolved).is_dir():
-            raise FileNotFoundError(f"source does not exist as a directory: {old_resolved}")
+            raise FileNotFoundError(
+                f"source does not exist as a directory: {old_resolved}"
+            )
         if Path(new_resolved).exists():
             raise FileExistsError(f"target already exists: {new_resolved}")
 
@@ -151,7 +167,9 @@ def run_mv(
             try:
                 Path(old_resolved).rename(new_resolved)
             except OSError as e:
-                raise OSError(f"failed to rename directory {old_resolved} -> {new_resolved}: {e}") from e
+                raise OSError(
+                    f"failed to rename directory {old_resolved} -> {new_resolved}: {e}"
+                ) from e
 
     _log(f"moving {old_resolved} -> {new_resolved}")
     if dry_run:
@@ -201,7 +219,9 @@ def run_mv(
                     try:
                         old_project.rmdir()
                     except OSError:
-                        _log(f"  WARNING: could not remove {old_project} (not empty after merge)")
+                        _log(
+                            f"  WARNING: could not remove {old_project} (not empty after merge)"
+                        )
                 result.dirs_renamed += 1
             elif dry_run:
                 _log(f"  would rename {old_project} -> {new_project}")
@@ -227,7 +247,10 @@ def run_mv(
                 if jsonl_path.name == "history.jsonl":
                     continue
                 lines_fixed = _rewrite_jsonl_file(
-                    jsonl_path, old_resolved, new_resolved, dry_run,
+                    jsonl_path,
+                    old_resolved,
+                    new_resolved,
+                    dry_run,
                 )
                 if lines_fixed > 0:
                     result.files_rewritten += 1

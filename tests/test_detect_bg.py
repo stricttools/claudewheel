@@ -96,9 +96,11 @@ class ParseOsc11ResponseTests(unittest.TestCase):
             return chunk
 
         self._select_patch = mock.patch(
-            "claudewheel.terminal.select.select", side_effect=fake_select)
+            "claudewheel.terminal.select.select", side_effect=fake_select
+        )
         self._read_patch = mock.patch(
-            "claudewheel.terminal.os.read", side_effect=fake_read)
+            "claudewheel.terminal.os.read", side_effect=fake_read
+        )
         self._select_patch.start()
         self._read_patch.start()
         return fd
@@ -141,7 +143,9 @@ class ParseOsc11ResponseTests(unittest.TestCase):
     def test_timeout_returns_none(self) -> None:
         """No response at all -> timeout -> None."""
         fd = 42
-        with mock.patch("claudewheel.terminal.select.select", return_value=([], [], [])):
+        with mock.patch(
+            "claudewheel.terminal.select.select", return_value=([], [], [])
+        ):
             self.assertIsNone(_parse_osc11_response(fd))
 
     def test_empty_response_returns_none(self) -> None:
@@ -187,8 +191,10 @@ class DetectTerminalBackgroundTests(unittest.TestCase):
         fake_tty.fileno.return_value = 99
         with mock.patch.dict(os.environ, {"TERM": "xterm-256color"}):
             with mock.patch("builtins.open", return_value=fake_tty):
-                with mock.patch("claudewheel.terminal.termios.tcgetattr",
-                                side_effect=__import__("termios").error("bad")):
+                with mock.patch(
+                    "claudewheel.terminal.termios.tcgetattr",
+                    side_effect=__import__("termios").error("bad"),
+                ):
                     self.assertIsNone(detect_terminal_background())
         fake_tty.close.assert_called()
 
@@ -199,8 +205,9 @@ class DetectTerminalBackgroundTests(unittest.TestCase):
 
         with mock.patch.dict(os.environ, {"TERM": "xterm-256color"}):
             with mock.patch("builtins.open", return_value=fake_tty):
-                with mock.patch("claudewheel.terminal.termios.tcgetattr",
-                                return_value=["old"]):
+                with mock.patch(
+                    "claudewheel.terminal.termios.tcgetattr", return_value=["old"]
+                ):
                     with mock.patch("claudewheel.terminal.tty.setcbreak"):
                         with mock.patch("claudewheel.terminal.termios.tcsetattr"):
                             with mock.patch(
@@ -217,8 +224,9 @@ class DetectTerminalBackgroundTests(unittest.TestCase):
 
         with mock.patch.dict(os.environ, {"TERM": "xterm-256color"}):
             with mock.patch("builtins.open", return_value=fake_tty):
-                with mock.patch("claudewheel.terminal.termios.tcgetattr",
-                                return_value=["old"]):
+                with mock.patch(
+                    "claudewheel.terminal.termios.tcgetattr", return_value=["old"]
+                ):
                     with mock.patch("claudewheel.terminal.tty.setcbreak"):
                         with mock.patch("claudewheel.terminal.termios.tcsetattr"):
                             with mock.patch(
@@ -234,8 +242,9 @@ class DetectTerminalBackgroundTests(unittest.TestCase):
 
         with mock.patch.dict(os.environ, {"TERM": "xterm-256color"}):
             with mock.patch("builtins.open", return_value=fake_tty):
-                with mock.patch("claudewheel.terminal.termios.tcgetattr",
-                                return_value=["old"]):
+                with mock.patch(
+                    "claudewheel.terminal.termios.tcgetattr", return_value=["old"]
+                ):
                     with mock.patch("claudewheel.terminal.tty.setcbreak"):
                         with mock.patch("claudewheel.terminal.termios.tcsetattr"):
                             with mock.patch(
@@ -253,8 +262,9 @@ class DetectTerminalBackgroundTests(unittest.TestCase):
 
         with mock.patch.dict(os.environ, {"TERM": "xterm-256color"}):
             with mock.patch("builtins.open", return_value=fake_tty):
-                with mock.patch("claudewheel.terminal.termios.tcgetattr",
-                                return_value=["old"]):
+                with mock.patch(
+                    "claudewheel.terminal.termios.tcgetattr", return_value=["old"]
+                ):
                     with mock.patch("claudewheel.terminal.tty.setcbreak"):
                         with mock.patch("claudewheel.terminal.termios.tcsetattr"):
                             result = detect_terminal_background()
@@ -268,12 +278,14 @@ class DetectTerminalBackgroundTests(unittest.TestCase):
 
         with mock.patch.dict(os.environ, {"TERM": "xterm-256color"}):
             with mock.patch("builtins.open", return_value=fake_tty):
-                with mock.patch("claudewheel.terminal.termios.tcgetattr",
-                                return_value=old_attrs):
+                with mock.patch(
+                    "claudewheel.terminal.termios.tcgetattr", return_value=old_attrs
+                ):
                     with mock.patch("claudewheel.terminal.tty.setcbreak"):
                         tcsetattr_mock = mock.MagicMock()
-                        with mock.patch("claudewheel.terminal.termios.tcsetattr",
-                                        tcsetattr_mock):
+                        with mock.patch(
+                            "claudewheel.terminal.termios.tcsetattr", tcsetattr_mock
+                        ):
                             with mock.patch(
                                 "claudewheel.terminal._parse_osc11_response",
                                 return_value="dark",
@@ -281,7 +293,8 @@ class DetectTerminalBackgroundTests(unittest.TestCase):
                                 detect_terminal_background()
 
         tcsetattr_mock.assert_called_once_with(
-            99, __import__("termios").TCSAFLUSH, old_attrs)
+            99, __import__("termios").TCSAFLUSH, old_attrs
+        )
 
     def test_no_term_env_does_not_skip(self) -> None:
         """When $TERM is unset (empty), detection proceeds normally."""
@@ -290,8 +303,9 @@ class DetectTerminalBackgroundTests(unittest.TestCase):
 
         with mock.patch.dict(os.environ, {"TERM": ""}, clear=False):
             with mock.patch("builtins.open", return_value=fake_tty):
-                with mock.patch("claudewheel.terminal.termios.tcgetattr",
-                                return_value=["old"]):
+                with mock.patch(
+                    "claudewheel.terminal.termios.tcgetattr", return_value=["old"]
+                ):
                     with mock.patch("claudewheel.terminal.tty.setcbreak"):
                         with mock.patch("claudewheel.terminal.termios.tcsetattr"):
                             with mock.patch(

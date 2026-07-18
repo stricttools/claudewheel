@@ -58,7 +58,11 @@ class FakeTerminal:
         pass
 
 
-OPTIONS = [("alpha", "Alpha option"), ("beta", "Beta option"), ("gamma", "Gamma option")]
+OPTIONS = [
+    ("alpha", "Alpha option"),
+    ("beta", "Beta option"),
+    ("gamma", "Gamma option"),
+]
 
 
 class RunSelectionTestBase(unittest.TestCase):
@@ -205,8 +209,9 @@ class CleanupTests(RunSelectionTestBase):
         self._run(["ENTER"])
         # Six calls: install SIGWINCH/SIGTERM/SIGHUP, restore all three
         self.assertEqual(self.signal_mock.call_count, 6)
-        sigwinch_calls = [c for c in self.signal_mock.call_args_list
-                          if c.args[0] == signal.SIGWINCH]
+        sigwinch_calls = [
+            c for c in self.signal_mock.call_args_list if c.args[0] == signal.SIGWINCH
+        ]
         self.assertEqual(len(sigwinch_calls), 2)
 
     def test_inline_form_erased_on_exit(self) -> None:
@@ -262,8 +267,13 @@ def _sample_fields() -> list[FormField]:
     return [
         FormField("name", "text", label="Name", value=""),
         FormField("path", "readonly", label="Path", value="/some/where"),
-        FormField("mode", "radio", label="Mode", value="fast",
-                  options=["fast", "slow", "safe"]),
+        FormField(
+            "mode",
+            "radio",
+            label="Mode",
+            value="fast",
+            options=["fast", "slow", "safe"],
+        ),
         FormField("verbose", "checkbox", label="Verbose", value=True),
         FormField("go", "button", label="Go"),
     ]
@@ -280,8 +290,13 @@ class FormRunnerTestBase(unittest.TestCase):
         self.signal_mock = self._signal_patch.start()
         self.addCleanup(self._signal_patch.stop)
 
-    def _run(self, keys: list[str], fields: list[FormField] | None = None,
-             in_raw: bool = False, **kwargs) -> dict | None:
+    def _run(
+        self,
+        keys: list[str],
+        fields: list[FormField] | None = None,
+        in_raw: bool = False,
+        **kwargs,
+    ) -> dict | None:
         if fields is None:
             fields = _sample_fields()
         self.fields = fields
@@ -305,11 +320,14 @@ class FormSubmitTests(FormRunnerTestBase):
         self.assertIsNotNone(result)
 
     def test_all_values_returned_including_readonly(self) -> None:
-        result = self._run(["ENTER"], fields=[
-            FormField("a", "text", label="A", value="x"),
-            FormField("b", "readonly", label="B", value="ro"),
-            FormField("c", "checkbox", label="C", value=False),
-        ])
+        result = self._run(
+            ["ENTER"],
+            fields=[
+                FormField("a", "text", label="A", value="x"),
+                FormField("b", "readonly", label="B", value="ro"),
+                FormField("c", "checkbox", label="C", value=False),
+            ],
+        )
         self.assertEqual(result, {"a": "x", "b": "ro", "c": False})
 
     def test_enter_on_radio_does_not_submit(self) -> None:
@@ -387,13 +405,15 @@ class FormCheckboxTests(FormRunnerTestBase):
     """SPACE toggles checkbox fields."""
 
     def test_space_toggles_off(self) -> None:
-        result = self._run(["TAB", "TAB", " ", "SHIFT_TAB", "SHIFT_TAB"]
-                           + list("a") + ["ENTER"])
+        result = self._run(
+            ["TAB", "TAB", " ", "SHIFT_TAB", "SHIFT_TAB"] + list("a") + ["ENTER"]
+        )
         self.assertFalse(result["verbose"])
 
     def test_space_toggles_back_on(self) -> None:
-        result = self._run(["TAB", "TAB", " ", " ", "SHIFT_TAB", "SHIFT_TAB"]
-                           + list("a") + ["ENTER"])
+        result = self._run(
+            ["TAB", "TAB", " ", " ", "SHIFT_TAB", "SHIFT_TAB"] + list("a") + ["ENTER"]
+        )
         self.assertTrue(result["verbose"])
 
 
@@ -436,10 +456,10 @@ class FormVisibilityTests(FormRunnerTestBase):
             return get_field(fields, "adv").value == "show"
 
         return [
-            FormField("adv", "radio", label="Advanced", value="hide",
-                      options=["hide", "show"]),
-            FormField("extra", "checkbox", label="Extra", value=True,
-                      visible=expanded),
+            FormField(
+                "adv", "radio", label="Advanced", value="hide", options=["hide", "show"]
+            ),
+            FormField("extra", "checkbox", label="Extra", value=True, visible=expanded),
             FormField("go", "button", label="Go"),
         ]
 
@@ -454,8 +474,9 @@ class FormVisibilityTests(FormRunnerTestBase):
 
     def test_expanding_reveals_field(self) -> None:
         # Expand, TAB to Extra, toggle off, TAB to Go, submit
-        result = self._run(["RIGHT", "TAB", " ", "TAB", "ENTER"],
-                           fields=self._toggle_fields())
+        result = self._run(
+            ["RIGHT", "TAB", " ", "TAB", "ENTER"], fields=self._toggle_fields()
+        )
         self.assertFalse(result["extra"])
 
     def test_expanded_field_rendered(self) -> None:
@@ -484,8 +505,7 @@ class FormValidationTests(FormRunnerTestBase):
         self.assertIn(THEME.forms_error_fg, out)
 
     def test_fix_then_submit_succeeds(self) -> None:
-        result = self._run(["ENTER"] + list("ok") + ["ENTER"],
-                           validate=self._validate)
+        result = self._run(["ENTER"] + list("ok") + ["ENTER"], validate=self._validate)
         self.assertEqual(result["name"], "ok")
 
     def test_error_cleared_on_typing(self) -> None:
@@ -520,6 +540,7 @@ class FormThemingTests(FormRunnerTestBase):
     def test_readonly_field_uses_forms_readonly_fg(self) -> None:
         """Readonly field values use the themed readonly color, not bare DIM."""
         from claudewheel.constants import DIM
+
         self._run(["ESC"])
         out = self._output()
         # The readonly value "/some/where" should be styled with forms_readonly_fg
@@ -527,16 +548,20 @@ class FormThemingTests(FormRunnerTestBase):
         # Bare DIM must not appear in text-rendering context
         # (DIM followed by a printable character would indicate bare usage)
         for i, _ in enumerate(out):
-            if out[i:i + len(DIM)] == DIM:
+            if out[i : i + len(DIM)] == DIM:
                 # After DIM, the next non-escape char should not be a
                 # printable letter/slash (which would indicate value text)
-                after = out[i + len(DIM):i + len(DIM) + 1]
-                self.assertNotIn(after, "/abcdefghijklmnopqrstuvwxyz",
-                                 "Bare DIM used for text rendering")
+                after = out[i + len(DIM) : i + len(DIM) + 1]
+                self.assertNotIn(
+                    after,
+                    "/abcdefghijklmnopqrstuvwxyz",
+                    "Bare DIM used for text rendering",
+                )
 
     def test_selected_radio_uses_bold_with_themed_fg(self) -> None:
         """The selected radio option uses BOLD + themed field color, not bare BOLD."""
         from claudewheel.constants import BOLD as BOLD_SEQ
+
         self._run(["ESC"])
         out = self._output()
         # The selected radio "fast" should be rendered with BOLD + forms_field_fg
@@ -573,8 +598,9 @@ class FormTerminalSemanticsTests(FormRunnerTestBase):
         self._run(["ESC"], in_raw=True)
         # Six calls: install SIGWINCH/SIGTERM/SIGHUP, restore all three
         self.assertEqual(self.signal_mock.call_count, 6)
-        sigwinch_calls = [c for c in self.signal_mock.call_args_list
-                          if c.args[0] == signal.SIGWINCH]
+        sigwinch_calls = [
+            c for c in self.signal_mock.call_args_list if c.args[0] == signal.SIGWINCH
+        ]
         self.assertEqual(len(sigwinch_calls), 2)
 
     def test_inline_mode_emits_no_clear_screen(self) -> None:
@@ -582,9 +608,13 @@ class FormTerminalSemanticsTests(FormRunnerTestBase):
         self.assertNotIn(CLEAR_SCREEN, self._output())
 
     def test_inline_form_erased_on_exit(self) -> None:
-        self._run(["ENTER"], use_alt_screen=False, fields=[
-            FormField("a", "text", label="A", value="x"),
-        ])
+        self._run(
+            ["ENTER"],
+            use_alt_screen=False,
+            fields=[
+                FormField("a", "text", label="A", value="x"),
+            ],
+        )
         self.assertIn("\x1b[0J", self.term.output[-1])
 
     def test_resize_handler_rerenders(self) -> None:
@@ -599,16 +629,23 @@ class SelectFieldTests(FormRunnerTestBase):
     """The select field type: UP/DOWN cycle options, ENTER submits."""
 
     def _select_fields(self) -> list[FormField]:
-        return [FormField("choice", "select", value="a",
-                          options=[("a", "Alpha"), ("b", "Beta"), ("c", "Gamma")])]
+        return [
+            FormField(
+                "choice",
+                "select",
+                value="a",
+                options=[("a", "Alpha"), ("b", "Beta"), ("c", "Gamma")],
+            )
+        ]
 
     def test_enter_returns_focused_key(self) -> None:
         result = self._run(["ENTER"], fields=self._select_fields())
         self.assertEqual(result["choice"], "a")
 
     def test_down_cycles_and_wraps(self) -> None:
-        result = self._run(["DOWN", "DOWN", "DOWN", "DOWN", "ENTER"],
-                           fields=self._select_fields())
+        result = self._run(
+            ["DOWN", "DOWN", "DOWN", "DOWN", "ENTER"], fields=self._select_fields()
+        )
         self.assertEqual(result["choice"], "b")
 
     def test_up_wraps_to_last(self) -> None:
@@ -699,8 +736,7 @@ class FormSessionSignalTests(unittest.TestCase):
     def test_sigterm_saved_and_restored_owned(self) -> None:
         """SIGTERM handler is installed on entry and restored on exit (owned mode)."""
         term = FakeTerminal(["ESC"])
-        run_form("T", [FormField("a", "text", label="A", value="")],
-                 THEME, term)
+        run_form("T", [FormField("a", "text", label="A", value="")], THEME, term)
         signals = self._installed_signals()
         # SIGTERM must appear at least twice: install and restore
         self.assertGreaterEqual(signals.count(signal.SIGTERM), 2)
@@ -708,32 +744,28 @@ class FormSessionSignalTests(unittest.TestCase):
     def test_sighup_saved_and_restored_owned(self) -> None:
         """SIGHUP handler is installed on entry and restored on exit (owned mode)."""
         term = FakeTerminal(["ESC"])
-        run_form("T", [FormField("a", "text", label="A", value="")],
-                 THEME, term)
+        run_form("T", [FormField("a", "text", label="A", value="")], THEME, term)
         signals = self._installed_signals()
         self.assertGreaterEqual(signals.count(signal.SIGHUP), 2)
 
     def test_sigterm_saved_and_restored_borrowed(self) -> None:
         """SIGTERM handler is installed/restored even in borrowed mode."""
         term = FakeTerminal(["ESC"], in_raw=True)
-        run_form("T", [FormField("a", "text", label="A", value="")],
-                 THEME, term)
+        run_form("T", [FormField("a", "text", label="A", value="")], THEME, term)
         signals = self._installed_signals()
         self.assertGreaterEqual(signals.count(signal.SIGTERM), 2)
 
     def test_sighup_saved_and_restored_borrowed(self) -> None:
         """SIGHUP handler is installed/restored even in borrowed mode."""
         term = FakeTerminal(["ESC"], in_raw=True)
-        run_form("T", [FormField("a", "text", label="A", value="")],
-                 THEME, term)
+        run_form("T", [FormField("a", "text", label="A", value="")], THEME, term)
         signals = self._installed_signals()
         self.assertGreaterEqual(signals.count(signal.SIGHUP), 2)
 
     def test_owned_mode_handler_raises_system_exit(self) -> None:
         """In owned mode, the SIGTERM handler calls exit_raw then raises SystemExit."""
         term = FakeTerminal(["ESC"])
-        run_form("T", [FormField("a", "text", label="A", value="")],
-                 THEME, term)
+        run_form("T", [FormField("a", "text", label="A", value="")], THEME, term)
         # Find the SIGTERM handler (first call with SIGTERM)
         handler = None
         for call in self.signal_mock.call_args_list:
@@ -748,8 +780,7 @@ class FormSessionSignalTests(unittest.TestCase):
     def test_borrowed_mode_handler_raises_system_exit(self) -> None:
         """In borrowed mode, the SIGTERM handler raises SystemExit."""
         term = FakeTerminal(["ESC"], in_raw=True)
-        run_form("T", [FormField("a", "text", label="A", value="")],
-                 THEME, term)
+        run_form("T", [FormField("a", "text", label="A", value="")], THEME, term)
         handler = None
         for call in self.signal_mock.call_args_list:
             if call.args[0] == signal.SIGTERM and callable(call.args[1]):
@@ -763,8 +794,7 @@ class FormSessionSignalTests(unittest.TestCase):
         """In borrowed mode, the handler must NOT call exit_raw (the outer owner does)."""
         term = FakeTerminal(["ESC"], in_raw=True)
         term.exit_raw = mock.Mock()
-        run_form("T", [FormField("a", "text", label="A", value="")],
-                 THEME, term)
+        run_form("T", [FormField("a", "text", label="A", value="")], THEME, term)
         # exit_raw should not have been called during the form session
         # (borrowed mode never calls exit_raw)
         term.exit_raw.assert_not_called()

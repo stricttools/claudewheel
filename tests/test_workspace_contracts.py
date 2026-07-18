@@ -109,10 +109,13 @@ class _FakeHomeMixin:
         # resolve_profile resolves via Workspace.default(), which derives every
         # path from Path.home()/.claudewheel -- so poisoning Path.home + $HOME
         # is the whole redirection.
-        patches = [patch_obj for patch_obj in (
-            mock.patch.object(Path, "home", classmethod(lambda cls: home)),
-            mock.patch.dict(os.environ, {"HOME": str(home)}),
-        )]
+        patches = [
+            patch_obj
+            for patch_obj in (
+                mock.patch.object(Path, "home", classmethod(lambda cls: home)),
+                mock.patch.dict(os.environ, {"HOME": str(home)}),
+            )
+        ]
         for p in patches:
             p.start()
             self.addCleanup(p.stop)
@@ -122,7 +125,9 @@ class _FakeHomeMixin:
             dp = mock.patch.object(cfg_mod, "detect_terminal_background", detect)
         else:
             dp = mock.patch.object(
-                cfg_mod, "detect_terminal_background", return_value=detect,
+                cfg_mod,
+                "detect_terminal_background",
+                return_value=detect,
             )
         dp.start()
         self.addCleanup(dp.stop)
@@ -307,7 +312,8 @@ class WholePackageReadOnlyContractTests(_FakeHomeMixin, unittest.TestCase):
 
         # -- zero successful writes reached the tree --
         self.assertEqual(
-            _snapshot(self.home), before,
+            _snapshot(self.home),
+            before,
             "read-only workspace was mutated by a read/diagnostic path",
         )
 

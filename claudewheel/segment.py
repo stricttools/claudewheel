@@ -24,6 +24,7 @@ NPM_CACHE_TTL = 3600  # 1 hour
 # Discovery dataclasses and registry
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class DiscoveryResult:
     """Structured result from a discovery function."""
@@ -75,7 +76,9 @@ class SegmentState:
     _authenticated: set[str] = field(default_factory=set)
     _auth_status_active: bool = False
     metadata: dict[str, dict[str, Any]] = field(default_factory=dict)
-    collection_order: list[str] = field(default_factory=lambda: list(_DEFAULT_COLLECTION_ORDER))
+    collection_order: list[str] = field(
+        default_factory=lambda: list(_DEFAULT_COLLECTION_ORDER)
+    )
     sort: str | None = None
     _options: list[str] | None = field(default=None, repr=False)
 
@@ -100,7 +103,9 @@ class SegmentState:
 
     # -- Mutation methods (each invalidates cache) --
 
-    def set_discovered(self, vals: list[str], *, verify_fn: Callable[[str], bool] | None = None) -> None:
+    def set_discovered(
+        self, vals: list[str], *, verify_fn: Callable[[str], bool] | None = None
+    ) -> None:
         if verify_fn is not None:
             # VERIFY policy: values removed from new list are checked before dropping
             new_set = set(vals)
@@ -197,12 +202,18 @@ class Segment:
     required: bool = False
     searchable: bool = False
     tab_advances: bool = True
-    option_requires: dict[str, dict[str, str]] = field(default_factory=dict)  # value -> {segment_key: constraint}
-    unavailable: set[str] = field(default_factory=set)  # dynamically computed per render cycle
+    option_requires: dict[str, dict[str, str]] = field(
+        default_factory=dict
+    )  # value -> {segment_key: constraint}
+    unavailable: set[str] = field(
+        default_factory=set
+    )  # dynamically computed per render cycle
     creatable: bool = False  # whether this segment supports inline "+" creation
-    freeform: bool = False   # whether typed text can be submitted as a new value directly
+    freeform: bool = (
+        False  # whether typed text can be submitted as a new value directly
+    )
     _freeform_editing: bool = False  # True while actively editing a freeform buffer
-    creating: bool = False   # True when in creation-mode text input
+    creating: bool = False  # True when in creation-mode text input
     create_buffer: str = ""  # text being typed for the new option
     has_pending: bool = False  # True when deferred discovery results are buffered
     # Bridge field: seeds state._defaults when passed at construction.
@@ -277,7 +288,7 @@ class Segment:
         ring_pos = idx + 1  # now in [0, n]
         ring_pos += direction
         if self.wrap:
-            ring_pos %= (n + 1)
+            ring_pos %= n + 1
         else:
             # Off either end -> blank (ring_pos 0). Stay at blank otherwise.
             if ring_pos < 0 or ring_pos > n:
@@ -305,10 +316,14 @@ class Segment:
 # Translates options= to _init_options= which seeds state._defaults.
 _Segment_orig_init = Segment.__init__
 
-def _Segment_init_wrapper(self: Segment, *args: Any, options: Any = None, **kwargs: Any) -> None:
+
+def _Segment_init_wrapper(
+    self: Segment, *args: Any, options: Any = None, **kwargs: Any
+) -> None:
     if options is not None:
         kwargs["_init_options"] = options
     _Segment_orig_init(self, *args, **kwargs)
+
 
 # setattr (not direct assignment) so mypy does not flag a method reassignment.
 setattr(Segment, "__init__", _Segment_init_wrapper)
@@ -324,7 +339,9 @@ class SegmentBar:
     @property
     def focused(self) -> Segment:
         if not self.segments:
-            raise RuntimeError("SegmentBar has no segments -- check enabled_segments config")
+            raise RuntimeError(
+                "SegmentBar has no segments -- check enabled_segments config"
+            )
         return self.segments[self.focus_idx]
 
     def move_focus(self, direction: int) -> None:
@@ -360,7 +377,9 @@ def fetch_npm_versions(state: dict[str, Any], count: int = 15) -> list[str]:
     try:
         result = subprocess.run(
             ["npm", "view", "@anthropic-ai/claude-code", "versions", "--json"],
-            capture_output=True, text=True, timeout=10,
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         if result.returncode == 0:
             all_versions: list[str] = json.loads(result.stdout)
@@ -383,7 +402,10 @@ def fetch_npm_versions(state: dict[str, Any], count: int = 15) -> list[str]:
 # Individual discovery functions -- extracted from discover_options match/case
 # ---------------------------------------------------------------------------
 
-def _discover_directory_listing(config: dict[str, Any], state: dict[str, Any], ws: "Workspace") -> DiscoveryResult:
+
+def _discover_directory_listing(
+    config: dict[str, Any], state: dict[str, Any], ws: "Workspace"
+) -> DiscoveryResult:
     """Discover options from a directory of files (e.g., installed versions)."""
     disc = config["discovery"]
     path = Path(disc["path"]).expanduser()
@@ -397,7 +419,9 @@ def _discover_directory_listing(config: dict[str, Any], state: dict[str, Any], w
     return DiscoveryResult()
 
 
-def _discover_npm_and_local(config: dict[str, Any], state: dict[str, Any], ws: "Workspace") -> DiscoveryResult:
+def _discover_npm_and_local(
+    config: dict[str, Any], state: dict[str, Any], ws: "Workspace"
+) -> DiscoveryResult:
     """Discover versions from npm registry + locally installed files."""
     disc = config["discovery"]
     local_path = Path(disc["path"]).expanduser()
@@ -413,7 +437,9 @@ def _discover_npm_and_local(config: dict[str, Any], state: dict[str, Any], ws: "
     return DiscoveryResult(values=all_versions, installed=installed)
 
 
-def _discover_npm_and_local_cached(config: dict[str, Any], state: dict[str, Any], ws: "Workspace") -> DiscoveryResult:
+def _discover_npm_and_local_cached(
+    config: dict[str, Any], state: dict[str, Any], ws: "Workspace"
+) -> DiscoveryResult:
     """Fast path for npm_and_local: use cached npm versions only if warm."""
     disc = config["discovery"]
     local_path = Path(disc["path"]).expanduser()
@@ -436,7 +462,9 @@ def _discover_npm_and_local_cached(config: dict[str, Any], state: dict[str, Any]
     return DiscoveryResult(values=all_versions, installed=installed)
 
 
-def _discover_directory_scan(config: dict[str, Any], state: dict[str, Any], ws: "Workspace") -> DiscoveryResult:
+def _discover_directory_scan(
+    config: dict[str, Any], state: dict[str, Any], ws: "Workspace"
+) -> DiscoveryResult:
     """Discover directories by scanning parent directories.
 
     Recent dirs from state are used as hints: validated (must exist on disk),
@@ -461,9 +489,7 @@ def _discover_directory_scan(config: dict[str, Any], state: dict[str, Any], ws: 
     # Validate recent_dirs from state as hints (filter to existing dirs)
     state_field = disc.get("state_field")
     recent: list[str] = state.get(state_field, []) if state_field else []
-    validated_recent: list[str] = [
-        p for p in recent if Path(p).expanduser().is_dir()
-    ]
+    validated_recent: list[str] = [p for p in recent if Path(p).expanduser().is_dir()]
     # Prune stale entries from state
     if state_field and state_field in state:
         state[state_field] = validated_recent
@@ -477,7 +503,9 @@ def _discover_directory_scan(config: dict[str, Any], state: dict[str, Any], ws: 
     return DiscoveryResult(values=merged)
 
 
-def _discover_profiles(config: dict[str, Any], state: dict[str, Any], ws: "Workspace") -> DiscoveryResult:
+def _discover_profiles(
+    config: dict[str, Any], state: dict[str, Any], ws: "Workspace"
+) -> DiscoveryResult:
     """Discover Claude Code profiles via ProfileStore enumeration.
 
     Profile identity comes solely from the store (profile dirs + tokens);
@@ -494,18 +522,23 @@ def _discover_profiles(config: dict[str, Any], state: dict[str, Any], ws: "Works
     return DiscoveryResult(values=values, metadata=metadata)
 
 
-def _discover_gh_accounts(config: dict[str, Any], state: dict[str, Any], ws: "Workspace") -> DiscoveryResult:
+def _discover_gh_accounts(
+    config: dict[str, Any], state: dict[str, Any], ws: "Workspace"
+) -> DiscoveryResult:
     """Discover GitHub accounts from gh CLI auth status."""
     static_values = _parse_static_values(config)
     values = list(static_values)
     try:
         result = subprocess.run(
             ["gh", "auth", "status"],
-            capture_output=True, text=True, timeout=5,
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         output = result.stdout + result.stderr
         accounts = re.findall(
-            r"Logged in to github\.com account (\S+)", output,
+            r"Logged in to github\.com account (\S+)",
+            output,
         )
         if accounts:
             seen_accts: set[str] = set(values)
@@ -518,7 +551,9 @@ def _discover_gh_accounts(config: dict[str, Any], state: dict[str, Any], ws: "Wo
     return DiscoveryResult(values=values)
 
 
-def _discover_state_field(config: dict[str, Any], state: dict[str, Any], ws: "Workspace") -> DiscoveryResult:
+def _discover_state_field(
+    config: dict[str, Any], state: dict[str, Any], ws: "Workspace"
+) -> DiscoveryResult:
     """Discover options by merging state-tracked values with static defaults."""
     disc = config["discovery"]
     static_values = _parse_static_values(config)
@@ -561,12 +596,22 @@ def _parse_requires(config: dict[str, Any]) -> dict[str, dict[str, str]]:
 DISCOVERY_REGISTRY: dict[str, DiscoveryEntry] = {
     "directory_listing": DiscoveryEntry(
         func=_discover_directory_listing,
-        verify=lambda val, config: Path(config.get("discovery", {}).get("path", "")).expanduser().joinpath(val).is_file(),
+        verify=lambda val, config: (
+            Path(config.get("discovery", {}).get("path", ""))
+            .expanduser()
+            .joinpath(val)
+            .is_file()
+        ),
     ),
     "npm_and_local": DiscoveryEntry(
         func=_discover_npm_and_local,
         is_slow=True,
-        verify=lambda val, config: Path(config.get("discovery", {}).get("path", "")).expanduser().joinpath(val).is_file(),
+        verify=lambda val, config: (
+            Path(config.get("discovery", {}).get("path", ""))
+            .expanduser()
+            .joinpath(val)
+            .is_file()
+        ),
     ),
     "directory_scan": DiscoveryEntry(
         func=_discover_directory_scan,
@@ -582,8 +627,11 @@ DISCOVERY_REGISTRY: dict[str, DiscoveryEntry] = {
 # Registry-based discovery dispatch
 # ---------------------------------------------------------------------------
 
+
 def run_slow_discovery_via_registry(
-    options_def: dict[str, Any], state: dict[str, Any], ws: "Workspace",
+    options_def: dict[str, Any],
+    state: dict[str, Any],
+    ws: "Workspace",
 ) -> dict[str, DiscoveryResult]:
     """Run only slow discovery types via the registry.
 
@@ -633,7 +681,12 @@ def populate_segment_state(
     verify_fn = None
     if entry.verify is not None:
         verify_cb = entry.verify
-        def verify_fn(val: str, _cb: Callable[..., bool] = verify_cb, _c: dict[str, Any] = options_def_entry) -> bool:
+
+        def verify_fn(
+            val: str,
+            _cb: Callable[..., bool] = verify_cb,
+            _c: dict[str, Any] = options_def_entry,
+        ) -> bool:
             return _cb(val, _c)
 
     if entry.is_slow and skip_slow:
@@ -696,6 +749,7 @@ def build_segment_bar(cfg: "AppConfigStore", *, skip_slow: bool = False) -> Segm
     ws = cfg.workspace
 
     from .defaults import DEFAULT_OPTIONS
+
     last = cfg.state.get("last_config", {})
 
     for sdef in cfg.segments_def:
@@ -799,8 +853,14 @@ def merge_slow_results(
                 entry = DISCOVERY_REGISTRY.get(disc["type"])
                 if entry and entry.verify is not None:
                     verify_cb = entry.verify
-                    def verify_fn(val: str, _cb: Callable[..., bool] = verify_cb, _c: dict[str, Any] = opt) -> bool:
+
+                    def verify_fn(
+                        val: str,
+                        _cb: Callable[..., bool] = verify_cb,
+                        _c: dict[str, Any] = opt,
+                    ) -> bool:
                         return _cb(val, _c)
+
         # Remember current selection (use selected_value so virtual "+" is preserved)
         current_value = seg.selected_value
         # Update discovered options via state (cache auto-invalidates)

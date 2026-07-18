@@ -18,8 +18,12 @@ class RenderOptionAuthDimmingTests(unittest.TestCase):
         class StubTerminal:
             rows = 40
             cols = 120
-            def write(self, _): pass
-            def flush(self): pass
+
+            def write(self, _):
+                pass
+
+            def flush(self):
+                pass
 
         class StubTheme:
             empty_value_text = "---"
@@ -54,7 +58,9 @@ class RenderOptionAuthDimmingTests(unittest.TestCase):
 
         buf: list[str] = []
         unavail_fg = "\x1b[38;2;85;85;85m"
-        renderer._render_option(buf, seg, "unauthed-profile", "unauthed-profile", DIM, unavail_fg)
+        renderer._render_option(
+            buf, seg, "unauthed-profile", "unauthed-profile", DIM, unavail_fg
+        )
 
         rendered = "".join(buf)
         self.assertIn(unavail_fg, rendered)
@@ -69,7 +75,9 @@ class RenderOptionAuthDimmingTests(unittest.TestCase):
         buf: list[str] = []
         option_fg = DIM
         unavail_fg = "\x1b[38;2;85;85;85m"
-        renderer._render_option(buf, seg, "authed-profile", "authed-profile", option_fg, unavail_fg)
+        renderer._render_option(
+            buf, seg, "authed-profile", "authed-profile", option_fg, unavail_fg
+        )
 
         rendered = "".join(buf)
         # Should use option_fg (DIM), not unavail_fg
@@ -84,7 +92,9 @@ class RenderOptionAuthDimmingTests(unittest.TestCase):
         buf: list[str] = []
         option_fg = DIM
         unavail_fg = "\x1b[38;2;85;85;85m"
-        renderer._render_option(buf, seg, "some-profile", "some-profile", option_fg, unavail_fg)
+        renderer._render_option(
+            buf, seg, "some-profile", "some-profile", option_fg, unavail_fg
+        )
 
         rendered = "".join(buf)
         # Should use normal option_fg, not unavail_fg

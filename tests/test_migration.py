@@ -171,8 +171,15 @@ class KeyMigrationTests(unittest.TestCase):
         # load_theme now returns the full forms section (merged from defaults)
         loaded = cm.load_theme("dark")
         self.assertIn("forms", loaded)
-        for key in ("title_fg", "focus_bg", "focus_fg", "field_fg",
-                    "error_fg", "hint_fg", "cursor_fg"):
+        for key in (
+            "title_fg",
+            "focus_bg",
+            "focus_fg",
+            "field_fg",
+            "error_fg",
+            "hint_fg",
+            "cursor_fg",
+        ):
             self.assertIn(key, loaded["forms"], f"missing forms key: {key}")
         self.assertEqual(loaded["forms"], DEFAULT_THEME_DARK["forms"])
 
@@ -184,10 +191,19 @@ class KeyMigrationTests(unittest.TestCase):
         """Segments intentionally removed by the user are NOT re-added by _migrate()."""
         # Only keep "profile", deliberately omit "github" and others
         partial_segments = [
-            {"key": "profile", "label": "Profile", "required": True,
-             "show_options": True, "wrap": True, "min_width": 8,
-             "max_width": 16, "print_mode": True, "searchable": False,
-             "tab_advances": True, "creatable": True},
+            {
+                "key": "profile",
+                "label": "Profile",
+                "required": True,
+                "show_options": True,
+                "wrap": True,
+                "min_width": 8,
+                "max_width": 16,
+                "print_mode": True,
+                "searchable": False,
+                "tab_advances": True,
+                "creatable": True,
+            },
         ]
         paths = _setup_temp_config_dir(self.tmp, segments=partial_segments)
         cm = self._make_cm(paths)
@@ -220,10 +236,19 @@ class VersionedMigrationTests(unittest.TestCase):
         """With _schema_version 0 and github required=true, migration sets it to false."""
         config = {**DEFAULT_CONFIG, "_schema_version": 0}
         segments = [
-            {"key": "github", "label": "GH", "required": True,
-             "show_options": True, "wrap": True, "min_width": 4,
-             "max_width": 12, "print_mode": False, "searchable": False,
-             "tab_advances": True, "creatable": True},
+            {
+                "key": "github",
+                "label": "GH",
+                "required": True,
+                "show_options": True,
+                "wrap": True,
+                "min_width": 4,
+                "max_width": 12,
+                "print_mode": False,
+                "searchable": False,
+                "tab_advances": True,
+                "creatable": True,
+            },
         ]
         paths = _setup_temp_config_dir(self.tmp, config=config, segments=segments)
         cm = self._make_cm(paths)
@@ -237,10 +262,19 @@ class VersionedMigrationTests(unittest.TestCase):
         """With _schema_version 1, migration 1 is skipped; required stays true if user set it."""
         config = {**DEFAULT_CONFIG, "_schema_version": 1}
         segments = [
-            {"key": "github", "label": "GH", "required": True,
-             "show_options": True, "wrap": True, "min_width": 4,
-             "max_width": 12, "print_mode": False, "searchable": False,
-             "tab_advances": True, "creatable": True},
+            {
+                "key": "github",
+                "label": "GH",
+                "required": True,
+                "show_options": True,
+                "wrap": True,
+                "min_width": 4,
+                "max_width": 12,
+                "print_mode": False,
+                "searchable": False,
+                "tab_advances": True,
+                "creatable": True,
+            },
         ]
         paths = _setup_temp_config_dir(self.tmp, config=config, segments=segments)
         cm = self._make_cm(paths)
@@ -253,10 +287,19 @@ class VersionedMigrationTests(unittest.TestCase):
         """After migration, config.json on disk has the updated _schema_version."""
         config = {**DEFAULT_CONFIG, "_schema_version": 0}
         segments = [
-            {"key": "github", "label": "GH", "required": True,
-             "show_options": True, "wrap": True, "min_width": 4,
-             "max_width": 12, "print_mode": False, "searchable": False,
-             "tab_advances": True, "creatable": True},
+            {
+                "key": "github",
+                "label": "GH",
+                "required": True,
+                "show_options": True,
+                "wrap": True,
+                "min_width": 4,
+                "max_width": 12,
+                "print_mode": False,
+                "searchable": False,
+                "tab_advances": True,
+                "creatable": True,
+            },
         ]
         paths = _setup_temp_config_dir(self.tmp, config=config, segments=segments)
         self._make_cm(paths)
@@ -264,6 +307,7 @@ class VersionedMigrationTests(unittest.TestCase):
         # Read config.json from disk directly
         on_disk = _read_json(paths["CONFIG_FILE"])
         self.assertGreaterEqual(on_disk["_schema_version"], 1)
+
 
 # NOTE: the former ``test_migration_v2_*`` tests asserted that migration 2
 # rewrote the profile-metadata config_dir strings. Migration 4 now deletes the
@@ -480,6 +524,7 @@ class ModelSyncTests(unittest.TestCase):
     def test_migrate_does_not_duplicate_existing_models(self) -> None:
         """Models already in the user's list are not added again."""
         from claudewheel.defaults import DEFAULT_OPTIONS as DO
+
         options = {**DEFAULT_OPTIONS, "model": {"values": DO["model"]["values"][:]}}
         paths = _setup_temp_config_dir(self.tmp, options=options)
         cm = self._make_cm(paths)

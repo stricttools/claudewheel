@@ -39,8 +39,9 @@ class TokenExpiry(NamedTuple):
     remaining_days: float
 
 
-def compute_expiry(entry: object, tokens_mtime: float,
-                   today: date | None = None) -> TokenExpiry:
+def compute_expiry(
+    entry: object, tokens_mtime: float, today: date | None = None
+) -> TokenExpiry:
     """Compute a token entry's creation date, expiry date, and remaining days.
 
     Precedence: explicit "expires_at" ISO date; else "created" + TOKEN_TTL_DAYS;
@@ -70,8 +71,9 @@ def compute_expiry(entry: object, tokens_mtime: float,
             except (ValueError, TypeError):
                 return TokenExpiry(None, None, TOKEN_TTL_DAYS)
             expires = created + timedelta(days=TOKEN_TTL_DAYS)
-            return TokenExpiry(created, expires,
-                               TOKEN_TTL_DAYS - (today - created).days)
+            return TokenExpiry(
+                created, expires, TOKEN_TTL_DAYS - (today - created).days
+            )
         return TokenExpiry(None, None, TOKEN_TTL_DAYS)
 
     # Legacy bare-string entry: only the file mtime dates it.
@@ -101,9 +103,14 @@ def _read_tokens_for_write(path: Path) -> dict[str, Any]:
         ) from e
 
 
-def _write_token(path: Path, name: str, token: str, *,
-                 tier: str | None = None,
-                 subscription: str | None = None) -> None:
+def _write_token(
+    path: Path,
+    name: str,
+    token: str,
+    *,
+    tier: str | None = None,
+    subscription: str | None = None,
+) -> None:
     """Add/update a token entry in the tokens.json at *path* (0600, atomic)."""
     tokens = _read_tokens_for_write(path)
 
@@ -122,8 +129,9 @@ def _write_token(path: Path, name: str, token: str, *,
     write_json_atomic_secret(path, tokens)
 
 
-def _write_tier(path: Path, name: str, *, tier: str | None = None,
-                subscription: str | None = None) -> None:
+def _write_tier(
+    path: Path, name: str, *, tier: str | None = None, subscription: str | None = None
+) -> None:
     """Merge/create a tier metadata entry in the tokens.json at *path*."""
     if tier is None and subscription is None:
         return
@@ -208,13 +216,20 @@ class TokenStore:
         mtime = self.path.stat().st_mtime
         return compute_expiry(data[name], mtime)
 
-    def add(self, name: str, token: str, *, tier: str | None = None,
-            subscription: str | None = None) -> None:
+    def add(
+        self,
+        name: str,
+        token: str,
+        *,
+        tier: str | None = None,
+        subscription: str | None = None,
+    ) -> None:
         """Add/update a token entry (0600, atomic). OSError on corrupt file."""
         _write_token(self.path, name, token, tier=tier, subscription=subscription)
 
-    def set_tier(self, name: str, *, tier: str | None = None,
-                 subscription: str | None = None) -> None:
+    def set_tier(
+        self, name: str, *, tier: str | None = None, subscription: str | None = None
+    ) -> None:
         """Merge/create tier metadata (0600, atomic). OSError on corrupt file."""
         _write_tier(self.path, name, tier=tier, subscription=subscription)
 

@@ -88,7 +88,10 @@ def _discover_uuids(src: Path) -> set[str]:
 
 
 def _move_artifact(
-    src: Path, dst: Path, result: MigrateResult, dry_run: bool,
+    src: Path,
+    dst: Path,
+    result: MigrateResult,
+    dry_run: bool,
 ) -> None:
     """Move src to dst. Refuse to overwrite (collision)."""
     if not src.exists():
@@ -165,10 +168,17 @@ def migrate_sessions(
                 cwd_name = cwd_dir.name
 
                 if jsonl.exists() and not skip_move:
-                    _move_artifact(jsonl, dst / "projects" / cwd_name / f"{uuid}.jsonl", result, dry_run)
+                    _move_artifact(
+                        jsonl,
+                        dst / "projects" / cwd_name / f"{uuid}.jsonl",
+                        result,
+                        dry_run,
+                    )
 
                 if sub.is_dir() and not skip_move:
-                    _move_artifact(sub, dst / "projects" / cwd_name / uuid, result, dry_run)
+                    _move_artifact(
+                        sub, dst / "projects" / cwd_name / uuid, result, dry_run
+                    )
 
         # --- session-env, file-history, tasks ---
         for d in SIMPLE_DIRS:
@@ -180,7 +190,9 @@ def migrate_sessions(
         todos_dir = src / "todos"
         if todos_dir.is_dir():
             for todo in todos_dir.iterdir():
-                if todo.name.startswith(f"{uuid}-agent-") and todo.name.endswith(".json"):
+                if todo.name.startswith(f"{uuid}-agent-") and todo.name.endswith(
+                    ".json"
+                ):
                     if not skip_move:
                         _move_artifact(todo, dst / "todos" / todo.name, result, dry_run)
 

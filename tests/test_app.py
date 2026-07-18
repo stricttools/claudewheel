@@ -43,13 +43,21 @@ def _wizard_mocks(wizard_result, fresh_result=None):
     live in claudewheel.wizard, discovery in claudewheel.discovery.
     """
     patches = [
-        mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True, return_value=wizard_result),
+        mock.patch(
+            "claudewheel.wizard.run_profile_wizard",
+            autospec=True,
+            return_value=wizard_result,
+        ),
         mock.patch("claudewheel.wizard.create_profile"),
-        mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"),
+        mock.patch(
+            "claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"
+        ),
         mock.patch("claudewheel.ui.show_page"),
     ]
     if fresh_result is not None:
-        patches.append(mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result))
+        patches.append(
+            mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result)
+        )
     return patches
 
 
@@ -63,11 +71,14 @@ class LocatorInjectionTests(unittest.TestCase):
 
     def test_locator_is_required_parameter(self) -> None:
         import inspect
+
         sig = inspect.signature(app_mod.App.__init__)
         param = sig.parameters["locator"]
         self.assertIs(
-            param.default, inspect.Parameter.empty,
-            "App.__init__ locator must be required (no None fallback)")
+            param.default,
+            inspect.Parameter.empty,
+            "App.__init__ locator must be required (no None fallback)",
+        )
 
     def test_constructing_without_locator_raises(self) -> None:
         with self.assertRaises(TypeError):
@@ -90,7 +101,9 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
         patches = [
             mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result),
             mock.patch("claudewheel.wizard.create_profile"),
-            mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"),
+            mock.patch(
+                "claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"
+            ),
             mock.patch("claudewheel.ui.show_page"),
         ]
         if mock_auth:
@@ -102,7 +115,11 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
                 entered.append(p.start())
 
             # Patch the lazy import of run_profile_wizard
-            with mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True, return_value=wizard_result):
+            with mock.patch(
+                "claudewheel.wizard.run_profile_wizard",
+                autospec=True,
+                return_value=wizard_result,
+            ):
                 app._launch_profile_wizard(seg)
         finally:
             for p in patches:
@@ -116,10 +133,16 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
         fresh_result = DiscoveryResult(
             values=["existing", "newprof"],
             metadata={
-                "existing": {"config_dir": "~/.claudewheel/profiles/existing",
-                             "has_token": True, "has_credentials": True},
-                "newprof": {"config_dir": "~/.claudewheel/profiles/newprof",
-                            "has_token": True, "has_credentials": False},
+                "existing": {
+                    "config_dir": "~/.claudewheel/profiles/existing",
+                    "has_token": True,
+                    "has_credentials": True,
+                },
+                "newprof": {
+                    "config_dir": "~/.claudewheel/profiles/newprof",
+                    "has_token": True,
+                    "has_credentials": False,
+                },
             },
         )
 
@@ -136,12 +159,22 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
         app.theme = mock.MagicMock()
         app.cfg = mock.MagicMock()
 
-        with mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result) as mock_disc, \
-             mock.patch.object(app_mod, "_update_auth_from_metadata") as mock_auth, \
-             mock.patch("claudewheel.wizard.create_profile"), \
-             mock.patch("claudewheel.ui.show_page"), \
-             mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
-             mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True, return_value=wizard_result):
+        with (
+            mock.patch.object(
+                app_mod, "_discover_profiles", return_value=fresh_result
+            ) as mock_disc,
+            mock.patch.object(app_mod, "_update_auth_from_metadata") as mock_auth,
+            mock.patch("claudewheel.wizard.create_profile"),
+            mock.patch("claudewheel.ui.show_page"),
+            mock.patch(
+                "claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"
+            ),
+            mock.patch(
+                "claudewheel.wizard.run_profile_wizard",
+                autospec=True,
+                return_value=wizard_result,
+            ),
+        ):
             app._launch_profile_wizard(seg)
 
         mock_disc.assert_called_once_with({}, {}, app.workspace)
@@ -153,10 +186,16 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
         fresh_result = DiscoveryResult(
             values=["old", "brand-new"],
             metadata={
-                "old": {"config_dir": "~/.claudewheel/profiles/old",
-                        "has_token": True, "has_credentials": True},
-                "brand-new": {"config_dir": "~/.claudewheel/profiles/brand-new",
-                              "has_token": False, "has_credentials": True},
+                "old": {
+                    "config_dir": "~/.claudewheel/profiles/old",
+                    "has_token": True,
+                    "has_credentials": True,
+                },
+                "brand-new": {
+                    "config_dir": "~/.claudewheel/profiles/brand-new",
+                    "has_token": False,
+                    "has_credentials": True,
+                },
             },
         )
 
@@ -173,12 +212,20 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
         app.theme = mock.MagicMock()
         app.cfg = mock.MagicMock()
 
-        with mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result), \
-             mock.patch.object(app_mod, "_update_auth_from_metadata"), \
-             mock.patch("claudewheel.wizard.create_profile"), \
-             mock.patch("claudewheel.ui.show_page"), \
-             mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
-             mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True, return_value=wizard_result):
+        with (
+            mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result),
+            mock.patch.object(app_mod, "_update_auth_from_metadata"),
+            mock.patch("claudewheel.wizard.create_profile"),
+            mock.patch("claudewheel.ui.show_page"),
+            mock.patch(
+                "claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"
+            ),
+            mock.patch(
+                "claudewheel.wizard.run_profile_wizard",
+                autospec=True,
+                return_value=wizard_result,
+            ),
+        ):
             app._launch_profile_wizard(seg)
 
         # Discovered values should be updated
@@ -191,10 +238,16 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
         fresh_result = DiscoveryResult(
             values=["existing", "newprof"],
             metadata={
-                "existing": {"config_dir": "~/.claudewheel/profiles/existing",
-                             "has_token": True, "has_credentials": True},
-                "newprof": {"config_dir": "~/.claudewheel/profiles/newprof",
-                            "has_token": True, "has_credentials": False},
+                "existing": {
+                    "config_dir": "~/.claudewheel/profiles/existing",
+                    "has_token": True,
+                    "has_credentials": True,
+                },
+                "newprof": {
+                    "config_dir": "~/.claudewheel/profiles/newprof",
+                    "has_token": True,
+                    "has_credentials": False,
+                },
             },
         )
 
@@ -211,12 +264,20 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
         app.theme = mock.MagicMock()
         app.cfg = mock.MagicMock()
 
-        with mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result), \
-             mock.patch.object(app_mod, "_update_auth_from_metadata"), \
-             mock.patch("claudewheel.wizard.create_profile"), \
-             mock.patch("claudewheel.ui.show_page"), \
-             mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
-             mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True, return_value=wizard_result):
+        with (
+            mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result),
+            mock.patch.object(app_mod, "_update_auth_from_metadata"),
+            mock.patch("claudewheel.wizard.create_profile"),
+            mock.patch("claudewheel.ui.show_page"),
+            mock.patch(
+                "claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"
+            ),
+            mock.patch(
+                "claudewheel.wizard.run_profile_wizard",
+                autospec=True,
+                return_value=wizard_result,
+            ),
+        ):
             app._launch_profile_wizard(seg)
 
         self.assertIn("newprof", seg.state.metadata)
@@ -231,10 +292,16 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
         fresh_result = DiscoveryResult(
             values=["existing", "fresh"],
             metadata={
-                "existing": {"config_dir": "~/.claudewheel/profiles/existing",
-                             "has_token": True, "has_credentials": True},
-                "fresh": {"config_dir": "~/.claudewheel/profiles/fresh",
-                          "has_token": True, "has_credentials": True},
+                "existing": {
+                    "config_dir": "~/.claudewheel/profiles/existing",
+                    "has_token": True,
+                    "has_credentials": True,
+                },
+                "fresh": {
+                    "config_dir": "~/.claudewheel/profiles/fresh",
+                    "has_token": True,
+                    "has_credentials": True,
+                },
             },
         )
 
@@ -251,12 +318,20 @@ class WizardRefreshDiscoveryTests(unittest.TestCase):
         app.theme = mock.MagicMock()
         app.cfg = mock.MagicMock()
 
-        with mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result), \
-             mock.patch.object(app_mod, "_update_auth_from_metadata"), \
-             mock.patch("claudewheel.wizard.create_profile"), \
-             mock.patch("claudewheel.ui.show_page"), \
-             mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
-             mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True, return_value=wizard_result):
+        with (
+            mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result),
+            mock.patch.object(app_mod, "_update_auth_from_metadata"),
+            mock.patch("claudewheel.wizard.create_profile"),
+            mock.patch("claudewheel.ui.show_page"),
+            mock.patch(
+                "claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"
+            ),
+            mock.patch(
+                "claudewheel.wizard.run_profile_wizard",
+                autospec=True,
+                return_value=wizard_result,
+            ),
+        ):
             app._launch_profile_wizard(seg)
 
         self.assertEqual(seg.value, "fresh")
@@ -271,10 +346,16 @@ class WizardRefreshAuthTests(unittest.TestCase):
         fresh_result = DiscoveryResult(
             values=["existing", "authed"],
             metadata={
-                "existing": {"config_dir": "~/.claudewheel/profiles/existing",
-                             "has_token": True, "has_credentials": True},
-                "authed": {"config_dir": "~/.claudewheel/profiles/authed",
-                           "has_token": True, "has_credentials": False},
+                "existing": {
+                    "config_dir": "~/.claudewheel/profiles/existing",
+                    "has_token": True,
+                    "has_credentials": True,
+                },
+                "authed": {
+                    "config_dir": "~/.claudewheel/profiles/authed",
+                    "has_token": True,
+                    "has_credentials": False,
+                },
             },
         )
 
@@ -292,11 +373,19 @@ class WizardRefreshAuthTests(unittest.TestCase):
         app.cfg = mock.MagicMock()
 
         # Use real _update_auth_from_metadata (not mocked) to verify it works
-        with mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result), \
-             mock.patch("claudewheel.wizard.create_profile"), \
-             mock.patch("claudewheel.ui.show_page"), \
-             mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
-             mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True, return_value=wizard_result):
+        with (
+            mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result),
+            mock.patch("claudewheel.wizard.create_profile"),
+            mock.patch("claudewheel.ui.show_page"),
+            mock.patch(
+                "claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"
+            ),
+            mock.patch(
+                "claudewheel.wizard.run_profile_wizard",
+                autospec=True,
+                return_value=wizard_result,
+            ),
+        ):
             app._launch_profile_wizard(seg)
 
         # "existing" and "authed" both have has_token=True
@@ -310,10 +399,16 @@ class WizardRefreshAuthTests(unittest.TestCase):
         fresh_result = DiscoveryResult(
             values=["existing", "noauth"],
             metadata={
-                "existing": {"config_dir": "~/.claudewheel/profiles/existing",
-                             "has_token": True, "has_credentials": True},
-                "noauth": {"config_dir": "~/.claudewheel/profiles/noauth",
-                           "has_token": False, "has_credentials": False},
+                "existing": {
+                    "config_dir": "~/.claudewheel/profiles/existing",
+                    "has_token": True,
+                    "has_credentials": True,
+                },
+                "noauth": {
+                    "config_dir": "~/.claudewheel/profiles/noauth",
+                    "has_token": False,
+                    "has_credentials": False,
+                },
             },
         )
 
@@ -330,11 +425,19 @@ class WizardRefreshAuthTests(unittest.TestCase):
         app.theme = mock.MagicMock()
         app.cfg = mock.MagicMock()
 
-        with mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result), \
-             mock.patch("claudewheel.wizard.create_profile"), \
-             mock.patch("claudewheel.ui.show_page"), \
-             mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
-             mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True, return_value=wizard_result):
+        with (
+            mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result),
+            mock.patch("claudewheel.wizard.create_profile"),
+            mock.patch("claudewheel.ui.show_page"),
+            mock.patch(
+                "claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"
+            ),
+            mock.patch(
+                "claudewheel.wizard.run_profile_wizard",
+                autospec=True,
+                return_value=wizard_result,
+            ),
+        ):
             app._launch_profile_wizard(seg)
 
         self.assertTrue(seg.state.has_auth_status)
@@ -360,12 +463,20 @@ class WizardCancelledTests(unittest.TestCase):
         app.theme = mock.MagicMock()
         app.cfg = mock.MagicMock()
 
-        with mock.patch.object(app_mod, "_discover_profiles") as mock_disc, \
-             mock.patch.object(app_mod, "_update_auth_from_metadata") as mock_auth, \
-             mock.patch("claudewheel.wizard.create_profile"), \
-             mock.patch("claudewheel.ui.show_page"), \
-             mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
-             mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True, return_value=wizard_result):
+        with (
+            mock.patch.object(app_mod, "_discover_profiles") as mock_disc,
+            mock.patch.object(app_mod, "_update_auth_from_metadata") as mock_auth,
+            mock.patch("claudewheel.wizard.create_profile"),
+            mock.patch("claudewheel.ui.show_page"),
+            mock.patch(
+                "claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"
+            ),
+            mock.patch(
+                "claudewheel.wizard.run_profile_wizard",
+                autospec=True,
+                return_value=wizard_result,
+            ),
+        ):
             app._launch_profile_wizard(seg)
 
         mock_disc.assert_not_called()
@@ -398,6 +509,7 @@ class AuthInterceptTests(unittest.TestCase):
         seg.select_value(profile_name)
 
         from claudewheel.workspace import Workspace
+
         app = object.__new__(app_mod.App)
         app._locator = BinaryLocator.default()
         # Real workspace so path_for("noauth") is deterministic for assertions.
@@ -421,7 +533,9 @@ class AuthInterceptTests(unittest.TestCase):
         self.assertTrue(seg.state.has_auth_status)
         self.assertFalse(seg.state.is_authenticated("noauth"))
 
-        with mock.patch.object(app, "_intercept_unauth", return_value="skip") as mock_intercept:
+        with mock.patch.object(
+            app, "_intercept_unauth", return_value="skip"
+        ) as mock_intercept:
             result = app._handle_key("ENTER")
 
         mock_intercept.assert_called_once_with(seg)
@@ -454,20 +568,33 @@ class AuthInterceptTests(unittest.TestCase):
             },
         )
 
-
-        with mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="authenticated") as mock_flow, \
-             mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result) as mock_disc, \
-             mock.patch.object(app_mod, "_update_auth_from_metadata") as mock_auth_update:
+        with (
+            mock.patch(
+                "claudewheel.wizard.run_auth_flow",
+                autospec=True,
+                return_value="authenticated",
+            ) as mock_flow,
+            mock.patch.object(
+                app_mod, "_discover_profiles", return_value=fresh_result
+            ) as mock_disc,
+            mock.patch.object(
+                app_mod, "_update_auth_from_metadata"
+            ) as mock_auth_update,
+        ):
             outcome = app._intercept_unauth(seg)
 
         self.assertEqual(outcome, "authenticated")
         # config_dir is derived from the profile name via ProfileStore.path_for.
         expected_dir = str(app.workspace.profiles.path_for("noauth"))
         mock_flow.assert_called_once_with(
-            app.workspace, BinaryLocator.default(),
-            expected_dir, "noauth",
-            app.theme, app.terminal,
-            skip_label="Launch without auth")
+            app.workspace,
+            BinaryLocator.default(),
+            expected_dir,
+            "noauth",
+            app.theme,
+            app.terminal,
+            skip_label="Launch without auth",
+        )
         mock_disc.assert_called_once_with({}, {}, app.workspace)
         mock_auth_update.assert_called_once_with(seg)
         # The terminal stays raw: the auth forms render borrowed
@@ -489,9 +616,17 @@ class AuthInterceptTests(unittest.TestCase):
             },
         )
 
-        with mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="failed"), \
-             mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result) as mock_disc, \
-             mock.patch.object(app_mod, "_update_auth_from_metadata") as mock_auth_update:
+        with (
+            mock.patch(
+                "claudewheel.wizard.run_auth_flow", autospec=True, return_value="failed"
+            ),
+            mock.patch.object(
+                app_mod, "_discover_profiles", return_value=fresh_result
+            ) as mock_disc,
+            mock.patch.object(
+                app_mod, "_update_auth_from_metadata"
+            ) as mock_auth_update,
+        ):
             outcome = app._intercept_unauth(seg)
 
         self.assertEqual(outcome, "failed")
@@ -502,9 +637,15 @@ class AuthInterceptTests(unittest.TestCase):
         """When auth is skipped, discovery is not re-run."""
         app, seg = self._make_app_with_profile("noauth", authenticated=False)
 
-        with mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
-             mock.patch.object(app_mod, "_discover_profiles") as mock_disc, \
-             mock.patch.object(app_mod, "_update_auth_from_metadata") as mock_auth_update:
+        with (
+            mock.patch(
+                "claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"
+            ),
+            mock.patch.object(app_mod, "_discover_profiles") as mock_disc,
+            mock.patch.object(
+                app_mod, "_update_auth_from_metadata"
+            ) as mock_auth_update,
+        ):
             outcome = app._intercept_unauth(seg)
 
         self.assertEqual(outcome, "skip")
@@ -518,9 +659,15 @@ class AuthInterceptTests(unittest.TestCase):
         """When the auth form is cancelled, discovery is not re-run."""
         app, seg = self._make_app_with_profile("noauth", authenticated=False)
 
-        with mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="cancel"), \
-             mock.patch.object(app_mod, "_discover_profiles") as mock_disc, \
-             mock.patch.object(app_mod, "_update_auth_from_metadata") as mock_auth_update:
+        with (
+            mock.patch(
+                "claudewheel.wizard.run_auth_flow", autospec=True, return_value="cancel"
+            ),
+            mock.patch.object(app_mod, "_discover_profiles") as mock_disc,
+            mock.patch.object(
+                app_mod, "_update_auth_from_metadata"
+            ) as mock_auth_update,
+        ):
             outcome = app._intercept_unauth(seg)
 
         self.assertEqual(outcome, "cancel")
@@ -531,7 +678,9 @@ class AuthInterceptTests(unittest.TestCase):
         """Even when auth is skipped, _handle_key returns 'launch'."""
         app, seg = self._make_app_with_profile("noauth", authenticated=False)
 
-        with mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"):
+        with mock.patch(
+            "claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"
+        ):
             result = app._handle_key("ENTER")
 
         self.assertEqual(result, "launch")
@@ -580,8 +729,7 @@ class AuthInterceptTests(unittest.TestCase):
         """Outcome 'unverified' suppresses launch and flashes the save note."""
         app, seg = self._make_app_with_profile("noauth", authenticated=False)
 
-        with mock.patch.object(app, "_intercept_unauth",
-                               return_value="unverified"):
+        with mock.patch.object(app, "_intercept_unauth", return_value="unverified"):
             result = app._handle_key("ENTER")
 
         self.assertIsNone(result)
@@ -591,8 +739,7 @@ class AuthInterceptTests(unittest.TestCase):
         """An unknown outcome string must never fall through to launch."""
         app, seg = self._make_app_with_profile("noauth", authenticated=False)
 
-        with mock.patch.object(app, "_intercept_unauth",
-                               return_value="something-new"):
+        with mock.patch.object(app, "_intercept_unauth", return_value="something-new"):
             result = app._handle_key("ENTER")
 
         self.assertIsNone(result)
@@ -613,11 +760,19 @@ class AuthInterceptTests(unittest.TestCase):
             },
         )
 
-        with mock.patch("claudewheel.wizard.run_auth_flow", autospec=True,
-                        return_value="unverified"), \
-             mock.patch.object(app_mod, "_discover_profiles",
-                               return_value=fresh_result) as mock_disc, \
-             mock.patch.object(app_mod, "_update_auth_from_metadata") as mock_auth_update:
+        with (
+            mock.patch(
+                "claudewheel.wizard.run_auth_flow",
+                autospec=True,
+                return_value="unverified",
+            ),
+            mock.patch.object(
+                app_mod, "_discover_profiles", return_value=fresh_result
+            ) as mock_disc,
+            mock.patch.object(
+                app_mod, "_update_auth_from_metadata"
+            ) as mock_auth_update,
+        ):
             outcome = app._intercept_unauth(seg)
 
         self.assertEqual(outcome, "unverified")
@@ -651,8 +806,14 @@ class AuthInterceptTests(unittest.TestCase):
         )
 
         # Use real _update_auth_from_metadata to verify the full flow
-        with mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="authenticated"), \
-             mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result):
+        with (
+            mock.patch(
+                "claudewheel.wizard.run_auth_flow",
+                autospec=True,
+                return_value="authenticated",
+            ),
+            mock.patch.object(app_mod, "_discover_profiles", return_value=fresh_result),
+        ):
             app._intercept_unauth(seg)
 
         self.assertTrue(seg.state.has_auth_status)
@@ -712,13 +873,20 @@ class ContinuousSessionTests(unittest.TestCase):
         seg = _make_profile_segment(discovered=["existing"])
         fresh = DiscoveryResult(values=["existing", "newprof"], metadata={})
 
-        with mock.patch.object(app_mod, "_discover_profiles", return_value=fresh), \
-             mock.patch.object(app_mod, "_update_auth_from_metadata"), \
-             mock.patch("claudewheel.wizard.create_profile"), \
-             mock.patch("claudewheel.ui.show_page"), \
-             mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
-             mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True,
-                        return_value=self._wizard_result()):
+        with (
+            mock.patch.object(app_mod, "_discover_profiles", return_value=fresh),
+            mock.patch.object(app_mod, "_update_auth_from_metadata"),
+            mock.patch("claudewheel.wizard.create_profile"),
+            mock.patch("claudewheel.ui.show_page"),
+            mock.patch(
+                "claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"
+            ),
+            mock.patch(
+                "claudewheel.wizard.run_profile_wizard",
+                autospec=True,
+                return_value=self._wizard_result(),
+            ),
+        ):
             app._launch_profile_wizard(seg)
 
         app.terminal.exit_raw.assert_not_called()
@@ -731,36 +899,52 @@ class ContinuousSessionTests(unittest.TestCase):
         summary = ["Created profile 'newprof':", "  Config dir: /x"]
 
         manager = mock.MagicMock()
-        with mock.patch.object(app_mod, "_discover_profiles", return_value=fresh), \
-             mock.patch.object(app_mod, "_update_auth_from_metadata"), \
-             mock.patch("claudewheel.wizard.create_profile",
-                        return_value=summary) as mock_create, \
-             mock.patch("claudewheel.ui.show_page") as mock_page, \
-             mock.patch("claudewheel.wizard.run_auth_flow", autospec=True,
-                        return_value="skip") as mock_auth, \
-             mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True,
-                        return_value=self._wizard_result()):
+        with (
+            mock.patch.object(app_mod, "_discover_profiles", return_value=fresh),
+            mock.patch.object(app_mod, "_update_auth_from_metadata"),
+            mock.patch(
+                "claudewheel.wizard.create_profile", return_value=summary
+            ) as mock_create,
+            mock.patch("claudewheel.ui.show_page") as mock_page,
+            mock.patch(
+                "claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"
+            ) as mock_auth,
+            mock.patch(
+                "claudewheel.wizard.run_profile_wizard",
+                autospec=True,
+                return_value=self._wizard_result(),
+            ),
+        ):
             manager.attach_mock(mock_auth, "run_auth_flow")
             manager.attach_mock(mock_page, "show_page")
             app._launch_profile_wizard(seg)
 
         mock_create.assert_called_once()
         mock_page.assert_called_once_with(
-            "Profile created", summary, app.theme, app.terminal)
+            "Profile created", summary, app.theme, app.terminal
+        )
         # The summary page appears after the auth flow, not before
         call_names = [c[0] for c in manager.mock_calls]
-        self.assertLess(call_names.index("run_auth_flow"),
-                        call_names.index("show_page"))
+        self.assertLess(
+            call_names.index("run_auth_flow"), call_names.index("show_page")
+        )
 
     def test_no_summary_page_on_cancel(self) -> None:
         app = self._make_app()
         seg = _make_profile_segment(discovered=["existing"])
 
-        with mock.patch("claudewheel.wizard.create_profile") as mock_create, \
-             mock.patch("claudewheel.ui.show_page") as mock_page, \
-             mock.patch("claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"), \
-             mock.patch("claudewheel.wizard.run_profile_wizard", autospec=True,
-                        return_value=self._wizard_result(cancelled=True)):
+        with (
+            mock.patch("claudewheel.wizard.create_profile") as mock_create,
+            mock.patch("claudewheel.ui.show_page") as mock_page,
+            mock.patch(
+                "claudewheel.wizard.run_auth_flow", autospec=True, return_value="skip"
+            ),
+            mock.patch(
+                "claudewheel.wizard.run_profile_wizard",
+                autospec=True,
+                return_value=self._wizard_result(cancelled=True),
+            ),
+        ):
             app._launch_profile_wizard(seg)
 
         mock_create.assert_not_called()
@@ -828,11 +1012,18 @@ class InstallFlowFormTests(unittest.TestCase):
         def fake_install(locator, version, progress_callback=None):
             events.append("install")
 
-        with mock.patch("claudewheel.ui.run_selection", return_value="install") as mock_sel, \
-             mock.patch("claudewheel.install.install_version", autospec=True,
-                        side_effect=fake_install) as mock_install, \
-             mock.patch("claudewheel.ui.show_page") as mock_page, \
-             redirect_stdout(io.StringIO()):
+        with (
+            mock.patch(
+                "claudewheel.ui.run_selection", return_value="install"
+            ) as mock_sel,
+            mock.patch(
+                "claudewheel.install.install_version",
+                autospec=True,
+                side_effect=fake_install,
+            ) as mock_install,
+            mock.patch("claudewheel.ui.show_page") as mock_page,
+            redirect_stdout(io.StringIO()),
+        ):
             result = app._handle_key("ENTER")
 
         self.assertIsNone(result)
@@ -853,9 +1044,11 @@ class InstallFlowFormTests(unittest.TestCase):
         """User cancels at the confirm dialog -> no download, no page."""
         app, seg = self._make_app_with_uninstalled()
 
-        with mock.patch("claudewheel.ui.run_selection", return_value="cancel"), \
-             mock.patch("claudewheel.install.install_version") as mock_install, \
-             mock.patch("claudewheel.ui.show_page") as mock_page:
+        with (
+            mock.patch("claudewheel.ui.run_selection", return_value="cancel"),
+            mock.patch("claudewheel.install.install_version") as mock_install,
+            mock.patch("claudewheel.ui.show_page") as mock_page,
+        ):
             result = app._handle_key("ENTER")
 
         self.assertIsNone(result)
@@ -868,9 +1061,11 @@ class InstallFlowFormTests(unittest.TestCase):
         """Escape from run_selection (returns None) -> no download."""
         app, seg = self._make_app_with_uninstalled()
 
-        with mock.patch("claudewheel.ui.run_selection", return_value=None), \
-             mock.patch("claudewheel.install.install_version") as mock_install, \
-             mock.patch("claudewheel.ui.show_page") as mock_page:
+        with (
+            mock.patch("claudewheel.ui.run_selection", return_value=None),
+            mock.patch("claudewheel.install.install_version") as mock_install,
+            mock.patch("claudewheel.ui.show_page") as mock_page,
+        ):
             result = app._handle_key("ENTER")
 
         self.assertIsNone(result)
@@ -889,11 +1084,16 @@ class InstallFlowFormTests(unittest.TestCase):
         """
         app, seg = self._make_app_with_uninstalled()
 
-        with mock.patch("claudewheel.ui.run_selection", return_value="install"), \
-             mock.patch("claudewheel.install.install_version", autospec=True,
-                        side_effect=OSError("network down")), \
-             mock.patch("claudewheel.ui.show_page") as mock_page, \
-             redirect_stdout(io.StringIO()):
+        with (
+            mock.patch("claudewheel.ui.run_selection", return_value="install"),
+            mock.patch(
+                "claudewheel.install.install_version",
+                autospec=True,
+                side_effect=OSError("network down"),
+            ),
+            mock.patch("claudewheel.ui.show_page") as mock_page,
+            redirect_stdout(io.StringIO()),
+        ):
             result = app._handle_key("ENTER")
 
         self.assertIsNone(result)
@@ -1009,10 +1209,11 @@ class ProfileInspectKeyTests(unittest.TestCase):
     def _inspect_mocks(self):
         """Patch the lazy imports inside _show_profile_inspect."""
         return (
-            mock.patch("claudewheel.profile_info.gather_profile_info",
-                       return_value=mock.MagicMock()),
-            mock.patch("claudewheel.profile_info.format_report",
-                       return_value=["line"]),
+            mock.patch(
+                "claudewheel.profile_info.gather_profile_info",
+                return_value=mock.MagicMock(),
+            ),
+            mock.patch("claudewheel.profile_info.format_report", return_value=["line"]),
             mock.patch("claudewheel.ui.show_page"),
         )
 
@@ -1030,12 +1231,17 @@ class ProfileInspectKeyTests(unittest.TestCase):
     def test_i_corrupt_tokens_flashes_no_page(self) -> None:
         """A corrupt tokens.json surfaces as a flash, not a crash or page."""
         from claudewheel.tokens import TokenStoreError
+
         seg = _make_profile_segment(discovered=["work"])
         seg.select_value("work")
         app = self._make_app(seg)
-        with mock.patch("claudewheel.profile_info.gather_profile_info",
-                        side_effect=TokenStoreError("tokens.json is corrupt")), \
-                mock.patch("claudewheel.ui.show_page") as mock_page:
+        with (
+            mock.patch(
+                "claudewheel.profile_info.gather_profile_info",
+                side_effect=TokenStoreError("tokens.json is corrupt"),
+            ),
+            mock.patch("claudewheel.ui.show_page") as mock_page,
+        ):
             app._show_profile_inspect(seg)
         mock_page.assert_not_called()
         self.assertIn("corrupt", app._flash)
@@ -1120,13 +1326,15 @@ class InspectAuthShadowFixTests(unittest.TestCase):
         app = self._make_app(seg)
         report = mock.MagicMock(has_auth_shadow=True)
         with (
-            mock.patch("claudewheel.profile_info.gather_profile_info",
-                       return_value=report),
-            mock.patch("claudewheel.profile_info.format_report",
-                       return_value=["line"]),
+            mock.patch(
+                "claudewheel.profile_info.gather_profile_info", return_value=report
+            ),
+            mock.patch("claudewheel.profile_info.format_report", return_value=["line"]),
             mock.patch("claudewheel.ui.show_page", return_value="f") as mock_page,
-            mock.patch("claudewheel.profile_ops.fix_auth_shadow",
-                       return_value=FixAuthResult(ok=True)) as mock_fix,
+            mock.patch(
+                "claudewheel.profile_ops.fix_auth_shadow",
+                return_value=FixAuthResult(ok=True),
+            ) as mock_fix,
         ):
             app._show_profile_inspect(seg)
         mock_fix.assert_called_once_with(app.workspace, "work")
@@ -1141,10 +1349,10 @@ class InspectAuthShadowFixTests(unittest.TestCase):
         app = self._make_app(seg)
         report = mock.MagicMock(has_auth_shadow=True)
         with (
-            mock.patch("claudewheel.profile_info.gather_profile_info",
-                       return_value=report),
-            mock.patch("claudewheel.profile_info.format_report",
-                       return_value=["line"]),
+            mock.patch(
+                "claudewheel.profile_info.gather_profile_info", return_value=report
+            ),
+            mock.patch("claudewheel.profile_info.format_report", return_value=["line"]),
             mock.patch("claudewheel.ui.show_page", return_value="q"),
             mock.patch("claudewheel.profile_ops.fix_auth_shadow") as mock_fix,
         ):
@@ -1158,10 +1366,10 @@ class InspectAuthShadowFixTests(unittest.TestCase):
         app = self._make_app(seg)
         report = mock.MagicMock(has_auth_shadow=False)
         with (
-            mock.patch("claudewheel.profile_info.gather_profile_info",
-                       return_value=report),
-            mock.patch("claudewheel.profile_info.format_report",
-                       return_value=["line"]),
+            mock.patch(
+                "claudewheel.profile_info.gather_profile_info", return_value=report
+            ),
+            mock.patch("claudewheel.profile_info.format_report", return_value=["line"]),
             mock.patch("claudewheel.ui.show_page", return_value="f") as mock_page,
             mock.patch("claudewheel.profile_ops.fix_auth_shadow") as mock_fix,
         ):
@@ -1176,8 +1384,7 @@ class InspectAuthShadowFixTests(unittest.TestCase):
 class ProfileDeleteKeyTests(unittest.TestCase):
     """CTRL_D/DELETE run the profile delete flow (Phase 5c)."""
 
-    def _make_app(self, seg: Segment,
-                  state: dict | None = None) -> app_mod.App:
+    def _make_app(self, seg: Segment, state: dict | None = None) -> app_mod.App:
         """Minimal App with a real _handle_key bound and *seg* focused."""
         app = object.__new__(app_mod.App)
         app._locator = BinaryLocator.default()
@@ -1198,8 +1405,9 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         app._refresh_profile_segment = mock.MagicMock()
         return app
 
-    def _report(self, danger: bool = False,
-                shared_dirs: dict | None = None) -> mock.MagicMock:
+    def _report(
+        self, danger: bool = False, shared_dirs: dict | None = None
+    ) -> mock.MagicMock:
         report = mock.MagicMock()
         report.danger = danger
         report.shared_dirs = shared_dirs if shared_dirs is not None else {}
@@ -1209,8 +1417,9 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         report.active_sessions = 0
         return report
 
-    def _flow_mocks(self, app, report=None, selection="cancel", result=None,
-                    raises=None):
+    def _flow_mocks(
+        self, app, report=None, selection="cancel", result=None, raises=None
+    ):
         """Patch the lazy imports inside _delete_profile_flow.
 
         The delete goes through the injected ``app.workspace.profiles`` store, so
@@ -1221,6 +1430,7 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         """
         import contextlib
         from claudewheel.profile_store import DeletionResult
+
         if report is None:
             report = self._report()
 
@@ -1230,8 +1440,10 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         else:
             if result is None:
                 result = DeletionResult(
-                    removed_symlinks=0, removed_real=0,
-                    removed_from_options=True, removed_from_tokens=True,
+                    removed_symlinks=0,
+                    removed_real=0,
+                    removed_from_options=True,
+                    removed_from_tokens=True,
                     last_config_purged=True,
                 )
             self._store.delete.return_value = result
@@ -1240,11 +1452,11 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         app.workspace.profiles = self._store
 
         return (
-            mock.patch("claudewheel.profile_info.gather_profile_info",
-                       return_value=report),
+            mock.patch(
+                "claudewheel.profile_info.gather_profile_info", return_value=report
+            ),
             contextlib.nullcontext(),
-            mock.patch("claudewheel.ui.run_selection",
-                       return_value=selection),
+            mock.patch("claudewheel.ui.run_selection", return_value=selection),
             mock.patch("claudewheel.ui.show_page"),
         )
 
@@ -1254,7 +1466,9 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         seg = _make_profile_segment(discovered=["work"])
         seg.selected_value = "+"
         app = self._make_app(seg)
-        gather, ws, sel, page = self._flow_mocks(app, )
+        gather, ws, sel, page = self._flow_mocks(
+            app,
+        )
         with gather as mock_gather, ws, sel, page:
             app._handle_key("CTRL_D")
         mock_gather.assert_not_called()
@@ -1264,7 +1478,9 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         seg = _make_profile_segment(discovered=["work"])
         seg.selected_value = None
         app = self._make_app(seg)
-        gather, ws, sel, page = self._flow_mocks(app, )
+        gather, ws, sel, page = self._flow_mocks(
+            app,
+        )
         with gather as mock_gather, ws, sel, page:
             app._handle_key("DELETE")
         mock_gather.assert_not_called()
@@ -1276,7 +1492,9 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         seg.searchable = True
         seg.search_buffer = "wo"
         app = self._make_app(seg)
-        gather, ws, sel, page = self._flow_mocks(app, )
+        gather, ws, sel, page = self._flow_mocks(
+            app,
+        )
         with gather as mock_gather, ws, sel, page:
             app._handle_key("CTRL_D")
         mock_gather.assert_not_called()
@@ -1287,7 +1505,9 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         seg = Segment(key="model", label="Model", options=["opus", "sonnet"])
         seg.select_value("opus")
         app = self._make_app(seg)
-        gather, ws, sel, page = self._flow_mocks(app, )
+        gather, ws, sel, page = self._flow_mocks(
+            app,
+        )
         with gather as mock_gather, ws, sel, page:
             result = app._handle_key("CTRL_D")
         mock_gather.assert_not_called()
@@ -1309,9 +1529,9 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         seg = _make_profile_segment(discovered=["work"])
         seg.select_value("work")
         app = self._make_app(seg)
-        report = self._report(danger=True,
-                              shared_dirs={"projects": "real-dir",
-                                           "todos": "intact"})
+        report = self._report(
+            danger=True, shared_dirs={"projects": "real-dir", "todos": "intact"}
+        )
         gather, ws, sel, page = self._flow_mocks(app, report=report)
         with gather, ws, sel as mock_sel, page as mock_page:
             app._handle_key("CTRL_D")
@@ -1372,11 +1592,9 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         self._store.delete.assert_called_once_with("work")
 
     def test_success_runs_all_cleanup_steps(self) -> None:
-        seg = _make_profile_segment(discovered=["work", "other"],
-                                    pinned=["work"])
+        seg = _make_profile_segment(discovered=["work", "other"], pinned=["work"])
         seg.select_value("work")
-        seg.state.metadata = {"work": {"has_token": True},
-                              "other": {"has_token": True}}
+        seg.state.metadata = {"work": {"has_token": True}, "other": {"has_token": True}}
         state = {"last_config": {"profile": "work", "model": "opus"}}
         app = self._make_app(seg, state=state)
         gather, ws, sel, page = self._flow_mocks(app, selection="delete")
@@ -1439,8 +1657,7 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         app = self._make_app(seg, state=state)
         report = self._report()
         report.active_sessions = 1
-        gather, ws, sel, page = self._flow_mocks(app, report=report,
-                                                 selection="delete")
+        gather, ws, sel, page = self._flow_mocks(app, report=report, selection="delete")
         with gather, ws, sel, page:
             app._handle_key("CTRL_D")
         self.assertIn("active sessions", app._flash)
@@ -1456,9 +1673,11 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         seg.select_value("work")
         state = {"last_config": {"profile": "work"}}
         app = self._make_app(seg, state=state)
-        gather, ws, sel, page = self._flow_mocks(app, 
+        gather, ws, sel, page = self._flow_mocks(
+            app,
             selection="delete",
-            raises=ValueError("Profile 'work' holds REAL data at: projects"))
+            raises=ValueError("Profile 'work' holds REAL data at: projects"),
+        )
         with gather, ws, sel, page:
             app._handle_key("CTRL_D")
         self.assertIn("projects", app._flash)
@@ -1470,8 +1689,7 @@ class ProfileDeleteKeyTests(unittest.TestCase):
 class SelectClientStepTests(unittest.TestCase):
     """App._select_client: explicit skips the picker; non-claude drops version."""
 
-    def _app_with_bar(self, seg_keys, *, explicit=None, default="claude",
-                      focus_idx=0):
+    def _app_with_bar(self, seg_keys, *, explicit=None, default="claude", focus_idx=0):
         app = object.__new__(app_mod.App)
         app._explicit_client = explicit
         app._default_client = default
@@ -1487,8 +1705,7 @@ class SelectClientStepTests(unittest.TestCase):
         return app
 
     def test_explicit_non_claude_drops_version_without_prompt(self) -> None:
-        app = self._app_with_bar(["profile", "version", "model"],
-                                 explicit="miniclaude")
+        app = self._app_with_bar(["profile", "version", "model"], explicit="miniclaude")
         with mock.patch("claudewheel.ui.run_selection") as picker:
             self.assertTrue(app._select_client())
         picker.assert_not_called()  # explicit --client skips the step
@@ -1515,8 +1732,9 @@ class SelectClientStepTests(unittest.TestCase):
 
     def test_focus_clamped_when_version_dropped(self) -> None:
         # Focus on the version segment (last); dropping it must reset focus.
-        app = self._app_with_bar(["profile", "version"], explicit="miniclaude",
-                                 focus_idx=1)
+        app = self._app_with_bar(
+            ["profile", "version"], explicit="miniclaude", focus_idx=1
+        )
         self.assertTrue(app._select_client())
         self.assertEqual(app.bar.focus_idx, 0)
 

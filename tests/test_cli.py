@@ -30,8 +30,10 @@ class DoUninstallTests(unittest.TestCase):
 
         # A locator pointing at the tmp version/symlink paths.
         from claudewheel.binaries import BinaryLocator
+
         self.locator = BinaryLocator(
-            versions_dir=self.versions_dir, claude_symlink=self.symlink_path)
+            versions_dir=self.versions_dir, claude_symlink=self.symlink_path
+        )
 
     def test_uninstall_removes_file(self) -> None:
         """A non-symlinked installed version is deleted and exit code is 0."""
@@ -59,7 +61,9 @@ class DoUninstallTests(unittest.TestCase):
             rc = cli._do_uninstall(self.locator, "2.1.999")
 
         self.assertNotEqual(rc, 0)
-        self.assertTrue(target.exists(), "file should not be deleted when symlink points to it")
+        self.assertTrue(
+            target.exists(), "file should not be deleted when symlink points to it"
+        )
         msg = err.getvalue()
         self.assertIn("Refusing to uninstall", msg)
         self.assertIn("2.1.999", msg)
@@ -96,8 +100,10 @@ class DoResetOptionsTests(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
         from claudewheel.workspace import Workspace
-        self.ws = Workspace.open(Path(self._tmp.name),
-                                 claude_dir=Path(self._tmp.name) / ".claude")
+
+        self.ws = Workspace.open(
+            Path(self._tmp.name), claude_dir=Path(self._tmp.name) / ".claude"
+        )
         self.options_file = self.ws.options_file
 
     def test_reset_options_deletes_file(self) -> None:
@@ -148,7 +154,10 @@ class DoShowTests(unittest.TestCase):
             config={
                 "theme": "dark",
                 "enabled_segments": ["profile", "version", "model"],
-                "default_flags": ["--strict-mcp-config", "--dangerously-skip-permissions"],
+                "default_flags": [
+                    "--strict-mcp-config",
+                    "--dangerously-skip-permissions",
+                ],
                 "health_check_on_launch": True,
             },
             segments_def=[
@@ -235,10 +244,23 @@ class PrintModeTests(unittest.TestCase):
         {"key": "model", "label": "Model", "required": False, "print_mode": True},
         {"key": "directory", "label": "Dir", "required": True, "print_mode": True},
         {"key": "mcp", "label": "MCP", "required": False, "print_mode": False},
-        {"key": "permissions", "label": "Perms", "required": False, "print_mode": False},
+        {
+            "key": "permissions",
+            "label": "Perms",
+            "required": False,
+            "print_mode": False,
+        },
     ]
 
-    ALL_ENABLED = ["profile", "github", "version", "model", "directory", "mcp", "permissions"]
+    ALL_ENABLED = [
+        "profile",
+        "github",
+        "version",
+        "model",
+        "directory",
+        "mcp",
+        "permissions",
+    ]
 
     FULL_LAST_CONFIG = {
         "profile": "personal",
@@ -268,7 +290,9 @@ class PrintModeTests(unittest.TestCase):
             options_def={},
         )
 
-    def _run_main(self, argv: list[str], last_config: dict | None = None) -> mock.MagicMock:
+    def _run_main(
+        self, argv: list[str], last_config: dict | None = None
+    ) -> mock.MagicMock:
         """Invoke cli.main() with patched argv, AppConfigStore, and _do_launch_sequence.
 
         Returns the mock for _do_launch_sequence so callers can inspect call args.
@@ -298,7 +322,9 @@ class PrintModeTests(unittest.TestCase):
             last_config=self.FULL_LAST_CONFIG,
         )
         launch_mock.assert_called_once()
-        merged = launch_mock.call_args[1].get("selections") or launch_mock.call_args[0][3]
+        merged = (
+            launch_mock.call_args[1].get("selections") or launch_mock.call_args[0][3]
+        )
 
         # print_mode: True segments must be present
         for key in ("profile", "version", "model", "directory"):
@@ -306,7 +332,9 @@ class PrintModeTests(unittest.TestCase):
 
         # print_mode: False segments must NOT be present
         for key in ("github", "mcp", "permissions"):
-            self.assertNotIn(key, merged, f"non-print segment '{key}' should be filtered out")
+            self.assertNotIn(
+                key, merged, f"non-print segment '{key}' should be filtered out"
+            )
 
     # -- 2. Print mode sets interactive=False --
 
@@ -327,14 +355,21 @@ class PrintModeTests(unittest.TestCase):
         launch_mock = mock.MagicMock()
 
         with (
-            mock.patch("sys.argv", [
-                "c",
-                "--cont",
-                "--profile", "personal",
-                "--github", "ghuser",
-                "-s", "version=2.1.116",
-                "--directory", "/some/dir",
-            ]),
+            mock.patch(
+                "sys.argv",
+                [
+                    "c",
+                    "--cont",
+                    "--profile",
+                    "personal",
+                    "--github",
+                    "ghuser",
+                    "-s",
+                    "version=2.1.116",
+                    "--directory",
+                    "/some/dir",
+                ],
+            ),
             mock.patch("claudewheel.config.AppConfigStore", return_value=fake_cfg),
             mock.patch("claudewheel.cli._do_launch_sequence", launch_mock),
             mock.patch("claudewheel.cli._check_cont_session"),
@@ -410,7 +445,9 @@ class PrintModeTests(unittest.TestCase):
             except SystemExit:
                 pass
 
-        self.assertEqual(err.getvalue(), "", "no warning expected when all segments are present")
+        self.assertEqual(
+            err.getvalue(), "", "no warning expected when all segments are present"
+        )
 
     # -- 7. Passthrough args after -- work --
 
@@ -432,8 +469,9 @@ class ClientSelectionCliTests(unittest.TestCase):
     SEGMENTS_DEF = PrintModeTests.SEGMENTS_DEF
     ALL_ENABLED = PrintModeTests.ALL_ENABLED
 
-    def _make_cfg(self, *, default_client: str | None = None,
-                  last_config: dict | None = None) -> _FakeCfg:
+    def _make_cfg(
+        self, *, default_client: str | None = None, last_config: dict | None = None
+    ) -> _FakeCfg:
         config = {
             "theme": "dark",
             "enabled_segments": list(self.ALL_ENABLED),
@@ -453,8 +491,7 @@ class ClientSelectionCliTests(unittest.TestCase):
             options_def={},
         )
 
-    def _run(self, argv: list[str], cfg: _FakeCfg,
-             app_mock: object | None = None):
+    def _run(self, argv: list[str], cfg: _FakeCfg, app_mock: object | None = None):
         """Run cli.main() with AppConfigStore + _do_launch_sequence patched.
 
         Returns (launch_mock, stderr_text). When *app_mock* is given, the TUI
@@ -462,14 +499,17 @@ class ClientSelectionCliTests(unittest.TestCase):
         without a real terminal.
         """
         from contextlib import ExitStack
+
         launch_mock = mock.MagicMock()
         stderr = io.StringIO()
         with ExitStack() as stack:
             stack.enter_context(mock.patch("sys.argv", argv))
             stack.enter_context(
-                mock.patch("claudewheel.config.AppConfigStore", return_value=cfg))
+                mock.patch("claudewheel.config.AppConfigStore", return_value=cfg)
+            )
             stack.enter_context(
-                mock.patch("claudewheel.cli._do_launch_sequence", launch_mock))
+                mock.patch("claudewheel.cli._do_launch_sequence", launch_mock)
+            )
             stack.enter_context(mock.patch("os.getcwd", return_value="/test/dir"))
             stack.enter_context(redirect_stderr(stderr))
             if app_mock is not None:
@@ -483,16 +523,18 @@ class ClientSelectionCliTests(unittest.TestCase):
     # -- Non-interactive: default_client used, ambient version dropped --
 
     def test_non_interactive_uses_default_client(self) -> None:
-        cfg = self._make_cfg(default_client="miniclaude",
-                             last_config={"version": "2.1.202"})
+        cfg = self._make_cfg(
+            default_client="miniclaude", last_config={"version": "2.1.202"}
+        )
         launch_mock, _ = self._run(["c", "-p", "hi"], cfg)
         launch_mock.assert_called_once()
         _, kwargs = launch_mock.call_args
         self.assertEqual(kwargs["client"], "miniclaude")
 
     def test_non_interactive_drops_ambient_version_for_non_claude(self) -> None:
-        cfg = self._make_cfg(default_client="miniclaude",
-                             last_config={"version": "2.1.202"})
+        cfg = self._make_cfg(
+            default_client="miniclaude", last_config={"version": "2.1.202"}
+        )
         launch_mock, _ = self._run(["c", "-p", "hi"], cfg)
         merged = launch_mock.call_args[0][3]
         self.assertNotIn("version", merged)
@@ -508,8 +550,17 @@ class ClientSelectionCliTests(unittest.TestCase):
     def test_explicit_version_with_miniclaude_hard_errors(self) -> None:
         cfg = self._make_cfg()
         launch_mock, err = self._run(
-            ["c", "--client", "miniclaude", "-s", "version=2.1.116",
-             "--profile", "p", "--directory", "/d"],
+            [
+                "c",
+                "--client",
+                "miniclaude",
+                "-s",
+                "version=2.1.116",
+                "--profile",
+                "p",
+                "--directory",
+                "/d",
+            ],
             cfg,
         )
         launch_mock.assert_not_called()
@@ -547,9 +598,12 @@ class ClientSelectionCliTests(unittest.TestCase):
 
     def test_interactive_threads_explicit_client_to_app(self) -> None:
         cfg = self._make_cfg(default_client="claude")
-        app_cls, _ = self._make_app_mock({"profile": "p", "directory": "/d"}, "miniclaude")
+        app_cls, _ = self._make_app_mock(
+            {"profile": "p", "directory": "/d"}, "miniclaude"
+        )
         launch_mock, _ = self._run(
-            ["c", "--client", "miniclaude", "--profile", "p"], cfg, app_mock=app_cls)
+            ["c", "--client", "miniclaude", "--profile", "p"], cfg, app_mock=app_cls
+        )
         app_cls.assert_called_once()
         self.assertEqual(app_cls.call_args[1]["explicit_client"], "miniclaude")
         # The client the App resolved is what gets launched.
@@ -593,7 +647,9 @@ class LaunchCorruptTokensTests(unittest.TestCase):
             mock.patch("sys.argv", ["c", "--profile", "work", "-p", "hi"]),
             mock.patch("claudewheel.config.AppConfigStore", return_value=fake_cfg),
             mock.patch("claudewheel.hooks.run_hooks", return_value=True),
-            mock.patch.dict("os.environ", {"CLAUDEWHEEL_CONFIG_DIR": str(Path(tmp.name))}),
+            mock.patch.dict(
+                "os.environ", {"CLAUDEWHEEL_CONFIG_DIR": str(Path(tmp.name))}
+            ),
             mock.patch("os.getcwd", return_value="/test/dir"),
             redirect_stderr(err),
         ):
@@ -647,7 +703,9 @@ class LaunchStaleProfileTests(unittest.TestCase):
             mock.patch("sys.argv", ["c", "--profile", "work", "-p", "hi"]),
             mock.patch("claudewheel.config.AppConfigStore", return_value=fake_cfg),
             mock.patch("claudewheel.hooks.run_hooks", return_value=True),
-            mock.patch.dict("os.environ", {"CLAUDEWHEEL_CONFIG_DIR": str(Path(tmp.name))}),
+            mock.patch.dict(
+                "os.environ", {"CLAUDEWHEEL_CONFIG_DIR": str(Path(tmp.name))}
+            ),
             mock.patch("os.getcwd", return_value="/test/dir"),
             redirect_stderr(err),
         ):
@@ -717,7 +775,9 @@ class DuplicateSetKeyTests(unittest.TestCase):
             options_def={},
         )
 
-    def _run_main(self, argv: list[str], last_config: dict | None = None) -> mock.MagicMock:
+    def _run_main(
+        self, argv: list[str], last_config: dict | None = None
+    ) -> mock.MagicMock:
         fake_cfg = self._make_cfg(last_config)
         launch_mock = mock.MagicMock()
         with (
@@ -737,7 +797,15 @@ class DuplicateSetKeyTests(unittest.TestCase):
         err = io.StringIO()
         with redirect_stderr(err):
             launch_mock = self._run_main(
-                ["c", "-s", "profile=work", "-s", "profile=personal", "--print-prompt", "x"],
+                [
+                    "c",
+                    "-s",
+                    "profile=work",
+                    "-s",
+                    "profile=personal",
+                    "--print-prompt",
+                    "x",
+                ],
                 last_config=self.FULL_LAST_CONFIG,
             )
 
@@ -754,7 +822,15 @@ class DuplicateSetKeyTests(unittest.TestCase):
         err = io.StringIO()
         with redirect_stderr(err):
             launch_mock = self._run_main(
-                ["c", "-s", "profile=work", "-s", "profile=work", "--print-prompt", "x"],
+                [
+                    "c",
+                    "-s",
+                    "profile=work",
+                    "-s",
+                    "profile=work",
+                    "--print-prompt",
+                    "x",
+                ],
                 last_config=self.FULL_LAST_CONFIG,
             )
 
@@ -768,7 +844,15 @@ class DuplicateSetKeyTests(unittest.TestCase):
         err = io.StringIO()
         with redirect_stderr(err):
             launch_mock = self._run_main(
-                ["c", "--profile", "work", "-s", "profile=personal", "--print-prompt", "x"],
+                [
+                    "c",
+                    "--profile",
+                    "work",
+                    "-s",
+                    "profile=personal",
+                    "--print-prompt",
+                    "x",
+                ],
                 last_config=self.FULL_LAST_CONFIG,
             )
 
@@ -812,7 +896,9 @@ class PickerFlagTests(unittest.TestCase):
             options_def={},
         )
 
-    def _run_main(self, argv: list[str], last_config: dict | None = None) -> mock.MagicMock:
+    def _run_main(
+        self, argv: list[str], last_config: dict | None = None
+    ) -> mock.MagicMock:
         fake_cfg = self._make_cfg(last_config)
         launch_mock = mock.MagicMock()
         with (
@@ -833,11 +919,16 @@ class PickerFlagTests(unittest.TestCase):
         """--picker should produce extra_flags containing only '--resume' (no session ID)."""
         launch_mock = self._run_main(
             [
-                "c", "--picker",
-                "--profile", "personal",
-                "--github", "ghuser",
-                "-s", "version=2.1.116",
-                "--directory", "/some/dir",
+                "c",
+                "--picker",
+                "--profile",
+                "personal",
+                "--github",
+                "ghuser",
+                "-s",
+                "version=2.1.116",
+                "--directory",
+                "/some/dir",
             ],
             last_config=self.FULL_LAST_CONFIG,
         )
@@ -907,10 +998,14 @@ class PickerFlagTests(unittest.TestCase):
         launch_mock = self._run_main(
             [
                 "c",
-                "--profile", "personal",
-                "--github", "ghuser",
-                "-s", "version=2.1.116",
-                "--directory", "/some/dir",
+                "--profile",
+                "personal",
+                "--github",
+                "ghuser",
+                "-s",
+                "version=2.1.116",
+                "--directory",
+                "/some/dir",
             ],
             last_config=self.FULL_LAST_CONFIG,
         )
@@ -927,8 +1022,10 @@ class CheckResumeSessionTests(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
         from claudewheel.workspace import Workspace
-        self.ws = Workspace.open(Path(self._tmp.name),
-                                 claude_dir=Path(self._tmp.name) / ".claude")
+
+        self.ws = Workspace.open(
+            Path(self._tmp.name), claude_dir=Path(self._tmp.name) / ".claude"
+        )
         self.shared_dir = self.ws.shared_dir
         self.shared_dir.mkdir()
         (self.shared_dir / "projects").mkdir()
@@ -947,7 +1044,9 @@ class CheckResumeSessionTests(unittest.TestCase):
         # Create the expected session file
         project_dir = self.shared_dir / "projects" / encoded
         project_dir.mkdir(parents=True)
-        (project_dir / f"{session_id}.jsonl").write_text('{"cwd":"/home/user/my-project"}\n')
+        (project_dir / f"{session_id}.jsonl").write_text(
+            '{"cwd":"/home/user/my-project"}\n'
+        )
 
         with mock.patch("claudewheel.session.find_session") as mock_find:
             cli._check_resume_session(self.ws, session_id, current_dir)
@@ -983,7 +1082,9 @@ class CheckResumeSessionTests(unittest.TestCase):
 
         with (
             mock.patch("claudewheel.session.find_session", return_value=info),
-            mock.patch("claudewheel.mv.run_mv", side_effect=[dry_result, real_result]) as mock_mv,
+            mock.patch(
+                "claudewheel.mv.run_mv", side_effect=[dry_result, real_result]
+            ) as mock_mv,
             mock.patch("builtins.input", side_effect=["y", "y"]),
             mock.patch("os.path.isdir", return_value=False),
             redirect_stdout(io.StringIO()),
@@ -1020,7 +1121,9 @@ class CheckResumeSessionTests(unittest.TestCase):
         # Create old project dir in shared to satisfy glob counting
         old_project_dir = self.shared_dir / "projects" / "encoded-old"
         old_project_dir.mkdir(parents=True)
-        (old_project_dir / f"{session_id}.jsonl").write_text('{"cwd":"/home/user/old-project"}\n')
+        (old_project_dir / f"{session_id}.jsonl").write_text(
+            '{"cwd":"/home/user/old-project"}\n'
+        )
 
         with (
             mock.patch("claudewheel.session.find_session", return_value=info),
@@ -1054,7 +1157,9 @@ class CheckResumeSessionTests(unittest.TestCase):
 
         old_project_dir = self.shared_dir / "projects" / "encoded-old"
         old_project_dir.mkdir(parents=True)
-        (old_project_dir / f"{session_id}.jsonl").write_text('{"cwd":"/home/user/old-project"}\n')
+        (old_project_dir / f"{session_id}.jsonl").write_text(
+            '{"cwd":"/home/user/old-project"}\n'
+        )
 
         dry_result = mock.MagicMock()
         dry_result.dirs_renamed = 1
@@ -1157,13 +1262,22 @@ class CheckResumeSessionTests(unittest.TestCase):
         )
 
         with (
-            mock.patch("sys.argv", [
-                "c", "--resume", "",
-                "--profile", "personal",
-                "--github", "ghuser",
-                "-s", "version=2.1.116",
-                "--directory", "/some/dir",
-            ]),
+            mock.patch(
+                "sys.argv",
+                [
+                    "c",
+                    "--resume",
+                    "",
+                    "--profile",
+                    "personal",
+                    "--github",
+                    "ghuser",
+                    "-s",
+                    "version=2.1.116",
+                    "--directory",
+                    "/some/dir",
+                ],
+            ),
             mock.patch("claudewheel.config.AppConfigStore", return_value=fake_cfg),
             mock.patch("claudewheel.cli._do_launch_sequence", mock.MagicMock()),
             mock.patch("claudewheel.cli._check_resume_session") as mock_check,
@@ -1184,14 +1298,20 @@ class CheckContSessionTests(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
         from claudewheel.workspace import Workspace
-        self.ws = Workspace.open(Path(self._tmp.name),
-                                 claude_dir=Path(self._tmp.name) / ".claude")
+
+        self.ws = Workspace.open(
+            Path(self._tmp.name), claude_dir=Path(self._tmp.name) / ".claude"
+        )
         self.shared_dir = self.ws.shared_dir
         self.shared_dir.mkdir()
         (self.shared_dir / "projects").mkdir()
 
-    def _create_project(self, encoded_cwd: str, session_count: int = 1,
-                        cwd: str = "/home/user/my-project") -> Path:
+    def _create_project(
+        self,
+        encoded_cwd: str,
+        session_count: int = 1,
+        cwd: str = "/home/user/my-project",
+    ) -> Path:
         """Create a fake project dir with session JSONL files."""
         project_dir = self.shared_dir / "projects" / encoded_cwd
         project_dir.mkdir(parents=True, exist_ok=True)
@@ -1241,8 +1361,12 @@ class CheckContSessionTests(unittest.TestCase):
         real_result.files_rewritten = 3
 
         with (
-            mock.patch("claudewheel.session.find_orphaned_project_dirs", return_value=[orphan]),
-            mock.patch("claudewheel.mv.run_mv", side_effect=[dry_result, real_result]) as mock_mv,
+            mock.patch(
+                "claudewheel.session.find_orphaned_project_dirs", return_value=[orphan]
+            ),
+            mock.patch(
+                "claudewheel.mv.run_mv", side_effect=[dry_result, real_result]
+            ) as mock_mv,
             mock.patch("builtins.input", side_effect=["y", "y"]),
             redirect_stdout(io.StringIO()),
         ):
@@ -1272,7 +1396,9 @@ class CheckContSessionTests(unittest.TestCase):
         )
 
         with (
-            mock.patch("claudewheel.session.find_orphaned_project_dirs", return_value=[orphan]),
+            mock.patch(
+                "claudewheel.session.find_orphaned_project_dirs", return_value=[orphan]
+            ),
             mock.patch("claudewheel.mv.run_mv") as mock_mv,
             mock.patch("builtins.input", return_value="n"),
             redirect_stdout(io.StringIO()),
@@ -1289,7 +1415,9 @@ class CheckContSessionTests(unittest.TestCase):
         current_dir = os.path.abspath("/home/user/new-project")
 
         with (
-            mock.patch("claudewheel.session.find_orphaned_project_dirs", return_value=[]),
+            mock.patch(
+                "claudewheel.session.find_orphaned_project_dirs", return_value=[]
+            ),
             mock.patch("claudewheel.mv.run_mv") as mock_mv,
             mock.patch("builtins.input") as mock_input,
         ):
@@ -1330,8 +1458,13 @@ class CheckContSessionTests(unittest.TestCase):
         real_result.files_rewritten = 5
 
         with (
-            mock.patch("claudewheel.session.find_orphaned_project_dirs", return_value=[orphan1, orphan2]),
-            mock.patch("claudewheel.mv.run_mv", side_effect=[dry_result, real_result]) as mock_mv,
+            mock.patch(
+                "claudewheel.session.find_orphaned_project_dirs",
+                return_value=[orphan1, orphan2],
+            ),
+            mock.patch(
+                "claudewheel.mv.run_mv", side_effect=[dry_result, real_result]
+            ) as mock_mv,
             mock.patch("builtins.input", side_effect=["2", "y"]),
             redirect_stdout(io.StringIO()),
         ):
@@ -1391,8 +1524,9 @@ class NewProfileFlowTests(unittest.TestCase):
         self.addCleanup(self._ws_tmp.cleanup)
         # Empty sandbox workspace -> enumerate() yields no profiles; claude_dir
         # points off the real home so no "default" profile leaks in.
-        self.ws = Workspace.open(Path(self._ws_tmp.name),
-                                 claude_dir=Path(self._ws_tmp.name) / "claude")
+        self.ws = Workspace.open(
+            Path(self._ws_tmp.name), claude_dir=Path(self._ws_tmp.name) / "claude"
+        )
         self.locator = BinaryLocator.default()
 
         self.terminal = mock.MagicMock()
@@ -1400,16 +1534,21 @@ class NewProfileFlowTests(unittest.TestCase):
 
         self._patches = {
             "terminal_cls": mock.patch(
-                "claudewheel.terminal.Terminal", return_value=self.terminal),
+                "claudewheel.terminal.Terminal", return_value=self.terminal
+            ),
             "config": mock.patch("claudewheel.config.AppConfigStore"),
             "wizard": mock.patch(
-                "claudewheel.wizard.run_profile_wizard", autospec=True),
+                "claudewheel.wizard.run_profile_wizard", autospec=True
+            ),
             "create": mock.patch(
                 "claudewheel.wizard.create_profile",
-                return_value=["Created profile 'p':", "  Config dir: /x"]),
+                return_value=["Created profile 'p':", "  Config dir: /x"],
+            ),
             "auth": mock.patch(
-                "claudewheel.wizard.run_auth_flow", autospec=True,
-                return_value="authenticated"),
+                "claudewheel.wizard.run_auth_flow",
+                autospec=True,
+                return_value="authenticated",
+            ),
             "page": mock.patch("claudewheel.ui.show_page"),
         }
         self.mocks = {}
@@ -1466,8 +1605,9 @@ class NewProfileFlowTests(unittest.TestCase):
         manager.attach_mock(self.mocks["page"], "show_page")
         self._run()
         call_names = [c[0] for c in manager.mock_calls]
-        self.assertLess(call_names.index("run_auth_flow"),
-                        call_names.index("show_page"))
+        self.assertLess(
+            call_names.index("run_auth_flow"), call_names.index("show_page")
+        )
 
     def test_cancelled_wizard_prints_cancelled(self) -> None:
         self.wizard_result.cancelled = True
@@ -1526,6 +1666,7 @@ class ShowProfileCommandTests(unittest.TestCase):
     def _report(self, **overrides):
         from claudewheel.profile_info import ProfileReport
         from pathlib import Path as _P
+
         kwargs = dict(
             name="work",
             config_dir=_P("/fake/profiles/work"),
@@ -1542,9 +1683,12 @@ class ShowProfileCommandTests(unittest.TestCase):
     def test_handler_prints_report(self) -> None:
         report = self._report()
         buf = io.StringIO()
-        with mock.patch("claudewheel.profile_info.gather_profile_info",
-                        return_value=report) as mock_gather, \
-                redirect_stdout(buf):
+        with (
+            mock.patch(
+                "claudewheel.profile_info.gather_profile_info", return_value=report
+            ) as mock_gather,
+            redirect_stdout(buf),
+        ):
             rc = cli._handle_show_profile(mock.MagicMock(), "work")
         self.assertEqual(rc, 0)
         mock_gather.assert_called_once_with(mock.ANY, "work")
@@ -1553,12 +1697,14 @@ class ShowProfileCommandTests(unittest.TestCase):
         self.assertIn("Credentials file: present", out)
 
     def test_unknown_profile_exits_1(self) -> None:
-        report = self._report(exists=False, registered=False,
-                              has_credentials=False)
+        report = self._report(exists=False, registered=False, has_credentials=False)
         err = io.StringIO()
-        with mock.patch("claudewheel.profile_info.gather_profile_info",
-                        return_value=report), \
-                redirect_stderr(err):
+        with (
+            mock.patch(
+                "claudewheel.profile_info.gather_profile_info", return_value=report
+            ),
+            redirect_stderr(err),
+        ):
             with self.assertRaises(SystemExit) as ctx:
                 cli._handle_show_profile(mock.MagicMock(), "work")
         self.assertEqual(ctx.exception.code, 1)
@@ -1566,12 +1712,16 @@ class ShowProfileCommandTests(unittest.TestCase):
 
     def test_token_only_profile_is_shown(self) -> None:
         """A profile known only via tokens.json is still inspectable."""
-        report = self._report(exists=False, registered=False,
-                              has_credentials=False, has_token=True)
+        report = self._report(
+            exists=False, registered=False, has_credentials=False, has_token=True
+        )
         buf = io.StringIO()
-        with mock.patch("claudewheel.profile_info.gather_profile_info",
-                        return_value=report), \
-                redirect_stdout(buf):
+        with (
+            mock.patch(
+                "claudewheel.profile_info.gather_profile_info", return_value=report
+            ),
+            redirect_stdout(buf),
+        ):
             rc = cli._handle_show_profile(mock.MagicMock(), "work")
         self.assertEqual(rc, 0)
         self.assertIn("Profile: work", buf.getvalue())
@@ -1580,11 +1730,15 @@ class ShowProfileCommandTests(unittest.TestCase):
         """A corrupt tokens.json makes 'profile show' fail cleanly: nonzero exit,
         actionable message on stderr, no traceback (mirrors check-tokens)."""
         from claudewheel.tokens import TokenStoreError
+
         err = io.StringIO()
-        with mock.patch(
-            "claudewheel.profile_info.gather_profile_info",
-            side_effect=TokenStoreError("/x/tokens.json is corrupt; retry."),
-        ), redirect_stderr(err):
+        with (
+            mock.patch(
+                "claudewheel.profile_info.gather_profile_info",
+                side_effect=TokenStoreError("/x/tokens.json is corrupt; retry."),
+            ),
+            redirect_stderr(err),
+        ):
             with self.assertRaises(SystemExit) as ctx:
                 cli._handle_show_profile(mock.MagicMock(), "work")
         self.assertEqual(ctx.exception.code, 1)
@@ -1598,9 +1752,12 @@ class DeleteProfileHandlerTests(unittest.TestCase):
 
     def _ok_result(self):
         from claudewheel.profile_store import DeletionResult
+
         return DeletionResult(
-            removed_symlinks=1, removed_real=2,
-            removed_from_options=True, removed_from_tokens=True,
+            removed_symlinks=1,
+            removed_real=2,
+            removed_from_options=True,
+            removed_from_tokens=True,
             last_config_purged=False,
         )
 
@@ -1611,14 +1768,16 @@ class DeleteProfileHandlerTests(unittest.TestCase):
         mock_store.delete.return_value = self._ok_result()
         ws = mock.MagicMock()
         ws.profiles = mock_store
-        with mock.patch("claudewheel.profile_ops._is_profile_running") as mock_run, \
-             redirect_stdout(io.StringIO()):
+        with (
+            mock.patch("claudewheel.profile_ops._is_profile_running") as mock_run,
+            redirect_stdout(io.StringIO()),
+        ):
             rc = cli._handle_delete_profile(
-                ws, "work", force_delete=True, force_delete_data=True)
+                ws, "work", force_delete=True, force_delete_data=True
+            )
         self.assertEqual(rc, 0)
         mock_run.assert_not_called()  # force-delete skips the running check
-        mock_store.delete.assert_called_once_with(
-            "work", allow_data_destruction=True)
+        mock_store.delete.assert_called_once_with("work", allow_data_destruction=True)
 
     def test_default_flags_off(self) -> None:
         """No force flags: running check runs, allow_data_destruction is False."""
@@ -1626,15 +1785,18 @@ class DeleteProfileHandlerTests(unittest.TestCase):
         mock_store.delete.return_value = self._ok_result()
         ws = mock.MagicMock()
         ws.profiles = mock_store
-        with mock.patch("claudewheel.profile_ops._is_profile_running",
-                        return_value=False) as mock_run, \
-             redirect_stdout(io.StringIO()):
+        with (
+            mock.patch(
+                "claudewheel.profile_ops._is_profile_running", return_value=False
+            ) as mock_run,
+            redirect_stdout(io.StringIO()),
+        ):
             rc = cli._handle_delete_profile(
-                ws, "work", force_delete=False, force_delete_data=False)
+                ws, "work", force_delete=False, force_delete_data=False
+            )
         self.assertEqual(rc, 0)
         mock_run.assert_called_once_with(ws, "work")
-        mock_store.delete.assert_called_once_with(
-            "work", allow_data_destruction=False)
+        mock_store.delete.assert_called_once_with("work", allow_data_destruction=False)
 
     def test_running_profile_blocked_without_force(self) -> None:
         """A running profile is refused (CLI policy) unless --force-delete."""
@@ -1642,12 +1804,16 @@ class DeleteProfileHandlerTests(unittest.TestCase):
         err = io.StringIO()
         ws = mock.MagicMock()
         ws.profiles = mock_store
-        with mock.patch("claudewheel.profile_ops._is_profile_running",
-                        return_value=True), \
-             redirect_stderr(err):
+        with (
+            mock.patch(
+                "claudewheel.profile_ops._is_profile_running", return_value=True
+            ),
+            redirect_stderr(err),
+        ):
             with self.assertRaises(SystemExit) as ctx:
                 cli._handle_delete_profile(
-                    ws, "work", force_delete=False, force_delete_data=False)
+                    ws, "work", force_delete=False, force_delete_data=False
+                )
         self.assertEqual(ctx.exception.code, 1)
         self.assertIn("active sessions", err.getvalue())
         mock_store.delete.assert_not_called()
@@ -1659,12 +1825,16 @@ class DeleteProfileHandlerTests(unittest.TestCase):
         err = io.StringIO()
         ws = mock.MagicMock()
         ws.profiles = mock_store
-        with mock.patch("claudewheel.profile_ops._is_profile_running",
-                        return_value=False), \
-             redirect_stderr(err):
+        with (
+            mock.patch(
+                "claudewheel.profile_ops._is_profile_running", return_value=False
+            ),
+            redirect_stderr(err),
+        ):
             with self.assertRaises(SystemExit) as ctx:
                 cli._handle_delete_profile(
-                    ws, "work", force_delete=False, force_delete_data=False)
+                    ws, "work", force_delete=False, force_delete_data=False
+                )
         self.assertEqual(ctx.exception.code, 1)
         self.assertIn("not found", err.getvalue())
 
@@ -1676,7 +1846,9 @@ class ProfileGroupDispatchTests(unittest.TestCase):
         """'claudewheel profile create' calls _handle_new_profile."""
         with (
             mock.patch("sys.argv", ["c", "profile", "create"]),
-            mock.patch.object(cli, "_handle_new_profile", return_value=0) as mock_handler,
+            mock.patch.object(
+                cli, "_handle_new_profile", return_value=0
+            ) as mock_handler,
         ):
             try:
                 cli.main()
@@ -1688,7 +1860,9 @@ class ProfileGroupDispatchTests(unittest.TestCase):
         """'claudewheel profile delete work' calls _handle_delete_profile."""
         with (
             mock.patch("sys.argv", ["c", "profile", "delete", "work"]),
-            mock.patch.object(cli, "_handle_delete_profile", return_value=0) as mock_handler,
+            mock.patch.object(
+                cli, "_handle_delete_profile", return_value=0
+            ) as mock_handler,
         ):
             try:
                 cli.main()
@@ -1702,7 +1876,9 @@ class ProfileGroupDispatchTests(unittest.TestCase):
         """'claudewheel profile show work' calls _handle_show_profile."""
         with (
             mock.patch("sys.argv", ["c", "profile", "show", "work"]),
-            mock.patch.object(cli, "_handle_show_profile", return_value=0) as mock_handler,
+            mock.patch.object(
+                cli, "_handle_show_profile", return_value=0
+            ) as mock_handler,
         ):
             try:
                 cli.main()
@@ -1769,8 +1945,10 @@ class FixAuthTests(unittest.TestCase):
         self.profiles_dir.mkdir(parents=True)
         self.tokens_file = self.home / ".claudewheel" / "tokens.json"
         from claudewheel.workspace import Workspace
-        self.ws = Workspace.open(self.home / ".claudewheel",
-                                 claude_dir=self.home / ".claude")
+
+        self.ws = Workspace.open(
+            self.home / ".claudewheel", claude_dir=self.home / ".claude"
+        )
 
     def _make_profile(self, name: str) -> Path:
         pdir = self.profiles_dir / name
@@ -1779,12 +1957,14 @@ class FixAuthTests(unittest.TestCase):
 
     def _write_tokens(self, data: dict) -> None:
         import json
+
         self.tokens_file.parent.mkdir(parents=True, exist_ok=True)
         self.tokens_file.write_text(json.dumps(data))
         self.tokens_file.chmod(0o600)
 
     def _write_credentials(self, pdir: Path, data: dict) -> None:
         import json
+
         creds = pdir / ".credentials.json"
         creds.write_text(json.dumps(data))
         creds.chmod(0o600)
@@ -1804,16 +1984,28 @@ class FixAuthTests(unittest.TestCase):
     def test_fix_auth_strips_shadow_and_saves_tier(self) -> None:
         """With shadow present and tier data, key is stripped and tier saved."""
         import json
+
         pdir = self._make_profile("work")
-        self._write_tokens({"work": {"token": "tok-abc", "created": "2025-01-01", "expires_at": "2026-01-01"}})
-        self._write_credentials(pdir, {
-            "claudeAiOauth": {
-                "accessToken": "short",
-                "rateLimitTier": "tier4",
-                "subscriptionType": "pro",
+        self._write_tokens(
+            {
+                "work": {
+                    "token": "tok-abc",
+                    "created": "2025-01-01",
+                    "expires_at": "2026-01-01",
+                }
+            }
+        )
+        self._write_credentials(
+            pdir,
+            {
+                "claudeAiOauth": {
+                    "accessToken": "short",
+                    "rateLimitTier": "tier4",
+                    "subscriptionType": "pro",
+                },
+                "mcpOAuth": {"keep": "this"},
             },
-            "mcpOAuth": {"keep": "this"},
-        })
+        )
 
         rc, out, err = self._run_fix_auth("work")
         self.assertEqual(rc, 0)
@@ -1852,11 +2044,23 @@ class FixAuthTests(unittest.TestCase):
     def test_fix_auth_shadow_no_tier_data(self) -> None:
         """When shadow exists but has no tier fields, key is stripped without tier save."""
         import json
+
         pdir = self._make_profile("notier")
-        self._write_tokens({"notier": {"token": "tok-nt", "created": "2025-01-01", "expires_at": "2026-01-01"}})
-        self._write_credentials(pdir, {
-            "claudeAiOauth": {"accessToken": "short-lived"},
-        })
+        self._write_tokens(
+            {
+                "notier": {
+                    "token": "tok-nt",
+                    "created": "2025-01-01",
+                    "expires_at": "2026-01-01",
+                }
+            }
+        )
+        self._write_credentials(
+            pdir,
+            {
+                "claudeAiOauth": {"accessToken": "short-lived"},
+            },
+        )
 
         rc, out, err = self._run_fix_auth("notier")
         self.assertEqual(rc, 0)
@@ -1884,23 +2088,30 @@ class WriteTierStubTests(unittest.TestCase):
         self.config_dir.mkdir(parents=True)
 
         from claudewheel.workspace import Workspace
+
         self.ws = Workspace.open(self.root, claude_dir=self.root / ".claude")
 
     def _write_tokens(self, data: dict) -> None:
         import json
+
         self.tokens_file.write_text(json.dumps(data))
 
     def _read_creds(self) -> dict:
         import json
+
         return json.loads((self.config_dir / ".credentials.json").read_text())
 
     def test_writes_tier_stub(self) -> None:
         """When tokens.json has tier data, .credentials.json gets a stub."""
-        self._write_tokens({"work": {
-            "token": "tok-1",
-            "rateLimitTier": "default_claude_pro",
-            "subscriptionType": "claude_pro",
-        }})
+        self._write_tokens(
+            {
+                "work": {
+                    "token": "tok-1",
+                    "rateLimitTier": "default_claude_pro",
+                    "subscriptionType": "claude_pro",
+                }
+            }
+        )
 
         cli._write_tier_stub(self.ws, "work", str(self.config_dir))
 
@@ -1919,18 +2130,24 @@ class WriteTierStubTests(unittest.TestCase):
     def test_short_circuits_when_matching(self) -> None:
         """When .credentials.json already has the matching tier, no write occurs."""
         import json
-        self._write_tokens({"work": {
-            "token": "tok-3",
-            "rateLimitTier": "default_claude_pro",
-        }})
+
+        self._write_tokens(
+            {
+                "work": {
+                    "token": "tok-3",
+                    "rateLimitTier": "default_claude_pro",
+                }
+            }
+        )
         # Pre-populate matching credentials
         creds_path = self.config_dir / ".credentials.json"
-        creds_path.write_text(json.dumps({
-            "claudeAiOauth": {"rateLimitTier": "default_claude_pro"}
-        }))
+        creds_path.write_text(
+            json.dumps({"claudeAiOauth": {"rateLimitTier": "default_claude_pro"}})
+        )
         original_mtime = creds_path.stat().st_mtime
 
         import time
+
         time.sleep(0.01)  # ensure timestamp differs if rewritten
 
         cli._write_tier_stub(self.ws, "work", str(self.config_dir))
@@ -1941,26 +2158,37 @@ class WriteTierStubTests(unittest.TestCase):
     def test_overwrites_when_tier_differs(self) -> None:
         """When .credentials.json has a different tier, it is updated."""
         import json
-        self._write_tokens({"work": {
-            "token": "tok-4",
-            "rateLimitTier": "default_claude_max_5x",
-        }})
+
+        self._write_tokens(
+            {
+                "work": {
+                    "token": "tok-4",
+                    "rateLimitTier": "default_claude_max_5x",
+                }
+            }
+        )
         creds_path = self.config_dir / ".credentials.json"
-        creds_path.write_text(json.dumps({
-            "claudeAiOauth": {"rateLimitTier": "default_claude_pro"}
-        }))
+        creds_path.write_text(
+            json.dumps({"claudeAiOauth": {"rateLimitTier": "default_claude_pro"}})
+        )
 
         cli._write_tier_stub(self.ws, "work", str(self.config_dir))
 
         creds = self._read_creds()
-        self.assertEqual(creds["claudeAiOauth"]["rateLimitTier"], "default_claude_max_5x")
+        self.assertEqual(
+            creds["claudeAiOauth"]["rateLimitTier"], "default_claude_max_5x"
+        )
 
     def test_no_profile_no_write(self) -> None:
         """When profile is None, nothing happens."""
-        self._write_tokens({"work": {
-            "token": "tok-5",
-            "rateLimitTier": "default_claude_pro",
-        }})
+        self._write_tokens(
+            {
+                "work": {
+                    "token": "tok-5",
+                    "rateLimitTier": "default_claude_pro",
+                }
+            }
+        )
 
         cli._write_tier_stub(self.ws, None, str(self.config_dir))
 
@@ -1968,20 +2196,29 @@ class WriteTierStubTests(unittest.TestCase):
 
     def test_no_config_dir_no_write(self) -> None:
         """When config_dir is None, nothing happens."""
-        self._write_tokens({"work": {
-            "token": "tok-6",
-            "rateLimitTier": "default_claude_pro",
-        }})
+        self._write_tokens(
+            {
+                "work": {
+                    "token": "tok-6",
+                    "rateLimitTier": "default_claude_pro",
+                }
+            }
+        )
 
         cli._write_tier_stub(self.ws, "work", None)
 
     def test_merges_into_existing_credentials(self) -> None:
         """Existing keys in .credentials.json are preserved."""
         import json
-        self._write_tokens({"work": {
-            "token": "tok-7",
-            "rateLimitTier": "default_claude_pro",
-        }})
+
+        self._write_tokens(
+            {
+                "work": {
+                    "token": "tok-7",
+                    "rateLimitTier": "default_claude_pro",
+                }
+            }
+        )
         creds_path = self.config_dir / ".credentials.json"
         creds_path.write_text(json.dumps({"otherKey": "preserved"}))
 
@@ -2009,10 +2246,18 @@ class CheckTokensTests(unittest.TestCase):
         from claudewheel.profile_store import Profile
 
         profiles = [
-            Profile(name="personal", path=Path("/fake/personal"),
-                        has_credentials=True, has_token=True),
-            Profile(name="work", path=Path("/fake/work"),
-                        has_credentials=True, has_token=True),
+            Profile(
+                name="personal",
+                path=Path("/fake/personal"),
+                has_credentials=True,
+                has_token=True,
+            ),
+            Profile(
+                name="work",
+                path=Path("/fake/work"),
+                has_credentials=True,
+                has_token=True,
+            ),
         ]
         tokens_data = {
             "personal": self.FULL_TOKEN,
@@ -2033,10 +2278,15 @@ class CheckTokensTests(unittest.TestCase):
         from claudewheel.profile_store import Profile
 
         profiles = [
-            Profile(name="good", path=Path("/fake/good"),
-                        has_credentials=True, has_token=True),
-            Profile(name="bad", path=Path("/fake/bad"),
-                        has_credentials=True, has_token=True),
+            Profile(
+                name="good",
+                path=Path("/fake/good"),
+                has_credentials=True,
+                has_token=True,
+            ),
+            Profile(
+                name="bad", path=Path("/fake/bad"), has_credentials=True, has_token=True
+            ),
         ]
         tokens_data = {
             "good": self.FULL_TOKEN,
@@ -2059,8 +2309,12 @@ class CheckTokensTests(unittest.TestCase):
         from claudewheel.profile_store import Profile
 
         profiles = [
-            Profile(name="offline", path=Path("/fake/offline"),
-                        has_credentials=True, has_token=True),
+            Profile(
+                name="offline",
+                path=Path("/fake/offline"),
+                has_credentials=True,
+                has_token=True,
+            ),
         ]
         tokens_data = {"offline": self.FULL_TOKEN}
 
@@ -2076,13 +2330,19 @@ class CheckTokensTests(unittest.TestCase):
         from claudewheel.profile_store import Profile
 
         profiles = [
-            Profile(name="empty", path=Path("/fake/empty"),
-                        has_credentials=True, has_token=False),
+            Profile(
+                name="empty",
+                path=Path("/fake/empty"),
+                has_credentials=True,
+                has_token=False,
+            ),
         ]
         tokens_data = {}
 
         def fake_validate(token, timeout=5.0):
-            raise AssertionError("validate_token should not be called for no-token profiles")
+            raise AssertionError(
+                "validate_token should not be called for no-token profiles"
+            )
 
         rc, out = self._run_with_patches(profiles, tokens_data, fake_validate)
         self.assertEqual(rc, 0)
@@ -2094,8 +2354,12 @@ class CheckTokensTests(unittest.TestCase):
         from claudewheel.profile_store import Profile
 
         profiles = [
-            Profile(name="secret", path=Path("/fake/secret"),
-                        has_credentials=True, has_token=True),
+            Profile(
+                name="secret",
+                path=Path("/fake/secret"),
+                has_credentials=True,
+                has_token=True,
+            ),
         ]
         tokens_data = {"secret": self.FULL_TOKEN}
 
@@ -2113,8 +2377,12 @@ class CheckTokensTests(unittest.TestCase):
         from claudewheel.profile_store import Profile
 
         profiles = [
-            Profile(name="weird", path=Path("/fake/weird"),
-                        has_credentials=True, has_token=True),
+            Profile(
+                name="weird",
+                path=Path("/fake/weird"),
+                has_credentials=True,
+                has_token=True,
+            ),
         ]
         tokens_data = {"weird": self.FULL_TOKEN}
 
@@ -2130,8 +2398,12 @@ class CheckTokensTests(unittest.TestCase):
         from claudewheel.profile_store import Profile
 
         profiles = [
-            Profile(name="test", path=Path("/fake/test"),
-                        has_credentials=True, has_token=True),
+            Profile(
+                name="test",
+                path=Path("/fake/test"),
+                has_credentials=True,
+                has_token=True,
+            ),
         ]
         tokens_data = {"test": self.FULL_TOKEN}
 
@@ -2149,7 +2421,9 @@ class CheckTokensTests(unittest.TestCase):
         """'claudewheel profile check-tokens' dispatches to _handle_check_tokens."""
         with (
             mock.patch("sys.argv", ["c", "profile", "check-tokens"]),
-            mock.patch.object(cli, "_handle_check_tokens", return_value=0) as mock_handler,
+            mock.patch.object(
+                cli, "_handle_check_tokens", return_value=0
+            ) as mock_handler,
         ):
             try:
                 cli.main()
@@ -2162,10 +2436,18 @@ class CheckTokensTests(unittest.TestCase):
         from claudewheel.profile_store import Profile
 
         profiles = [
-            Profile(name="has_tok", path=Path("/fake/has_tok"),
-                        has_credentials=True, has_token=True),
-            Profile(name="no_tok", path=Path("/fake/no_tok"),
-                        has_credentials=True, has_token=False),
+            Profile(
+                name="has_tok",
+                path=Path("/fake/has_tok"),
+                has_credentials=True,
+                has_token=True,
+            ),
+            Profile(
+                name="no_tok",
+                path=Path("/fake/no_tok"),
+                has_credentials=True,
+                has_token=False,
+            ),
         ]
         tokens_data = {"has_tok": self.FULL_TOKEN}
 
@@ -2183,6 +2465,7 @@ class CheckTokensTests(unittest.TestCase):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         from claudewheel.workspace import Workspace
+
         ws = Workspace.open(Path(tmp.name), claude_dir=Path(tmp.name) / ".claude")
         tokens_file = ws.tokens_file
         tokens_file.write_text("{ not valid json")
@@ -2225,7 +2508,9 @@ class RenameProfileDispatchTests(unittest.TestCase):
     def test_dispatches(self) -> None:
         with (
             mock.patch("sys.argv", ["c", "profile", "rename", "alpha", "beta"]),
-            mock.patch.object(cli, "_handle_rename_profile", return_value=0) as mock_handler,
+            mock.patch.object(
+                cli, "_handle_rename_profile", return_value=0
+            ) as mock_handler,
         ):
             try:
                 cli.main()
@@ -2248,10 +2533,14 @@ class RenameProfileHandlerTests(unittest.TestCase):
         self.options_file = self.home / ".claudewheel" / "options.json"
         self.tokens_file = self.home / ".claudewheel" / "tokens.json"
         from claudewheel.workspace import Workspace
-        self.ws = Workspace.open(self.home / ".claudewheel",
-                                 claude_dir=self.home / ".claude")
 
-    def _write_options(self, values: list[str], pinned: list[str] | None = None) -> None:
+        self.ws = Workspace.open(
+            self.home / ".claudewheel", claude_dir=self.home / ".claude"
+        )
+
+    def _write_options(
+        self, values: list[str], pinned: list[str] | None = None
+    ) -> None:
         data = {"profile": {"values": values}}
         if pinned:
             data["profile"]["pinned"] = pinned
@@ -2298,7 +2587,9 @@ class RenameProfileHandlerTests(unittest.TestCase):
         self._write_options(["active"])
         self.tokens_file.write_text("{}")
         with (
-            mock.patch("claudewheel.profile_ops._is_profile_running", return_value=True),
+            mock.patch(
+                "claudewheel.profile_ops._is_profile_running", return_value=True
+            ),
             self.assertRaises(SystemExit) as ctx,
         ):
             cli._handle_rename_profile(self.ws, "active", "newname")
@@ -2310,7 +2601,9 @@ class RenameProfileHandlerTests(unittest.TestCase):
         self.tokens_file.write_text("{}")
         buf = io.StringIO()
         with (
-            mock.patch("claudewheel.profile_ops._is_profile_running", return_value=False),
+            mock.patch(
+                "claudewheel.profile_ops._is_profile_running", return_value=False
+            ),
             mock.patch("claudewheel.profile_store.ProfileStore.rename") as mock_rename,
             redirect_stdout(buf),
         ):

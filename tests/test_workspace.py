@@ -93,14 +93,12 @@ class WorkspaceDefaultTests(SandboxHomeTestCase):
 
     def test_default_honors_env_override(self) -> None:
         override = self.home / "custom-config"
-        with patch.dict(os.environ,
-                        {"CLAUDEWHEEL_CONFIG_DIR": str(override)}):
+        with patch.dict(os.environ, {"CLAUDEWHEEL_CONFIG_DIR": str(override)}):
             ws = Workspace.default()
         self.assertEqual(ws.root, override)
 
     def test_default_expands_user_in_override(self) -> None:
-        with patch.dict(os.environ,
-                        {"CLAUDEWHEEL_CONFIG_DIR": "~/tilde-config"}):
+        with patch.dict(os.environ, {"CLAUDEWHEEL_CONFIG_DIR": "~/tilde-config"}):
             ws = Workspace.default()
         self.assertEqual(ws.root, self.home / "tilde-config")
 

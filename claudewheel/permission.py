@@ -46,9 +46,7 @@ def validate_rule(rule: str) -> None:
             raise ValueError("content inside parentheses must not be empty")
     else:
         if not _TOOL_NAME_RE.match(rule):
-            raise ValueError(
-                f"rule {rule!r} must match [A-Za-z][A-Za-z0-9_-]*"
-            )
+            raise ValueError(f"rule {rule!r} must match [A-Za-z][A-Za-z0-9_-]*")
 
 
 def load_settings(settings_path: Path) -> dict[str, Any]:

@@ -313,7 +313,9 @@ def build_client_choices(
     return options, default_client
 
 
-def resolve_client(explicit_client: str | None, prompt: Callable[[], str | None]) -> str | None:
+def resolve_client(
+    explicit_client: str | None, prompt: Callable[[], str | None]
+) -> str | None:
     """Resolve the launch client: explicit CLI flag wins, else prompt.
 
     *explicit_client* is the ``--client`` value when the user passed it, or

@@ -20,8 +20,9 @@ class InodeTestCase(unittest.TestCase):
         # Build a workspace rooted in the temp dir; record_inode uses ws.shared
         # and check_inode_renames uses ws (both target ws.inodes_file, which
         # lives under the shared store: <root>/shared/inodes.json).
-        self.ws = Workspace.open(self.tmp_path / "cw",
-                                 claude_dir=self.tmp_path / "claude")
+        self.ws = Workspace.open(
+            self.tmp_path / "cw", claude_dir=self.tmp_path / "claude"
+        )
         self._inodes_file = self.ws.inodes_file
         self._inodes_file.parent.mkdir(parents=True, exist_ok=True)
 
@@ -40,6 +41,7 @@ class RecordInodeTests(InodeTestCase):
     def test_new_dir(self) -> None:
         """Recording a directory creates an entry in inodes.json."""
         from claudewheel.state import record_inode
+
         d = self.tmp_path / "project_a"
         d.mkdir()
         record_inode(self.ws.shared, str(d))
@@ -51,6 +53,7 @@ class RecordInodeTests(InodeTestCase):
     def test_same_dir_twice(self) -> None:
         """Recording the same directory twice does not change the file."""
         from claudewheel.state import record_inode
+
         d = self.tmp_path / "project_b"
         d.mkdir()
         record_inode(self.ws.shared, str(d))
@@ -63,6 +66,7 @@ class RecordInodeTests(InodeTestCase):
     def test_renamed_dir(self) -> None:
         """After renaming, recording the new path adds a second entry with the same inode."""
         from claudewheel.state import record_inode
+
         d = self.tmp_path / "old_name"
         d.mkdir()
         record_inode(self.ws.shared, str(d))
@@ -72,7 +76,9 @@ class RecordInodeTests(InodeTestCase):
         d.rename(new)
         record_inode(self.ws.shared, str(new))
         data = json.loads(self._inodes_file.read_text())
-        _ = str(d.resolve()) if d.exists() else os.path.abspath(str(d))  # verify no crash
+        _ = (
+            str(d.resolve()) if d.exists() else os.path.abspath(str(d))
+        )  # verify no crash
         new_abs = str(new.resolve())
         # Both entries should exist with the same inode
         self.assertEqual(data[new_abs], inode)
@@ -85,6 +91,7 @@ class RecordInodeTests(InodeTestCase):
     def test_nonexistent_dir(self) -> None:
         """Recording a nonexistent directory is a no-op."""
         from claudewheel.state import record_inode
+
         record_inode(self.ws.shared, str(self.tmp_path / "does_not_exist"))
         self.assertFalse(self._inodes_file.exists())
 
@@ -100,6 +107,7 @@ class CheckInodeRenamesTests(InodeTestCase):
     def test_no_data(self) -> None:
         """Returns OK when inodes.json does not exist."""
         from claudewheel.health import check_inode_renames
+
         result = check_inode_renames(self.ws)
         self.assertTrue(result.ok)
         self.assertIn("no inode data", result.detail)
@@ -107,6 +115,7 @@ class CheckInodeRenamesTests(InodeTestCase):
     def test_no_renames(self) -> None:
         """Returns OK when all recorded paths still exist with correct inodes."""
         from claudewheel.health import check_inode_renames
+
         d = self.tmp_path / "still_here"
         d.mkdir()
         inode = os.stat(str(d)).st_ino
@@ -118,6 +127,7 @@ class CheckInodeRenamesTests(InodeTestCase):
     def test_rename_detected(self) -> None:
         """Returns WARN when one path is gone and another has the same inode."""
         from claudewheel.health import check_inode_renames
+
         # Create a directory and get its inode
         d = self.tmp_path / "original"
         d.mkdir()
@@ -138,6 +148,7 @@ class CheckInodeRenamesTests(InodeTestCase):
     def test_stale_entry_cleaned(self) -> None:
         """Stale entries (deleted dirs, no matching inode) are removed from inodes.json."""
         from claudewheel.health import check_inode_renames
+
         gone_path = str(self.tmp_path / "gone_forever")
         # Write an entry for a path that doesn't exist with a unique inode
         self._inodes_file.write_text(json.dumps({gone_path: 999999999}))
@@ -151,6 +162,7 @@ class CheckInodeRenamesTests(InodeTestCase):
     def test_multiple_renames(self) -> None:
         """Multiple rename detections are all reported."""
         from claudewheel.health import check_inode_renames
+
         # Create two directories, rename both
         d1 = self.tmp_path / "proj1"
         d1.mkdir()
@@ -168,10 +180,16 @@ class CheckInodeRenamesTests(InodeTestCase):
         new1_abs = str(new1.resolve())
         old2_abs = os.path.abspath(str(self.tmp_path / "proj2"))
         new2_abs = str(new2.resolve())
-        self._inodes_file.write_text(json.dumps({
-            old1_abs: inode1, new1_abs: inode1,
-            old2_abs: inode2, new2_abs: inode2,
-        }))
+        self._inodes_file.write_text(
+            json.dumps(
+                {
+                    old1_abs: inode1,
+                    new1_abs: inode1,
+                    old2_abs: inode2,
+                    new2_abs: inode2,
+                }
+            )
+        )
         result = check_inode_renames(self.ws)
         self.assertFalse(result.ok)
         # Both renames should be mentioned

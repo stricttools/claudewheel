@@ -68,7 +68,9 @@ def fix_auth_shadow(ws: "Workspace", name: str) -> FixAuthResult:
     # 3. Extract tier fields before stripping
     oauth_block = creds["claudeAiOauth"]
     tier = oauth_block.get("rateLimitTier") if isinstance(oauth_block, dict) else None
-    sub_type = oauth_block.get("subscriptionType") if isinstance(oauth_block, dict) else None
+    sub_type = (
+        oauth_block.get("subscriptionType") if isinstance(oauth_block, dict) else None
+    )
 
     if tier or sub_type:
         # Merge tier data into the tokens.json entry. TokenStore.set_tier applies

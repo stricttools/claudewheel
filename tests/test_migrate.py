@@ -281,8 +281,10 @@ class MigrateSessionsTests(unittest.TestCase):
     def _run_migrate(self, *args, **kwargs):
         """Run migrate_sessions against a sandbox workspace."""
         from claudewheel.workspace import Workspace
-        ws = Workspace.open(self.home / ".claudewheel",
-                            claude_dir=self.home / ".claude")
+
+        ws = Workspace.open(
+            self.home / ".claudewheel", claude_dir=self.home / ".claude"
+        )
         return migrate_sessions(ws, *args, **kwargs)
 
     def test_moves_non_shared(self) -> None:
@@ -352,8 +354,10 @@ class MigrateSessionsTests(unittest.TestCase):
         path_for("default") resolves there rather than the real home.
         """
         from claudewheel.workspace import Workspace
-        ws = Workspace.open(self.home / ".claudewheel",
-                            claude_dir=self.home / ".claude")
+
+        ws = Workspace.open(
+            self.home / ".claudewheel", claude_dir=self.home / ".claude"
+        )
         return migrate_sessions(ws, *args, **kwargs)
 
     def test_migrate_to_default(self) -> None:

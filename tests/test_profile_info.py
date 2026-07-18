@@ -33,8 +33,10 @@ class ProfileInfoFixture(unittest.TestCase):
             (self.shared_dir / d).mkdir()
 
         from claudewheel.workspace import Workspace
-        self.ws = Workspace.open(root / ".claudewheel",
-                                 claude_dir=Path.home() / ".claude")
+
+        self.ws = Workspace.open(
+            root / ".claudewheel", claude_dir=Path.home() / ".claude"
+        )
 
     def _link_all(self) -> None:
         """Create intact shared-store symlinks in the profile dir."""
@@ -46,8 +48,9 @@ class ProfileInfoFixture(unittest.TestCase):
         self.tokens_file.write_text(json.dumps(entries))
 
     def _write_options(self, values: list[str], pinned: list[str]) -> None:
-        self.options_file.write_text(json.dumps(
-            {"profile": {"values": values, "pinned": pinned}}))
+        self.options_file.write_text(
+            json.dumps({"profile": {"values": values, "pinned": pinned}})
+        )
 
 
 class GatherAuthTests(ProfileInfoFixture):
@@ -68,11 +71,15 @@ class GatherAuthTests(ProfileInfoFixture):
     def test_token_expiry_math(self) -> None:
         created = date.today() - timedelta(days=100)
         expires = created + timedelta(days=365)
-        self._write_tokens({"work": {
-            "token": "tok",
-            "created": created.isoformat(),
-            "expires_at": expires.isoformat(),
-        }})
+        self._write_tokens(
+            {
+                "work": {
+                    "token": "tok",
+                    "created": created.isoformat(),
+                    "expires_at": expires.isoformat(),
+                }
+            }
+        )
         report = profile_info.gather_profile_info(self.ws, "work")
         self.assertTrue(report.has_token)
         assert report.token_expiry is not None
@@ -141,15 +148,18 @@ class GatherSettingsTests(ProfileInfoFixture):
     """settings.json summary: permission counts and behavior flags."""
 
     def test_settings_summary(self) -> None:
-        (self.profile / "settings.json").write_text(json.dumps({
-            "permissions": {"allow": ["Bash", "Read"], "deny": ["WebFetch"]},
-            "awaySummaryEnabled": False,
-            "cleanupPeriodDays": 3650,
-        }))
+        (self.profile / "settings.json").write_text(
+            json.dumps(
+                {
+                    "permissions": {"allow": ["Bash", "Read"], "deny": ["WebFetch"]},
+                    "awaySummaryEnabled": False,
+                    "cleanupPeriodDays": 3650,
+                }
+            )
+        )
         report = profile_info.gather_profile_info(self.ws, "work")
         self.assertTrue(report.settings_found)
-        self.assertEqual(report.permission_counts,
-                         {"allow": 2, "deny": 1, "ask": 0})
+        self.assertEqual(report.permission_counts, {"allow": 2, "deny": 1, "ask": 0})
         self.assertIs(report.away_summary_enabled, False)
         self.assertEqual(report.cleanup_period_days, 3650)
         self.assertIsNone(report.auto_memory_enabled)  # missing key tolerated
@@ -183,8 +193,7 @@ class GatherSessionsTests(ProfileInfoFixture):
             if pid != 111:
                 raise OSError("no such process")
 
-        with mock.patch("claudewheel.profile_info.os.kill",
-                        side_effect=fake_kill):
+        with mock.patch("claudewheel.profile_info.os.kill", side_effect=fake_kill):
             report = profile_info.gather_profile_info(self.ws, "work")
         self.assertEqual(report.active_sessions, 1)
 
@@ -240,11 +249,15 @@ class GatherTierTests(ProfileInfoFixture):
     """Tier data from tokens.json entry."""
 
     def test_tier_from_tokens(self) -> None:
-        self._write_tokens({"work": {
-            "token": "tok",
-            "rateLimitTier": "default_claude_pro",
-            "subscriptionType": "claude_pro",
-        }})
+        self._write_tokens(
+            {
+                "work": {
+                    "token": "tok",
+                    "rateLimitTier": "default_claude_pro",
+                    "subscriptionType": "claude_pro",
+                }
+            }
+        )
         report = profile_info.gather_profile_info(self.ws, "work")
         self.assertEqual(report.rate_limit_tier, "default_claude_pro")
         self.assertEqual(report.subscription_type, "claude_pro")
@@ -257,10 +270,14 @@ class GatherTierTests(ProfileInfoFixture):
 
     def test_tier_only_entry_no_token(self) -> None:
         """Tier-only entry (from session login) has tier but no token."""
-        self._write_tokens({"work": {
-            "rateLimitTier": "default_claude_max_5x",
-            "subscriptionType": "claude_max_5x",
-        }})
+        self._write_tokens(
+            {
+                "work": {
+                    "rateLimitTier": "default_claude_max_5x",
+                    "subscriptionType": "claude_max_5x",
+                }
+            }
+        )
         report = profile_info.gather_profile_info(self.ws, "work")
         self.assertTrue(report.has_token)  # entry exists
         self.assertEqual(report.rate_limit_tier, "default_claude_max_5x")
@@ -337,17 +354,25 @@ class FormatReportTests(ProfileInfoFixture):
         (self.profile / "todos").unlink()
         (self.profile / "todos").mkdir()  # danger
         (self.profile / ".credentials.json").write_text("{}")
-        (self.profile / "settings.json").write_text(json.dumps({
-            "permissions": {"allow": ["Bash"], "ask": ["Write"]},
-            "awaySummaryEnabled": False,
-        }))
+        (self.profile / "settings.json").write_text(
+            json.dumps(
+                {
+                    "permissions": {"allow": ["Bash"], "ask": ["Write"]},
+                    "awaySummaryEnabled": False,
+                }
+            )
+        )
         created = date.today() - timedelta(days=10)
         expires = created + timedelta(days=365)
-        self._write_tokens({"work": {
-            "token": "tok",
-            "created": created.isoformat(),
-            "expires_at": expires.isoformat(),
-        }})
+        self._write_tokens(
+            {
+                "work": {
+                    "token": "tok",
+                    "created": created.isoformat(),
+                    "expires_at": expires.isoformat(),
+                }
+            }
+        )
         self._write_options(values=["work"], pinned=["work"])
 
         report = profile_info.gather_profile_info(self.ws, "work")
@@ -381,11 +406,15 @@ class FormatReportTests(ProfileInfoFixture):
 
     def test_tier_display_with_subscription(self) -> None:
         """When tier and subscription are present, both appear."""
-        self._write_tokens({"work": {
-            "token": "tok",
-            "rateLimitTier": "default_claude_pro",
-            "subscriptionType": "claude_pro",
-        }})
+        self._write_tokens(
+            {
+                "work": {
+                    "token": "tok",
+                    "rateLimitTier": "default_claude_pro",
+                    "subscriptionType": "claude_pro",
+                }
+            }
+        )
         report = profile_info.gather_profile_info(self.ws, "work")
         lines = profile_info.format_report(report)
         text = "\n".join(lines)
@@ -393,10 +422,14 @@ class FormatReportTests(ProfileInfoFixture):
 
     def test_tier_display_without_subscription(self) -> None:
         """When only tier is present, no parenthetical."""
-        self._write_tokens({"work": {
-            "token": "tok",
-            "rateLimitTier": "default_claude_max_20x",
-        }})
+        self._write_tokens(
+            {
+                "work": {
+                    "token": "tok",
+                    "rateLimitTier": "default_claude_max_20x",
+                }
+            }
+        )
         report = profile_info.gather_profile_info(self.ws, "work")
         lines = profile_info.format_report(report)
         text = "\n".join(lines)
@@ -409,7 +442,7 @@ class FormatReportTests(ProfileInfoFixture):
         self.assertEqual(profile_info._format_size(512), "512 B")
         self.assertEqual(profile_info._format_size(2048), "2.0 KB")
         self.assertEqual(profile_info._format_size(3 * 1024 * 1024), "3.0 MB")
-        self.assertEqual(profile_info._format_size(5 * 1024 ** 3), "5.0 GB")
+        self.assertEqual(profile_info._format_size(5 * 1024**3), "5.0 GB")
 
 
 if __name__ == "__main__":

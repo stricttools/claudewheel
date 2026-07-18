@@ -21,7 +21,10 @@ FAKE_TOKEN = "sk-ant-oat01-not-a-real-token-just-for-tests"
 def _http_error(code: int) -> urllib.error.HTTPError:
     return urllib.error.HTTPError(
         "https://api.anthropic.com/v1/models?limit=1",
-        code, "message", {}, None,
+        code,
+        "message",
+        {},
+        None,
     )
 
 
@@ -41,10 +44,8 @@ class ValidateTokenTests(unittest.TestCase):
 
         (req,), kwargs = urlopen.call_args
         self.assertEqual(kwargs.get("timeout"), 5.0)
-        self.assertEqual(
-            req.full_url, "https://api.anthropic.com/v1/models?limit=1")
-        self.assertEqual(
-            req.get_header("Authorization"), f"Bearer {FAKE_TOKEN}")
+        self.assertEqual(req.full_url, "https://api.anthropic.com/v1/models?limit=1")
+        self.assertEqual(req.get_header("Authorization"), f"Bearer {FAKE_TOKEN}")
         self.assertEqual(req.get_header("Anthropic-version"), "2023-06-01")
 
     def test_custom_timeout_is_forwarded(self) -> None:
@@ -67,7 +68,8 @@ class ValidateTokenTests(unittest.TestCase):
 
     def test_urlerror_is_unreachable(self) -> None:
         urlopen = mock.MagicMock(
-            side_effect=urllib.error.URLError("name resolution failed"))
+            side_effect=urllib.error.URLError("name resolution failed")
+        )
         self.assertEqual(self._run(urlopen), UNREACHABLE)
 
     def test_429_is_indeterminate(self) -> None:
@@ -100,29 +102,23 @@ LABEL_LINE = b" \x1b[32m\xe2\x9c\x93\x1b[39m OAuth token created (valid for 1 ye
 
 class ExtractTokenTests(unittest.TestCase):
     def test_plain_token(self) -> None:
-        self.assertEqual(
-            extract_token(b"Your token: " + TOKEN + b"\n"),
-            TOKEN.decode())
+        self.assertEqual(extract_token(b"Your token: " + TOKEN + b"\n"), TOKEN.decode())
 
     def test_hard_wrapped_token_rejoined(self) -> None:
         half = len(TOKEN) // 2
         wrapped = TOKEN[:half] + b"\n" + TOKEN[half:]
-        self.assertEqual(
-            extract_token(b"token:\n" + wrapped + b"\n"),
-            TOKEN.decode())
+        self.assertEqual(extract_token(b"token:\n" + wrapped + b"\n"), TOKEN.decode())
 
     def test_token_inside_ansi_color_codes(self) -> None:
         buf = b"\x1b[1m\x1b[38;5;208m" + TOKEN + b"\x1b[39m\x1b[22m"
         self.assertEqual(extract_token(buf), TOKEN.decode())
 
     def test_token_inside_osc8_hyperlink_bel(self) -> None:
-        buf = (b"\x1b]8;;https://console.anthropic.com\x07"
-               + TOKEN + b"\x1b]8;;\x07")
+        buf = b"\x1b]8;;https://console.anthropic.com\x07" + TOKEN + b"\x1b]8;;\x07"
         self.assertEqual(extract_token(buf), TOKEN.decode())
 
     def test_token_inside_osc8_hyperlink_st(self) -> None:
-        buf = (b"\x1b]8;;https://console.anthropic.com\x1b\\"
-               + TOKEN + b"\x1b]8;;\x1b\\")
+        buf = b"\x1b]8;;https://console.anthropic.com\x1b\\" + TOKEN + b"\x1b]8;;\x1b\\"
         self.assertEqual(extract_token(buf), TOKEN.decode())
 
     def test_last_frame_wins_with_repeated_label(self) -> None:
@@ -131,8 +127,8 @@ class ExtractTokenTests(unittest.TestCase):
         frame2 = LABEL_LINE + b" " + TOKEN + b"\n"
         # Ink redraws: two frames, each with the label; last frame wins.
         self.assertEqual(
-            extract_token(frame1 + b"\x1b[2K\x1b[1A" + frame2),
-            TOKEN.decode())
+            extract_token(frame1 + b"\x1b[2K\x1b[1A" + frame2), TOKEN.decode()
+        )
 
     def test_no_token_returns_none(self) -> None:
         self.assertIsNone(extract_token(b"no credentials here\nnothing\n"))
@@ -162,9 +158,7 @@ class ExtractTokenTests(unittest.TestCase):
         # the token line wrapped in color codes (POC's known format).
         buf = (
             b"\x1b[2K\x1b[1A\x1b[2K\x1b[G"
-            b"\x1b[?25l\r\n"
-            + LABEL_LINE.replace(b"\n", b"\r\n")
-            + b"\r\n"
+            b"\x1b[?25l\r\n" + LABEL_LINE.replace(b"\n", b"\r\n") + b"\r\n"
             b"\x1b[1m" + TOKEN + b"\x1b[22m\r\n"
             b"\r\n\x1b[?25h"
         )
