@@ -269,6 +269,24 @@ class InstallVersionTests(unittest.TestCase):
                 install.install_version(self.locator, "2.1.999")
         self.assertIn("2.1.999", str(ctx.exception))
 
+    def test_null_platforms_value_raises_oserror(self) -> None:
+        """A JSON-null 'platforms' value raises OSError, not TypeError.
+
+        JSON null parses to Python None. install_version's
+        manifest.get("platforms", {}) returns the *present* None (the {} default
+        only applies when the key is absent), so a `plat not in None` membership
+        test would raise an uncaught TypeError. The manifest-boundary validation
+        must reject a null platforms value up front.
+        """
+        manifest_bytes = json.dumps({"platforms": None}).encode("utf-8")
+
+        with self._patch_urlopen_manifest_only(manifest_bytes):
+            with self.assertRaises(OSError) as ctx:
+                install.install_version(self.locator, "2.1.999")
+        msg = str(ctx.exception)
+        self.assertIn("malformed", msg)
+        self.assertIn("2.1.999", msg)
+
 
 if __name__ == "__main__":
     unittest.main()

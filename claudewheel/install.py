@@ -66,8 +66,14 @@ def fetch_manifest(version: str) -> dict[str, Any]:
             f"Manifest for {version} is malformed: expected a JSON object, "
             f"got {type(parsed).__name__}"
         )
-    platforms = parsed.get("platforms")
-    if platforms is not None and not isinstance(platforms, dict):
+    # A present "platforms" key must be a JSON object. This is the single
+    # authoritative validation point: a present-but-null value (JSON null ->
+    # None) or any other non-dict value is rejected here so callers only ever
+    # see OSError. install_version's manifest.get("platforms", {}) default only
+    # applies when the key is *absent*, so it cannot normalize a present null --
+    # this boundary must.
+    if "platforms" in parsed and not isinstance(parsed["platforms"], dict):
+        platforms = parsed["platforms"]
         raise OSError(
             f"Manifest for {version} is malformed: \"platforms\" must be a "
             f"JSON object, got {type(platforms).__name__}"
