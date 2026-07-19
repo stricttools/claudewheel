@@ -28,21 +28,41 @@
   "external_checks": [
     {
       "name": "mypy-strict",
-      "command": "bash scripts/gates/mypy",
+      "kind": "structured",
+      "tool": "mypy",
+      "paths": [
+        "claudewheel",
+        "tests"
+      ],
       "tag": "preflight"
     },
     {
       "name": "ruff-check",
-      "command": "bash scripts/gates/ruff-check",
+      "kind": "structured",
+      "tool": "ruff-check",
+      "paths": [
+        "claudewheel",
+        "tests",
+        "scripts",
+        "docs"
+      ],
       "tag": "preflight"
     },
     {
       "name": "ruff-format",
-      "command": "bash scripts/gates/ruff-format",
+      "kind": "structured",
+      "tool": "ruff-format",
+      "paths": [
+        "claudewheel",
+        "tests",
+        "scripts",
+        "docs"
+      ],
       "tag": "preflight"
     },
     {
       "name": "autospec-tests",
+      "kind": "freeform",
       "command": "python3 scripts/gates/check-autospec",
       "tag": "preflight"
     }
