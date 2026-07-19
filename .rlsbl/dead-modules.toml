@@ -1,0 +1,6 @@
+# Declared non-entry source units: files that are legitimately unreachable by
+# the production import graph, together with the real reason each is exempt.
+
+[[known_non_entry]]
+path = "docs/_directives/guardrail_table.py"
+reason = "selfdoc custom directive. Loaded by selfdoc via the 'directives' map in selfdoc.json (table-guardrails -> docs/_directives/guardrail_table.py), not by any Python import. It is invoked as a documentation directive at doc-generation time, so no module imports it -- it is an entry point for selfdoc, not dead code."
