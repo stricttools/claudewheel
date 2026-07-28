@@ -41,6 +41,7 @@ class Renderer:
         bar: SegmentBar,
         flash: str = "",
         *,
+        notice: str = "",
         show_provenance: bool = False,
         hints: Sequence[str] = (),
     ) -> None:
@@ -50,10 +51,10 @@ class Renderer:
         self._render_center_line(buf, bar, center_row)
         self._render_arrows(buf, center_row)
         # Compute reserved bottom rows from hint width (stable even when
-        # flash/provenance override the actual status content).
+        # flash/provenance/notice override the actual status content).
         reserved_bottom_rows = self._hint_line_count(hints)
         self._render_fan_out(buf, bar, center_row, reserved_bottom_rows)
-        self._render_status(buf, bar, flash, hints)
+        self._render_status(buf, bar, flash, notice, hints)
         self._render_minimap(buf, bar)
         self.term.write("".join(buf))
         self.term.flush()
@@ -598,6 +599,7 @@ class Renderer:
         buf: list[str],
         bar: SegmentBar,
         flash: str = "",
+        notice: str = "",
         hints: Sequence[str] = (),
     ) -> None:
         if flash:
@@ -613,6 +615,15 @@ class Renderer:
             buf.append(move_to(self.term.rows, 2))
             buf.append(DIM)
             buf.append(legend[: self.term.cols - 4])
+            buf.append(RESET)
+            return
+        # Persistent notice (e.g. stale token entries): below flash/provenance,
+        # above hints. Unlike flash it survives across render cycles until the
+        # underlying condition is resolved.
+        if notice:
+            buf.append(move_to(self.term.rows, 2))
+            buf.append(BOLD + self.theme.empty_value_fg)
+            buf.append(notice[: self.term.cols - 4])
             buf.append(RESET)
             return
         # Render hints (may wrap to two lines)

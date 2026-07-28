@@ -51,6 +51,7 @@ class KeyContext:
     freeform_editing: bool
     creating: bool
     show_provenance: bool
+    has_orphan_findings: bool
 
 
 @dataclass(frozen=True)
@@ -67,6 +68,13 @@ class Binding:
 
 class App:
     """TUI application managing the event loop, keyboard handling, and segment interaction."""
+
+    # Class-level defaults so partially-constructed test doubles (object.__new__)
+    # that never run __init__ still expose a sane, empty state. Production always
+    # reassigns these per-instance via _refresh_orphan_findings(); neither list is
+    # ever mutated in place, so the shared class default is safe.
+    _orphan_findings: list[Any] = []
+    _notice: str = ""
 
     def __init__(
         self,
@@ -130,6 +138,34 @@ class App:
         self._show_provenance: bool = False  # Phase 9: provenance overlay toggle
         self._mode2031_supported: bool = False
         self._bindings: list[Binding] = self._build_bindings()
+        # Stale-token surfacing: audit the token store once at startup so the
+        # status row can carry a persistent notice (refreshed after any removal).
+        self._orphan_findings: list[Any] = []
+        self._notice: str = ""
+        self._refresh_orphan_findings()
+
+    def _refresh_orphan_findings(self) -> None:
+        """Recompute orphan-token findings and the persistent status notice.
+
+        Read-only audit of the token store. A corrupt tokens.json (surfaced as a
+        FAILED health check elsewhere) must not crash the TUI, so its
+        :class:`TokenStoreError` is swallowed here into an empty finding set.
+        """
+        from .tokens import TokenStoreError
+
+        try:
+            findings = self.workspace.profiles.audit()
+        except TokenStoreError:
+            findings = []
+        self._orphan_findings = [
+            f for f in findings if f.kind == "orphan-token-entry"
+        ]
+        n = len(self._orphan_findings)
+        if n:
+            noun = "entry" if n == 1 else "entries"
+            self._notice = f"{n} stale token {noun} — press T to review"
+        else:
+            self._notice = ""
 
     def run_tui(self) -> dict[str, str | None] | None:
         """Enter the TUI loop. Returns selections on launch, None on quit."""
@@ -144,7 +180,9 @@ class App:
 
         def on_resize(signum: int, frame: FrameType | None) -> None:
             self.terminal.rows, self.terminal.cols = self.terminal.get_size()
-            self.renderer.render(self.bar, hints=self._compute_hints())
+            self.renderer.render(
+                self.bar, notice=self._notice, hints=self._compute_hints()
+            )
 
         signal.signal(signal.SIGWINCH, on_resize)
 
@@ -164,6 +202,7 @@ class App:
             evaluate_requires(self.bar)
             self.renderer.render(
                 self.bar,
+                notice=self._notice,
                 show_provenance=self._show_provenance,
                 hints=self._compute_hints(),
             )
@@ -185,6 +224,7 @@ class App:
                 self.renderer.render(
                     self.bar,
                     self._flash,
+                    notice=self._notice,
                     show_provenance=self._show_provenance,
                     hints=self._compute_hints(),
                 )
@@ -338,6 +378,7 @@ class App:
             freeform_editing=focused._freeform_editing,
             creating=focused.creating,
             show_provenance=self._show_provenance,
+            has_orphan_findings=bool(self._orphan_findings),
         )
 
     # ------------------------------------------------------------------
@@ -516,6 +557,10 @@ class App:
 
     def _h_main_inspect(self, key: str) -> str | None:
         self._show_profile_inspect(self.bar.focused)
+        return None
+
+    def _h_main_review(self, key: str) -> str | None:
+        self._show_stale_token_review()
         return None
 
     def _h_main_freeform_seed(self, key: str) -> str | None:
@@ -941,6 +986,20 @@ class App:
                 priority=50,
                 mode="main",
             ),
+            # Stale-token review: 'T' opens the orphan-entry review page. Only
+            # active (and only shown as a hint) when findings exist and the user
+            # is not mid-search, so it never shadows 'T' as a search character on
+            # a clean store. Placed before the search binding so it wins.
+            Binding(
+                keys=frozenset({"T"}),
+                label="T: review",
+                condition=lambda ctx: (
+                    ctx.has_orphan_findings and not ctx.search_buffer
+                ),
+                handler=App._h_main_review,
+                priority=55,
+                mode="main",
+            ),
             # Freeform seed: first printable on a freeform segment with a value
             Binding(
                 keys=None,  # match-any-printable
@@ -1089,6 +1148,50 @@ class App:
                 self._flash = "Auth shadow fixed"
             else:
                 self._flash = f"Could not fix: {result.reason}"
+
+    def _show_stale_token_review(self) -> None:
+        """Review and remove stale token entries (keys with no profile dir).
+
+        Lists each orphan tokens.json entry and offers per-entry or bulk
+        removal via a selection list. Each removal goes through
+        ``remove_orphan_token_entry`` (which rewrites tokens.json atomically),
+        then findings are refreshed so the persistent notice clears once none
+        remain. Cancelling leaves the store untouched.
+        """
+        from .profile_ops import remove_orphan_token_entry
+        from .ui import run_selection
+
+        removed = 0
+        while self._orphan_findings:
+            count = len(self._orphan_findings)
+            options: list[tuple[str, str]] = [
+                (f.name, f"Remove '{f.name}' (profile dir missing)")
+                for f in self._orphan_findings
+            ]
+            if count > 1:
+                options.append(("__all__", f"Remove ALL {count} stale entries"))
+            options.append(("__cancel__", "Cancel"))
+            choice = run_selection(
+                f"Stale token entries ({count})",
+                options,
+                self.theme,
+                self.terminal,
+            )
+            if choice is None or choice == "__cancel__":
+                break
+            if choice == "__all__":
+                for f in list(self._orphan_findings):
+                    if remove_orphan_token_entry(self.workspace, f.name).ok:
+                        removed += 1
+                self._refresh_orphan_findings()
+                break
+            if remove_orphan_token_entry(self.workspace, choice).ok:
+                removed += 1
+            self._refresh_orphan_findings()
+
+        if removed:
+            noun = "entry" if removed == 1 else "entries"
+            self._flash = f"Removed {removed} stale token {noun}"
 
     def _delete_profile_flow(self, seg: Segment) -> None:
         """Confirm and delete the focused profile from the TUI.

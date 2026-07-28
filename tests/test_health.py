@@ -1266,7 +1266,7 @@ class HealthRunCorruptTokensTests(_HomeDirTestCase):
         results = run_health_check(self.ws)
 
         # Every check is reported -- nothing crashed or was skipped.
-        self.assertEqual(len(results), 15)
+        self.assertEqual(len(results), 16)
         labels = [r.label for r in results]
 
         # Both token checks failed with the actionable exception message.
@@ -1278,6 +1278,11 @@ class HealthRunCorruptTokensTests(_HomeDirTestCase):
         expiry_result = next(r for r in results if r.label == "token-expiry")
         self.assertFalse(expiry_result.ok)
         self.assertIn("corrupt", expiry_result.detail)
+
+        # The orphan-token check also fails on corruption (token_error carve-out).
+        orphan_tokens_result = next(r for r in results if r.label == "orphan-tokens")
+        self.assertFalse(orphan_tokens_result.ok)
+        self.assertIn("corrupt", orphan_tokens_result.detail)
 
         # Profile-based checks still ran (dir-only enumeration, has_token False).
         self.assertIn("hooks-wired", labels)

@@ -139,5 +139,77 @@ class RenderOptionAuthDimmingTests(unittest.TestCase):
         self.assertIn(unavail_fg, rendered)
 
 
+class RenderStatusNoticeTests(unittest.TestCase):
+    """_render_status prioritizes flash > provenance > notice > hints."""
+
+    def _make_renderer(self) -> Renderer:
+        class StubTerminal(Terminal):
+            def __init__(self) -> None:
+                self.rows = 40
+                self.cols = 120
+
+            def write(self, text: str) -> None:
+                pass
+
+            def flush(self) -> None:
+                pass
+
+        theme = ThemeColors(
+            global_fg="",
+            label_fg="",
+            separator_fg="",
+            separator_char=" | ",
+            empty_value_fg="\x1b[38;2;1;2;3m",
+            empty_value_text="---",
+            search_cursor_fg="",
+            search_match_fg="",
+            search_no_match_fg="",
+            overflow_arrow_fg="",
+            overflow_minimap_fg="",
+            overflow_minimap_focused_bg="",
+            overflow_minimap_char="█",
+            segment_colors={},
+        )
+        return Renderer(StubTerminal(), theme)
+
+    def _status(
+        self,
+        *,
+        flash: str = "",
+        notice: str = "",
+        hints: tuple[str, ...] = (),
+        provenance: bool = False,
+    ) -> str:
+        renderer = self._make_renderer()
+        renderer._show_provenance = provenance
+        buf: list[str] = []
+        # bar is unused by _render_status; None is safe.
+        renderer._render_status(buf, None, flash, notice, list(hints))  # type: ignore[arg-type]
+        return "".join(buf)
+
+    def test_notice_renders_in_status_row(self) -> None:
+        rendered = self._status(notice="1 stale token entry — press T to review")
+        self.assertIn("1 stale token entry", rendered)
+
+    def test_flash_takes_priority_over_notice(self) -> None:
+        rendered = self._status(flash="Flashy", notice="Noticed")
+        self.assertIn("Flashy", rendered)
+        self.assertNotIn("Noticed", rendered)
+
+    def test_notice_takes_priority_over_hints(self) -> None:
+        rendered = self._status(notice="Noticed", hints=("q: quit", "i: inspect"))
+        self.assertIn("Noticed", rendered)
+        self.assertNotIn("q: quit", rendered)
+
+    def test_provenance_takes_priority_over_notice(self) -> None:
+        rendered = self._status(notice="Noticed", provenance=True)
+        self.assertIn("discovered", rendered)
+        self.assertNotIn("Noticed", rendered)
+
+    def test_hints_render_when_no_notice(self) -> None:
+        rendered = self._status(hints=("q: quit",))
+        self.assertIn("q: quit", rendered)
+
+
 if __name__ == "__main__":
     unittest.main()
