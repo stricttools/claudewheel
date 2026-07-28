@@ -2770,5 +2770,179 @@ class RenameProfileHandlerTests(unittest.TestCase):
         self.assertEqual(ctx.exception.code, 1)
 
 
+class ResumeTitleResolutionTests(unittest.TestCase):
+    """End-to-end title-based --resume resolution through cli.main()."""
+
+    SEGMENTS_DEF = PrintModeTests.SEGMENTS_DEF
+    ALL_ENABLED = PrintModeTests.ALL_ENABLED
+    FULL_LAST_CONFIG = PrintModeTests.FULL_LAST_CONFIG
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.root = Path(self._tmp.name)
+        self.projects_dir = self.root / "shared" / "projects"
+        self.projects_dir.mkdir(parents=True)
+
+    def _make_cfg(self) -> _FakeCfg:
+        return _FakeCfg(
+            config={
+                "theme": "dark",
+                "enabled_segments": list(self.ALL_ENABLED),
+                "default_flags": [],
+                "health_check_on_launch": False,
+            },
+            segments_def=list(self.SEGMENTS_DEF),
+            state={
+                "last_config": dict(self.FULL_LAST_CONFIG),
+                "recent_dirs": [],
+                "launch_count": 0,
+            },
+            options_def={},
+        )
+
+    def _write_session(
+        self, encoded_cwd: str, session_id: str, lines: list[dict[str, object]]
+    ) -> None:
+        d = self.projects_dir / encoded_cwd
+        d.mkdir(parents=True, exist_ok=True)
+        with (d / f"{session_id}.jsonl").open("w") as fh:
+            for line in lines:
+                fh.write(json.dumps(line) + "\n")
+
+    def _custom_title(self, session_id: str, title: str) -> dict[str, object]:
+        return {
+            "type": "custom-title",
+            "sessionId": session_id,
+            "customTitle": title,
+        }
+
+    def _run_main(self, argv: list[str], directory: str) -> tuple[
+        mock.MagicMock, io.StringIO, int | None
+    ]:
+        launch_mock = mock.MagicMock()
+        err = io.StringIO()
+        code: int | None = None
+        full_argv = list(argv) + ["--directory", directory]
+        with (
+            mock.patch.dict(
+                os.environ, {"CLAUDEWHEEL_CONFIG_DIR": str(self.root)}
+            ),
+            mock.patch("sys.argv", full_argv),
+            mock.patch(
+                "claudewheel.config.AppConfigStore",
+                autospec=True,
+                return_value=self._make_cfg(),
+            ),
+            mock.patch("claudewheel.cli._do_launch_sequence", launch_mock),
+            mock.patch("os.getcwd", autospec=True, return_value=directory),
+            redirect_stderr(err),
+        ):
+            try:
+                cli.main()
+            except SystemExit as exc:
+                code = exc.code if isinstance(exc.code, int) else 1
+        return launch_mock, err, code
+
+    _BASE_ARGS = [
+        "c",
+        "--profile",
+        "personal",
+        "--github",
+        "ghuser",
+        "-s",
+        "version=2.1.116",
+    ]
+
+    def test_uuid_passthrough_no_title_scan(self) -> None:
+        """A UUID-shaped --resume value is used verbatim; no title scan happens."""
+        from claudewheel.shared_store import SharedStore
+
+        directory = "/home/user/proj"
+        uuid = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+        encoded = SharedStore.encode_path(os.path.abspath(directory))
+        # Session file at the expected path so _check_resume_session returns early.
+        self._write_session(encoded, uuid, [{"cwd": directory}])
+
+        with mock.patch(
+            "claudewheel.session.find_sessions_by_title", autospec=True
+        ) as mock_scan:
+            launch_mock, _err, code = self._run_main(
+                self._BASE_ARGS + ["--resume", uuid], directory
+            )
+
+        mock_scan.assert_not_called()
+        self.assertIn(code, (None, 0))
+        launch_mock.assert_called_once()
+        _, kwargs = launch_mock.call_args
+        self.assertEqual(kwargs["extra_flags"], ["--resume", uuid])
+
+    def test_unique_title_resolves_to_uuid(self) -> None:
+        """A title matching exactly one session resolves to its UUID."""
+        from claudewheel.shared_store import SharedStore
+
+        directory = "/home/user/proj"
+        uuid = "11111111-2222-3333-4444-555555555555"
+        title = "what is rlsbl and what is strictcli (Branch)"
+        encoded = SharedStore.encode_path(os.path.abspath(directory))
+        # custom-title record buried deep past any head-scan limit.
+        lines: list[dict[str, object]] = [
+            {"cwd": directory, "type": "user", "message": f"m{i}"}
+            for i in range(50)
+        ]
+        lines.append(self._custom_title(uuid, title))
+        self._write_session(encoded, uuid, lines)
+
+        launch_mock, _err, code = self._run_main(
+            self._BASE_ARGS + ["--resume", title], directory
+        )
+
+        self.assertIn(code, (None, 0))
+        launch_mock.assert_called_once()
+        _, kwargs = launch_mock.call_args
+        self.assertEqual(kwargs["extra_flags"], ["--resume", uuid])
+
+    def test_absent_title_errors(self) -> None:
+        """A title matching no session errors, suggests --picker, exits nonzero."""
+        directory = "/home/user/proj"
+        launch_mock, err, code = self._run_main(
+            self._BASE_ARGS + ["--resume", "No Such Title"], directory
+        )
+
+        self.assertEqual(code, 1)
+        launch_mock.assert_not_called()
+        msg = err.getvalue()
+        self.assertIn("No Such Title", msg)
+        self.assertIn("--picker", msg)
+
+    def test_ambiguous_title_lists_and_errors(self) -> None:
+        """A title matching multiple sessions lists them and exits nonzero.
+
+        The current directory's project dir has no match, forcing the
+        all-project-dirs fallback scan, which finds two.
+        """
+        directory = "/home/user/empty-proj"
+        title = "Shared Title"
+        uuid1 = "aaaa1111-2222-3333-4444-555555555555"
+        uuid2 = "bbbb1111-2222-3333-4444-555555555555"
+        self._write_session(
+            "-home-user-projA", uuid1, [self._custom_title(uuid1, title)]
+        )
+        self._write_session(
+            "-home-user-projB", uuid2, [self._custom_title(uuid2, title)]
+        )
+
+        launch_mock, err, code = self._run_main(
+            self._BASE_ARGS + ["--resume", title], directory
+        )
+
+        self.assertEqual(code, 1)
+        launch_mock.assert_not_called()
+        msg = err.getvalue()
+        self.assertIn(uuid1, msg)
+        self.assertIn(uuid2, msg)
+        self.assertIn("UUID", msg)
+
+
 if __name__ == "__main__":
     unittest.main()

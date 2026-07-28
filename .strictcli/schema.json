@@ -285,7 +285,7 @@
         {
           "name": "resume",
           "type": "str",
-          "help": "resume a specific session by its UUID, or pass empty string to open the picker",
+          "help": "resume a specific session by its UUID or title, or pass empty string to open the picker",
           "short": "r",
           "default": "\u0000__unset__"
         },

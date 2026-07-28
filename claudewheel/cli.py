@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import sys
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
@@ -959,6 +960,70 @@ def _handle_permission_list(
     return 0
 
 
+# A canonical UUID (Claude Code session id). Anything matching this is used
+# verbatim as a --resume value; anything else is treated as a session title.
+_UUID_RE = re.compile(
+    r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-"
+    r"[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+)
+
+
+def _resolve_resume_title(ws: "Workspace", resume_val: str, directory: str) -> str:
+    """Resolve a ``--resume`` argument to a session UUID.
+
+    If *resume_val* is UUID-shaped it is returned unchanged. Otherwise it is
+    treated as a session title (Claude Code accepts either). Titles are resolved
+    by scanning the current directory's project dir first, then all project
+    dirs. Exactly one match rewrites the value to that session's UUID and the
+    caller proceeds through the normal UUID machinery. Zero or multiple matches
+    print guidance and exit nonzero.
+    """
+    if _UUID_RE.match(resume_val):
+        return resume_val
+
+    from datetime import datetime
+
+    from .session import find_sessions_by_title
+
+    store = ws.shared
+    projects_dir = store.projects_dir
+    encoded_cwd = store.encode_path(os.path.abspath(directory))
+    target_project_dir = projects_dir / encoded_cwd
+
+    matches = find_sessions_by_title(resume_val, [target_project_dir])
+    if not matches:
+        all_dirs = (
+            sorted(p for p in projects_dir.iterdir() if p.is_dir())
+            if projects_dir.is_dir()
+            else []
+        )
+        matches = find_sessions_by_title(resume_val, all_dirs)
+
+    if len(matches) == 1:
+        return matches[0].session_id
+
+    if not matches:
+        print(
+            f"No session titled {resume_val!r} was found in any project "
+            "directory.\nTry --picker to browse available sessions.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    print(
+        f"Multiple sessions match the title {resume_val!r}:",
+        file=sys.stderr,
+    )
+    for m in sorted(matches, key=lambda x: x.mtime, reverse=True):
+        ts = datetime.fromtimestamp(m.mtime).strftime("%Y-%m-%d %H:%M")
+        print(f"  {m.session_id}  {m.project_dir.name}  {ts}", file=sys.stderr)
+    print(
+        "Resume by UUID (the first column above) to disambiguate.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+
 def _check_resume_session(ws: "Workspace", session_id: str, directory: str) -> None:
     """Intercept --resume to detect and offer to fix directory renames.
 
@@ -1299,6 +1364,14 @@ def _handle_launch(
     # Default directory to cwd if not explicitly set
     if "directory" in segment_keys and "directory" not in segment_overrides:
         segment_overrides["directory"] = os.getcwd()
+
+    # Resolve a title-based --resume value to a session UUID before it is
+    # baked into the launch flags. Claude Code's --resume accepts either a UUID
+    # or a session title; resolving titles here keeps the downstream
+    # rename-repair machinery (which is UUID-based) working uniformly.
+    if resume_val:
+        target_dir = segment_overrides.get("directory", os.getcwd())
+        resume_val = _resolve_resume_title(ws, resume_val, target_dir)
 
     # Build extra Claude Code flags from session/print flags
     extra_flags: list[str] = []
@@ -1844,7 +1917,7 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
                 short="r",
                 type=str,
                 default=_UNSET,
-                help="resume a specific session by its UUID, or pass empty string to open the picker",
+                help="resume a specific session by its UUID or title, or pass empty string to open the picker",
             ),
             Flag(
                 name="print-prompt",
