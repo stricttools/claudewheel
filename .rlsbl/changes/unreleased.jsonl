@@ -15,3 +15,4 @@
 {"format_version":1,"id":"18c67197721f669fb7a82fb8affc4eadae9289f0b9926c32","commits":["ce1e960d2d57fc0a31f5057c3f3892f09107dec4","0f131c0777c6408670d55b6e58da849a26023868"],"user_facing":true,"description":"**Stale token surfacing.** Token entries whose profile no longer exists are now reported by `health`, shown as a persistent TUI notice with a review-and-remove page (press T), and repairable via `profile fix-auth`.","type":"feature"}
 {"format_version":1,"id":"18c671cab32dfb1cda1d4064151f49bf9313af801e83af9c","commits":["870a250867a78197f172575a9ced6bd506b6f0dd"],"user_facing":false}
 {"format_version":1,"id":"18c675a283c26a3502d8169a347741b3b73df1fa29b79e98","commits":["bd7ec99a0b0e9fca1aedda6faff840dbf6a1332d","3a61d6cfe8e2f3547d38a4d864ec2e1d91dbe8b5"],"user_facing":false}
+{"format_version":1,"id":"18c6760ba90aa855273facdc429d490fb0f9020fdce90dc4","commits":["88a42606daa8b6bf0c13b1d91c767b4f332ca835"],"user_facing":false}
