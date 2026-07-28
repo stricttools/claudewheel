@@ -159,6 +159,31 @@ class ScratchpadCleanupStepTests(SandboxHomeTestCase):
         self.assertFalse(stale.exists())
         self.assertIn("projStale", "".join(term.output))
 
+    def test_naive_future_snooze_is_honored_without_error(self) -> None:
+        # A valid but offset-NAIVE ISO snooze in the future parses fine, then the
+        # `now < until` comparison must not raise (offset-naive vs offset-aware).
+        # Assume-UTC preserves the legitimate snooze: no prompt, no scan.
+        self._make_dir("projStale", age_days=SCRATCHPAD_STALE_DAYS + 5)
+        naive_future = (
+            datetime.now(timezone.utc) + timedelta(days=3)
+        ).replace(tzinfo=None)
+        set_scratchpad_snooze_until(self._statefile(), naive_future.isoformat())
+
+        with (
+            mock.patch(
+                "claudewheel.scratchpad.scan_scratchpad_dirs",
+                autospec=True,
+            ) as scan_mock,
+            mock.patch(
+                "claudewheel.preflight._make_terminal",
+                autospec=True,
+                side_effect=AssertionError("must not prompt within naive snooze"),
+            ),
+        ):
+            result = _scratchpad_cleanup_run(self._ctx())
+        self.assertFalse(result.is_abort)
+        scan_mock.assert_not_called()
+
     def test_corrupt_snooze_value_is_ignored(self) -> None:
         stale = self._make_dir("projStale", age_days=SCRATCHPAD_STALE_DAYS + 5)
         set_scratchpad_snooze_until(self._statefile(), "not-a-timestamp")

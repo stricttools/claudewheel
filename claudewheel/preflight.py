@@ -547,9 +547,15 @@ def _scratchpad_cleanup_run(ctx: PreflightContext) -> StepResult:
             until = datetime.fromisoformat(snooze)
         except (ValueError, TypeError):
             until = None
-        if until is not None and now < until:
-            # Within the snooze window: no prompt, no scan side-effects.
-            return StepResult.cont()
+        if until is not None:
+            # A naive stored value (no tzinfo) would raise TypeError when compared
+            # against the offset-aware `now`. Assume UTC -- this preserves a
+            # legitimate snooze intent rather than discarding it.
+            if until.tzinfo is None:
+                until = until.replace(tzinfo=timezone.utc)
+            if now < until:
+                # Within the snooze window: no prompt, no scan side-effects.
+                return StepResult.cont()
 
     now_ts = now.timestamp()
     stale = [d for d in scan_scratchpad_dirs(tmp_claude_dir()) if d.is_stale(now_ts)]
