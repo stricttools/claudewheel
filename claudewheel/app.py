@@ -1029,7 +1029,6 @@ class App:
         from .preflight import ensure_vanilla_guardrails, remove_vanilla_guardrails
         from .profile_info import format_report, gather_profile_info
         from .profile_ops import fix_auth_shadow
-        from .project_hooks import target_directory
         from .state import (
             get_vanilla_guardrails_opt_in,
             set_vanilla_guardrails_opt_in,
@@ -1048,20 +1047,18 @@ class App:
             self._flash = f"Cannot inspect: {e}"
             return
 
-        # The default profile offers a guardrail opt-in toggle ('g'), keyed to
-        # the currently-selected target directory (the same key the launch-time
-        # vanilla-choice step uses). Only the default touches per-project state.
+        # The default profile offers a guardrail opt-in toggle ('g'). The
+        # ~/.claude guardrail surface is machine-global, so this is a single
+        # per-user value (the same key the launch-time vanilla-choice step uses).
         is_default = name == "default"
         lines = format_report(report)
-        directory = ""
         sf = None
         opt_in = False
         if is_default:
-            directory = target_directory(self.bar.get_selections())
             sf = StateFile(self.workspace.state_file)
-            opt_in = bool(get_vanilla_guardrails_opt_in(sf, directory))
+            opt_in = bool(get_vanilla_guardrails_opt_in(sf))
             state_word = "enabled" if opt_in else "disabled"
-            lines.append(f"cw guardrails: {state_word} (for this directory)")
+            lines.append(f"cw guardrails: {state_word}")
             toggle = "disable" if opt_in else "enable"
             hint = f"g: {toggle} cw guardrails   any key: close"
         elif report.has_auth_shadow:
@@ -1079,7 +1076,7 @@ class App:
         if is_default and key in ("g", "G"):
             assert sf is not None
             new_val = not opt_in
-            set_vanilla_guardrails_opt_in(sf, directory, new_val)
+            set_vanilla_guardrails_opt_in(sf, new_val)
             if new_val:
                 ensure_vanilla_guardrails(self.workspace)
                 self._flash = "cw guardrails enabled for ~/.claude"

@@ -21,8 +21,11 @@ AUTH_BROWSER_KEY = "auth_browser"
 # that project's recorded hook-approval decisions.
 PROJECT_HOOK_APPROVALS_KEY = "project_hook_approvals"
 
-# state.json top-level key mapping a canonical project key to whether the user
-# opted that project into vanilla (unguarded) guardrails.
+# state.json top-level key holding the machine-global (per-user) tri-state for
+# whether the user opted the vanilla "default" profile (~/.claude) into cw's
+# guardrail hooks. Unset (absent) means the one-time choice has not been made.
+# This governs a single machine-global settings file, so it is NOT keyed by
+# project directory.
 VANILLA_GUARDRAILS_OPT_IN_KEY = "vanilla_guardrails_opt_in"
 
 # state.json top-level key holding the ISO-8601 timestamp before which the
@@ -87,18 +90,21 @@ def set_project_hook_approvals(sf: "StateFile", directory: str, value: Any) -> N
     _set_project_value(sf, PROJECT_HOOK_APPROVALS_KEY, directory, value)
 
 
-def get_vanilla_guardrails_opt_in(
-    sf: "StateFile", directory: str, default: Any = None
-) -> Any:
-    """Read the vanilla-guardrails opt-in flag for *directory* (canonical key)."""
-    return _get_project_value(sf, VANILLA_GUARDRAILS_OPT_IN_KEY, directory, default)
+def get_vanilla_guardrails_opt_in(sf: "StateFile", default: Any = None) -> Any:
+    """Read the machine-global vanilla-guardrails opt-in tri-state from state.
+
+    A leftover per-project dict value (from the old, superseded per-project
+    shape) is not a valid answer -- it reads as unset (``default``).
+    """
+    value = sf.get_value(VANILLA_GUARDRAILS_OPT_IN_KEY, default)
+    if isinstance(value, dict):
+        return default
+    return value
 
 
-def set_vanilla_guardrails_opt_in(
-    sf: "StateFile", directory: str, value: Any
-) -> None:
-    """Persist the vanilla-guardrails opt-in flag for *directory* (canonical key)."""
-    _set_project_value(sf, VANILLA_GUARDRAILS_OPT_IN_KEY, directory, value)
+def set_vanilla_guardrails_opt_in(sf: "StateFile", value: Any) -> None:
+    """Persist the machine-global vanilla-guardrails opt-in tri-state to state."""
+    sf.set_value(VANILLA_GUARDRAILS_OPT_IN_KEY, value)
 
 
 def get_scratchpad_snooze_until(sf: "StateFile", default: Any = None) -> Any:

@@ -269,13 +269,19 @@ class ProjectStateAccessorTests(StateFileTestCase):
 
     def test_vanilla_opt_in_round_trip(self) -> None:
         sf = self._sf()
-        self.assertIsNone(get_vanilla_guardrails_opt_in(sf, "/p"))
-        set_vanilla_guardrails_opt_in(sf, "/p", True)
-        self.assertTrue(get_vanilla_guardrails_opt_in(sf, "/p"))
+        self.assertIsNone(get_vanilla_guardrails_opt_in(sf))
+        set_vanilla_guardrails_opt_in(sf, True)
+        self.assertTrue(get_vanilla_guardrails_opt_in(sf))
         on_disk = self._read()
-        self.assertEqual(
-            on_disk[VANILLA_GUARDRAILS_OPT_IN_KEY], {project_key("/p"): True}
-        )
+        # Machine-global single value -- not keyed by project directory.
+        self.assertIs(on_disk[VANILLA_GUARDRAILS_OPT_IN_KEY], True)
+
+    def test_vanilla_opt_in_legacy_per_project_dict_reads_as_unset(self) -> None:
+        # A leftover per-project dict value (superseded shape) is not a valid
+        # answer: it reads as unset rather than a truthy dict.
+        sf = self._sf()
+        sf.set_value(VANILLA_GUARDRAILS_OPT_IN_KEY, {project_key("/p"): True})
+        self.assertIsNone(get_vanilla_guardrails_opt_in(sf))
 
     def test_set_value_write_does_not_clobber_other_keys(self) -> None:
         sf = self._sf()
@@ -291,21 +297,19 @@ class ProjectStateAccessorTests(StateFileTestCase):
         sf = self._sf()
         # Out-of-band writer records an approval straight to disk.
         set_project_hook_approvals(sf, "/proj", {"h": "approved"})
-        set_vanilla_guardrails_opt_in(sf, "/proj", True)
+        set_vanilla_guardrails_opt_in(sf, True)
 
         # A TUI holding stale in-memory state (predating those writes) saves.
         stale_state = {"launch_count": 2}
         sf.save(stale_state)
 
         on_disk = self._read()
-        # The out-of-band per-project keys survived the clobbering save ...
+        # The out-of-band keys survived the clobbering save ...
         self.assertEqual(
             on_disk[PROJECT_HOOK_APPROVALS_KEY],
             {project_key("/proj"): {"h": "approved"}},
         )
-        self.assertEqual(
-            on_disk[VANILLA_GUARDRAILS_OPT_IN_KEY], {project_key("/proj"): True}
-        )
+        self.assertIs(on_disk[VANILLA_GUARDRAILS_OPT_IN_KEY], True)
         # ... alongside the wholesale-saved value.
         self.assertEqual(on_disk["launch_count"], 2)
 

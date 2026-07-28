@@ -269,7 +269,9 @@ def _vanilla_choice_run(ctx: PreflightContext) -> StepResult:
     """One-time vanilla-vs-guardrails choice for the default profile.
 
     Acts only when the selected/effective profile is the default (explicit
-    ``"default"`` or the no-profile fallback). Reads the per-project opt-in flag:
+    ``"default"`` or the no-profile fallback). Reads the machine-global opt-in
+    tri-state (the ``~/.claude`` guardrail surface is machine-global, so this
+    choice is per-user, not per-project):
 
     - unset + interactive -> render the one-time choice page and persist the
       answer; if the user opts in, inject cw's guardrail hooks;
@@ -281,7 +283,6 @@ def _vanilla_choice_run(ctx: PreflightContext) -> StepResult:
     Never ABORTs -- this is a setup choice, not a gate.
     """
     from .appdata import StateFile
-    from .project_hooks import target_directory
     from .state import get_vanilla_guardrails_opt_in, set_vanilla_guardrails_opt_in
 
     profile = ctx.selections.get("profile")
@@ -289,16 +290,15 @@ def _vanilla_choice_run(ctx: PreflightContext) -> StepResult:
     if not is_default:
         return StepResult.cont()
 
-    directory = target_directory(ctx.selections)
     sf = StateFile(ctx.workspace.state_file)
-    opt_in = get_vanilla_guardrails_opt_in(sf, directory)
+    opt_in = get_vanilla_guardrails_opt_in(sf)
 
     if opt_in is None:
         if not ctx.interactive:
             # Non-interactive: stay vanilla, do not prompt or persist.
             return StepResult.cont()
         opt_in = _prompt_vanilla_choice(ctx)
-        set_vanilla_guardrails_opt_in(sf, directory, opt_in)
+        set_vanilla_guardrails_opt_in(sf, opt_in)
 
     if opt_in:
         ensure_vanilla_guardrails(ctx.workspace)

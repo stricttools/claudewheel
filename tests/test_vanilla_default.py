@@ -172,9 +172,7 @@ class VanillaChoiceStepTests(_VanillaTestBase):
         return term
 
     def _opt_in(self):
-        return get_vanilla_guardrails_opt_in(
-            StateFile(self.ws.state_file), str(self.project)
-        )
+        return get_vanilla_guardrails_opt_in(StateFile(self.ws.state_file))
 
     def _claude_settings(self) -> Path:
         return self.claude_dir / "settings.json"
@@ -198,18 +196,14 @@ class VanillaChoiceStepTests(_VanillaTestBase):
         self.assertFalse(self._claude_settings().exists())
 
     def test_never_reprompts_once_answered(self) -> None:
-        set_vanilla_guardrails_opt_in(
-            StateFile(self.ws.state_file), str(self.project), False
-        )
+        set_vanilla_guardrails_opt_in(StateFile(self.ws.state_file), False)
         term = self._run(self._ctx("default"), ["g"])
         self.assertEqual(term.output, [])  # no prompt rendered
         self.assertIs(self._opt_in(), False)
         self.assertFalse(self._claude_settings().exists())
 
     def test_already_opted_in_ensures_idempotently(self) -> None:
-        set_vanilla_guardrails_opt_in(
-            StateFile(self.ws.state_file), str(self.project), True
-        )
+        set_vanilla_guardrails_opt_in(StateFile(self.ws.state_file), True)
         term = self._run(self._ctx("default"), [])
         self.assertEqual(term.output, [])  # no prompt: already answered
         s = json.loads(self._claude_settings().read_text())
@@ -310,9 +304,7 @@ class VanillaGuardrailInjectRemoveTests(_VanillaTestBase):
         from claudewheel.preflight import PreflightContext
 
         self.claude_dir.mkdir(parents=True, exist_ok=True)
-        set_vanilla_guardrails_opt_in(
-            StateFile(self.ws.state_file), str(self.project), False
-        )
+        set_vanilla_guardrails_opt_in(StateFile(self.ws.state_file), False)
         before = snapshot_tree(self.claude_dir)
         ctx = PreflightContext(
             selections={"profile": "default", "directory": str(self.project)},
