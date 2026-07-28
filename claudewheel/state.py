@@ -4,17 +4,96 @@ from __future__ import annotations
 
 import json
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from .fsutil import write_json_atomic
 
 if TYPE_CHECKING:
+    from .appdata import StateFile
     from .config import AppConfigStore
     from .shared_store import SharedStore
 
 # state.json key remembering the browser chosen in the auth wizard's
 # "Choose browser" form (a browser binary path, or "copy").
 AUTH_BROWSER_KEY = "auth_browser"
+
+# state.json top-level key mapping a canonical project key (see project_key) to
+# that project's recorded hook-approval decisions.
+PROJECT_HOOK_APPROVALS_KEY = "project_hook_approvals"
+
+# state.json top-level key mapping a canonical project key to whether the user
+# opted that project into vanilla (unguarded) guardrails.
+VANILLA_GUARDRAILS_OPT_IN_KEY = "vanilla_guardrails_opt_in"
+
+# The authoritative list of state.json keys written out-of-band (straight to
+# disk via StateFile.set_value by writers that do NOT hold the TUI's in-memory
+# state). StateFile.save re-reads these from disk and lets the disk copy win, so
+# a wholesale save with stale in-memory state cannot clobber them. This tuple is
+# the single source of truth -- StateFile.save imports it as its default.
+OUT_OF_BAND_STATE_KEYS = (
+    AUTH_BROWSER_KEY,
+    PROJECT_HOOK_APPROVALS_KEY,
+    VANILLA_GUARDRAILS_OPT_IN_KEY,
+)
+
+
+def project_key(directory: str) -> str:
+    """Return the canonical per-project state key for *directory*.
+
+    This is THE rule for keying per-project state: the symlink-resolved
+    (``os.path.realpath``) absolute path. A symlink and its target, and a
+    relative path and its absolute form, all map to the same key so per-project
+    state is never split across aliases of the same directory.
+    """
+    return os.path.realpath(directory)
+
+
+def _get_project_value(
+    sf: "StateFile", top_key: str, directory: str, default: Any = None
+) -> Any:
+    """Read a per-project sub-value from the *top_key* mapping in state.json."""
+    mapping = sf.get_value(top_key, {})
+    if not isinstance(mapping, dict):
+        return default
+    return mapping.get(project_key(directory), default)
+
+
+def _set_project_value(
+    sf: "StateFile", top_key: str, directory: str, value: Any
+) -> None:
+    """Write a per-project sub-value under *top_key*, via set_value (single-key,
+    multi-session-safe read-modify-write of the top-level key)."""
+    mapping = sf.get_value(top_key, {})
+    if not isinstance(mapping, dict):
+        mapping = {}
+    mapping[project_key(directory)] = value
+    sf.set_value(top_key, mapping)
+
+
+def get_project_hook_approvals(
+    sf: "StateFile", directory: str, default: Any = None
+) -> Any:
+    """Read the hook-approval record for *directory* (canonical key)."""
+    return _get_project_value(sf, PROJECT_HOOK_APPROVALS_KEY, directory, default)
+
+
+def set_project_hook_approvals(sf: "StateFile", directory: str, value: Any) -> None:
+    """Persist the hook-approval record for *directory* (canonical key)."""
+    _set_project_value(sf, PROJECT_HOOK_APPROVALS_KEY, directory, value)
+
+
+def get_vanilla_guardrails_opt_in(
+    sf: "StateFile", directory: str, default: Any = None
+) -> Any:
+    """Read the vanilla-guardrails opt-in flag for *directory* (canonical key)."""
+    return _get_project_value(sf, VANILLA_GUARDRAILS_OPT_IN_KEY, directory, default)
+
+
+def set_vanilla_guardrails_opt_in(
+    sf: "StateFile", directory: str, value: Any
+) -> None:
+    """Persist the vanilla-guardrails opt-in flag for *directory* (canonical key)."""
+    _set_project_value(sf, VANILLA_GUARDRAILS_OPT_IN_KEY, directory, value)
 
 
 def save_launch_state(cfg: "AppConfigStore", selections: dict[str, str | None]) -> None:

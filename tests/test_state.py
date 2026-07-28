@@ -13,8 +13,16 @@ from claudewheel.config import AppConfigStore
 from claudewheel.shared_store import SharedStore
 from claudewheel.state import (
     AUTH_BROWSER_KEY,
+    OUT_OF_BAND_STATE_KEYS,
+    PROJECT_HOOK_APPROVALS_KEY,
+    VANILLA_GUARDRAILS_OPT_IN_KEY,
+    get_project_hook_approvals,
+    get_vanilla_guardrails_opt_in,
+    project_key,
     record_inode,
     save_launch_state,
+    set_project_hook_approvals,
+    set_vanilla_guardrails_opt_in,
 )
 
 
@@ -204,6 +212,107 @@ class AppConfigStoreSaveStateMergeTests(StateFileTestCase):
 
         on_disk = json.loads(self.state_file.read_text())
         self.assertEqual(on_disk["auth_browser"], "copy")
+
+
+# ---------------------------------------------------------------------------
+# Per-project state accessors + canonical key rule
+# ---------------------------------------------------------------------------
+
+
+class ProjectKeyCanonicalizationTests(unittest.TestCase):
+    """project_key() collapses aliases of the same directory to one key."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        # realpath the tmp root itself so macOS /var -> /private/var etc. does
+        # not confuse the equality assertions.
+        self.root = Path(os.path.realpath(self._tmp.name))
+
+    def test_symlink_and_target_share_key(self) -> None:
+        target = self.root / "target"
+        target.mkdir()
+        link = self.root / "link"
+        os.symlink(target, link)
+        self.assertEqual(project_key(str(link)), project_key(str(target)))
+        self.assertEqual(project_key(str(link)), str(target))
+
+    def test_relative_and_absolute_share_key(self) -> None:
+        sub = self.root / "sub"
+        sub.mkdir()
+        old_cwd = os.getcwd()
+        self.addCleanup(os.chdir, old_cwd)
+        os.chdir(self.root)
+        self.assertEqual(project_key("sub"), project_key(str(sub)))
+        self.assertEqual(project_key("sub"), str(sub))
+
+
+class ProjectStateAccessorTests(StateFileTestCase):
+    """Round-trip and out-of-band protection for the per-project state keys."""
+
+    def _sf(self) -> StateFile:
+        return StateFile(self.state_file)
+
+    def test_hook_approvals_round_trip(self) -> None:
+        sf = self._sf()
+        self.assertIsNone(get_project_hook_approvals(sf, "/some/proj"))
+        set_project_hook_approvals(sf, "/some/proj", {"h1": "approved"})
+        self.assertEqual(
+            get_project_hook_approvals(sf, "/some/proj"), {"h1": "approved"}
+        )
+        # Stored under the canonical (realpath) key at the top-level map.
+        on_disk = self._read()
+        self.assertEqual(
+            on_disk[PROJECT_HOOK_APPROVALS_KEY],
+            {project_key("/some/proj"): {"h1": "approved"}},
+        )
+
+    def test_vanilla_opt_in_round_trip(self) -> None:
+        sf = self._sf()
+        self.assertIsNone(get_vanilla_guardrails_opt_in(sf, "/p"))
+        set_vanilla_guardrails_opt_in(sf, "/p", True)
+        self.assertTrue(get_vanilla_guardrails_opt_in(sf, "/p"))
+        on_disk = self._read()
+        self.assertEqual(
+            on_disk[VANILLA_GUARDRAILS_OPT_IN_KEY], {project_key("/p"): True}
+        )
+
+    def test_set_value_write_does_not_clobber_other_keys(self) -> None:
+        sf = self._sf()
+        sf.set_value("launch_count", 7)
+        set_project_hook_approvals(sf, "/p", {"h": "ok"})
+        on_disk = self._read()
+        self.assertEqual(on_disk["launch_count"], 7)
+        self.assertIn(PROJECT_HOOK_APPROVALS_KEY, on_disk)
+
+    def test_out_of_band_project_key_survives_stale_save(self) -> None:
+        """A per-project key written via set_value survives a wholesale save
+        that carries stale in-memory state lacking that key."""
+        sf = self._sf()
+        # Out-of-band writer records an approval straight to disk.
+        set_project_hook_approvals(sf, "/proj", {"h": "approved"})
+        set_vanilla_guardrails_opt_in(sf, "/proj", True)
+
+        # A TUI holding stale in-memory state (predating those writes) saves.
+        stale_state = {"launch_count": 2}
+        sf.save(stale_state)
+
+        on_disk = self._read()
+        # The out-of-band per-project keys survived the clobbering save ...
+        self.assertEqual(
+            on_disk[PROJECT_HOOK_APPROVALS_KEY],
+            {project_key("/proj"): {"h": "approved"}},
+        )
+        self.assertEqual(
+            on_disk[VANILLA_GUARDRAILS_OPT_IN_KEY], {project_key("/proj"): True}
+        )
+        # ... alongside the wholesale-saved value.
+        self.assertEqual(on_disk["launch_count"], 2)
+
+    def test_both_new_keys_in_out_of_band_tuple(self) -> None:
+        self.assertIn(AUTH_BROWSER_KEY, OUT_OF_BAND_STATE_KEYS)
+        self.assertIn(PROJECT_HOOK_APPROVALS_KEY, OUT_OF_BAND_STATE_KEYS)
+        self.assertIn(VANILLA_GUARDRAILS_OPT_IN_KEY, OUT_OF_BAND_STATE_KEYS)
 
 
 if __name__ == "__main__":

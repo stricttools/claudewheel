@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from .fsutil import write_json_atomic
+from .state import OUT_OF_BAND_STATE_KEYS
 
 
 @dataclass
@@ -155,7 +156,7 @@ class StateFile:
     def save(
         self,
         state: dict[str, Any],
-        out_of_band_keys: tuple[str, ...] = ("auth_browser",),
+        out_of_band_keys: tuple[str, ...] = OUT_OF_BAND_STATE_KEYS,
     ) -> None:
         """Write *state* to disk, letting fresh on-disk out-of-band keys win.
 

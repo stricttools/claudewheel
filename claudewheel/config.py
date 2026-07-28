@@ -453,9 +453,12 @@ class AppConfigStore:
     def save_state(self) -> None:
         """Save in-memory state to disk.
 
-        Merges out-of-band keys (auth_browser) from disk before writing to
-        prevent clobber by stale in-memory state. The auth wizard writes
-        auth_browser directly to disk while the TUI holds its own in-memory
-        state loaded at startup; this merge ensures that value survives.
+        Merges the authoritative out-of-band keys (see
+        ``state.OUT_OF_BAND_STATE_KEYS``: auth_browser plus the per-project
+        hook-approval and vanilla-guardrails-opt-in maps) from disk before
+        writing, to prevent clobber by stale in-memory state. Out-of-band
+        writers (the auth wizard, preflight steps) write these keys straight to
+        disk via ``StateFile.set_value`` while the TUI holds its own in-memory
+        state loaded at startup; this merge ensures those values survive.
         """
         StateFile(self._state_file).save(self.state)
