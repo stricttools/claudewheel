@@ -18,13 +18,14 @@ Naming note: this file is deliberately named ``wheelhelpers.py`` (not
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import os
 import tempfile
 import unittest
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Iterable, Iterator
 from unittest.mock import patch
 
 from claudewheel.shared_store import SharedStore
@@ -177,6 +178,103 @@ def hash_snapshot(paths: Iterable[Path]) -> dict[str, str | _Missing]:
         else:
             snap[key] = MISSING
     return snap
+
+
+# ---------------------------------------------------------------------------
+# Write canary: prove "cw never writes ~/.claude" at the write chokepoint.
+#
+# All production settings/state writes funnel through the atomic writers in
+# ``claudewheel.fsutil`` (``write_text_atomic``, ``write_json_atomic``,
+# ``write_json_atomic_secret``). Each one commits its result with a single
+# ``tmp.rename(target)`` -- so ``pathlib.Path.rename`` is the one shared seam
+# every writer passes through, no matter how the calling module imported the
+# writer. Interposing there catches any commit whose destination lands under
+# ``claude_dir``, which is the invariant a vanilla-default launch must uphold.
+# ---------------------------------------------------------------------------
+
+
+class ClaudeDirWriteViolation(BaseException):
+    """Raised by :func:`claude_dir_write_canary` on a write under ``claude_dir``.
+
+    Deliberately subclasses ``BaseException`` -- NOT ``Exception`` -- so that a
+    broad ``except Exception`` in a launch step (e.g. the non-fatal reconcile
+    heal in ``preflight._reconcile_guardrails_run``) cannot silently swallow the
+    canary and let a genuine violation slip through as a green test. It has to
+    tear all the way out to the test body.
+
+    ``offending_path`` is the destination path that tripped the canary.
+    """
+
+    def __init__(self, path: Path) -> None:
+        self.offending_path = Path(path)
+        super().__init__(
+            "CLAUDE_DIR WRITE CANARY TRIPPED: production code attempted to "
+            f"write under the vanilla ~/.claude at {self.offending_path!s}. "
+            "Nothing may write to claude_dir during a launch flow except the "
+            "sanctioned opt-in guardrail injection "
+            "(preflight.ensure_vanilla_guardrails / remove_vanilla_guardrails)."
+        )
+
+
+def _path_is_under(path: Path, root: Path) -> bool:
+    """True when *path* resolves to *root* or a descendant of *root*.
+
+    Both sides are resolved so a tmpdir behind a symlinked ``/tmp`` (or a
+    ``.tmp`` staging path) compares correctly against ``claude_dir``.
+    """
+    try:
+        path.resolve().relative_to(root.resolve())
+        return True
+    except ValueError:
+        return False
+
+
+@contextlib.contextmanager
+def claude_dir_write_canary(claude_dir: Path) -> Iterator[None]:
+    """Trip loudly if any atomic write commits a file under *claude_dir*.
+
+    Interposes ``pathlib.Path.rename`` -- the shared commit seam of every
+    ``claudewheel.fsutil`` atomic writer -- and raises
+    :class:`ClaudeDirWriteViolation` naming the destination whenever a rename
+    targets a path inside *claude_dir*. Renames whose destination is outside
+    *claude_dir* delegate to the real ``Path.rename`` unchanged, so writes to
+    the ``~/.claudewheel`` store (managed profiles, shared-settings, state)
+    behave exactly as in production.
+    """
+    claude_dir = Path(claude_dir)
+    orig_rename = Path.rename
+
+    def _guarded_rename(self: Path, target: Any) -> Any:
+        dest = Path(target)
+        if _path_is_under(dest, claude_dir):
+            raise ClaudeDirWriteViolation(dest)
+        return orig_rename(self, target)
+
+    with patch.object(Path, "rename", new=_guarded_rename):
+        yield
+
+
+class ClaudeDirWriteCanaryMixin:
+    """TestCase mixin exposing :meth:`claude_dir_write_canary` as a helper.
+
+    Mix into a ``TestCase`` that carries a ``self.claude_dir`` (all the launch
+    integration cases do) and wrap the flow-under-test::
+
+        with self.claude_dir_write_canary():
+            self._launch("default")
+
+    The canary defaults to ``self.claude_dir`` but accepts an override for the
+    rare case that needs a different root.
+    """
+
+    claude_dir: Path
+
+    def claude_dir_write_canary(
+        self, claude_dir: Path | None = None
+    ) -> "contextlib.AbstractContextManager[None]":
+        return claude_dir_write_canary(
+            self.claude_dir if claude_dir is None else claude_dir
+        )
 
 
 # ---------------------------------------------------------------------------
