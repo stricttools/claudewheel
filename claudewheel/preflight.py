@@ -18,6 +18,8 @@ tearing down their own raw-mode terminal; the call site runs in cooked mode.
 
 from __future__ import annotations
 
+import shutil
+import sys
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from enum import Enum
@@ -269,6 +271,105 @@ def _approved_hooks_run(ctx: PreflightContext) -> StepResult:
     )
 
 
+def _prompt_scratchpad_cleanup(ctx: PreflightContext, stale, now_ts: float) -> bool:
+    """Render the scratchpad-cleanup page and return True iff the user confirms.
+
+    Builds a themed Terminal the same way :func:`_prompt_hook_approval` does,
+    lists each stale directory (name, human-readable size, age in whole days),
+    and offers a single delete-all key. Confirm is the ``y`` key; anything else
+    -- ``n``, ``q``, ESC, or an interrupt -- declines. The terminal is closed on
+    the way out.
+    """
+    from .config import resolve_theme_name
+    from .profile_info import _format_size
+    from .theme import parse_theme
+    from .ui import show_page
+
+    theme_name = resolve_theme_name(ctx.cfg.config.get("theme", "auto"))
+    theme = parse_theme(ctx.cfg.load_theme(theme_name))
+
+    title = "Stale Claude Code scratchpad data under /tmp"
+    lines = ["These per-project scratchpad directories look stale:", ""]
+    for d in stale:
+        age = int(d.age_days(now_ts))
+        lines.append(f"  {d.name}   {_format_size(d.size_bytes)}   {age}d old")
+    lines.append("")
+    lines.append("Deleting them frees /tmp space. Active sessions are never listed.")
+    hint = "y: delete all listed   n/esc: skip (ask again in 7 days)"
+
+    terminal = _make_terminal()
+    try:
+        key = show_page(title, lines, theme, terminal, hint=hint)
+    finally:
+        terminal.close()
+    return key in ("y", "Y")
+
+
+def _scratchpad_cleanup_run(ctx: PreflightContext) -> StepResult:
+    """Offer to delete stale Claude Code scratchpad dirs under /tmp (confirmed).
+
+    Interactive-only (skipped by the runner on the non-interactive path). Honors
+    a snooze: if the stored ``scratchpad_snooze_until`` deadline is in the future,
+    CONTINUE silently WITHOUT scanning (no filesystem work at all). Otherwise the
+    scratchpad tree is scanned; when no directory is stale, CONTINUE silently.
+    When stale dirs exist, render a confirmation page:
+
+    - confirm -> ``shutil.rmtree`` each stale dir. Per-dir errors are collected
+      and reported to stderr but NEVER abort the launch; deletion continues for
+      the remaining dirs. CONTINUE.
+    - decline -> set the snooze to now + :data:`SCRATCHPAD_SNOOZE_DAYS` days and
+      CONTINUE.
+
+    This step never ABORTs -- scratchpad cleanup is best-effort housekeeping.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    from .appdata import StateFile
+    from .scratchpad import (
+        SCRATCHPAD_SNOOZE_DAYS,
+        scan_scratchpad_dirs,
+        tmp_claude_dir,
+    )
+    from .state import get_scratchpad_snooze_until, set_scratchpad_snooze_until
+
+    sf = StateFile(ctx.workspace.state_file)
+    now = datetime.now(timezone.utc)
+
+    snooze = get_scratchpad_snooze_until(sf)
+    if snooze:
+        try:
+            until = datetime.fromisoformat(snooze)
+        except (ValueError, TypeError):
+            until = None
+        if until is not None and now < until:
+            # Within the snooze window: no prompt, no scan side-effects.
+            return StepResult.cont()
+
+    now_ts = now.timestamp()
+    stale = [d for d in scan_scratchpad_dirs(tmp_claude_dir()) if d.is_stale(now_ts)]
+    if not stale:
+        return StepResult.cont()
+
+    if _prompt_scratchpad_cleanup(ctx, stale, now_ts):
+        errors: list[str] = []
+        for d in stale:
+            try:
+                shutil.rmtree(d.path)
+            except OSError as e:
+                errors.append(f"{d.name}: {e}")
+        if errors:
+            print(
+                "Warning: could not delete some scratchpad dirs: "
+                + "; ".join(errors),
+                file=sys.stderr,
+            )
+        return StepResult.cont()
+
+    until = now + timedelta(days=SCRATCHPAD_SNOOZE_DAYS)
+    set_scratchpad_snooze_until(sf, until.isoformat())
+    return StepResult.cont()
+
+
 # Registered steps, executed in this exact (registration) order. The runner
 # defaults to this list.
 PREFLIGHT_STEPS: list[PreflightStep] = [
@@ -289,6 +390,12 @@ PREFLIGHT_STEPS: list[PreflightStep] = [
         runs_in_non_interactive=True,
         renders_ui=True,
         run=_approved_hooks_run,
+    ),
+    PreflightStep(
+        name="scratchpad-cleanup",
+        runs_in_non_interactive=False,
+        renders_ui=True,
+        run=_scratchpad_cleanup_run,
     ),
 ]
 

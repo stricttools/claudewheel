@@ -25,6 +25,10 @@ PROJECT_HOOK_APPROVALS_KEY = "project_hook_approvals"
 # opted that project into vanilla (unguarded) guardrails.
 VANILLA_GUARDRAILS_OPT_IN_KEY = "vanilla_guardrails_opt_in"
 
+# state.json top-level key holding the ISO-8601 timestamp before which the
+# scratchpad-cleanup preflight step stays silent (a declined-prompt snooze).
+SCRATCHPAD_SNOOZE_UNTIL_KEY = "scratchpad_snooze_until"
+
 # The authoritative list of state.json keys written out-of-band (straight to
 # disk via StateFile.set_value by writers that do NOT hold the TUI's in-memory
 # state). StateFile.save re-reads these from disk and lets the disk copy win, so
@@ -34,6 +38,7 @@ OUT_OF_BAND_STATE_KEYS = (
     AUTH_BROWSER_KEY,
     PROJECT_HOOK_APPROVALS_KEY,
     VANILLA_GUARDRAILS_OPT_IN_KEY,
+    SCRATCHPAD_SNOOZE_UNTIL_KEY,
 )
 
 
@@ -94,6 +99,16 @@ def set_vanilla_guardrails_opt_in(
 ) -> None:
     """Persist the vanilla-guardrails opt-in flag for *directory* (canonical key)."""
     _set_project_value(sf, VANILLA_GUARDRAILS_OPT_IN_KEY, directory, value)
+
+
+def get_scratchpad_snooze_until(sf: "StateFile", default: Any = None) -> Any:
+    """Read the scratchpad-cleanup snooze deadline (ISO-8601 string) from state."""
+    return sf.get_value(SCRATCHPAD_SNOOZE_UNTIL_KEY, default)
+
+
+def set_scratchpad_snooze_until(sf: "StateFile", value: str) -> None:
+    """Persist the scratchpad-cleanup snooze deadline (ISO-8601 string)."""
+    sf.set_value(SCRATCHPAD_SNOOZE_UNTIL_KEY, value)
 
 
 def save_launch_state(cfg: "AppConfigStore", selections: dict[str, str | None]) -> None:
