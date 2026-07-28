@@ -21,6 +21,7 @@ from claudewheel.fsutil import (
 from tests.wheelhelpers import (
     ClaudeDirWriteViolation,
     claude_dir_write_canary,
+    snapshot_tree,
 )
 
 
@@ -99,6 +100,100 @@ class WriteCanarySelfTests(unittest.TestCase):
         dest = self.claude_dir / "after.txt"
         src.rename(dest)  # would trip if the patch leaked; it must not
         self.assertTrue(dest.exists())
+
+    # -- Byte-level writer seam (Path.write_text / Path.write_bytes) ----------
+
+    def test_write_text_under_claude_dir_trips(self) -> None:
+        """A direct ``Path.write_text`` under claude_dir (no rename) trips.
+
+        Mirrors ``hook_scripts.deploy_scripts``, which writes ``dest.write_text``
+        straight to its final destination without a committing rename -- a
+        writer class the rename seam is blind to.
+        """
+        dest = self.claude_dir / "hook.sh"
+        with self.assertRaises(ClaudeDirWriteViolation) as cm:
+            with claude_dir_write_canary(self.claude_dir):
+                dest.write_text("#!/bin/sh\n")
+        self.assertEqual(cm.exception.offending_path, dest)
+        self.assertFalse(dest.exists())
+
+    def test_write_bytes_under_claude_dir_trips(self) -> None:
+        """A direct ``Path.write_bytes`` under claude_dir (no rename) trips."""
+        dest = self.claude_dir / "blob.bin"
+        with self.assertRaises(ClaudeDirWriteViolation) as cm:
+            with claude_dir_write_canary(self.claude_dir):
+                dest.write_bytes(b"\x00\x01\x02")
+        self.assertEqual(cm.exception.offending_path, dest)
+        self.assertFalse(dest.exists())
+
+    def test_write_text_outside_claude_dir_passes_through(self) -> None:
+        """A direct ``Path.write_text`` outside claude_dir delegates through."""
+        dest = self.outside / "note.txt"
+        with claude_dir_write_canary(self.claude_dir):
+            dest.write_text("ok\n")
+        self.assertTrue(dest.exists())
+        self.assertEqual(dest.read_text(), "ok\n")
+
+    def test_write_bytes_outside_claude_dir_passes_through(self) -> None:
+        """A direct ``Path.write_bytes`` outside claude_dir delegates through."""
+        dest = self.outside / "blob.bin"
+        with claude_dir_write_canary(self.claude_dir):
+            dest.write_bytes(b"\xff\xfe")
+        self.assertTrue(dest.exists())
+        self.assertEqual(dest.read_bytes(), b"\xff\xfe")
+
+    def test_fsutil_staging_write_text_passes_through_to_rename(self) -> None:
+        """The fsutil ``.tmp`` staging write is not itself the trip point.
+
+        ``write_text_atomic`` stages ``<target>.tmp`` via ``Path.write_text``
+        then renames. The byte-writer guard must ignore that staging write so
+        the violation reports the real target, not the ``.tmp`` -- otherwise
+        the rename seam's ``offending_path`` contract would silently change.
+        """
+        target = self.claude_dir / "settings.json"
+        with self.assertRaises(ClaudeDirWriteViolation) as cm:
+            with claude_dir_write_canary(self.claude_dir):
+                write_text_atomic(target, "content")
+        self.assertEqual(cm.exception.offending_path, target)
+
+    # -- Stray-.tmp cleanup on exit ------------------------------------------
+
+    def test_stray_tmp_after_trip_leaves_tree_identical(self) -> None:
+        """After a tripped atomic write, claude_dir is byte-identical to entry.
+
+        ``write_json_atomic`` stages ``<target>.tmp`` under claude_dir BEFORE
+        the rename that trips, so the ``.tmp`` can outlive the aborted commit.
+        The canary's exit cleanup must remove that stray so no new file (target
+        OR ``.tmp``) survives the context.
+        """
+        # Pre-existing content proves cleanup deletes ONLY files that appeared
+        # during the context, never files present at entry.
+        keeper = self.claude_dir / "pre-existing.json"
+        keeper.write_text("{}\n")
+        before = snapshot_tree(self.claude_dir)
+
+        target = self.claude_dir / "settings.json"
+        with self.assertRaises(ClaudeDirWriteViolation) as cm:
+            with claude_dir_write_canary(self.claude_dir):
+                write_json_atomic(target, {"hooks": {}})
+
+        # The staging .tmp existed transiently and is reported + removed.
+        stray = target.with_suffix(".tmp")
+        self.assertEqual(cm.exception.stray_tmp_files, [stray])
+        self.assertFalse(stray.exists())
+        self.assertFalse(target.exists())
+        # The whole tree is exactly what it was before the context.
+        self.assertEqual(snapshot_tree(self.claude_dir), before)
+        self.assertTrue(keeper.exists())
+
+    def test_clean_trip_reports_no_strays(self) -> None:
+        """A direct-writer trip (no staging) reports an empty stray list."""
+        dest = self.claude_dir / "hook.sh"
+        with self.assertRaises(ClaudeDirWriteViolation) as cm:
+            with claude_dir_write_canary(self.claude_dir):
+                dest.write_text("#!/bin/sh\n")
+        self.assertEqual(cm.exception.stray_tmp_files, [])
+        self.assertFalse(dest.exists())
 
 
 if __name__ == "__main__":

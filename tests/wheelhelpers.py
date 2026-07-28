@@ -203,10 +203,16 @@ class ClaudeDirWriteViolation(BaseException):
     tear all the way out to the test body.
 
     ``offending_path`` is the destination path that tripped the canary.
+    ``stray_tmp_files`` is populated by the canary's exit cleanup with any
+    ``*.tmp`` staging files that a tripped atomic writer left behind under
+    ``claude_dir`` (the writer stages ``<target>.tmp`` BEFORE the rename that
+    trips, so the stray can outlive the aborted commit). It is an empty list
+    when nothing was left behind.
     """
 
     def __init__(self, path: Path) -> None:
         self.offending_path = Path(path)
+        self.stray_tmp_files: list[Path] = []
         super().__init__(
             "CLAUDE_DIR WRITE CANARY TRIPPED: production code attempted to "
             f"write under the vanilla ~/.claude at {self.offending_path!s}. "
@@ -229,20 +235,75 @@ def _path_is_under(path: Path, root: Path) -> bool:
         return False
 
 
+# The staging-file suffix that ``claudewheel.fsutil`` atomic writers use before
+# their committing rename (``path.with_suffix(".tmp")``). The byte-level
+# ``write_text``/``write_bytes`` guard skips these so it does not double-fire on
+# a sanctioned atomic writer's own staging write -- that write is authoritative
+# only once it reaches the rename seam, which is guarded separately.
+_FSUTIL_STAGING_SUFFIX = ".tmp"
+
+
+def _scan_files_under(root: Path) -> set[str]:
+    """Return the resolved-string paths of every regular file under *root*.
+
+    Walks with :func:`os.walk` (no symlink following). Used to snapshot
+    ``claude_dir`` at canary entry so exit cleanup can identify -- and only
+    ever delete -- files that did NOT exist at entry.
+    """
+    found: set[str] = set()
+    if not root.exists():
+        return found
+    for dp, _dns, fns in os.walk(root):
+        for f in fns:
+            found.add(str(Path(dp) / f))
+    return found
+
+
 @contextlib.contextmanager
 def claude_dir_write_canary(claude_dir: Path) -> Iterator[None]:
-    """Trip loudly if any atomic write commits a file under *claude_dir*.
+    """Trip loudly if any production write lands a file under *claude_dir*.
 
-    Interposes ``pathlib.Path.rename`` -- the shared commit seam of every
-    ``claudewheel.fsutil`` atomic writer -- and raises
-    :class:`ClaudeDirWriteViolation` naming the destination whenever a rename
-    targets a path inside *claude_dir*. Renames whose destination is outside
-    *claude_dir* delegate to the real ``Path.rename`` unchanged, so writes to
-    the ``~/.claudewheel`` store (managed profiles, shared-settings, state)
-    behave exactly as in production.
+    Interposes three ``pathlib.Path`` seams and raises
+    :class:`ClaudeDirWriteViolation` naming the destination whenever a write
+    targets a path inside *claude_dir*:
+
+    - ``Path.rename`` -- the shared commit seam of every ``claudewheel.fsutil``
+      atomic writer (``write_text_atomic``/``write_json_atomic``/
+      ``write_json_atomic_secret``). This is the primary seam: every sanctioned
+      settings/state/token write funnels through a ``tmp.rename(target)``.
+    - ``Path.write_text`` and ``Path.write_bytes`` -- byte-level writers that do
+      NOT rename-commit and would otherwise bypass the rename seam entirely
+      (e.g. ``hook_scripts.deploy_scripts`` uses ``dest.write_text(...)``
+      directly). These guards skip the fsutil ``*.tmp`` staging convention
+      (see ``_FSUTIL_STAGING_SUFFIX``) so an atomic writer's own staging write
+      passes through and is caught at its rename instead -- keeping the tripped
+      ``offending_path`` the real target, not the ``.tmp``.
+
+    Writes whose destination is outside *claude_dir* delegate to the real
+    ``Path`` method unchanged, so writes to the ``~/.claudewheel`` store
+    (managed profiles, shared-settings, state) behave exactly as in production.
+
+    Known, deliberate limit: this canary does NOT interpose ``os.open`` or
+    ``builtins.open``. Those are too broad -- the fsutil secret writer and
+    ``install.py`` open raw fds, and every ``tempfile`` allocation would churn
+    through them -- so a hypothetical raw-fd writer that targets *claude_dir*
+    without a rename commit would slip past. The interposed seams (rename +
+    Path byte writers) cover every writer that exists in production today.
+
+    Exit cleanup: fsutil stages ``<target>.tmp`` under the target's directory
+    BEFORE the committing rename, so a rename that trips at *claude_dir* can
+    leave that ``.tmp`` stray behind. On context exit (in a ``finally``) the
+    canary rescans *claude_dir* and deletes -- via direct ``unlink`` -- every
+    regular file that did NOT exist at entry, leaving the guarded tree byte-for-
+    byte as it was found. This cleanup is deterministic and only ever touches
+    files under *claude_dir* that appeared during the context. When a violation
+    was raised, the ``*.tmp`` strays among the removed files are reported on the
+    exception's ``stray_tmp_files``.
     """
     claude_dir = Path(claude_dir)
     orig_rename = Path.rename
+    orig_write_text = Path.write_text
+    orig_write_bytes = Path.write_bytes
 
     def _guarded_rename(self: Path, target: Any) -> Any:
         dest = Path(target)
@@ -250,8 +311,50 @@ def claude_dir_write_canary(claude_dir: Path) -> Iterator[None]:
             raise ClaudeDirWriteViolation(dest)
         return orig_rename(self, target)
 
-    with patch.object(Path, "rename", new=_guarded_rename):
-        yield
+    def _guarded_write_text(self: Path, *args: Any, **kwargs: Any) -> Any:
+        if self.name.endswith(_FSUTIL_STAGING_SUFFIX):
+            return orig_write_text(self, *args, **kwargs)
+        if _path_is_under(self, claude_dir):
+            raise ClaudeDirWriteViolation(self)
+        return orig_write_text(self, *args, **kwargs)
+
+    def _guarded_write_bytes(self: Path, *args: Any, **kwargs: Any) -> Any:
+        if self.name.endswith(_FSUTIL_STAGING_SUFFIX):
+            return orig_write_bytes(self, *args, **kwargs)
+        if _path_is_under(self, claude_dir):
+            raise ClaudeDirWriteViolation(self)
+        return orig_write_bytes(self, *args, **kwargs)
+
+    entry_files = _scan_files_under(claude_dir)
+    violation: ClaudeDirWriteViolation | None = None
+    try:
+        with (
+            patch.object(Path, "rename", new=_guarded_rename),
+            patch.object(Path, "write_text", new=_guarded_write_text),
+            patch.object(Path, "write_bytes", new=_guarded_write_bytes),
+        ):
+            try:
+                yield
+            except ClaudeDirWriteViolation as exc:
+                violation = exc
+                raise
+    finally:
+        # Deterministic exit cleanup: remove only files that appeared under
+        # claude_dir during the context (strays a tripped writer left behind).
+        strays: list[Path] = []
+        for f in sorted(_scan_files_under(claude_dir) - entry_files):
+            p = Path(f)
+            if not _path_is_under(p, claude_dir):
+                continue  # defensive: never delete outside the guarded root
+            try:
+                p.unlink()
+            except FileNotFoundError:
+                pass
+            strays.append(p)
+        if violation is not None:
+            violation.stray_tmp_files = [
+                p for p in strays if p.suffix == _FSUTIL_STAGING_SUFFIX
+            ]
 
 
 class ClaudeDirWriteCanaryMixin:
