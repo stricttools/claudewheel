@@ -97,9 +97,37 @@ class PreflightStep:
     run: Callable[[PreflightContext], StepResult]
 
 
-# Registered steps, executed in this exact (registration) order. Empty for now;
-# later phases append concrete steps. The runner defaults to this list.
-PREFLIGHT_STEPS: list[PreflightStep] = []
+def _reconcile_guardrails_run(ctx: PreflightContext) -> StepResult:
+    """Heal the guardrail surface to canonical before every launch.
+
+    Runs the unified reconcile core over shared-settings and all managed
+    profiles (the ``"default"`` profile is excluded by the core). This is a
+    best-effort self-heal: it deploys missing hook scripts and prunes drift to
+    canonical, and it NEVER aborts a launch. Per-target load/write errors are
+    already captured inside the core; any residual, unexpected failure is
+    swallowed here so a reconcile problem can never block launching. Concurrent
+    launches racing on the same files are fine -- the output is idempotent.
+    """
+    try:
+        from .reconcile import reconcile_workspace
+
+        reconcile_workspace(ctx.workspace, dry_run=False, profile=None)
+    except Exception:
+        # Reconcile is a non-fatal heal: a failure here must not stop the launch.
+        pass
+    return StepResult.cont()
+
+
+# Registered steps, executed in this exact (registration) order. The runner
+# defaults to this list.
+PREFLIGHT_STEPS: list[PreflightStep] = [
+    PreflightStep(
+        name="reconcile-guardrails",
+        runs_in_non_interactive=True,
+        renders_ui=False,
+        run=_reconcile_guardrails_run,
+    ),
+]
 
 
 def run_preflight(

@@ -12,6 +12,7 @@ from typing import Any
 from unittest.mock import patch
 
 from claudewheel import cli
+from claudewheel.defaults import DISALLOWED_TOOLS, build_canonical_shared_settings
 from claudewheel.guardrail import (
     ALLOW_CONFLICTS,
     canonical_ask_rules,
@@ -90,9 +91,20 @@ class _ReconcileTestCase(unittest.TestCase):
             "claudewheel": {"disallowedTools": ["Artifact"]},
         }
 
+    def canonical_hooks(self) -> dict[str, Any]:
+        """The canonical hooks structure for this workspace's scripts dir."""
+        return build_canonical_shared_settings(self.ws.scripts_dir)["hooks"]
+
     def canonical_settings(self) -> dict[str, Any]:
-        """A profile already exactly canonical (a clean no-op target)."""
+        """A profile already exactly canonical (a clean no-op target).
+
+        Fully canonical across ALL guardrail sections the unified core touches:
+        hooks, the claudewheel.disallowedTools list, and permissions
+        deny/ask/allow (allow keeps a non-conflicting survivor).
+        """
         return {
+            "hooks": self.canonical_hooks(),
+            "claudewheel": {"disallowedTools": list(DISALLOWED_TOOLS)},
             "permissions": {
                 "deny": list(canonical_deny_rules()),
                 "ask": list(canonical_ask_rules()),
@@ -244,15 +256,21 @@ class RunReconcileTests(_ReconcileTestCase):
         out = self._run(dry_run=False)
 
         self.assertIn("work: reconciled", out)
-        self.assertIn("shared-settings.json profileDefaults: reconciled", out)
+        self.assertIn("shared-settings.json: reconciled", out)
 
         s = self.read_settings("work")
         self.assertEqual(set(s["permissions"]["deny"]), set(canonical_deny_rules()))
         self.assertEqual(set(s["permissions"]["ask"]), set(canonical_ask_rules()))
         self.assertNotIn("Bash(git stash:*)", s["permissions"]["allow"])
-        self.assertEqual(s["hooks"], {"PreToolUse": [{"matcher": "Bash", "hooks": []}]})
+        # The unified core now prunes hooks and disallowedTools to EXACTLY
+        # canonical (the old additive semantics are gone).
+        self.assertEqual(s["hooks"], self.canonical_hooks())
+        self.assertEqual(s["claudewheel"]["disallowedTools"], list(DISALLOWED_TOOLS))
 
-        pd = json.loads(self.shared_settings.read_text())["profileDefaults"]
+        shared = json.loads(self.shared_settings.read_text())
+        self.assertEqual(shared["hooks"], self.canonical_hooks())
+        self.assertEqual(shared["disallowedTools"], list(DISALLOWED_TOOLS))
+        pd = shared["profileDefaults"]
         self.assertEqual(set(pd["permissions"]["deny"]), set(canonical_deny_rules()))
         self.assertEqual(set(pd["permissions"]["ask"]), set(canonical_ask_rules()))
         # profileDefaults has no allow array; it must not gain one.
@@ -268,7 +286,7 @@ class RunReconcileTests(_ReconcileTestCase):
 
         out = self._run(dry_run=False)  # second apply
         self.assertIn("work: already canonical, no changes", out)
-        self.assertIn("shared-settings.json profileDefaults: already canonical", out)
+        self.assertIn("shared-settings.json: already canonical, no changes", out)
         self.assertIn("Everything already canonical.", out)
         self.assertEqual(self.settings_path("work").read_text(), first_profile)
         self.assertEqual(self.shared_settings.read_text(), first_shared)
@@ -282,8 +300,9 @@ class RunReconcileTests(_ReconcileTestCase):
         out = self._run(dry_run=True)
 
         self.assertIn("work: would reconcile", out)
-        self.assertIn("deny  +Bash(rm:*)", out)
+        self.assertIn("deny +Bash(rm:*)", out)
         self.assertIn("allow -Bash(git stash:*)", out)
+        self.assertIn("hooks -> canonical", out)
         self.assertIn("no files were written", out)
         self.assertEqual((pdir / "settings.json").read_text(), before_profile)
         self.assertEqual(self.shared_settings.read_text(), before_shared)
@@ -291,7 +310,7 @@ class RunReconcileTests(_ReconcileTestCase):
     def test_shared_profiledefaults_reconciled(self) -> None:
         self.write_shared(deny=["Bash(bogus:*)"], ask=[])
         out = self._run(dry_run=False)
-        self.assertIn("shared-settings.json profileDefaults: reconciled", out)
+        self.assertIn("shared-settings.json: reconciled", out)
         pd = json.loads(self.shared_settings.read_text())["profileDefaults"]
         self.assertEqual(set(pd["permissions"]["deny"]), set(canonical_deny_rules()))
         self.assertNotIn("Bash(bogus:*)", pd["permissions"]["deny"])
@@ -333,8 +352,12 @@ class RunReconcileTests(_ReconcileTestCase):
 
     def test_no_profiles_and_no_shared(self) -> None:
         out = self._run(dry_run=False)
-        self.assertIn("no profiles found", out)
-        self.assertIn("shared-settings.json: not found, skipping", out)
+        # No profile targets and no shared-settings file: the core reports the
+        # missing shared file and (since the scripts dir is empty) deploys the
+        # canonical hook scripts.
+        self.assertIn("shared-settings.json: no settings.json", out)
+        # No profile targets were processed (no "<name>: reconciled" line).
+        self.assertNotIn(": reconciled", out)
 
 
 # ---------------------------------------------------------------------------

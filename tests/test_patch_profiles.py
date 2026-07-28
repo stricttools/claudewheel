@@ -1,4 +1,11 @@
-"""Tests for the patch-profiles command and its additive sync helpers."""
+"""Tests for the patch-profiles command (a delegate to the unified reconcile
+core) and the wizard's ``merge_hooks`` helper.
+
+``patch-profiles`` no longer has additive per-profile sync semantics: it now
+delegates to the reconcile core, which PRUNES each target's guardrail sections
+(hooks, disallowedTools, permissions) to EXACTLY canonical. ``merge_hooks``
+remains only because the wizard uses it to assemble a new profile's hooks.
+"""
 
 from __future__ import annotations
 
@@ -14,12 +21,7 @@ from unittest.mock import patch
 from claudewheel import cli
 from claudewheel.defaults import DISALLOWED_TOOLS, build_canonical_shared_settings
 from claudewheel.health import check_relocated_hook_paths
-from claudewheel.patch_profiles import (
-    merge_hooks,
-    run_patch_profiles,
-    sync_profile_settings,
-    sync_shared_settings,
-)
+from claudewheel.patch_profiles import merge_hooks, run_patch_profiles
 
 _CANONICAL_SCRIPT_NAMES = (
     "hook-timestamp",
@@ -168,64 +170,8 @@ class MergeHooksTests(_PatchProfilesTestCase):
         self.assertIn("hook-timestamp", added[0])
 
 
-class SyncProfileSettingsTests(_PatchProfilesTestCase):
-    def test_adds_missing_tools(self) -> None:
-        c = self.canonical()
-        settings = self.stale_profile_settings()
-        changes = sync_profile_settings(settings, c)
-        got = settings["claudewheel"]["disallowedTools"]
-        for tool in _NEW_TOOLS:
-            self.assertIn(tool, got)
-        self.assertTrue(any("hook-block-unsafe-commands" in ch for ch in changes))
-
-    def test_preserves_user_extra_tool(self) -> None:
-        c = self.canonical()
-        settings = self.stale_profile_settings()
-        settings["claudewheel"]["disallowedTools"].append("MyCustomTool")
-        sync_profile_settings(settings, c)
-        self.assertIn("MyCustomTool", settings["claudewheel"]["disallowedTools"])
-
-    def test_folds_and_removes_inert_top_level_key(self) -> None:
-        c = self.canonical()
-        settings = self.stale_profile_settings()
-        settings["disallowedTools"] = ["InertOnly"]
-        changes = sync_profile_settings(settings, c)
-        self.assertNotIn("disallowedTools", settings)
-        self.assertIn("InertOnly", settings["claudewheel"]["disallowedTools"])
-        self.assertTrue(any("removed inert top-level" in ch for ch in changes))
-
-    def test_idempotent(self) -> None:
-        c = self.canonical()
-        settings = self.stale_profile_settings()
-        sync_profile_settings(settings, c)
-        self.assertEqual(sync_profile_settings(settings, c), [])
-
-    def test_permissions_untouched(self) -> None:
-        c = self.canonical()
-        settings = self.stale_profile_settings()
-        before = json.loads(json.dumps(settings["permissions"]))
-        sync_profile_settings(settings, c)
-        self.assertEqual(settings["permissions"], before)
-
-
-class SyncSharedSettingsTests(_PatchProfilesTestCase):
-    def test_adds_missing_top_level_tools(self) -> None:
-        c = self.canonical()
-        shared = json.loads(json.dumps(c))
-        shared["disallowedTools"] = [t for t in DISALLOWED_TOOLS if t not in _NEW_TOOLS]
-        changes = sync_shared_settings(shared, c)
-        for tool in _NEW_TOOLS:
-            self.assertIn(tool, shared["disallowedTools"])
-        self.assertTrue(changes)
-
-    def test_idempotent(self) -> None:
-        c = self.canonical()
-        shared = json.loads(json.dumps(c))
-        self.assertEqual(sync_shared_settings(shared, c), [])
-
-
 # ---------------------------------------------------------------------------
-# run_patch_profiles (end to end)
+# run_patch_profiles (end to end) -- now a delegate to the reconcile core.
 # ---------------------------------------------------------------------------
 
 
@@ -241,18 +187,16 @@ class RunPatchProfilesTests(_PatchProfilesTestCase):
 
         out = self._run_patch()
 
-        self.assertIn("work: updated", out)
-        self.assertIn("shared-settings.json: updated", out)
-        # Profile now has Bash hook and all tools.
+        self.assertIn("work: reconciled", out)
+        self.assertIn("shared-settings.json: reconciled", out)
+        # Profile now has Bash hook and EXACTLY the canonical tools list.
         s = self.read_settings("work")
         matchers = [e.get("matcher") for e in s["hooks"]["PreToolUse"]]
         self.assertIn("Bash", matchers)
-        self.assertTrue(
-            set(DISALLOWED_TOOLS).issubset(s["claudewheel"]["disallowedTools"])
-        )
-        # Shared settings now a superset too.
+        self.assertEqual(s["claudewheel"]["disallowedTools"], list(DISALLOWED_TOOLS))
+        # Shared settings top-level disallowedTools is exactly canonical too.
         shared = json.loads(self.shared_settings.read_text())
-        self.assertTrue(set(DISALLOWED_TOOLS).issubset(shared["disallowedTools"]))
+        self.assertEqual(shared["disallowedTools"], list(DISALLOWED_TOOLS))
 
     def test_deploys_missing_hook_scripts(self) -> None:
         self.shared_settings.parent.mkdir(parents=True, exist_ok=True)
@@ -281,8 +225,8 @@ class RunPatchProfilesTests(_PatchProfilesTestCase):
         content_after_first = settings_file.read_text()
 
         out = self._run_patch()  # second run
-        self.assertIn("work: already up to date", out)
-        self.assertIn("Everything already up to date.", out)
+        self.assertIn("work: already canonical, no changes", out)
+        self.assertIn("Everything already canonical.", out)
         self.assertEqual(settings_file.read_text(), content_after_first)
 
     def test_dry_run_writes_nothing(self) -> None:
@@ -299,14 +243,17 @@ class RunPatchProfilesTests(_PatchProfilesTestCase):
 
         out = self._run_patch(dry_run=True)
 
-        self.assertIn("would update", out)
+        self.assertIn("would reconcile", out)
         self.assertIn("Dry run: no files were written.", out)
         self.assertEqual(settings_file.read_text(), before_profile)
         self.assertEqual(self.shared_settings.read_text(), before_shared)
         # Hook scripts must not be deployed under dry-run either.
         self.assertFalse((self.scripts_dir / "hook-timestamp").exists())
 
-    def test_preserves_user_extras_end_to_end(self) -> None:
+    def test_prunes_user_extras_end_to_end(self) -> None:
+        """The unified core PRUNES user-added extras (the old additive,
+        extras-preserving behavior is gone): a custom disallowedTool and a
+        custom UserPromptSubmit hook are both removed on reconcile."""
         self.shared_settings.parent.mkdir(parents=True, exist_ok=True)
         self.shared_settings.write_text(json.dumps(self.canonical(), indent=2) + "\n")
         settings = self.stale_profile_settings()
@@ -319,15 +266,18 @@ class RunPatchProfilesTests(_PatchProfilesTestCase):
         self._run_patch()
 
         s = self.read_settings("work")
-        self.assertIn("MyCustomTool", s["claudewheel"]["disallowedTools"])
+        self.assertEqual(s["claudewheel"]["disallowedTools"], list(DISALLOWED_TOOLS))
+        self.assertNotIn("MyCustomTool", s["claudewheel"]["disallowedTools"])
         cmds = [h["command"] for h in s["hooks"]["UserPromptSubmit"][0]["hooks"]]
-        self.assertIn("/opt/mine/extra", cmds)
+        self.assertNotIn("/opt/mine/extra", cmds)
 
     def test_no_profiles(self) -> None:
         self.shared_settings.parent.mkdir(parents=True, exist_ok=True)
         self.shared_settings.write_text(json.dumps(self.canonical(), indent=2) + "\n")
         out = self._run_patch()
-        self.assertIn("no profiles found", out)
+        # No profile targets; the already-canonical shared file is a clean no-op.
+        self.assertIn("shared-settings.json: already canonical, no changes", out)
+        self.assertNotIn(": reconciled", out)
 
     def _relocated_hooks(self, old_scripts: str) -> dict[str, Any]:
         """Canonical hooks with every command rerooted at *old_scripts*."""
@@ -339,12 +289,13 @@ class RunPatchProfilesTests(_PatchProfilesTestCase):
         return hooks
 
     def test_relocation_repaths_hooks_and_health_flips(self) -> None:
-        """A profile whose hook commands point at a STALE scripts dir is repathed
-        to the current one; user-custom hooks survive, and the relocation health
-        check flips from FAILED to PASS on the same fixture."""
+        """A profile whose hook commands point at a STALE scripts dir is brought
+        to exact canonical hooks (all commands under the current scripts dir),
+        and the relocation health check flips from FAILED to PASS. Under the
+        unified core a user-custom hook is PRUNED, not preserved."""
         old_scripts = "/old/home/.claudewheel/scripts"
         hooks = self._relocated_hooks(old_scripts)
-        # A user-custom hook that must be left untouched.
+        # A user-custom hook -- pruned by the exact-canonical reconcile.
         hooks["UserPromptSubmit"][0]["hooks"].append(
             {"type": "command", "command": "/opt/mine/custom"}
         )
@@ -366,13 +317,15 @@ class RunPatchProfilesTests(_PatchProfilesTestCase):
         self._run_patch()
 
         s = self.read_settings("work")
+        # Hooks are now EXACTLY canonical: every command under the current dir.
+        self.assertEqual(s["hooks"], self.canonical()["hooks"])
         for entries in s["hooks"].values():
             for entry in entries:
                 for h in entry["hooks"]:
-                    if Path(h["command"]).name in _CANONICAL_SCRIPT_NAMES:
-                        self.assertEqual(Path(h["command"]).parent, self.scripts_dir)
+                    self.assertEqual(Path(h["command"]).parent, self.scripts_dir)
+        # The user-custom hook was pruned.
         cmds = [h["command"] for h in s["hooks"]["UserPromptSubmit"][0]["hooks"]]
-        self.assertIn("/opt/mine/custom", cmds)
+        self.assertNotIn("/opt/mine/custom", cmds)
 
         after = check_relocated_hook_paths(self.ws)
         self.assertTrue(after.ok)
@@ -401,7 +354,7 @@ class PatchProfilesCliTests(_PatchProfilesTestCase):
         self.make_profile("work", self.stale_profile_settings())
 
         out, _ = self._run_cli(["c", "patch-profiles", "--dry-run"])
-        self.assertIn("would update", out)
+        self.assertIn("would reconcile", out)
         # Nothing written.
         s = self.read_settings("work")
         matchers = [e.get("matcher") for e in s["hooks"]["PreToolUse"]]

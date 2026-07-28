@@ -1,47 +1,63 @@
-"""Reconcile profile and shared-settings permissions toward the canonical model.
+"""Unified reconcile core: make every managed target EXACTLY canonical.
 
-Where ``patch_profiles`` additively syncs hooks and disallowedTools, this module
-owns the *permissions* arrays. It brings every discovered profile's
-``settings.json`` -- and ``shared-settings.json``'s ``profileDefaults`` -- into
-exact agreement with the canonical guardrail model in ``guardrail.py``:
+This module owns the single reconciliation core for the whole guardrail
+surface. It merges what used to be two separate, differently-shaped sync
+paths -- ``patch_profiles``' additive hooks/disallowedTools sync and this
+module's permissions reconciliation -- into one compare-then-write core that
+brings each target file's guardrail sections into EXACT agreement with the
+canonical model:
 
-  - ``permissions.deny`` is made to contain exactly ``canonical_deny_rules()``:
-    missing canonical entries are added, and any deny entry NOT in the canonical
-    set is removed.
-  - ``permissions.ask`` is reconciled identically against ``canonical_ask_rules()``.
-  - ``permissions.allow`` has every entry listed in ``ALLOW_CONFLICTS`` removed
-    (dead or conflicting allow rules); all other allow entries are left alone and
-    nothing is ever added to allow.
+  - ``hooks``: the ENTIRE hooks structure is replaced with the canonical
+    wiring (``defaults.build_canonical_shared_settings``). User-added hook
+    entries are pruned -- extras belong in ``defaults.py``, not in per-profile
+    drift.
+  - ``disallowedTools``: made exactly equal to ``defaults.DISALLOWED_TOOLS``.
+    In profile settings it lives under the ``claudewheel`` namespace; the inert
+    top-level ``disallowedTools`` key (which Claude Code ignores) is dropped.
+    In ``shared-settings.json`` it lives at the top level.
+  - ``permissions.deny`` / ``permissions.ask``: made exactly equal to
+    ``guardrail.canonical_deny_rules()`` / ``canonical_ask_rules()`` -- missing
+    canonical entries added, non-canonical entries pruned.
+  - ``permissions.allow``: only ``guardrail.ALLOW_CONFLICTS`` entries removed;
+    all other allow entries are left alone and nothing is ever added to allow.
 
-Unlike patch-profiles, reconciliation is NOT purely additive for deny/ask: it
-prunes drift. It never touches hooks, disallowedTools, or any non-permission
-key. All writes go through ``permission.py``'s atomic ``save_settings``.
+This DELIBERATELY replaces the old additive, user-extras-preserving semantics
+of ``patch_profiles`` (``merge_hooks`` etc.): extras are pruned.
+
+Hook SCRIPT deployment is part of canonical: the core deploys any missing
+guardrail hook scripts to the scripts dir, because wiring that references
+missing scripts is not canonical.
+
+The ``"default"`` profile (Claude Code's built-in ``~/.claude``) is
+UNCONDITIONALLY excluded: the core never reads from or writes to it, even when
+profile discovery enumerates it.
+
+All writes go through the mode-preserving atomic ``save_settings`` path, and
+every target is compared before writing -- a file already canonical is left
+byte-identical (no write happens).
 """
 
 from __future__ import annotations
 
 import json
 import sys
+from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Callable
 
+from .defaults import DISALLOWED_TOOLS, build_canonical_shared_settings
 from .guardrail import ALLOW_CONFLICTS, canonical_ask_rules, canonical_deny_rules
+from .hook_scripts import HOOK_SCRIPTS, deploy_scripts
 from .permission import add_rule, load_settings, remove_rule, save_settings
-from .profile_store import Profile
 
 if TYPE_CHECKING:
     from .workspace import Workspace
 
 
-def _discovered_profiles(ws: "Workspace") -> list[Profile]:
-    """Enumerate profiles via the workspace's ProfileStore, tolerating a corrupt
-    tokens.json.
-
-    Delegates to the shared :meth:`ProfileStore.discover` helper in the
-    ``"swallow"`` mode: a corrupt tokens.json is swallowed to ``{}`` --
-    reconciliation touches permissions, not tokens.
-    """
-    return ws.profiles.discover(on_corrupt_tokens="swallow")
+# ---------------------------------------------------------------------------
+# Permissions diff (deny/ask made exact; allow conflicts pruned).
+# ---------------------------------------------------------------------------
 
 
 @dataclass
@@ -143,120 +159,315 @@ def apply_settings_diff(container: dict[str, Any], diff: PermissionDiff) -> None
         add_rule(container, "ask", rule)
 
 
-def _print_diff(label: str, diff: PermissionDiff, dry_run: bool) -> None:
-    """Print a per-target diff header and one line per add/remove operation."""
-    verb = "would reconcile" if dry_run else "reconciled"
-    print(f"{label}: {verb}")
-    for rule in diff.deny_remove:
-        print(f"    deny  -{rule}")
-    for rule in diff.deny_add:
-        print(f"    deny  +{rule}")
-    for rule in diff.ask_remove:
-        print(f"    ask   -{rule}")
-    for rule in diff.ask_add:
-        print(f"    ask   +{rule}")
-    for rule in diff.allow_remove:
-        print(f"    allow -{rule}")
+def _reconcile_permissions(container: dict[str, Any]) -> list[str]:
+    """Make *container*'s permissions deny/ask exact and prune allow conflicts.
 
-
-def run_reconcile(ws: "Workspace", dry_run: bool, profile: str | None) -> int:
-    """Reconcile permissions across profiles and shared-settings profileDefaults.
-
-    When *profile* is ``None``, every discovered profile is reconciled AND
-    ``shared-settings.json``'s ``profileDefaults`` is reconciled (so future
-    profiles seed from a canonical baseline). When *profile* names a single
-    profile, ONLY that profile is touched -- shared-settings is left alone, on
-    the principle that scoping to one profile is a targeted operation and the
-    shared baseline is a fleet-wide concern.
-
-    With *dry_run*, prints the diff for each target and writes nothing. Returns 0
-    on success, 1 if a named profile is not found.
+    Returns human-readable change descriptions (empty when already canonical).
     """
-    only_one = profile is not None
-    changed_any = False
-    total_changes = 0
-    targets_changed = 0
+    diff = compute_settings_diff(container)
+    changes: list[str] = []
+    for rule in diff.deny_remove:
+        changes.append(f"deny -{rule}")
+    for rule in diff.deny_add:
+        changes.append(f"deny +{rule}")
+    for rule in diff.ask_remove:
+        changes.append(f"ask -{rule}")
+    for rule in diff.ask_add:
+        changes.append(f"ask +{rule}")
+    for rule in diff.allow_remove:
+        changes.append(f"allow -{rule}")
+    apply_settings_diff(container, diff)
+    return changes
 
-    # 1. Profiles.
-    profiles = _discovered_profiles(ws)
+
+# ---------------------------------------------------------------------------
+# Hooks + disallowedTools reconciliation (made exactly canonical).
+# ---------------------------------------------------------------------------
+
+
+def _reconcile_hooks(container: dict[str, Any], canonical_hooks: dict[str, Any]) -> list[str]:
+    """Set ``container['hooks']`` to EXACTLY *canonical_hooks*.
+
+    Replaces the entire hooks structure -- user-added hook entries are pruned.
+    No-op (no mutation, empty return) when the hooks are already canonical.
+    """
+    if container.get("hooks") == canonical_hooks:
+        return []
+    container["hooks"] = deepcopy(canonical_hooks)
+    return ["hooks -> canonical"]
+
+
+def _reconcile_profile_disallowed(settings: dict[str, Any]) -> list[str]:
+    """Make a profile's ``claudewheel.disallowedTools`` exactly canonical.
+
+    Also drops the inert top-level ``disallowedTools`` key (Claude Code ignores
+    it -- profiles carry the list under the ``claudewheel`` namespace).
+    """
+    changes: list[str] = []
+    cw = settings.setdefault("claudewheel", {})
+    if cw.get("disallowedTools") != list(DISALLOWED_TOOLS):
+        cw["disallowedTools"] = list(DISALLOWED_TOOLS)
+        changes.append("disallowedTools -> canonical")
+    if "disallowedTools" in settings:
+        del settings["disallowedTools"]
+        changes.append("removed inert top-level disallowedTools")
+    return changes
+
+
+def _reconcile_shared_disallowed(shared: dict[str, Any]) -> list[str]:
+    """Make ``shared-settings.json``'s top-level ``disallowedTools`` exactly canonical."""
+    if shared.get("disallowedTools") != list(DISALLOWED_TOOLS):
+        shared["disallowedTools"] = list(DISALLOWED_TOOLS)
+        return ["disallowedTools -> canonical"]
+    return []
+
+
+def reconcile_profile_dict(
+    settings: dict[str, Any], canonical: dict[str, Any]
+) -> list[str]:
+    """Reconcile one profile ``settings.json`` dict IN PLACE to exact canonical.
+
+    Reconciles hooks, the ``claudewheel.disallowedTools`` list, and
+    ``permissions`` deny/ask/allow. Non-guardrail keys are left untouched.
+    Returns human-readable change descriptions (empty when already canonical).
+    """
+    changes: list[str] = []
+    changes += _reconcile_hooks(settings, canonical["hooks"])
+    changes += _reconcile_profile_disallowed(settings)
+    changes += _reconcile_permissions(settings)
+    return changes
+
+
+def reconcile_shared_dict(
+    shared: dict[str, Any], canonical: dict[str, Any]
+) -> list[str]:
+    """Reconcile the ``shared-settings.json`` dict IN PLACE to exact canonical.
+
+    Reconciles the top-level hooks and disallowedTools plus the
+    ``profileDefaults.permissions`` deny/ask/allow. Non-guardrail keys are left
+    untouched. Returns human-readable change descriptions.
+    """
+    changes: list[str] = []
+    changes += _reconcile_hooks(shared, canonical["hooks"])
+    changes += _reconcile_shared_disallowed(shared)
+    pd = shared.setdefault("profileDefaults", {})
+    changes += [f"profileDefaults {c}" for c in _reconcile_permissions(pd)]
+    return changes
+
+
+# ---------------------------------------------------------------------------
+# Hook-script deployment (part of canonical).
+# ---------------------------------------------------------------------------
+
+
+def _referenced_scripts(hooks: dict[str, Any]) -> list[str]:
+    """Collect the ordered, unique script basenames referenced by *hooks*."""
+    names: list[str] = []
+    for entries in hooks.values():
+        if not isinstance(entries, list):
+            continue
+        for entry in entries:
+            entry_hooks = entry.get("hooks", []) if isinstance(entry, dict) else []
+            for h in entry_hooks:
+                cmd = h.get("command", "") if isinstance(h, dict) else ""
+                base = Path(cmd).name if cmd else ""
+                if base and base not in names:
+                    names.append(base)
+    return names
+
+
+# ---------------------------------------------------------------------------
+# Report structures.
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class TargetReport:
+    """The outcome of reconciling one target file."""
+
+    label: str
+    changed: bool
+    written: bool
+    changes: list[str] = field(default_factory=list)
+    skip_reason: str = ""
+
+
+@dataclass
+class ReconcileReport:
+    """The aggregate outcome of a workspace reconciliation pass."""
+
+    scripts_deployed: list[str] = field(default_factory=list)
+    scripts_would_deploy: list[str] = field(default_factory=list)
+    targets: list[TargetReport] = field(default_factory=list)
+    error: str | None = None
+
+    def changed_any(self) -> bool:
+        """True when anything was (or would be) written."""
+        return bool(
+            self.scripts_deployed
+            or self.scripts_would_deploy
+            or any(t.changed for t in self.targets)
+        )
+
+
+# ---------------------------------------------------------------------------
+# The core: reconcile the whole workspace.
+# ---------------------------------------------------------------------------
+
+
+def _process_settings_file(
+    path: Path,
+    reconcile_fn: Callable[[dict[str, Any], dict[str, Any]], list[str]],
+    canonical: dict[str, Any],
+    label: str,
+    dry_run: bool,
+) -> TargetReport:
+    """Load, reconcile, compare, and (unless dry-run) write one settings file.
+
+    Compare-then-write: the file is written only when its guardrail sections
+    actually differed from canonical, so an already-canonical file is left
+    byte-identical. A missing/unreadable file is reported and skipped; a write
+    error is captured (never raised) so a launch-time reconcile never aborts.
+    """
+    if not path.exists():
+        return TargetReport(label, changed=False, written=False, skip_reason="no settings.json")
+    try:
+        data = load_settings(path)
+    except (json.JSONDecodeError, OSError) as e:
+        return TargetReport(
+            label, changed=False, written=False, skip_reason=f"unreadable ({e})"
+        )
+    original = deepcopy(data)
+    changes = reconcile_fn(data, canonical)
+    changed = data != original
+    report = TargetReport(label, changed=changed, written=False, changes=changes)
+    if changed and not dry_run:
+        try:
+            save_settings(path, data)
+            report.written = True
+        except OSError as e:
+            report.skip_reason = f"write-error ({e})"
+    return report
+
+
+def reconcile_workspace(
+    ws: "Workspace",
+    *,
+    dry_run: bool,
+    profile: str | None = None,
+    deploy_hook_scripts: bool = True,
+) -> ReconcileReport:
+    """Reconcile every managed target to exact canonical. The single core.
+
+    Deploys any missing guardrail hook scripts (unless *dry_run*), then
+    reconciles each discovered profile's ``settings.json`` and -- when not
+    scoped to a single *profile* -- ``shared-settings.json``. The ``"default"``
+    profile is unconditionally excluded. When *profile* names a single profile,
+    only that profile is touched and shared-settings is left alone.
+    """
+    report = ReconcileReport()
+    canonical = build_canonical_shared_settings(ws.scripts_dir)
+
+    # 1. Deploy any missing built-in hook scripts referenced by canonical hooks.
+    if deploy_hook_scripts:
+        referenced = _referenced_scripts(canonical.get("hooks", {}))
+        missing = [
+            n
+            for n in referenced
+            if n in HOOK_SCRIPTS and not (ws.scripts_dir / n).exists()
+        ]
+        if missing:
+            if dry_run:
+                report.scripts_would_deploy = missing
+            else:
+                for name, _action in deploy_scripts(missing, ws.scripts_dir):
+                    report.scripts_deployed.append(name)
+
+    # 2. Profiles (default UNCONDITIONALLY excluded; never read/written).
+    profiles = [
+        p
+        for p in ws.profiles.discover(on_corrupt_tokens="swallow")
+        if p.name != "default"
+    ]
+    only_one = profile is not None
     if only_one:
         profiles = [p for p in profiles if p.name == profile]
         if not profiles:
-            print(f"Error: profile {profile!r} not found", file=sys.stderr)
-            return 1
-    elif not profiles:
-        print("no profiles found")
+            report.error = f"profile {profile!r} not found"
+            return report
 
     for info in profiles:
-        settings_file = info.path / "settings.json"
-        if not settings_file.exists():
-            print(f"{info.name}: no settings.json, skipping")
-            continue
-        try:
-            settings = load_settings(settings_file)
-        except (json.JSONDecodeError, OSError) as e:
-            print(f"{info.name}: unreadable settings.json ({e}), skipping")
-            continue
-        diff = compute_settings_diff(settings)
-        if diff.is_empty():
-            print(f"{info.name}: already canonical, no changes")
-            continue
-        changed_any = True
-        targets_changed += 1
-        total_changes += diff.change_count()
-        _print_diff(info.name, diff, dry_run)
-        if not dry_run:
-            apply_settings_diff(settings, diff)
-            save_settings(settings_file, settings)
+        report.targets.append(
+            _process_settings_file(
+                info.path / "settings.json",
+                reconcile_profile_dict,
+                canonical,
+                info.name,
+                dry_run,
+            )
+        )
 
-    # 2. shared-settings.json profileDefaults (fleet-wide; skipped when scoped).
+    # 3. shared-settings.json (fleet-wide; skipped when scoped to one profile).
     if not only_one:
-        shared_settings_file = ws.shared_settings_file
-        if not shared_settings_file.exists():
-            print("shared-settings.json: not found, skipping")
-        else:
-            shared: dict[str, Any] | None = None
-            try:
-                shared = load_settings(shared_settings_file)
-            except (json.JSONDecodeError, OSError) as e:
-                print(f"shared-settings.json: unreadable ({e}), skipping")
-            if shared is not None:
-                pd = shared.get("profileDefaults")
-                if not isinstance(pd, dict) or not isinstance(
-                    pd.get("permissions"), dict
-                ):
-                    print(
-                        "shared-settings.json: no profileDefaults.permissions, skipping"
-                    )
-                else:
-                    diff = compute_settings_diff(pd)
-                    label = "shared-settings.json profileDefaults"
-                    if diff.is_empty():
-                        print(f"{label}: already canonical, no changes")
-                    else:
-                        changed_any = True
-                        targets_changed += 1
-                        total_changes += diff.change_count()
-                        _print_diff(label, diff, dry_run)
-                        if not dry_run:
-                            apply_settings_diff(pd, diff)
-                            save_settings(shared_settings_file, shared)
+        report.targets.append(
+            _process_settings_file(
+                ws.shared_settings_file,
+                reconcile_shared_dict,
+                canonical,
+                "shared-settings.json",
+                dry_run,
+            )
+        )
 
-    # 3. Summary.
-    if not changed_any:
-        print("\nEverything already canonical.")
+    return report
+
+
+# ---------------------------------------------------------------------------
+# Printing wrapper (shared by the reconcile-permissions and patch-profiles CLI).
+# ---------------------------------------------------------------------------
+
+
+def _print_report(report: ReconcileReport, dry_run: bool) -> None:
+    """Print a human-readable summary of a reconciliation pass."""
+    if report.scripts_would_deploy:
+        for name in report.scripts_would_deploy:
+            print(f"hook script: would deploy {name}")
+    elif report.scripts_deployed:
+        for name in report.scripts_deployed:
+            print(f"hook script: deployed {name}")
     else:
-        noun = "target" if targets_changed == 1 else "targets"
-        change_noun = "change" if total_changes == 1 else "changes"
-        if dry_run:
-            print(
-                f"\nDry run: {total_changes} {change_noun} across "
-                f"{targets_changed} {noun}; no files were written."
-            )
-        else:
-            print(
-                f"\nReconciled {total_changes} {change_noun} across "
-                f"{targets_changed} {noun}."
-            )
+        print("hook scripts: all present")
 
-    return 0
+    if report.error:
+        print(f"Error: {report.error}", file=sys.stderr)
+        return
+
+    for t in report.targets:
+        if t.skip_reason:
+            print(f"{t.label}: {t.skip_reason}")
+        elif not t.changed:
+            print(f"{t.label}: already canonical, no changes")
+        else:
+            verb = "would reconcile" if dry_run else "reconciled"
+            print(f"{t.label}: {verb}")
+            for c in t.changes:
+                print(f"    {c}")
+
+    if not report.changed_any():
+        print("\nEverything already canonical.")
+    elif dry_run:
+        print("\nDry run: no files were written.")
+    else:
+        print("\nReconciled to canonical.")
+
+
+def run_reconcile(ws: "Workspace", dry_run: bool, profile: str | None = None) -> int:
+    """Reconcile the workspace to exact canonical and print a report.
+
+    Backs both the ``reconcile-permissions`` and ``patch-profiles`` CLI commands
+    (they are now the same operation). Returns 0 on success, 1 when a scoped
+    *profile* is not found.
+    """
+    report = reconcile_workspace(ws, dry_run=dry_run, profile=profile)
+    _print_report(report, dry_run)
+    return 1 if report.error else 0

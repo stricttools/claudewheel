@@ -773,6 +773,15 @@ def _handle_deploy_hooks(
     help="preview the changes without writing anything to disk",
 )
 def _handle_patch_profiles(ws: "Workspace", dry_run: bool) -> int:
+    """Reconcile every managed profile and shared-settings.json to exact canonical.
+
+    Delegates to the unified reconcile core. This PRUNES each target's guardrail
+    sections (the entire hooks structure, the disallowedTools list, and
+    permissions deny/ask) to EXACTLY the canonical model, removing drift and any
+    user-added extras -- the old additive, extras-preserving semantics are gone.
+    Also deploys any missing guardrail hook scripts. The 'default' profile
+    (~/.claude) is never read from or written to.
+    """
     from .patch_profiles import run_patch_profiles
 
     return run_patch_profiles(ws, dry_run=dry_run)
@@ -782,7 +791,7 @@ def _handle_patch_profiles(ws: "Workspace", dry_run: bool) -> int:
     "dry-run",
     type=bool,
     default=False,
-    help="print the per-target permissions diff and change NOTHING (mutually exclusive with --apply; you MUST pass exactly one of --dry-run or --apply)",
+    help="print the per-target guardrail diff and change NOTHING (mutually exclusive with --apply; you MUST pass exactly one of --dry-run or --apply)",
 )
 @strictcli.flag(
     "apply",
@@ -794,11 +803,20 @@ def _handle_patch_profiles(ws: "Workspace", dry_run: bool) -> int:
     "profile",
     type=str,
     default="",
-    help="reconcile only this single profile; when given, shared-settings.json profileDefaults is left untouched (omit to reconcile every profile AND shared-settings profileDefaults)",
+    help="reconcile only this single profile; when given, shared-settings.json is left untouched (omit to reconcile every profile AND shared-settings.json)",
 )
 def _handle_reconcile_permissions(
     ws: "Workspace", dry_run: bool, apply: bool, profile: str
 ) -> int:
+    """Reconcile every managed target to EXACTLY the canonical guardrail model.
+
+    Delegates to the unified reconcile core. Makes each target's hooks, the
+    disallowedTools list, and permissions deny/ask EXACTLY canonical (allow keeps
+    only its non-conflicting entries), pruning all drift and user-added extras --
+    the old additive, extras-preserving behavior is gone. The 'default' profile
+    (~/.claude) is never read from or written to. Requires exactly one of
+    --dry-run or --apply.
+    """
     from .reconcile import run_reconcile
 
     if dry_run == apply:
@@ -1723,12 +1741,12 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
 
     app.command(
         "patch-profiles",
-        help="sync existing profiles and shared-settings.json to canonical hook and disallowedTools defaults",
+        help="reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask); prunes drift and user-added extras -- the old additive, extras-preserving behavior is gone. Deploys any missing guardrail hook scripts. The 'default' profile (~/.claude) is never touched.",
     )(_bind(_handle_patch_profiles, ws))
 
     app.command(
         "reconcile-permissions",
-        help="reconcile profile and shared-settings permissions (deny/ask/allow) to the canonical guardrail model; requires exactly one of --dry-run or --apply",
+        help="reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask made exact; allow keeps only its non-conflicting entries); prunes all drift and user-added extras. The 'default' profile (~/.claude) is never touched. Requires exactly one of --dry-run or --apply.",
     )(_bind(_handle_reconcile_permissions, ws))
 
     # -- Permission group --
