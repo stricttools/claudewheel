@@ -199,6 +199,24 @@ def _do_launch_sequence(
     if interactive:
         save_launch_state(cfg, selections)
         record_inode(ws.shared, selections.get("directory") or os.getcwd())
+    # Preflight steps run here, independent of the health_check_on_launch gate,
+    # after state is saved and before the launch config is resolved. The terminal
+    # is in cooked mode; UI-rendering steps manage their own raw mode. An ABORT
+    # prints its actionable message to stderr and exits nonzero.
+    from .preflight import PreflightContext, run_preflight
+
+    preflight_result = run_preflight(
+        PreflightContext(
+            selections=selections,
+            workspace=ws,
+            locator=locator,
+            cfg=cfg,
+            interactive=interactive,
+        )
+    )
+    if preflight_result is not None and preflight_result.is_abort:
+        print(preflight_result.message, file=sys.stderr)
+        sys.exit(1)
     # The workspace ProfileStore supplies both config dir and token via env(). A
     # stale/unknown profile name raises ValueError (the hard-error contract); a
     # corrupt tokens.json raises TokenStoreError. Both are caught here so the
