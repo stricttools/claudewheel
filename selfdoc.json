@@ -33,6 +33,7 @@
   },
   "repo": "https://github.com/smm-h/claudewheel",
   "lint_ignore": [
+    "SEO007",
     "SEO009"
   ],
   "deploy": {
