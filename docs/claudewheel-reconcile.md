@@ -1,6 +1,6 @@
 ---
 title: claudewheel.reconcile
-description: "Reconcile profile and shared-settings permissions toward the canonical model."
+description: "Unified reconcile core: make every managed target EXACTLY canonical."
 generated: true
 nav_group: "API Reference"
 nav_order: 33

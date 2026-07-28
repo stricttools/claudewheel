@@ -1,6 +1,6 @@
 ---
 title: claudewheel.patch_profiles
-description: "Sync existing profiles and shared-settings.json toward canonical defaults."
+description: "Wizard hook-merge helper plus a thin delegate to the unified reconcile core."
 generated: true
 nav_group: "API Reference"
 nav_order: 24

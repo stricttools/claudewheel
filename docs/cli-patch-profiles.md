@@ -1,6 +1,6 @@
 ---
 title: c patch-profiles
-description: "Sync existing profiles and shared-settings.json to the canonical guardrail hooks and disallowedTools defaults; use --dry-run to preview changes first."
+description: "Reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model, pruning all drift; deploys missing hook scripts."
 generated: true
 nav_group: "CLI Reference"
 nav_order: 9

@@ -1,6 +1,6 @@
 ---
 title: c profile
-description: "Create, inspect, delete, rename, and repair Claude Code profiles, and validate their stored OAuth tokens against the Anthropic API."
+description: "Create, inspect, delete, rename, and repair Claude Code profiles and their stored tokens; includes force-delete options and API token validation."
 generated: true
 nav_group: "CLI Reference"
 nav_order: 11
