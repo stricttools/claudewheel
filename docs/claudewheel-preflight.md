@@ -1,6 +1,6 @@
 ---
 title: claudewheel.preflight
-description: "Registration-ordered gate steps that run between state-save and exec: vanilla-vs-guardrails choice, guardrail reconciliation, model-version guard, project hook approval, and scratchpad cleanup. Each step inspects a shared PreflightContext and returns a StepResult (CONTINUE or ABORT)."
+description: "Gate steps between state-save and exec: guardrail choice, reconciliation, model-version guard, hook approval, and scratchpad cleanup."
 generated: true
 nav_group: "API Reference"
 nav_order: 26

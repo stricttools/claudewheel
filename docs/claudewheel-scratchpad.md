@@ -1,6 +1,6 @@
 ---
 title: claudewheel.scratchpad
-description: "Enumerate per-project scratchpad directories under /tmp/claude-<uid>/, measure real tmpfs block usage and newest mtime for each, and classify directories as stale when nothing has been touched within SCRATCHPAD_STALE_DAYS (14 days)."
+description: "Enumerate per-project scratchpad directories under /tmp/claude-<uid>/, measure tmpfs usage and newest mtime, and classify stale ones."
 generated: true
 nav_group: "API Reference"
 nav_order: 35
