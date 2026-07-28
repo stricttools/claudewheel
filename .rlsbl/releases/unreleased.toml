@@ -1,11 +1,16 @@
 # strictspec document version gate (do not remove)
 format_version = 1
 # Version bump type: patch, minor, major, infra, or prerelease
-bump = ""
+bump = "minor"
 # Short description of this release (required)
-description = ""
-# Optional context explaining why these changes were made
-context = ""
+description = "Vanilla default profile, approved project hooks, title-based resume, Opus 5 support, launch-time guardrail healing, scratchpad cleanup, stale-token surfacing, and wizard token hardening."
+context = """
+This release adds a launch-preflight stage that heals guardrail settings against the canonical model on every launch (so upgrades can no longer leave stale safety settings on disk), and builds several user-facing features on top of it.
+
+~/.claude is now a first-class launchable "default" profile whenever it exists — fixing invisibility on setups where credentials live outside the config dir (e.g. macOS Keychain) — and launches byte-for-byte vanilla, writing nothing into it. Project-contributed hooks now require one-time approval. cw -r accepts session titles (as printed by Claude Code's resume hint, including forks). Opus 5 is selectable with a guard that blocks launches on too-old binaries.
+
+Breaking: patch-profiles and reconcile-permissions now prune to exactly the canonical model; the old additive, extras-preserving behavior is gone.
+"""
 # Pre-release identifier: alpha, beta, rc, or stable
 # preid = ""
 # Set to true to generate a blog post for this release
