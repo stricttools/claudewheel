@@ -84,6 +84,11 @@ class PreflightReconcileTests(unittest.TestCase):
 
         self.ws = Workspace.open(self.cw, claude_dir=self.claude_dir)
 
+        # A hooks-free target directory so the approved-hooks preflight step is a
+        # no-op here (these tests exercise the reconcile step, not hook approval).
+        self.project = self.home / "project"
+        self.project.mkdir(parents=True, exist_ok=True)
+
     # -- fixtures ----------------------------------------------------------
 
     def _make_profile(self, name: str, settings: dict[str, Any]) -> Path:
@@ -132,7 +137,7 @@ class PreflightReconcileTests(unittest.TestCase):
                 self.ws,
                 mock.MagicMock(),
                 _FakeCfg(),  # type: ignore[arg-type]
-                {"profile": "work"},
+                {"profile": "work", "directory": str(self.project)},
                 interactive=interactive,
             )
 

@@ -110,9 +110,15 @@ class RunPreflightUnitTests(unittest.TestCase):
         run_preflight(_ctx(interactive=True), steps)
         self.assertEqual(log, ["always", "tui_only"])
 
-    def test_defaults_to_empty_registered_list(self) -> None:
-        """With no steps argument, the registered (empty) list is a no-op."""
-        self.assertIsNone(run_preflight(_ctx()))
+    def test_defaults_to_module_registered_list(self) -> None:
+        """With no steps argument, the module-level PREFLIGHT_STEPS is used.
+
+        Pinned to an empty list here so the contract (defaults to the module
+        list) is verified independently of whatever concrete steps are
+        registered.
+        """
+        with mock.patch("claudewheel.preflight.PREFLIGHT_STEPS", []):
+            self.assertIsNone(run_preflight(_ctx()))
 
 
 # ---------------------------------------------------------------------------
