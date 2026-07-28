@@ -27,10 +27,29 @@ from claudewheel.defaults import (
     build_canonical_shared_settings,
 )
 from claudewheel.theme import parse_theme
+from claudewheel.tokens import TokenExpiryDisposition
 
 from tests.wheelhelpers import FakeTerminal
 
 THEME = parse_theme(DEFAULT_THEME_DARK)
+
+TTL = TokenExpiryDisposition.TTL
+UNKNOWN = TokenExpiryDisposition.UNKNOWN
+
+
+def _paste_terminal(*pastes: str) -> FakeTerminal:
+    """A FakeTerminal that feeds each pasted token as keystrokes + ENTER.
+
+    Drives the wizard's masked-input primitive (Terminal.read_masked_line):
+    every character of *pastes* is delivered as a key, each paste terminated
+    by ENTER. When the keys run out the FakeTerminal safety net yields ESC,
+    which the masked primitive treats as an abort (KeyboardInterrupt).
+    """
+    keys: list[str] = []
+    for p in pastes:
+        keys.extend(list(p))
+        keys.append("ENTER")
+    return FakeTerminal(keys)
 
 
 def _make_result(
@@ -1403,12 +1422,13 @@ class AuthFlowTests(AuthFlowTestBase):
     def test_long_lived_token_success(self) -> None:
         """The token is scraped from the PTY capture, validated, and saved.
 
-        No paste prompt appears on the happy path: input() is never called.
+        No paste prompt appears on the happy path: no keys are ever read.
         """
         from claudewheel import auth
         from claudewheel.wizard import run_auth_flow
 
         fake_binary = self._make_fake_binary()
+        self.term = _paste_terminal()
 
         with (
             mock.patch(
@@ -1416,11 +1436,6 @@ class AuthFlowTests(AuthFlowTestBase):
                 autospec=True,
                 side_effect=["token", "copy"],
             ),
-            mock.patch(
-                "builtins.input",
-                side_effect=AssertionError("no paste prompt expected"),
-                autospec=True,
-            ) as mock_input,
             mock.patch(
                 "claudewheel.wizard._find_claude_binary",
                 return_value=str(fake_binary),
@@ -1447,9 +1462,10 @@ class AuthFlowTests(AuthFlowTestBase):
                 self.term,
             )
         self.assertEqual(result, "authenticated")
-        mock_add.assert_called_once_with(mock.ANY, "test", CAPTURED_TOKEN)
+        mock_add.assert_called_once_with(mock.ANY, "test", CAPTURED_TOKEN, expiry=TTL)
         mock_probe.assert_called_once_with(CAPTURED_TOKEN)
-        mock_input.assert_not_called()
+        # No recovery paste was needed, so no keys were consumed.
+        self.assertEqual(self.term._index, 0)
 
     def test_long_lived_token_binary_not_found(self) -> None:
         """Long-lived token returns 'failed' when Claude binary is missing."""
@@ -1550,6 +1566,7 @@ class AuthFlowTests(AuthFlowTestBase):
         from claudewheel.wizard import run_auth_flow
 
         fake_binary = self._make_fake_binary()
+        self.term = _paste_terminal("")  # empty recovery paste (just ENTER)
 
         with (
             mock.patch(
@@ -1557,7 +1574,6 @@ class AuthFlowTests(AuthFlowTestBase):
                 autospec=True,
                 side_effect=["token", "copy"],
             ),
-            mock.patch("builtins.input", return_value="", autospec=True),
             mock.patch(
                 "claudewheel.wizard._find_claude_binary",
                 return_value=str(fake_binary),
@@ -1583,25 +1599,22 @@ class AuthFlowTests(AuthFlowTestBase):
         self.assertIn("No token", self._stdout_buf.getvalue())
 
     def test_long_lived_token_recovery_paste_probe_gated(self) -> None:
-        """A recovery-pasted token is gated by the probe, not its prefix.
+        """A format-valid recovery paste proceeds to the probe; VALID saves it.
 
-        Reworked from the deleted warn-and-save path: a token without the
-        sk-ant- prefix is no longer saved on a warning -- the live probe is
-        the gate. VALID means it saves; there is no prefix warning left.
+        The offline format gate (Phase 8.2) admits any sk-ant- token without a
+        length check, so the live probe remains the real gate: VALID saves it.
         """
         from claudewheel import auth
         from claudewheel.wizard import run_auth_flow
 
         fake_binary = self._make_fake_binary()
+        self.term = _paste_terminal("sk-ant-recovered")
 
         with (
             mock.patch(
                 "claudewheel.wizard.run_selection",
                 autospec=True,
                 side_effect=["token", "copy"],
-            ),
-            mock.patch(
-                "builtins.input", return_value="some-other-token", autospec=True
             ),
             mock.patch(
                 "claudewheel.wizard._find_claude_binary",
@@ -1630,14 +1643,17 @@ class AuthFlowTests(AuthFlowTestBase):
             )
         self.assertEqual(result, "authenticated")
         self.assertNotIn("Warning", self._stdout_buf.getvalue())
-        mock_probe.assert_called_once_with("some-other-token")
-        mock_add.assert_called_once_with(mock.ANY, "test", "some-other-token")
+        mock_probe.assert_called_once_with("sk-ant-recovered")
+        mock_add.assert_called_once_with(
+            mock.ANY, "test", "sk-ant-recovered", expiry=TTL
+        )
 
     def test_long_lived_token_keyboard_interrupt_on_recovery_paste(self) -> None:
         """KeyboardInterrupt during the recovery paste returns 'failed'."""
         from claudewheel.wizard import run_auth_flow
 
         fake_binary = self._make_fake_binary()
+        self.term = FakeTerminal(["CTRL_C"])  # Ctrl-C during the recovery paste
 
         with (
             mock.patch(
@@ -1645,7 +1661,6 @@ class AuthFlowTests(AuthFlowTestBase):
                 autospec=True,
                 side_effect=["token", "copy"],
             ),
-            mock.patch("builtins.input", side_effect=KeyboardInterrupt, autospec=True),
             mock.patch(
                 "claudewheel.wizard._find_claude_binary",
                 return_value=str(fake_binary),
@@ -2506,17 +2521,20 @@ class CookedWindowTests(AuthFlowTestBase):
         self.assertEqual(result, "authenticated")
         self.assertEqual(events, ["enter", "pty", "exit"])
 
-    def test_recovery_paste_input_happens_inside_cooked_window(self) -> None:
+    def test_recovery_paste_read_via_masked_primitive(self) -> None:
+        """When extraction fails, the recovery paste is read (masked) and saved.
+
+        The masked-input primitive owns its own raw-mode transitions, so the
+        recovery paste no longer relies on the surrounding cooked() window; the
+        important guarantee is that the pasted token is read and the flow
+        authenticates. The PTY-in-cooked invariant is covered separately by
+        test_token_pty_capture_runs_inside_cooked_window.
+        """
         from claudewheel import auth
         from claudewheel.wizard import run_auth_flow
 
-        events: list[str] = []
-        self._track_cooked(events)
         fake_binary = self._make_fake_binary()
-
-        def fake_input(prompt: str = "") -> str:
-            events.append("input")
-            return "sk-ant-recovered"
+        self.term = _paste_terminal("sk-ant-recovered")
 
         with (
             mock.patch(
@@ -2524,7 +2542,6 @@ class CookedWindowTests(AuthFlowTestBase):
                 autospec=True,
                 side_effect=["token", "copy"],
             ),
-            mock.patch("builtins.input", side_effect=fake_input, autospec=True),
             mock.patch(
                 "claudewheel.wizard._find_claude_binary",
                 return_value=str(fake_binary),
@@ -2540,7 +2557,7 @@ class CookedWindowTests(AuthFlowTestBase):
                 autospec=True,
                 return_value=auth.VALID,
             ),
-            mock.patch("claudewheel.tokens.TokenStore.add", autospec=True),
+            mock.patch("claudewheel.tokens.TokenStore.add", autospec=True) as mock_add,
         ):
             result = run_auth_flow(
                 self.ws,
@@ -2552,7 +2569,11 @@ class CookedWindowTests(AuthFlowTestBase):
             )
 
         self.assertEqual(result, "authenticated")
-        self.assertEqual(events, ["enter", "input", "exit"])
+        mock_add.assert_called_once_with(
+            mock.ANY, "test", "sk-ant-recovered", expiry=TTL
+        )
+        # The recovery paste was actually read from the terminal.
+        self.assertGreater(self.term._index, 0)
 
     def test_unverified_choice_form_shown_outside_cooked_window(self) -> None:
         """The Save-unvalidated/Abort form renders after the cooked window
@@ -2693,6 +2714,7 @@ class TokenValidationRedGreenTests(AuthFlowTestBase):
         from claudewheel.wizard import run_auth_flow
 
         fake_binary = self._make_fake_binary()
+        self.term = _paste_terminal("sk-ant-oat01-TRUNCATED")
 
         with (
             mock.patch(
@@ -2715,9 +2737,6 @@ class TokenValidationRedGreenTests(AuthFlowTestBase):
                 "claudewheel.auth.validate_token",
                 autospec=True,
                 return_value=auth.INVALID,
-            ),
-            mock.patch(
-                "builtins.input", return_value="sk-ant-oat01-TRUNCATED", autospec=True
             ),
             mock.patch(
                 "claudewheel.wizard._find_claude_binary",
@@ -2761,6 +2780,7 @@ class TokenRecoveryPasteTests(AuthFlowTestBase):
         fake_binary = self._make_fake_binary()
         if probe_result is None:
             probe_result = auth.VALID
+        self.term = _paste_terminal(pasted)
 
         with (
             mock.patch(
@@ -2768,7 +2788,6 @@ class TokenRecoveryPasteTests(AuthFlowTestBase):
                 autospec=True,
                 side_effect=["token", "copy"],
             ),
-            mock.patch("builtins.input", return_value=pasted, autospec=True),
             mock.patch(
                 "claudewheel.wizard._find_claude_binary",
                 return_value=str(fake_binary),
@@ -2800,13 +2819,17 @@ class TokenRecoveryPasteTests(AuthFlowTestBase):
         """Linebreaks, spaces, and tabs from a wrapped terminal copy are stripped."""
         result, mock_add = self._run_recovery_flow("sk-ant-oat01-\nABC DEF\t123")
         self.assertEqual(result, "authenticated")
-        mock_add.assert_called_once_with(mock.ANY, "test", "sk-ant-oat01-ABCDEF123")
+        mock_add.assert_called_once_with(
+            mock.ANY, "test", "sk-ant-oat01-ABCDEF123", expiry=TTL
+        )
 
     def test_surrounding_whitespace_removed(self) -> None:
         """Leading/trailing whitespace is stripped like the old .strip() did."""
         result, mock_add = self._run_recovery_flow("  sk-ant-token-1  \n")
         self.assertEqual(result, "authenticated")
-        mock_add.assert_called_once_with(mock.ANY, "test", "sk-ant-token-1")
+        mock_add.assert_called_once_with(
+            mock.ANY, "test", "sk-ant-token-1", expiry=TTL
+        )
 
     def test_whitespace_only_input_fails(self) -> None:
         """Input that cleans down to nothing is treated as no token."""
@@ -2845,20 +2868,23 @@ class TokenValidationOutcomeTests(AuthFlowTestBase):
         Any,
         mock.MagicMock,
         mock.MagicMock,
-        mock.MagicMock,
+        FakeTerminal,
         mock.MagicMock,
     ]:
         """Run the token path with a successful scrape.
 
         probe_results: side_effect list for validate_token.
         selections: run_selection side_effect (default token/copy).
-        reprompt: what input() returns if the INVALID re-prompt fires.
+        reprompt: the paste fed to the INVALID re-prompt (via the FakeTerminal).
         """
         from claudewheel.wizard import run_auth_flow
 
         fake_binary = self._make_fake_binary()
         if selections is None:
             selections = ["token", "copy"]
+        # The 4th returned value is the FakeTerminal (formerly the input mock):
+        # it feeds the INVALID re-prompt paste, if any.
+        self.term = _paste_terminal(reprompt)
 
         with (
             mock.patch(
@@ -2866,9 +2892,6 @@ class TokenValidationOutcomeTests(AuthFlowTestBase):
                 autospec=True,
                 side_effect=selections,
             ) as mock_sel,
-            mock.patch(
-                "builtins.input", return_value=reprompt, autospec=True
-            ) as mock_input,
             mock.patch(
                 "claudewheel.wizard._find_claude_binary",
                 return_value=str(fake_binary),
@@ -2894,29 +2917,32 @@ class TokenValidationOutcomeTests(AuthFlowTestBase):
                 THEME,
                 self.term,
             )
-        return result, mock_add, mock_probe, mock_input, mock_sel
+        return result, mock_add, mock_probe, self.term, mock_sel
 
     def test_valid_token_saved_no_paste_prompt(self) -> None:
         """VALID: the scraped token is saved; input() is never called."""
         from claudewheel import auth
 
-        result, mock_add, mock_probe, mock_input, _sel = self._run_scraped_flow(
+        result, mock_add, mock_probe, term, _sel = self._run_scraped_flow(
             [auth.VALID]
         )
         self.assertEqual(result, "authenticated")
-        mock_add.assert_called_once_with(mock.ANY, "test", CAPTURED_TOKEN)
+        mock_add.assert_called_once_with(mock.ANY, "test", CAPTURED_TOKEN, expiry=TTL)
         mock_probe.assert_called_once_with(CAPTURED_TOKEN)
-        mock_input.assert_not_called()
+        # No re-prompt fired, so no paste keys were read.
+        self.assertEqual(term._index, 0)
 
     def test_invalid_then_valid_reprompt_saves_pasted_token(self) -> None:
         """INVALID scrape + VALID re-paste: the re-pasted token is saved."""
         from claudewheel import auth
 
-        result, mock_add, mock_probe, mock_input, _sel = self._run_scraped_flow(
+        result, mock_add, mock_probe, _term, _sel = self._run_scraped_flow(
             [auth.INVALID, auth.VALID], reprompt="sk-ant-oat01-repasted"
         )
         self.assertEqual(result, "authenticated")
-        mock_add.assert_called_once_with(mock.ANY, "test", "sk-ant-oat01-repasted")
+        mock_add.assert_called_once_with(
+            mock.ANY, "test", "sk-ant-oat01-repasted", expiry=TTL
+        )
         self.assertEqual(
             mock_probe.call_args_list,
             [mock.call(CAPTURED_TOKEN), mock.call("sk-ant-oat01-repasted")],
@@ -2927,12 +2953,13 @@ class TokenValidationOutcomeTests(AuthFlowTestBase):
         """INVALID scrape + INVALID re-paste: exactly one re-prompt, no save."""
         from claudewheel import auth
 
-        result, mock_add, mock_probe, mock_input, _sel = self._run_scraped_flow(
+        result, mock_add, mock_probe, term, _sel = self._run_scraped_flow(
             [auth.INVALID, auth.INVALID], reprompt="sk-ant-still-bad"
         )
         self.assertEqual(result, "failed")
         mock_add.assert_not_called()
-        mock_input.assert_called_once()
+        # Exactly one re-prompt fired: the paste keys were consumed.
+        self.assertGreater(term._index, 0)
         self.assertEqual(mock_probe.call_count, 2)
 
     def test_invalid_then_empty_reprompt_fails(self) -> None:
@@ -2950,12 +2977,12 @@ class TokenValidationOutcomeTests(AuthFlowTestBase):
         """UNREACHABLE + explicit 'Save unvalidated': saved, 'unverified'."""
         from claudewheel import auth
 
-        result, mock_add, _probe, mock_input, mock_sel = self._run_scraped_flow(
+        result, mock_add, _probe, term, mock_sel = self._run_scraped_flow(
             [auth.UNREACHABLE], selections=["token", "copy", "save"]
         )
         self.assertEqual(result, "unverified")
-        mock_add.assert_called_once_with(mock.ANY, "test", CAPTURED_TOKEN)
-        mock_input.assert_not_called()
+        mock_add.assert_called_once_with(mock.ANY, "test", CAPTURED_TOKEN, expiry=TTL)
+        self.assertEqual(term._index, 0)
         # The third run_selection call is the save/abort choice form
         args, _kwargs = mock_sel.call_args_list[2]
         self.assertIn("Token could not be validated", args[0])
@@ -2986,11 +3013,11 @@ class TokenValidationOutcomeTests(AuthFlowTestBase):
         """INDETERMINATE behaves like UNREACHABLE: explicit choice to save."""
         from claudewheel import auth
 
-        result, mock_add, _probe, _input, mock_sel = self._run_scraped_flow(
+        result, mock_add, _probe, _term, mock_sel = self._run_scraped_flow(
             [auth.INDETERMINATE], selections=["token", "copy", "save"]
         )
         self.assertEqual(result, "unverified")
-        mock_add.assert_called_once_with(mock.ANY, "test", CAPTURED_TOKEN)
+        mock_add.assert_called_once_with(mock.ANY, "test", CAPTURED_TOKEN, expiry=TTL)
         args, _kwargs = mock_sel.call_args_list[2]
         self.assertIn("validation inconclusive", args[0])
 
@@ -3053,13 +3080,15 @@ class TokenValidationOutcomeTests(AuthFlowTestBase):
         """INVALID scrape + re-paste whose probe is UNREACHABLE: choice form."""
         from claudewheel import auth
 
-        result, mock_add, mock_probe, mock_input, _sel = self._run_scraped_flow(
+        result, mock_add, mock_probe, _term, _sel = self._run_scraped_flow(
             [auth.INVALID, auth.UNREACHABLE],
             selections=["token", "copy", "save"],
             reprompt="sk-ant-oat01-repasted",
         )
         self.assertEqual(result, "unverified")
-        mock_add.assert_called_once_with(mock.ANY, "test", "sk-ant-oat01-repasted")
+        mock_add.assert_called_once_with(
+            mock.ANY, "test", "sk-ant-oat01-repasted", expiry=TTL
+        )
 
 
 class OnboardingFlagTests(CreateProfileTestBase):
@@ -3567,14 +3596,11 @@ class PasteTokenTests(AuthFlowTestBase):
         from claudewheel import auth
         from claudewheel.wizard import run_auth_flow
 
+        self.term = _paste_terminal("sk-ant-oat01-GOODTOKEN123")
+
         with (
             mock.patch(
                 "claudewheel.wizard.run_selection", autospec=True, return_value="paste"
-            ),
-            mock.patch(
-                "builtins.input",
-                return_value="sk-ant-oat01-GOODTOKEN123",
-                autospec=True,
             ),
             mock.patch(
                 "claudewheel.auth.validate_token",
@@ -3593,7 +3619,9 @@ class PasteTokenTests(AuthFlowTestBase):
             )
 
         self.assertEqual(result, "authenticated")
-        mock_add.assert_called_once_with(mock.ANY, "test", "sk-ant-oat01-GOODTOKEN123")
+        mock_add.assert_called_once_with(
+            mock.ANY, "test", "sk-ant-oat01-GOODTOKEN123", expiry=UNKNOWN
+        )
         mock_probe.assert_called_once_with("sk-ant-oat01-GOODTOKEN123")
 
     def test_paste_invalid_then_valid_repaste_saves(self) -> None:
@@ -3601,14 +3629,11 @@ class PasteTokenTests(AuthFlowTestBase):
         from claudewheel import auth
         from claudewheel.wizard import run_auth_flow
 
+        self.term = _paste_terminal("sk-ant-bad", "sk-ant-good")
+
         with (
             mock.patch(
                 "claudewheel.wizard.run_selection", autospec=True, return_value="paste"
-            ),
-            mock.patch(
-                "builtins.input",
-                side_effect=["sk-ant-bad", "sk-ant-good"],
-                autospec=True,
             ),
             mock.patch(
                 "claudewheel.auth.validate_token",
@@ -3627,7 +3652,7 @@ class PasteTokenTests(AuthFlowTestBase):
             )
 
         self.assertEqual(result, "authenticated")
-        mock_add.assert_called_once_with(mock.ANY, "test", "sk-ant-good")
+        mock_add.assert_called_once_with(mock.ANY, "test", "sk-ant-good", expiry=UNKNOWN)
         self.assertEqual(mock_probe.call_count, 2)
         self.assertIn("rejected by the API (401)", self._stdout_buf.getvalue())
 
@@ -3636,14 +3661,11 @@ class PasteTokenTests(AuthFlowTestBase):
         from claudewheel import auth
         from claudewheel.wizard import run_auth_flow
 
+        self.term = _paste_terminal("sk-ant-bad1", "sk-ant-bad2")
+
         with (
             mock.patch(
                 "claudewheel.wizard.run_selection", autospec=True, return_value="paste"
-            ),
-            mock.patch(
-                "builtins.input",
-                side_effect=["sk-ant-bad1", "sk-ant-bad2"],
-                autospec=True,
             ),
             mock.patch(
                 "claudewheel.auth.validate_token",
@@ -3669,13 +3691,14 @@ class PasteTokenTests(AuthFlowTestBase):
         from claudewheel import auth
         from claudewheel.wizard import run_auth_flow
 
+        self.term = _paste_terminal("sk-ant-token")
+
         with (
             mock.patch(
                 "claudewheel.wizard.run_selection",
                 autospec=True,
                 side_effect=["paste", "save"],
             ) as mock_sel,
-            mock.patch("builtins.input", return_value="sk-ant-token", autospec=True),
             mock.patch(
                 "claudewheel.auth.validate_token",
                 autospec=True,
@@ -3693,7 +3716,7 @@ class PasteTokenTests(AuthFlowTestBase):
             )
 
         self.assertEqual(result, "unverified")
-        mock_add.assert_called_once_with(mock.ANY, "test", "sk-ant-token")
+        mock_add.assert_called_once_with(mock.ANY, "test", "sk-ant-token", expiry=UNKNOWN)
         # The second run_selection call is the save/abort choice form
         args, _kwargs = mock_sel.call_args_list[1]
         self.assertIn("API unreachable", args[0])
@@ -3703,13 +3726,14 @@ class PasteTokenTests(AuthFlowTestBase):
         from claudewheel import auth
         from claudewheel.wizard import run_auth_flow
 
+        self.term = _paste_terminal("sk-ant-token")
+
         with (
             mock.patch(
                 "claudewheel.wizard.run_selection",
                 autospec=True,
                 side_effect=["paste", "abort"],
             ),
-            mock.patch("builtins.input", return_value="sk-ant-token", autospec=True),
             mock.patch(
                 "claudewheel.auth.validate_token",
                 autospec=True,
@@ -3733,11 +3757,12 @@ class PasteTokenTests(AuthFlowTestBase):
         """Empty paste (Enter with no token) returns 'cancel'."""
         from claudewheel.wizard import run_auth_flow
 
+        self.term = _paste_terminal("")
+
         with (
             mock.patch(
                 "claudewheel.wizard.run_selection", autospec=True, return_value="paste"
             ),
-            mock.patch("builtins.input", return_value="", autospec=True),
             mock.patch("claudewheel.tokens.TokenStore.add", autospec=True) as mock_add,
         ):
             result = run_auth_flow(
@@ -3757,11 +3782,12 @@ class PasteTokenTests(AuthFlowTestBase):
         from claudewheel import auth
         from claudewheel.wizard import run_auth_flow
 
+        self.term = _paste_terminal("sk-ant-token")
+
         with (
             mock.patch(
                 "claudewheel.wizard.run_selection", autospec=True, return_value="paste"
             ) as mock_sel,
-            mock.patch("builtins.input", return_value="sk-ant-token", autospec=True),
             mock.patch(
                 "claudewheel.auth.validate_token",
                 autospec=True,
@@ -3789,11 +3815,12 @@ class PasteTokenTests(AuthFlowTestBase):
         from claudewheel import auth
         from claudewheel.wizard import run_auth_flow
 
+        self.term = _paste_terminal("sk-ant-token")
+
         with (
             mock.patch(
                 "claudewheel.wizard.run_selection", autospec=True, return_value="paste"
             ),
-            mock.patch("builtins.input", return_value="sk-ant-token", autospec=True),
             mock.patch(
                 "claudewheel.auth.validate_token",
                 autospec=True,
@@ -3818,6 +3845,8 @@ class PasteTokenTests(AuthFlowTestBase):
         from claudewheel import auth
         from claudewheel.wizard import run_auth_flow
 
+        self.term = _paste_terminal("sk-ant-token")
+
         config_dir = self._profile_dir("pasteonboard")
         config_dir.mkdir(parents=True, exist_ok=True)
         config_dir_str = str(config_dir)
@@ -3826,7 +3855,6 @@ class PasteTokenTests(AuthFlowTestBase):
             mock.patch(
                 "claudewheel.wizard.run_selection", autospec=True, return_value="paste"
             ),
-            mock.patch("builtins.input", return_value="sk-ant-token", autospec=True),
             mock.patch(
                 "claudewheel.auth.validate_token",
                 autospec=True,
@@ -3870,13 +3898,14 @@ class PasteTokenTests(AuthFlowTestBase):
         from claudewheel import auth
         from claudewheel.wizard import run_auth_flow
 
+        self.term = _paste_terminal("sk-ant-token")
+
         with (
             mock.patch(
                 "claudewheel.wizard.run_selection",
                 autospec=True,
                 side_effect=["paste", "save"],
             ) as mock_sel,
-            mock.patch("builtins.input", return_value="sk-ant-token", autospec=True),
             mock.patch(
                 "claudewheel.auth.validate_token",
                 autospec=True,
@@ -3894,7 +3923,7 @@ class PasteTokenTests(AuthFlowTestBase):
             )
 
         self.assertEqual(result, "unverified")
-        mock_add.assert_called_once_with(mock.ANY, "test", "sk-ant-token")
+        mock_add.assert_called_once_with(mock.ANY, "test", "sk-ant-token", expiry=UNKNOWN)
         args, _kwargs = mock_sel.call_args_list[1]
         self.assertIn("validation inconclusive", args[0])
 
@@ -3903,11 +3932,12 @@ class PasteTokenTests(AuthFlowTestBase):
         from claudewheel import auth
         from claudewheel.wizard import run_auth_flow
 
+        self.term = _paste_terminal("sk-ant-token")
+
         with (
             mock.patch(
                 "claudewheel.wizard.run_selection", autospec=True, return_value="paste"
             ),
-            mock.patch("builtins.input", return_value="sk-ant-token", autospec=True),
             mock.patch(
                 "claudewheel.auth.validate_token",
                 autospec=True,

@@ -64,6 +64,8 @@ class FakeTerminal(Terminal):
         self.exit_raw_called = False
         self.closed = False
         self._in_raw = in_raw
+        # cooked() reads this to restore the alt-screen flag symmetrically.
+        self._alt_screen = True
 
     def enter_raw(self, alt_screen: bool = True) -> None:
         self.enter_raw_calls.append(alt_screen)
