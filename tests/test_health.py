@@ -20,6 +20,7 @@ from claudewheel.health import (
     check_orphan_profiles,
     check_relocated_hook_paths,
     check_settings_defaults,
+    check_shared_settings_drift,
     check_shared_symlinks,
     check_tmp_claude_size,
     check_token_expiry,
@@ -1320,6 +1321,86 @@ class CheckRelocatedHookPathsTests(_HomeDirTestCase):
         self.assertFalse(result.ok)
         self.assertIn("shared-settings.json", result.detail)
         self.assertIn("/stale/scripts/hook-timestamp", result.detail)
+
+
+class DefaultProfileExemptionTests(_HomeDirTestCase):
+    """Phase 4.5: the vanilla ~/.claude 'default' is exempt from guardrail checks.
+
+    A bare ~/.claude (managed by Claude Code, read-only to cw) must produce ZERO
+    warnings attributable to the default across a health run.
+    """
+
+    _GUARDRAIL_CHECKS = (
+        check_shared_symlinks,
+        check_hooks_wired,
+        check_settings_defaults,
+        check_shared_settings_drift,
+        check_canonical_permissions_drift,
+        check_relocated_hook_paths,
+        check_tokens,
+    )
+
+    def _bare_default(self, *, with_settings: bool = True) -> Path:
+        d = self.home / ".claude"
+        d.mkdir(parents=True, exist_ok=True)
+        if with_settings:
+            (d / "settings.json").write_text("{}\n")
+        return d
+
+    def _canonical_shared_settings(self) -> None:
+        from claudewheel.defaults import build_canonical_shared_settings
+        from claudewheel.fsutil import write_json_atomic
+
+        canonical = build_canonical_shared_settings(self.ws.scripts_dir)
+        self.ws.shared_settings_file.parent.mkdir(parents=True, exist_ok=True)
+        write_json_atomic(self.ws.shared_settings_file, canonical)
+
+    def test_default_is_discoverable_now(self) -> None:
+        """Sanity: the lenient rule makes a bare ~/.claude discoverable as default."""
+        self._bare_default()
+        names = [p.name for p in _discover_profiles(self.ws)]
+        self.assertEqual(names, ["default"])
+
+    def test_guardrail_checks_never_mention_default(self) -> None:
+        self._bare_default()
+        self._canonical_shared_settings()
+        for check in self._GUARDRAIL_CHECKS:
+            r = check(self.ws)
+            self.assertNotIn(
+                "default", r.detail, f"{check.__name__} leaked the default profile"
+            )
+
+    def test_guardrail_checks_ok_with_only_bare_default(self) -> None:
+        self._bare_default()
+        self._canonical_shared_settings()
+        for check in self._GUARDRAIL_CHECKS:
+            self.assertTrue(check(self.ws).ok, f"{check.__name__} warned")
+
+    def test_full_run_has_no_default_attributable_warning(self) -> None:
+        self._bare_default()
+        self._canonical_shared_settings()
+        results = run_health_check(self.ws)
+        for r in results:
+            if r.ok:
+                continue
+            # None of the profile-warning formats may name the default.
+            self.assertNotIn("default:", r.detail)
+            self.assertNotIn("default/", r.detail)
+            self.assertNotIn("shadowed: default", r.detail)
+            self.assertNotIn("missing tokens: default", r.detail)
+
+    def test_credentialed_default_not_flagged_missing_token(self) -> None:
+        """A ~/.claude WITH .credentials.json but no cw token is not a warning.
+
+        This is the common real case (Claude Code stores creds in ~/.claude).
+        The default is exempt from the token check, so no 'missing tokens' warning.
+        """
+        d = self._bare_default()
+        (d / ".credentials.json").write_text("{}")
+        self._canonical_shared_settings()
+        r = check_tokens(self.ws)
+        self.assertTrue(r.ok)
+        self.assertNotIn("default", r.detail)
 
 
 if __name__ == "__main__":

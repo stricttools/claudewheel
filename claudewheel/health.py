@@ -112,6 +112,22 @@ def _discover_profiles(
     return ws.profiles.discover(on_corrupt_tokens="raise", tokens=tokens)
 
 
+def _managed_profiles(
+    ws: "Workspace", tokens: dict[str, Any] | None = None
+) -> list[Profile]:
+    """Discovered profiles EXCLUDING the vanilla ``"default"`` (~/.claude).
+
+    ``~/.claude`` is Claude Code's own config dir -- managed by Claude Code, not
+    cw, and strictly read-only to cw. It is therefore EXEMPT from every
+    guardrail/settings health check (shared symlinks, hook wiring, settings
+    defaults, canonical/shared drift, relocated hook paths) and from the cw
+    token check (it legitimately has no cw-managed token). Non-guardrail
+    integrity checks (auth shadow, file permissions) still see it via
+    :func:`_discover_profiles`, where a bare ~/.claude self-skips harmlessly.
+    """
+    return [p for p in _discover_profiles(ws, tokens) if p.name != "default"]
+
+
 # -- Shared-store profile checks -------------------------------------------
 
 
@@ -119,7 +135,7 @@ def check_shared_symlinks(
     ws: "Workspace", tokens: dict[str, Any] | None = None
 ) -> HealthResult:
     """Verify each profile's shared dirs are symlinks to ~/.claudewheel/shared/."""
-    profiles = _discover_profiles(ws, tokens)
+    profiles = _managed_profiles(ws, tokens)
     if not profiles:
         return HealthResult(True, "shared-symlinks", "no profiles found")
 
@@ -183,7 +199,7 @@ def check_hooks_wired(
     command (``scripts_dir / script``) for that triple. A hook pointing at the
     right basename under the wrong directory does NOT satisfy the wiring.
     """
-    profiles = _discover_profiles(ws, tokens)
+    profiles = _managed_profiles(ws, tokens)
     if not profiles:
         return HealthResult(True, "hooks-wired", "no profiles found")
 
@@ -218,7 +234,7 @@ def check_settings_defaults(
     ws: "Workspace", tokens: dict[str, Any] | None = None
 ) -> HealthResult:
     """Verify each profile enforces expected defaults in settings.json."""
-    profiles = _discover_profiles(ws, tokens)
+    profiles = _managed_profiles(ws, tokens)
     if not profiles:
         return HealthResult(True, "settings-defaults", "no profiles found")
 
@@ -316,7 +332,7 @@ def check_shared_settings_drift(
     canonical_hooks = shared.get("hooks", {})
     canonical_disallowed = shared.get("disallowedTools", [])
 
-    profiles = _discover_profiles(ws, tokens)
+    profiles = _managed_profiles(ws, tokens)
     if not profiles:
         return HealthResult(True, "settings-drift", "no profiles found")
 
@@ -409,7 +425,7 @@ def check_canonical_permissions_drift(
             for d in _canonical_permission_diffs("permissions", pd_perms):
                 all_diffs.append(f"profileDefaults: {d}")
 
-    profiles = _discover_profiles(ws, tokens)
+    profiles = _managed_profiles(ws, tokens)
     for p in profiles:
         settings_file = p.path / "settings.json"
         if not settings_file.exists():
@@ -527,7 +543,9 @@ def check_tokens(
         except TokenStoreError as e:
             return HealthResult(False, "tokens", str(e))
 
-    profiles = _discover_profiles(ws, tokens)
+    # The vanilla default is exempt: it legitimately has no cw-managed token
+    # (Claude Code owns ~/.claude and cw cannot verify its auth).
+    profiles = _managed_profiles(ws, tokens)
     if not profiles:
         return HealthResult(True, "tokens", "no profiles found")
 
@@ -793,7 +811,7 @@ def check_relocated_hook_paths(
             for cmd in _stale_hook_command_paths(shared.get("hooks", {}), scripts_dir):
                 issues.append(f"shared-settings.json: {cmd}")
 
-    for p in _discover_profiles(ws, tokens):
+    for p in _managed_profiles(ws, tokens):
         settings_file = p.path / "settings.json"
         if not settings_file.exists():
             continue
