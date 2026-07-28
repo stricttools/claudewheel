@@ -487,6 +487,10 @@ def check_token_expiry(
     min_remaining: float = TOKEN_TTL_DAYS
     for name, entry in tokens.items():
         remaining = compute_expiry(entry, mtime, today=today).remaining_days
+        if remaining is None:
+            # Externally-issued token with an unknown expiry: never flag it as
+            # expiring soon -- we have no expiry date to compare against.
+            continue
         min_remaining = min(min_remaining, remaining)
         if remaining < 30:
             expiring.append(f"{name} (~{max(0, int(remaining))}d)")

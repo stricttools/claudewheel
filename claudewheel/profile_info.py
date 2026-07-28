@@ -251,12 +251,16 @@ def format_report(report: ProfileReport) -> list[str]:
 
     if report.has_token and report.token_expiry is not None:
         exp = report.token_expiry
-        created = exp.created.isoformat() if exp.created else "unknown"
-        expires = exp.expires.isoformat() if exp.expires else "unknown"
-        lines.append(
-            f"Token: present (created {created}, expires {expires}, "
-            f"{exp.remaining_days:.0f} days left)"
-        )
+        if exp.remaining_days is None:
+            # Externally-issued token: we recorded no expiry for it.
+            lines.append("Token: present (expiry unknown (externally issued))")
+        else:
+            created = exp.created.isoformat() if exp.created else "unknown"
+            expires = exp.expires.isoformat() if exp.expires else "unknown"
+            lines.append(
+                f"Token: present (created {created}, expires {expires}, "
+                f"{exp.remaining_days:.0f} days left)"
+            )
     else:
         lines.append("Token: none")
 

@@ -177,6 +177,59 @@ class Terminal:
             return "CTRL_D"
         return ch
 
+    def read_masked_line(self, prompt: str = "", mask: str = "*") -> str:
+        """Read a line of input with echo suppressed, showing a mask per key.
+
+        Manages raw mode itself: if the terminal is not already raw it enters
+        cbreak (alt-screen off) for the duration of the read and restores the
+        prior mode afterward. Because :meth:`enter_raw` uses cbreak (not full
+        raw), output newline translation stays on, so any surrounding prints
+        still render correctly.
+
+        Key handling (over :meth:`read_key` semantics):
+
+        - a printable single character accumulates and echoes *mask*;
+        - ``BACKSPACE`` removes the last character and erases one mask glyph;
+        - ``ENTER`` terminates and returns the accumulated string;
+        - ``CTRL_C`` (also ``CTRL_D`` / ``ESC``) raises ``KeyboardInterrupt``;
+        - any other key (arrows, function keys, paste-embedded control keys)
+          is ignored.
+
+        The typed characters are NEVER echoed and NEVER written to the tty in
+        clear -- only *mask* glyphs are emitted -- so a secret can be entered
+        without it appearing on screen or in captured output.
+        """
+        entered_raw = False
+        if not self._in_raw:
+            self.enter_raw(alt_screen=False)
+            entered_raw = True
+        try:
+            if prompt:
+                self.write(prompt)
+                self.flush()
+            chars: list[str] = []
+            while True:
+                key = self.read_key()
+                if key == "ENTER":
+                    self.write("\r\n")
+                    self.flush()
+                    return "".join(chars)
+                if key in ("CTRL_C", "CTRL_D", "ESC"):
+                    raise KeyboardInterrupt
+                if key == "BACKSPACE":
+                    if chars:
+                        chars.pop()
+                        self.write("\b \b")
+                        self.flush()
+                    continue
+                if len(key) == 1 and key.isprintable():
+                    chars.append(key)
+                    self.write(mask)
+                    self.flush()
+        finally:
+            if entered_raw:
+                self.exit_raw()
+
     def _write_tty(self, text: str) -> None:
         """Write directly to the TTY device."""
         self._tty_file.write(text.encode())

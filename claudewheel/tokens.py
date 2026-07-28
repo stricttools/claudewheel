@@ -6,6 +6,7 @@ import json
 import time
 from dataclasses import dataclass
 from datetime import date, timedelta
+from enum import Enum
 from pathlib import Path
 from typing import Any, NamedTuple
 
@@ -13,6 +14,28 @@ from .fsutil import write_json_atomic_secret
 
 # Claude Code setup-token TTL. Single source of truth for token lifetime.
 TOKEN_TTL_DAYS = 365
+
+# Marker field written on entries whose expiry is genuinely unknown (a token
+# supplied from an external source, not a claude setup-token). Its presence
+# means "do not assume a 365-day lifetime -- we simply do not know".
+EXPIRY_UNKNOWN_FIELD = "expiry_unknown"
+
+
+class TokenExpiryDisposition(Enum):
+    """How a token's expiry is recorded when writing it to tokens.json.
+
+    The caller MUST choose one explicitly -- there is no default -- so token
+    lifetime is never silently fabricated.
+
+    - ``TTL``: a claude setup-token, genuinely valid for ``TOKEN_TTL_DAYS``.
+      The entry gets ``created`` (today) and ``expires_at`` (created + TTL).
+    - ``UNKNOWN``: an externally-issued token whose expiry we cannot know.
+      The entry gets ``created`` (today) and the ``expiry_unknown`` marker,
+      and NO ``expires_at`` -- expiry is reported as unknown, never assumed.
+    """
+
+    TTL = "ttl"
+    UNKNOWN = "unknown"
 
 
 def parse_entry(entry: object) -> str | None:
@@ -32,11 +55,17 @@ def parse_entry(entry: object) -> str | None:
 
 
 class TokenExpiry(NamedTuple):
-    """Computed token lifetime: creation date, expiry date, days remaining."""
+    """Computed token lifetime: creation date, expiry date, days remaining.
+
+    ``remaining_days`` is ``None`` only for entries marked with an unknown
+    expiry disposition -- a distinct, honest "we don't know" that consumers
+    must handle separately from the "assume fresh" fallback (which reports a
+    concrete ``TOKEN_TTL_DAYS``).
+    """
 
     created: date | None
     expires: date | None
-    remaining_days: float
+    remaining_days: float | None
 
 
 def compute_expiry(
@@ -44,7 +73,8 @@ def compute_expiry(
 ) -> TokenExpiry:
     """Compute a token entry's creation date, expiry date, and remaining days.
 
-    Precedence: explicit "expires_at" ISO date; else "created" + TOKEN_TTL_DAYS;
+    Precedence: an explicit unknown-expiry marker yields (None, None, None);
+    else explicit "expires_at" ISO date; else "created" + TOKEN_TTL_DAYS;
     else (legacy bare-string entry) the tokens.json file mtime + TOKEN_TTL_DAYS.
     Unparseable or absent dict fields yield (None, None, TOKEN_TTL_DAYS),
     matching the historical health-check behavior of assuming a fresh token.
@@ -53,6 +83,11 @@ def compute_expiry(
         today = date.today()
 
     if isinstance(entry, dict):
+        if entry.get(EXPIRY_UNKNOWN_FIELD):
+            # Externally-issued token: expiry is genuinely unknown. Distinct
+            # from the "assume fresh" branch below (which returns a concrete
+            # TOKEN_TTL_DAYS) -- here remaining_days is None.
+            return TokenExpiry(None, None, None)
         if entry.get("expires_at"):
             try:
                 expires = date.fromisoformat(entry["expires_at"])
@@ -108,18 +143,27 @@ def _write_token(
     name: str,
     token: str,
     *,
+    expiry: TokenExpiryDisposition,
     tier: str | None = None,
     subscription: str | None = None,
 ) -> None:
-    """Add/update a token entry in the tokens.json at *path* (0600, atomic)."""
+    """Add/update a token entry in the tokens.json at *path* (0600, atomic).
+
+    *expiry* selects how the entry records its lifetime -- see
+    :class:`TokenExpiryDisposition`. There is no default: the caller must
+    decide, so token expiry is never silently fabricated.
+    """
     tokens = _read_tokens_for_write(path)
 
     created = date.today()
-    entry: dict[str, str] = {
+    entry: dict[str, Any] = {
         "token": token,
         "created": created.isoformat(),
-        "expires_at": (created + timedelta(days=TOKEN_TTL_DAYS)).isoformat(),
     }
+    if expiry is TokenExpiryDisposition.TTL:
+        entry["expires_at"] = (created + timedelta(days=TOKEN_TTL_DAYS)).isoformat()
+    elif expiry is TokenExpiryDisposition.UNKNOWN:
+        entry[EXPIRY_UNKNOWN_FIELD] = True
     if tier is not None:
         entry["rateLimitTier"] = tier
     if subscription is not None:
@@ -221,11 +265,18 @@ class TokenStore:
         name: str,
         token: str,
         *,
+        expiry: TokenExpiryDisposition,
         tier: str | None = None,
         subscription: str | None = None,
     ) -> None:
-        """Add/update a token entry (0600, atomic). OSError on corrupt file."""
-        _write_token(self.path, name, token, tier=tier, subscription=subscription)
+        """Add/update a token entry (0600, atomic). OSError on corrupt file.
+
+        *expiry* is required: the caller must choose how the token's lifetime
+        is recorded (see :class:`TokenExpiryDisposition`).
+        """
+        _write_token(
+            self.path, name, token, expiry=expiry, tier=tier, subscription=subscription
+        )
 
     def set_tier(
         self, name: str, *, tier: str | None = None, subscription: str | None = None

@@ -30,6 +30,22 @@ _ANSI_RE = re.compile(
 # only anchor on the stable "sk-ant-" prefix, not the current "oat01" infix.
 _TOKEN_RE = re.compile(rb"sk-ant-[A-Za-z0-9_-]{30,}")
 
+# Offline format predicate for a manually pasted token. Anchored on the stable
+# "sk-ant-" prefix only (same philosophy as _TOKEN_RE), with no length floor so
+# it never second-guesses a genuinely-short token -- the live probe is still the
+# real gate. Its sole job is to reject obvious garbage BEFORE any network call.
+_TOKEN_FORMAT_RE = re.compile(r"^sk-ant-[A-Za-z0-9_-]+$")
+
+
+def looks_like_token(token: str) -> bool:
+    """Cheap offline check: does *token* have the shape of an API token?
+
+    Anchors on the ``sk-ant-`` prefix with at least one trailing token
+    character. Never makes a network call -- callers use it to reject garbage
+    before spending a round-trip on :func:`validate_token`.
+    """
+    return bool(_TOKEN_FORMAT_RE.match(token))
+
 _LABEL = b"valid for 1 year"
 _MIN_TOKEN_LEN = 50
 

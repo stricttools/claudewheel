@@ -20,6 +20,7 @@ from .patch_profiles import merge_hooks
 from .pty_runner import run_under_pty
 from .state import AUTH_BROWSER_KEY
 from .terminal import Terminal
+from .tokens import TokenExpiryDisposition
 from .theme import ThemeColors
 from .ui import FormField, get_field, run_form, run_selection
 
@@ -499,23 +500,47 @@ def _auth_session_login(
 _PASTE_PROMPT = "Paste the token manually, or press Enter to abort: "
 
 
-def _read_pasted_token(prompt: str) -> str | None:
-    """Read a manually pasted token from input().
+def _read_pasted_token(prompt: str, terminal: Terminal) -> str | None:
+    """Read a manually pasted token with the terminal's masked-input primitive.
 
-    Removes ALL whitespace, including linebreaks and spaces embedded by
-    line-wrapped terminal copies. Returns None on EOF/Ctrl-C; an empty
-    string when nothing (or only whitespace) was entered.
+    The token is never echoed in clear -- each key shows a mask glyph -- so it
+    cannot be shoulder-surfed or captured. Removes ALL whitespace, including
+    spaces embedded by line-wrapped terminal copies. Returns None on Ctrl-C /
+    Esc (abort); an empty string when nothing (or only whitespace) was entered.
     """
     try:
-        raw = input(prompt)
-    except (EOFError, KeyboardInterrupt):
+        raw = terminal.read_masked_line(prompt)
+    except KeyboardInterrupt:
         print()
         return None
     return "".join(raw.split())
 
 
+def _format_gate(token: str, terminal: Terminal) -> str | None:
+    """Return a format-valid pasted token, or None after one failed re-prompt.
+
+    Runs BEFORE any network probe and never makes a network call itself. If the
+    token has the expected ``sk-ant-`` shape it is returned as-is. Otherwise one
+    corrected paste is requested (mirroring the 401 re-paste structure); if that
+    is empty or still malformed, the gate hard-fails with None.
+    """
+    if auth.looks_like_token(token):
+        return token
+    print("Error: that does not look like an API token (expected an 'sk-ant-' prefix).")
+    token = _read_pasted_token(
+        "Paste the corrected token, or press Enter to abort: ", terminal
+    )
+    if not token:
+        print("No token provided.")
+        return None
+    if auth.looks_like_token(token):
+        return token
+    print("Error: that still does not look like an API token; aborting.")
+    return None
+
+
 def _capture_setup_token(
-    locator: "BinaryLocator", config_dir: str, browser: str
+    locator: "BinaryLocator", config_dir: str, browser: str, terminal: Terminal
 ) -> str | None:
     """Run ``claude setup-token`` under a PTY and scrape the token.
 
@@ -554,17 +579,26 @@ def _capture_setup_token(
 
     print()
     print("Error: could not extract the token from setup-token's output.")
-    token = _read_pasted_token(_PASTE_PROMPT)
+    token = _read_pasted_token(_PASTE_PROMPT, terminal)
     if not token:
         print("No token provided.")
         return None
     return token
 
 
-def _save_token(ws: "Workspace", profile_name: str, token: str) -> bool:
-    """Write the token via the workspace TokenStore; print + return False on OSError."""
+def _save_token(
+    ws: "Workspace",
+    profile_name: str,
+    token: str,
+    expiry: TokenExpiryDisposition,
+) -> bool:
+    """Write the token via the workspace TokenStore; print + return False on OSError.
+
+    *expiry* records how the token's lifetime is stored: setup-tokens are TTL
+    (365 days); externally-pasted tokens are UNKNOWN (no assumed expiry).
+    """
     try:
-        ws.tokens.add(profile_name, token)
+        ws.tokens.add(profile_name, token, expiry=expiry)
     except OSError as e:
         print(f"Error saving token: {e}")
         return False
@@ -589,34 +623,47 @@ def _auth_paste_token(
       user explicitly chose to save the unvalidated token
     - ``"failed"`` -- anything else (cancelled, rejected, save error)
     """
-    with terminal.cooked():
-        token = _read_pasted_token("Paste your API token: ")
-        if not token:
-            return "cancel"
+    # The masked-input primitive owns raw mode itself, so no cooked() wrapper is
+    # needed around the reads. enter_raw uses cbreak (output newline translation
+    # stays on), so the surrounding prints still render correctly.
+    token = _read_pasted_token("Paste your API token: ", terminal)
+    if not token:
+        return "cancel"
 
+    # 8.2: format-gate BEFORE any network call. A format failure never probes.
+    gated = _format_gate(token, terminal)
+    if gated is None:
+        return "failed"
+    token = gated
+
+    status = auth.validate_token(token)
+    if status == auth.INVALID:
+        print("Error: the token was rejected by the API (401).")
+        token = _read_pasted_token(
+            "Paste the corrected token, or press Enter to abort: ", terminal
+        )
+        if not token:
+            print("No token provided.")
+            return "failed"
+        gated = _format_gate(token, terminal)
+        if gated is None:
+            return "failed"
+        token = gated
         status = auth.validate_token(token)
         if status == auth.INVALID:
-            print("Error: the token was rejected by the API (401).")
-            token = _read_pasted_token(
-                "Paste the corrected token, or press Enter to abort: "
-            )
-            if not token:
-                print("No token provided.")
-                return "failed"
-            status = auth.validate_token(token)
-            if status == auth.INVALID:
-                print("Error: the token was rejected by the API (401) again.")
-                return "failed"
+            print("Error: the token was rejected by the API (401) again.")
+            return "failed"
 
-        if status == auth.VALID:
-            if not _save_token(ws, profile_name, token):
-                return "failed"
-            print("Token validated and saved successfully.")
-            return "authenticated"
+    if status == auth.VALID:
+        # Externally-pasted token: expiry is unknown, never assume 365 days.
+        if not _save_token(ws, profile_name, token, TokenExpiryDisposition.UNKNOWN):
+            return "failed"
+        print("Token validated and saved successfully.")
+        return "authenticated"
 
     # UNREACHABLE or INDETERMINATE: the token cannot be verified right now.
-    # The cooked window is closed, so the choice form renders borrowed in
-    # the caller's session (raw terminal) like the other auth forms.
+    # The choice form renders borrowed in the caller's session (raw terminal)
+    # like the other auth forms.
     reason = (
         "API unreachable" if status == auth.UNREACHABLE else "validation inconclusive"
     )
@@ -632,10 +679,9 @@ def _auth_paste_token(
     if choice != "save":
         return "failed"
 
-    with terminal.cooked():
-        if not _save_token(ws, profile_name, token):
-            return "failed"
-        print("Token saved WITHOUT validation.")
+    if not _save_token(ws, profile_name, token, TokenExpiryDisposition.UNKNOWN):
+        return "failed"
+    print("Token saved WITHOUT validation.")
     return "unverified"
 
 
@@ -660,26 +706,39 @@ def _auth_long_lived_token(
       saved: one manual re-paste is offered (the scrape may have picked a
       stale frame), then the flow fails hard.
     """
+    # The cooked window is kept for the PTY-driven setup-token subprocess; the
+    # masked recovery-paste primitive manages its own raw mode within it.
     with terminal.cooked():
-        token = _capture_setup_token(locator, config_dir, browser)
+        token = _capture_setup_token(locator, config_dir, browser, terminal)
         if token is None:
             return "failed"
+
+        # 8.2: format-gate BEFORE any network call (covers a recovery paste).
+        gated = _format_gate(token, terminal)
+        if gated is None:
+            return "failed"
+        token = gated
 
         status = auth.validate_token(token)
         if status == auth.INVALID:
             print("Error: the token was rejected by the API (401).")
             print("The captured token may be stale or truncated.")
-            token = _read_pasted_token(_PASTE_PROMPT)
+            token = _read_pasted_token(_PASTE_PROMPT, terminal)
             if not token:
                 print("No token provided.")
                 return "failed"
+            gated = _format_gate(token, terminal)
+            if gated is None:
+                return "failed"
+            token = gated
             status = auth.validate_token(token)
             if status == auth.INVALID:
                 print("Error: the token was rejected by the API (401) again.")
                 return "failed"
 
         if status == auth.VALID:
-            if not _save_token(ws, profile_name, token):
+            # A setup-token is genuinely valid for 365 days.
+            if not _save_token(ws, profile_name, token, TokenExpiryDisposition.TTL):
                 return "failed"
             print("Token validated and saved successfully.")
             return "authenticated"
@@ -702,8 +761,7 @@ def _auth_long_lived_token(
     if choice != "save":
         return "failed"
 
-    with terminal.cooked():
-        if not _save_token(ws, profile_name, token):
-            return "failed"
-        print("Token saved WITHOUT validation.")
+    if not _save_token(ws, profile_name, token, TokenExpiryDisposition.TTL):
+        return "failed"
+    print("Token saved WITHOUT validation.")
     return "unverified"
