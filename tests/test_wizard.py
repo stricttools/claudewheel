@@ -3961,6 +3961,107 @@ class PasteTokenTests(AuthFlowTestBase):
         self.assertEqual(result, "failed")
         self.assertIn("Error saving token", self._stdout_buf.getvalue())
 
+    def test_paste_token_never_appears_in_terminal_output(self) -> None:
+        """8.1: the pasted token is masked -- it never reaches terminal output."""
+        from claudewheel import auth
+        from claudewheel.wizard import run_auth_flow
+
+        secret = "sk-ant-oat01-SUPERSECRETVALUE999"
+        self.term = _paste_terminal(secret)
+
+        with (
+            mock.patch(
+                "claudewheel.wizard.run_selection", autospec=True, return_value="paste"
+            ),
+            mock.patch(
+                "claudewheel.auth.validate_token",
+                autospec=True,
+                return_value=auth.VALID,
+            ),
+            mock.patch("claudewheel.tokens.TokenStore.add", autospec=True),
+        ):
+            result = run_auth_flow(
+                self.ws,
+                self.locator,
+                "~/.claudewheel/profiles/test",
+                "test",
+                THEME,
+                self.term,
+            )
+
+        self.assertEqual(result, "authenticated")
+        joined = "".join(self.term.output)
+        self.assertNotIn(secret, joined)
+        self.assertNotIn("SUPERSECRETVALUE999", joined)
+        # It WAS read (masked), so mask glyphs were emitted instead.
+        self.assertIn("*", joined)
+
+    def test_paste_garbage_rejected_offline_no_probe(self) -> None:
+        """8.2: garbage (no sk-ant- prefix) is rejected offline.
+
+        The format gate offers one corrected re-paste; still-garbage aborts
+        hard, and validate_token is NEVER called -- no network round-trip is
+        spent on a token that cannot possibly be valid.
+        """
+        from claudewheel.wizard import run_auth_flow
+
+        self.term = _paste_terminal("garbage", "still-garbage")
+
+        with (
+            mock.patch(
+                "claudewheel.wizard.run_selection", autospec=True, return_value="paste"
+            ),
+            mock.patch(
+                "claudewheel.auth.validate_token", autospec=True
+            ) as mock_probe,
+            mock.patch("claudewheel.tokens.TokenStore.add", autospec=True) as mock_add,
+        ):
+            result = run_auth_flow(
+                self.ws,
+                self.locator,
+                "~/.claudewheel/profiles/test",
+                "test",
+                THEME,
+                self.term,
+            )
+
+        self.assertEqual(result, "failed")
+        mock_probe.assert_not_called()
+        mock_add.assert_not_called()
+
+    def test_paste_garbage_then_valid_prefix_proceeds_to_probe(self) -> None:
+        """8.2: a corrected re-paste with the right prefix reaches the probe."""
+        from claudewheel import auth
+        from claudewheel.wizard import run_auth_flow
+
+        self.term = _paste_terminal("garbage", "sk-ant-fixed")
+
+        with (
+            mock.patch(
+                "claudewheel.wizard.run_selection", autospec=True, return_value="paste"
+            ),
+            mock.patch(
+                "claudewheel.auth.validate_token",
+                autospec=True,
+                return_value=auth.VALID,
+            ) as mock_probe,
+            mock.patch("claudewheel.tokens.TokenStore.add", autospec=True) as mock_add,
+        ):
+            result = run_auth_flow(
+                self.ws,
+                self.locator,
+                "~/.claudewheel/profiles/test",
+                "test",
+                THEME,
+                self.term,
+            )
+
+        self.assertEqual(result, "authenticated")
+        mock_probe.assert_called_once_with("sk-ant-fixed")
+        mock_add.assert_called_once_with(
+            mock.ANY, "test", "sk-ant-fixed", expiry=UNKNOWN
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
