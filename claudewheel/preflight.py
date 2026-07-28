@@ -161,6 +161,114 @@ def _model_version_guard_run(ctx: PreflightContext) -> StepResult:
     )
 
 
+def _make_terminal():  # type: ignore[no-untyped-def]
+    """Construct the raw-capable Terminal for an approval page.
+
+    Isolated so tests can substitute a FakeTerminal. Requires a real TTY; a
+    headless environment fails here, loudly.
+    """
+    from .terminal import Terminal
+
+    return Terminal()
+
+
+def _prompt_hook_approval(
+    ctx: PreflightContext, listing: list[str], changed: bool
+) -> bool:
+    """Render the approval page and return True iff the user approves.
+
+    Constructs a themed Terminal the way cli.py's non-TUI interactive flows do,
+    lists every hook (event, matcher, command), and offers approve/decline keys.
+    Approve is the ``y`` key; anything else -- including ``n``, ``q``, ESC, or an
+    interrupt -- declines. The terminal is closed on the way out.
+    """
+    from .config import resolve_theme_name
+    from .theme import parse_theme
+    from .ui import show_page
+
+    theme_name = resolve_theme_name(ctx.cfg.config.get("theme", "auto"))
+    theme = parse_theme(ctx.cfg.load_theme(theme_name))
+
+    verb = "changed its" if changed else "contributes"
+    title = f"This project {verb} Claude Code hooks"
+    lines = ["The target project would run these hooks:", ""]
+    lines.extend(listing)
+    lines.append("")
+    lines.append(
+        "Approve only if you trust them -- they run arbitrary commands."
+    )
+    hint = "y: approve and continue   n/esc: decline and abort"
+
+    terminal = _make_terminal()
+    try:
+        key = show_page(title, lines, theme, terminal, hint=hint)
+    finally:
+        terminal.close()
+    return key in ("y", "Y")
+
+
+def _approved_hooks_run(ctx: PreflightContext) -> StepResult:
+    """Gate the launch on the target project's Claude Code hooks being approved.
+
+    Reads the target project's hooks (``.claude/settings.json`` +
+    ``settings.local.json``). Malformed config aborts, naming the broken file.
+    No hooks -> CONTINUE (nothing stored). Otherwise the combined fingerprint is
+    compared against the stored approval for this project (keyed by the
+    realpath-canonical directory):
+
+    - matching fingerprint -> CONTINUE, no prompt;
+    - missing or changed fingerprint, interactive -> render the approval page;
+      approve persists the fingerprint and CONTINUEs, decline (or ESC/quit)
+      ABORTs;
+    - missing or changed fingerprint, non-interactive -> ABORT with an
+      actionable message (never silent trust).
+    """
+    from .appdata import StateFile
+    from .project_hooks import (
+        MalformedProjectHooksError,
+        read_project_hooks,
+        target_directory,
+    )
+    from .state import get_project_hook_approvals, set_project_hook_approvals
+
+    directory = target_directory(ctx.selections)
+    try:
+        hooks = read_project_hooks(directory)
+    except MalformedProjectHooksError as e:
+        return StepResult.abort(
+            f"The target project's Claude Code hooks config is malformed: "
+            f".claude/{e.filename} could not be parsed as JSON. "
+            f"Fix or remove it before launching."
+        )
+
+    if not hooks.has_hooks:
+        return StepResult.cont()
+
+    sf = StateFile(ctx.workspace.state_file)
+    stored = get_project_hook_approvals(sf, directory)
+    fingerprint = hooks.fingerprint
+    if stored == fingerprint:
+        return StepResult.cont()
+
+    changed = stored is not None
+
+    if not ctx.interactive:
+        what = "changed its" if changed else "contributes"
+        return StepResult.abort(
+            f"The target project {what} Claude Code hooks that have not been "
+            f"approved. These hooks run arbitrary commands. Run an interactive "
+            f"launch (the TUI) to review and approve them before launching."
+        )
+
+    if _prompt_hook_approval(ctx, hooks.listing_lines(), changed):
+        set_project_hook_approvals(sf, directory, fingerprint)
+        return StepResult.cont()
+
+    return StepResult.abort(
+        "Declined the target project's Claude Code hooks. Launch aborted."
+    )
+
+
 # Registered steps, executed in this exact (registration) order. The runner
 # defaults to this list.
 PREFLIGHT_STEPS: list[PreflightStep] = [
@@ -175,6 +283,12 @@ PREFLIGHT_STEPS: list[PreflightStep] = [
         runs_in_non_interactive=True,
         renders_ui=False,
         run=_model_version_guard_run,
+    ),
+    PreflightStep(
+        name="approved-hooks",
+        runs_in_non_interactive=True,
+        renders_ui=True,
+        run=_approved_hooks_run,
     ),
 ]
 
