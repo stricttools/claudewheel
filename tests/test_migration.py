@@ -560,6 +560,37 @@ class ModelSyncTests(unittest.TestCase):
         self.assertIn("claude-opus-4-7", user_models)
         self.assertIn("claude-opus-4-7[1m]", user_models)
 
+    def test_migrate_adds_opus_5_without_disturbing_pins_or_order(self) -> None:
+        """An old options.json (no opus-5, with pins + custom values) gains
+        claude-opus-5 on load, and existing pins/order/customs are untouched."""
+        old_models = [
+            "my-custom-model",
+            "claude-opus-4-8",
+            "claude-opus-4-8[1m]",
+            "claude-sonnet-4-6",
+        ]
+        old_pins = ["claude-opus-4-8", "my-custom-model"]
+        options = {
+            **DEFAULT_OPTIONS,
+            "model": {"values": old_models[:], "pinned": old_pins[:]},
+        }
+        paths = _setup_temp_config_dir(self.tmp, options=options)
+        cm = self._make_cm(paths)
+
+        user_models = cm.options_def["model"]["values"]
+        # The new default is present after load.
+        self.assertIn("claude-opus-5", user_models)
+        # It was appended (existing values keep their relative order at the front).
+        self.assertEqual(user_models[: len(old_models)], old_models)
+        # Custom value preserved.
+        self.assertIn("my-custom-model", user_models)
+        # Pins are untouched by the additive value sync.
+        self.assertEqual(cm.options_def["model"]["pinned"], old_pins)
+        # Persisted to disk.
+        on_disk = _read_json(paths["OPTIONS_FILE"])
+        self.assertIn("claude-opus-5", on_disk["model"]["values"])
+        self.assertEqual(on_disk["model"]["pinned"], old_pins)
+
 
 # ---------------------------------------------------------------------------
 # 5. Rename recovery at startup

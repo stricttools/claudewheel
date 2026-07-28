@@ -118,6 +118,49 @@ def _reconcile_guardrails_run(ctx: PreflightContext) -> StepResult:
     return StepResult.cont()
 
 
+def _model_version_guard_run(ctx: PreflightContext) -> StepResult:
+    """Block launching a model on a Claude Code binary that is too old.
+
+    Reads the selected model (stripping a trailing ``[1m]`` context-window
+    suffix) and looks up its minimum CLI version in
+    :data:`MODEL_MIN_CLI_VERSION`. Models absent from the table pass unguarded.
+    The effective binary version is the selected version if set, else the
+    resolved symlink target's version name. If no version can be determined the
+    guard passes (it only acts on a positive too-old determination). A binary
+    older than the model's minimum aborts with an actionable message.
+    """
+    from .defaults import MODEL_MIN_CLI_VERSION
+    from .segment import version_sort_key
+
+    model = ctx.selections.get("model")
+    if not model:
+        return StepResult.cont()
+    # Strip the "[1m]" context-window suffix before table lookup.
+    if model.endswith("[1m]"):
+        model = model[: -len("[1m]")]
+    min_version = MODEL_MIN_CLI_VERSION.get(model)
+    if min_version is None:
+        return StepResult.cont()
+
+    # Effective binary version: explicit selection wins; else the symlink target.
+    version = ctx.selections.get("version")
+    if not version:
+        target = ctx.locator.symlink_target()
+        version = target.name if target is not None else None
+    if not version:
+        return StepResult.cont()
+
+    if version_sort_key(version) >= version_sort_key(min_version):
+        return StepResult.cont()
+
+    return StepResult.abort(
+        f"Model {model} requires Claude Code {min_version} or newer, "
+        f"but the effective binary version is {version}. "
+        f"Run `claudewheel install {min_version}` (or a newer version) "
+        f"and select it before launching."
+    )
+
+
 # Registered steps, executed in this exact (registration) order. The runner
 # defaults to this list.
 PREFLIGHT_STEPS: list[PreflightStep] = [
@@ -126,6 +169,12 @@ PREFLIGHT_STEPS: list[PreflightStep] = [
         runs_in_non_interactive=True,
         renders_ui=False,
         run=_reconcile_guardrails_run,
+    ),
+    PreflightStep(
+        name="model-version-guard",
+        runs_in_non_interactive=True,
+        renders_ui=False,
+        run=_model_version_guard_run,
     ),
 ]
 
