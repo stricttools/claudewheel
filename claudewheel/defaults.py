@@ -250,6 +250,7 @@ DEFAULT_OPTIONS: dict[str, Any] = {
         # support it (Opus 4.8, Fable 5, Opus 4.6, Opus 4.7, Sonnet 4.6). Claude Code
         # strips the suffix before sending to the API.
         "values": [
+            "claude-opus-5",
             "claude-opus-4-8",
             "claude-opus-4-8[1m]",
             "claude-fable-5",
@@ -280,6 +281,13 @@ DEFAULT_STATE = {
     "last_config": {},
     "recent_dirs": [],
     "launch_count": 0,
+}
+
+# Minimum Claude Code CLI version required to run a given model. A model absent
+# from this table is unguarded (any installed binary may run it). The launch
+# preflight strips a trailing "[1m]" context-window suffix before lookup.
+MODEL_MIN_CLI_VERSION: dict[str, str] = {
+    "claude-opus-5": "2.1.219",
 }
 
 DEFAULT_THEME_DARK = {
