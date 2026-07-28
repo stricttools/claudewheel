@@ -254,8 +254,8 @@
     "schema_hash": "541eac633045878188810d2d18a829ee8fbf02abe83d0f1f9361a0b55fb5cbde"
   },
   "en/cli-index.md": {
-    "content": "196090f237673dcfb73bae125668adec45eb5674af7cc5bb655f9728465840e1",
-    "description": "eebffff14c67d876389878a860b643e2662ab40bf765cdbe797ed0221ddefa02"
+    "content": "50584d4b66d3ce5504e5f77eed8bee31de5d10cab7d7934757c33c6c8d3d22b5",
+    "description": "f51789bc955adf454eddb8a98154f1b9f822049c3e11162a30159710bd6d75d7"
   },
   "en/cli-install.md": {
     "content": "9a1cda2ce43b912b5699e16ee1808932a0b3bf992d4f01761da0f5109951cc9a",
@@ -264,7 +264,7 @@
   },
   "en/cli-launch.md": {
     "content": "a512c8fd9ae03e2e998baa0bee9d7c7128af614ab20ec0d9ce0f0d9c756fb3c2",
-    "description": "4a0d3a4836fe6d1a1d13f0d349ead9778f0d34f243f49aa87a343384de7f732d",
+    "description": "2471420568533420d5b04ef458eb476c84070a38fe198091d7a02f61be0b614d",
     "schema_hash": "b34af3a71703976c7c4b4b1069a2051e13c1a5ef0d3c311a4752e8d443dd8d7c"
   },
   "en/cli-migrate.md": {
@@ -294,7 +294,7 @@
   },
   "en/cli-reconcile-permissions.md": {
     "content": "a3e66c254f12cadf9d572824a03525b67e43f9a3c083f86535217beb7e43fc38",
-    "description": "14eba9a5944d2e32d7a4f33bb317fdac9bab980ae3d0cbe7e6eab1b02f6758fc",
+    "description": "ffe4c05cd44508e95e978ef50014c8bf877b28db321f68b4e9476c913eb1681c",
     "schema_hash": "f592c93e8c581facf23edb8d8075b2c830e4f602e0c0816f8a94e1fe350c2adb"
   },
   "en/cli-reset-options.md": {
