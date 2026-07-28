@@ -1,6 +1,6 @@
 ---
 title: c reconcile-permissions
-description: "Reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions); requires --dry-run or --apply."
+description: "Reconcile every managed profile to the canonical guardrail model (hooks, disallowedTools, permissions); requires --dry-run or --apply."
 generated: true
 nav_group: "CLI Reference"
 nav_order: 12
