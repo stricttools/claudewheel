@@ -9,10 +9,13 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+import time
+
 from claudewheel.session import (
     MAX_CWD_SCAN_LINES,
     find_orphaned_project_dirs,
     find_session,
+    find_sessions_by_title,
     get_session_cwd,
 )
 
@@ -309,6 +312,201 @@ class FindOrphanedProjectDirsTests(unittest.TestCase):
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0].cwd, "/home/user/Projects/foo")
         self.assertEqual(results[0].session_count, 2)
+
+
+# ---------------------------------------------------------------------------
+# find_sessions_by_title
+# ---------------------------------------------------------------------------
+
+
+class FindSessionsByTitleTests(unittest.TestCase):
+    """Resolve a session by its user-assigned custom title."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.projects_dir = Path(self._tmp.name) / "projects"
+        self.projects_dir.mkdir()
+
+    def _write_session(
+        self,
+        encoded_cwd: str,
+        session_id: str,
+        lines: list[dict[str, object] | str],
+    ) -> Path:
+        """Write a session JSONL file with arbitrary records."""
+        cwd_dir = self.projects_dir / encoded_cwd
+        cwd_dir.mkdir(parents=True, exist_ok=True)
+        p = cwd_dir / f"{session_id}.jsonl"
+        with p.open("w") as fh:
+            for line in lines:
+                if isinstance(line, dict):
+                    fh.write(json.dumps(line) + "\n")
+                else:
+                    fh.write(line + "\n")
+        return p
+
+    def _custom_title_line(self, session_id: str, title: str) -> dict[str, object]:
+        return {
+            "type": "custom-title",
+            "sessionId": session_id,
+            "customTitle": title,
+        }
+
+    # -- Regression: the OLD lookup path (find_session by UUID) cannot resolve a
+    #    title, AND the title record can sit DEEP in the file (past any bounded
+    #    head-scan). This is the concrete failure Phase 6 fixes. --
+
+    def test_regression_title_deep_in_file_unresolvable_by_uuid(self) -> None:
+        title = "what is rlsbl and what is strictcli (Branch)"
+        sid = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+        # Bury the custom-title record deep (far past MAX_CWD_SCAN_LINES).
+        lines: list[dict[str, object] | str] = [
+            {"type": "user", "cwd": "/home/m/Projects/x", "message": f"m{i}"}
+            for i in range(840)
+        ]
+        lines.append(self._custom_title_line(sid, title))
+        self._write_session("-home-m-Projects-x", sid, lines)
+
+        # Old path: treating the title as a UUID finds nothing.
+        self.assertIsNone(find_session(title, shared_projects_dir=self.projects_dir))
+
+        # New path: the title resolves to the correct UUID.
+        matches = find_sessions_by_title(
+            title, [self.projects_dir / "-home-m-Projects-x"]
+        )
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0].session_id, sid)
+
+    def test_unique_hit(self) -> None:
+        sid = "11111111-1111-1111-1111-111111111111"
+        self._write_session(
+            "-home-m-Projects-a",
+            sid,
+            [
+                {"type": "user", "cwd": "/home/m/Projects/a"},
+                self._custom_title_line(sid, "My Session"),
+            ],
+        )
+        matches = find_sessions_by_title(
+            "My Session", [self.projects_dir / "-home-m-Projects-a"]
+        )
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0].session_id, sid)
+        self.assertEqual(matches[0].project_dir, self.projects_dir / "-home-m-Projects-a")
+        self.assertGreater(matches[0].mtime, 0)
+
+    def test_absent(self) -> None:
+        sid = "22222222-2222-2222-2222-222222222222"
+        self._write_session(
+            "-home-m-Projects-a",
+            sid,
+            [self._custom_title_line(sid, "Some Title")],
+        )
+        matches = find_sessions_by_title(
+            "No Such Title", [self.projects_dir / "-home-m-Projects-a"]
+        )
+        self.assertEqual(matches, [])
+
+    def test_ambiguous_multiple_files_same_title(self) -> None:
+        sid1 = "33333333-3333-3333-3333-333333333333"
+        sid2 = "44444444-4444-4444-4444-444444444444"
+        self._write_session(
+            "-home-m-Projects-a",
+            sid1,
+            [self._custom_title_line(sid1, "Shared Title")],
+        )
+        self._write_session(
+            "-home-m-Projects-b",
+            sid2,
+            [self._custom_title_line(sid2, "Shared Title")],
+        )
+        all_dirs = sorted(p for p in self.projects_dir.iterdir() if p.is_dir())
+        matches = find_sessions_by_title("Shared Title", all_dirs)
+        self.assertEqual(len(matches), 2)
+        self.assertEqual(
+            {m.session_id for m in matches}, {sid1, sid2}
+        )
+
+    def test_ai_title_and_agent_name_records_ignored(self) -> None:
+        sid = "55555555-5555-5555-5555-555555555555"
+        self._write_session(
+            "-home-m-Projects-a",
+            sid,
+            [
+                {"type": "ai-title", "sessionId": sid, "aiTitle": "Ignore Me"},
+                {"type": "agent-name", "sessionId": sid, "agentName": "Ignore Me"},
+            ],
+        )
+        # Neither ai-title nor agent-name should resolve, even by their own value.
+        self.assertEqual(
+            find_sessions_by_title(
+                "Ignore Me", [self.projects_dir / "-home-m-Projects-a"]
+            ),
+            [],
+        )
+
+    def test_subagent_dirs_excluded(self) -> None:
+        """Subagent session files live two levels deeper and must NOT match."""
+        parent_sid = "66666666-6666-6666-6666-666666666666"
+        agent_sid = "agent-77777777-7777-7777-7777-777777777777"
+        project_dir = self.projects_dir / "-home-m-Projects-a"
+        subagents = project_dir / parent_sid / "subagents"
+        subagents.mkdir(parents=True)
+        p = subagents / f"{agent_sid}.jsonl"
+        with p.open("w") as fh:
+            fh.write(
+                json.dumps(self._custom_title_line(agent_sid, "Buried Title")) + "\n"
+            )
+        matches = find_sessions_by_title("Buried Title", [project_dir])
+        self.assertEqual(matches, [])
+
+    def test_multiple_dirs_scanned(self) -> None:
+        sid = "88888888-8888-8888-8888-888888888888"
+        self._write_session(
+            "-home-m-Projects-b",
+            sid,
+            [self._custom_title_line(sid, "Second Dir")],
+        )
+        all_dirs = sorted(p for p in self.projects_dir.iterdir() if p.is_dir())
+        matches = find_sessions_by_title("Second Dir", all_dirs)
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0].session_id, sid)
+
+    def test_nonexistent_dir_skipped(self) -> None:
+        matches = find_sessions_by_title(
+            "anything", [self.projects_dir / "does-not-exist"]
+        )
+        self.assertEqual(matches, [])
+
+    def test_performance_large_dir(self) -> None:
+        """A large synthetic dir (hundreds of large files) resolves fast."""
+        project_dir = self.projects_dir / "-home-m-Projects-big"
+        project_dir.mkdir()
+        # 400 files, most without any custom-title marker; one deep hit.
+        filler = [
+            json.dumps({"type": "user", "cwd": "/x", "message": "m" * 200})
+            for _ in range(300)
+        ]
+        blob = "\n".join(filler) + "\n"
+        target_sid = "99999999-9999-9999-9999-999999999999"
+        for i in range(400):
+            sid = f"{i:08d}-0000-0000-0000-000000000000"
+            with (project_dir / f"{sid}.jsonl").open("w") as fh:
+                fh.write(blob)
+                if i == 200:
+                    fh.write(
+                        json.dumps(
+                            self._custom_title_line(target_sid, "Needle Title")
+                        )
+                        + "\n"
+                    )
+        start = time.monotonic()
+        matches = find_sessions_by_title("Needle Title", [project_dir])
+        elapsed = time.monotonic() - start
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0].session_id, target_sid)
+        self.assertLess(elapsed, 3.0, f"scan too slow: {elapsed:.2f}s")
 
 
 if __name__ == "__main__":

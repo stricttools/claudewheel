@@ -9,6 +9,13 @@ from pathlib import Path
 
 MAX_CWD_SCAN_LINES = 10
 
+# Substring marker used to cheaply pre-filter JSONL lines before JSON-parsing
+# them when scanning for a user-assigned session title. Claude Code writes the
+# title as a record ``{"type":"custom-title","sessionId":...,"customTitle":...}``.
+# Auto-generated ``ai-title`` and ``agent-name`` records are deliberately NOT
+# matched by this marker (it is the exact ``custom-title`` type string).
+CUSTOM_TITLE_MARKER = "custom-title"
+
 
 @dataclass
 class SessionInfo:
@@ -18,6 +25,15 @@ class SessionInfo:
     jsonl_path: Path
     encoded_cwd: str
     cwd: str | None  # extracted from JSONL, None if unreadable
+
+
+@dataclass
+class TitleMatch:
+    """A session file whose ``custom-title`` record matches a requested title."""
+
+    session_id: str
+    project_dir: Path
+    mtime: float
 
 
 @dataclass
@@ -77,6 +93,67 @@ def find_session(session_id: str, shared_projects_dir: Path) -> SessionInfo | No
         encoded_cwd=encoded_cwd,
         cwd=cwd,
     )
+
+
+def _find_title_in_file(jsonl_path: Path, title: str) -> str | None:
+    """Return the session UUID if *jsonl_path* holds a matching custom-title.
+
+    Scans the file line by line. A cheap substring check on the raw line skips
+    the overwhelming majority of lines (and files) without JSON-parsing them,
+    which matters because real project dirs hold thousands of multi-megabyte
+    JSONL files. Only lines containing :data:`CUSTOM_TITLE_MARKER` are parsed.
+
+    A line matches only when it is a genuine ``custom-title`` record whose
+    ``customTitle`` equals *title* exactly. Auto-generated ``ai-title`` and
+    ``agent-name`` records are ignored (their ``type`` is not ``custom-title``).
+    The returned UUID is the record's ``sessionId`` when present, else the
+    file stem (Claude Code keeps these identical).
+    """
+    try:
+        with jsonl_path.open() as fh:
+            for line in fh:
+                if CUSTOM_TITLE_MARKER not in line:
+                    continue
+                try:
+                    obj = json.loads(line)
+                except (json.JSONDecodeError, ValueError):
+                    continue
+                if obj.get("type") != "custom-title":
+                    continue
+                if obj.get("customTitle") == title:
+                    sid = obj.get("sessionId")
+                    return sid if isinstance(sid, str) else jsonl_path.stem
+    except (FileNotFoundError, OSError):
+        return None
+    return None
+
+
+def find_sessions_by_title(
+    title: str, project_dirs: list[Path]
+) -> list[TitleMatch]:
+    """Find sessions whose user-assigned title equals *title* exactly.
+
+    Scans ONLY the top-level ``*.jsonl`` files of each directory in
+    *project_dirs* (non-recursive, deliberately: subagent session files live two
+    levels deeper under ``<parent>/subagents/`` and must never match a
+    top-level resume). Returns one :class:`TitleMatch` per matching file, in
+    directory order.
+    """
+    results: list[TitleMatch] = []
+    for project_dir in project_dirs:
+        if not project_dir.is_dir():
+            continue
+        for jsonl_path in sorted(project_dir.glob("*.jsonl")):
+            sid = _find_title_in_file(jsonl_path, title)
+            if sid is not None:
+                results.append(
+                    TitleMatch(
+                        session_id=sid,
+                        project_dir=project_dir,
+                        mtime=jsonl_path.stat().st_mtime,
+                    )
+                )
+    return results
 
 
 def find_orphaned_project_dirs(
