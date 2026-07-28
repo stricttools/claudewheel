@@ -439,6 +439,89 @@ class CSIPrivateModeTests(ReadKeyTests):
         self.assertEqual(self.term.read_key(), "j")
 
 
+class ReadMaskedLineTests(TerminalRawModeTestBase):
+    """read_masked_line() suppresses echo, shows mask glyphs, and edits."""
+
+    def _feed_keys(self, keys: list[str]) -> None:
+        """Patch read_key to return *keys* in order (no real tty reads)."""
+        it = iter(keys)
+
+        def fake_read_key(_self: Terminal) -> str:
+            return next(it)
+
+        p = mock.patch.object(
+            Terminal, "read_key", autospec=True, side_effect=fake_read_key
+        )
+        p.start()
+        self.addCleanup(p.stop)
+
+    def test_accumulates_printable_and_returns_on_enter(self) -> None:
+        self.term.enter_raw()
+        self._reset_output()
+        self._feed_keys(list("sk-ant-abc") + ["ENTER"])
+        self.assertEqual(self.term.read_masked_line(), "sk-ant-abc")
+
+    def test_output_never_contains_typed_characters(self) -> None:
+        """Only mask glyphs (and the trailing newline) are written, never keys."""
+        self.term.enter_raw()
+        self._reset_output()
+        self._feed_keys(list("secret9") + ["ENTER"])
+        self.term.read_masked_line()
+        out = self._output()
+        self.assertNotIn("secret9", out)
+        self.assertEqual(out.count("*"), len("secret9"))
+
+    def test_backspace_deletes_last_char_and_erases_mask(self) -> None:
+        self.term.enter_raw()
+        self._reset_output()
+        # type 'abc', backspace once, type 'd' -> 'abd'
+        self._feed_keys(["a", "b", "c", "BACKSPACE", "d", "ENTER"])
+        self.assertEqual(self.term.read_masked_line(), "abd")
+        self.assertIn("\b \b", self._output())
+
+    def test_backspace_on_empty_is_noop(self) -> None:
+        self.term.enter_raw()
+        self._reset_output()
+        self._feed_keys(["BACKSPACE", "x", "ENTER"])
+        self.assertEqual(self.term.read_masked_line(), "x")
+
+    def test_ctrl_c_raises_keyboard_interrupt(self) -> None:
+        self.term.enter_raw()
+        self._feed_keys(["a", "CTRL_C"])
+        with self.assertRaises(KeyboardInterrupt):
+            self.term.read_masked_line()
+
+    def test_non_printable_keys_ignored(self) -> None:
+        """Arrow keys and the like are dropped, not accumulated."""
+        self.term.enter_raw()
+        self._reset_output()
+        self._feed_keys(["a", "UP", "b", "LEFT", "ENTER"])
+        self.assertEqual(self.term.read_masked_line(), "ab")
+
+    def test_prompt_is_written(self) -> None:
+        self.term.enter_raw()
+        self._reset_output()
+        self._feed_keys(["z", "ENTER"])
+        self.term.read_masked_line("Paste token: ")
+        self.assertIn("Paste token: ", self._output())
+
+    def test_manages_raw_mode_when_not_already_raw(self) -> None:
+        """When the terminal is cooked, the read enters and exits raw itself."""
+        # Not raw yet (_in_raw is False by default).
+        self.assertFalse(self.term._in_raw)
+        self._feed_keys(["q", "ENTER"])
+        self.assertEqual(self.term.read_masked_line(), "q")
+        # It restored the prior (cooked) mode afterward.
+        self.assertFalse(self.term._in_raw)
+
+    def test_does_not_re_enter_raw_when_already_raw(self) -> None:
+        """When already raw, the read leaves raw mode intact afterward."""
+        self.term.enter_raw()
+        self._feed_keys(["q", "ENTER"])
+        self.term.read_masked_line()
+        self.assertTrue(self.term._in_raw)
+
+
 class SubscribeMode2031Tests(TerminalRawModeTestBase):
     """subscribe_mode2031() writes the correct escape and sets the flag."""
 

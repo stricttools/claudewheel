@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import claudewheel
-from claudewheel.tokens import TokenStore
+from claudewheel.tokens import TokenExpiryDisposition, TokenStore
 from claudewheel.workspace import Workspace
 
 from tests.wheelhelpers import SandboxHomeTestCase
@@ -176,7 +176,7 @@ class WorkspaceStoreTests(SandboxHomeTestCase):
 
     def test_tokens_accessor_round_trips(self) -> None:
         ws = Workspace.open(self.launcher_dir)
-        ws.tokens.add("prof", "tok-through-workspace")
+        ws.tokens.add("prof", "tok-through-workspace", expiry=TokenExpiryDisposition.TTL)
         self.assertEqual(ws.tokens.token_for("prof"), "tok-through-workspace")
 
 

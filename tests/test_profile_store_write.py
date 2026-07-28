@@ -41,7 +41,7 @@ from claudewheel.profile_store import (
     _RENAME_PENDING_FILE,
 )
 from claudewheel.shared_store import SharedStore
-from claudewheel.tokens import TokenStore
+from claudewheel.tokens import TokenExpiryDisposition, TokenStore
 from claudewheel.wizard import WizardResult
 from claudewheel.workspace import Workspace
 from tests.wheelhelpers import SandboxHomeTestCase, write_json
@@ -410,7 +410,7 @@ class DeleteTests(_WriteBase):
 
     def test_delete_full_cleanup(self) -> None:
         self.store.create("full", self._SETTINGS)
-        self.store.token_store.add("full", "TOKEN")
+        self.store.token_store.add("full", "TOKEN", expiry=TokenExpiryDisposition.TTL)
         assert self.store.state is not None
         self.store.state.set_value("last_config", {"profile": "full", "model": "m"})
 

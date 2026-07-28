@@ -24,6 +24,7 @@ from unittest import mock
 
 from claudewheel.binaries import BinaryLocator
 from claudewheel.launch import do_launch, resolve_launch_config
+from claudewheel.tokens import TokenExpiryDisposition
 from claudewheel.workspace import Workspace
 from tests.wheelhelpers import SandboxHomeTestCase
 
@@ -102,7 +103,7 @@ class ResolveThenDoLaunchEndToEndTests(SandboxHomeTestCase):
         self.ws = Workspace.default()
         self.profiles = self.ws.profiles
         self.profiles.create("work", {"model": "claude-opus-4-8"})
-        self.ws.tokens.add("work", "tok-xyz")
+        self.ws.tokens.add("work", "tok-xyz", expiry=TokenExpiryDisposition.TTL)
         # A tmpdir-backed locator so no installed version is required (fallback
         # symlink stands in for the binary path).
         self.locator = BinaryLocator(

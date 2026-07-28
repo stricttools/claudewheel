@@ -12,6 +12,7 @@ from unittest import mock
 
 from claudewheel import profile_info
 from claudewheel.shared_store import SharedStore
+from claudewheel.tokens import EXPIRY_UNKNOWN_FIELD
 
 
 class ProfileInfoFixture(unittest.TestCase):
@@ -397,6 +398,24 @@ class FormatReportTests(ProfileInfoFixture):
         self.assertIn("Disk usage:", text)
         # Tier should show "unknown" since no tier in tokens entry
         self.assertIn("Tier: unknown", text)
+
+    def test_unknown_expiry_token_renders_externally_issued(self) -> None:
+        """A pasted token with unknown expiry renders 'unknown (externally issued)'."""
+        self._write_tokens(
+            {
+                "work": {
+                    "token": "sk-ant-external",
+                    "created": date.today().isoformat(),
+                    EXPIRY_UNKNOWN_FIELD: True,
+                }
+            }
+        )
+        report = profile_info.gather_profile_info(self.ws, "work")
+        text = "\n".join(profile_info.format_report(report))
+        self.assertIn("Token: present", text)
+        self.assertIn("unknown (externally issued)", text)
+        # It must NOT fabricate a days-left figure.
+        self.assertNotIn("days left", text)
 
     def test_minimal_report_lines(self) -> None:
         report = profile_info.gather_profile_info(self.ws, "nope")

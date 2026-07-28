@@ -13,6 +13,7 @@ from claudewheel.auth import (
     UNREACHABLE,
     VALID,
     extract_token,
+    looks_like_token,
     validate_token,
 )
 
@@ -164,6 +165,33 @@ class ExtractTokenTests(unittest.TestCase):
             b"\r\n\x1b[?25h"
         )
         self.assertEqual(extract_token(buf), TOKEN.decode())
+
+
+class LooksLikeTokenTests(unittest.TestCase):
+    """Offline format predicate: anchors on the sk-ant- prefix only."""
+
+    def test_accepts_realistic_token(self) -> None:
+        self.assertTrue(looks_like_token("sk-ant-oat01-" + "A" * 60))
+
+    def test_accepts_short_prefixed_token(self) -> None:
+        """No length floor -- the live probe is the real gate."""
+        self.assertTrue(looks_like_token("sk-ant-bad"))
+        self.assertTrue(looks_like_token("sk-ant-token-1"))
+
+    def test_rejects_missing_prefix(self) -> None:
+        self.assertFalse(looks_like_token("some-other-token"))
+        self.assertFalse(looks_like_token("garbage"))
+
+    def test_rejects_empty_and_prefix_only(self) -> None:
+        self.assertFalse(looks_like_token(""))
+        self.assertFalse(looks_like_token("sk-ant-"))
+
+    def test_rejects_prefix_with_leading_junk(self) -> None:
+        """Anchored at the start: a token buried in noise is not accepted."""
+        self.assertFalse(looks_like_token("noise sk-ant-abcdef"))
+
+    def test_rejects_embedded_whitespace(self) -> None:
+        self.assertFalse(looks_like_token("sk-ant-abc def"))
 
 
 if __name__ == "__main__":

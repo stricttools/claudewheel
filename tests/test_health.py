@@ -22,9 +22,11 @@ from claudewheel.health import (
     check_settings_defaults,
     check_shared_symlinks,
     check_tmp_claude_size,
+    check_token_expiry,
     check_tokens,
     run_health_check,
 )
+from claudewheel.tokens import EXPIRY_UNKNOWN_FIELD
 
 
 class _HomeDirTestCase(unittest.TestCase):
@@ -538,6 +540,57 @@ class CheckSettingsDefaultsTests(_HomeDirTestCase):
 # ---------------------------------------------------------------------------
 # check_tokens
 # ---------------------------------------------------------------------------
+
+
+class CheckTokenExpiryTests(_HomeDirTestCase):
+    """Tests for check_token_expiry(self.ws), focused on the unknown case."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self._tokens_file = self.home / ".claudewheel" / "tokens.json"
+
+    def _write_tokens(self, tokens: dict[str, Any]) -> None:
+        self._tokens_file.parent.mkdir(parents=True, exist_ok=True)
+        self._tokens_file.write_text(json.dumps(tokens))
+
+    def test_unknown_expiry_never_flagged_as_expiring(self) -> None:
+        """An externally-issued token (unknown expiry) is never expiring-soon."""
+        self._write_tokens(
+            {"pasted": {"token": "sk-ant-x", "created": "2020-01-01",
+                        EXPIRY_UNKNOWN_FIELD: True}}
+        )
+        result = check_token_expiry(self.ws)
+        self.assertTrue(result.ok)
+        self.assertNotIn("pasted", result.detail)
+
+    def test_near_expiry_ttl_token_is_flagged(self) -> None:
+        """A genuine TTL token close to expiry is still flagged."""
+        from datetime import date, timedelta
+
+        soon = (date.today() + timedelta(days=5)).isoformat()
+        self._write_tokens(
+            {"scraped": {"token": "sk-ant-y", "created": "2020-01-01",
+                         "expires_at": soon}}
+        )
+        result = check_token_expiry(self.ws)
+        self.assertFalse(result.ok)
+        self.assertIn("scraped", result.detail)
+
+    def test_unknown_alongside_expiring_reports_only_expiring(self) -> None:
+        """A mix: the unknown token is skipped, the expiring TTL token flagged."""
+        from datetime import date, timedelta
+
+        soon = (date.today() + timedelta(days=3)).isoformat()
+        self._write_tokens(
+            {
+                "pasted": {"token": "sk-ant-x", EXPIRY_UNKNOWN_FIELD: True},
+                "scraped": {"token": "sk-ant-y", "expires_at": soon},
+            }
+        )
+        result = check_token_expiry(self.ws)
+        self.assertFalse(result.ok)
+        self.assertIn("scraped", result.detail)
+        self.assertNotIn("pasted", result.detail)
 
 
 class CheckTokensTests(_HomeDirTestCase):

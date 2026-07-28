@@ -12,12 +12,17 @@ from pathlib import Path
 from typing import Any
 
 from claudewheel.tokens import (
+    EXPIRY_UNKNOWN_FIELD,
     TOKEN_TTL_DAYS,
+    TokenExpiryDisposition,
     TokenStore,
     TokenStoreError,
     compute_expiry,
     parse_entry,
 )
+
+TTL = TokenExpiryDisposition.TTL
+UNKNOWN = TokenExpiryDisposition.UNKNOWN
 
 
 # ---------------------------------------------------------------------------
@@ -119,6 +124,26 @@ class ComputeExpiryTests(unittest.TestCase):
         self.assertIsNone(result.expires)
         self.assertEqual(result.remaining_days, TOKEN_TTL_DAYS)
 
+    def test_expiry_unknown_marker_yields_all_none(self) -> None:
+        """An entry marked expiry_unknown reports (None, None, None) --
+        distinct from the 'assume fresh' branch which returns a concrete TTL."""
+        entry = {"token": "t", "created": "2026-01-01", EXPIRY_UNKNOWN_FIELD: True}
+        result = compute_expiry(entry, self.MTIME, today=self.TODAY)
+        self.assertIsNone(result.created)
+        self.assertIsNone(result.expires)
+        self.assertIsNone(result.remaining_days)
+
+    def test_expiry_unknown_takes_precedence_over_dates(self) -> None:
+        """The unknown marker wins even if expires_at/created are also present."""
+        entry = {
+            "token": "t",
+            "created": "2026-01-01",
+            "expires_at": "2026-12-31",
+            EXPIRY_UNKNOWN_FIELD: True,
+        }
+        result = compute_expiry(entry, self.MTIME, today=self.TODAY)
+        self.assertIsNone(result.remaining_days)
+
     def test_legacy_bare_string_uses_mtime(self) -> None:
         """Bare-string entries date from the tokens.json file mtime."""
         ten_days = 10 * 86400
@@ -161,7 +186,7 @@ class TokenStoreAddTests(unittest.TestCase):
     def test_creates_fresh_file(self) -> None:
         """When tokens.json doesn't exist, creates it with the entry."""
         self.assertFalse(self.tokens_file.exists())
-        self.store.add("newprof", "tok-123")
+        self.store.add("newprof", "tok-123", expiry=TTL)
 
         tokens = json.loads(self.tokens_file.read_text())
         self.assertIn("newprof", tokens)
@@ -170,7 +195,7 @@ class TokenStoreAddTests(unittest.TestCase):
 
     def test_writes_all_three_fields(self) -> None:
         """Entry has token, created (today), and expires_at (created + TTL)."""
-        self.store.add("prof", "tok-xyz")
+        self.store.add("prof", "tok-xyz", expiry=TTL)
 
         entry = json.loads(self.tokens_file.read_text())["prof"]
         self.assertEqual(entry["token"], "tok-xyz")
@@ -179,10 +204,36 @@ class TokenStoreAddTests(unittest.TestCase):
         self.assertEqual(created, date.today())
         self.assertEqual(expires, created + timedelta(days=TOKEN_TTL_DAYS))
 
+    def test_unknown_disposition_writes_marker_and_no_expires_at(self) -> None:
+        """UNKNOWN: entry gets created + expiry_unknown marker, but no expires_at."""
+        self.store.add("pasted", "sk-ant-external", expiry=UNKNOWN)
+
+        entry = json.loads(self.tokens_file.read_text())["pasted"]
+        self.assertEqual(entry["token"], "sk-ant-external")
+        self.assertEqual(date.fromisoformat(entry["created"]), date.today())
+        self.assertTrue(entry[EXPIRY_UNKNOWN_FIELD])
+        self.assertNotIn("expires_at", entry)
+
+    def test_ttl_disposition_writes_expires_at_and_no_marker(self) -> None:
+        """TTL: entry gets expires_at (created + TTL) and no unknown marker."""
+        self.store.add("scraped", "sk-ant-setup", expiry=TTL)
+
+        entry = json.loads(self.tokens_file.read_text())["scraped"]
+        self.assertIn("expires_at", entry)
+        self.assertNotIn(EXPIRY_UNKNOWN_FIELD, entry)
+
+    def test_unknown_disposition_round_trips_through_expiry_for(self) -> None:
+        """A pasted UNKNOWN token reports an unknown (None) remaining lifetime."""
+        self.store.add("pasted", "sk-ant-external", expiry=UNKNOWN)
+        result = self.store.expiry_for("pasted")
+        assert result is not None
+        self.assertIsNone(result.remaining_days)
+        self.assertIsNone(result.expires)
+
     def test_adds_to_existing_file(self) -> None:
         """When tokens.json exists, adds the entry without clobbering others."""
         self._write_tokens({"existing": {"token": "tok-old", "created": "2025-01-01"}})
-        self.store.add("newprof", "tok-456")
+        self.store.add("newprof", "tok-456", expiry=TTL)
 
         tokens = json.loads(self.tokens_file.read_text())
         self.assertIn("existing", tokens)
@@ -192,7 +243,7 @@ class TokenStoreAddTests(unittest.TestCase):
     def test_updates_existing_token(self) -> None:
         """Overwrites a profile's token entry when it already exists."""
         self._write_tokens({"myprof": {"token": "old-tok", "created": "2024-01-01"}})
-        self.store.add("myprof", "new-tok")
+        self.store.add("myprof", "new-tok", expiry=TTL)
 
         tokens = json.loads(self.tokens_file.read_text())
         self.assertEqual(tokens["myprof"]["token"], "new-tok")
@@ -202,7 +253,7 @@ class TokenStoreAddTests(unittest.TestCase):
     def test_file_permissions_on_fresh_creation(self) -> None:
         """Fresh file gets 0600 permissions."""
         self.assertFalse(self.tokens_file.exists())
-        self.store.add("secured", "tok-sec")
+        self.store.add("secured", "tok-sec", expiry=TTL)
 
         mode = self.tokens_file.stat().st_mode & 0o777
         self.assertEqual(mode, 0o600)
@@ -216,7 +267,7 @@ class TokenStoreAddTests(unittest.TestCase):
         self._write_tokens({"myprof": {"token": "old-tok", "created": "2024-01-01"}})
         self.tokens_file.chmod(0o600)
 
-        self.store.add("myprof", "new-tok")
+        self.store.add("myprof", "new-tok", expiry=TTL)
 
         mode = self.tokens_file.stat().st_mode & 0o777
         self.assertEqual(mode, 0o600)
@@ -227,14 +278,14 @@ class TokenStoreAddTests(unittest.TestCase):
         self.tokens_file.write_text("{not json")
 
         with self.assertRaises(OSError) as ctx:
-            self.store.add("prof", "tok-x")
+            self.store.add("prof", "tok-x", expiry=TTL)
         self.assertIn("corrupt", str(ctx.exception).lower())
         # Original corrupt content preserved for the user to inspect/recover.
         self.assertEqual(self.tokens_file.read_text(), "{not json")
 
     def test_atomic_write_leaves_no_tmp_file(self) -> None:
         """The tmp-file swap leaves no .tmp sibling and valid JSON behind."""
-        self.store.add("prof", "tok-atomic")
+        self.store.add("prof", "tok-atomic", expiry=TTL)
         self.assertFalse(self.tokens_file.with_suffix(".tmp").exists())
         # File is valid, complete JSON
         tokens = json.loads(self.tokens_file.read_text())
@@ -254,7 +305,7 @@ class TokenStoreAddTierTests(unittest.TestCase):
 
     def test_tier_included_when_provided(self) -> None:
         self.store.add(
-            "prof", "tok-1", tier="default_claude_pro", subscription="claude_pro"
+            "prof", "tok-1", tier="default_claude_pro", subscription="claude_pro", expiry=TTL
         )
         entry = json.loads(self.tokens_file.read_text())["prof"]
         self.assertEqual(entry["rateLimitTier"], "default_claude_pro")
@@ -262,13 +313,13 @@ class TokenStoreAddTierTests(unittest.TestCase):
         self.assertEqual(entry["token"], "tok-1")
 
     def test_tier_omitted_when_none(self) -> None:
-        self.store.add("prof", "tok-2")
+        self.store.add("prof", "tok-2", expiry=TTL)
         entry = json.loads(self.tokens_file.read_text())["prof"]
         self.assertNotIn("rateLimitTier", entry)
         self.assertNotIn("subscriptionType", entry)
 
     def test_tier_only_no_subscription(self) -> None:
-        self.store.add("prof", "tok-3", tier="default_claude_max_20x")
+        self.store.add("prof", "tok-3", tier="default_claude_max_20x", expiry=TTL)
         entry = json.loads(self.tokens_file.read_text())["prof"]
         self.assertEqual(entry["rateLimitTier"], "default_claude_max_20x")
         self.assertNotIn("subscriptionType", entry)
@@ -463,12 +514,12 @@ class TokenStoreTests(unittest.TestCase):
     # -- add / set_tier ----------------------------------------------------
 
     def test_add_round_trip(self) -> None:
-        self.store.add("prof", "tok-add")
+        self.store.add("prof", "tok-add", expiry=TTL)
         self.assertEqual(self.store.token_for("prof"), "tok-add")
 
     def test_add_with_tier(self) -> None:
         self.store.add(
-            "prof", "tok-x", tier="default_claude_pro", subscription="claude_pro"
+            "prof", "tok-x", tier="default_claude_pro", subscription="claude_pro", expiry=TTL
         )
         entry = self.store.load()["prof"]
         self.assertEqual(entry["rateLimitTier"], "default_claude_pro")
@@ -487,7 +538,7 @@ class TokenStoreTests(unittest.TestCase):
     def test_add_leaves_file_0600(self) -> None:
         old_umask = os.umask(0o022)
         self.addCleanup(os.umask, old_umask)
-        self.store.add("prof", "tok-sec")
+        self.store.add("prof", "tok-sec", expiry=TTL)
         mode = self.path.stat().st_mode & 0o777
         self.assertEqual(mode, 0o600)
 
@@ -502,7 +553,7 @@ class TokenStoreTests(unittest.TestCase):
         """Write path preserves the historical OSError contract."""
         self._write("{not json")
         with self.assertRaises(OSError) as ctx:
-            self.store.add("prof", "tok-x")
+            self.store.add("prof", "tok-x", expiry=TTL)
         self.assertNotIsInstance(ctx.exception, TokenStoreError)
         self.assertEqual(self.path.read_text(), "{not json")
 

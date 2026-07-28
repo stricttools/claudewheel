@@ -73,6 +73,7 @@ from unittest import mock
 from claudewheel.appdata import OptionsFile, StateFile
 from claudewheel.hook_scripts import HOOK_SCRIPTS, deploy_scripts
 from claudewheel.import_ import run_import
+from claudewheel.tokens import TokenExpiryDisposition
 from claudewheel.migrate import migrate_sessions
 from claudewheel.mv import run_mv
 from claudewheel.patch_profiles import run_patch_profiles
@@ -238,7 +239,7 @@ class SandboxEscapeGuardTest(SandboxHomeTestCase):
         state.set_value("guard_key", "guard_val")
 
         # 10. TokenStore add / set_tier / rename / remove (sandbox tokens.json).
-        ws.tokens.add("gp-tok", "token-value")
+        ws.tokens.add("gp-tok", "token-value", expiry=TokenExpiryDisposition.TTL)
         ws.tokens.set_tier("gp-tok", tier="pro", subscription="max")
         ws.tokens.rename("gp-tok", "gp-tok2")
         ws.tokens.remove("gp-tok2")
