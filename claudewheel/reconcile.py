@@ -28,7 +28,6 @@ from typing import TYPE_CHECKING, Any
 from .guardrail import ALLOW_CONFLICTS, canonical_ask_rules, canonical_deny_rules
 from .permission import add_rule, load_settings, remove_rule, save_settings
 from .profile_store import Profile
-from .tokens import TokenStoreError
 
 if TYPE_CHECKING:
     from .workspace import Workspace
@@ -38,15 +37,11 @@ def _discovered_profiles(ws: "Workspace") -> list[Profile]:
     """Enumerate profiles via the workspace's ProfileStore, tolerating a corrupt
     tokens.json.
 
-    A corrupt tokens.json is swallowed to ``{}`` -- reconciliation touches
-    permissions, not tokens.
+    Delegates to the shared :meth:`ProfileStore.discover` helper in the
+    ``"swallow"`` mode: a corrupt tokens.json is swallowed to ``{}`` --
+    reconciliation touches permissions, not tokens.
     """
-    store = ws.profiles
-    try:
-        tokens = store.token_store.load()
-    except TokenStoreError:
-        tokens = {}
-    return store.enumerate(tokens)
+    return ws.profiles.discover(on_corrupt_tokens="swallow")
 
 
 @dataclass

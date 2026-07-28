@@ -7,12 +7,12 @@ import os
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from .appdata import OptionsFile, StateFile
 from .fsutil import write_json_atomic
 from .shared_store import SharedStore
-from .tokens import TokenStore
+from .tokens import TokenStore, TokenStoreError
 
 __all__ = [
     "Profile",
@@ -160,6 +160,46 @@ class ProfileStore:
         ]
         profiles.sort(key=lambda p: p.name)
         return profiles
+
+    def discover(
+        self,
+        *,
+        on_corrupt_tokens: Literal["raise", "swallow"],
+        tokens: dict[str, Any] | None = None,
+    ) -> list[Profile]:
+        """Enumerate profiles with an EXPLICIT corrupt-tokens policy.
+
+        The single shared home of the "enumerate profiles, deciding what to do
+        about a corrupt tokens.json" convention. Every consumer (health,
+        reconcile, patch-profiles) routes through here so the swallow
+        ``try/except`` lives in exactly one place.
+
+        *on_corrupt_tokens* is mandatory and has no default -- the caller must
+        choose:
+
+        - ``"raise"``: a corrupt tokens.json raises :class:`TokenStoreError`
+          (the hard-error contract; health records the error once elsewhere).
+        - ``"swallow"``: a corrupt tokens.json is swallowed to ``{}`` (additive
+          maintenance that touches permissions/hooks, not tokens).
+
+        *tokens* is an explicit preloaded token view. When provided it is used
+        verbatim and never re-loaded, so *on_corrupt_tokens* is moot -- this is
+        how health passes the single view it loaded once. When ``None``, this
+        loads via ``token_store.load()`` and applies *on_corrupt_tokens*.
+        """
+        if on_corrupt_tokens not in ("raise", "swallow"):
+            raise ValueError(
+                "on_corrupt_tokens must be 'raise' or 'swallow', got "
+                f"{on_corrupt_tokens!r}"
+            )
+        if tokens is None:
+            try:
+                tokens = self.token_store.load()
+            except TokenStoreError:
+                if on_corrupt_tokens == "raise":
+                    raise
+                tokens = {}
+        return self.enumerate(tokens)
 
     def get(self, name: str, tokens: dict[str, Any] | None = None) -> Profile | None:
         """Return the enumerated :class:`Profile` for *name*, or None if absent."""

@@ -103,12 +103,13 @@ def _discover_profiles(
 ) -> list[Profile]:
     """Enumerate profiles via the workspace's ProfileStore.
 
-    *tokens* ``None`` loads token data via the store (a corrupt tokens.json
-    raises :class:`TokenStoreError`). Callers inside a health run pass the single
-    token view loaded once by :func:`run_health_check` (``{}`` when corrupt) so
-    enumeration never re-reads the file.
+    Thin adapter over the shared :meth:`ProfileStore.discover` helper in the
+    ``"raise"`` mode: *tokens* ``None`` loads token data via the store (a corrupt
+    tokens.json raises :class:`TokenStoreError`). Callers inside a health run
+    pass the single token view loaded once by :func:`run_health_check` (``{}``
+    when corrupt) so enumeration never re-reads the file.
     """
-    return ws.profiles.enumerate(tokens)
+    return ws.profiles.discover(on_corrupt_tokens="raise", tokens=tokens)
 
 
 # -- Shared-store profile checks -------------------------------------------

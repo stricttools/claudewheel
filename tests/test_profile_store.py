@@ -197,6 +197,39 @@ class ProfileStoreContractTests(SandboxHomeTestCase):
         with self.assertRaises(TokenStoreError):
             self._store().enumerate()
 
+    def test_discover_swallow_survives_corrupt_tokens(self) -> None:
+        """discover(on_corrupt_tokens='swallow') loads-and-swallows to {}."""
+        p = self.make_profile("alpha", credentials=True)
+        self.sandbox_paths["TOKENS_FILE"].write_text("{invalid json")
+        result = self._store().discover(on_corrupt_tokens="swallow")
+        self.assertEqual(
+            [(x.name, x.path, x.has_credentials, x.has_token) for x in result],
+            [("alpha", p, True, False)],
+        )
+
+    def test_discover_raise_propagates_corrupt_tokens(self) -> None:
+        """discover(on_corrupt_tokens='raise') loads and re-raises TokenStoreError."""
+        self.make_profile("alpha", credentials=True)
+        self.sandbox_paths["TOKENS_FILE"].write_text("{invalid json")
+        with self.assertRaises(TokenStoreError):
+            self._store().discover(on_corrupt_tokens="raise")
+
+    def test_discover_preloaded_view_never_reloads(self) -> None:
+        """A preloaded tokens view is used verbatim; a corrupt file is never read."""
+        p = self.make_profile("alpha", credentials=True)
+        self.sandbox_paths["TOKENS_FILE"].write_text("{invalid json")
+        # Even in 'raise' mode, an explicit view means no load happens, so the
+        # corrupt file can never raise.
+        result = self._store().discover(on_corrupt_tokens="raise", tokens={})
+        self.assertEqual(
+            [(x.name, x.has_token) for x in result], [("alpha", False)]
+        )
+
+    def test_discover_rejects_unknown_mode(self) -> None:
+        """An unrecognized corrupt-tokens mode is a hard ValueError."""
+        with self.assertRaises(ValueError):
+            self._store().discover(on_corrupt_tokens="ignore")  # type: ignore[arg-type]
+
     def test_env_on_readonly_tree_succeeds_with_zero_writes(self) -> None:
         p = self.make_profile("alpha", credentials=True)
         write_json(self.sandbox_paths["TOKENS_FILE"], {"alpha": "tok-alpha"})

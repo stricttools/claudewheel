@@ -31,7 +31,6 @@ from .defaults import DISALLOWED_TOOLS, build_canonical_shared_settings
 from .fsutil import write_json_atomic
 from .hook_scripts import HOOK_SCRIPTS, deploy_scripts
 from .profile_store import Profile
-from .tokens import TokenStoreError
 
 if TYPE_CHECKING:
     from .workspace import Workspace
@@ -41,16 +40,12 @@ def _discovered_profiles(ws: "Workspace") -> list[Profile]:
     """Enumerate profiles via the workspace's ProfileStore, tolerating a corrupt
     tokens.json.
 
-    A corrupt tokens.json is swallowed to ``{}`` here (patch-profiles is additive
-    maintenance, not token resolution), matching the historical discovery
-    tolerance.
+    Delegates to the shared :meth:`ProfileStore.discover` helper in the
+    ``"swallow"`` mode: a corrupt tokens.json is swallowed to ``{}`` here
+    (patch-profiles is additive maintenance, not token resolution), matching the
+    historical discovery tolerance.
     """
-    store = ws.profiles
-    try:
-        tokens = store.token_store.load()
-    except TokenStoreError:
-        tokens = {}
-    return store.enumerate(tokens)
+    return ws.profiles.discover(on_corrupt_tokens="swallow")
 
 
 def _script_basename(command: str) -> str:
