@@ -113,7 +113,7 @@
   "en/claudewheel-patch_profiles.md": {
     "content": "c448ca21c38bce415e6f5639803895a94a381b6a5065b4dc2329574abbe50365",
     "description": "6deb93869bdca66c8eae169e452492857dce2588bf4c694c9fb142ef7bc091c3",
-    "source_docstring": "304956f69263ddb4dfde19bdd492da22f6b20defdb9eff7db0103fe32b64349a"
+    "source_docstring": "ff8e19f53fe21a6f13b62ecbf58ceb22e5c4571c3d3a387e01408dbed4e76f40"
   },
   "en/claudewheel-permission.md": {
     "content": "998fe12c1af340a42848b6c29531d703978f69ddcf527738cd5d4864cf205fe5",
@@ -160,7 +160,7 @@
   "en/claudewheel-reconcile.md": {
     "content": "ee843350031617c1b70c5470fc21b565db62712ea6a348e615626ac0c72770f0",
     "description": "64f275043655f77ada83b3a8bab1f114784eb2b3e3ca9555db2a69cbb3555e2a",
-    "source_docstring": "788384622362a34eb0618c6c2308817d0eea48c4f6c61c17ebd69e08bfab659b"
+    "source_docstring": "d800f07914033fa3e30f480a5646d6560243f1e025d3e39d5cd6511eca6f5ce4"
   },
   "en/claudewheel-renderer.md": {
     "content": "e93f5949aac032de7f90d05fce49e32ebf5e006bafef8be14a803b360f92922a",
@@ -265,7 +265,7 @@
   "en/cli-launch.md": {
     "content": "a512c8fd9ae03e2e998baa0bee9d7c7128af614ab20ec0d9ce0f0d9c756fb3c2",
     "description": "4a0d3a4836fe6d1a1d13f0d349ead9778f0d34f243f49aa87a343384de7f732d",
-    "schema_hash": "6f58b2676c4e387ec693d8d8d59e8f6130dbc4bb4c72894eb7dbd73c73381b3a"
+    "schema_hash": "b34af3a71703976c7c4b4b1069a2051e13c1a5ef0d3c311a4752e8d443dd8d7c"
   },
   "en/cli-migrate.md": {
     "content": "404a673aa2ba1ff016536ce36329b22e125a02ea3557f233b0ca0be3f24fbd72",
@@ -280,7 +280,7 @@
   "en/cli-patch-profiles.md": {
     "content": "e358cb381156f46a3b79b133f6b456fd12789e14056bbae115279852965b53e6",
     "description": "06c48839bdd2cd785a449f655feb17faba37a9bcfc92010df5859f5b35656c7b",
-    "schema_hash": "5e510aa78c8ab712feed354249224712e09fcdabecb9265bfa1b99bb95addcd8"
+    "schema_hash": "50811bf9ac555cc57cfa6bd33bb6f80c7bf2c22031c6bc58ac82c072fbdfde73"
   },
   "en/cli-permission.md": {
     "content": "1402e14872d8ea1c4b339cb5c2fb13c5c4ab1a086a4e344450aad59fe9b4df14",
@@ -290,12 +290,12 @@
   "en/cli-profile.md": {
     "content": "3d1ad82cb1ec462aaee09089feac6f8406989f84cf0913ef9146b0f0d3fd56e1",
     "description": "778625e9c13f4c2572079f7af3424ebed2e2b7cb0c63fd41407291af2acff0e1",
-    "schema_hash": "d14631d71af5fbfb0f6db4b86cade35960f3fe0c73b9b1e0c03b343eaac53430"
+    "schema_hash": "b2e77f0dd494ff62fa426d7ed41835cda8e703f4175319b8276ddba11ec8c3fc"
   },
   "en/cli-reconcile-permissions.md": {
     "content": "a3e66c254f12cadf9d572824a03525b67e43f9a3c083f86535217beb7e43fc38",
     "description": "14eba9a5944d2e32d7a4f33bb317fdac9bab980ae3d0cbe7e6eab1b02f6758fc",
-    "schema_hash": "d174b503ced96fee43082e94c4334042a4147ef9251ad1bc5e720e8bb2a0031d"
+    "schema_hash": "f592c93e8c581facf23edb8d8075b2c830e4f602e0c0816f8a94e1fe350c2adb"
   },
   "en/cli-reset-options.md": {
     "content": "e2bfcc661490460777d043e116a3403125bdecdf6786d45890ddd16af4654929",
