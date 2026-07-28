@@ -122,8 +122,7 @@
   },
   "en/claudewheel-preflight.md": {
     "content": "1a6e7b30d2c5d9df45b7fd04c7cf0778fb960a0ce2875a029536eab399422a42",
-    "description": "13094517e4c13e58366ecded652f85b53c7643b032fdb593c77513c3f9231ec0",
-    "seed_hash": "13094517e4c13e58366ecded652f85b53c7643b032fdb593c77513c3f9231ec0",
+    "description": "935b760b952d9e3f2efbec4be07daee66ff64fc8b80d5de6795a17c5ec788ff5",
     "source_docstring": "66671064c047113e3cb1de18b995f2f7e0766324722cab0aea0cdd14d4c0bd32"
   },
   "en/claudewheel-profile.md": {
@@ -148,8 +147,7 @@
   },
   "en/claudewheel-project_hooks.md": {
     "content": "f7337f3f3f39c265ccb78e1a723ee35556d00267c03643c3cb0fdf4e47f7e940",
-    "description": "e73dec33a84c389ed8997757367fb109aa5c0212e66fb7b8b6a34c03768fc7da",
-    "seed_hash": "e73dec33a84c389ed8997757367fb109aa5c0212e66fb7b8b6a34c03768fc7da",
+    "description": "d4c80c071956167b8300d2612f4ee6521e134a0fc924e8fbfa83f68eccb97de6",
     "source_docstring": "a3541a1c3fb30b66f6fc9542339c79a7c1b5cc86bb4953b3eb3ef157a9b8b803"
   },
   "en/claudewheel-pty_runner.md": {
@@ -169,8 +167,7 @@
   },
   "en/claudewheel-scratchpad.md": {
     "content": "9bec7a5e230199ca139f276d51cbd81ad498c6066d96317356b7f15fff92715d",
-    "description": "3efb0cadbd1bc9fc5a11d5eacaca3bf6e7d8ccb5ff3ae750ab881ec27d64119a",
-    "seed_hash": "3efb0cadbd1bc9fc5a11d5eacaca3bf6e7d8ccb5ff3ae750ab881ec27d64119a",
+    "description": "67c5466cd4be43588916bde8dbe99725cba2ed32035779decd42675e0539be36",
     "source_docstring": "6ca9d2b339fea1d123ebd9e7f99c531179dff0c0a0ba2158043507ac4415d36b"
   },
   "en/claudewheel-segment.md": {

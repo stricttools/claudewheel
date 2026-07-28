@@ -1,8 +1,7 @@
 ---
 title: claudewheel.scratchpad
-description: "Scan the per-user Claude Code scratchpad tree under /tmp for stale data."
+description: "Enumerate per-project scratchpad directories under /tmp/claude-<uid>/, measure real tmpfs block usage and newest mtime for each, and classify directories as stale when nothing has been touched within SCRATCHPAD_STALE_DAYS (14 days)."
 generated: true
-seeded: true
 nav_group: "API Reference"
 nav_order: 35
 ---

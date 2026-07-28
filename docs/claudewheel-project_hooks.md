@@ -1,8 +1,7 @@
 ---
 title: claudewheel.project_hooks
-description: "Read and fingerprint a target project's Claude Code hooks."
+description: "Load a target project's .claude/settings.json and settings.local.json, extract their hooks sections, compute a stable SHA-256 fingerprint for change detection, and produce a flattened human-readable listing for the pre-launch approval page. Malformed JSON is a hard error."
 generated: true
-seeded: true
 nav_group: "API Reference"
 nav_order: 31
 ---
