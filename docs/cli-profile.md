@@ -55,13 +55,13 @@ rename a profile, moving its directory, tokens, and session data to the new name
 
 ## profile fix-auth
 
-remove session credentials that shadow a long-lived token
+repair a profile's auth: remove session credentials that shadow a long-lived token, or remove a stale token entry whose profile directory is missing
 
 ### Arguments
 
 | Name | Required | Description |
 | --- | --- | --- |
-| `name` | yes | name of the profile whose shadowing session credentials should be removed |
+| `name` | yes | name of the profile to repair: an existing profile's shadowing session credentials are removed; a missing profile's stale token entry is removed |
 
 ## profile check-tokens
 

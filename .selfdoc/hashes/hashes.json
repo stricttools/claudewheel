@@ -120,6 +120,11 @@
     "description": "d0c760be58f3455ca4fd73a3ab6041550a3d3fd858f701bdd43a5f8f67b87819",
     "source_docstring": "d0c760be58f3455ca4fd73a3ab6041550a3d3fd858f701bdd43a5f8f67b87819"
   },
+  "en/claudewheel-preflight.md": {
+    "content": "1a6e7b30d2c5d9df45b7fd04c7cf0778fb960a0ce2875a029536eab399422a42",
+    "description": "13094517e4c13e58366ecded652f85b53c7643b032fdb593c77513c3f9231ec0",
+    "seed_hash": "13094517e4c13e58366ecded652f85b53c7643b032fdb593c77513c3f9231ec0"
+  },
   "en/claudewheel-profile.md": {
     "content": "912b63113198ae7bf75a1f7e93eb44e1cd65892c713336d14cd193afce5602f4",
     "description": "542bb527d8ac6a6f89a6217fcf916c3b1c04043aedfe8fb14d6cd3d0b0fb3787",
@@ -140,6 +145,11 @@
     "description": "857c4a0b3f6405af0ad4de15e042414c4808ab9fe13768041216903b14b283da",
     "source_docstring": "62514529cd5c3d8be67665a2319c52228fb6caf42510aa3f46111cd42d29bbde"
   },
+  "en/claudewheel-project_hooks.md": {
+    "content": "f7337f3f3f39c265ccb78e1a723ee35556d00267c03643c3cb0fdf4e47f7e940",
+    "description": "e73dec33a84c389ed8997757367fb109aa5c0212e66fb7b8b6a34c03768fc7da",
+    "seed_hash": "e73dec33a84c389ed8997757367fb109aa5c0212e66fb7b8b6a34c03768fc7da"
+  },
   "en/claudewheel-pty_runner.md": {
     "content": "e9c887c827b760c359ad23d514669d48695c32a463759c87df51261703edc803",
     "description": "bb09a63764c7e627189bff8f5da5a55294f015d7e90bf20f048755e6014a822f",
@@ -154,6 +164,11 @@
     "content": "e93f5949aac032de7f90d05fce49e32ebf5e006bafef8be14a803b360f92922a",
     "description": "a93485650012e103fb8fc3aec2fbaeae37254a3da1c28d22670f7ffde5b8832c",
     "source_docstring": "a85b2b5125feb8bc92eddef4b5444ce37744ee8cf80ae0c38a34194e12475980"
+  },
+  "en/claudewheel-scratchpad.md": {
+    "content": "9bec7a5e230199ca139f276d51cbd81ad498c6066d96317356b7f15fff92715d",
+    "description": "3efb0cadbd1bc9fc5a11d5eacaca3bf6e7d8ccb5ff3ae750ab881ec27d64119a",
+    "seed_hash": "3efb0cadbd1bc9fc5a11d5eacaca3bf6e7d8ccb5ff3ae750ab881ec27d64119a"
   },
   "en/claudewheel-segment.md": {
     "content": "8b9464748f76033d0dd8e1c47b83404f1fab7f33fe16db171a219f6b17fee106",
@@ -305,9 +320,9 @@
     "schema_hash": "94a2d51885e0553db237d5a292bb7256e7a11a2574d08a84106824d305e9db2d"
   },
   "en/gen-index.md": {
-    "content": "110f9cfb4c4e3562a5612613930dda5e0a71b54ace463942de9154f8f9617956",
-    "description": "681686e8dbae1c8013b9f53955299ff0a5327d2942056ef88236b3af05dbce53",
-    "seed_hash": "681686e8dbae1c8013b9f53955299ff0a5327d2942056ef88236b3af05dbce53"
+    "content": "67fdfd4c0e54e448d2b958adec94819f2ccfa2e35f155f51d684bd31c915d45e",
+    "description": "40a84fc806a2f2512b9e9ffc575f64834280ab68fbc1986d4a5663fafe184934",
+    "seed_hash": "40a84fc806a2f2512b9e9ffc575f64834280ab68fbc1986d4a5663fafe184934"
   },
   "en/guardrails.md": {
     "content": "1f0733c280aa9f75bdbf3f2f41299477ef49592b171b95011dc1178ac5712518",

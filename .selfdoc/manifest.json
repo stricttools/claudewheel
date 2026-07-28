@@ -2,7 +2,7 @@
   "schema_version": 1,
   "name": "claudewheel",
   "slug": "claudewheel",
-  "version": "0.23.2",
+  "version": "0.23.3",
   "description": "TUI launcher for Claude Code: pick a profile, model, directory, and permissions from a segment bar, then launch.",
   "language": "python",
   "base_url": "https://claudewheel.smmh.dev",
@@ -128,6 +128,11 @@
       "type": "doc"
     },
     {
+      "path": "claudewheel-preflight.md",
+      "title": "claudewheel.preflight",
+      "type": "doc"
+    },
+    {
       "path": "claudewheel-profile.md",
       "title": "claudewheel.profile",
       "type": "doc"
@@ -148,6 +153,11 @@
       "type": "doc"
     },
     {
+      "path": "claudewheel-project_hooks.md",
+      "title": "claudewheel.project_hooks",
+      "type": "doc"
+    },
+    {
       "path": "claudewheel-pty_runner.md",
       "title": "claudewheel.pty_runner",
       "type": "doc"
@@ -160,6 +170,11 @@
     {
       "path": "claudewheel-renderer.md",
       "title": "claudewheel.renderer",
+      "type": "doc"
+    },
+    {
+      "path": "claudewheel-scratchpad.md",
+      "title": "claudewheel.scratchpad",
       "type": "doc"
     },
     {
@@ -329,5 +344,5 @@
     }
   ],
   "posts": [],
-  "last_gen": "2026-07-18T21:03:55.258900+00:00"
+  "last_gen": "2026-07-28T11:49:55.730607+00:00"
 }

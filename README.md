@@ -106,15 +106,15 @@ Profile, GitHub, and Model are *creatable*: their option lists end with a `+` se
 | `mv` | rename a project directory and migrate session data |
 | `import` | import session data from an external Claude Code directory |
 | `deploy-hooks` | deploy built-in hook scripts to the ~/.claudewheel/scripts/ directory |
-| `patch-profiles` | sync existing profiles and shared-settings.json to canonical hook and disallowedTools defaults |
-| `reconcile-permissions` | reconcile profile and shared-settings permissions (deny/ask/allow) to the canonical guardrail model; requires exactly one of --dry-run or --apply |
+| `patch-profiles` | reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask); prunes drift and user-added extras -- the old additive, extras-preserving behavior is gone. Deploys any missing guardrail hook scripts. The 'default' profile (~/.claude) is never touched. |
+| `reconcile-permissions` | reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask made exact; allow keeps only its non-conflicting entries); prunes all drift and user-added extras. The 'default' profile (~/.claude) is never touched. Requires exactly one of --dry-run or --apply. |
 | `launch` | start the interactive TUI launcher to select a profile, model, and directory |
 | **profile** | create, inspect, rename, delete, and manage Claude Code profiles and their stored tokens |
 | `profile create` | create a new profile interactively through a guided wizard, then set up its authentication |
 | `profile delete` | delete a registered profile and clean up its directory, tokens, and options entries |
 | `profile show` | inspect a profile's configuration, authentication status, and session data in a detailed report |
 | `profile rename` | rename a profile, moving its directory, tokens, and session data to the new name |
-| `profile fix-auth` | remove session credentials that shadow a long-lived token |
+| `profile fix-auth` | repair a profile's auth: remove session credentials that shadow a long-lived token, or remove a stale token entry whose profile directory is missing |
 | `profile check-tokens` | validate every discovered profile's stored OAuth token against the Anthropic API |
 | **permission** | add, remove, and list permission rules across Claude profiles |
 | `permission add` | Add a permission rule to a profile's settings.json. Takes a category (allow, deny, or ask) and a rule string such as Bash or Read(//home/**). Writes the rule into the specified category array. Use --profile to target a single profile or --all-profiles to apply the rule across every registered profile. Skips duplicates if the rule already exists in the category. |

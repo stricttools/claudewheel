@@ -9,12 +9,12 @@ nav_order: 12
 
 # c reconcile-permissions
 
-reconcile profile and shared-settings permissions (deny/ask/allow) to the canonical guardrail model; requires exactly one of --dry-run or --apply
+reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask made exact; allow keeps only its non-conflicting entries); prunes all drift and user-added extras. The 'default' profile (~/.claude) is never touched. Requires exactly one of --dry-run or --apply.
 
 ## Flags
 
 | Name | Short | Type | Default | Env | Description |
 | --- | --- | --- | --- | --- | --- |
-| `--dry-run` |  | bool |  |  | print the per-target permissions diff and change NOTHING (mutually exclusive with --apply; you MUST pass exactly one of --dry-run or --apply) |
+| `--dry-run` |  | bool |  |  | print the per-target guardrail diff and change NOTHING (mutually exclusive with --apply; you MUST pass exactly one of --dry-run or --apply) |
 | `--apply` |  | bool |  |  | perform the reconciliation, writing each target atomically (mutually exclusive with --dry-run; you MUST pass exactly one of --dry-run or --apply) |
-| `--profile` |  | str |  |  | reconcile only this single profile; when given, shared-settings.json profileDefaults is left untouched (omit to reconcile every profile AND shared-settings profileDefaults) |
+| `--profile` |  | str |  |  | reconcile only this single profile; when given, shared-settings.json is left untouched (omit to reconcile every profile AND shared-settings.json) |
