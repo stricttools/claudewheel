@@ -14,7 +14,6 @@ from pathlib import Path
 from typing import Any
 from unittest import mock
 
-from claudewheel.terminal import Terminal
 from claudewheel.wizard import WizardResult, create_profile, run_profile_wizard
 from claudewheel.shared_store import SharedStore
 from claudewheel.defaults import (
@@ -28,6 +27,8 @@ from claudewheel.defaults import (
     build_canonical_shared_settings,
 )
 from claudewheel.theme import parse_theme
+
+from tests.wheelhelpers import FakeTerminal
 
 THEME = parse_theme(DEFAULT_THEME_DARK)
 
@@ -557,44 +558,6 @@ class SummaryLinesTests(CreateProfileTestBase):
         with contextlib.redirect_stdout(buf):
             create_profile(self.ws, _make_result(name="quiet"))
         self.assertEqual(buf.getvalue(), "")
-
-
-class FakeTerminal(Terminal):
-    """A mock Terminal that feeds pre-recorded keystrokes and captures output."""
-
-    def __init__(self, keys: list[str], in_raw: bool = False) -> None:
-        self._keys = list(keys)
-        self._index = 0
-        self.rows = 40
-        self.cols = 120
-        self.output: list[str] = []
-        self._in_raw = in_raw
-
-    def enter_raw(self, alt_screen: bool = True) -> None:
-        self._in_raw = True
-
-    def exit_raw(self) -> None:
-        self._in_raw = False
-
-    def close(self) -> None:
-        pass
-
-    def get_size(self) -> tuple[int, int]:
-        return self.rows, self.cols
-
-    def read_key(self) -> str:
-        if self._index >= len(self._keys):
-            # Safety net: if keys are exhausted, cancel the wizard
-            return "ESC"
-        key = self._keys[self._index]
-        self._index += 1
-        return key
-
-    def write(self, text: str) -> None:
-        self.output.append(text)
-
-    def flush(self) -> None:
-        pass
 
 
 class WizardTUITestBase(unittest.TestCase):

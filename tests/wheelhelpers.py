@@ -28,6 +28,7 @@ from typing import Any, Iterable
 from unittest.mock import patch
 
 from claudewheel.shared_store import SharedStore
+from claudewheel.terminal import Terminal
 from claudewheel.defaults import (
     DEFAULT_CONFIG,
     DEFAULT_OPTIONS,
@@ -40,6 +41,57 @@ from claudewheel.defaults import (
 # Real home captured at import time, BEFORE any test patches Path.home. Used by
 # the meta-test to prove that sandbox writes never touch the real home.
 REAL_HOME: Path = Path(os.path.expanduser("~"))
+
+
+class FakeTerminal(Terminal):
+    """A mock Terminal that feeds pre-recorded keystrokes and captures output.
+
+    The single shared test double for :class:`claudewheel.terminal.Terminal`.
+    It records lifecycle calls (``enter_raw_calls``, ``exit_raw_called``,
+    ``closed``) so tests can assert on raw-mode transitions, and buffers all
+    written text in ``output``. ``read_key`` returns pre-recorded keys and, once
+    exhausted, yields ``"ESC"`` as a safety net so an interactive loop cancels
+    instead of hanging.
+    """
+
+    def __init__(self, keys: list[str], in_raw: bool = False) -> None:
+        self._keys = list(keys)
+        self._index = 0
+        self.rows = 40
+        self.cols = 120
+        self.output: list[str] = []
+        self.enter_raw_calls: list[bool] = []
+        self.exit_raw_called = False
+        self.closed = False
+        self._in_raw = in_raw
+
+    def enter_raw(self, alt_screen: bool = True) -> None:
+        self.enter_raw_calls.append(alt_screen)
+        self._in_raw = True
+
+    def exit_raw(self) -> None:
+        self.exit_raw_called = True
+        self._in_raw = False
+
+    def close(self) -> None:
+        self.closed = True
+
+    def get_size(self) -> tuple[int, int]:
+        return self.rows, self.cols
+
+    def read_key(self) -> str:
+        if self._index >= len(self._keys):
+            # Safety net: if keys are exhausted, cancel the interactive loop.
+            return "ESC"
+        key = self._keys[self._index]
+        self._index += 1
+        return key
+
+    def write(self, text: str) -> None:
+        self.output.append(text)
+
+    def flush(self) -> None:
+        pass
 
 
 def write_json(path: Path, data: dict[str, Any] | list[Any]) -> None:

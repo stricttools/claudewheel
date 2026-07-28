@@ -9,55 +9,13 @@ from unittest import mock
 
 from claudewheel.constants import ALT_SCREEN_ON, CLEAR_SCREEN
 from claudewheel.defaults import DEFAULT_THEME_DARK
-from claudewheel.terminal import Terminal
 from claudewheel.theme import parse_theme
 from claudewheel.ui import FormField, get_field, run_form, run_selection, show_page
 from claudewheel import ui as ui_mod
 
+from tests.wheelhelpers import FakeTerminal
+
 THEME = parse_theme(DEFAULT_THEME_DARK)
-
-
-class FakeTerminal(Terminal):
-    """A mock Terminal that feeds pre-recorded keystrokes and captures output."""
-
-    def __init__(self, keys: list[str], in_raw: bool = False) -> None:
-        self._keys = list(keys)
-        self._index = 0
-        self.rows = 40
-        self.cols = 120
-        self.output: list[str] = []
-        self.enter_raw_calls: list[bool] = []
-        self.exit_raw_called = False
-        self.closed = False
-        self._in_raw = in_raw
-
-    def enter_raw(self, alt_screen: bool = True) -> None:
-        self.enter_raw_calls.append(alt_screen)
-        self._in_raw = True
-
-    def exit_raw(self) -> None:
-        self.exit_raw_called = True
-        self._in_raw = False
-
-    def close(self) -> None:
-        self.closed = True
-
-    def get_size(self) -> tuple[int, int]:
-        return self.rows, self.cols
-
-    def read_key(self) -> str:
-        if self._index >= len(self._keys):
-            # Safety net: if keys are exhausted, cancel the form
-            return "ESC"
-        key = self._keys[self._index]
-        self._index += 1
-        return key
-
-    def write(self, text: str) -> None:
-        self.output.append(text)
-
-    def flush(self) -> None:
-        pass
 
 
 OPTIONS = [
