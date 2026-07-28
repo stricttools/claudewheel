@@ -779,6 +779,71 @@ class CheckOrphanProfilesTests(_HomeDirTestCase):
 
 
 # ---------------------------------------------------------------------------
+# check_orphan_token_entries
+# ---------------------------------------------------------------------------
+
+
+class CheckOrphanTokenEntriesTests(_HomeDirTestCase):
+    """Tests for check_orphan_token_entries(self.ws)."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self._tokens_file = self.home / ".claudewheel" / "tokens.json"
+
+    def _write_tokens(self, tokens: dict[str, Any]) -> None:
+        self._tokens_file.parent.mkdir(parents=True, exist_ok=True)
+        self._tokens_file.write_text(json.dumps(tokens))
+
+    def test_ok_when_no_tokens_file(self) -> None:
+        """No tokens.json -> no entries -> OK."""
+        result = health.check_orphan_token_entries(self.ws)
+        self.assertTrue(result.ok)
+        self.assertIn("no stale token entries", result.detail)
+
+    def test_ok_when_entry_has_profile_dir(self) -> None:
+        """A token entry whose profile dir exists is not stale."""
+        self._make_profile("live")
+        self._write_tokens({"live": "tok-abc123"})
+        result = health.check_orphan_token_entries(self.ws)
+        self.assertTrue(result.ok)
+
+    def test_flags_orphan_entry(self) -> None:
+        """A token entry with no profile dir behind it is flagged."""
+        # No profile dir created for "ghost".
+        self._write_tokens({"ghost": "tok-xyz789"})
+        result = health.check_orphan_token_entries(self.ws)
+        self.assertFalse(result.ok)
+        self.assertIn("ghost", result.detail)
+        self.assertIn("fix-auth", result.detail)
+
+    def test_flags_only_orphans_not_live(self) -> None:
+        """Live entries are not reported; only the orphan is."""
+        self._make_profile("live")
+        self._write_tokens({"live": "tok-1", "ghost": "tok-2"})
+        result = health.check_orphan_token_entries(self.ws)
+        self.assertFalse(result.ok)
+        self.assertIn("ghost", result.detail)
+        self.assertNotIn("live", result.detail)
+
+    def test_token_error_surfaces_as_failed(self) -> None:
+        """A recorded token_error fails the check with its message."""
+        from claudewheel.tokens import TokenStoreError
+
+        err = TokenStoreError("corrupt tokens.json")
+        result = health.check_orphan_token_entries(self.ws, {}, err)
+        self.assertFalse(result.ok)
+        self.assertIn("corrupt", result.detail)
+
+    def test_included_in_run_health_check(self) -> None:
+        """The orphan-tokens check is registered in the full run."""
+        self._write_tokens({"ghost": "tok-xyz"})
+        results = run_health_check(self.ws)
+        labels = {r.label: r for r in results}
+        self.assertIn("orphan-tokens", labels)
+        self.assertFalse(labels["orphan-tokens"].ok)
+
+
+# ---------------------------------------------------------------------------
 # check_auth_shadow
 # ---------------------------------------------------------------------------
 

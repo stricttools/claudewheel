@@ -415,11 +415,11 @@
         },
         "fix-auth": {
           "name": "fix-auth",
-          "help": "remove session credentials that shadow a long-lived token",
+          "help": "repair a profile's auth: remove session credentials that shadow a long-lived token, or remove a stale token entry whose profile directory is missing",
           "args": [
             {
               "name": "name",
-              "help": "name of the profile whose shadowing session credentials should be removed"
+              "help": "name of the profile to repair: an existing profile's shadowing session credentials are removed; a missing profile's stale token entry is removed"
             }
           ]
         },
