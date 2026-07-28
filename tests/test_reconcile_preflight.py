@@ -24,6 +24,7 @@ from unittest import mock
 from claudewheel import cli
 from claudewheel.defaults import DISALLOWED_TOOLS, build_canonical_shared_settings
 from claudewheel.guardrail import canonical_ask_rules, canonical_deny_rules
+from tests.wheelhelpers import claude_dir_write_canary
 
 
 class _FakeCfg:
@@ -120,6 +121,11 @@ class PreflightReconcileTests(unittest.TestCase):
         """Drive the REAL _do_launch_sequence with the exec boundary stubbed."""
         out = io.StringIO()
         with (
+            # Every reconcile-driven launch here writes only managed profiles and
+            # shared-settings under ~/.claudewheel; the discoverable ~/.claude
+            # must stay untouched. The canary enforces that at the fsutil seam,
+            # complementing the byte-identical snapshot assertions below.
+            claude_dir_write_canary(self.claude_dir),
             mock.patch("claudewheel.hooks.run_hooks", autospec=True, return_value=True),
             mock.patch("claudewheel.state.save_launch_state", autospec=True),
             mock.patch("claudewheel.state.record_inode", autospec=True),

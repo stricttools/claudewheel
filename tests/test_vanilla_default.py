@@ -8,6 +8,7 @@ inject/remove round-trip.
 
 from __future__ import annotations
 
+import contextlib
 import io
 import json
 import tempfile
@@ -25,7 +26,12 @@ from claudewheel.state import (
     get_vanilla_guardrails_opt_in,
     set_vanilla_guardrails_opt_in,
 )
-from tests.wheelhelpers import FakeTerminal, snapshot_tree
+from tests.wheelhelpers import (
+    ClaudeDirWriteCanaryMixin,
+    FakeTerminal,
+    claude_dir_write_canary,
+    snapshot_tree,
+)
 
 
 class _FakeCfg:
@@ -76,8 +82,14 @@ class _VanillaTestBase(unittest.TestCase):
         return build_canonical_shared_settings(self.ws.scripts_dir)["hooks"]
 
 
-class VanillaLaunchIntegrationTests(_VanillaTestBase):
-    """A full _do_launch_sequence against the default is truly vanilla."""
+class VanillaLaunchIntegrationTests(ClaudeDirWriteCanaryMixin, _VanillaTestBase):
+    """A full _do_launch_sequence against the default is truly vanilla.
+
+    Every launch here runs under the write canary IN ADDITION to the snapshot
+    assertion: the snapshot proves the tree is unchanged after the fact, and the
+    canary proves no atomic write ever even targeted ``claude_dir`` at the
+    fsutil chokepoint.
+    """
 
     def _launch(self, profile: str | None, interactive: bool = False) -> dict[str, str]:
         """Drive the REAL _do_launch_sequence (resolve NOT stubbed), capturing env."""
@@ -88,6 +100,7 @@ class VanillaLaunchIntegrationTests(_VanillaTestBase):
 
         out = io.StringIO()
         with (
+            self.claude_dir_write_canary(),
             mock.patch(
                 "claudewheel.hooks.run_hooks", autospec=True, return_value=True
             ),
@@ -161,13 +174,25 @@ class VanillaChoiceStepTests(_VanillaTestBase):
             interactive=interactive,
         )
 
-    def _run(self, ctx, keys: list[str]) -> FakeTerminal:
+    def _run(self, ctx, keys: list[str], *, canary: bool = True) -> FakeTerminal:
+        """Run the vanilla-choice preflight step.
+
+        Runs under the claude_dir write canary by default (this preflight step
+        must not write to ~/.claude when the user stays vanilla). The two tests
+        that exercise the SANCTIONED opt-in injection path -- which legitimately
+        writes ~/.claude/settings.json -- pass ``canary=False`` explicitly.
+        """
         from claudewheel import preflight
 
         term = FakeTerminal(keys)
-        with mock.patch.object(
-            preflight, "_make_terminal", autospec=True, return_value=term
-        ):
+        with contextlib.ExitStack() as stack:
+            if canary:
+                stack.enter_context(claude_dir_write_canary(self.claude_dir))
+            stack.enter_context(
+                mock.patch.object(
+                    preflight, "_make_terminal", autospec=True, return_value=term
+                )
+            )
             preflight._vanilla_choice_run(ctx)
         return term
 
@@ -178,7 +203,9 @@ class VanillaChoiceStepTests(_VanillaTestBase):
         return self.claude_dir / "settings.json"
 
     def test_first_launch_opt_in_persists_and_injects(self) -> None:
-        self._run(self._ctx("default"), ["g"])
+        # Sanctioned writer: opting in injects ~/.claude/settings.json, so the
+        # canary is explicitly scoped OUT of this one path.
+        self._run(self._ctx("default"), ["g"], canary=False)
         self.assertTrue(self._opt_in())
         s = json.loads(self._claude_settings().read_text())
         self.assertEqual(s["hooks"], self._canonical_hooks())
@@ -204,7 +231,9 @@ class VanillaChoiceStepTests(_VanillaTestBase):
 
     def test_already_opted_in_ensures_idempotently(self) -> None:
         set_vanilla_guardrails_opt_in(StateFile(self.ws.state_file), True)
-        term = self._run(self._ctx("default"), [])
+        # Sanctioned writer: an already-opted-in launch re-ensures the injected
+        # settings, so the canary is explicitly scoped OUT here too.
+        term = self._run(self._ctx("default"), [], canary=False)
         self.assertEqual(term.output, [])  # no prompt: already answered
         s = json.loads(self._claude_settings().read_text())
         self.assertEqual(s["hooks"], self._canonical_hooks())
@@ -314,8 +343,13 @@ class VanillaGuardrailInjectRemoveTests(_VanillaTestBase):
             interactive=True,
         )
         term = FakeTerminal([])
-        with mock.patch.object(
-            preflight, "_make_terminal", autospec=True, return_value=term
+        # Opt-in is False, so this must write nothing: canary IN addition to the
+        # snapshot assertion.
+        with (
+            claude_dir_write_canary(self.claude_dir),
+            mock.patch.object(
+                preflight, "_make_terminal", autospec=True, return_value=term
+            ),
         ):
             preflight._vanilla_choice_run(ctx)
         self.assertEqual(snapshot_tree(self.claude_dir), before)
