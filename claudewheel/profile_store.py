@@ -18,6 +18,7 @@ __all__ = [
     "Profile",
     "ProfileStore",
     "DeletionResult",
+    "AuditFinding",
 ]
 
 # Segment key under which profiles are registered in options.json.
@@ -48,6 +49,21 @@ class Profile:
     def config_dir(self) -> Path:
         """Alias for :attr:`path` -- the CLAUDE_CONFIG_DIR of this profile."""
         return self.path
+
+
+@dataclass(frozen=True)
+class AuditFinding:
+    """One structured integrity finding from :meth:`ProfileStore.audit`.
+
+    - ``kind``: a stable finding category. Currently the only kind is
+      ``"orphan-token-entry"`` -- a tokens.json key with no directory on disk.
+    - ``name``: the profile name the finding is about.
+    - ``detail``: a human-readable explanation.
+    """
+
+    kind: str
+    name: str
+    detail: str
 
 
 @dataclass(frozen=True)
@@ -103,9 +119,12 @@ class ProfileStore:
         An explicit dict (e.g. ``{}``) is the explicit token view for callers
         that must proceed without token data.
 
-        Rules encoding the historical profile-discovery behavior:
-        1. ``claude_dir`` qualifies as "default" when it is a dir AND holds
-           ``.credentials.json`` (has_credentials=True).
+        Rules encoding the profile-discovery behavior:
+        1. ``claude_dir`` qualifies as "default" whenever it IS A DIRECTORY.
+           ``~/.claude`` is Claude Code's own config dir -- managed by Claude
+           Code, not cw -- so cw cannot verify its auth (``.credentials.json``
+           may live elsewhere, e.g. macOS Keychain). ``has_credentials`` tracks
+           the ``.credentials.json`` presence but is NOT required for discovery.
         2. Each subdir of ``profiles_dir`` qualifies when it holds
            ``.credentials.json`` OR ``settings.json``; has_credentials tracks
            the ``.credentials.json`` presence.
@@ -121,12 +140,12 @@ class ProfileStore:
         records: list[tuple[str, Path, bool]] = []
         found_names: set[str] = set()
 
-        # Rule 1: bare claude_dir as "default".
-        if (
-            self.claude_dir.is_dir()
-            and (self.claude_dir / ".credentials.json").exists()
-        ):
-            records.append(("default", self.claude_dir, True))
+        # Rule 1: claude_dir as "default" whenever it is a directory (lenient --
+        # ~/.claude is managed by Claude Code, so cw cannot require credentials
+        # it may not be able to see). has_credentials reflects on-disk reality.
+        if self.claude_dir.is_dir():
+            has_default_credentials = (self.claude_dir / ".credentials.json").exists()
+            records.append(("default", self.claude_dir, has_default_credentials))
             found_names.add("default")
 
         # Rule 2: profiles_dir subdirectories.
@@ -208,14 +227,51 @@ class ProfileStore:
                 return profile
         return None
 
+    def audit(self, tokens: dict[str, Any] | None = None) -> list[AuditFinding]:
+        """Return structured integrity findings about the profile store.
+
+        Read-only: zero filesystem writes. *tokens* ``None`` loads token data via
+        ``token_store.load()`` (a corrupt tokens.json raises
+        :class:`TokenStoreError`); an explicit dict is used verbatim.
+
+        Currently one finding kind:
+
+        - ``"orphan-token-entry"``: a tokens.json key whose ``path_for()`` dir
+          does not exist on disk (a token entry with no profile behind it).
+
+        Findings are returned in sorted-name order for deterministic output.
+        """
+        if tokens is None:
+            tokens = self.token_store.load()
+        findings: list[AuditFinding] = []
+        for key in sorted(tokens):
+            pdir = self.path_for(key)
+            if not pdir.is_dir():
+                findings.append(
+                    AuditFinding(
+                        kind="orphan-token-entry",
+                        name=key,
+                        detail=(
+                            f"tokens.json has an entry for {key!r} but no profile "
+                            f"directory exists at {pdir}"
+                        ),
+                    )
+                )
+        return findings
+
     def env(self, name: str) -> dict[str, str]:
         """Resolve a profile name to launch env vars. Read-only, no terminal I/O.
 
         Enumerates via the TokenStore (a corrupt tokens.json raises
         :class:`TokenStoreError`). An unknown *name* raises :class:`ValueError`
-        listing the available profile names. The result always carries
-        ``CLAUDE_CONFIG_DIR`` and adds ``CLAUDE_CODE_OAUTH_TOKEN`` when the
-        token_store yields a truthy token for *name*.
+        listing the available profile names.
+
+        For every named profile the result carries ``CLAUDE_CONFIG_DIR`` and
+        adds ``CLAUDE_CODE_OAUTH_TOKEN`` when the token_store yields a truthy
+        token for *name*. The ``"default"`` profile is the EXCEPTION: it is
+        Claude Code's own ``~/.claude``, managed by Claude Code and strictly
+        read-only to cw, so it resolves to an EMPTY env -- no
+        ``CLAUDE_CONFIG_DIR`` and no token injection (the vanilla launch path).
         """
         profiles = self.enumerate()
         names = {p.name for p in profiles}
@@ -224,6 +280,11 @@ class ProfileStore:
             raise ValueError(
                 f"Profile {name!r} not found. Available profiles: {available}"
             )
+
+        if name == "default":
+            # Vanilla default: Claude Code manages ~/.claude itself. cw injects
+            # neither a config dir nor a token.
+            return {}
 
         env: dict[str, str] = {"CLAUDE_CONFIG_DIR": str(self.path_for(name))}
         token = self.token_store.token_for(name)

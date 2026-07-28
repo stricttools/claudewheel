@@ -74,6 +74,7 @@ class SegmentState:
     _ephemeral: list[str] = field(default_factory=list)
     _installed: set[str] = field(default_factory=set)
     _authenticated: set[str] = field(default_factory=set)
+    _managed: set[str] = field(default_factory=set)
     _auth_status_active: bool = False
     metadata: dict[str, dict[str, Any]] = field(default_factory=dict)
     collection_order: list[str] = field(
@@ -178,12 +179,26 @@ class SegmentState:
         self._auth_status_active = True
         self._options = None
 
+    def set_managed(self, vals: set[str]) -> None:
+        """Record the "managed" (externally-managed) values.
+
+        A managed value is neither authenticated nor unauthenticated: cw cannot
+        verify its auth because Claude Code owns it (the ``"default"`` profile,
+        ``~/.claude``). Managed values are excluded from the unauthenticated
+        rendering/interception paths.
+        """
+        self._managed = vals
+
     @property
     def has_auth_status(self) -> bool:
         return self._auth_status_active
 
     def is_authenticated(self, val: str) -> bool:
         return val in self._authenticated
+
+    def is_managed(self, val: str) -> bool:
+        """True when *val* is externally managed (e.g. the vanilla default)."""
+        return val in self._managed
 
 
 @dataclass
@@ -516,7 +531,14 @@ def _discover_profiles(
     discovered = ws.profiles.enumerate()
     values: list[str] = [p.name for p in discovered]
     metadata: dict[str, dict[str, Any]] = {
-        p.name: {"has_token": p.has_token, "has_credentials": p.has_credentials}
+        p.name: {
+            "has_token": p.has_token,
+            "has_credentials": p.has_credentials,
+            # The "default" profile (~/.claude) is managed by Claude Code, not
+            # cw: mark it so the UI treats it as managed rather than
+            # (un)authenticated.
+            "managed": p.name == "default",
+        }
         for p in discovered
     }
     return DiscoveryResult(values=values, metadata=metadata)
@@ -712,22 +734,35 @@ def populate_segment_state(
 
 
 def _update_auth_from_metadata(seg: "Segment") -> None:
-    """Compute and set authenticated set from segment metadata.
+    """Compute the authenticated and managed sets from segment metadata.
 
-    A value is authenticated if its metadata has ``has_token=True`` or
-    ``has_credentials=True``.  Auth tracking is only activated when at
-    least one metadata entry carries these fields, keeping the feature
-    invisible to segments that don't use it.
+    Ternary classification:
+
+    - ``managed=True`` -> the value is externally managed (Claude Code owns it,
+      e.g. the vanilla ``default``). cw cannot verify its auth, so it is neither
+      authenticated NOR unauthenticated -- it goes in the managed set and is
+      excluded from the unauthenticated (dim/intercept) paths.
+    - otherwise a value is authenticated if its metadata has ``has_token=True``
+      or ``has_credentials=True``, else unauthenticated.
+
+    Auth tracking is only activated when at least one metadata entry carries any
+    of these fields, keeping the feature invisible to segments that don't use it.
     """
     has_auth_fields = False
     authenticated: set[str] = set()
+    managed: set[str] = set()
     for name, meta in seg.state.metadata.items():
+        if meta.get("managed"):
+            has_auth_fields = True
+            managed.add(name)
+            continue
         if "has_token" in meta or "has_credentials" in meta:
             has_auth_fields = True
             if meta.get("has_token") or meta.get("has_credentials"):
                 authenticated.add(name)
     if has_auth_fields:
         seg.state.set_authenticated(authenticated)
+        seg.state.set_managed(managed)
 
 
 # Per-segment merge specs: collection_order and sort overrides

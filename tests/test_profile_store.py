@@ -56,9 +56,22 @@ class ProfileStoreEnumerateTests(SandboxHomeTestCase):
             [("default", self.home / ".claude", True, False)],
         )
 
-    def test_default_dir_without_credentials_and_no_token_is_invisible(self) -> None:
+    def test_default_dir_without_credentials_and_no_token_is_visible(self) -> None:
+        """Lenient rule: ~/.claude qualifies as 'default' whenever it is a dir.
+
+        Claude Code manages ~/.claude and may store credentials elsewhere (e.g.
+        macOS Keychain), so cw discovers it even without .credentials.json.
+        has_credentials/has_token reflect reality (both False here).
+        """
         d = self.home / ".claude"
         d.mkdir(parents=True, exist_ok=True)  # dir exists, no credentials, no token
+        self.assertEqual(
+            self._tuples(self._store().enumerate()),
+            [("default", self.home / ".claude", False, False)],
+        )
+
+    def test_default_missing_dir_is_invisible(self) -> None:
+        """No ~/.claude directory at all -> no 'default' profile."""
         self.assertEqual(self._store().enumerate(), [])
 
     def test_default_token_only(self) -> None:
@@ -244,6 +257,22 @@ class ProfileStoreContractTests(SandboxHomeTestCase):
     def test_path_for_default_is_sandbox_claude(self) -> None:
         self.assertEqual(self._store().path_for("default"), self.home / ".claude")
 
+    def test_env_default_returns_empty(self) -> None:
+        """The vanilla default resolves to an EMPTY env: no config dir, no token.
+
+        Even a 'default' tokens key must not inject a token.
+        """
+        d = self.home / ".claude"
+        d.mkdir(parents=True, exist_ok=True)
+        write_json(self.sandbox_paths["TOKENS_FILE"], {"default": "tok-default"})
+        env = self._store().env("default")
+        self.assertEqual(env, {})
+
+    def test_env_default_missing_dir_raises(self) -> None:
+        """With no ~/.claude dir, 'default' is not enumerable so env raises."""
+        with self.assertRaises(ValueError):
+            self._store().env("default")
+
     def test_get_returns_profile_or_none(self) -> None:
         p = self.make_profile("alpha", credentials=True)
         store = self._store()
@@ -264,6 +293,43 @@ class ProfileStoreContractTests(SandboxHomeTestCase):
         env = store.env("alpha")
         self.assertEqual(env["CLAUDE_CONFIG_DIR"], str(p))
         self.assertEqual(env["CLAUDE_CODE_OAUTH_TOKEN"], "tok-alpha")
+
+
+class ProfileStoreAuditTests(SandboxHomeTestCase):
+    """ProfileStore.audit() structured integrity findings."""
+
+    def _store(self) -> ProfileStore:
+        return ProfileStore(
+            profiles_dir=self.sandbox_paths["PROFILES_DIR"],
+            claude_dir=self.home / ".claude",
+            token_store=TokenStore(self.sandbox_paths["TOKENS_FILE"]),
+        )
+
+    def test_healthy_store_has_no_findings(self) -> None:
+        p = self.sandbox_paths["PROFILES_DIR"] / "alpha"
+        p.mkdir(parents=True, exist_ok=True)
+        write_json(self.sandbox_paths["TOKENS_FILE"], {"alpha": "tok-alpha"})
+        self.assertEqual(self._store().audit(), [])
+
+    def test_orphan_token_entry_is_reported(self) -> None:
+        write_json(self.sandbox_paths["TOKENS_FILE"], {"ghost": "tok-ghost"})
+        findings = self._store().audit()
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0].kind, "orphan-token-entry")
+        self.assertEqual(findings[0].name, "ghost")
+        self.assertIn("ghost", findings[0].detail)
+
+    def test_audit_enumerate_return_type_unchanged(self) -> None:
+        """enumerate() still returns a plain profile list (audit is separate)."""
+        write_json(self.sandbox_paths["TOKENS_FILE"], {"ghost": "tok-ghost"})
+        result = self._store().enumerate()
+        self.assertTrue(all(isinstance(x, Profile) for x in result))
+
+    def test_audit_explicit_tokens_view_used_verbatim(self) -> None:
+        # An explicit view means the (corrupt) file is never read.
+        self.sandbox_paths["TOKENS_FILE"].write_text("{invalid json")
+        findings = self._store().audit(tokens={"ghost": "t"})
+        self.assertEqual([f.name for f in findings], ["ghost"])
 
 
 if __name__ == "__main__":
