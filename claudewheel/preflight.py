@@ -23,7 +23,7 @@ import sys
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from .binaries import BinaryLocator
@@ -97,6 +97,212 @@ class PreflightStep:
     runs_in_non_interactive: bool
     renders_ui: bool
     run: Callable[[PreflightContext], StepResult]
+
+
+# ---------------------------------------------------------------------------
+# Vanilla default guardrail management (opt-in).
+#
+# The "default" profile is Claude Code's own ~/.claude -- strictly read-only to
+# cw. The unified reconcile core UNCONDITIONALLY excludes it. The ONLY way cw
+# ever writes ~/.claude/settings.json is when the user explicitly opts in to
+# guardrails for the default; even then the write is purely ADDITIVE (via
+# merge_hooks) and touches only cw's own hook wiring.
+# ---------------------------------------------------------------------------
+
+
+def _canonical_hook_scripts() -> set[str]:
+    """The canonical hook script basenames cw manages (from the guardrail model)."""
+    from .hook_scripts import HOOK_SCRIPTS
+
+    return set(HOOK_SCRIPTS)
+
+
+def ensure_vanilla_guardrails(ws: "Workspace") -> bool:
+    """Additively inject cw's canonical hook wiring into ~/.claude/settings.json.
+
+    Deploys any missing guardrail hook scripts, then merges the canonical hook
+    wiring into ``~/.claude/settings.json`` via ``merge_hooks`` -- never pruning,
+    never touching non-hook keys. Idempotent: when the wiring is already present
+    the file is left byte-identical (no write). Returns True iff a write happened.
+    """
+    import json
+
+    from .defaults import build_canonical_shared_settings
+    from .hook_scripts import HOOK_SCRIPTS, deploy_scripts
+    from .patch_profiles import merge_hooks
+    from .permission import load_settings, save_settings
+    from .reconcile import _referenced_scripts
+
+    canonical = build_canonical_shared_settings(ws.scripts_dir)
+    canonical_hooks = canonical["hooks"]
+
+    # Deploy any missing referenced hook scripts (wiring pointing at missing
+    # scripts would not be functional).
+    referenced = _referenced_scripts(canonical_hooks)
+    missing = [
+        n for n in referenced if n in HOOK_SCRIPTS and not (ws.scripts_dir / n).exists()
+    ]
+    if missing:
+        deploy_scripts(missing, ws.scripts_dir)
+
+    settings_path = ws.claude_dir / "settings.json"
+    if settings_path.exists():
+        try:
+            settings = load_settings(settings_path)
+        except (json.JSONDecodeError, OSError):
+            settings = {}
+    else:
+        settings = {}
+
+    before = json.dumps(settings, sort_keys=True)
+    hooks = settings.setdefault("hooks", {})
+    merge_hooks(hooks, canonical_hooks)
+    after = json.dumps(settings, sort_keys=True)
+    if before == after:
+        return False
+
+    ws.claude_dir.mkdir(parents=True, exist_ok=True)
+    save_settings(settings_path, settings)
+    return True
+
+
+def remove_vanilla_guardrails(ws: "Workspace") -> bool:
+    """Remove EXACTLY cw's known hook entries from ~/.claude/settings.json.
+
+    Matches by the canonical hook script basenames -- user-authored hooks and
+    all non-hook keys are left byte-identical. Hook entries emptied of every cw
+    hook are dropped; events emptied of every entry are dropped. Idempotent: no
+    cw hooks present -> no write. Returns True iff a write happened.
+    """
+    import json
+    from pathlib import Path
+
+    from .permission import load_settings, save_settings
+
+    settings_path = ws.claude_dir / "settings.json"
+    if not settings_path.exists():
+        return False
+    try:
+        settings = load_settings(settings_path)
+    except (json.JSONDecodeError, OSError):
+        return False
+    hooks = settings.get("hooks")
+    if not isinstance(hooks, dict):
+        return False
+
+    known = _canonical_hook_scripts()
+    before = json.dumps(settings, sort_keys=True)
+
+    for event in list(hooks.keys()):
+        entries = hooks[event]
+        if not isinstance(entries, list):
+            continue
+        new_entries: list[Any] = []
+        for entry in entries:
+            if not isinstance(entry, dict) or not isinstance(entry.get("hooks"), list):
+                new_entries.append(entry)
+                continue
+            original_hooks = entry["hooks"]
+            kept = [
+                h
+                for h in original_hooks
+                if not (
+                    isinstance(h, dict) and Path(h.get("command", "")).name in known
+                )
+            ]
+            if len(kept) == len(original_hooks):
+                # No cw hook in this entry -- preserve it verbatim.
+                new_entries.append(entry)
+            elif kept:
+                entry["hooks"] = kept
+                new_entries.append(entry)
+            # else: entry held only cw hooks -> drop it entirely.
+        if new_entries:
+            hooks[event] = new_entries
+        else:
+            del hooks[event]
+
+    after = json.dumps(settings, sort_keys=True)
+    if before == after:
+        return False
+    save_settings(settings_path, settings)
+    return True
+
+
+def _prompt_vanilla_choice(ctx: PreflightContext) -> bool:
+    """Render the one-time vanilla/guardrails choice; return True iff opt-in.
+
+    Builds a themed Terminal the same way the other UI-rendering steps do and
+    offers two keys: stay vanilla (the default, any non-``g`` key) or inject cw
+    guardrails (``g``). The terminal is closed on the way out.
+    """
+    from .config import resolve_theme_name
+    from .theme import parse_theme
+    from .ui import show_page
+
+    theme_name = resolve_theme_name(ctx.cfg.config.get("theme", "auto"))
+    theme = parse_theme(ctx.cfg.load_theme(theme_name))
+
+    title = "Launching the default profile (~/.claude)"
+    lines = [
+        "The 'default' profile is Claude Code's own ~/.claude.",
+        "cw treats it as vanilla and strictly read-only: no guardrails,",
+        "no hooks, no settings are applied unless you opt in.",
+        "",
+        "You can opt in to cw's guardrail hooks (block unsafe commands,",
+        "worktree isolation, timestamps, advice). This ADDITIVELY writes",
+        "cw's hooks into ~/.claude/settings.json and never prunes your own.",
+        "",
+        "You can change this later from the profile inspect page (press 'i').",
+    ]
+    hint = "g: enable cw guardrails   any other key: stay vanilla"
+
+    terminal = _make_terminal()
+    try:
+        key = show_page(title, lines, theme, terminal, hint=hint)
+    finally:
+        terminal.close()
+    return key in ("g", "G")
+
+
+def _vanilla_choice_run(ctx: PreflightContext) -> StepResult:
+    """One-time vanilla-vs-guardrails choice for the default profile.
+
+    Acts only when the selected/effective profile is the default (explicit
+    ``"default"`` or the no-profile fallback). Reads the per-project opt-in flag:
+
+    - unset + interactive -> render the one-time choice page and persist the
+      answer; if the user opts in, inject cw's guardrail hooks;
+    - unset + non-interactive -> proceed vanilla WITHOUT prompting or persisting
+      (the offer stays open for the next interactive launch);
+    - already opted in -> (idempotently) ensure the guardrail hooks are present;
+    - already opted out -> do nothing.
+
+    Never ABORTs -- this is a setup choice, not a gate.
+    """
+    from .appdata import StateFile
+    from .project_hooks import target_directory
+    from .state import get_vanilla_guardrails_opt_in, set_vanilla_guardrails_opt_in
+
+    profile = ctx.selections.get("profile")
+    is_default = (not profile) or profile == "default"
+    if not is_default:
+        return StepResult.cont()
+
+    directory = target_directory(ctx.selections)
+    sf = StateFile(ctx.workspace.state_file)
+    opt_in = get_vanilla_guardrails_opt_in(sf, directory)
+
+    if opt_in is None:
+        if not ctx.interactive:
+            # Non-interactive: stay vanilla, do not prompt or persist.
+            return StepResult.cont()
+        opt_in = _prompt_vanilla_choice(ctx)
+        set_vanilla_guardrails_opt_in(sf, directory, opt_in)
+
+    if opt_in:
+        ensure_vanilla_guardrails(ctx.workspace)
+    return StepResult.cont()
 
 
 def _reconcile_guardrails_run(ctx: PreflightContext) -> StepResult:
@@ -373,6 +579,15 @@ def _scratchpad_cleanup_run(ctx: PreflightContext) -> StepResult:
 # Registered steps, executed in this exact (registration) order. The runner
 # defaults to this list.
 PREFLIGHT_STEPS: list[PreflightStep] = [
+    PreflightStep(
+        name="vanilla-choice",
+        # Runs on the non-interactive path too so it can apply an existing
+        # opt-in (ensure guardrails) without prompting; an UNSET flag stays
+        # vanilla on that path.
+        runs_in_non_interactive=True,
+        renders_ui=True,
+        run=_vanilla_choice_run,
+    ),
     PreflightStep(
         name="reconcile-guardrails",
         runs_in_non_interactive=True,

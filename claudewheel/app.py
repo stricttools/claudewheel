@@ -436,10 +436,16 @@ class App:
             if s.value and s.value in s.unavailable:
                 self._flash = f"{s.label}: {s.value} not available for this version"
                 return None
-        # Check for unauthenticated profile -- intercept and offer auth
+        # Check for unauthenticated profile -- intercept and offer auth. The
+        # managed default (~/.claude) is NOT intercepted: cw cannot verify its
+        # auth (Claude Code manages it), so it launches straight through.
         for s in self.bar.segments:
             if s.key == "profile" and s.value:
-                if s.state.has_auth_status and not s.state.is_authenticated(s.value):
+                if (
+                    s.state.has_auth_status
+                    and not s.state.is_authenticated(s.value)
+                    and not s.state.is_managed(s.value)
+                ):
                     outcome = self._intercept_unauth(s)
                     if outcome != "skip":
                         flashes = {
@@ -1019,8 +1025,15 @@ class App:
         existing alt screen and the main TUI repaints on return.
         If the profile has an auth shadow, the hint offers 'f' to fix it.
         """
+        from .appdata import StateFile
+        from .preflight import ensure_vanilla_guardrails, remove_vanilla_guardrails
         from .profile_info import format_report, gather_profile_info
         from .profile_ops import fix_auth_shadow
+        from .project_hooks import target_directory
+        from .state import (
+            get_vanilla_guardrails_opt_in,
+            set_vanilla_guardrails_opt_in,
+        )
         from .tokens import TokenStoreError
         from .ui import show_page
 
@@ -1034,18 +1047,46 @@ class App:
         except TokenStoreError as e:
             self._flash = f"Cannot inspect: {e}"
             return
-        if report.has_auth_shadow:
+
+        # The default profile offers a guardrail opt-in toggle ('g'), keyed to
+        # the currently-selected target directory (the same key the launch-time
+        # vanilla-choice step uses). Only the default touches per-project state.
+        is_default = name == "default"
+        lines = format_report(report)
+        directory = ""
+        sf = None
+        opt_in = False
+        if is_default:
+            directory = target_directory(self.bar.get_selections())
+            sf = StateFile(self.workspace.state_file)
+            opt_in = bool(get_vanilla_guardrails_opt_in(sf, directory))
+            state_word = "enabled" if opt_in else "disabled"
+            lines.append(f"cw guardrails: {state_word} (for this directory)")
+            toggle = "disable" if opt_in else "enable"
+            hint = f"g: {toggle} cw guardrails   any key: close"
+        elif report.has_auth_shadow:
             hint = "f: fix auth shadow   any key: close"
         else:
             hint = "any key: close"
+
         key = show_page(
             f"Profile: {name}",
-            format_report(report),
+            lines,
             self.theme,
             self.terminal,
             hint=hint,
         )
-        if key == "f" and report.has_auth_shadow:
+        if is_default and key in ("g", "G"):
+            assert sf is not None
+            new_val = not opt_in
+            set_vanilla_guardrails_opt_in(sf, directory, new_val)
+            if new_val:
+                ensure_vanilla_guardrails(self.workspace)
+                self._flash = "cw guardrails enabled for ~/.claude"
+            else:
+                remove_vanilla_guardrails(self.workspace)
+                self._flash = "cw guardrails removed from ~/.claude"
+        elif not is_default and key == "f" and report.has_auth_shadow:
             result = fix_auth_shadow(self.workspace, name)
             if result.ok:
                 self._flash = "Auth shadow fixed"

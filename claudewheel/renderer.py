@@ -290,10 +290,13 @@ class Renderer:
                     buf.append(unavail)
                     buf.append(display_value)
                     buf.append(RESET)
-                elif seg.state.has_auth_status and not seg.state.is_authenticated(
-                    seg.value
+                elif (
+                    seg.state.has_auth_status
+                    and not seg.state.is_authenticated(seg.value)
+                    and not seg.state.is_managed(seg.value)
                 ):
-                    # Unauthenticated profile: render dimly
+                    # Unauthenticated profile: render dimly. The managed default
+                    # (~/.claude) is excluded -- it renders normally.
                     unavail = sc.get("unavailable_fg", "") or DIM
                     buf.append(unavail)
                     buf.append(display_value)
@@ -494,7 +497,12 @@ class Renderer:
             buf.append(display)
             buf.append(RESET)
             return
-        if seg.state.has_auth_status and not seg.state.is_authenticated(opt_text):
+        if (
+            seg.state.has_auth_status
+            and not seg.state.is_authenticated(opt_text)
+            and not seg.state.is_managed(opt_text)
+        ):
+            # Unauthenticated profile: dim. The managed default is excluded.
             buf.append(unavail_fg)
             buf.append(display)
             buf.append(RESET)

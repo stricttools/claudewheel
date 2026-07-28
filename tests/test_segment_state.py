@@ -569,6 +569,32 @@ class AuthFromMetadataTests(unittest.TestCase):
         self.assertTrue(seg.state.is_authenticated("existing"))
         self.assertFalse(seg.state.is_authenticated("new-profile"))
 
+    def test_managed_is_neither_authenticated_nor_unauthenticated(self) -> None:
+        """A managed=True value (the default) is classified managed, not (un)auth.
+
+        It goes into the managed set, activates auth status, and is NOT in the
+        authenticated set (so it is excluded from the dim/intercept paths).
+        """
+        from claudewheel.segment import Segment, _update_auth_from_metadata
+
+        seg = Segment(key="profile", label="Profile")
+        seg.state.set_metadata(
+            {
+                "default": {
+                    "has_token": False,
+                    "has_credentials": True,
+                    "managed": True,
+                },
+                "work": {"has_token": True, "has_credentials": True},
+            }
+        )
+        _update_auth_from_metadata(seg)
+        self.assertTrue(seg.state.has_auth_status)
+        self.assertTrue(seg.state.is_managed("default"))
+        self.assertFalse(seg.state.is_authenticated("default"))
+        self.assertFalse(seg.state.is_managed("work"))
+        self.assertTrue(seg.state.is_authenticated("work"))
+
 
 class DiscoverProfilesMetadataTests(unittest.TestCase):
     """Tests that _discover_profiles includes auth fields in metadata."""

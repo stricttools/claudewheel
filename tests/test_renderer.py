@@ -104,6 +104,24 @@ class RenderOptionAuthDimmingTests(unittest.TestCase):
         # Should use normal option_fg, not unavail_fg
         self.assertNotIn(unavail_fg, rendered)
 
+    def test_managed_option_not_dimmed(self) -> None:
+        """A managed value (the vanilla default) renders normally, not dimmed.
+
+        It is neither in the authenticated set nor treated as unauthenticated.
+        """
+        renderer = self._make_renderer()
+        seg = Segment(key="profile", label="Profile")
+        seg.state.set_authenticated({"authed-profile"})
+        seg.state.set_managed({"default"})
+
+        buf: list[str] = []
+        unavail_fg = "\x1b[38;2;85;85;85m"
+        renderer._render_option(buf, seg, "default", "default", DIM, unavail_fg)
+
+        rendered = "".join(buf)
+        self.assertNotIn(unavail_fg, rendered)
+        self.assertIn("default", rendered)
+
     def test_installed_check_takes_priority_over_auth(self) -> None:
         """Installed-status dimming fires before auth check."""
         renderer = self._make_renderer()

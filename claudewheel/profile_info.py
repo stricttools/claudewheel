@@ -236,6 +236,11 @@ def format_report(report: ProfileReport) -> list[str]:
         f"Config dir: {report.config_dir}" + ("" if report.exists else " (missing)"),
     ]
 
+    # The default profile is Claude Code's own ~/.claude: managed by Claude
+    # Code, strictly read-only to cw, and not subject to cw guardrails.
+    if report.name == "default":
+        lines.append("Mode: vanilla (managed by Claude Code, no cw guardrails)")
+
     if report.registered and report.pinned:
         lines.append("Registered: yes (pinned)")
     elif report.registered:
