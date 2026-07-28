@@ -27,8 +27,11 @@ from .workspace import Workspace
 def resolve_profile(name: str) -> dict[str, str]:
     """Resolve a profile *name* to its launch environment variables.
 
-    Returns a dict that always carries ``CLAUDE_CONFIG_DIR`` and additionally
-    carries ``CLAUDE_CODE_OAUTH_TOKEN`` when a token exists for *name*.
+    For a named profile the result carries ``CLAUDE_CONFIG_DIR`` and
+    additionally carries ``CLAUDE_CODE_OAUTH_TOKEN`` when a token exists for
+    *name*. The ``"default"`` profile is the exception: it is Claude Code's own
+    ``~/.claude`` (managed by Claude Code, read-only to cw), so it resolves to
+    an EMPTY dict -- no ``CLAUDE_CONFIG_DIR`` and no token (the vanilla path).
 
     Contract:
 

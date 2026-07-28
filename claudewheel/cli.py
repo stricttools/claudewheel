@@ -124,7 +124,11 @@ def _write_tier_stub(
     from pathlib import Path
     from .fsutil import write_json_atomic_secret
 
-    if not profile or not config_dir:
+    # The vanilla "default" is Claude Code's own ~/.claude -- strictly read-only
+    # to cw. It resolves to no CLAUDE_CONFIG_DIR (config_dir is None), so the
+    # guard below already skips it; the explicit name check documents the intent
+    # and keeps the skip robust regardless of how config_dir is derived.
+    if not profile or profile == "default" or not config_dir:
         return
     tokens = ws.tokens.load()
     entry = tokens.get(profile)

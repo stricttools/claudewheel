@@ -61,24 +61,30 @@ def resolve_launch_config(
     the claude adapter appends it verbatim, the miniclaude adapter rejects it.
 
     The selected profile is resolved through the injected *profiles*
-    ProfileStore -- the single source of profile identity. A profile that no
-    longer exists raises :class:`ValueError` (the hard-error contract that
+    ProfileStore -- the single source of profile identity. A named profile that
+    no longer exists raises :class:`ValueError` (the hard-error contract that
     replaced the old silent ~/.claude fallback); a corrupt tokens.json raises
-    :class:`TokenStoreError`. No profile selected falls back to the store's
-    "default" path (~/.claude) with no token.
+    :class:`TokenStoreError`.
+
+    The ``"default"`` profile -- selected explicitly OR reached via the
+    no-profile fallback -- is the VANILLA path: ``~/.claude`` is Claude Code's
+    own config dir, managed by Claude Code and strictly read-only to cw. The
+    built env therefore carries NEITHER ``CLAUDE_CONFIG_DIR`` (any ambient one
+    inherited from ``os.environ`` is explicitly removed) NOR
+    ``CLAUDE_CODE_OAUTH_TOKEN`` (no token injection, even if a "default" tokens
+    key exists).
 
     When *metadata* is provided (TUI path), use it for model lookups. When
     None (skip-TUI path), fall back to reading from *options_def*.
     """
     # 1. Profile -> config dir + OAuth token (via ProfileStore; no metadata).
+    #    The default (explicit or fallback) is vanilla: no config dir, no token.
     profile = selections.get("profile")
     profile_env: dict[str, str] = {}
-    if profile:
+    is_default = (not profile) or profile == "default"
+    if not is_default:
         # Unknown/stale name -> ValueError; corrupt tokens.json -> TokenStoreError.
-        profile_env = profiles.env(profile)
-        config_dir = profile_env["CLAUDE_CONFIG_DIR"]
-    else:
-        config_dir = str(profiles.path_for("default"))
+        profile_env = profiles.env(profile)  # type: ignore[arg-type]
 
     # 2. GH token
     gh_account = selections.get("github")
@@ -104,15 +110,22 @@ def resolve_launch_config(
 
     # 5. Environment (target-agnostic)
     env = dict(os.environ)
-    env["CLAUDE_CONFIG_DIR"] = config_dir
+    if is_default:
+        # Vanilla default: strip any ambient CLAUDE_CONFIG_DIR / OAuth token so
+        # Claude Code manages ~/.claude entirely on its own. cw injects nothing.
+        env.pop("CLAUDE_CONFIG_DIR", None)
+        env.pop("CLAUDE_CODE_OAUTH_TOKEN", None)
+    else:
+        env["CLAUDE_CONFIG_DIR"] = profile_env["CLAUDE_CONFIG_DIR"]
+        # Long-lived OAuth token, supplied by ProfileStore.env() alongside the
+        # config dir. env() adds CLAUDE_CODE_OAUTH_TOKEN only when the store
+        # yields a truthy token for the profile; a missing file or absent entry
+        # yields none.
+        oauth_token = profile_env.get("CLAUDE_CODE_OAUTH_TOKEN")
+        if oauth_token:
+            env["CLAUDE_CODE_OAUTH_TOKEN"] = oauth_token
     if gh_token:
         env["GH_TOKEN"] = gh_token
-    # Long-lived OAuth token, supplied by ProfileStore.env() alongside the
-    # config dir. env() adds CLAUDE_CODE_OAUTH_TOKEN only when the store yields
-    # a truthy token for the profile; a missing file or absent entry yields none.
-    oauth_token = profile_env.get("CLAUDE_CODE_OAUTH_TOKEN")
-    if oauth_token:
-        env["CLAUDE_CODE_OAUTH_TOKEN"] = oauth_token
 
     # 6. Argv -- delegated to the selected client adapter.
     adapter = CLIENT_ADAPTERS.get(client)

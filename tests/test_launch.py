@@ -10,6 +10,7 @@ module-constant patching.
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -157,11 +158,39 @@ class ResolveBinaryPathTests(ResolveLaunchConfigTestBase):
 class ResolveProfileConfigDirTests(ResolveLaunchConfigTestBase):
     """Profile selection maps to CLAUDE_CONFIG_DIR via the ProfileStore."""
 
-    def test_no_profile_uses_default_config_dir(self) -> None:
-        """No profile -> the store's 'default' path (claude_dir), no token."""
+    def test_no_profile_is_vanilla_no_config_dir(self) -> None:
+        """No profile -> vanilla default: NEITHER CLAUDE_CONFIG_DIR nor token."""
         _, _, env = self._resolve(selections={"profile": None})
-        self.assertEqual(env["CLAUDE_CONFIG_DIR"], str(self.claude_dir))
+        self.assertNotIn("CLAUDE_CONFIG_DIR", env)
         self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN", env)
+
+    def test_explicit_default_is_vanilla_no_config_dir(self) -> None:
+        """Explicit profile=='default' is vanilla too: neither var present."""
+        _, _, env = self._resolve(selections={"profile": "default"})
+        self.assertNotIn("CLAUDE_CONFIG_DIR", env)
+        self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN", env)
+
+    def test_vanilla_removes_ambient_config_dir_and_token(self) -> None:
+        """Ambient CLAUDE_CONFIG_DIR / OAuth token in os.environ are stripped."""
+        with mock.patch.dict(
+            os.environ,
+            {
+                "CLAUDE_CONFIG_DIR": "/ambient/config",
+                "CLAUDE_CODE_OAUTH_TOKEN": "ambient-token",
+            },
+        ):
+            for prof in (None, "default"):
+                _, _, env = self._resolve(selections={"profile": prof})
+                self.assertNotIn("CLAUDE_CONFIG_DIR", env)
+                self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN", env)
+
+    def test_default_ignores_default_token_key(self) -> None:
+        """Even a 'default' tokens key must not inject a token on the vanilla path."""
+        self.claude_dir.mkdir(parents=True, exist_ok=True)
+        self.tokens_file.write_text(json.dumps({"default": "tok-default"}))
+        _, _, env = self._resolve(selections={"profile": "default"})
+        self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN", env)
+        self.assertNotIn("CLAUDE_CONFIG_DIR", env)
 
     def test_selected_profile_sets_its_config_dir(self) -> None:
         """A discovered profile resolves to profiles_dir/<name>."""
