@@ -328,8 +328,18 @@
       "type": "doc"
     },
     {
+      "path": "config.md",
+      "title": "Configuration",
+      "type": "doc"
+    },
+    {
       "path": "gen-index.md",
       "title": "API Reference",
+      "type": "doc"
+    },
+    {
+      "path": "getting-started.md",
+      "title": "Getting Started",
       "type": "doc"
     },
     {
@@ -338,11 +348,26 @@
       "type": "doc"
     },
     {
+      "path": "health.md",
+      "title": "Health Checks and Preflight",
+      "type": "doc"
+    },
+    {
       "path": "index.md",
       "title": "claudewheel",
+      "type": "doc"
+    },
+    {
+      "path": "profiles.md",
+      "title": "Profiles",
+      "type": "doc"
+    },
+    {
+      "path": "theming.md",
+      "title": "Theming",
       "type": "doc"
     }
   ],
   "posts": [],
-  "last_gen": "2026-07-28T11:49:55.730607+00:00"
+  "last_gen": "2026-07-29T17:14:40.022329+00:00"
 }

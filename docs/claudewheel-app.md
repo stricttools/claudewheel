@@ -9,8 +9,4 @@ nav_order: 3
 
 # claudewheel.app
 
-The core TUI module. The `App` class owns the main event loop: it enters raw terminal mode, renders the segment bar via the `Renderer`, reads keypresses from `Terminal`, and dispatches them through a priority-ordered `Binding` registry. Each binding carries a mode filter (`"main"`, `"freeform"`, `"creating"`, `"install"`), an optional condition predicate over a `KeyContext` snapshot, and a handler method on `App`. The loop runs until the user confirms a launch (Enter), quits (q/Ctrl-C), or an install flow completes.
-
-Beyond keyboard dispatch, `App` manages background version discovery (spawning a thread via `run_slow_discovery_via_registry` and merging results back on the main thread), profile creation and deletion wizards, the in-TUI install flow for Claude Code versions, profile inspection pages, freeform text input for directory entry, and client selection (choosing between the `claude` binary and alternative clients like `miniclaude`). The constructor takes a `Workspace`, a `BinaryLocator`, and an optional `AppConfigStore`; `run_tui()` is the single entry point that returns the final segment selections dict or `None` on cancellation.
-
 :-: ref path="claudewheel.app" lang="python"

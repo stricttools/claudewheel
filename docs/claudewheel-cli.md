@@ -9,8 +9,4 @@ nav_order: 7
 
 # claudewheel.cli
 
-The CLI entry point and subcommand router. `main()` parses `sys.argv`, strips passthrough arguments (everything after `--`), builds the strictcli `App` via `_build_app`, and dispatches to the matched subcommand handler. The strictcli app defines all top-level commands (`health`, `config`, `versions`, `install`, `uninstall`, `reset-options`, `show`, `migrate`, `stats`, `mv`, `import`, `deploy-hooks`, `patch-profiles`, `reconcile-permissions`, `launch`) and command groups (`profile` with `create`/`delete`/`show`/`rename`/`fix-auth`/`check-tokens`; `permission` with `add`/`remove`/`list`).
-
-Each subcommand maps to a `_handle_*` function that performs the operation and returns an exit code. The `launch` command (and the default no-subcommand path) runs `_handle_launch`, which builds the `App`, opens the TUI, runs preflight steps, resolves the final launch config, and execs the child process via `_do_launch_sequence`. Launch supports segment overrides (`-s key=value`), client selection (`--client`), session flags (`--continue`, `--resume`, `--print`), and explicit directory targeting. The `_bind` helper wires handler functions to their strictcli commands with lazy `Workspace`/`BinaryLocator`/`AppConfigStore` construction so one-shot commands stay fast.
-
 :-: ref path="claudewheel.cli" lang="python"

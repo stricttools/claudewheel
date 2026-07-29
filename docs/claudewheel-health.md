@@ -9,8 +9,4 @@ nav_order: 16
 
 # claudewheel.health
 
-Pre-launch diagnostic checks that detect configuration drift, stale tokens, broken symlinks, and resource pressure before a Claude Code session starts. Every check is a standalone function returning a `HealthResult` (ok/fail, label, detail message). `run_health_check` runs all checks in sequence and `print_health_report` formats the results for the terminal.
-
-The checks cover several categories: filesystem integrity (`check_shared_symlinks` verifies the shared-store symlink tree, `check_file_permissions` validates file modes), resource usage (`check_tmpfs_quota` and `check_tmp_claude_size` monitor `/tmp` pressure), token health (`check_token_expiry` flags tokens nearing expiration, `check_tokens` validates OAuth tokens against the Anthropic API, `check_auth_shadow` detects session credentials shadowing long-lived tokens), guardrail drift (`check_shared_settings_drift` and `check_canonical_permissions_drift` compare live settings against the canonical guardrail model, `check_hooks_wired` ensures hook wiring is present, `check_deployed_hook_drift` detects on-disk hook scripts that differ from their canonical templates), and profile hygiene (`check_orphan_profiles` and `check_orphan_token_entries` find stale data, `check_inode_renames` detects project directory moves). Developers interact with this module when adding new health checks or modifying the guardrail model.
-
 :-: ref path="claudewheel.health" lang="python"

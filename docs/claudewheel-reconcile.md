@@ -9,8 +9,4 @@ nav_order: 33
 
 # claudewheel.reconcile
 
-The unified reconciliation core that brings every managed profile's guardrail sections into exact agreement with the canonical model. This module replaced two earlier, differently-shaped sync paths (additive hook merging and permissions reconciliation) with a single compare-then-write engine. For each target file (per-profile `settings.json` and the shared `shared-settings.json`), the core computes a diff and applies it atomically: `hooks` are replaced entirely with canonical wiring, `disallowedTools` is made exactly equal to the canonical list, `permissions.deny` and `permissions.ask` are made exactly equal to the canonical rule sets (missing entries added, non-canonical entries pruned), and `permissions.allow` has only conflict entries removed (all other allow rules are preserved).
-
-The key types are `PermissionDiff` (additions and removals needed for one permissions block), `TargetReport` (what changed in a single file), and `ReconcileReport` (aggregated results across all targets). `reconcile_workspace` drives the full workspace sweep: it discovers profiles, skips the `"default"` profile unconditionally, processes each profile's `settings.json` plus `shared-settings.json`, deploys any missing guardrail hook scripts, and returns the report. `run_reconcile` is the CLI entry point that runs in `--dry-run` or `--apply` mode. Files already matching canonical state are left byte-identical (no write). Developers interact with this module when changing the guardrail model in `defaults.py` or `guardrail.py`, since reconciliation is how those changes propagate to on-disk settings.
-
 :-: ref path="claudewheel.reconcile" lang="python"

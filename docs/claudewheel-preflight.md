@@ -9,8 +9,4 @@ nav_order: 26
 
 # claudewheel.preflight
 
-A deterministic gate-step framework that runs between state persistence and process exec. Each step is a `PreflightStep` with a name, a `run` callable that receives a `PreflightContext` (selections, workspace, locator, config, interactive flag) and returns a `StepResult` -- either `CONTINUE` (proceed to the next step) or `ABORT` with an actionable message that halts the launch. Steps that have nothing to do simply return `CONTINUE`; there is no separate "skip" verdict.
-
-The concrete registered steps handle: guardrail choice for the vanilla default profile (`_vanilla_choice_run` prompts whether to inject hook wiring into `~/.claude/settings.json`; `ensure_vanilla_guardrails` / `remove_vanilla_guardrails` perform the writes), guardrail reconciliation (`_reconcile_guardrails_run` syncs managed profiles to the canonical model), model-version compatibility checking (`_model_version_guard_run` warns when a selected model does not support the selected Claude Code version), project hook approval (`_approved_hooks_run` presents unapproved hooks from the target project for user consent), and scratchpad cleanup (`_scratchpad_cleanup_run` offers to remove stale per-session scratch directories under `/tmp`). Steps that render interactive UI set `renders_ui=True` and manage their own raw-mode terminal. The `run_preflight` function iterates `PREFLIGHT_STEPS` in registration order, skipping non-interactive steps on the print/skip-TUI path.
-
 :-: ref path="claudewheel.preflight" lang="python"
