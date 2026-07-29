@@ -9,4 +9,8 @@ nav_order: 41
 
 # claudewheel.terminal
 
+Low-level terminal I/O that the TUI and preflight UI steps build on. The `Terminal` class opens `/dev/tty` directly (so it works even when stdin is piped), manages cbreak mode entry/exit with `enter_raw`/`exit_raw` (using `atexit` for crash safety), toggles the alternate screen buffer, hides/shows the cursor, and detects terminal dimensions via `TIOCGWINSZ`. The `cooked` context manager temporarily leaves raw mode for subprocess calls or cooked-mode prompts, restoring the prior state on exit. `subscribe_mode2031` opts into terminal theme-change notifications (Mode 2031).
+
+`read_key` decodes raw bytes into semantic key names: single characters, named keys (`UP`, `DOWN`, `LEFT`, `RIGHT`, `HOME`, `END`, `DELETE`, `PGUP`, `PGDN`, `TAB`, `SHIFT_TAB`, `ENTER`, `BACKSPACE`, `CTRL_C`, `CTRL_D`, `ESC`), and Mode 2031 theme events (`THEME_DARK`, `THEME_LIGHT`). Multi-byte CSI escape sequences are fully consumed so no trailing bytes leak into the next read. `read_masked_line` provides secret input (password/token entry) with configurable mask characters. Module-level functions handle terminal environment detection: `detect_terminal_background` queries the terminal's background color via OSC 11 and classifies it as `"light"` or `"dark"`, and `detect_mode2031_support` probes for Mode 2031 capability. Developers interact with this module when adding new key bindings, modifying escape sequence handling, or integrating new terminal capabilities.
+
 :-: ref path="claudewheel.terminal" lang="python"

@@ -9,4 +9,8 @@ nav_order: 46
 
 # claudewheel.workspace
 
+The single root object that owns every filesystem path claudewheel touches. `Workspace` is a frozen dataclass holding a `root` path (typically `~/.claudewheel`) and a `claude_dir` path (`~/.claude`). All directory and file locations -- `profiles_dir`, `tokens_file`, `options_file`, `state_file`, `config_file`, `segments_file`, `themes_dir`, `hooks_dir`, `scripts_dir`, `shared_dir`, `skills_dir`, `shared_settings_file`, `inodes_file` -- are derived properties computed purely from `root`, with no filesystem or terminal I/O at construction time.
+
+Store accessors (`tokens`, `shared`, `profiles`) return path-injected facade objects (`TokenStore`, `SharedStore`, `ProfileStore`) wired to the workspace's paths. The `appconfig()` method constructs an `AppConfigStore`, deliberately exposed as a method rather than a property because it has side effects (directory creation, schema migration, profile-rename recovery). Construction entry points are `Workspace.open(root)` for explicit roots and `Workspace.default()` which reads the `CLAUDEWHEEL_CONFIG_DIR` environment variable (the only env-var read in the package). Developers interact with this module whenever they need to reference a claudewheel filesystem path or construct a store object.
+
 :-: ref path="claudewheel.workspace" lang="python"

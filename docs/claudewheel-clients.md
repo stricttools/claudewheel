@@ -9,4 +9,8 @@ nav_order: 8
 
 # claudewheel.clients
 
+The adapter registry that maps resolved launch selections to a client-specific argv for `os.execvpe`. Each client is an adapter function that receives a `ClientContext` (selections, model ID, default flags, disallowed tools, session flags, passthrough args, binary locator, client config) and returns the concrete argv list. Two adapters are built in: `build_claude_argv` for the official Claude Code CLI (assembles the historical argv with version-specific binary path, MCP flags, permission mode, model, disallowed tools, and session flags) and `build_miniclaude_argv` for the miniclaude REPL client (resolves its binary via config or PATH, maps permission modes through `_MINICLAUDE_PERMISSION_MAP`, translates session flags, and rejects unsupported inputs like `--print` and passthrough args as hard errors).
+
+Supporting functions handle client selection: `resolve_default_client` validates the configured default against the adapter registry, `client_available` probes whether each client's binary is resolvable right now (symlink check for claude, PATH/config lookup for miniclaude), `build_client_choices` assembles the picker options with availability labels, and `resolve_client` implements the explicit-flag-wins-else-prompt pattern. The `CLAUDE_ONLY_SELECTIONS` dict declares which segment values are meaningful only for the claude client, used by three enforcement sites (TUI segment skipping, CLI ambient-value dropping, and contradictory-override rejection). Developers interact with this module when adding a new client adapter or modifying launch argv construction.
+
 :-: ref path="claudewheel.clients" lang="python"

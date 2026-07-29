@@ -9,4 +9,8 @@ nav_order: 27
 
 # claudewheel.profile
 
+A thin facade for programmatic callers that need to resolve a profile name to launch environment variables without constructing the full TUI stack. The single public function, `resolve_profile(name)`, builds a default `Workspace`, delegates to `ProfileStore.env(name)`, and returns a dict of environment variables: `CLAUDE_CONFIG_DIR` (pointing at the profile's directory under `~/.claudewheel/profiles/`) and optionally `CLAUDE_CODE_OAUTH_TOKEN` (when a token exists for that profile in `tokens.json`). The special `"default"` profile resolves to an empty dict, since it represents Claude Code's own `~/.claude` directory which claudewheel treats as read-only.
+
+This module performs zero filesystem writes and zero terminal I/O, making it safe for use on read-only mounts and headless servers. Profiles are resolved purely from the on-disk workspace layout (directory scan of `profiles/` plus the built-in default). An unknown profile name raises `ValueError` listing available profiles; a corrupt `tokens.json` raises `TokenStoreError`. Developers interact with this module when integrating claudewheel profile resolution into external scripts or tools that launch Claude Code sessions outside the TUI.
+
 :-: ref path="claudewheel.profile" lang="python"

@@ -9,4 +9,8 @@ nav_order: 36
 
 # claudewheel.segment
 
+The data model for the TUI's horizontal selector. A `Segment` represents one choosable dimension (profile, model, directory, version, permissions, MCP mode) with a selected value, a search/filter buffer, and a `SegmentState` that manages three ordered option collections -- pinned, discovered, and defaults -- merged and deduplicated on access. `SegmentBar` groups segments into a focusable sequence with left/right navigation. Cross-segment constraints are expressed via `requires` dicts on individual option values, evaluated by `evaluate_requires` to hide options whose prerequisites are not met.
+
+Option population happens through a discovery registry. Each segment type has a `DiscoveryEntry` mapping it to a discovery function (and optionally a staleness verifier). Fast discoveries (static lists, filesystem scans via `_discover_directory_scan`, profile enumeration via `_discover_profiles`) run synchronously during `build_segment_bar`. Slow discoveries (npm version fetches via `fetch_npm_versions`, GitHub account lookups via `_discover_gh_accounts`) are flagged `is_slow=True` and run on a background thread; their `DiscoveryResult` values are merged into live segments by `merge_slow_results` without disrupting the TUI. Developers interact with this module when adding new segment types, changing option sources, or modifying constraint logic.
+
 :-: ref path="claudewheel.segment" lang="python"
