@@ -427,16 +427,19 @@ class App:
     # ------------------------------------------------------------------
 
     def _h_main_left(self, key: str) -> str | None:
+        """Handle left arrow: defocus current segment and move focus left."""
         self._defocus()
         self.bar.move_focus(-1)
         return None
 
     def _h_main_right(self, key: str) -> str | None:
+        """Handle right arrow: defocus current segment and move focus right."""
         self._defocus()
         self.bar.move_focus(1)
         return None
 
     def _h_main_up(self, key: str) -> str | None:
+        """Handle up arrow: clear search buffer and cycle selection up."""
         focused = self.bar.focused
         if focused.search_buffer:
             focused.search_buffer = ""
@@ -445,6 +448,7 @@ class App:
         return None
 
     def _h_main_down(self, key: str) -> str | None:
+        """Handle down arrow: clear search buffer and cycle selection down."""
         focused = self.bar.focused
         if focused.search_buffer:
             focused.search_buffer = ""
@@ -453,6 +457,7 @@ class App:
         return None
 
     def _h_main_enter(self, key: str) -> str | None:
+        """Handle enter: launch if valid, or enter creation/install/auth flow."""
         focused = self.bar.focused
         # "+" on profile segment launches the wizard
         if focused.is_on_plus and focused.key == "profile":
@@ -501,6 +506,7 @@ class App:
         return "launch"
 
     def _h_main_tab(self, key: str) -> str | None:
+        """Handle tab: accept search match or advance focus to next segment."""
         focused = self.bar.focused
         if focused.is_on_plus and focused.key == "profile":
             return self._launch_profile_wizard(focused)
@@ -522,6 +528,7 @@ class App:
         return None
 
     def _h_main_backspace(self, key: str) -> str | None:
+        """Handle backspace: enter freeform editing or trim search buffer."""
         focused = self.bar.focused
         if focused.freeform and not focused._freeform_editing and focused.value:
             trimmed = focused.value[:-1]
@@ -533,15 +540,18 @@ class App:
         return None
 
     def _h_main_esc(self, key: str) -> str | None:
+        """Handle escape: clear search buffer and exit freeform editing."""
         focused = self.bar.focused
         focused.search_buffer = ""
         focused._freeform_editing = False
         return None
 
     def _h_main_ctrl_c(self, key: str) -> str | None:
+        """Handle Ctrl-C: quit the TUI."""
         return "quit"
 
     def _h_main_delete(self, key: str) -> str | None:
+        """Handle delete key: initiate profile deletion flow if on profile segment."""
         focused = self.bar.focused
         if (
             focused.key == "profile"
@@ -552,18 +562,22 @@ class App:
         return None
 
     def _h_main_question(self, key: str) -> str | None:
+        """Handle '?': toggle provenance overlay visibility."""
         self._show_provenance = not self._show_provenance
         return None
 
     def _h_main_inspect(self, key: str) -> str | None:
+        """Handle 'i': open the profile inspect page for the focused profile."""
         self._show_profile_inspect(self.bar.focused)
         return None
 
     def _h_main_review(self, key: str) -> str | None:
+        """Handle 'T': open the stale token review page."""
         self._show_stale_token_review()
         return None
 
     def _h_main_freeform_seed(self, key: str) -> str | None:
+        """Handle first printable key on freeform segment: seed editing from current value."""
         focused = self.bar.focused
         # The binding condition guarantees focused.value is not None here.
         value = focused.value
@@ -573,10 +587,12 @@ class App:
         return None
 
     def _h_main_search(self, key: str) -> str | None:
+        """Handle printable key on searchable segment: append to search buffer."""
         self.bar.focused.search_buffer += key
         return None
 
     def _h_main_quit(self, key: str) -> str | None:
+        """Handle 'q' on non-searchable segment: quit the TUI."""
         return "quit"
 
     # -- Cross-mode handlers --
@@ -593,6 +609,7 @@ class App:
     # -- Freeform mode handlers --
 
     def _h_freeform_enter(self, key: str) -> str | None:
+        """Handle enter in freeform mode: submit the typed text as a new value."""
         seg = self.bar.focused
         text = seg.search_buffer.strip()
         if text:
@@ -606,6 +623,7 @@ class App:
         return None
 
     def _h_freeform_tab(self, key: str) -> str | None:
+        """Handle tab in freeform mode: accept first matching option."""
         seg = self.bar.focused
         matches = seg.filtered_options
         if matches:
@@ -618,6 +636,7 @@ class App:
         return None
 
     def _h_freeform_backspace(self, key: str) -> str | None:
+        """Handle backspace in freeform mode: remove last character from buffer."""
         seg = self.bar.focused
         seg.search_buffer = seg.search_buffer[:-1]
         if not seg.search_buffer:
@@ -625,6 +644,7 @@ class App:
         return None
 
     def _h_freeform_left(self, key: str) -> str | None:
+        """Handle left arrow in freeform mode: cancel editing and move focus left."""
         seg = self.bar.focused
         seg.search_buffer = ""
         seg._freeform_editing = False
@@ -633,6 +653,7 @@ class App:
         return None
 
     def _h_freeform_right(self, key: str) -> str | None:
+        """Handle right arrow in freeform mode: cancel editing and move focus right."""
         seg = self.bar.focused
         seg.search_buffer = ""
         seg._freeform_editing = False
@@ -641,47 +662,55 @@ class App:
         return None
 
     def _h_freeform_esc(self, key: str) -> str | None:
+        """Handle escape in freeform mode: cancel editing and clear buffer."""
         seg = self.bar.focused
         seg.search_buffer = ""
         seg._freeform_editing = False
         return None
 
     def _h_freeform_ctrl_c(self, key: str) -> str | None:
+        """Handle Ctrl-C in freeform mode: cancel editing and quit."""
         seg = self.bar.focused
         seg.search_buffer = ""
         seg._freeform_editing = False
         return "quit"
 
     def _h_freeform_printable(self, key: str) -> str | None:
+        """Handle printable key in freeform mode: append to search buffer."""
         self.bar.focused.search_buffer += key
         return None
 
     # -- Creating mode handlers --
 
     def _h_create_enter(self, key: str) -> str | None:
+        """Handle enter in creating mode: confirm creation of the new option."""
         seg = self.bar.focused
         if seg.create_buffer.strip():
             self._confirm_create(seg)
         return None
 
     def _h_create_esc(self, key: str) -> str | None:
+        """Handle escape in creating mode: cancel and clear the create buffer."""
         seg = self.bar.focused
         seg.creating = False
         seg.create_buffer = ""
         return None
 
     def _h_create_backspace(self, key: str) -> str | None:
+        """Handle backspace in creating mode: remove last character from create buffer."""
         seg = self.bar.focused
         seg.create_buffer = seg.create_buffer[:-1]
         return None
 
     def _h_create_ctrl_c(self, key: str) -> str | None:
+        """Handle Ctrl-C in creating mode: cancel creation and quit."""
         seg = self.bar.focused
         seg.creating = False
         seg.create_buffer = ""
         return "quit"
 
     def _h_create_printable(self, key: str) -> str | None:
+        """Handle printable key in creating mode: append to create buffer."""
         self.bar.focused.create_buffer += key
         return None
 

@@ -85,6 +85,7 @@ class SegmentState:
 
     @property
     def options(self) -> list[str]:
+        """Return the computed option list, rebuilding from collections if invalidated."""
         if self._options is None:
             # Build ordered list from collection_order
             ordered: list[str] = []
@@ -107,6 +108,7 @@ class SegmentState:
     def set_discovered(
         self, vals: list[str], *, verify_fn: Callable[[str], bool] | None = None
     ) -> None:
+        """Replace discovered values, optionally verifying old values before dropping them."""
         if verify_fn is not None:
             # VERIFY policy: values removed from new list are checked before dropping
             new_set = set(vals)
@@ -120,11 +122,13 @@ class SegmentState:
         self._options = None
 
     def add_pinned(self, val: str) -> None:
+        """Add a value to the pinned collection if not already present."""
         if val not in self._pinned:
             self._pinned.append(val)
             self._options = None
 
     def remove_pinned(self, val: str) -> None:
+        """Remove a value from the pinned collection, ignoring if absent."""
         try:
             self._pinned.remove(val)
             self._options = None
@@ -132,10 +136,12 @@ class SegmentState:
             pass
 
     def set_defaults(self, vals: list[str]) -> None:
+        """Replace the defaults collection with the given values."""
         self._defaults = vals
         self._options = None
 
     def add_ephemeral(self, val: str) -> None:
+        """Add a value to the ephemeral collection if not already present."""
         if val not in self._ephemeral:
             self._ephemeral.append(val)
             self._options = None
@@ -143,24 +149,30 @@ class SegmentState:
     # Cache invalidation is intentionally omitted from set_installed and
     # mark_installed: installed status affects rendering, not option list ordering.
     def set_installed(self, vals: set[str]) -> None:
+        """Replace the installed set with the given values."""
         self._installed = vals
 
     @property
     def has_installed(self) -> bool:
+        """True when at least one value is marked as installed."""
         return bool(self._installed)
 
     def mark_installed(self, val: str) -> None:
+        """Mark a single value as installed."""
         self._installed.add(val)
 
     def set_metadata(self, meta: dict[str, dict[str, Any]]) -> None:
+        """Replace all metadata with the given mapping."""
         self.metadata = meta
 
     def update_metadata(self, partial: dict[str, dict[str, Any]]) -> None:
+        """Merge partial metadata into the existing metadata mapping."""
         self.metadata.update(partial)
 
     # -- Query methods --
 
     def source_of(self, val: str) -> str | None:
+        """Return the collection name containing val, or None if not found."""
         if val in self._pinned:
             return "pinned"
         if val in self._discovered:
@@ -172,9 +184,11 @@ class SegmentState:
         return None
 
     def is_installed(self, val: str) -> bool:
+        """True when val is in the installed set."""
         return val in self._installed
 
     def set_authenticated(self, vals: set[str]) -> None:
+        """Set the authenticated values and activate auth status tracking."""
         self._authenticated = vals
         self._auth_status_active = True
         self._options = None
@@ -191,9 +205,11 @@ class SegmentState:
 
     @property
     def has_auth_status(self) -> bool:
+        """True when auth status tracking has been activated."""
         return self._auth_status_active
 
     def is_authenticated(self, val: str) -> bool:
+        """True when val is in the authenticated set."""
         return val in self._authenticated
 
     def is_managed(self, val: str) -> bool:
@@ -242,6 +258,7 @@ class Segment:
 
     @property
     def options(self) -> list[str]:
+        """Delegate to state.options for the computed option list."""
         return self.state.options
 
     @property
@@ -263,6 +280,7 @@ class Segment:
 
     @property
     def value(self) -> str | None:
+        """Return the selected value if it is a real option, or None otherwise."""
         if self.selected_value is None:
             return None
         if self.selected_value == "+":
@@ -335,6 +353,7 @@ _Segment_orig_init = Segment.__init__
 def _Segment_init_wrapper(
     self: Segment, *args: Any, options: Any = None, **kwargs: Any
 ) -> None:
+    """Translate the options= kwarg to _init_options= for backward compat."""
     if options is not None:
         kwargs["_init_options"] = options
     _Segment_orig_init(self, *args, **kwargs)
@@ -353,6 +372,7 @@ class SegmentBar:
 
     @property
     def focused(self) -> Segment:
+        """Return the currently focused segment, or raise if the bar is empty."""
         if not self.segments:
             raise RuntimeError(
                 "SegmentBar has no segments -- check enabled_segments config"
@@ -360,12 +380,14 @@ class SegmentBar:
         return self.segments[self.focus_idx]
 
     def move_focus(self, direction: int) -> None:
+        """Move focus left (-1) or right (+1), wrapping around the segment list."""
         if not self.segments:
             return
         n = len(self.segments)
         self.focus_idx = (self.focus_idx + direction) % n
 
     def get_selections(self) -> dict[str, str | None]:
+        """Return a dict mapping each segment key to its selected value."""
         return {s.key: s.value for s in self.segments}
 
 

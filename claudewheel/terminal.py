@@ -44,6 +44,7 @@ class Terminal:
         self._mode2031_subscribed = False
 
     def get_size(self) -> tuple[int, int]:
+        """Return the current terminal size as (rows, cols)."""
         try:
             packed = fcntl.ioctl(self.fd, termios.TIOCGWINSZ, b"\x00" * 8)
             rows, cols, _, _ = struct.unpack("hhhh", packed)
@@ -53,6 +54,7 @@ class Terminal:
             return size.lines, size.columns
 
     def enter_raw(self, alt_screen: bool = True) -> None:
+        """Enter cbreak mode, optionally switching to the alt screen."""
         self.old_attrs = termios.tcgetattr(self.fd)
         tty.setcbreak(self.fd)  # cbreak, not raw -- lets Ctrl-C generate SIGINT
         self._in_raw = True
@@ -70,6 +72,7 @@ class Terminal:
         self._mode2031_subscribed = True
 
     def exit_raw(self) -> None:
+        """Restore the terminal to its pre-raw state."""
         if self._in_raw and self.old_attrs is not None:
             # Unsubscribe from Mode 2031 before restoring terminal state
             if self._mode2031_subscribed:
@@ -236,9 +239,11 @@ class Terminal:
         self._tty_file.flush()
 
     def write(self, text: str) -> None:
+        """Write text to the terminal."""
         self._write_tty(text)
 
     def flush(self) -> None:
+        """Flush the terminal output buffer."""
         self._tty_file.flush()
 
     def close(self) -> None:

@@ -258,6 +258,7 @@ def _do_launch_sequence(
 
 
 def _handle_health(ws: "Workspace") -> int:
+    """Run diagnostic health checks and print results."""
     from .health import run_health_check, print_health_report
 
     results = run_health_check(ws)
@@ -268,12 +269,14 @@ def _handle_health(ws: "Workspace") -> int:
 
 
 def _handle_config(ws: "Workspace") -> int:
+    """Open the config directory in the user's preferred editor."""
     editor = os.environ.get("EDITOR", os.environ.get("VISUAL", "vi"))
     os.execlp(editor, editor, str(ws.root))
     return 0
 
 
 def _handle_versions(locator: "BinaryLocator") -> int:
+    """List installed Claude Code versions, marking the current symlink target."""
     versions = locator.installed_versions()
 
     # Determine which version the symlink points to
@@ -290,6 +293,7 @@ def _handle_versions(locator: "BinaryLocator") -> int:
 
 
 def _handle_install(locator: "BinaryLocator", version: str) -> int:
+    """Download and install a specific Claude Code version."""
     from .install import install_version
 
     def on_progress(downloaded: int, total: int) -> None:
@@ -310,6 +314,7 @@ def _handle_install(locator: "BinaryLocator", version: str) -> int:
 
 
 def _handle_uninstall(locator: "BinaryLocator", version: str) -> int:
+    """Uninstall a specific Claude Code version binary."""
     rc = _do_uninstall(locator, version)
     if rc != 0:
         sys.exit(rc)
@@ -317,6 +322,7 @@ def _handle_uninstall(locator: "BinaryLocator", version: str) -> int:
 
 
 def _handle_reset_options(ws: "Workspace") -> int:
+    """Delete options.json so defaults regenerate on next run."""
     rc = _do_reset_options(ws)
     if rc != 0:
         sys.exit(rc)
@@ -636,6 +642,7 @@ def _handle_fix_auth(ws: "Workspace", name: str) -> int:
 
 
 def _handle_show(ws: "Workspace") -> int:
+    """Print a summary of current selections, theme, and recent directories."""
     cfg = ws.appconfig()
     rc = _do_show(cfg)
     if rc != 0:
@@ -644,6 +651,7 @@ def _handle_show(ws: "Workspace") -> int:
 
 
 def _handle_migrate(ws: "Workspace", src: str, dst: str, uuid: str) -> int:
+    """Move session data files between profiles, optionally filtered by UUID."""
     from .migrate import migrate_sessions
 
     uuid_filter = uuid if uuid else None
@@ -662,6 +670,7 @@ def _handle_migrate(ws: "Workspace", src: str, dst: str, uuid: str) -> int:
     help="preview cleanup changes without writing anything to disk",
 )
 def _handle_stats(ws: "Workspace", dry_run: bool) -> int:
+    """Report shared-store statistics and optionally clean up legacy data."""
     from .stats import run_stats
 
     run_stats(ws.shared, dry_run=dry_run)
@@ -683,6 +692,7 @@ def _handle_stats(ws: "Workspace", dry_run: bool) -> int:
 def _handle_mv(
     ws: "Workspace", old: str, new: str, dry_run: bool, post_hoc: bool
 ) -> int:
+    """Rename a project directory and migrate its session data."""
     from .mv import run_mv
 
     try:
@@ -713,6 +723,7 @@ def _handle_import(
     dry_run: bool,
     reid: bool,
 ) -> int:
+    """Import session data from an external Claude Code directory."""
     from pathlib import Path
     from .import_ import run_import
 
@@ -765,6 +776,7 @@ def _handle_import(
 def _handle_deploy_hooks(
     ws: "Workspace", name: str, all: bool, force_overwrite: bool
 ) -> int:
+    """Deploy built-in hook scripts to the scripts directory."""
     from .hook_scripts import HOOK_SCRIPTS, deploy_scripts
 
     if not name and not all:
@@ -862,6 +874,7 @@ def _handle_reconcile_permissions(
 def _handle_permission_add(
     ws: "Workspace", category: str, rule: str, profile: str, all_profiles: bool
 ) -> int:
+    """Add a permission rule to the specified category for one or all profiles."""
     from .permission import (
         validate_rule,
         resolve_profiles,
@@ -899,6 +912,7 @@ def _handle_permission_add(
 def _handle_permission_remove(
     ws: "Workspace", category: str, rule: str, profile: str, all_profiles: bool
 ) -> int:
+    """Remove a permission rule from the specified category for one or all profiles."""
     from .permission import resolve_profiles, load_settings, remove_rule, save_settings
 
     valid_categories = ("allow", "deny", "ask")
@@ -940,6 +954,7 @@ def _handle_permission_remove(
 def _handle_permission_list(
     ws: "Workspace", profile: str, all_profiles: bool, format: str, category: str
 ) -> int:
+    """List permission rules for one or all profiles in the chosen format."""
     import json as json_mod
     from .permission import resolve_profiles, load_settings
 
@@ -1315,6 +1330,7 @@ def _handle_launch(
     # fall back to config default_client. A value means explicit -> skip the step.
     client: str | None,
 ) -> int:
+    """Handle the launch subcommand: run the TUI or skip it when args suffice."""
     # Normalize sentinel defaults to None for cleaner downstream logic
     _UNSET = "\x00__unset__"
     resume_val: str | None = None if resume == _UNSET else resume

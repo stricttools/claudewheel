@@ -59,54 +59,67 @@ class Workspace:
 
     @property
     def profiles_dir(self) -> Path:
+        """Path to the profiles directory."""
         return self.root / "profiles"
 
     @property
     def tokens_file(self) -> Path:
+        """Path to the tokens.json file."""
         return self.root / "tokens.json"
 
     @property
     def options_file(self) -> Path:
+        """Path to the options.json file."""
         return self.root / "options.json"
 
     @property
     def state_file(self) -> Path:
+        """Path to the state.json file."""
         return self.root / "state.json"
 
     @property
     def config_file(self) -> Path:
+        """Path to the config.json file."""
         return self.root / "config.json"
 
     @property
     def segments_file(self) -> Path:
+        """Path to the segments.json file."""
         return self.root / "segments.json"
 
     @property
     def themes_dir(self) -> Path:
+        """Path to the themes directory."""
         return self.root / "themes"
 
     @property
     def hooks_dir(self) -> Path:
+        """Path to the hooks directory."""
         return self.root / "hooks"
 
     @property
     def scripts_dir(self) -> Path:
+        """Path to the scripts directory."""
         return self.root / "scripts"
 
     @property
     def shared_dir(self) -> Path:
+        """Path to the shared data directory."""
         return self.root / "shared"
 
     @property
     def skills_dir(self) -> Path:
+        """Path to the skills directory."""
         return self.root / "skills"
 
     @property
     def shared_settings_file(self) -> Path:
+        """Path to the shared-settings.json file."""
         return self.root / "shared-settings.json"
 
     @property
     def inodes_file(self) -> Path:
+        """Path to the inodes.json file in the shared directory."""
         return self.shared_dir / "inodes.json"
 
     # --- Store accessors -------------------------------------------------
