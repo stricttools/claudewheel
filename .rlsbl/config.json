@@ -25,7 +25,6 @@
       "local": true
     }
   },
-  "coverage_unit": "commit",
   "external_checks": [
     {
       "name": "mypy-strict",
