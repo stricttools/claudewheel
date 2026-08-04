@@ -42,7 +42,38 @@ dev = [
     "mypy>=2.3.0",
     "pytest>=9.1.1",
     "ruff>=0.15.20",
+    "stricttest",
 ]
+
+[tool.pytest.ini_options]
+# stricttest's isolation floor. Installing the plugin IS adoption; these five
+# keys are required and have no defaults, on purpose.
+#
+# claudewheel is the highest-value target in the fleet for this floor. It owns
+# ~/.claudewheel/: every profile directory, every profile's settings.json, the
+# shared session store, and tokens.json -- a file of long-lived Anthropic OAuth
+# tokens. Its suite drives the real CLI entry point end to end and its wizard
+# shells out to `claude auth login` and `claude setup-token`. Before the floor,
+# safety rested on each test remembering to set CLAUDEWHEEL_CONFIG_DIR or mock
+# the subprocess; the throwaway HOME removes the real store and the ambient
+# credentials outright, so a forgotten redirect fails instead of rewriting the
+# developer's live profiles.
+#
+# sockets = "deny" with both allowlists empty: nothing in this suite
+# legitimately reaches the network. The Anthropic token probe and the Claude
+# Code release-bucket download are the only network calls in the package and
+# every test that exercises them stubs the transport.
+#
+# loopback = "deny": there is no local server anywhere in the suite. The PTY
+# tests use pty.fork and socketpair-free pipes, not sockets.
+#
+# sandbox_required = "false" because this repo has no sandbox runner yet; the
+# always-on env/push/chdir/socket guards apply regardless.
+stricttest_sockets = "deny"
+stricttest_socket_allowlist = []
+stricttest_unix_socket_allowlist = []
+stricttest_loopback = "deny"
+stricttest_sandbox_required = "false"
 
 [tool.ruff.lint]
 # Pin ruff's current default rule families explicitly rather than relying on
