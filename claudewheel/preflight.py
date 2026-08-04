@@ -28,6 +28,8 @@ from . import effects
 
 if TYPE_CHECKING:
     from .binaries import BinaryLocator
+    from .scratchpad import ScratchpadDir
+    from .terminal import Terminal
     from .config import AppConfigStore
     from .workspace import Workspace
 
@@ -370,7 +372,7 @@ def _model_version_guard_run(ctx: PreflightContext) -> StepResult:
     )
 
 
-def _make_terminal():  # type: ignore[no-untyped-def]
+def _make_terminal() -> "Terminal":
     """Construct the raw-capable Terminal for an approval page.
 
     Isolated so tests can substitute a FakeTerminal. Requires a real TTY; a
@@ -478,7 +480,9 @@ def _approved_hooks_run(ctx: PreflightContext) -> StepResult:
     )
 
 
-def _prompt_scratchpad_cleanup(ctx: PreflightContext, stale, now_ts: float) -> bool:
+def _prompt_scratchpad_cleanup(
+    ctx: PreflightContext, stale: "list[ScratchpadDir]", now_ts: float
+) -> bool:
     """Render the scratchpad-cleanup page and return True iff the user confirms.
 
     Builds a themed Terminal the same way :func:`_prompt_hook_approval` does,

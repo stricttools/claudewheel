@@ -81,6 +81,7 @@ import shutil
 import subprocess
 import urllib.error
 import urllib.request
+from collections.abc import Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
 from pathlib import Path
@@ -94,7 +95,7 @@ _CTX: ContextVar[Any] = ContextVar("claudewheel_effects_ctx", default=None)
 
 
 @contextmanager
-def bound(ctx: Any):
+def bound(ctx: Any) -> Iterator[None]:
     """Bind *ctx* as the dispatch context for the length of the block.
 
     ``claudewheel.cli._bind`` wraps every registered command handler in this,
@@ -166,7 +167,7 @@ def _handle() -> Any:
 
 def _p(path: Any) -> str:
     """Render a path operand as text for the handle."""
-    return os.fspath(path)
+    return str(os.fspath(path))
 
 
 # ---------------------------------------------------------------------------
@@ -270,8 +271,14 @@ def exec_replace(
     """
     h = _handle()
     if h is not None:
-        return h.run(list(argv), cwd=cwd, check=False, stream=True,
-                     resource=resource, grant=grant)
+        return h.run(
+            list(argv),
+            cwd=cwd,
+            check=False,
+            stream=True,
+            resource=resource,
+            grant=grant,
+        )
     os.chdir(cwd)
     os.execvpe(argv[0], argv, env)
 
@@ -294,13 +301,12 @@ def run_under_pty(
     """
     h = _handle()
     if h is not None:
-        return h.run(list(argv), check=False, stream=True,
-                     resource=resource, grant=grant)
+        return h.run(
+            list(argv), check=False, stream=True, resource=resource, grant=grant
+        )
     from .pty_runner import run_under_pty as _pty_run
 
-    return _pty_run(
-        argv, env, input_bytes=input_bytes, proxy_terminal=proxy_terminal
-    )
+    return _pty_run(argv, env, input_bytes=input_bytes, proxy_terminal=proxy_terminal)
 
 
 # ---------------------------------------------------------------------------
@@ -335,9 +341,8 @@ class _RecordedWriter(io.StringIO):
     def __enter__(self) -> "_RecordedWriter":
         return self
 
-    def __exit__(self, *exc: Any) -> bool:
+    def __exit__(self, *exc: Any) -> None:
         self.close()
-        return False
 
 
 def open_write(path: Any, mode: str = "w", *, encoding: str | None = None) -> Any:
@@ -587,8 +592,7 @@ def http_read(
     preview.  Raises ``urllib.error.HTTPError`` / ``URLError`` exactly as
     ``urlopen`` does, so callers keep their existing error handling.
     """
-    req = urllib.request.Request(url, headers=headers or {}, data=data,
-                                 method=method)
+    req = urllib.request.Request(url, headers=headers or {}, data=data, method=method)
     with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
         body: bytes = resp.read()
     return body

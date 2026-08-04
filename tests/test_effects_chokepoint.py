@@ -92,8 +92,8 @@ _BANNED_METHODS = {
 _EXEMPT_MARKER = "# effects: exempt --"
 
 
-def _production_files():
-    files = []
+def _production_files() -> list[tuple[str, pathlib.Path]]:
+    files: list[tuple[str, pathlib.Path]] = []
     for path in sorted((REPO_ROOT / PRODUCTION_PACKAGE).rglob("*.py")):
         rel = path.relative_to(REPO_ROOT).as_posix()
         if rel in _EXEMPT_MODULES or "/__pycache__/" in rel:
@@ -102,9 +102,9 @@ def _production_files():
     return files
 
 
-def _dotted(node):
+def _dotted(node: ast.AST) -> str | None:
     """Return the dotted spelling of a call target, or None."""
-    parts = []
+    parts: list[str] = []
     while isinstance(node, ast.Attribute):
         parts.append(node.attr)
         node = node.value
@@ -114,7 +114,7 @@ def _dotted(node):
     return None
 
 
-def _write_mode(call):
+def _write_mode(call: ast.Call) -> bool:
     """True when an ``open(...)`` call opens the path for writing."""
     if len(call.args) >= 2 and isinstance(call.args[1], ast.Constant):
         mode = call.args[1].value
@@ -128,24 +128,20 @@ def _write_mode(call):
     return any(ch in mode for ch in "wax")
 
 
-def _violations(rel, path):
+def _violations(rel: str, path: pathlib.Path) -> list[str]:
     source = path.read_text(encoding="utf-8")
     lines = source.splitlines()
     tree = ast.parse(source, filename=str(path))
-    found = []
+    found: list[str] = []
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
             continue
         dotted = _dotted(node.func)
         target = dotted
-        banned = dotted in _BANNED_CALLS or (
-            dotted == "open" and _write_mode(node)
-        )
+        banned = dotted in _BANNED_CALLS or (dotted == "open" and _write_mode(node))
         if not banned and isinstance(node.func, ast.Attribute):
             # ``effects.mkdir(...)`` IS the routed call, not a bypass.
-            through_chokepoint = dotted is not None and dotted.startswith(
-                "effects."
-            )
+            through_chokepoint = dotted is not None and dotted.startswith("effects.")
             if node.func.attr in _BANNED_METHODS and not through_chokepoint:
                 banned = True
                 target = f".{node.func.attr}"
@@ -159,9 +155,11 @@ def _violations(rel, path):
 
 
 @pytest.mark.parametrize(
-    "rel,path", _production_files(), ids=lambda v: v if isinstance(v, str) else "",
+    "rel,path",
+    _production_files(),
+    ids=lambda v: v if isinstance(v, str) else "",
 )
-def test_no_effect_bypass(rel, path):
+def test_no_effect_bypass(rel: str, path: pathlib.Path) -> None:
     """No production module calls an effectful primitive outside the chokepoint."""
     violations = _violations(rel, path)
     assert not violations, (
@@ -172,7 +170,7 @@ def test_no_effect_bypass(rel, path):
     )
 
 
-def test_exempt_module_list_stays_two():
+def test_exempt_module_list_stays_two() -> None:
     """The wholesale exemption list stays short -- a widening must be deliberate."""
     assert _EXEMPT_MODULES == {
         "claudewheel/effects.py",

@@ -124,7 +124,9 @@ class RealConfigDirIsAbsentTests(unittest.TestCase):
 
     def test_the_real_claudewheel_store_is_unreachable(self) -> None:
         """Nothing in the sandbox HOME is the developer's profile store."""
-        self.assertFalse((Path(os.environ["HOME"]) / ".claudewheel" / "tokens.json").exists())
+        self.assertFalse(
+            (Path(os.environ["HOME"]) / ".claudewheel" / "tokens.json").exists()
+        )
 
 
 if __name__ == "__main__":

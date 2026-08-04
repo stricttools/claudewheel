@@ -531,14 +531,14 @@ def _format_gate(token: str, terminal: Terminal) -> str | None:
     if auth.looks_like_token(token):
         return token
     print("Error: that does not look like an API token (expected an 'sk-ant-' prefix).")
-    token = _read_pasted_token(
+    retyped = _read_pasted_token(
         "Paste the corrected token, or press Enter to abort: ", terminal
     )
-    if not token:
+    if not retyped:
         print("No token provided.")
         return None
-    if auth.looks_like_token(token):
-        return token
+    if auth.looks_like_token(retyped):
+        return retyped
     print("Error: that still does not look like an API token; aborting.")
     return None
 

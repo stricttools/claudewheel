@@ -24,6 +24,7 @@ Three guarantees this file holds:
 """
 
 import unittest
+from typing import Any
 
 from claudewheel.binaries import BinaryLocator
 from claudewheel.cli import _build_app
@@ -88,11 +89,11 @@ EFFECTS = {
 RESERVED_QUARTET = {"dry-run", "yes", "quiet", "verbose"}
 
 
-def _walk(app):
+def _walk(app: Any) -> dict[str, Any]:
     """Map dotted command path -> Command for every registered command."""
-    found = {}
+    found: dict[str, Any] = {}
 
-    def visit(container, prefix):
+    def visit(container: Any, prefix: str) -> None:
         registry = getattr(container, "_commands", None) or container.commands
         for name, cmd in registry.items():
             found[prefix + name] = cmd
@@ -168,9 +169,7 @@ class ClassificationTests(unittest.TestCase):
         """
         app = _build_app(Workspace.default(), BinaryLocator.default())
         deprecated = set(app._deprecated)
-        self.assertEqual(
-            deprecated, {"new-profile", "delete-profile", "show-profile"}
-        )
+        self.assertEqual(deprecated, {"new-profile", "delete-profile", "show-profile"})
         self.assertFalse(deprecated & set(self.commands))
 
 
