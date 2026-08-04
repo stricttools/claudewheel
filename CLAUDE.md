@@ -30,7 +30,7 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 - **claudewheel.constants** (`claudewheel/constants.py`): ANSI escape sequences and terminal color helpers.
 - **claudewheel.defaults** (`claudewheel/defaults.py`): Default values for config, segments, options, state, and themes; canonical permission rules and hook wiring are derived from the guardrail model.
 - **claudewheel.discovery** (`claudewheel/discovery.py`): Detect installed web browsers across native, flatpak, and snap sources.
-- **claudewheel.fsutil** (`claudewheel/fsutil.py`): Atomic file writes that preserve or enforce target permissions.
+- **claudewheel.effects** (`claudewheel/effects.py`): The single authorized surface for effectful calls in claudewheel production code.
 - **claudewheel.fuzzy** (`claudewheel/fuzzy.py`): Score, rank, and highlight fuzzy matches between queries and option lists.
 - **claudewheel.guardrail** (`claudewheel/guardrail.py`): Canonical guardrail protocol model.
 - **claudewheel.health** (`claudewheel/health.py`): Pre-launch diagnostics: symlinks, tokens, disk usage, and permission/hook drift against the canonical guardrail model.
@@ -82,7 +82,7 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 | `import` | import session data from an external Claude Code directory |
 | `deploy-hooks` | deploy built-in hook scripts to the ~/.claudewheel/scripts/ directory |
 | `patch-profiles` | reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask); prunes drift and user-added extras -- the old additive, extras-preserving behavior is gone. Deploys any missing guardrail hook scripts. The 'default' profile (~/.claude) is never touched. |
-| `reconcile-permissions` | reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask made exact; allow keeps only its non-conflicting entries); prunes all drift and user-added extras. The 'default' profile (~/.claude) is never touched. Requires exactly one of --dry-run or --apply. |
+| `reconcile-permissions` | reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask made exact; allow keeps only its non-conflicting entries); prunes all drift and user-added extras. The 'default' profile (~/.claude) is never touched. Pass --dry-run to preview the per-target diff without writing; without it the reconciliation is confirmed before it writes. |
 | `launch` | start the interactive TUI launcher to select a profile, model, and directory |
 | **profile** | create, inspect, rename, delete, and manage Claude Code profiles and their stored tokens |
 | `profile create` | create a new profile interactively through a guided wizard, then set up its authentication |

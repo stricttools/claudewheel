@@ -10,9 +10,3 @@ nav_order: 15
 # c stats
 
 report shared-store stats and clean up legacy data
-
-## Flags
-
-| Name | Short | Type | Default | Env | Description |
-| --- | --- | --- | --- | --- | --- |
-| `--dry-run` |  | bool |  |  | preview cleanup changes without writing anything to disk |

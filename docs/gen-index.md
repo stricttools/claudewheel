@@ -23,7 +23,7 @@ order: 90
 - [claudewheel.constants](claudewheel-constants.html)
 - [claudewheel.defaults](claudewheel-defaults.html)
 - [claudewheel.discovery](claudewheel-discovery.html)
-- [claudewheel.fsutil](claudewheel-fsutil.html)
+- [claudewheel.effects](claudewheel-effects.html)
 - [claudewheel.fuzzy](claudewheel-fuzzy.html)
 - [claudewheel.guardrail](claudewheel-guardrail.html)
 - [claudewheel.health](claudewheel-health.html)

@@ -55,6 +55,11 @@
     "description": "7e7fb434a504cf3fa3085cff75f2cf05d84c88c7373bd0058a4d9cc2858033a0",
     "source_docstring": "9b86caf9f080d7d373cd0d65538af865a5dd47dddfac9679b6f47e49b957ab96"
   },
+  "en/claudewheel-effects.md": {
+    "content": "41e8cf11c65dc03599b3417cc228099bbbd3b25c418dd686b119c141c6350474",
+    "description": "5bdbed8334a6902f9bd8a2ca14ab671ea295ff1d1315c09ca77b6ef7bd2e9953",
+    "seed_hash": "5bdbed8334a6902f9bd8a2ca14ab671ea295ff1d1315c09ca77b6ef7bd2e9953"
+  },
   "en/claudewheel-fsutil.md": {
     "content": "e92aff2708ca2702758a8f9410c6e765612be2d14c294e59f8ab023150af572e",
     "description": "c30b7b20c332043d70652121c81c7caa9b2221653ff175d3192bdbd71ba28fb2",

@@ -63,8 +63,8 @@
       "type": "doc"
     },
     {
-      "path": "claudewheel-fsutil.md",
-      "title": "claudewheel.fsutil",
+      "path": "claudewheel-effects.md",
+      "title": "claudewheel.effects",
       "type": "doc"
     },
     {
@@ -369,5 +369,5 @@
     }
   ],
   "posts": [],
-  "last_gen": "2026-07-29T17:14:40.022329+00:00"
+  "last_gen": "2026-08-04T15:36:18.941490+00:00"
 }

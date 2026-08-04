@@ -12,7 +12,7 @@ order: 91
 
 claudewheel - TUI launcher for Claude Code with profile, model, and directory selection
 
-Version: 0.24.0
+Version: :-: var key="project.version"
 
 ## Commands
 
@@ -29,7 +29,7 @@ Version: 0.24.0
 - [import](cli-import.html) -- import session data from an external Claude Code directory
 - [deploy-hooks](cli-deploy-hooks.html) -- deploy built-in hook scripts to the ~/.claudewheel/scripts/ directory
 - [patch-profiles](cli-patch-profiles.html) -- reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask); prunes drift and user-added extras -- the old additive, extras-preserving behavior is gone. Deploys any missing guardrail hook scripts. The 'default' profile (~/.claude) is never touched.
-- [reconcile-permissions](cli-reconcile-permissions.html) -- reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask made exact; allow keeps only its non-conflicting entries); prunes all drift and user-added extras. The 'default' profile (~/.claude) is never touched. Requires exactly one of --dry-run or --apply.
+- [reconcile-permissions](cli-reconcile-permissions.html) -- reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask made exact; allow keeps only its non-conflicting entries); prunes all drift and user-added extras. The 'default' profile (~/.claude) is never touched. Pass --dry-run to preview the per-target diff without writing; without it the reconciliation is confirmed before it writes.
 - [launch](cli-launch.html) -- start the interactive TUI launcher to select a profile, model, and directory
 
 ## Command Groups

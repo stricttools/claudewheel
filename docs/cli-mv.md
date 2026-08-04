@@ -15,7 +15,6 @@ rename a project directory and migrate session data
 
 | Name | Short | Type | Default | Env | Description |
 | --- | --- | --- | --- | --- | --- |
-| `--dry-run` |  | bool |  |  | preview the rename and session migration without writing anything to disk |
 | `--post-hoc` |  | bool |  |  | skip filesystem rename, migrate sessions only (directory already renamed) |
 
 ## Arguments

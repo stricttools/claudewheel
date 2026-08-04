@@ -15,7 +15,6 @@ import session data from an external Claude Code directory
 
 | Name | Short | Type | Default | Env | Description |
 | --- | --- | --- | --- | --- | --- |
-| `--dry-run` |  | bool |  |  | preview the import operation without writing any session data to disk |
 | `--reid` |  | bool |  |  | assign new UUIDs to sessions that collide with existing local sessions |
 | `--from` |  | str |  |  | original project path as recorded in the source session data (repeatable) |
 | `--to` |  | str |  |  | local directory path that corresponds to the --from path on this machine (repeatable) |

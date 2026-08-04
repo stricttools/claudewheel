@@ -107,7 +107,7 @@ Profile, GitHub, and Model are *creatable*: their option lists end with a `+` se
 | `import` | import session data from an external Claude Code directory |
 | `deploy-hooks` | deploy built-in hook scripts to the ~/.claudewheel/scripts/ directory |
 | `patch-profiles` | reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask); prunes drift and user-added extras -- the old additive, extras-preserving behavior is gone. Deploys any missing guardrail hook scripts. The 'default' profile (~/.claude) is never touched. |
-| `reconcile-permissions` | reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask made exact; allow keeps only its non-conflicting entries); prunes all drift and user-added extras. The 'default' profile (~/.claude) is never touched. Requires exactly one of --dry-run or --apply. |
+| `reconcile-permissions` | reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask made exact; allow keeps only its non-conflicting entries); prunes all drift and user-added extras. The 'default' profile (~/.claude) is never touched. Pass --dry-run to preview the per-target diff without writing; without it the reconciliation is confirmed before it writes. |
 | `launch` | start the interactive TUI launcher to select a profile, model, and directory |
 | **profile** | create, inspect, rename, delete, and manage Claude Code profiles and their stored tokens |
 | `profile create` | create a new profile interactively through a guided wizard, then set up its authentication |
