@@ -113,7 +113,17 @@ EFFECTS = {
 # settings" to "credentials, settings and conversation history" -- both sides
 # of the flag destroy something unrecoverable, so the command is the right
 # granularity and no in-handler seam is needed.
-CONSEQUENTIAL = {"profile.delete"}
+#
+# `reconcile-permissions` and `patch-profiles` are here because the
+# reconciliation is EXACT, not additive: one bare invocation rewrites every
+# managed profile's settings.json plus shared-settings.json, pruning
+# hand-authored permission rules, hook entries and disallowedTools drift across
+# all of them at once. Nothing is backed up and no other mechanism
+# reconstructs a pruned entry. They are occasional maintenance commands, not
+# routine ones, so the prompt costs nothing -- and the framework's non-TTY
+# refusal is exactly the second deliberate token the old
+# `--dry-run`/`--apply` pair provided before that pair was collapsed.
+CONSEQUENTIAL = {"profile.delete", "reconcile-permissions", "patch-profiles"}
 
 # strictcli owns these names at every level. `yes` is not a framework flag any
 # more (the skip flag is --approve-consequential) but stays banned, so a

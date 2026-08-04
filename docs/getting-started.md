@@ -197,9 +197,14 @@ After upgrading claudewheel, reconcile your profiles with the latest guardrail r
 
 ```bash
 claudewheel reconcile-permissions --dry-run   # preview changes
-claudewheel reconcile-permissions --apply      # apply changes
-claudewheel patch-profiles                     # sync hooks and disallowedTools
+claudewheel reconcile-permissions             # apply, confirming at the prompt
+claudewheel patch-profiles                    # sync hooks and disallowedTools
 ```
+
+Both writing forms confirm before they touch anything -- the reconciliation is
+exact, so it prunes hand-added permission rules and hook entries and nothing is
+backed up. From a script, where there is no terminal to confirm at, pass
+`--approve-consequential`.
 
 ## Next steps
 

@@ -68,13 +68,21 @@ The guardrail model evolves between releases. Existing profiles keep whatever
 rules were current when they were created, so after upgrading claudewheel you
 should re-apply the canonical model to bring older profiles up to date:
 
-- Run `claudewheel reconcile-permissions --apply` to rewrite each profile's
+- Run `claudewheel reconcile-permissions` to rewrite each profile's
   `deny`/`ask`/`allow` permission arrays to match the current model.
 - Run `claudewheel patch-profiles` to sync the deployed hook scripts and
   `disallowedTools` defaults into every profile and `shared-settings.json`.
 
 Both commands support `--dry-run` so you can preview the changes before writing
-anything to disk.
+anything to disk, and you should: the reconciliation is exact, so it prunes any
+permission rule, hook entry or `disallowedTools` entry you added by hand, and
+nothing is backed up.
+
+Because of that pruning both commands are declared *consequential*: the CLI
+framework asks `Proceed? [y/N]` before writing, and when there is no terminal
+to answer at it refuses with `error: stdin is not interactive; pass
+--approve-consequential to confirm`. A script or hook that means to reconcile
+passes `--approve-consequential`. `--dry-run` is never gated.
 
 ## Rule reference
 

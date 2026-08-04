@@ -800,6 +800,11 @@ def _handle_patch_profiles(ws: "Workspace") -> int:
     user-added extras -- the old additive, extras-preserving semantics are gone.
     Also deploys any missing guardrail hook scripts. The 'default' profile
     (~/.claude) is never read from or written to.
+
+    Declared ``consequential``, like ``reconcile-permissions`` it delegates to:
+    the pruning is unrecoverable, so the framework confirms before dispatch and
+    refuses outright without a terminal unless ``--approve-consequential`` is
+    passed. ``--dry-run`` previews and is never gated.
     """
     from .patch_profiles import run_patch_profiles
 
@@ -823,10 +828,13 @@ def _handle_reconcile_permissions(ws: "Workspace", profile: str) -> int:
 
     The hand-rolled ``--dry-run``/``--apply`` pair this command used to require
     is gone: ``--dry-run`` is now the framework's, and it is the only mode
-    flag. The command is ``mutating`` but not ``consequential``, so nothing
-    prompts -- reconciling to canonical is this tool's routine maintenance job,
-    and the useful preview is the per-target diff ``--dry-run`` prints, not a
-    blind ``Proceed?``. A bare invocation writes.
+    flag. The explicit-intent half of that pair is not gone, though -- the
+    command declares itself ``consequential``, so the framework confirms before
+    dispatch and refuses a bare run on a non-interactive stdin with "pass
+    --approve-consequential to confirm". The pruning is exact and nothing
+    reconstructs a removed entry, which is what earns the interruption; the
+    informative preview is still the per-target diff ``--dry-run`` prints, and
+    ``--dry-run`` is never gated.
     """
     from .reconcile import run_reconcile
 
@@ -1900,16 +1908,27 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
         ],
     )(_bind(_handle_deploy_hooks, ws))
 
+    # Both spellings of the exact reconciliation are consequential (contract
+    # §8.1). One bare invocation rewrites every managed profile's settings.json
+    # plus shared-settings.json, pruning hand-authored permission rules, hook
+    # entries and disallowedTools drift across all of them at once, with
+    # nothing backed up and nothing that reconstructs a pruned entry. These are
+    # occasional maintenance commands rather than routine ones, so the prompt
+    # costs nothing -- and the framework's non-TTY refusal is exactly the
+    # second deliberate token the hand-rolled --dry-run/--apply pair used to
+    # require before that pair was collapsed onto the framework's --dry-run.
     app.command(
         "patch-profiles",
         effect="mutating",
-        help="reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask); prunes drift and user-added extras -- the old additive, extras-preserving behavior is gone. Deploys any missing guardrail hook scripts. The 'default' profile (~/.claude) is never touched.",
+        consequential=True,
+        help="reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask); prunes drift and user-added extras -- the old additive, extras-preserving behavior is gone. Deploys any missing guardrail hook scripts. The 'default' profile (~/.claude) is never touched. Preview with --dry-run; writing needs a terminal or --approve-consequential.",
     )(_bind(_handle_patch_profiles, ws))
 
     app.command(
         "reconcile-permissions",
         effect="mutating",
-        help="reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask made exact; allow keeps only its non-conflicting entries); prunes all drift and user-added extras. The 'default' profile (~/.claude) is never touched. Pass --dry-run to preview the per-target diff without writing; without it the reconciliation is written straight away.",
+        consequential=True,
+        help="reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask made exact; allow keeps only its non-conflicting entries); prunes all drift and user-added extras. The 'default' profile (~/.claude) is never touched. Pass --dry-run to preview the per-target diff without writing; writing needs a terminal to confirm at, or --approve-consequential.",
     )(_bind(_handle_reconcile_permissions, ws))
 
     # -- Permission group --

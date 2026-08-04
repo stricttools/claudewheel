@@ -1,12 +1,14 @@
 """The framework confirm protocol, end to end through ``cli.main()``.
 
 strictcli prompts before dispatching a command that declares itself
-``consequential`` -- and for no other command. In claudewheel that is exactly
-``profile delete`` (see ``tests/test_effects_binding.py`` for the reviewed set
-and the reasoning). These tests drive the real CLI entry point so they pin the
-protocol as a user meets it, not as the registry declares it:
+``consequential`` -- and for no other command. In claudewheel that is
+``profile delete`` plus the two spellings of the exact reconciliation,
+``reconcile-permissions`` and ``patch-profiles`` (see
+``tests/test_effects_binding.py`` for the reviewed set and the reasoning).
+These tests drive the real CLI entry point so they pin the protocol as a user
+meets it, not as the registry declares it:
 
-- the one consequential command refuses on a non-interactive stdin with the
+- each consequential command refuses on a non-interactive stdin with the
   contract's pinned message, and destroys nothing;
 - ``--approve-consequential`` is the only thing that consents, and it works;
 - ``--dry-run`` suppresses the gate and records instead of writing;
@@ -123,6 +125,44 @@ class ConsequentialProfileDeleteTests(_CliCase):
         self.assertIn("would", out.lower())
         self.assertTrue((self.profiles_dir / "work" / "settings.json").is_file())
         self.assertIn("work", json.loads(self.tokens_file.read_text()))
+
+
+class ConsequentialReconcileTests(_CliCase):
+    """The exact reconciliation is gated under both of its names.
+
+    ``reconcile-permissions`` and ``patch-profiles`` are two spellings of one
+    operation (both delegate to ``reconcile.run_reconcile``). It rewrites every
+    managed profile's ``settings.json`` and ``shared-settings.json`` to EXACTLY
+    canonical, pruning hand-authored permission rules, hook entries and
+    ``disallowedTools`` drift, with nothing backed up and nothing that
+    reconstructs them. The gate is the framework's now; it used to be the
+    hand-rolled ``--dry-run``/``--apply`` pair.
+    """
+
+    NAMES = ("reconcile-permissions", "patch-profiles")
+
+    def test_each_refuses_on_a_non_interactive_stdin(self) -> None:
+        for name in self.NAMES:
+            with self.subTest(command=name):
+                _, err, code = self.run_cli(["c", name])
+                self.assertNotEqual(code, 0)
+                self.assertIn(NON_INTERACTIVE, err)
+
+    def test_each_runs_with_approve_consequential(self) -> None:
+        for name in self.NAMES:
+            with self.subTest(command=name):
+                _, err, code = self.run_cli(["c", name, "--approve-consequential"])
+                self.assertEqual(code, 0, err)
+                self.assertNotIn(NON_INTERACTIVE, err)
+
+    def test_dry_run_suppresses_the_gate(self) -> None:
+        """The preview must not need consent -- it is how you decide to consent."""
+        for name in self.NAMES:
+            with self.subTest(command=name):
+                _, err, code = self.run_cli(["c", name, "--dry-run"])
+                self.assertEqual(code, 0, err)
+                self.assertNotIn(NON_INTERACTIVE, err)
+                self.assertNotIn("Proceed?", err)
 
 
 class RoutineMutatingCommandsNeverPromptTests(_CliCase):

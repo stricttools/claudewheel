@@ -387,20 +387,31 @@ class ReconcileCliTests(_ReconcileTestCase):
         s = self.read_settings("work")
         self.assertIn("Bash(bogus:*)", s["permissions"]["deny"])
 
-    def test_bare_command_writes_without_prompting(self) -> None:
-        """A bare invocation reconciles: it is mutating, not consequential.
+    def test_bare_command_is_gated_and_writes_nothing(self) -> None:
+        """A bare invocation is refused: the command declares itself consequential.
 
-        The confirm protocol keys on the ``consequential`` declaration, not on
-        the classification, and reconcile-permissions does not declare it --
-        making profiles canonical is this tool's routine maintenance job, and
-        the informative preview is ``--dry-run``, not a blind ``Proceed?``.
-        So the bare form writes straight through, on a non-interactive stdin
-        like this one as much as at a terminal.
+        The reconciliation is exact, not additive -- it prunes hand-authored
+        permission rules, hook entries and disallowedTools across every
+        profile at once, and nothing reconstructs them. That is the bar the
+        confirm protocol exists for, so the explicit-intent gate the old
+        ``--dry-run``/``--apply`` pair provided is now the framework's:
+        without a TTY the run is refused before dispatch.
         """
         self.make_profile("work", self.drifted_settings())
         out, err, code = self._run_cli(["c", "reconcile-permissions"])
-        self.assertEqual(code, 0)
-        self.assertNotIn("Proceed?", err)
+        self.assertNotEqual(code, 0)
+        self.assertIn("stdin is not interactive", err)
+        self.assertIn("--approve-consequential", err)
+        # Refused BEFORE dispatch: the drift is untouched.
+        s = self.read_settings("work")
+        self.assertIn("Bash(bogus:*)", s["permissions"]["deny"])
+
+    def test_approve_consequential_consents_and_the_reconcile_runs(self) -> None:
+        self.make_profile("work", self.drifted_settings())
+        out, err, code = self._run_cli(
+            ["c", "reconcile-permissions", "--approve-consequential"]
+        )
+        self.assertEqual(code, 0, err)
         self.assertNotIn("stdin is not interactive", err)
         self.assertIn("reconciled", out)
         s = self.read_settings("work")
@@ -419,7 +430,15 @@ class ReconcileCliTests(_ReconcileTestCase):
         self.make_profile("work", self.drifted_settings())
         self.make_profile("play", self.drifted_settings())
         play_before = self.settings_path("play").read_text()
-        out, _, _ = self._run_cli(["c", "reconcile-permissions", "--profile", "work"])
+        out, _, _ = self._run_cli(
+            [
+                "c",
+                "reconcile-permissions",
+                "--profile",
+                "work",
+                "--approve-consequential",
+            ]
+        )
         self.assertIn("work: reconciled", out)
         self.assertEqual(self.settings_path("play").read_text(), play_before)
 

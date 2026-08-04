@@ -229,13 +229,15 @@
     },
     "patch-profiles": {
       "name": "patch-profiles",
-      "help": "reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask); prunes drift and user-added extras -- the old additive, extras-preserving behavior is gone. Deploys any missing guardrail hook scripts. The 'default' profile (~/.claude) is never touched.",
-      "effect": "mutating"
+      "help": "reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask); prunes drift and user-added extras -- the old additive, extras-preserving behavior is gone. Deploys any missing guardrail hook scripts. The 'default' profile (~/.claude) is never touched. Preview with --dry-run; writing needs a terminal or --approve-consequential.",
+      "effect": "mutating",
+      "consequential": true
     },
     "reconcile-permissions": {
       "name": "reconcile-permissions",
-      "help": "reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask made exact; allow keeps only its non-conflicting entries); prunes all drift and user-added extras. The 'default' profile (~/.claude) is never touched. Pass --dry-run to preview the per-target diff without writing; without it the reconciliation is written straight away.",
+      "help": "reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask made exact; allow keeps only its non-conflicting entries); prunes all drift and user-added extras. The 'default' profile (~/.claude) is never touched. Pass --dry-run to preview the per-target diff without writing; writing needs a terminal to confirm at, or --approve-consequential.",
       "effect": "mutating",
+      "consequential": true,
       "flags": [
         {
           "name": "profile",

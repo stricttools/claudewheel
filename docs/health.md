@@ -116,7 +116,7 @@ seeds new profiles).
 Reports missing canonical entries, extra non-canonical entries, and
 conflicting allows per profile.
 
-Fix: `claudewheel reconcile-permissions --apply`
+Fix: `claudewheel reconcile-permissions`
 
 #### hook-drift
 
@@ -322,12 +322,24 @@ accidentally loosened.
 Both commands perform the same reconciliation; they exist as separate entry
 points for historical reasons and are interchangeable.
 
-**`claudewheel reconcile-permissions`** requires exactly one of `--dry-run`
-or `--apply`. Accepts an optional `--profile <name>` to scope to a single
-profile (shared-settings is left alone in that case).
+**`claudewheel reconcile-permissions`** accepts an optional `--profile <name>`
+to scope to a single profile (shared-settings is left alone in that case).
 
-**`claudewheel patch-profiles`** accepts an optional `--dry-run` flag.
-Without it, changes are applied immediately.
+**`claudewheel patch-profiles`** takes no flags of its own.
+
+Both are declared *consequential*, because the reconciliation is exact and
+prunes hand-added permission rules, hook entries and `disallowedTools` drift
+with nothing backed up. So both confirm before writing, and both refuse
+outright when stdin is not a terminal:
+
+```
+error: stdin is not interactive; pass --approve-consequential to confirm
+```
+
+`--approve-consequential` is the way a script consents. `--dry-run` previews
+the per-target diff and writes nothing; it is never gated, so it is always the
+safe first invocation. (The old hand-rolled `--apply` flag is gone --
+`--dry-run` is the framework's now and is the only mode flag.)
 
 ### Preflight auto-heal
 
@@ -370,9 +382,9 @@ The profile's permission arrays have diverged from the canonical guardrail
 model. This happens when claudewheel is upgraded and the canonical model
 gains new rules, or when something edits the profile's settings directly.
 
-**Fix**: `claudewheel reconcile-permissions --apply` (or
-`claudewheel patch-profiles`). Use `--dry-run` first to preview what would
-change.
+**Fix**: `claudewheel reconcile-permissions` (or `claudewheel patch-profiles`).
+Use `--dry-run` first to preview what would change; the write itself confirms,
+and needs `--approve-consequential` when there is no terminal.
 
 ### Disk usage (/tmp)
 
