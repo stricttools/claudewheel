@@ -25,6 +25,13 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 
 :-: table-commands
 
+### Confirmation and preview
+
+- Ordinary commands need no approval flag. `c launch`, `c deploy-hooks --all`, `c reconcile-permissions` and `c patch-profiles` are the bare, correct invocations from a script, hook or agent -- including the bare `claudewheel` that starts a session, which prompts for nothing.
+- The CLI framework prompts only for commands that declare themselves `consequential`, and in claudewheel that is exactly `profile delete`: it removes the profile directory with its `.credentials.json` and `settings.json`, drops the `tokens.json` entry, and de-registers the profile, none of which can be walked back. It refuses with `error: stdin is not interactive; pass --approve-consequential to confirm` when there is no terminal, so a script that means to run it passes `--approve-consequential`.
+- `--quiet`, `--verbose`, `--dry-run` and `--approve-consequential` are framework-owned: no short forms, recognized anywhere in the command line, and never valid as claudewheel's own flag names.
+- `--dry-run` previews instead of writing: every subprocess launch, filesystem mutation and network call is recorded in a would-do log and nothing under `~/.claudewheel/` is touched. It also suppresses the confirmation, so a preview never has to be consented to.
+
 ## Config system
 
 - Config files live in `~/.claudewheel/` (config.json, segments.json, options.json, state.json, themes/)
