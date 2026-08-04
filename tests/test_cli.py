@@ -1569,7 +1569,10 @@ class MvPostHocFlagTests(unittest.TestCase):
     def test_post_hoc_flag_passed_to_run_mv(self) -> None:
         """When --post-hoc is given, run_mv is called with post_hoc=True."""
         with (
-            mock.patch("sys.argv", ["c", "mv", "/old/path", "/new/path", "--post-hoc"]),
+            mock.patch(
+                "sys.argv",
+                ["c", "mv", "/old/path", "/new/path", "--post-hoc", "--yes"],
+            ),
             mock.patch("claudewheel.mv.run_mv", autospec=True) as mock_run_mv,
         ):
             try:
@@ -1584,7 +1587,7 @@ class MvPostHocFlagTests(unittest.TestCase):
     def test_no_post_hoc_flag_defaults_false(self) -> None:
         """When --post-hoc is not given, run_mv is called with post_hoc=False."""
         with (
-            mock.patch("sys.argv", ["c", "mv", "/old/path", "/new/path"]),
+            mock.patch("sys.argv", ["c", "mv", "/old/path", "/new/path", "--yes"]),
             mock.patch("claudewheel.mv.run_mv", autospec=True) as mock_run_mv,
         ):
             try:
@@ -1949,7 +1952,7 @@ class ProfileGroupDispatchTests(unittest.TestCase):
     def test_profile_create_dispatches(self) -> None:
         """'claudewheel profile create' calls _handle_new_profile."""
         with (
-            mock.patch("sys.argv", ["c", "profile", "create"]),
+            mock.patch("sys.argv", ["c", "profile", "create", "--yes"]),
             mock.patch.object(
                 cli, "_handle_new_profile", autospec=True, return_value=0
             ) as mock_handler,
@@ -1980,6 +1983,7 @@ class ProfileGroupDispatchTests(unittest.TestCase):
                     "work",
                     "--force-delete",
                     "--force-delete-data",
+                    "--yes",
                 ],
             ),
             mock.patch.object(
@@ -2668,7 +2672,9 @@ class RenameProfileDispatchTests(unittest.TestCase):
 
     def test_dispatches(self) -> None:
         with (
-            mock.patch("sys.argv", ["c", "profile", "rename", "alpha", "beta"]),
+            mock.patch(
+                "sys.argv", ["c", "profile", "rename", "alpha", "beta", "--yes"]
+            ),
             mock.patch.object(
                 cli, "_handle_rename_profile", autospec=True, return_value=0
             ) as mock_handler,

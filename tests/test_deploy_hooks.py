@@ -32,13 +32,17 @@ class DeployHooksTests(unittest.TestCase):
     def _run_deploy(self, argv: list[str]) -> tuple[str, str, bool]:
         """Run deploy-hooks with the given argv.
 
+        ``--yes`` is appended because deploy-hooks is classified ``mutating``
+        and the real CLI path runs strictcli's confirm protocol: without it the
+        framework refuses on a non-TTY stdin before the handler is reached.
+
         Returns (stdout, stderr, exited).
         """
         out = io.StringIO()
         err = io.StringIO()
         exited = False
         with (
-            mock.patch("sys.argv", argv),
+            mock.patch("sys.argv", argv + ["--yes"]),
             redirect_stdout(out),
             redirect_stderr(err),
         ):
@@ -269,7 +273,7 @@ class HookBlockUnsafeCommandsTests(unittest.TestCase):
         out = io.StringIO()
         with (
             mock.patch.dict("os.environ", {"CLAUDEWHEEL_CONFIG_DIR": str(launcher)}),
-            mock.patch("sys.argv", ["c", "deploy-hooks", "--all"]),
+            mock.patch("sys.argv", ["c", "deploy-hooks", "--all", "--yes"]),
             redirect_stdout(out),
             redirect_stderr(io.StringIO()),
         ):
@@ -348,7 +352,7 @@ class HookAdviseCommandsTests(unittest.TestCase):
         out = io.StringIO()
         with (
             mock.patch.dict("os.environ", {"CLAUDEWHEEL_CONFIG_DIR": str(launcher)}),
-            mock.patch("sys.argv", ["c", "deploy-hooks", "--all"]),
+            mock.patch("sys.argv", ["c", "deploy-hooks", "--all", "--yes"]),
             redirect_stdout(out),
             redirect_stderr(io.StringIO()),
         ):

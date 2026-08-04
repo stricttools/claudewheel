@@ -48,34 +48,46 @@
   },
   "project_id": "claudewheel",
   "name": "c",
-  "version": "0.24.0",
+  "version": "0.23.3",
   "help": "claudewheel - TUI launcher for Claude Code with profile, model, and directory selection",
   "commands": {
     "health": {
       "name": "health",
-      "help": "run diagnostic health checks on profiles, tokens, and hooks, then exit"
+      "help": "run diagnostic health checks on profiles, tokens, and hooks, then exit",
+      "effect": "read_only"
     },
     "config": {
       "name": "config",
-      "help": "open the ~/.claudewheel/ config directory in your $EDITOR"
+      "help": "open the ~/.claudewheel/ config directory in your $EDITOR",
+      "effect": "mutating"
     },
     "versions": {
       "name": "versions",
-      "help": "list all installed Claude Code versions, marking the current symlink target"
+      "help": "list all installed Claude Code versions, marking the current symlink target",
+      "effect": "read_only"
     },
     "install": {
       "name": "install",
       "help": "download and install a specific Claude Code version",
+      "effect": "mutating",
       "args": [
         {
           "name": "version",
           "help": "semver version string to download and install (e.g. 2.1.119)"
+        }
+      ],
+      "grants": [
+        {
+          "name": "download",
+          "reason": "installs an executable fetched from the Claude Code release bucket",
+          "kind": "net_mutate"
         }
       ]
     },
     "uninstall": {
       "name": "uninstall",
       "help": "delete an installed Claude Code version binary from the versions directory",
+      "effect": "mutating",
       "args": [
         {
           "name": "version",
@@ -85,15 +97,18 @@
     },
     "reset-options": {
       "name": "reset-options",
-      "help": "delete options.json so it regenerates from defaults"
+      "help": "delete options.json so it regenerates from defaults",
+      "effect": "mutating"
     },
     "show": {
       "name": "show",
-      "help": "print a summary of current segment selections, theme, and recent directories"
+      "help": "print a summary of current segment selections, theme, and recent directories",
+      "effect": "read_only"
     },
     "migrate": {
       "name": "migrate",
       "help": "move session data files from one profile to another, optionally filtered by UUID",
+      "effect": "mutating",
       "args": [
         {
           "name": "src",
@@ -114,27 +129,13 @@
     "stats": {
       "name": "stats",
       "help": "report shared-store stats and clean up legacy data",
-      "flags": [
-        {
-          "name": "dry-run",
-          "type": "bool",
-          "help": "preview cleanup changes without writing anything to disk",
-          "default": false,
-          "negatable": true
-        }
-      ]
+      "effect": "mutating"
     },
     "mv": {
       "name": "mv",
       "help": "rename a project directory and migrate session data",
+      "effect": "mutating",
       "flags": [
-        {
-          "name": "dry-run",
-          "type": "bool",
-          "help": "preview the rename and session migration without writing anything to disk",
-          "default": false,
-          "negatable": true
-        },
         {
           "name": "post-hoc",
           "type": "bool",
@@ -157,14 +158,8 @@
     "import": {
       "name": "import",
       "help": "import session data from an external Claude Code directory",
+      "effect": "mutating",
       "flags": [
-        {
-          "name": "dry-run",
-          "type": "bool",
-          "help": "preview the import operation without writing any session data to disk",
-          "default": false,
-          "negatable": true
-        },
         {
           "name": "reid",
           "type": "bool",
@@ -206,6 +201,7 @@
     "deploy-hooks": {
       "name": "deploy-hooks",
       "help": "deploy built-in hook scripts to the ~/.claudewheel/scripts/ directory",
+      "effect": "mutating",
       "flags": [
         {
           "name": "all",
@@ -234,34 +230,13 @@
     "patch-profiles": {
       "name": "patch-profiles",
       "help": "reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask); prunes drift and user-added extras -- the old additive, extras-preserving behavior is gone. Deploys any missing guardrail hook scripts. The 'default' profile (~/.claude) is never touched.",
-      "flags": [
-        {
-          "name": "dry-run",
-          "type": "bool",
-          "help": "preview the changes without writing anything to disk",
-          "default": false,
-          "negatable": true
-        }
-      ]
+      "effect": "mutating"
     },
     "reconcile-permissions": {
       "name": "reconcile-permissions",
-      "help": "reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask made exact; allow keeps only its non-conflicting entries); prunes all drift and user-added extras. The 'default' profile (~/.claude) is never touched. Requires exactly one of --dry-run or --apply.",
+      "help": "reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask made exact; allow keeps only its non-conflicting entries); prunes all drift and user-added extras. The 'default' profile (~/.claude) is never touched. Pass --dry-run to preview the per-target diff without writing; without it the reconciliation is confirmed before it writes.",
+      "effect": "mutating",
       "flags": [
-        {
-          "name": "dry-run",
-          "type": "bool",
-          "help": "print the per-target guardrail diff and change NOTHING (mutually exclusive with --apply; you MUST pass exactly one of --dry-run or --apply)",
-          "default": false,
-          "negatable": true
-        },
-        {
-          "name": "apply",
-          "type": "bool",
-          "help": "perform the reconciliation, writing each target atomically (mutually exclusive with --dry-run; you MUST pass exactly one of --dry-run or --apply)",
-          "default": false,
-          "negatable": true
-        },
         {
           "name": "profile",
           "type": "str",
@@ -273,6 +248,7 @@
     "launch": {
       "name": "launch",
       "help": "start the interactive TUI launcher to select a profile, model, and directory",
+      "effect": "mutating",
       "flags": [
         {
           "name": "cont",
@@ -353,6 +329,13 @@
           "help": "launch target client (one of: claude, miniclaude). When omitted, the interactive launcher prompts with a Client step (cursor on config default_client, else claude) and non-interactive launches use default_client. Passing it explicitly skips that step. 'miniclaude' launches the miniclaude REPL instead; version and strict-MCP selections, config default_flags, and the disallowedTools list are claude-client-only",
           "default": ""
         }
+      ],
+      "grants": [
+        {
+          "name": "exec-client",
+          "reason": "the launcher replaces this process with the selected client binary",
+          "kind": "proc_mutate"
+        }
       ]
     }
   },
@@ -363,11 +346,20 @@
       "commands": {
         "create": {
           "name": "create",
-          "help": "create a new profile interactively through a guided wizard, then set up its authentication"
+          "help": "create a new profile interactively through a guided wizard, then set up its authentication",
+          "effect": "mutating",
+          "grants": [
+            {
+              "name": "auth-login",
+              "reason": "the wizard drives an interactive Claude Code OAuth login for the new profile",
+              "kind": "proc_mutate"
+            }
+          ]
         },
         "delete": {
           "name": "delete",
           "help": "delete a registered profile and clean up its directory, tokens, and options entries",
+          "effect": "mutating",
           "flags": [
             {
               "name": "force-delete",
@@ -387,11 +379,19 @@
               "name": "name",
               "help": "name of the profile to delete (e.g. work, personal, lisa)"
             }
+          ],
+          "grants": [
+            {
+              "name": "irreversible-delete",
+              "reason": "removes a profile directory, its stored OAuth token and its session data for good",
+              "kind": "file_write"
+            }
           ]
         },
         "show": {
           "name": "show",
           "help": "inspect a profile's configuration, authentication status, and session data in a detailed report",
+          "effect": "read_only",
           "args": [
             {
               "name": "name",
@@ -402,6 +402,7 @@
         "rename": {
           "name": "rename",
           "help": "rename a profile, moving its directory, tokens, and session data to the new name",
+          "effect": "mutating",
           "args": [
             {
               "name": "old",
@@ -416,6 +417,7 @@
         "fix-auth": {
           "name": "fix-auth",
           "help": "repair a profile's auth: remove session credentials that shadow a long-lived token, or remove a stale token entry whose profile directory is missing",
+          "effect": "mutating",
           "args": [
             {
               "name": "name",
@@ -425,7 +427,8 @@
         },
         "check-tokens": {
           "name": "check-tokens",
-          "help": "validate every discovered profile's stored OAuth token against the Anthropic API"
+          "help": "validate every discovered profile's stored OAuth token against the Anthropic API",
+          "effect": "read_only"
         }
       }
     },
@@ -436,6 +439,7 @@
         "add": {
           "name": "add",
           "help": "Add a permission rule to a profile's settings.json. Takes a category (allow, deny, or ask) and a rule string such as Bash or Read(//home/**). Writes the rule into the specified category array. Use --profile to target a single profile or --all-profiles to apply the rule across every registered profile. Skips duplicates if the rule already exists in the category.",
+          "effect": "mutating",
           "flags": [
             {
               "name": "profile",
@@ -473,6 +477,7 @@
         "remove": {
           "name": "remove",
           "help": "Remove a permission rule from a profile's settings.json. Takes a category (allow, deny, or ask) and the exact rule string to delete. The rule is removed from the specified category array and the file is saved. Use --profile to target a single profile or --all-profiles to remove the rule from every registered profile. Reports whether the rule was found.",
+          "effect": "mutating",
           "flags": [
             {
               "name": "profile",
@@ -510,6 +515,7 @@
         "list": {
           "name": "list",
           "help": "List permission rules from a profile's settings.json. Displays rules in grouped, flat, or JSON format controlled by --format. Use --category to filter output to a single category (allow, deny, or ask). Use --profile to inspect a single profile or --all-profiles to show rules from every registered profile, with each profile's rules displayed under a header.",
+          "effect": "read_only",
           "flags": [
             {
               "name": "format",

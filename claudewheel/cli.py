@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import os
 import re
 import sys
@@ -9,9 +10,10 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 import strictcli
-from strictcli import App, Arg, CoRequired, Flag, FlagSet, MutexGroup
+from strictcli import App, Arg, CoRequired, Flag, FlagSet, Grant, MutexGroup
 
 from . import __version__
+from . import effects
 from .clients import CLIENT_NAMES, DEFAULT_CLIENT, resolve_default_client
 
 if TYPE_CHECKING:
@@ -663,52 +665,32 @@ def _handle_migrate(ws: "Workspace", src: str, dst: str, uuid: str) -> int:
     return 0
 
 
-@strictcli.flag(
-    "dry-run",
-    type=bool,
-    default=False,
-    help="preview cleanup changes without writing anything to disk",
-)
-def _handle_stats(ws: "Workspace", dry_run: bool) -> int:
+def _handle_stats(ws: "Workspace") -> int:
     """Report shared-store statistics and optionally clean up legacy data."""
     from .stats import run_stats
 
-    run_stats(ws.shared, dry_run=dry_run)
+    run_stats(ws.shared, dry_run=effects.previewing())
     return 0
 
 
-@strictcli.flag(
-    "dry-run",
-    type=bool,
-    default=False,
-    help="preview the rename and session migration without writing anything to disk",
-)
 @strictcli.flag(
     "post-hoc",
     type=bool,
     default=False,
     help="skip filesystem rename, migrate sessions only (directory already renamed)",
 )
-def _handle_mv(
-    ws: "Workspace", old: str, new: str, dry_run: bool, post_hoc: bool
-) -> int:
+def _handle_mv(ws: "Workspace", old: str, new: str, post_hoc: bool) -> int:
     """Rename a project directory and migrate its session data."""
     from .mv import run_mv
 
     try:
-        run_mv(ws, old, new, dry_run=dry_run, post_hoc=post_hoc)
+        run_mv(ws, old, new, dry_run=effects.previewing(), post_hoc=post_hoc)
     except (ValueError, FileNotFoundError, FileExistsError, OSError) as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
     return 0
 
 
-@strictcli.flag(
-    "dry-run",
-    type=bool,
-    default=False,
-    help="preview the import operation without writing any session data to disk",
-)
 @strictcli.flag(
     "reid",
     type=bool,
@@ -720,7 +702,6 @@ def _handle_import(
     source: str,
     from_: list[str],
     to: list[str],
-    dry_run: bool,
     reid: bool,
 ) -> int:
     """Import session data from an external Claude Code directory."""
@@ -747,7 +728,9 @@ def _handle_import(
         mappings.append((f, str(resolved)))
 
     try:
-        result = run_import(ws.shared, source, mappings, reid=reid, dry_run=dry_run)
+        result = run_import(
+            ws.shared, source, mappings, reid=reid, dry_run=effects.previewing()
+        )
     except (ValueError, FileNotFoundError, OSError) as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1
@@ -805,13 +788,7 @@ def _handle_deploy_hooks(
     return 0
 
 
-@strictcli.flag(
-    "dry-run",
-    type=bool,
-    default=False,
-    help="preview the changes without writing anything to disk",
-)
-def _handle_patch_profiles(ws: "Workspace", dry_run: bool) -> int:
+def _handle_patch_profiles(ws: "Workspace") -> int:
     """Reconcile every managed profile and shared-settings.json to exact canonical.
 
     Delegates to the unified reconcile core. This PRUNES each target's guardrail
@@ -823,52 +800,36 @@ def _handle_patch_profiles(ws: "Workspace", dry_run: bool) -> int:
     """
     from .patch_profiles import run_patch_profiles
 
-    return run_patch_profiles(ws, dry_run=dry_run)
+    return run_patch_profiles(ws, dry_run=effects.previewing())
 
 
-@strictcli.flag(
-    "dry-run",
-    type=bool,
-    default=False,
-    help="print the per-target guardrail diff and change NOTHING (mutually exclusive with --apply; you MUST pass exactly one of --dry-run or --apply)",
-)
-@strictcli.flag(
-    "apply",
-    type=bool,
-    default=False,
-    help="perform the reconciliation, writing each target atomically (mutually exclusive with --dry-run; you MUST pass exactly one of --dry-run or --apply)",
-)
 @strictcli.flag(
     "profile",
     type=str,
     default="",
     help="reconcile only this single profile; when given, shared-settings.json is left untouched (omit to reconcile every profile AND shared-settings.json)",
 )
-def _handle_reconcile_permissions(
-    ws: "Workspace", dry_run: bool, apply: bool, profile: str
-) -> int:
+def _handle_reconcile_permissions(ws: "Workspace", profile: str) -> int:
     """Reconcile every managed target to EXACTLY the canonical guardrail model.
 
     Delegates to the unified reconcile core. Makes each target's hooks, the
     disallowedTools list, and permissions deny/ask EXACTLY canonical (allow keeps
     only its non-conflicting entries), pruning all drift and user-added extras --
     the old additive, extras-preserving behavior is gone. The 'default' profile
-    (~/.claude) is never read from or written to. Requires exactly one of
-    --dry-run or --apply.
+    (~/.claude) is never read from or written to.
+
+    The hand-rolled ``--dry-run``/``--apply`` pair this command used to require
+    is gone: ``--dry-run`` is now the framework's, and the explicit-intent
+    guarantee the pair existed for is the framework's confirm protocol. A bare
+    ``reconcile-permissions`` prompts before it writes, and on a non-interactive
+    stdin it refuses outright unless ``--yes`` is passed -- so the caller still
+    cannot write by accident, through one mechanism instead of two.
     """
     from .reconcile import run_reconcile
 
-    if dry_run == apply:
-        # Neither (both False) or both (both True) is a hard error: the caller
-        # must declare intent explicitly.
-        print(
-            "Error: pass exactly one of --dry-run or --apply "
-            "(--dry-run previews, --apply writes)",
-            file=sys.stderr,
-        )
-        sys.exit(2)
-
-    return run_reconcile(ws, dry_run=dry_run, profile=profile or None)
+    return run_reconcile(
+        ws, dry_run=effects.previewing(), profile=profile or None
+    )
 
 
 def _handle_permission_add(
@@ -1591,46 +1552,108 @@ _SUBCOMMANDS = frozenset(
 # --dump-schema is a strictcli reserved flag that dumps the CLI schema.
 _APP_LEVEL_FLAGS = frozenset({"--help", "-h", "--version", "-v", "--dump-schema"})
 
+# strictcli owns these four names and strips them from argv before any command
+# parsing (the effects contract, §7). They may appear anywhere, including in
+# front of the command token, so the launch injection has to step over them --
+# otherwise `c --dry-run stats` would be rewritten to `c launch --dry-run stats`
+# and preview the TUI instead of the stats cleanup.
+_RESERVED_QUARTET = frozenset({"--dry-run", "--yes", "--quiet", "--verbose"})
+
 
 def _inject_launch(argv: list[str]) -> list[str]:
     """Return argv with the "launch" subcommand injected when appropriate.
 
     argv includes argv[0] (the program name). When no subcommand is given, or
-    the leading token is neither a known subcommand nor an app-level flag, the
-    "launch" subcommand is injected so the interactive TUI starts. App-level
-    flags (see _APP_LEVEL_FLAGS) and known subcommands are left untouched.
+    the first token that is not a framework-reserved global flag is neither a
+    known subcommand nor an app-level flag, the "launch" subcommand is injected
+    at that position so the interactive TUI starts. App-level flags (see
+    _APP_LEVEL_FLAGS) and known subcommands are left untouched.
     """
     rest = argv[1:]
-    if not rest or (rest[0] not in _SUBCOMMANDS and rest[0] not in _APP_LEVEL_FLAGS):
-        return [argv[0], "launch"] + rest
+    lead = 0
+    while lead < len(rest) and rest[lead] in _RESERVED_QUARTET:
+        lead += 1
+    tail = rest[lead:]
+    if not tail or (tail[0] not in _SUBCOMMANDS and tail[0] not in _APP_LEVEL_FLAGS):
+        return [argv[0]] + rest[:lead] + ["launch"] + tail
     return list(argv)
+
+
+def _confirm_launch_in_the_tui(argv: list[str]) -> list[str]:
+    """Return argv with ``--yes`` supplied for the ``launch`` command.
+
+    ``launch`` is classified ``mutating`` and it earns that: it replaces this
+    process with the selected client binary and persists the selections it was
+    given. strictcli's confirm protocol therefore wants a ``Proceed? [y/N]``
+    in front of it.
+
+    For this one command that prompt would be answered blind. ``launch`` IS a
+    confirmation surface: it paints a full-screen segment bar, the user moves
+    through profile / model / directory / permissions, and the process is
+    replaced only when they press Enter on a selection they can see. A prompt
+    fired *before* that screen exists asks the user to approve a launch whose
+    target has not been chosen yet -- and it fires on the bare ``claudewheel``
+    invocation that starts every session, where the answer is never anything
+    but yes.
+
+    So the confirmation is not skipped; it is delegated to the screen that can
+    actually show what is being confirmed. Every other mutating command --
+    including everything that writes a profile, a token, a hook or a settings
+    file -- prompts normally, and ``--dry-run`` still previews ``launch`` like
+    anything else (the exec is recorded, not performed).
+    """
+    rest = argv[1:]
+    lead = 0
+    while lead < len(rest) and rest[lead] in _RESERVED_QUARTET:
+        lead += 1
+    if rest[lead : lead + 1] != ["launch"] or "--yes" in rest:
+        return list(argv)
+    return [argv[0]] + rest[: lead + 1] + ["--yes"] + rest[lead + 1 :]
 
 
 def _bind(handler: Callable[..., int], *pre: Any) -> Callable[..., int]:
     """Pre-bind leading positional dependencies (workspace/locator) to a handler.
 
-    strictcli dispatches handlers with keyword arguments (`handler(**parsed)`)
-    and builds the schema from the declared Flag/Arg objects -- NOT from the
-    handler signature. The signature is used only for validation, which strictcli
-    SKIPS when the callable accepts ``**kwargs``. So the returned wrapper:
+    strictcli dispatches handlers with keyword arguments (``handler(ctx,
+    **parsed)``) and builds the schema from the declared Flag/Arg objects --
+    NOT from the handler signature. The signature is what strictcli's guard v2
+    validates the declaration against. So the returned wrapper:
 
-    - takes ``**kwargs`` (validation skipped, no signature drift),
     - forwards the pre-bound deps plus parsed kwargs to the real handler,
-    - copies the ``@strictcli.flag`` / ``@strictcli.arg`` decorator metadata so
-      the schema is byte-identical to registering the bare handler.
+    - binds the dispatch context to :mod:`claudewheel.effects` for the length
+      of the call, which is what makes ``--dry-run`` record every mutation
+      instead of performing it,
+    - carries an explicit ``__signature__``: the real handler's parameters with
+      the pre-bound positionals dropped and the framework's context slot put
+      back in front.
 
-    We deliberately do NOT use ``functools.wraps``: it would set ``__wrapped__``,
-    and ``inspect.signature`` follows that chain back to the real (ws-bearing)
-    signature, re-triggering strict validation. Copying only the two strictcli
-    attributes keeps the wrapper's signature a clean ``(**kwargs)``.
+    That ``__signature__`` is the point. The wrapper is physically ``(ctx,
+    **kwargs)``, and a bare ``**kwargs`` handler is exactly the hole strictcli's
+    guard v2 closes -- it would have to declare ``forwarding=`` and waive the
+    signature cross-check for all 24 commands. Presenting the wrapped
+    handler's real signature instead means every flag and arg is validated
+    against a real parameter, which is the "declare everything" guarantee this
+    wrapper used to opt out of.
+
+    We deliberately do NOT use ``functools.wraps``: it would set
+    ``__wrapped__``, and ``inspect.signature`` follows that chain back to the
+    real (ws-bearing) signature, re-triggering validation against parameters
+    the framework never supplies.
     """
 
     def wrapper(ctx: strictcli.Context, **kwargs: Any) -> int:
-        return handler(*pre, **kwargs)
+        with effects.bound(ctx):
+            return handler(*pre, **kwargs)
 
+    params = list(inspect.signature(handler).parameters.values())[len(pre) :]
+    wrapper.__signature__ = inspect.Signature(  # type: ignore[attr-defined]
+        [inspect.Parameter("ctx", inspect.Parameter.POSITIONAL_OR_KEYWORD)] + params
+    )
     # strictcli reads these attributes off the callable to build the schema.
     setattr(wrapper, "_strictcli_flags", getattr(handler, "_strictcli_flags", []))
     setattr(wrapper, "_strictcli_args", getattr(handler, "_strictcli_args", []))
+    # tests/test_effects_binding.py walks the registered commands for this.
+    setattr(wrapper, "__claudewheel_effects_bound__", True)
     return wrapper
 
 
@@ -1646,20 +1669,32 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
 
     app.command(
         "health",
+        effect="read_only",
         help="run diagnostic health checks on profiles, tokens, and hooks, then exit",
     )(_bind(_handle_health, ws))
 
     app.command(
-        "config", help="open the ~/.claudewheel/ config directory in your $EDITOR"
+        "config",
+        effect="mutating",
+        help="open the ~/.claudewheel/ config directory in your $EDITOR",
     )(_bind(_handle_config, ws))
 
     app.command(
         "versions",
+        effect="read_only",
         help="list all installed Claude Code versions, marking the current symlink target",
     )(_bind(_handle_versions, locator))
 
     app.command(
         "install",
+        effect="mutating",
+        grants=[
+            Grant(
+                "download",
+                "installs an executable fetched from the Claude Code release bucket",
+                strictcli.NET_MUTATE,
+            )
+        ],
         help="download and install a specific Claude Code version",
         args=[
             Arg(
@@ -1671,6 +1706,7 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
 
     app.command(
         "uninstall",
+        effect="mutating",
         help="delete an installed Claude Code version binary from the versions directory",
         args=[
             Arg(
@@ -1681,7 +1717,9 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
     )(_bind(_handle_uninstall, locator))
 
     app.command(
-        "reset-options", help="delete options.json so it regenerates from defaults"
+        "reset-options",
+        effect="mutating",
+        help="delete options.json so it regenerates from defaults",
     )(_bind(_handle_reset_options, ws))
 
     # -- Profile group --
@@ -1692,11 +1730,27 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
 
     profile_grp.command(
         "create",
+        effect="mutating",
+        grants=[
+            Grant(
+                "auth-login",
+                "the wizard drives an interactive Claude Code OAuth login for the new profile",
+                strictcli.PROC_MUTATE,
+            )
+        ],
         help="create a new profile interactively through a guided wizard, then set up its authentication",
     )(_bind(_handle_new_profile, ws, locator))
 
     profile_grp.command(
         "delete",
+        effect="mutating",
+        grants=[
+            Grant(
+                "irreversible-delete",
+                "removes a profile directory, its stored OAuth token and its session data for good",
+                strictcli.FILE_WRITE,
+            )
+        ],
         help="delete a registered profile and clean up its directory, tokens, and options entries",
         args=[
             Arg(
@@ -1708,6 +1762,7 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
 
     profile_grp.command(
         "show",
+        effect="read_only",
         help="inspect a profile's configuration, authentication status, and session data in a detailed report",
         args=[
             Arg(
@@ -1719,6 +1774,7 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
 
     profile_grp.command(
         "rename",
+        effect="mutating",
         help="rename a profile, moving its directory, tokens, and session data to the new name",
         args=[
             Arg(
@@ -1734,6 +1790,7 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
 
     profile_grp.command(
         "fix-auth",
+        effect="mutating",
         help="repair a profile's auth: remove session credentials that shadow a long-lived token, or remove a stale token entry whose profile directory is missing",
         args=[
             Arg(
@@ -1745,6 +1802,7 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
 
     profile_grp.command(
         "check-tokens",
+        effect="read_only",
         help="validate every discovered profile's stored OAuth token against the Anthropic API",
     )(_bind(_handle_check_tokens, ws))
 
@@ -1763,11 +1821,13 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
 
     app.command(
         "show",
+        effect="read_only",
         help="print a summary of current segment selections, theme, and recent directories",
     )(_bind(_handle_show, ws))
 
     app.command(
         "migrate",
+        effect="mutating",
         help="move session data files from one profile to another, optionally filtered by UUID",
         args=[
             Arg(
@@ -1787,12 +1847,15 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
         ],
     )(_bind(_handle_migrate, ws))
 
-    app.command("stats", help="report shared-store stats and clean up legacy data")(
-        _bind(_handle_stats, ws)
-    )
+    app.command(
+        "stats",
+        effect="mutating",
+        help="report shared-store stats and clean up legacy data",
+    )(_bind(_handle_stats, ws))
 
     app.command(
         "mv",
+        effect="mutating",
         help="rename a project directory and migrate session data",
         args=[
             Arg(
@@ -1808,6 +1871,7 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
 
     app.command(
         "import",
+        effect="mutating",
         help="import session data from an external Claude Code directory",
         args=[
             Arg(
@@ -1843,6 +1907,7 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
 
     app.command(
         "deploy-hooks",
+        effect="mutating",
         help="deploy built-in hook scripts to the ~/.claudewheel/scripts/ directory",
         args=[
             Arg(
@@ -1856,12 +1921,14 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
 
     app.command(
         "patch-profiles",
+        effect="mutating",
         help="reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask); prunes drift and user-added extras -- the old additive, extras-preserving behavior is gone. Deploys any missing guardrail hook scripts. The 'default' profile (~/.claude) is never touched.",
     )(_bind(_handle_patch_profiles, ws))
 
     app.command(
         "reconcile-permissions",
-        help="reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask made exact; allow keeps only its non-conflicting entries); prunes all drift and user-added extras. The 'default' profile (~/.claude) is never touched. Requires exactly one of --dry-run or --apply.",
+        effect="mutating",
+        help="reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask made exact; allow keeps only its non-conflicting entries); prunes all drift and user-added extras. The 'default' profile (~/.claude) is never touched. Pass --dry-run to preview the per-target diff without writing; without it the reconciliation is confirmed before it writes.",
     )(_bind(_handle_reconcile_permissions, ws))
 
     # -- Permission group --
@@ -1888,6 +1955,7 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
 
     perm_grp.command(
         "add",
+        effect="mutating",
         help=(
             "Add a permission rule to a profile's settings.json. Takes a category"
             " (allow, deny, or ask) and a rule string such as Bash or Read(//home/**)."
@@ -1910,6 +1978,7 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
 
     perm_grp.command(
         "remove",
+        effect="mutating",
         help=(
             "Remove a permission rule from a profile's settings.json. Takes a category"
             " (allow, deny, or ask) and the exact rule string to delete. The rule is"
@@ -1932,6 +2001,7 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
 
     perm_grp.command(
         "list",
+        effect="read_only",
         help=(
             "List permission rules from a profile's settings.json. Displays rules in"
             " grouped, flat, or JSON format controlled by --format. Use --category to"
@@ -2053,6 +2123,14 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
 
     app.command(
         "launch",
+        effect="mutating",
+        grants=[
+            Grant(
+                "exec-client",
+                "the launcher replaces this process with the selected client binary",
+                strictcli.PROC_MUTATE,
+            )
+        ],
         help="start the interactive TUI launcher to select a profile, model, and directory",
         flag_sets=[_session_flag_set, _segment_flag_set, _client_flag_set],
     )(_bind(_handle_launch, ws, locator))
@@ -2076,7 +2154,7 @@ def main() -> None:
     # If no subcommand given, inject "launch" so the TUI starts.
     # Exception: app-level flags (--help/-h/--version/-v/--dump-schema) are
     # handled at the app level, not routed to the launch command.
-    sys.argv = _inject_launch(sys.argv)
+    sys.argv = _confirm_launch_in_the_tui(_inject_launch(sys.argv))
 
     # Open the workspace ONCE at the dispatch boundary and thread it (plus the
     # binary locator, which is separate from the workspace by design) into every
