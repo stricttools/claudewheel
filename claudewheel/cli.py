@@ -53,7 +53,8 @@ def _do_uninstall(locator: "BinaryLocator", version: str) -> int:
     except OSError as e:
         print(f"Failed to delete {target}: {e}", file=sys.stderr)
         return 1
-    print(f"Uninstalled {version} ({target})")
+    verb = "Would uninstall" if effects.previewing() else "Uninstalled"
+    print(f"{verb} {version} ({target})")
     return 0
 
 
@@ -70,7 +71,8 @@ def _do_reset_options(ws: "Workspace") -> int:
         except OSError as e:
             print(f"Failed to delete {options_file}: {e}", file=sys.stderr)
             return 1
-        print(f"Deleted {options_file}; defaults will regenerate on next run.")
+        verb = "Would delete" if effects.previewing() else "Deleted"
+        print(f"{verb} {options_file}; defaults will regenerate on next run.")
     else:
         print(f"{options_file} does not exist; nothing to reset.")
     return 0
@@ -365,11 +367,16 @@ def _handle_new_profile(ws: "Workspace", locator: "BinaryLocator") -> int:
             if result.cancelled:
                 cancelled = True
             else:
-                summary = create_profile(ws, result)
+                summary = create_profile(ws, result, previewing=effects.previewing())
                 outcome = run_auth_flow(
                     ws, locator, result.config_dir, result.name, theme, terminal
                 )
-                show_page("Profile created", summary, theme, terminal)
+                title = (
+                    "Profile would be created"
+                    if effects.previewing()
+                    else "Profile created"
+                )
+                show_page(title, summary, theme, terminal)
         finally:
             terminal.exit_raw()
     finally:
@@ -378,12 +385,21 @@ def _handle_new_profile(ws: "Workspace", locator: "BinaryLocator") -> int:
     if cancelled:
         print("Cancelled.")
         return 0
+    previewing = effects.previewing()
     for line in summary:
         print(line)
     if outcome == "authenticated":
-        print("Profile authenticated.")
+        print(
+            "Profile would be authenticated."
+            if previewing
+            else "Profile authenticated."
+        )
     elif outcome == "unverified":
-        print("Token saved without validation (API unreachable).")
+        print(
+            "Token would be saved without validation (API unreachable)."
+            if previewing
+            else "Token saved without validation (API unreachable)."
+        )
     elif outcome == "cancel":
         print(
             "Auth setup cancelled -- you can authenticate later by launching the profile."
@@ -426,22 +442,31 @@ def _handle_delete_profile(
         print(str(e), file=sys.stderr)
         sys.exit(1)
 
-    print(f"Deleting profile '{name}'...")
+    previewing = effects.previewing()
+    print(f"{'Would delete' if previewing else 'Deleting'} profile '{name}'...")
     print(
-        f"  Removed dir: {result.removed_symlinks} symlinks unlinked, "
+        f"  {'Would remove' if previewing else 'Removed'} dir: "
+        f"{result.removed_symlinks} symlinks unlinked, "
         f"{result.removed_real} real entries removed"
     )
+    removed = "Would remove" if previewing else "Removed"
     if result.removed_from_options:
-        print("  Removed from options.json")
+        print(f"  {removed} from options.json")
     else:
         print("  Not found in options.json (already clean)")
     if result.removed_from_tokens:
-        print("  Removed from tokens.json")
+        print(f"  {removed} from tokens.json")
     else:
         print("  Not found in tokens.json (already clean)")
     if result.last_config_purged:
-        print("  Cleared last_config profile reference in state.json")
-    print(f"Profile '{name}' deleted.")
+        print(
+            f"  {'Would clear' if previewing else 'Cleared'} last_config "
+            "profile reference in state.json"
+        )
+    if previewing:
+        print(f"Would delete profile '{name}'.")
+    else:
+        print(f"Profile '{name}' deleted.")
     return 0
 
 
@@ -538,12 +563,13 @@ def _handle_rename_profile(ws: "Workspace", old: str, new: str) -> int:
 
     # Perform rename
     try:
-        ws.profiles.rename(old, new)  # effects: exempt -- ProfileStore method, not Path.rename
+        ws.profiles.rename(old, new)  # effects: exempt -- store method, not Path.rename
     except (ValueError, OSError) as e:
         print(f"Rename failed: {e}", file=sys.stderr)
         sys.exit(1)
 
-    print(f"Renamed profile '{old}' -> '{new}'.")
+    verb = "Would rename" if effects.previewing() else "Renamed"
+    print(f"{verb} profile '{old}' -> '{new}'.")
     return 0
 
 
@@ -612,9 +638,9 @@ def _handle_fix_auth(ws: "Workspace", name: str) -> int:
     if not ws.profiles.path_for(name).is_dir():
         orphan = remove_orphan_token_entry(ws, name)
         if orphan.ok:
+            verb = "Would remove" if effects.previewing() else "Removed"
             print(
-                f"Removed stale token entry for '{name}' "
-                "(no profile directory exists)."
+                f"{verb} stale token entry for '{name}' (no profile directory exists)."
             )
             return 0
         # The only reachable reason here is "no-token-entry": nothing to remove.
@@ -638,11 +664,14 @@ def _handle_fix_auth(ws: "Workspace", name: str) -> int:
             print(f"No auth shadow detected for '{name}'.")
             return 0
 
+    previewing = effects.previewing()
     print(
-        f"Removed session credentials from {name}. Long-lived token will now be used."
+        f"{'Would remove' if previewing else 'Removed'} session credentials "
+        f"from {name}. Long-lived token will now be used."
     )
     if result.tier_saved:
-        print(f"Saved rate-limit tier: {result.tier_saved}")
+        verb = "Would save" if previewing else "Saved"
+        print(f"{verb} rate-limit tier: {result.tier_saved}")
     return 0
 
 
@@ -661,7 +690,9 @@ def _handle_migrate(ws: "Workspace", src: str, dst: str, uuid: str) -> int:
 
     uuid_filter = uuid if uuid else None
     try:
-        migrate_sessions(ws, src, dst, uuid_filter=uuid_filter, dry_run=False)
+        migrate_sessions(
+            ws, src, dst, uuid_filter=uuid_filter, dry_run=effects.previewing()
+        )
     except (FileNotFoundError, OSError) as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
@@ -747,6 +778,11 @@ def _handle_import(
     return 0
 
 
+# deploy_scripts reports what it issued in the past tense; a preview only
+# recorded those writes, so the narration switches to the conditional form.
+_WOULD_DEPLOY = {"created": "would create", "overwritten": "would overwrite"}
+
+
 @strictcli.flag(
     "all",
     type=bool,
@@ -781,10 +817,15 @@ def _handle_deploy_hooks(
 
     scripts_dir = ws.scripts_dir
     targets = sorted(HOOK_SCRIPTS) if all else [name]
+    previewing = effects.previewing()
     for script_name, action in deploy_scripts(targets, scripts_dir, force_overwrite):
         dest = scripts_dir / script_name
         if action == "exists":
             print(f"already exists: {dest}")
+        elif previewing:
+            # deploy_scripts reports the past-tense action it issued; under a
+            # preview the effects chokepoint only recorded it.
+            print(f"{_WOULD_DEPLOY[action]}: {dest}")
         else:
             print(f"{action}: {dest}")
 
@@ -838,9 +879,7 @@ def _handle_reconcile_permissions(ws: "Workspace", profile: str) -> int:
     """
     from .reconcile import run_reconcile
 
-    return run_reconcile(
-        ws, dry_run=effects.previewing(), profile=profile or None
-    )
+    return run_reconcile(ws, dry_run=effects.previewing(), profile=profile or None)
 
 
 def _handle_permission_add(
@@ -869,13 +908,15 @@ def _handle_permission_add(
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
+    previewing = effects.previewing()
     targets = resolve_profiles(ws, profile if profile else None, all_profiles)
     for name, settings_path in targets:
         data = load_settings(settings_path)
         result = add_rule(data, category, rule)
         save_settings(settings_path, data)
         if result == "added":
-            print(f"{name}: added {rule} to {category}")
+            verb = "would add" if previewing else "added"
+            print(f"{name}: {verb} {rule} to {category}")
         else:
             print(f"{name}: already in {category}")
     return 0
@@ -899,13 +940,15 @@ def _handle_permission_remove(
         print("Error: rule must not be empty", file=sys.stderr)
         sys.exit(1)
 
+    previewing = effects.previewing()
     targets = resolve_profiles(ws, profile if profile else None, all_profiles)
     for name, settings_path in targets:
         data = load_settings(settings_path)
         result = remove_rule(data, category, rule)
         if result == "removed":
             save_settings(settings_path, data)
-            print(f"{name}: removed {rule} from {category}")
+            verb = "would remove" if previewing else "removed"
+            print(f"{name}: {verb} {rule} from {category}")
         else:
             print(f"{name}: not found in {category}")
     return 0

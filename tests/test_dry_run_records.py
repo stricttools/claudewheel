@@ -22,6 +22,7 @@ from pathlib import Path
 from unittest import mock
 
 from claudewheel import cli
+from tests.wheelhelpers import SandboxHomeTestCase
 
 
 def _tree(root: Path) -> dict[str, bytes]:
@@ -93,6 +94,230 @@ class DryRunRecordsTests(unittest.TestCase):
         self.assertNotIn("Proceed?", stderr)
         self.assertIn("DRY RUN — no changes were made. Would do:", stdout)
         self.assertNotIn("write:", stdout)
+
+
+class DryRunNarrationIsConditionalTests(SandboxHomeTestCase):
+    """A preview must not narrate itself in the indicative past tense.
+
+    The framework's would-do log is always correct, but it is printed AFTER the
+    handler's own output. A handler that prints "Profile 'x' deleted." above it
+    has told the reader -- and an agent reading the first line of stdout -- that
+    the mutation happened. ``stats``, ``mv``, ``import``, ``install`` and
+    ``reconcile`` already switch verb on the preview flag; every other
+    mutating handler must too.
+
+    Each case asserts BOTH halves: the indicative claim is absent, and the
+    conditional form the handler should print instead is present. Asserting
+    only the absence would pass on a handler that printed nothing at all.
+    """
+
+    def run_cli(self, argv: list[str]) -> tuple[str, str, int]:
+        out, err = io.StringIO(), io.StringIO()
+        code = 0
+        with mock.patch("sys.argv", argv), redirect_stdout(out), redirect_stderr(err):
+            try:
+                cli.main()
+            except SystemExit as e:
+                code = (
+                    e.code if isinstance(e.code, int) else (0 if e.code is None else 1)
+                )
+        return out.getvalue(), err.getvalue(), code
+
+    def seed_profile(self, name: str) -> None:
+        from claudewheel.tokens import TokenExpiryDisposition
+
+        store = self.ws.profiles
+        store.create(name, {"permissions": {"allow": [], "deny": [], "ask": []}})
+        store.token_store.add(name, "TOKEN", expiry=TokenExpiryDisposition.TTL)
+
+    # -- the three confirmed in the report --------------------------------
+
+    def test_profile_delete(self) -> None:
+        self.seed_profile("work")
+        out, err, code = self.run_cli(
+            [
+                "c",
+                "profile",
+                "delete",
+                "work",
+                "--no-force-delete",
+                "--no-force-delete-data",
+                "--dry-run",
+            ]
+        )
+        self.assertEqual(code, 0, err)
+        self.assertNotIn("Profile 'work' deleted.", out)
+        self.assertIn("Would delete profile 'work'", out)
+
+    def test_profile_rename(self) -> None:
+        self.seed_profile("alpha")
+        out, err, code = self.run_cli(
+            ["c", "profile", "rename", "alpha", "beta", "--dry-run"]
+        )
+        self.assertEqual(code, 0, err)
+        self.assertNotIn("Renamed profile", out)
+        self.assertIn("Would rename profile 'alpha' -> 'beta'.", out)
+
+    def test_deploy_hooks(self) -> None:
+        out, err, code = self.run_cli(["c", "deploy-hooks", "--all", "--dry-run"])
+        self.assertEqual(code, 0, err)
+        self.assertNotIn("\ncreated: ", "\n" + out)
+        self.assertIn("would create: ", out)
+
+    # -- the eight the report listed as unverified -------------------------
+
+    def test_uninstall(self) -> None:
+        versions = self.home / ".local/share/claude/versions"
+        versions.mkdir(parents=True)
+        (versions / "9.9.9").write_text("binary")
+        out, err, code = self.run_cli(["c", "uninstall", "9.9.9", "--dry-run"])
+        self.assertEqual(code, 0, err)
+        self.assertNotIn("Uninstalled 9.9.9", out)
+        self.assertIn("Would uninstall 9.9.9", out)
+        self.assertTrue((versions / "9.9.9").is_file())
+
+    def test_reset_options(self) -> None:
+        options = self.sandbox_paths["OPTIONS_FILE"]
+        out, err, code = self.run_cli(["c", "reset-options", "--dry-run"])
+        self.assertEqual(code, 0, err)
+        self.assertNotIn(f"Deleted {options}", out)
+        self.assertIn(f"Would delete {options}", out)
+        self.assertTrue(options.is_file())
+
+    def test_migrate(self) -> None:
+        """`migrate` hard-coded dry_run=False, so its module never saw the preview."""
+        self.seed_profile("src")
+        self.seed_profile("dst")
+        projects = self.sandbox_paths["SHARED_DIR"] / "projects" / "-tmp-proj"
+        projects.mkdir(parents=True, exist_ok=True)
+        (projects / "abc.jsonl").write_text("{}\n")
+        out, err, code = self.run_cli(["c", "migrate", "src", "dst", "--dry-run"])
+        self.assertEqual(code, 0, err)
+        self.assertNotIn("DRY RUN", out.replace("DRY RUN — no changes", ""))
+        self.assertIn("[migrate] DRY RUN", out)
+
+    def test_permission_add(self) -> None:
+        self.seed_profile("work")
+        out, err, code = self.run_cli(
+            [
+                "c",
+                "permission",
+                "add",
+                "allow",
+                "Bash",
+                "--profile",
+                "work",
+                "--dry-run",
+            ]
+        )
+        self.assertEqual(code, 0, err)
+        self.assertNotIn("work: added", out)
+        self.assertIn("work: would add Bash to allow", out)
+
+    def test_permission_remove(self) -> None:
+        self.seed_profile("work")
+        settings = self.sandbox_paths["PROFILES_DIR"] / "work" / "settings.json"
+        settings.write_text(
+            json.dumps({"permissions": {"allow": ["Bash"], "deny": [], "ask": []}})
+        )
+        out, err, code = self.run_cli(
+            [
+                "c",
+                "permission",
+                "remove",
+                "allow",
+                "Bash",
+                "--profile",
+                "work",
+                "--dry-run",
+            ]
+        )
+        self.assertEqual(code, 0, err)
+        self.assertNotIn("work: removed", out)
+        self.assertIn("work: would remove Bash from allow", out)
+
+    def test_profile_fix_auth(self) -> None:
+        self.seed_profile("work")
+        creds = self.sandbox_paths["PROFILES_DIR"] / "work" / ".credentials.json"
+        creds.write_text(json.dumps({"claudeAiOauth": {"rateLimitTier": "max"}}))
+        out, err, code = self.run_cli(["c", "profile", "fix-auth", "work", "--dry-run"])
+        self.assertEqual(code, 0, err)
+        self.assertNotIn("Removed session credentials", out)
+        self.assertIn("Would remove session credentials", out)
+
+    def test_profile_create_summary(self) -> None:
+        """One site the report did not list, found by sweeping the siblings.
+
+        ``profile create`` drives an interactive wizard, so it cannot be
+        exercised through ``main()`` without a real terminal -- but its summary
+        is built by ``wizard.create_profile``, which is callable directly and
+        is where the tense lives.
+        """
+        from claudewheel.wizard import WizardResult, create_profile
+
+        def wiz(name: str) -> WizardResult:
+            return WizardResult(
+                name=name,
+                config_dir=str(self.ws.profiles.path_for(name)),
+                clone_from=None,
+                wire_hooks=False,
+                symlink_shared=False,
+                disable_recap=False,
+                cleanup_10y=False,
+                disable_memory=False,
+                disable_attribution=False,
+            )
+
+        summary = create_profile(self.ws, wiz("fresh"), previewing=True)
+        self.assertNotIn("Created profile", summary[0])
+        self.assertEqual(summary[0], "Would create profile 'fresh':")
+
+        summary = create_profile(self.ws, wiz("real"))
+        self.assertEqual(summary[0], "Created profile 'real':")
+
+    # -- the two that were already correct, pinned so they stay that way ----
+
+    def test_mv_was_already_conditional(self) -> None:
+        proj = self.home / "proj"
+        proj.mkdir()
+        out, err, code = self.run_cli(
+            [
+                "c",
+                "mv",
+                str(proj),
+                str(self.home / "proj2"),
+                "--no-post-hoc",
+                "--dry-run",
+            ]
+        )
+        self.assertEqual(code, 0, err)
+        self.assertIn("[mv] DRY RUN", out)
+
+    def test_import_was_already_conditional(self) -> None:
+        source = self.home / "external"
+        (source / "projects").mkdir(parents=True)
+        target = self.home / "proj"
+        target.mkdir()
+        out, err, code = self.run_cli(
+            [
+                "c",
+                "import",
+                str(source),
+                "--from",
+                "/elsewhere/proj",
+                "--to",
+                str(target),
+                "--no-reid",
+                "--dry-run",
+            ]
+        )
+        self.assertEqual(code, 0, err)
+        self.assertIn("[import] DRY RUN", out)
+
+    def test_stats_was_already_conditional(self) -> None:
+        out, err, code = self.run_cli(["c", "stats", "--dry-run"])
+        self.assertEqual(code, 0, err)
+        self.assertIn("[stats] DRY RUN", out)
 
 
 class RealConfigDirIsAbsentTests(unittest.TestCase):

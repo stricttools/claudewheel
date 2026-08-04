@@ -230,7 +230,9 @@ def _set_onboarding_flag(config_dir: str) -> None:
     write_json_atomic(path, data)
 
 
-def create_profile(ws: "Workspace", result: WizardResult) -> list[str]:
+def create_profile(
+    ws: "Workspace", result: WizardResult, previewing: bool = False
+) -> list[str]:
     """Execute the profile creation based on wizard results.
 
     Assembles the final settings dict (clone/defaults/checkbox overrides/hooks)
@@ -240,6 +242,11 @@ def create_profile(ws: "Workspace", result: WizardResult) -> list[str]:
 
     Returns the summary lines describing what was created; presentation is
     the caller's job (the TUI shows a fullscreen page, the CLI prints them).
+
+    ``previewing`` switches the summary's leading verb to the conditional. The
+    store's writes are recorded rather than performed under ``--dry-run``, so a
+    past-tense summary would claim work that did not happen. The TUI never
+    previews and leaves the default.
     """
     # Load shared settings once -- used for profileDefaults and hooks/disallowedTools
     shared = _load_shared_settings(ws)
@@ -300,7 +307,7 @@ def create_profile(ws: "Workspace", result: WizardResult) -> list[str]:
     config_dir = store.path_for(result.name)
 
     return [
-        f"Created profile '{result.name}':",
+        f"{'Would create' if previewing else 'Created'} profile '{result.name}':",
         f"  Config dir:     {config_dir}",
         f"  Settings from:  {result.clone_from or 'defaults'}",
         f"  Hooks wired:    {result.wire_hooks}",
