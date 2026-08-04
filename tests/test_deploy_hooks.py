@@ -30,11 +30,11 @@ class DeployHooksTests(unittest.TestCase):
         self.addCleanup(self._env_patch.stop)
 
     def _run_deploy(self, argv: list[str]) -> tuple[str, str, bool]:
-        """Run deploy-hooks with the given argv.
+        """Run deploy-hooks with the given argv, exactly as written.
 
-        ``--yes`` is appended because deploy-hooks is classified ``mutating``
-        and the real CLI path runs strictcli's confirm protocol: without it the
-        framework refuses on a non-TTY stdin before the handler is reached.
+        Nothing is appended. deploy-hooks is ``mutating`` but not
+        ``consequential``, so strictcli's confirm protocol never fires for it
+        and the bare invocation runs through on a non-TTY stdin.
 
         Returns (stdout, stderr, exited).
         """
@@ -42,7 +42,7 @@ class DeployHooksTests(unittest.TestCase):
         err = io.StringIO()
         exited = False
         with (
-            mock.patch("sys.argv", argv + ["--yes"]),
+            mock.patch("sys.argv", argv),
             redirect_stdout(out),
             redirect_stderr(err),
         ):
@@ -273,7 +273,7 @@ class HookBlockUnsafeCommandsTests(unittest.TestCase):
         out = io.StringIO()
         with (
             mock.patch.dict("os.environ", {"CLAUDEWHEEL_CONFIG_DIR": str(launcher)}),
-            mock.patch("sys.argv", ["c", "deploy-hooks", "--all", "--yes"]),
+            mock.patch("sys.argv", ["c", "deploy-hooks", "--all"]),
             redirect_stdout(out),
             redirect_stderr(io.StringIO()),
         ):
@@ -352,7 +352,7 @@ class HookAdviseCommandsTests(unittest.TestCase):
         out = io.StringIO()
         with (
             mock.patch.dict("os.environ", {"CLAUDEWHEEL_CONFIG_DIR": str(launcher)}),
-            mock.patch("sys.argv", ["c", "deploy-hooks", "--all", "--yes"]),
+            mock.patch("sys.argv", ["c", "deploy-hooks", "--all"]),
             redirect_stdout(out),
             redirect_stderr(io.StringIO()),
         ):

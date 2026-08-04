@@ -387,29 +387,24 @@ class ReconcileCliTests(_ReconcileTestCase):
         s = self.read_settings("work")
         self.assertIn("Bash(bogus:*)", s["permissions"]["deny"])
 
-    def test_command_writes_when_confirmed(self) -> None:
-        self.make_profile("work", self.drifted_settings())
-        out, _, _ = self._run_cli(["c", "reconcile-permissions", "--yes"])
-        self.assertIn("reconciled", out)
-        s = self.read_settings("work")
-        self.assertEqual(set(s["permissions"]["deny"]), set(canonical_deny_rules()))
+    def test_bare_command_writes_without_prompting(self) -> None:
+        """A bare invocation reconciles: it is mutating, not consequential.
 
-    def test_unconfirmed_non_tty_writes_nothing(self) -> None:
-        """The framework's confirm protocol replaces the old --apply flag.
-
-        Before the effects regime this command required exactly one of
-        --dry-run or --apply, so a bare invocation could not write by
-        accident. --dry-run is now strictcli's, and the same guarantee comes
-        from the confirm protocol: a bare invocation on a non-interactive
-        stdin is refused before the handler runs.
+        The confirm protocol keys on the ``consequential`` declaration, not on
+        the classification, and reconcile-permissions does not declare it --
+        making profiles canonical is this tool's routine maintenance job, and
+        the informative preview is ``--dry-run``, not a blind ``Proceed?``.
+        So the bare form writes straight through, on a non-interactive stdin
+        like this one as much as at a terminal.
         """
         self.make_profile("work", self.drifted_settings())
         out, err, code = self._run_cli(["c", "reconcile-permissions"])
-        self.assertNotEqual(code, 0)
-        self.assertIn("stdin is not interactive", err)
-        # Nothing written.
+        self.assertEqual(code, 0)
+        self.assertNotIn("Proceed?", err)
+        self.assertNotIn("stdin is not interactive", err)
+        self.assertIn("reconciled", out)
         s = self.read_settings("work")
-        self.assertIn("Bash(bogus:*)", s["permissions"]["deny"])
+        self.assertEqual(set(s["permissions"]["deny"]), set(canonical_deny_rules()))
 
     def test_apply_flag_is_gone(self) -> None:
         """--apply was deleted; the framework's --dry-run is the only mode flag."""
@@ -424,9 +419,7 @@ class ReconcileCliTests(_ReconcileTestCase):
         self.make_profile("work", self.drifted_settings())
         self.make_profile("play", self.drifted_settings())
         play_before = self.settings_path("play").read_text()
-        out, _, _ = self._run_cli(
-            ["c", "reconcile-permissions", "--yes", "--profile", "work"]
-        )
+        out, _, _ = self._run_cli(["c", "reconcile-permissions", "--profile", "work"])
         self.assertIn("work: reconciled", out)
         self.assertEqual(self.settings_path("play").read_text(), play_before)
 

@@ -1,26 +1,36 @@
-"""Command classification and effects binding, pinned.
+"""Command classification, consequence, and effects binding, pinned.
 
-Three guarantees this file holds:
+Four guarantees this file holds:
 
 1. **Every command carries the classification it was deliberately given.**
    strictcli makes ``effect=`` mandatory, so a missing one is a registration
    error and can never reach here -- but a *wrong* one is silent. The table
    below is the reviewed judgement, and changing a row has to be a deliberate
    edit to this file. ``read_only`` means the command performs no user-visible
-   or consequential mutation: it may read the filesystem, issue declared reads
-   over the network, and nothing else.
+   mutation: it may read the filesystem, issue declared reads over the
+   network, and nothing else.
 
-2. **Every command handler is bound to the effects chokepoint.** Without the
+2. **Exactly one command declares itself consequential.** ``consequential=``
+   is NOT mandatory (contract §8.1) and defaults to false, so an omission is
+   silent in both directions: a missing declaration on a destructive command
+   removes its only prompt, and a stray one on a routine command re-creates
+   the reflex the declaration exists to end. CONSEQUENTIAL below is the
+   reviewed set and the test walks the registry against it in both
+   directions.
+
+3. **Every command handler is bound to the effects chokepoint.** Without the
    binding a handler's effects execute in every mode, including ``--dry-run``
    -- silently, since nothing else would fail.  The test walks the registered
    commands rather than the source, so a command added later without going
    through ``cli._bind`` fails here.
 
-3. **No command redeclares a framework-reserved flag name.** strictcli bans
-   dry-run/yes/quiet/verbose at every level, so a collision is a registration
-   error; this pins that claudewheel's five former ``--dry-run`` flags and
-   ``reconcile-permissions``' ``--apply`` stay gone rather than reappearing
-   under a near-miss spelling.
+4. **No command redeclares a framework-reserved flag name.** strictcli bans
+   dry-run/approve-consequential/quiet/verbose at every level -- plus ``yes``,
+   which owns no framework flag any more but stays banned so a consumer cannot
+   restate ``--approve-consequential`` in the spelling the rename removed. A
+   collision is a registration error; this pins that claudewheel's five former
+   ``--dry-run`` flags and ``reconcile-permissions``' ``--apply`` stay gone
+   rather than reappearing under a near-miss spelling.
 """
 
 import unittest
@@ -86,7 +96,35 @@ EFFECTS = {
     "permission.list": "read_only",
 }
 
-RESERVED_QUARTET = {"dry-run", "yes", "quiet", "verbose"}
+# The reviewed consequence set (contract §8.1). Every other registered command
+# is mutating-but-routine and must never prompt.
+#
+# `profile delete` is here because its BARE form is already irreversible
+# destruction the framework cannot walk back: it removes the profile directory
+# -- .credentials.json and settings.json with it -- drops the profile's entry
+# from tokens.json, and de-registers it from options.json. Re-creating the
+# profile means a fresh OAuth login and a hand-rebuilt settings file.
+#
+# safegit reached the opposite conclusion on `doctor --uninstall` and kept a
+# flag-granular seam inside the handler instead, so the harmless invocation
+# stays quiet. That precedent does not transfer: `safegit doctor` on its own
+# is a diagnosis, whereas there is no harmless `c profile delete`.
+# --force-delete-data only widens the blast radius from "credentials and
+# settings" to "credentials, settings and conversation history" -- both sides
+# of the flag destroy something unrecoverable, so the command is the right
+# granularity and no in-handler seam is needed.
+CONSEQUENTIAL = {"profile.delete"}
+
+# strictcli owns these names at every level. `yes` is not a framework flag any
+# more (the skip flag is --approve-consequential) but stays banned, so a
+# consumer cannot reintroduce the muscle-memory spelling the rename removed.
+RESERVED_FLAG_NAMES = {
+    "dry-run",
+    "approve-consequential",
+    "quiet",
+    "verbose",
+    "yes",
+}
 
 
 def _walk(app: Any) -> dict[str, Any]:
@@ -148,16 +186,47 @@ class ClassificationTests(unittest.TestCase):
             unbound, f"command handlers not routed through cli._bind: {sorted(unbound)}"
         )
 
-    def test_reserved_quartet_is_not_redeclared(self) -> None:
+    def test_reserved_flag_names_are_not_redeclared(self) -> None:
         """No command redeclares a framework-reserved flag name."""
         for path, cmd in self.commands.items():
             names = {f.name for f in cmd.flags}
             with self.subTest(command=path):
                 self.assertFalse(
-                    names & RESERVED_QUARTET,
+                    names & RESERVED_FLAG_NAMES,
                     f"'{path}' declares reserved flag(s) "
-                    f"{sorted(names & RESERVED_QUARTET)}",
+                    f"{sorted(names & RESERVED_FLAG_NAMES)}",
                 )
+
+    def test_consequential_declarations_match_the_reviewed_set(self) -> None:
+        """Exactly the reviewed commands declare themselves consequential.
+
+        Both directions matter. A missing declaration silently removes the
+        only prompt in front of an irreversible command; a stray one puts a
+        blind ``Proceed? [y/N]`` in front of routine work, which is the
+        reflex-forming noise the declaration was introduced to end.
+        """
+        declared = {path for path, cmd in self.commands.items() if cmd.consequential}
+        self.assertEqual(
+            declared,
+            CONSEQUENTIAL,
+            f"consequential declarations drifted: unexpected "
+            f"{sorted(declared - CONSEQUENTIAL)}, missing "
+            f"{sorted(CONSEQUENTIAL - declared)}",
+        )
+
+    def test_launch_is_mutating_but_not_consequential(self) -> None:
+        """The bare `claudewheel` invocation must never open with a prompt.
+
+        ``launch`` earns ``mutating`` -- it replaces this process with the
+        selected client binary -- and under the inferred confirm regime that
+        classification alone forced a ``Proceed? [y/N]`` in front of every
+        session, which claudewheel worked around by auto-supplying the skip
+        flag to its own launch command. Nothing supplies anything now: the
+        command simply is not consequential, so the gate never fires.
+        """
+        launch = self.commands["launch"]
+        self.assertEqual(launch.effect, "mutating")
+        self.assertFalse(launch.consequential)
 
     def test_deprecated_commands_are_classification_exempt(self) -> None:
         """The three retired top-level names carry no classification.

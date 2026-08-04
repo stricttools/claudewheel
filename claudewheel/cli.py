@@ -822,11 +822,11 @@ def _handle_reconcile_permissions(ws: "Workspace", profile: str) -> int:
     (~/.claude) is never read from or written to.
 
     The hand-rolled ``--dry-run``/``--apply`` pair this command used to require
-    is gone: ``--dry-run`` is now the framework's, and the explicit-intent
-    guarantee the pair existed for is the framework's confirm protocol. A bare
-    ``reconcile-permissions`` prompts before it writes, and on a non-interactive
-    stdin it refuses outright unless ``--yes`` is passed -- so the caller still
-    cannot write by accident, through one mechanism instead of two.
+    is gone: ``--dry-run`` is now the framework's, and it is the only mode
+    flag. The command is ``mutating`` but not ``consequential``, so nothing
+    prompts -- reconciling to canonical is this tool's routine maintenance job,
+    and the useful preview is the per-target diff ``--dry-run`` prints, not a
+    blind ``Proceed?``. A bare invocation writes.
     """
     from .reconcile import run_reconcile
 
@@ -1560,7 +1560,9 @@ _APP_LEVEL_FLAGS = frozenset({"--help", "-h", "--version", "-v", "--dump-schema"
 # front of the command token, so the launch injection has to step over them --
 # otherwise `c --dry-run stats` would be rewritten to `c launch --dry-run stats`
 # and preview the TUI instead of the stats cleanup.
-_RESERVED_QUARTET = frozenset({"--dry-run", "--yes", "--quiet", "--verbose"})
+_RESERVED_QUARTET = frozenset(
+    {"--dry-run", "--approve-consequential", "--quiet", "--verbose"}
+)
 
 
 def _inject_launch(argv: list[str]) -> list[str]:
@@ -1580,38 +1582,6 @@ def _inject_launch(argv: list[str]) -> list[str]:
     if not tail or (tail[0] not in _SUBCOMMANDS and tail[0] not in _APP_LEVEL_FLAGS):
         return [argv[0]] + rest[:lead] + ["launch"] + tail
     return list(argv)
-
-
-def _confirm_launch_in_the_tui(argv: list[str]) -> list[str]:
-    """Return argv with ``--yes`` supplied for the ``launch`` command.
-
-    ``launch`` is classified ``mutating`` and it earns that: it replaces this
-    process with the selected client binary and persists the selections it was
-    given. strictcli's confirm protocol therefore wants a ``Proceed? [y/N]``
-    in front of it.
-
-    For this one command that prompt would be answered blind. ``launch`` IS a
-    confirmation surface: it paints a full-screen segment bar, the user moves
-    through profile / model / directory / permissions, and the process is
-    replaced only when they press Enter on a selection they can see. A prompt
-    fired *before* that screen exists asks the user to approve a launch whose
-    target has not been chosen yet -- and it fires on the bare ``claudewheel``
-    invocation that starts every session, where the answer is never anything
-    but yes.
-
-    So the confirmation is not skipped; it is delegated to the screen that can
-    actually show what is being confirmed. Every other mutating command --
-    including everything that writes a profile, a token, a hook or a settings
-    file -- prompts normally, and ``--dry-run`` still previews ``launch`` like
-    anything else (the exec is recorded, not performed).
-    """
-    rest = argv[1:]
-    lead = 0
-    while lead < len(rest) and rest[lead] in _RESERVED_QUARTET:
-        lead += 1
-    if rest[lead : lead + 1] != ["launch"] or "--yes" in rest:
-        return list(argv)
-    return [argv[0]] + rest[: lead + 1] + ["--yes"] + rest[lead + 1 :]
 
 
 def _bind(handler: Callable[..., int], *pre: Any) -> Callable[..., int]:
@@ -1747,6 +1717,14 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
     profile_grp.command(
         "delete",
         effect="mutating",
+        # The one consequential command in claudewheel (contract §8.1). Even
+        # the bare form is irreversible: the profile directory goes, taking
+        # .credentials.json and settings.json with it, and the tokens.json
+        # entry goes with it. --force-delete-data only widens that from
+        # "credentials and settings" to "credentials, settings and
+        # conversation history", so there is no harmless invocation to keep
+        # quiet and the command -- not the flag -- is the right granularity.
+        consequential=True,
         grants=[
             Grant(
                 "irreversible-delete",
@@ -1931,7 +1909,7 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
     app.command(
         "reconcile-permissions",
         effect="mutating",
-        help="reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask made exact; allow keeps only its non-conflicting entries); prunes all drift and user-added extras. The 'default' profile (~/.claude) is never touched. Pass --dry-run to preview the per-target diff without writing; without it the reconciliation is confirmed before it writes.",
+        help="reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask made exact; allow keeps only its non-conflicting entries); prunes all drift and user-added extras. The 'default' profile (~/.claude) is never touched. Pass --dry-run to preview the per-target diff without writing; without it the reconciliation is written straight away.",
     )(_bind(_handle_reconcile_permissions, ws))
 
     # -- Permission group --
@@ -2157,7 +2135,7 @@ def main() -> None:
     # If no subcommand given, inject "launch" so the TUI starts.
     # Exception: app-level flags (--help/-h/--version/-v/--dump-schema) are
     # handled at the app level, not routed to the launch command.
-    sys.argv = _confirm_launch_in_the_tui(_inject_launch(sys.argv))
+    sys.argv = _inject_launch(sys.argv)
 
     # Open the workspace ONCE at the dispatch boundary and thread it (plus the
     # binary locator, which is separate from the workspace by design) into every

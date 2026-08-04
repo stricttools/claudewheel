@@ -234,7 +234,7 @@
     },
     "reconcile-permissions": {
       "name": "reconcile-permissions",
-      "help": "reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask made exact; allow keeps only its non-conflicting entries); prunes all drift and user-added extras. The 'default' profile (~/.claude) is never touched. Pass --dry-run to preview the per-target diff without writing; without it the reconciliation is confirmed before it writes.",
+      "help": "reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask made exact; allow keeps only its non-conflicting entries); prunes all drift and user-added extras. The 'default' profile (~/.claude) is never touched. Pass --dry-run to preview the per-target diff without writing; without it the reconciliation is written straight away.",
       "effect": "mutating",
       "flags": [
         {
@@ -360,6 +360,7 @@
           "name": "delete",
           "help": "delete a registered profile and clean up its directory, tokens, and options entries",
           "effect": "mutating",
+          "consequential": true,
           "flags": [
             {
               "name": "force-delete",
