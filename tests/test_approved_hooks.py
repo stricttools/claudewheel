@@ -12,7 +12,7 @@ comparison, realpath keying) runs for real against a sandbox workspace.
 from __future__ import annotations
 
 import json
-import os
+import unittest
 from pathlib import Path
 from unittest import mock
 

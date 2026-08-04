@@ -229,7 +229,7 @@ class ProfileStoreContractTests(SandboxHomeTestCase):
 
     def test_discover_preloaded_view_never_reloads(self) -> None:
         """A preloaded tokens view is used verbatim; a corrupt file is never read."""
-        p = self.make_profile("alpha", credentials=True)
+        self.make_profile("alpha", credentials=True)
         self.sandbox_paths["TOKENS_FILE"].write_text("{invalid json")
         # Even in 'raise' mode, an explicit view means no load happens, so the
         # corrupt file can never raise.
