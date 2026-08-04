@@ -310,3 +310,24 @@ class InstallVersionTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DownloadTempPathTests(unittest.TestCase):
+    """The staging path must be derived from the whole version, not its stem.
+
+    ``Path.with_suffix`` REPLACES the last suffix, and a semver version is all
+    suffixes: ``Path("2.1.220").with_suffix(".downloading")`` is
+    ``2.1.downloading``.  Two concurrent installs of ``2.1.220`` and ``2.1.221``
+    therefore stage into the SAME file and clobber each other's bytes -- and
+    each then renames whatever survived onto its own destination, so one of the
+    two lands a binary whose checksum was never verified against it.
+    """
+
+    def test_staging_path_keeps_the_full_version(self) -> None:
+        staged = install._staging_path(Path("/v") / "2.1.220")
+        self.assertEqual(staged.name, "2.1.220.downloading")
+
+    def test_two_patch_versions_do_not_share_a_staging_path(self) -> None:
+        a = install._staging_path(Path("/v") / "2.1.220")
+        b = install._staging_path(Path("/v") / "2.1.221")
+        self.assertNotEqual(a, b)

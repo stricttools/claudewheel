@@ -88,6 +88,17 @@ def fetch_manifest(version: str) -> dict[str, Any]:
     return data
 
 
+def _staging_path(dest: Path) -> Path:
+    """The temp path a download stages into before it is renamed onto *dest*.
+
+    Built by APPENDING to the full name rather than by ``with_suffix``: a
+    semver version is nothing but suffixes, so ``Path("2.1.220").with_suffix(
+    ".downloading")`` yields ``2.1.downloading`` and every patch release of the
+    same minor stages into one shared file.
+    """
+    return dest.with_name(dest.name + ".downloading")
+
+
 def install_version(
     locator: "BinaryLocator",
     version: str,
@@ -132,7 +143,7 @@ def install_version(
 
     versions_dir = locator.versions_dir
     dest = versions_dir / version
-    tmp = dest.with_suffix(".downloading")
+    tmp = _staging_path(dest)
 
     if effects.previewing():
         # A preview names every step the install would take -- including the
