@@ -96,6 +96,13 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 | `permission remove` | Remove a permission rule from a profile's settings.json. Takes a category (allow, deny, or ask) and the exact rule string to delete. The rule is removed from the specified category array and the file is saved. Use --profile to target a single profile or --all-profiles to remove the rule from every registered profile. Reports whether the rule was found. |
 | `permission list` | List permission rules from a profile's settings.json. Displays rules in grouped, flat, or JSON format controlled by --format. Use --category to filter output to a single category (allow, deny, or ask). Use --profile to inspect a single profile or --all-profiles to show rules from every registered profile, with each profile's rules displayed under a header. |
 
+### Confirmation and preview
+
+- Ordinary commands need no approval flag. `c launch`, `c deploy-hooks --all`, `c reconcile-permissions` and `c patch-profiles` are the bare, correct invocations from a script, hook or agent -- including the bare `claudewheel` that starts a session, which prompts for nothing.
+- The CLI framework prompts only for commands that declare themselves `consequential`, and in claudewheel that is exactly `profile delete`: it removes the profile directory with its `.credentials.json` and `settings.json`, drops the `tokens.json` entry, and de-registers the profile, none of which can be walked back. It refuses with `error: stdin is not interactive; pass --approve-consequential to confirm` when there is no terminal, so a script that means to run it passes `--approve-consequential`.
+- `--quiet`, `--verbose`, `--dry-run` and `--approve-consequential` are framework-owned: no short forms, recognized anywhere in the command line, and never valid as claudewheel's own flag names.
+- `--dry-run` previews instead of writing: every subprocess launch, filesystem mutation and network call is recorded in a would-do log and nothing under `~/.claudewheel/` is touched. It also suppresses the confirmation, so a preview never has to be consented to.
+
 ## Config system
 
 - Config files live in `~/.claudewheel/` (config.json, segments.json, options.json, state.json, themes/)
