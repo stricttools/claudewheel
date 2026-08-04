@@ -305,10 +305,13 @@ def _handle_install(locator: "BinaryLocator", version: str) -> int:
             pct = downloaded * 100 // total
             print(f"\r  {mb_done:.0f}/{mb_total:.0f} MB ({pct}%)", end="", flush=True)
 
-    print(f"Downloading Claude Code {version}...")
+    previewing = effects.previewing()
+    verb = "Would download" if previewing else "Downloading"
+    print(f"{verb} Claude Code {version}...")
     try:
         dest = install_version(locator, version, progress_callback=on_progress)
-        print(f"\nInstalled to {dest}")
+        outcome = "Would install to" if previewing else "\nInstalled to"
+        print(f"{outcome} {dest}")
     except OSError as e:
         print(f"\nInstallation failed: {e}", file=sys.stderr)
         sys.exit(1)
