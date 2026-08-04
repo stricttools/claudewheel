@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import re
-import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+from . import effects
 
 if TYPE_CHECKING:
     from .workspace import Workspace
@@ -105,10 +106,10 @@ def _move_artifact(
     if dry_run:
         _log(f"MOVE  {src}")
         _log(f"  ->  {dst}")
-        return
 
-    dst.parent.mkdir(parents=True, exist_ok=True)
-    shutil.move(str(src), str(dst))
+    if effects.issue(dry_run):
+        effects.mkdir(dst.parent, parents=True, exist_ok=True)
+        effects.move(src, dst)
 
 
 def _shared_store(src: Path, dst: Path) -> bool:

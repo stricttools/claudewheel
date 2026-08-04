@@ -1,8 +1,10 @@
 """Report shared-store statistics and clean up legacy data."""
 
 from __future__ import annotations
-import shutil
+
 from typing import TYPE_CHECKING
+
+from . import effects
 
 if TYPE_CHECKING:
     from .shared_store import SharedStore
@@ -42,10 +44,9 @@ def run_stats(store: "SharedStore", dry_run: bool = False) -> None:
         _log("DRY RUN -- no changes will be made")
     sentinels_dir = store.subdir("sentinels")
     if sentinels_dir.is_dir():
-        if dry_run:
-            _log(f"would remove legacy sentinels dir: {sentinels_dir}")
-        else:
-            shutil.rmtree(sentinels_dir)
-            _log(f"removed legacy sentinels dir: {sentinels_dir}")
+        if effects.issue(dry_run):
+            effects.rmtree(sentinels_dir)
+        verb = "would remove" if dry_run else "removed"
+        _log(f"{verb} legacy sentinels dir: {sentinels_dir}")
     _report_shared_stats(store)
     _log("done")

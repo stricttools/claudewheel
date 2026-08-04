@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import re
-import shutil
 import uuid as uuid_mod
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from .fsutil import write_text_atomic
+from . import effects
+from .effects import write_text_atomic
 from .session import get_session_cwd
 from .shared_store import SharedStore
 
@@ -167,8 +167,8 @@ def _rewrite_jsonl(
             rewritten_count += 1
         new_lines.append(result_line)
 
-    if not dry_run:
-        dst_path.parent.mkdir(parents=True, exist_ok=True)
+    if effects.issue(dry_run):
+        effects.mkdir(dst_path.parent, parents=True, exist_ok=True)
         write_text_atomic(dst_path, "".join(new_lines))
 
     return rewritten_count
@@ -365,8 +365,8 @@ def run_import(
         # Companion directory (<uuid>/ with subagents/, tool-results/, etc.).
         if b.companion_dir is not None:
             target_companion = target_dir / effective_uuid
-            if not dry_run:
-                target_companion.mkdir(parents=True, exist_ok=True)
+            if effects.issue(dry_run):
+                effects.mkdir(target_companion, parents=True, exist_ok=True)
 
             for item in sorted(b.companion_dir.rglob("*")):
                 if not item.is_file():
@@ -393,12 +393,10 @@ def run_import(
                     )
                     result.lines_rewritten += lines_rewritten
                 else:
-                    if dry_run:
-                        _log(f"    would copy {rel}")
-                    else:
-                        dst.parent.mkdir(parents=True, exist_ok=True)
-                        shutil.copy2(str(item), str(dst))
-                        _log(f"    copied {rel}")
+                    if effects.issue(dry_run):
+                        effects.mkdir(dst.parent, parents=True, exist_ok=True)
+                        effects.copy_file(item, dst)
+                    _log(f"    {'would copy' if dry_run else 'copied'} {rel}")
                 result.artifacts_copied += 1
 
         # Scan SIMPLE_DIRS in the source root for UUID-keyed artifacts.
@@ -418,19 +416,17 @@ def run_import(
     paste_src = source_path / "paste-cache"
     if paste_src.is_dir():
         paste_dst = store.subdir("paste-cache")
-        if not dry_run:
-            paste_dst.mkdir(parents=True, exist_ok=True)
+        if effects.issue(dry_run):
+            effects.mkdir(paste_dst, parents=True, exist_ok=True)
         for item in sorted(paste_src.iterdir()):
             if not item.is_file():
                 continue
             dst = paste_dst / item.name
             if dst.exists():
                 continue  # content-hash-keyed, skip duplicates
-            if dry_run:
-                _log(f"  would copy paste-cache/{item.name}")
-            else:
-                shutil.copy2(str(item), str(dst))
-                _log(f"  copied paste-cache/{item.name}")
+            if effects.issue(dry_run):
+                effects.copy_file(item, dst)
+            _log(f"  {'would copy' if dry_run else 'copied'} paste-cache/{item.name}")
             result.paste_files_copied += 1
 
     # 10. Summary.
@@ -478,12 +474,10 @@ def _copy_simple_artifacts(
             dst = dst_base / new_name
             if dst.exists():
                 continue
-            if dry_run:
-                _log(f"  would copy {dirname}/{new_name}")
-            else:
-                dst_base.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(str(item), str(dst))
-                _log(f"  copied {dirname}/{new_name}")
+            if effects.issue(dry_run):
+                effects.mkdir(dst_base, parents=True, exist_ok=True)
+                effects.copy_file(item, dst)
+            _log(f"  {'would copy' if dry_run else 'copied'} {dirname}/{new_name}")
             result.artifacts_copied += 1
     else:
         # session-env/, file-history/, tasks/: direct child dirs named as UUIDs
@@ -493,13 +487,11 @@ def _copy_simple_artifacts(
         dst = dst_base / effective_uuid
         if dst.exists():
             return
-        if dry_run:
-            _log(f"  would copy {dirname}/{effective_uuid}")
-        else:
-            dst.parent.mkdir(parents=True, exist_ok=True)
+        if effects.issue(dry_run):
+            effects.mkdir(dst.parent, parents=True, exist_ok=True)
             if artifact.is_dir():
-                shutil.copytree(str(artifact), str(dst))
+                effects.copytree(artifact, dst)
             else:
-                shutil.copy2(str(artifact), str(dst))
-            _log(f"  copied {dirname}/{effective_uuid}")
+                effects.copy_file(artifact, dst)
+        _log(f"  {'would copy' if dry_run else 'copied'} {dirname}/{effective_uuid}")
         result.artifacts_copied += 1

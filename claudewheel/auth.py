@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import re
 import urllib.error
-import urllib.request
+
+from . import effects
 
 # validate_token() result states.
 VALID = "valid"  # API accepted the token (HTTP 200)
@@ -55,18 +56,22 @@ def validate_token(token: str, timeout: float = 5.0) -> str:
 
     Never logs, prints, or embeds the token in any raised exception.
     """
-    req = urllib.request.Request(
-        _MODELS_URL,
-        headers={
-            "Authorization": f"Bearer {token}",
-            "anthropic-version": _ANTHROPIC_VERSION,
-        },
-    )
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            if resp.status == 200:
-                return VALID
-            return INDETERMINATE
+        # A declared read: probing whether a stored token is still accepted
+        # changes nothing on the far side, so it runs in every mode. It has to:
+        # `profile check-tokens` is classified read_only, where minting a
+        # NET_MUTATE would be a hard error at the call.
+        status = effects.http_status(
+            _MODELS_URL,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "anthropic-version": _ANTHROPIC_VERSION,
+            },
+            timeout=timeout,
+        )
+        if status == 200:
+            return VALID
+        return INDETERMINATE
     except urllib.error.HTTPError as exc:
         if exc.code == 401:
             return INVALID

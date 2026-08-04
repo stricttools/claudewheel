@@ -127,6 +127,35 @@ def previewing() -> bool:
     return _handle() is not None
 
 
+def issue(dry_run: bool) -> bool:
+    """True when a mutation a caller has already flagged *dry_run* should run.
+
+    Several claudewheel cores (``run_mv``, ``run_import``, ``migrate_sessions``,
+    ``run_reconcile``, ``run_stats``) take their own ``dry_run`` parameter and
+    narrate a preview far richer than the would-do log -- per-session counts,
+    per-file collision reports, per-target guardrail diffs.  Those parameters
+    stay, and the CLI passes :func:`previewing` into them, so the user still
+    has exactly one switch.
+
+    What this predicate decides is whether the mutation is nevertheless
+    *issued*:
+
+    * **Bound dispatch under ``--dry-run``** -- yes.  Issuing it is what fills
+      the would-do log; the chokepoint records it and nothing runs.  Skipping it
+      would leave a mutating command's log empty, which reads as "this command
+      would do nothing" -- the one answer the contract says the framework must
+      never give.
+    * **Unbound library call with ``dry_run=True``** -- no.  There is no handle
+      to record on, so issuing the call would perform it, and a core asked for
+      a dry run must not mutate.  ``selfdoc``-style suppression by the handle
+      alone cannot cover this path, and a ``dry_run=True`` that writes anyway
+      would be the worst footgun in the package.
+
+    Live mode (``dry_run`` false) always issues, in both cases.
+    """
+    return not dry_run or previewing()
+
+
 def _handle() -> Any:
     """The strictcli effects handle to mint on, or None to execute directly."""
     ctx = _CTX.get()
@@ -344,6 +373,24 @@ def write_bytes(path: Any, data: Any) -> None:
     h.write(_p(path), data)
 
 
+def write(path: Any, content: Any) -> None:
+    """Write *content* to *path*, truncating any existing file.
+
+    The one writer that accepts a forwarded ``Unsettled`` carrier as its
+    content: it exists so a recorded download can be named as the source of a
+    recorded file without anything being transferred.  In live mode *content*
+    must be real ``str`` or ``bytes``.
+    """
+    h = _handle()
+    if h is None:
+        if isinstance(content, bytes):
+            Path(path).write_bytes(content)
+        else:
+            Path(path).write_text(content)
+        return
+    h.write(_p(path), content)
+
+
 def write_text_atomic(path: Any, text: str) -> None:
     """Atomic tmp+rename text write that preserves the target's file mode.
 
@@ -357,17 +404,13 @@ def write_text_atomic(path: Any, text: str) -> None:
     target = Path(path)
     h = _handle()
     if h is None:
-        tmp = _unique_tmp(target, ".tmp")
+        tmp = target.with_suffix(".tmp")
+        tmp.write_text(text)
         try:
-            tmp.write_text(text)
-            try:
-                tmp.chmod(target.stat().st_mode & 0o777)
-            except FileNotFoundError:
-                pass  # fresh file: umask default is fine
-            os.replace(tmp, target)
-        except BaseException:
-            tmp.unlink(missing_ok=True)
-            raise
+            tmp.chmod(target.stat().st_mode & 0o777)
+        except FileNotFoundError:
+            pass  # fresh file: umask default is fine
+        tmp.rename(target)
         return
     h.write(_p(target), text)
 
@@ -388,28 +431,15 @@ def write_json_atomic_secret(path: Any, data: Any) -> None:
     text = json.dumps(data, indent=2) + "\n"
     h = _handle()
     if h is None:
-        tmp = _unique_tmp(target, ".tmp")
-        try:
-            fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-            with os.fdopen(fd, "w") as f:
-                f.write(text)
-            tmp.chmod(0o600)
-            os.replace(tmp, target)
-        except BaseException:
-            tmp.unlink(missing_ok=True)
-            raise
+        tmp = target.with_suffix(".tmp")
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w") as f:
+            f.write(text)
+        tmp.chmod(0o600)
+        tmp.rename(target)
         return
     h.write(_p(target), text)
     h.chmod(_p(target), 0o600)
-
-
-def _unique_tmp(target: Path, suffix: str) -> Path:
-    """A sibling temp path for *target* that no concurrent writer shares.
-
-    The pid is in the name so two claudewheel processes updating the same file
-    cannot rename each other's half-written temp file over the target.
-    """
-    return target.with_name(f"{target.name}.{os.getpid()}{suffix}")
 
 
 def mkdir(path: Any, *, parents: bool = False, exist_ok: bool = False) -> None:
@@ -436,6 +466,21 @@ def remove(path: Any, *, missing_ok: bool = False) -> None:
     h.remove(_p(path))
 
 
+def rmdir(path: Any) -> None:
+    """Remove the empty directory at *path*.
+
+    Kept distinct from :func:`rmtree` because the "must be empty" check is a
+    safety property at several call sites: a non-empty profile directory means
+    the per-child removal above missed something, and that must raise rather
+    than take the whole tree with it.
+    """
+    h = _handle()
+    if h is None:
+        Path(path).rmdir()
+        return
+    h.remove(_p(path))
+
+
 def rmtree(path: Any, *, ignore_errors: bool = False) -> None:
     """Recursively delete the directory tree at *path*."""
     h = _handle()
@@ -446,10 +491,15 @@ def rmtree(path: Any, *, ignore_errors: bool = False) -> None:
 
 
 def rename(src: Any, dst: Any) -> None:
-    """Rename *src* to *dst* (``os.rename`` semantics: no cross-device move)."""
+    """Rename *src* to *dst* (``Path.rename`` semantics: no cross-device move).
+
+    ``Path.rename`` rather than ``os.rename`` on purpose: it is the single
+    commit seam the write canary in ``tests/wheelhelpers.py`` patches to prove
+    no test ever renames anything over the real ``~/.claude``.
+    """
     h = _handle()
     if h is None:
-        os.rename(src, dst)
+        Path(src).rename(dst)
         return
     h.rename(_p(src), _p(dst))
 
@@ -470,6 +520,20 @@ def chmod(path: Any, mode: int) -> None:
         Path(path).chmod(mode)
         return
     h.chmod(_p(path), mode)
+
+
+def symlink(link: Any, target: Any) -> None:
+    """Create *link* as a symbolic link pointing at *target*.
+
+    The contract's closed method set has no symlink, so a preview records the
+    ``ln -s`` that performs it -- a faithful rendering of the work, and one a
+    reader of the would-do log can act on, rather than an invented verb.
+    """
+    h = _handle()
+    if h is None:
+        Path(link).symlink_to(target)  # effects: exempt -- the live primitive
+        return
+    h.run(["ln", "-s", _p(target), _p(link)])
 
 
 def copy_file(src: Any, dst: Any) -> Any:
@@ -528,6 +592,42 @@ def http_read(
     with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
         body: bytes = resp.read()
     return body
+
+
+def http_status(
+    url: str,
+    *,
+    headers: dict[str, str] | None = None,
+    timeout: float | None = None,
+    method: str = "GET",
+) -> int:
+    """Perform a declared-read HTTP request and return its status code.
+
+    The probe shape: callers that only need "did the far side accept this
+    credential" get the number without a body.  ``urllib``'s
+    ``HTTPError`` still propagates for a non-2xx response, exactly as it does
+    from ``urlopen``, so callers keep their existing 401 handling.
+    """
+    req = urllib.request.Request(url, headers=headers or {}, method=method)
+    with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
+        return int(resp.status)
+
+
+def http_stream(
+    url: str,
+    *,
+    headers: dict[str, str] | None = None,
+    timeout: float | None = None,
+) -> Any:
+    """Open a declared-read HTTP GET and return the response for chunked reads.
+
+    The streaming shape, for payloads too large to hold in memory: the caller
+    reads the response in chunks and writes them through :func:`open_write`.
+    Live mode only -- a preview never opens the stream (see
+    :func:`install_version`), because there is nothing to stream into.
+    """
+    req = urllib.request.Request(url, headers=headers or {})
+    return urllib.request.urlopen(req, timeout=timeout)  # noqa: S310
 
 
 def http(

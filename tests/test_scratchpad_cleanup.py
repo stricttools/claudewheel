@@ -246,7 +246,7 @@ class ScratchpadCleanupStepTests(SandboxHomeTestCase):
                 autospec=True,
                 return_value=term,
             ),
-            mock.patch("claudewheel.preflight.shutil.rmtree", new=flaky),
+            mock.patch("claudewheel.preflight.effects.rmtree", new=flaky),
         ):
             result = _scratchpad_cleanup_run(self._ctx())
         # Launch continues; the failing dir survives, the other is gone.

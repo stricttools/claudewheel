@@ -1326,7 +1326,7 @@ class AuthFlowTests(AuthFlowTestBase):
         fake_binary = self._make_fake_binary()
 
         def fake_run(
-            cmd: list[str], env: dict[str, str]
+            cmd: list[str], env: dict[str, str], **_kw: object
         ) -> subprocess.CompletedProcess[str]:
             # Simulate claude auth login creating credentials
             (Path(env["CLAUDE_CONFIG_DIR"]) / ".credentials.json").write_text("{}")
@@ -1344,7 +1344,7 @@ class AuthFlowTests(AuthFlowTestBase):
                 autospec=True,
             ),
             mock.patch(
-                "claudewheel.wizard.subprocess.run", side_effect=fake_run, autospec=True
+                "claudewheel.wizard.effects.run", side_effect=fake_run, autospec=True
             ),
         ):
             result = run_auth_flow(
@@ -1375,7 +1375,7 @@ class AuthFlowTests(AuthFlowTestBase):
                 autospec=True,
             ),
             mock.patch(
-                "claudewheel.wizard.subprocess.run",
+                "claudewheel.wizard.effects.run",
                 return_value=subprocess.CompletedProcess([], 0),
                 autospec=True,
             ),
@@ -1404,7 +1404,7 @@ class AuthFlowTests(AuthFlowTestBase):
                 autospec=True,
             ),
             mock.patch(
-                "claudewheel.wizard.subprocess.run",
+                "claudewheel.wizard.effects.run",
                 return_value=subprocess.CompletedProcess([], 1),
                 autospec=True,
             ),
@@ -1442,7 +1442,7 @@ class AuthFlowTests(AuthFlowTestBase):
                 autospec=True,
             ),
             mock.patch(
-                "claudewheel.wizard.run_under_pty",
+                "claudewheel.wizard.effects.run_under_pty",
                 autospec=True,
                 return_value=(0, CAPTURED_OUTPUT),
             ),
@@ -1514,7 +1514,7 @@ class AuthFlowTests(AuthFlowTestBase):
                 autospec=True,
             ),
             mock.patch(
-                "claudewheel.wizard.run_under_pty", autospec=True, return_value=(1, b"")
+                "claudewheel.wizard.effects.run_under_pty", autospec=True, return_value=(1, b"")
             ),
         ):
             result = run_auth_flow(
@@ -1545,7 +1545,7 @@ class AuthFlowTests(AuthFlowTestBase):
                 autospec=True,
             ),
             mock.patch(
-                "claudewheel.wizard.run_under_pty",
+                "claudewheel.wizard.effects.run_under_pty",
                 autospec=True,
                 side_effect=RuntimeError("cannot open /dev/tty"),
             ),
@@ -1580,7 +1580,7 @@ class AuthFlowTests(AuthFlowTestBase):
                 autospec=True,
             ),
             mock.patch(
-                "claudewheel.wizard.run_under_pty",
+                "claudewheel.wizard.effects.run_under_pty",
                 autospec=True,
                 return_value=(0, b"no token in this output"),
             ),
@@ -1622,7 +1622,7 @@ class AuthFlowTests(AuthFlowTestBase):
                 autospec=True,
             ),
             mock.patch(
-                "claudewheel.wizard.run_under_pty",
+                "claudewheel.wizard.effects.run_under_pty",
                 autospec=True,
                 return_value=(0, b"nothing to extract"),
             ),
@@ -1667,7 +1667,7 @@ class AuthFlowTests(AuthFlowTestBase):
                 autospec=True,
             ),
             mock.patch(
-                "claudewheel.wizard.run_under_pty",
+                "claudewheel.wizard.effects.run_under_pty",
                 autospec=True,
                 return_value=(0, b"nothing to extract"),
             ),
@@ -1703,7 +1703,7 @@ class AuthFlowTests(AuthFlowTestBase):
                 autospec=True,
             ),
             mock.patch(
-                "claudewheel.wizard.run_under_pty",
+                "claudewheel.wizard.effects.run_under_pty",
                 autospec=True,
                 return_value=(0, CAPTURED_OUTPUT),
             ),
@@ -1747,7 +1747,7 @@ class AuthFlowTests(AuthFlowTestBase):
                 autospec=True,
             ),
             mock.patch(
-                "claudewheel.wizard.subprocess.run",
+                "claudewheel.wizard.effects.run",
                 side_effect=OSError("exec failed"),
                 autospec=True,
             ),
@@ -1807,7 +1807,7 @@ class BrowserSelectionTests(AuthFlowTestBase):
                 autospec=True,
             ),
             mock.patch(
-                "claudewheel.wizard.subprocess.run",
+                "claudewheel.wizard.effects.run",
                 return_value=subprocess.CompletedProcess([], 1),
                 autospec=True,
             ),
@@ -1847,7 +1847,7 @@ class BrowserSelectionTests(AuthFlowTestBase):
                 autospec=True,
             ),
             mock.patch(
-                "claudewheel.wizard.run_under_pty", autospec=True, return_value=(1, b"")
+                "claudewheel.wizard.effects.run_under_pty", autospec=True, return_value=(1, b"")
             ),
         ):
             run_auth_flow(
@@ -1911,7 +1911,7 @@ class BrowserSelectionTests(AuthFlowTestBase):
                 autospec=True,
                 side_effect=["session", None],
             ),
-            mock.patch("claudewheel.wizard.subprocess.run", autospec=True) as mock_run,
+            mock.patch("claudewheel.wizard.effects.run", autospec=True) as mock_run,
         ):
             result = run_auth_flow(
                 self.ws,
@@ -1965,7 +1965,7 @@ class BrowserSelectionTests(AuthFlowTestBase):
                 autospec=True,
             ),
             mock.patch(
-                "claudewheel.wizard.subprocess.run",
+                "claudewheel.wizard.effects.run",
                 return_value=subprocess.CompletedProcess([], 1),
                 autospec=True,
             ) as mock_run,
@@ -2000,7 +2000,7 @@ class BrowserSelectionTests(AuthFlowTestBase):
                 autospec=True,
             ),
             mock.patch(
-                "claudewheel.wizard.subprocess.run",
+                "claudewheel.wizard.effects.run",
                 return_value=subprocess.CompletedProcess([], 1),
                 autospec=True,
             ) as mock_run,
@@ -2036,7 +2036,7 @@ class BrowserSelectionTests(AuthFlowTestBase):
                 autospec=True,
             ),
             mock.patch(
-                "claudewheel.wizard.run_under_pty", autospec=True, return_value=(1, b"")
+                "claudewheel.wizard.effects.run_under_pty", autospec=True, return_value=(1, b"")
             ) as mock_pty,
         ):
             run_auth_flow(
@@ -2070,7 +2070,7 @@ class BrowserSelectionTests(AuthFlowTestBase):
                 autospec=True,
             ),
             mock.patch(
-                "claudewheel.wizard.run_under_pty", autospec=True, return_value=(1, b"")
+                "claudewheel.wizard.effects.run_under_pty", autospec=True, return_value=(1, b"")
             ) as mock_pty,
         ):
             run_auth_flow(
@@ -2103,7 +2103,7 @@ class AuthBrowserPersistenceTests(AuthFlowTestBase):
         fake_binary = self._make_fake_binary()
 
         def fake_run(
-            cmd: list[str], env: dict[str, str]
+            cmd: list[str], env: dict[str, str], **_kw: object
         ) -> subprocess.CompletedProcess[str]:
             (Path(env["CLAUDE_CONFIG_DIR"]) / ".credentials.json").write_text("{}")
             return subprocess.CompletedProcess(cmd, 0)
@@ -2120,7 +2120,7 @@ class AuthBrowserPersistenceTests(AuthFlowTestBase):
                 autospec=True,
             ),
             mock.patch(
-                "claudewheel.wizard.subprocess.run", side_effect=fake_run, autospec=True
+                "claudewheel.wizard.effects.run", side_effect=fake_run, autospec=True
             ),
         ):
             return run_auth_flow(
@@ -2158,7 +2158,7 @@ class AuthBrowserPersistenceTests(AuthFlowTestBase):
                 autospec=True,
             ),
             mock.patch(
-                "claudewheel.wizard.run_under_pty",
+                "claudewheel.wizard.effects.run_under_pty",
                 autospec=True,
                 return_value=(0, CAPTURED_OUTPUT),
             ),
@@ -2204,7 +2204,7 @@ class AuthBrowserPersistenceTests(AuthFlowTestBase):
                 autospec=True,
             ),
             mock.patch(
-                "claudewheel.wizard.run_under_pty",
+                "claudewheel.wizard.effects.run_under_pty",
                 autospec=True,
                 return_value=(0, CAPTURED_OUTPUT),
             ),
@@ -2245,7 +2245,7 @@ class AuthBrowserPersistenceTests(AuthFlowTestBase):
                 autospec=True,
             ),
             mock.patch(
-                "claudewheel.wizard.subprocess.run",
+                "claudewheel.wizard.effects.run",
                 return_value=subprocess.CompletedProcess([], 1),
                 autospec=True,
             ),
@@ -2444,7 +2444,7 @@ class CookedWindowTests(AuthFlowTestBase):
         fake_binary = self._make_fake_binary()
 
         def fake_run(
-            cmd: list[str], env: dict[str, str]
+            cmd: list[str], env: dict[str, str], **_kw: object
         ) -> subprocess.CompletedProcess[str]:
             events.append("subprocess")
             return subprocess.CompletedProcess(cmd, 1)
@@ -2461,7 +2461,7 @@ class CookedWindowTests(AuthFlowTestBase):
                 autospec=True,
             ),
             mock.patch(
-                "claudewheel.wizard.subprocess.run", side_effect=fake_run, autospec=True
+                "claudewheel.wizard.effects.run", side_effect=fake_run, autospec=True
             ),
         ):
             run_auth_flow(
@@ -2484,7 +2484,9 @@ class CookedWindowTests(AuthFlowTestBase):
         self._track_cooked(events)
         fake_binary = self._make_fake_binary()
 
-        def fake_pty(argv: list[str], env: dict[str, str]) -> tuple[int, bytes]:
+        def fake_pty(
+            argv: list[str], env: dict[str, str], **_kw: object
+        ) -> tuple[int, bytes]:
             events.append("pty")
             return (0, CAPTURED_OUTPUT)
 
@@ -2500,7 +2502,7 @@ class CookedWindowTests(AuthFlowTestBase):
                 autospec=True,
             ),
             mock.patch(
-                "claudewheel.wizard.run_under_pty", autospec=True, side_effect=fake_pty
+                "claudewheel.wizard.effects.run_under_pty", autospec=True, side_effect=fake_pty
             ),
             mock.patch(
                 "claudewheel.auth.validate_token",
@@ -2548,7 +2550,7 @@ class CookedWindowTests(AuthFlowTestBase):
                 autospec=True,
             ),
             mock.patch(
-                "claudewheel.wizard.run_under_pty",
+                "claudewheel.wizard.effects.run_under_pty",
                 autospec=True,
                 return_value=(0, b"nothing to extract"),
             ),
@@ -2612,7 +2614,7 @@ class CookedWindowTests(AuthFlowTestBase):
                 autospec=True,
             ),
             mock.patch(
-                "claudewheel.wizard.run_under_pty",
+                "claudewheel.wizard.effects.run_under_pty",
                 autospec=True,
                 return_value=(0, CAPTURED_OUTPUT),
             ),
@@ -2723,12 +2725,12 @@ class TokenValidationRedGreenTests(AuthFlowTestBase):
                 side_effect=["token", "copy"],
             ),
             mock.patch(
-                "claudewheel.wizard.subprocess.run",
+                "claudewheel.wizard.effects.run",
                 return_value=subprocess.CompletedProcess([], 0),
                 autospec=True,
             ),
             mock.patch(
-                "claudewheel.wizard.run_under_pty",
+                "claudewheel.wizard.effects.run_under_pty",
                 create=True,
                 return_value=(0, CAPTURED_OUTPUT),
                 autospec=True,
@@ -2794,7 +2796,7 @@ class TokenRecoveryPasteTests(AuthFlowTestBase):
                 autospec=True,
             ),
             mock.patch(
-                "claudewheel.wizard.run_under_pty",
+                "claudewheel.wizard.effects.run_under_pty",
                 autospec=True,
                 return_value=(0, b"nothing extractable here"),
             ),
@@ -2898,7 +2900,7 @@ class TokenValidationOutcomeTests(AuthFlowTestBase):
                 autospec=True,
             ),
             mock.patch(
-                "claudewheel.wizard.run_under_pty",
+                "claudewheel.wizard.effects.run_under_pty",
                 autospec=True,
                 return_value=(0, captured),
             ),
@@ -3050,7 +3052,7 @@ class TokenValidationOutcomeTests(AuthFlowTestBase):
                 autospec=True,
             ),
             mock.patch(
-                "claudewheel.wizard.run_under_pty",
+                "claudewheel.wizard.effects.run_under_pty",
                 autospec=True,
                 return_value=(0, CAPTURED_OUTPUT),
             ),
@@ -3139,7 +3141,7 @@ class OnboardingFlagAuthTests(AuthFlowTestBase):
         fake_binary = self._make_fake_binary()
 
         def fake_run(
-            cmd: list[str], env: dict[str, str]
+            cmd: list[str], env: dict[str, str], **_kw: object
         ) -> subprocess.CompletedProcess[str]:
             (Path(env["CLAUDE_CONFIG_DIR"]) / ".credentials.json").write_text("{}")
             return subprocess.CompletedProcess(cmd, 0)
@@ -3156,7 +3158,7 @@ class OnboardingFlagAuthTests(AuthFlowTestBase):
                 autospec=True,
             ),
             mock.patch(
-                "claudewheel.wizard.subprocess.run", side_effect=fake_run, autospec=True
+                "claudewheel.wizard.effects.run", side_effect=fake_run, autospec=True
             ),
         ):
             result = run_auth_flow(
@@ -3192,7 +3194,7 @@ class OnboardingFlagAuthTests(AuthFlowTestBase):
                 autospec=True,
             ),
             mock.patch(
-                "claudewheel.wizard.run_under_pty",
+                "claudewheel.wizard.effects.run_under_pty",
                 autospec=True,
                 return_value=(0, CAPTURED_OUTPUT),
             ),
@@ -3236,7 +3238,7 @@ class OnboardingFlagAuthTests(AuthFlowTestBase):
                 autospec=True,
             ),
             mock.patch(
-                "claudewheel.wizard.run_under_pty",
+                "claudewheel.wizard.effects.run_under_pty",
                 autospec=True,
                 return_value=(0, CAPTURED_OUTPUT),
             ),
@@ -3279,7 +3281,7 @@ class OnboardingFlagAuthTests(AuthFlowTestBase):
                 autospec=True,
             ),
             mock.patch(
-                "claudewheel.wizard.subprocess.run",
+                "claudewheel.wizard.effects.run",
                 return_value=subprocess.CompletedProcess([], 1),
                 autospec=True,
             ),
@@ -3319,7 +3321,7 @@ class OnboardingFlagAuthTests(AuthFlowTestBase):
                 autospec=True,
             ),
             mock.patch(
-                "claudewheel.wizard.run_under_pty",
+                "claudewheel.wizard.effects.run_under_pty",
                 autospec=True,
                 return_value=(0, CAPTURED_OUTPUT),
             ),
@@ -3358,7 +3360,7 @@ class TierCaptureTests(AuthFlowTestBase):
         fake_binary = self._make_fake_binary()
 
         def fake_run(
-            cmd: list[str], env: dict[str, str]
+            cmd: list[str], env: dict[str, str], **_kw: object
         ) -> subprocess.CompletedProcess[str]:
             creds = {
                 "claudeAiOauth": {
@@ -3384,7 +3386,7 @@ class TierCaptureTests(AuthFlowTestBase):
                 autospec=True,
             ),
             mock.patch(
-                "claudewheel.wizard.subprocess.run", side_effect=fake_run, autospec=True
+                "claudewheel.wizard.effects.run", side_effect=fake_run, autospec=True
             ),
         ):
             result = run_auth_flow(
@@ -3413,7 +3415,7 @@ class TierCaptureTests(AuthFlowTestBase):
         fake_binary = self._make_fake_binary()
 
         def fake_run(
-            cmd: list[str], env: dict[str, str]
+            cmd: list[str], env: dict[str, str], **_kw: object
         ) -> subprocess.CompletedProcess[str]:
             # No claudeAiOauth section
             (Path(env["CLAUDE_CONFIG_DIR"]) / ".credentials.json").write_text("{}")
@@ -3431,7 +3433,7 @@ class TierCaptureTests(AuthFlowTestBase):
                 autospec=True,
             ),
             mock.patch(
-                "claudewheel.wizard.subprocess.run", side_effect=fake_run, autospec=True
+                "claudewheel.wizard.effects.run", side_effect=fake_run, autospec=True
             ),
             mock.patch(
                 "claudewheel.tokens.TokenStore.set_tier", autospec=True
@@ -3455,7 +3457,7 @@ class TierCaptureTests(AuthFlowTestBase):
         fake_binary = self._make_fake_binary()
 
         def fake_run(
-            cmd: list[str], env: dict[str, str]
+            cmd: list[str], env: dict[str, str], **_kw: object
         ) -> subprocess.CompletedProcess[str]:
             (Path(env["CLAUDE_CONFIG_DIR"]) / ".credentials.json").write_text(
                 "{bad json"
@@ -3474,7 +3476,7 @@ class TierCaptureTests(AuthFlowTestBase):
                 autospec=True,
             ),
             mock.patch(
-                "claudewheel.wizard.subprocess.run", side_effect=fake_run, autospec=True
+                "claudewheel.wizard.effects.run", side_effect=fake_run, autospec=True
             ),
             mock.patch(
                 "claudewheel.tokens.TokenStore.set_tier", autospec=True

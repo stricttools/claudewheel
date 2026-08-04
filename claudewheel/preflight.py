@@ -18,12 +18,13 @@ tearing down their own raw-mode terminal; the call site runs in cooked mode.
 
 from __future__ import annotations
 
-import shutil
 import sys
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING, Any
+
+from . import effects
 
 if TYPE_CHECKING:
     from .binaries import BinaryLocator
@@ -161,7 +162,7 @@ def ensure_vanilla_guardrails(ws: "Workspace") -> bool:
     if before == after:
         return False
 
-    ws.claude_dir.mkdir(parents=True, exist_ok=True)
+    effects.mkdir(ws.claude_dir, parents=True, exist_ok=True)
     save_settings(settings_path, settings)
     return True
 
@@ -520,7 +521,7 @@ def _scratchpad_cleanup_run(ctx: PreflightContext) -> StepResult:
     scratchpad tree is scanned; when no directory is stale, CONTINUE silently.
     When stale dirs exist, render a confirmation page:
 
-    - confirm -> ``shutil.rmtree`` each stale dir. Per-dir errors are collected
+    - confirm -> ``effects.rmtree`` each stale dir. Per-dir errors are collected
       and reported to stderr but NEVER abort the launch; deletion continues for
       the remaining dirs. CONTINUE.
     - decline -> set the snooze to now + :data:`SCRATCHPAD_SNOOZE_DAYS` days and
@@ -566,7 +567,7 @@ def _scratchpad_cleanup_run(ctx: PreflightContext) -> StepResult:
         errors: list[str] = []
         for d in stale:
             try:
-                shutil.rmtree(d.path)
+                effects.rmtree(d.path)
             except OSError as e:
                 errors.append(f"{d.name}: {e}")
         if errors:

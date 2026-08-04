@@ -13,7 +13,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from claudewheel.fsutil import (
+from claudewheel.effects import (
     write_json_atomic,
     write_json_atomic_secret,
     write_text_atomic,

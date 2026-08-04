@@ -10,7 +10,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, NamedTuple
 
-from .fsutil import write_json_atomic_secret
+from .effects import write_json_atomic_secret
 
 # Claude Code setup-token TTL. Single source of truth for token lifetime.
 TOKEN_TTL_DAYS = 365

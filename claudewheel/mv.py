@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import json
-import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from .fsutil import write_json_atomic, write_text_atomic
+from . import effects
+from .effects import write_json_atomic, write_text_atomic
 from .shared_store import SharedStore
 
 if TYPE_CHECKING:
@@ -258,39 +258,32 @@ def _rename_project_dir(old_project: Path, new_project: Path, dry_run: bool) -> 
         return False
 
     if new_project.exists():
-        # Target already exists -- merge contents from old into new
-        if dry_run:
-            _log(f"  would merge {old_project} -> {new_project}")
-            for item in sorted(old_project.iterdir()):
-                dest = new_project / item.name
-                if dest.exists():
-                    _log(f"    would skip (already exists): {item.name}")
-                else:
-                    _log(f"    would move: {item.name}")
-        else:
-            _log(f"  merging {old_project} -> {new_project}")
-            for item in sorted(old_project.iterdir()):
-                dest = new_project / item.name
-                if dest.exists():
-                    _log(f"    skipping (already exists): {item.name}")
-                else:
-                    shutil.move(str(item), str(dest))
-                    _log(f"    moved: {item.name}")
-            # Remove the now-empty old directory
-            try:
-                old_project.rmdir()
-            except OSError:
-                _log(
-                    f"  WARNING: could not remove {old_project} (not empty after merge)"
-                )
+        # Target already exists -- merge contents from old into new. The moves
+        # are issued in both modes: under --dry-run the effects chokepoint
+        # records them into the would-do log rather than performing them, so
+        # this narration and the framework's preview describe the same run.
+        _log(f"  {'would merge' if dry_run else 'merging'} {old_project} -> {new_project}")
+        for item in sorted(old_project.iterdir()):
+            dest = new_project / item.name
+            if dest.exists():
+                _log(f"    {'would skip' if dry_run else 'skipping'} (already exists): {item.name}")
+                continue
+            if effects.issue(dry_run):
+                effects.move(item, dest)
+            _log(f"    {'would move' if dry_run else 'moved'}: {item.name}")
+        # Remove the now-empty old directory
+        try:
+            if effects.issue(dry_run):
+                effects.rmdir(old_project)
+        except OSError:
+            _log(
+                f"  WARNING: could not remove {old_project} (not empty after merge)"
+            )
         return True
 
-    if dry_run:
-        _log(f"  would rename {old_project} -> {new_project}")
-        return True
-
-    old_project.rename(new_project)
-    _log(f"  renamed {old_project} -> {new_project}")
+    if effects.issue(dry_run):
+        effects.rename(old_project, new_project)
+    _log(f"  {'would rename' if dry_run else 'renamed'} {old_project} -> {new_project}")
     return True
 
 
@@ -470,13 +463,13 @@ def run_mv(
     if not post_hoc:
         if dry_run:
             _log(f"would rename directory {old_resolved} -> {new_resolved}")
-        else:
-            try:
-                Path(old_resolved).rename(new_resolved)
-            except OSError as e:
-                raise OSError(
-                    f"failed to rename directory {old_resolved} -> {new_resolved}: {e}"
-                ) from e
+        try:
+            if effects.issue(dry_run):
+                effects.rename(Path(old_resolved), new_resolved)
+        except OSError as e:
+            raise OSError(
+                f"failed to rename directory {old_resolved} -> {new_resolved}: {e}"
+            ) from e
 
     # 6. Process projects/ in each profile dir, longest source path first
     for pdir in profile_dirs:

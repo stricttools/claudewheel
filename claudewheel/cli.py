@@ -49,7 +49,7 @@ def _do_uninstall(locator: "BinaryLocator", version: str) -> int:
         return 1
 
     try:
-        target.unlink()
+        effects.remove(target)
     except OSError as e:
         print(f"Failed to delete {target}: {e}", file=sys.stderr)
         return 1
@@ -66,7 +66,7 @@ def _do_reset_options(ws: "Workspace") -> int:
     options_file = ws.options_file
     if options_file.exists():
         try:
-            options_file.unlink()
+            effects.remove(options_file)
         except OSError as e:
             print(f"Failed to delete {options_file}: {e}", file=sys.stderr)
             return 1
@@ -124,7 +124,7 @@ def _write_tier_stub(
     """
     import json
     from pathlib import Path
-    from .fsutil import write_json_atomic_secret
+    from .effects import write_json_atomic_secret
 
     # The vanilla "default" is Claude Code's own ~/.claude -- strictly read-only
     # to cw. It resolves to no CLAUDE_CONFIG_DIR (config_dir is None), so the
@@ -161,7 +161,7 @@ def _write_tier_stub(
         oauth["subscriptionType"] = subscription
     existing["claudeAiOauth"] = oauth
     try:
-        Path(config_dir).mkdir(parents=True, exist_ok=True)
+        effects.mkdir(Path(config_dir), parents=True, exist_ok=True)
         write_json_atomic_secret(creds_path, existing)
     except OSError:
         pass
@@ -535,7 +535,7 @@ def _handle_rename_profile(ws: "Workspace", old: str, new: str) -> int:
 
     # Perform rename
     try:
-        ws.profiles.rename(old, new)
+        ws.profiles.rename(old, new)  # effects: exempt -- ProfileStore method, not Path.rename
     except (ValueError, OSError) as e:
         print(f"Rename failed: {e}", file=sys.stderr)
         sys.exit(1)

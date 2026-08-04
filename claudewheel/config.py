@@ -27,7 +27,8 @@ from .defaults import (
     build_canonical_shared_settings,
 )
 from .appdata import OptionsFile, StateFile
-from .fsutil import write_json_atomic
+from . import effects
+from .effects import write_json_atomic
 from .terminal import detect_terminal_background
 
 if TYPE_CHECKING:
@@ -299,9 +300,9 @@ class AppConfigStore:
 
     def _ensure_dir(self) -> None:
         """Create config directories and write default files on first run."""
-        self._root.mkdir(exist_ok=True)
-        self._themes_dir.mkdir(exist_ok=True)
-        self._hooks_dir.mkdir(exist_ok=True)
+        effects.mkdir(self._root, exist_ok=True)
+        effects.mkdir(self._themes_dir, exist_ok=True)
+        effects.mkdir(self._hooks_dir, exist_ok=True)
         for path, default in [
             (self._config_file, DEFAULT_CONFIG),
             (self._segments_file, DEFAULT_SEGMENTS),

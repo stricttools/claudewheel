@@ -48,6 +48,7 @@ from typing import TYPE_CHECKING, Any, Callable
 
 from .defaults import DISALLOWED_TOOLS, build_canonical_shared_settings
 from .guardrail import ALLOW_CONFLICTS, canonical_ask_rules, canonical_deny_rules
+from . import effects
 from .hook_scripts import HOOK_SCRIPTS, deploy_scripts
 from .permission import add_rule, load_settings, remove_rule, save_settings
 
@@ -341,10 +342,10 @@ def _process_settings_file(
     changes = reconcile_fn(data, canonical)
     changed = data != original
     report = TargetReport(label, changed=changed, written=False, changes=changes)
-    if changed and not dry_run:
+    if changed and effects.issue(dry_run):
         try:
             save_settings(path, data)
-            report.written = True
+            report.written = not dry_run
         except OSError as e:
             report.skip_reason = f"write-error ({e})"
     return report
@@ -377,11 +378,14 @@ def reconcile_workspace(
             if n in HOOK_SCRIPTS and not (ws.scripts_dir / n).exists()
         ]
         if missing:
-            if dry_run:
+            if not effects.issue(dry_run):
                 report.scripts_would_deploy = missing
             else:
                 for name, _action in deploy_scripts(missing, ws.scripts_dir):
-                    report.scripts_deployed.append(name)
+                    if dry_run:
+                        report.scripts_would_deploy.append(name)
+                    else:
+                        report.scripts_deployed.append(name)
 
     # 2. Profiles (default UNCONDITIONALLY excluded; never read/written).
     profiles = [

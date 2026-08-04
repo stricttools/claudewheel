@@ -7,7 +7,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .fsutil import write_json_atomic
+from . import effects
+from .effects import write_json_atomic
 from .state import OUT_OF_BAND_STATE_KEYS
 
 
@@ -199,5 +200,5 @@ class StateFile:
             except (json.JSONDecodeError, OSError):
                 pass
         data[key] = value
-        self.path.parent.mkdir(parents=True, exist_ok=True)
+        effects.mkdir(self.path.parent, parents=True, exist_ok=True)
         write_json_atomic(self.path, data)

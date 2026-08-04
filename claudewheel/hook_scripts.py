@@ -10,6 +10,8 @@ from pathlib import Path
 
 from claudewheel import guardrail
 
+from . import effects
+
 HOOK_SCRIPTS: dict[str, str] = {
     "hook-timestamp": """\
 #!/usr/bin/env bash
@@ -55,7 +57,7 @@ def deploy_scripts(
     existed and *force_overwrite* was False). Unknown names in *names*
     raise KeyError -- callers validate against HOOK_SCRIPTS first.
     """
-    scripts_dir.mkdir(parents=True, exist_ok=True)
+    effects.mkdir(scripts_dir, parents=True, exist_ok=True)
     results: list[tuple[str, str]] = []
     for name in names:
         dest = scripts_dir / name
@@ -63,7 +65,7 @@ def deploy_scripts(
             results.append((name, "exists"))
             continue
         action = "overwritten" if dest.exists() else "created"
-        dest.write_text(HOOK_SCRIPTS[name])
-        dest.chmod(0o755)
+        effects.write_text(dest, HOOK_SCRIPTS[name])
+        effects.chmod(dest, 0o755)
         results.append((name, action))
     return results

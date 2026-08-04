@@ -1419,7 +1419,7 @@ class DefaultProfileExemptionTests(_HomeDirTestCase):
 
     def _canonical_shared_settings(self) -> None:
         from claudewheel.defaults import build_canonical_shared_settings
-        from claudewheel.fsutil import write_json_atomic
+        from claudewheel.effects import write_json_atomic
 
         canonical = build_canonical_shared_settings(self.ws.scripts_dir)
         self.ws.shared_settings_file.parent.mkdir(parents=True, exist_ok=True)

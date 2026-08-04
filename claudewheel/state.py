@@ -6,7 +6,8 @@ import json
 import os
 from typing import TYPE_CHECKING, Any
 
-from .fsutil import write_json_atomic
+from . import effects
+from .effects import write_json_atomic
 
 if TYPE_CHECKING:
     from .appdata import StateFile
@@ -161,5 +162,5 @@ def record_inode(shared: "SharedStore", directory: str) -> None:
     data[path] = inode
 
     # Atomic write: tmp + rename
-    inodes_file.parent.mkdir(parents=True, exist_ok=True)
+    effects.mkdir(inodes_file.parent, parents=True, exist_ok=True)
     write_json_atomic(inodes_file, data)

@@ -6,11 +6,12 @@ import hashlib
 import json
 import platform
 import sys
-import urllib.request
 import urllib.error
 from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+
+from . import effects
 
 if TYPE_CHECKING:
     from .binaries import BinaryLocator
@@ -50,9 +51,14 @@ def fetch_manifest(version: str) -> dict[str, Any]:
     """Fetch the version manifest from GCS. Returns the parsed JSON dict."""
     url = f"{GCS_BASE}/{version}/manifest.json"
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "claudewheel"})
-        with urllib.request.urlopen(req, timeout=10) as resp:
-            parsed: Any = json.loads(resp.read())
+        # A declared read: the manifest is what tells install_version which
+        # platform entry, checksum and destination path apply, so it must
+        # execute in every mode -- a preview that could not read it could not
+        # name the file it would write.
+        body = effects.http_read(
+            url, headers={"User-Agent": "claudewheel"}, timeout=10
+        )
+        parsed: Any = json.loads(body)
     except urllib.error.HTTPError as e:
         raise OSError(f"Version {version} not found on server (HTTP {e.code})") from e
     except Exception as e:
@@ -124,23 +130,41 @@ def install_version(
 
     download_url = f"{GCS_BASE}/{version}/{plat}/{binary_name}"
 
+    versions_dir = locator.versions_dir
+    dest = versions_dir / version
+    tmp = dest.with_suffix(".downloading")
+
+    if effects.previewing():
+        # A preview names every step the install would take -- including the
+        # ~235MB transfer -- without performing any of them. The carrier the
+        # recorded download returns is forwarded straight into the write, so
+        # the log reads `write: <tmp> («step N output»)`: the framework will
+        # not invent a byte count for bytes nobody fetched.
+        effects.mkdir(versions_dir, parents=True, exist_ok=True)
+        body = effects.http(
+            "GET", download_url, resource=f"claude-binary:{version}",
+            grant="download",
+        )
+        effects.write(tmp, body)
+        effects.chmod(tmp, 0o755)
+        effects.rename(tmp, dest)
+        return dest
+
     # Download with progress reporting
-    req = urllib.request.Request(download_url, headers={"User-Agent": "claudewheel"})
     try:
-        resp = urllib.request.urlopen(req, timeout=DOWNLOAD_TIMEOUT)
+        resp = effects.http_stream(download_url,
+                                   headers={"User-Agent": "claudewheel"},
+                                   timeout=DOWNLOAD_TIMEOUT)
     except Exception as e:
         raise OSError(f"Failed to download {version}: {e}") from e
 
-    versions_dir = locator.versions_dir
-    versions_dir.mkdir(parents=True, exist_ok=True)
-    dest = versions_dir / version
-    tmp = dest.with_suffix(".downloading")
+    effects.mkdir(versions_dir, parents=True, exist_ok=True)
 
     sha256 = hashlib.sha256()
     downloaded = 0
 
     try:
-        with open(tmp, "wb") as f:
+        with effects.open_write(tmp, "wb") as f:
             while True:
                 chunk = resp.read(1024 * 1024)  # 1MB chunks
                 if not chunk:
@@ -153,20 +177,20 @@ def install_version(
 
         actual_checksum = sha256.hexdigest()
         if actual_checksum != expected_checksum:
-            tmp.unlink(missing_ok=True)
+            effects.remove(tmp, missing_ok=True)
             raise OSError(
                 f"Checksum mismatch for {version}: "
                 f"expected {expected_checksum[:16]}..., "
                 f"got {actual_checksum[:16]}..."
             )
 
-        tmp.chmod(0o755)
-        tmp.rename(dest)
+        effects.chmod(tmp, 0o755)
+        effects.rename(tmp, dest)
 
     except OSError:
         raise
     except Exception as e:
-        tmp.unlink(missing_ok=True)
+        effects.remove(tmp, missing_ok=True)
         raise OSError(f"Failed to install {version}: {e}") from e
 
     return dest

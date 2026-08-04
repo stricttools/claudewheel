@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import os
 import stat
-import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, TYPE_CHECKING, Any
@@ -13,7 +12,8 @@ from typing import IO, TYPE_CHECKING, Any
 from . import guardrail
 from .appdata import OptionsFile
 from .defaults import DISALLOWED_TOOLS, canonical_hook_command
-from .fsutil import write_json_atomic
+from . import effects
+from .effects import write_json_atomic
 from .hook_scripts import HOOK_SCRIPTS
 from .profile_store import Profile
 from .shared_store import SharedStore
@@ -41,8 +41,12 @@ class HealthResult:
 def check_tmpfs_quota() -> HealthResult:
     """Check /tmp usage percentage via df."""
     try:
-        result = subprocess.run(
-            ["df", "--output=pcent", "/tmp"], capture_output=True, text=True, timeout=3
+        result = effects.run(
+            ["df", "--output=pcent", "/tmp"],
+            capture_output=True,
+            text=True,
+            timeout=3,
+            read=True,
         )
         lines = result.stdout.strip().split("\n")
         if len(lines) >= 2:
@@ -711,7 +715,7 @@ def check_inode_renames(ws: "Workspace") -> HealthResult:
         for s in stale:
             del data[s]
         try:
-            inodes_file.parent.mkdir(parents=True, exist_ok=True)
+            effects.mkdir(inodes_file.parent, parents=True, exist_ok=True)
             write_json_atomic(inodes_file, data)
             persisted = True
         except OSError:

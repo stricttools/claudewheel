@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+
+from . import effects
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -412,11 +414,12 @@ def fetch_npm_versions(state: dict[str, Any], count: int = 15) -> list[str]:
         return cached_versions[-count:]
 
     try:
-        result = subprocess.run(
+        result = effects.run(
             ["npm", "view", "@anthropic-ai/claude-code", "versions", "--json"],
             capture_output=True,
             text=True,
             timeout=10,
+            read=True,
         )
         if result.returncode == 0:
             all_versions: list[str] = json.loads(result.stdout)
@@ -573,11 +576,12 @@ def _discover_gh_accounts(
     static_values = _parse_static_values(config)
     values = list(static_values)
     try:
-        result = subprocess.run(
+        result = effects.run(
             ["gh", "auth", "status"],
             capture_output=True,
             text=True,
             timeout=5,
+            read=True,
         )
         output = result.stdout + result.stderr
         accounts = re.findall(

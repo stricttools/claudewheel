@@ -12,7 +12,7 @@ import os
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from .fsutil import write_json_atomic_secret
+from .effects import write_json_atomic_secret
 from .tokens import parse_entry
 
 if TYPE_CHECKING:

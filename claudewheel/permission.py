@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from .fsutil import write_json_atomic
+from .effects import write_json_atomic
 
 if TYPE_CHECKING:
     from .workspace import Workspace

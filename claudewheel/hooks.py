@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import os
 import subprocess
+
+from . import effects
 import sys
 from pathlib import Path
 
@@ -38,7 +40,7 @@ def run_hooks(hooks_dir: Path, stage: str, selections: dict[str, str | None]) ->
 
     for hook in hooks:
         try:
-            result = subprocess.run(
+            result = effects.run(
                 [str(hook)], env=env, capture_output=True, text=True, timeout=10
             )
             if result.returncode != 0:

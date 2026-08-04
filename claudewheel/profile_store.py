@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import json
 import os
-import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
 from .appdata import OptionsFile, StateFile
-from .fsutil import write_json_atomic
+from . import effects
+from .effects import write_json_atomic
 from .shared_store import SharedStore
 from .tokens import TokenStore, TokenStoreError
 
@@ -360,7 +360,7 @@ class ProfileStore:
         if target.exists():
             raise FileExistsError(f"Profile directory already exists: {target}")
 
-        target.mkdir(parents=True)
+        effects.mkdir(target, parents=True)
 
         # Everything below was created by THIS call (the pre-mkdir FileExistsError
         # guard above guarantees the dir did not pre-exist), so any failure lets
@@ -383,15 +383,15 @@ class ProfileStore:
                     if link.exists() or link.is_symlink():
                         continue
                     sub_target = self.shared.subdir(sub)
-                    sub_target.mkdir(parents=True, exist_ok=True)
-                    link.symlink_to(sub_target)
+                    effects.mkdir(sub_target, parents=True, exist_ok=True)
+                    effects.symlink(link, sub_target)
                 skills_link = target / "skills"
                 if (
                     self.shared.skills_dir.is_dir()
                     and not skills_link.exists()
                     and not skills_link.is_symlink()
                 ):
-                    skills_link.symlink_to(self.shared.skills_dir)
+                    effects.symlink(skills_link, self.shared.skills_dir)
 
             # Register in options.json (pinned). No metadata -- config_dir dropped.
             self.options.add_pinned(_PROFILE_SEGMENT, name, _OPTIONS_DEFAULT)
@@ -447,15 +447,15 @@ class ProfileStore:
         removed_real = 0
         for child in list(profile_dir.iterdir()):
             if child.is_symlink():
-                child.unlink()
+                effects.remove(child)
                 removed_symlinks += 1
             elif child.is_dir():
-                shutil.rmtree(child)
+                effects.rmtree(child)
                 removed_real += 1
             else:
-                child.unlink()
+                effects.remove(child)
                 removed_real += 1
-        profile_dir.rmdir()
+        effects.rmdir(profile_dir)
         return removed_symlinks, removed_real
 
     def _purge_last_config(self, name: str) -> bool:
@@ -564,13 +564,13 @@ class ProfileStore:
 
         pending_path = old_dir / _RENAME_PENDING_FILE
         write_json_atomic(pending_path, {"from": old, "to": new})
-        os.rename(old_dir, new_dir)
-        self.token_store.rename(old, new)
+        effects.rename(old_dir, new_dir)
+        self.token_store.rename(old, new)  # effects: exempt -- TokenStore method, not Path.rename
         self.options.rename_value(_PROFILE_SEGMENT, old, new, _OPTIONS_DEFAULT)
         self._update_state_rename(old, new)
         breadcrumb = new_dir / _RENAME_PENDING_FILE
         if breadcrumb.exists():
-            breadcrumb.unlink()
+            effects.remove(breadcrumb)
 
     def recover_incomplete_renames(self) -> list[dict[str, Any]]:
         """Finish or unwind interrupted renames from breadcrumbs. Returns a summary.
@@ -624,14 +624,14 @@ class ProfileStore:
 
             if profile_dir.name == new:
                 # Post-rename window: finish the idempotent store updates.
-                self.token_store.rename(old, new)
+                self.token_store.rename(old, new)  # effects: exempt -- TokenStore method, not Path.rename
                 self.options.rename_value(_PROFILE_SEGMENT, old, new, _OPTIONS_DEFAULT)
                 self._update_state_rename(old, new)
-                pending.unlink()
+                effects.remove(pending)
                 actions.append({"action": "completed", "from": old, "to": new})
             elif profile_dir.name == old:
                 # Pre-rename window: the dir never moved -- drop the stale crumb.
-                pending.unlink()
+                effects.remove(pending)
                 actions.append({"action": "reverted", "from": old, "to": new})
             else:
                 actions.append(

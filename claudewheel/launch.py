@@ -7,6 +7,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from . import effects
 from .binaries import BinaryLocator
 from .clients import CLIENT_ADAPTERS, ClientContext
 from .defaults import DISALLOWED_TOOLS
@@ -16,11 +17,12 @@ from .profile_store import ProfileStore
 def fetch_gh_token(account: str) -> str | None:
     """Fetch GH token live via gh CLI. Returns None on failure."""
     try:
-        result = subprocess.run(
+        result = effects.run(
             ["gh", "auth", "token", "--user", account],
             capture_output=True,
             text=True,
             timeout=5,
+            read=True,
         )
         if result.returncode == 0:
             return result.stdout.strip()
@@ -148,7 +150,11 @@ def resolve_launch_config(
     return (cwd, argv, env)
 
 
-def do_launch(cwd: str, argv: list[str], env: dict[str, str]) -> None:
-    """Change to directory and exec Claude Code. Does not return."""
-    os.chdir(cwd)
-    os.execvpe(argv[0], argv, env)
+def do_launch(cwd: str, argv: list[str], env: dict[str, str]) -> Any:
+    """Change to directory and exec Claude Code. Does not return.
+
+    Under ``--dry-run`` there is nothing to replace this process with: the exec
+    is recorded and the carrier standing in for it is returned, so the dispatch
+    can finish and the would-do log can render.
+    """
+    return effects.exec_replace(cwd, argv, env, grant="exec-client")

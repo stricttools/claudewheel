@@ -6,7 +6,6 @@ import json
 import os
 import re
 import shutil
-import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -15,9 +14,9 @@ from . import auth
 from .appdata import StateFile
 from .defaults import DISALLOWED_TOOLS, build_canonical_shared_settings
 from .discovery import detect_browsers
-from .fsutil import write_json_atomic
+from . import effects
+from .effects import write_json_atomic
 from .patch_profiles import merge_hooks
-from .pty_runner import run_under_pty
 from .state import AUTH_BROWSER_KEY
 from .terminal import Terminal
 from .tokens import TokenExpiryDisposition
@@ -477,7 +476,12 @@ def _auth_session_login(
         _apply_browser_env(env, browser)
 
         try:
-            result = subprocess.run([binary, "auth", "login"], env=env)
+            result = effects.run(
+                [binary, "auth", "login"],
+                env=env,
+                resource=f"profile-credentials:{config_dir}",
+                grant="auth-login",
+            )
         except OSError as e:
             print(f"Error running claude auth login: {e}")
             return False
@@ -564,7 +568,12 @@ def _capture_setup_token(
     _apply_browser_env(env, browser)
 
     try:
-        exit_code, captured = run_under_pty([binary, "setup-token"], env)
+        exit_code, captured = effects.run_under_pty(
+            [binary, "setup-token"],
+            env,
+            resource=f"profile-token:{config_dir}",
+            grant="auth-login",
+        )
     except (OSError, RuntimeError) as e:
         print(f"Error running claude setup-token: {e}")
         return None

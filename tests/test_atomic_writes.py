@@ -1,4 +1,4 @@
-"""Tests for the atomic-write helpers in claudewheel.fsutil."""
+"""Tests for the atomic-write helpers in claudewheel.effects."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from claudewheel.fsutil import (
+from claudewheel.effects import (
     write_json_atomic,
     write_json_atomic_secret,
     write_text_atomic,
@@ -39,7 +39,7 @@ class FsutilTestCase(unittest.TestCase):
 
 
 class WriteTextAtomicTests(FsutilTestCase):
-    """Tests for fsutil.write_text_atomic()."""
+    """Tests for effects.write_text_atomic()."""
 
     def test_fresh_file_gets_umask_default(self) -> None:
         old_umask = os.umask(0o022)
@@ -78,7 +78,7 @@ class WriteTextAtomicTests(FsutilTestCase):
 
 
 class WriteJsonAtomicTests(FsutilTestCase):
-    """Tests for fsutil.write_json_atomic()."""
+    """Tests for effects.write_json_atomic()."""
 
     def test_writes_indented_json_with_trailing_newline(self) -> None:
         write_json_atomic(self.target, {"a": 1})
@@ -120,7 +120,7 @@ class WriteJsonAtomicTests(FsutilTestCase):
 
 
 class WriteJsonAtomicSecretTests(FsutilTestCase):
-    """Tests for fsutil.write_json_atomic_secret()."""
+    """Tests for effects.write_json_atomic_secret()."""
 
     def test_fresh_file_is_0600(self) -> None:
         write_json_atomic_secret(self.target, {"token": "s"})
