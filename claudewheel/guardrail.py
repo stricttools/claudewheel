@@ -353,7 +353,7 @@ RULES: tuple[GuardrailRule, ...] = (
             "Bash(safegit push:*)",
             "Bash(./safegit push:*)",
         ],
-        "Pushes happen only via rlsbl (rlsbl release run / rlsbl push).",
+        "Pushes happen only via rlsbl release run.",
         coverage=SettingsCoverage.FULL,
     ),
     _escalate(

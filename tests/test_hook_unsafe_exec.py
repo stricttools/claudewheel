@@ -305,7 +305,7 @@ class HookAllowTests(unittest.TestCase):
         'saferm delete --description "x" f',
         "git switch main",
         "git add file.txt",
-        "rlsbl push",
+        "rlsbl release run",
         "echo hello",
     ]
 
