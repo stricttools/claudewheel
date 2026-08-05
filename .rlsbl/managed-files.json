@@ -3,10 +3,10 @@
   "files": {
     ".github/workflows/ci-pypi.yml": "eaa88b8b02598890921bb77186af2ca537d5eacc820cff4157eb95b63bb7d391",
     ".npmignore": "1aaec672b9f03f3ac51ec023e2b272d238f6fc7956c4e3bae36f017492b9dbc4",
-    ".github/workflows/publish.yml": "b081f3b735612b1d8e9cd421c78329205e3d8d4d654d05d00994c68070c8240d",
+    ".github/workflows/publish.yml": "84a902c63583e07b50c3f43573ea2264f1288d5157fc8206d2bd5a61475db891",
     "CHANGELOG.md": "c9b2f636b97ba4024c0d2f8d3077855a18d15b156166bf50cd36598f78e9857c",
     ".gitignore": "acd4d1503d94120d245423b49fec65d6d8e84c7237ca6b6eb02b0c0c4f90134f",
-    ".rlsbl/changes/unreleased.jsonl": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    ".rlsbl/changes/unreleased.jsonl": "8afe642f008c0423c1b1b46b73d3d3b516b16d4c20788a4c4550131c662eca2a",
     ".rlsbl/lint/python.toml": "9cfbcef2e010d5fad243437bf2fd8df54a1fae70ee0762f9d11da70fe207501c",
     ".rlsbl/lint/npm.toml": "baa36014e65923d8cc5c8b83c77fa651da79351627570476402da66840027645"
   }
