@@ -18,10 +18,13 @@ Two exemption mechanisms, both deliberately narrow:
   ``pty_runner``, whose ``os.execvpe`` sits in the post-``pty.fork`` child
   branch: that code runs in a different process than the one holding the
   effects handle, and there is nothing there to record.
-* an inline ``# effects: exempt -- <reason>`` comment on the offending line,
-  for self-owned scratch files and for method names this scan cannot tell apart
-  from a same-named domain method.  A reason is mandatory; the marker without
-  one does not count.
+* an inline ``# effects: exempt -- <reason>`` comment anywhere in the call's
+  own line span, for self-owned scratch files and for method names this scan
+  cannot tell apart from a same-named domain method.  A reason is mandatory;
+  the marker without one does not count.  The span, rather than the opening
+  line alone, is what the marker attaches to: a formatter is free to wrap a
+  call across lines and push the trailing comment down, and an exemption that
+  only survived on one physical line would evaporate the moment it did.
 """
 
 import ast
@@ -147,8 +150,14 @@ def _violations(rel: str, path: pathlib.Path) -> list[str]:
                 target = f".{node.func.attr}"
         if not banned:
             continue
-        line = lines[node.lineno - 1]
-        if _EXEMPT_MARKER in line and line.split(_EXEMPT_MARKER, 1)[1].strip():
+        # The marker may sit on any line the call itself occupies: ruff format
+        # wraps long calls and carries the trailing comment to the closing
+        # paren, and an exemption pinned to the opening line would not survive.
+        span = lines[node.lineno - 1 : (node.end_lineno or node.lineno)]
+        if any(
+            _EXEMPT_MARKER in line and line.split(_EXEMPT_MARKER, 1)[1].strip()
+            for line in span
+        ):
             continue
         found.append(f"{rel}:{node.lineno}: {target}")
     return found
@@ -168,6 +177,41 @@ def test_no_effect_bypass(rel: str, path: pathlib.Path) -> None:
         + "\n\nRoute it through claudewheel.effects, or mark a self-owned "
         "scratch operation with '# effects: exempt -- <reason>'."
     )
+
+
+def _scan_snippet(tmp_path: pathlib.Path, source: str) -> list[str]:
+    """Run the scanner over a literal snippet written to a scratch file."""
+    target = tmp_path / "snippet.py"
+    target.write_text(source, encoding="utf-8")
+    return _violations("snippet.py", target)
+
+
+def test_exemption_survives_a_wrapped_call(tmp_path: pathlib.Path) -> None:
+    """The marker attaches to the call's line span, not its opening line.
+
+    ``ruff format`` wraps a long call and carries the trailing comment to the
+    closing line.  The exemption must survive that, or every reformat silently
+    revokes exemptions and the gate fires on code nobody changed.
+    """
+    wrapped = (
+        "def f(store, old, new):\n"
+        "    store.rename(\n"
+        "        old, new\n"
+        "    )  # effects: exempt -- domain method, not Path.rename\n"
+    )
+    assert _scan_snippet(tmp_path, wrapped) == []
+
+
+def test_wrapped_call_without_a_marker_is_still_caught(tmp_path: pathlib.Path) -> None:
+    """Widening the marker's reach must not blind the scan to unmarked calls."""
+    wrapped = "def f(store, old, new):\n    store.rename(\n        old, new\n    )\n"
+    assert _scan_snippet(tmp_path, wrapped) == ["snippet.py:2: .rename"]
+
+
+def test_marker_without_a_reason_does_not_exempt(tmp_path: pathlib.Path) -> None:
+    """A bare marker is not an exemption -- the reason is the point of it."""
+    bare = "def f(store, old, new):\n    store.rename(old, new)  # effects: exempt --\n"
+    assert _scan_snippet(tmp_path, bare) == ["snippet.py:2: .rename"]
 
 
 def test_exempt_module_list_stays_two() -> None:
