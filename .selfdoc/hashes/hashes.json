@@ -58,7 +58,8 @@
   "en/claudewheel-effects.md": {
     "content": "41e8cf11c65dc03599b3417cc228099bbbd3b25c418dd686b119c141c6350474",
     "description": "5bdbed8334a6902f9bd8a2ca14ab671ea295ff1d1315c09ca77b6ef7bd2e9953",
-    "seed_hash": "5bdbed8334a6902f9bd8a2ca14ab671ea295ff1d1315c09ca77b6ef7bd2e9953"
+    "seed_hash": "5bdbed8334a6902f9bd8a2ca14ab671ea295ff1d1315c09ca77b6ef7bd2e9953",
+    "source_docstring": "03c30f1249e6e71f9da2ae16d22ff2996b41e9e1e19a5de5b046e6179067140f"
   },
   "en/claudewheel-fsutil.md": {
     "content": "e92aff2708ca2702758a8f9410c6e765612be2d14c294e59f8ab023150af572e",
@@ -329,7 +330,7 @@
     "description": "2529eefa29afb255c27300269677169d4064cdb2de22f25cb507ea2c51023905"
   },
   "en/gen-index.md": {
-    "content": "67fdfd4c0e54e448d2b958adec94819f2ccfa2e35f155f51d684bd31c915d45e",
+    "content": "21ad9253eb68c9af2b982553b63ab837985d181a5a0a58067361e5aed4294cbb",
     "description": "40a84fc806a2f2512b9e9ffc575f64834280ab68fbc1986d4a5663fafe184934",
     "seed_hash": "40a84fc806a2f2512b9e9ffc575f64834280ab68fbc1986d4a5663fafe184934"
   },
