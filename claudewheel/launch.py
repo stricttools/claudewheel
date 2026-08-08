@@ -84,10 +84,14 @@ def resolve_launch_config(
     #    The default (explicit or fallback) is vanilla: no config dir, no token.
     profile = selections.get("profile")
     profile_env: dict[str, str] = {}
-    is_default = (not profile) or profile == "default"
-    if not is_default:
+    # The non-default test is written inline rather than through a precomputed
+    # flag so the type checker narrows `profile` to str for the env() call.
+    if profile and profile != "default":
+        is_default = False
         # Unknown/stale name -> ValueError; corrupt tokens.json -> TokenStoreError.
-        profile_env = profiles.env(profile)  # type: ignore[arg-type]
+        profile_env = profiles.env(profile)
+    else:
+        is_default = True
 
     # 2. GH token
     gh_account = selections.get("github")
