@@ -1,6 +1,6 @@
 ---
 title: Getting Started
-description: "Install claudewheel, create your first profile, understand the segment bar, and launch a Claude Code session with the right model and permissions."
+description: "Install claudewheel, create your first profile, understand the segment bar, and launch a Claude Code session with the right model, context window, and permissions."
 nav_group: "Guides"
 order: 2
 ---
