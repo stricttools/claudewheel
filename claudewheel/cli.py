@@ -1768,7 +1768,9 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
     profile_grp.command(
         "delete",
         effect="mutating",
-        # The one consequential command in claudewheel (contract §8.1). Even
+        # One of claudewheel's three consequential commands (contract §8.1),
+        # alongside reconcile-permissions and patch-profiles -- and the only
+        # one that destroys user data rather than pruning it to canonical. Even
         # the bare form is irreversible: the profile directory goes, taking
         # .credentials.json and settings.json with it, and the tokens.json
         # entry goes with it. --force-delete-data only widens that from

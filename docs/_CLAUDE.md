@@ -9,13 +9,12 @@ A TUI launcher for Claude Code: pick a profile, model, directory, MCP mode, and 
 
 This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestration.
 
-- Update CHANGELOG.md with a `## X.Y.Z` entry describing changes
-- Run `rlsbl release [patch|minor|major]` to bump version and create a GitHub Release
-- CI handles `npm publish` automatically via OIDC Trusted Publishing (no tokens needed)
-- First publish must be done locally: `npm login && npm publish --access public`
-- After first publish, configure Trusted Publishing on npmjs.com (package settings)
-- Never run `npm publish` manually after Trusted Publishing is configured
-- Use `rlsbl release --dry-run` to preview a release without making changes
+- Cover every commit with an entry in `.rlsbl/changes/unreleased.jsonl`, added via `rlsbl changelog add`
+- `CHANGELOG.md` is generated from those entries -- never edit it by hand
+- Scaffold `.rlsbl/releases/unreleased.toml` with `rlsbl release init`, then set the bump type and description in it
+- Release with `rlsbl release run --no-allow-dirty --watch --approve-consequential`
+- CI publishes to both npm and PyPI via OIDC Trusted Publishing (no tokens needed); never run `npm publish` or `uv publish` by hand
+- Use the framework-owned `--dry-run` flag to preview a release without making changes
 
 ## Architecture
 

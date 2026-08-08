@@ -1983,7 +1983,7 @@ class ProfileGroupDispatchTests(unittest.TestCase):
                     "work",
                     "--force-delete",
                     "--force-delete-data",
-                    # profile delete is the one consequential command, so a
+                    # profile delete is a consequential command, so a
                     # dispatch test on a non-interactive stdin has to consent
                     # explicitly or the framework refuses before the handler.
                     "--approve-consequential",
