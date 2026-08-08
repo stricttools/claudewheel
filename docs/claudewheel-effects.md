@@ -1,8 +1,7 @@
 ---
 title: claudewheel.effects
-description: "The single authorized surface for effectful calls in claudewheel production code."
+description: "The effects chokepoint: every subprocess, filesystem mutation and network call in claudewheel routes through it, so --dry-run can preview them all."
 generated: true
-seeded: true
 nav_group: "API Reference"
 nav_order: 13
 ---
