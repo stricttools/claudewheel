@@ -3,3 +3,4 @@
 {"format_version":1,"id":"18c9db79939033c157e86013d56b458b9c08ef53f960f649","commits":["02bac49565d160fa159936f24078e75896173afa"],"user_facing":true,"description":"**Valid theme file example.** The theme file structure example in the theming docs used `{ ... }` placeholders and was not valid JSON; it is now a copyable skeleton with a real key per section.","type":"fix"}
 {"format_version":1,"id":"18c9db7a8386f7e73b5e61bb93434f8cb632951fb6f6f408","commits":["2281c60f889644655951ff29be95e531027c2e14"],"user_facing":false}
 {"format_version":1,"id":"18c9db7a911a7a72aa7c1b3010c747888884380e8f7026b9","commits":["9a651d892ab3b396e032976980dc99268f98a130"],"user_facing":false}
+{"format_version":1,"id":"18c9db7a9f7cb77249f5031d05b742b79b195050198a61b0","commits":["30d89e87fadc67ef6fac9f60a831362cad7f5878"],"user_facing":false}
