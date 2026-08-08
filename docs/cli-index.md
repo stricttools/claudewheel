@@ -36,3 +36,20 @@ Version: :-: var key="project.version"
 
 - [profile](cli-profile.html) -- create, inspect, rename, delete, and manage Claude Code profiles and their stored tokens
 - [permission](cli-permission.html) -- add, remove, and list permission rules across Claude profiles
+
+## Framework flags
+
+These flags are owned by the strictcli framework, not by the app. No command may declare a flag with one of these names, and each is recognized anywhere on the command line.
+
+| Flag | Effect |
+| --- | --- |
+| `--dry-run` | Preview mode: no mutation runs. The framework prints a log of every effect the command would have performed. |
+| `--approve-consequential` | Skips the confirmation prompt a consequential command shows before it runs. |
+| `--quiet` | Hides informational output. Warnings, errors, structured data and the dry-run log are never suppressed. |
+| `--verbose` | Shows debug output. `--quiet` wins when both are passed. |
+
+## Deprecated
+
+- `delete-profile` -- Renamed: use 'claudewheel profile delete <name>' instead.
+- `new-profile` -- Renamed: use 'claudewheel profile create' instead.
+- `show-profile` -- Renamed: use 'claudewheel profile show <name>' instead.

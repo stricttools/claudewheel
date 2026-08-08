@@ -10,3 +10,5 @@ nav_order: 1
 # c config
 
 open the ~/.claudewheel/ config directory in your $EDITOR
+
+**Effect:** mutating

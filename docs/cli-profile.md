@@ -15,9 +15,19 @@ create, inspect, rename, delete, and manage Claude Code profiles and their store
 
 create a new profile interactively through a guided wizard, then set up its authentication
 
+**Effect:** mutating
+
+### Grants
+
+| Kind | Name | Reason |
+| --- | --- | --- |
+| proc_mutate | `auth-login` | the wizard drives an interactive Claude Code OAuth login for the new profile |
+
 ## profile delete
 
 delete a registered profile and clean up its directory, tokens, and options entries
+
+**Effect:** mutating · **consequential** (prompts before running; `--approve-consequential` skips)
 
 ### Flags
 
@@ -32,9 +42,17 @@ delete a registered profile and clean up its directory, tokens, and options entr
 | --- | --- | --- |
 | `name` | yes | name of the profile to delete (e.g. work, personal, lisa) |
 
+### Grants
+
+| Kind | Name | Reason |
+| --- | --- | --- |
+| file_write | `irreversible-delete` | removes a profile directory, its stored OAuth token and its session data for good |
+
 ## profile show
 
 inspect a profile's configuration, authentication status, and session data in a detailed report
+
+**Effect:** read_only
 
 ### Arguments
 
@@ -45,6 +63,8 @@ inspect a profile's configuration, authentication status, and session data in a 
 ## profile rename
 
 rename a profile, moving its directory, tokens, and session data to the new name
+
+**Effect:** mutating
 
 ### Arguments
 
@@ -57,6 +77,8 @@ rename a profile, moving its directory, tokens, and session data to the new name
 
 repair a profile's auth: remove session credentials that shadow a long-lived token, or remove a stale token entry whose profile directory is missing
 
+**Effect:** mutating
+
 ### Arguments
 
 | Name | Required | Description |
@@ -66,3 +88,5 @@ repair a profile's auth: remove session credentials that shadow a long-lived tok
 ## profile check-tokens
 
 validate every discovered profile's stored OAuth token against the Anthropic API
+
+**Effect:** read_only

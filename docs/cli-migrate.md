@@ -11,6 +11,8 @@ nav_order: 7
 
 move session data files from one profile to another, optionally filtered by UUID
 
+**Effect:** mutating
+
 ## Arguments
 
 | Name | Required | Description |

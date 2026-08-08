@@ -11,6 +11,8 @@ nav_order: 2
 
 deploy built-in hook scripts to the ~/.claudewheel/scripts/ directory
 
+**Effect:** mutating
+
 ## Flags
 
 | Name | Short | Type | Default | Env | Description |

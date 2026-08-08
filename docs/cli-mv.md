@@ -11,6 +11,8 @@ nav_order: 8
 
 rename a project directory and migrate session data
 
+**Effect:** mutating
+
 ## Flags
 
 | Name | Short | Type | Default | Env | Description |

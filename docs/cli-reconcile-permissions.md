@@ -11,6 +11,8 @@ nav_order: 12
 
 reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask made exact; allow keeps only its non-conflicting entries); prunes all drift and user-added extras. The 'default' profile (~/.claude) is never touched. Pass --dry-run to preview the per-target diff without writing; writing needs a terminal to confirm at, or --approve-consequential.
 
+**Effect:** mutating · **consequential** (prompts before running; `--approve-consequential` skips)
+
 ## Flags
 
 | Name | Short | Type | Default | Env | Description |

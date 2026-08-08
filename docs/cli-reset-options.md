@@ -10,3 +10,5 @@ nav_order: 13
 # c reset-options
 
 delete options.json so it regenerates from defaults
+
+**Effect:** mutating

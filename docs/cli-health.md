@@ -10,3 +10,5 @@ nav_order: 3
 # c health
 
 run diagnostic health checks on profiles, tokens, and hooks, then exit
+
+**Effect:** read_only

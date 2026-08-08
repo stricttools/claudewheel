@@ -10,3 +10,5 @@ nav_order: 17
 # c versions
 
 list all installed Claude Code versions, marking the current symlink target
+
+**Effect:** read_only

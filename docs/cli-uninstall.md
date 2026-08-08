@@ -11,6 +11,8 @@ nav_order: 16
 
 delete an installed Claude Code version binary from the versions directory
 
+**Effect:** mutating
+
 ## Arguments
 
 | Name | Required | Description |

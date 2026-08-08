@@ -11,8 +11,16 @@ nav_order: 5
 
 download and install a specific Claude Code version
 
+**Effect:** mutating
+
 ## Arguments
 
 | Name | Required | Description |
 | --- | --- | --- |
 | `version` | yes | semver version string to download and install (e.g. 2.1.119) |
+
+## Grants
+
+| Kind | Name | Reason |
+| --- | --- | --- |
+| net_mutate | `download` | installs an executable fetched from the Claude Code release bucket |

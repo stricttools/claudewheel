@@ -10,3 +10,5 @@ nav_order: 15
 # c stats
 
 report shared-store stats and clean up legacy data
+
+**Effect:** mutating

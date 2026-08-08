@@ -11,6 +11,8 @@ nav_order: 4
 
 import session data from an external Claude Code directory
 
+**Effect:** mutating
+
 ## Flags
 
 | Name | Short | Type | Default | Env | Description |

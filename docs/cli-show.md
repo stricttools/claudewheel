@@ -10,3 +10,5 @@ nav_order: 14
 # c show
 
 print a summary of current segment selections, theme, and recent directories
+
+**Effect:** read_only
