@@ -93,7 +93,10 @@ class _ReconcileTestCase(unittest.TestCase):
 
     def canonical_hooks(self) -> dict[str, Any]:
         """The canonical hooks structure for this workspace's scripts dir."""
-        return build_canonical_shared_settings(self.ws.scripts_dir)["hooks"]
+        hooks: dict[str, Any] = build_canonical_shared_settings(self.ws.scripts_dir)[
+            "hooks"
+        ]
+        return hooks
 
     def canonical_settings(self) -> dict[str, Any]:
         """A profile already exactly canonical (a clean no-op target).

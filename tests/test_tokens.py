@@ -154,6 +154,10 @@ class ComputeExpiryTests(unittest.TestCase):
         self.assertEqual(
             result.expires, expected_created + timedelta(days=TOKEN_TTL_DAYS)
         )
+        # A legacy entry dates from the file mtime, so its expiry is known and
+        # remaining_days is never the unknown-expiry None.
+        self.assertIsNotNone(result.remaining_days)
+        assert result.remaining_days is not None
         self.assertAlmostEqual(result.remaining_days, TOKEN_TTL_DAYS - 10, delta=0.1)
 
     def test_default_today_is_today(self) -> None:
@@ -513,6 +517,10 @@ class TokenStoreTests(unittest.TestCase):
         self.assertIsNotNone(result)
         assert result is not None
         self.assertEqual(result.created, date.fromtimestamp(ten_days_ago))
+        # A legacy entry dates from the file mtime, so its expiry is known and
+        # remaining_days is never the unknown-expiry None.
+        self.assertIsNotNone(result.remaining_days)
+        assert result.remaining_days is not None
         self.assertAlmostEqual(result.remaining_days, TOKEN_TTL_DAYS - 10, delta=0.5)
 
     # -- add / set_tier ----------------------------------------------------

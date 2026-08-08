@@ -7,6 +7,7 @@ import tempfile
 import unittest
 from contextlib import redirect_stderr
 from pathlib import Path
+from typing import Any
 from unittest import mock
 
 from claudewheel import cli
@@ -146,8 +147,8 @@ class _FakeCfg:
             "default_flags": [],
             "clients": {},
         }
-        self.options_def = {}
-        self.state = {}
+        self.options_def: dict[str, Any] = {}
+        self.state: dict[str, Any] = {}
 
 
 class LaunchSequenceWiringTests(unittest.TestCase):

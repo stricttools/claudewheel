@@ -14,10 +14,11 @@ from __future__ import annotations
 import json
 import unittest
 from pathlib import Path
+from typing import Any
 from unittest import mock
 
 from claudewheel.appdata import StateFile
-from claudewheel.preflight import PreflightContext, _approved_hooks_run
+from claudewheel.preflight import PreflightContext, StepResult, _approved_hooks_run
 from claudewheel.state import get_project_hook_approvals, set_project_hook_approvals
 from .wheelhelpers import FakeTerminal, SandboxHomeTestCase
 
@@ -48,7 +49,9 @@ class ApprovedHooksStepTests(SandboxHomeTestCase):
 
     # -- helpers ----------------------------------------------------------
 
-    def _write_hooks(self, data: dict, *, name: str = "settings.json") -> None:
+    def _write_hooks(
+        self, data: dict[str, Any], *, name: str = "settings.json"
+    ) -> None:
         claude = self._proj / ".claude"
         claude.mkdir(exist_ok=True)
         (claude / name).write_text(json.dumps(data))
@@ -67,7 +70,9 @@ class ApprovedHooksStepTests(SandboxHomeTestCase):
     def _statefile(self) -> StateFile:
         return StateFile(self.ws.state_file)
 
-    def _run_with_keys(self, keys: list[str], ctx: PreflightContext) -> tuple:
+    def _run_with_keys(
+        self, keys: list[str], ctx: PreflightContext
+    ) -> tuple[StepResult, FakeTerminal]:
         """Run the step with a FakeTerminal fed *keys*; return (result, term)."""
         term = FakeTerminal(keys)
         with mock.patch(

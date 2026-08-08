@@ -11,7 +11,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from unittest import mock
 
 from claudewheel.wizard import WizardResult, create_profile, run_profile_wizard
@@ -26,6 +26,7 @@ from claudewheel.defaults import (
     DISALLOWED_TOOLS,
     build_canonical_shared_settings,
 )
+from claudewheel.terminal import Terminal
 from claudewheel.theme import parse_theme
 from claudewheel.tokens import TokenExpiryDisposition
 
@@ -1151,7 +1152,13 @@ class AuthFlowTestBase(unittest.TestCase):
 
         # run_auth_flow requires a theme and a terminal; run_selection is
         # mocked in these tests, so a MagicMock terminal suffices.
-        self.term = mock.MagicMock()
+        #
+        # Two typed views onto the SAME object: `term` is the production
+        # contract (run_auth_flow takes a Terminal, and subclasses swap in a
+        # real FakeTerminal), while `term_mock` is the mock-API view the
+        # cooked-window tests assert call records through.
+        self.term_mock = mock.MagicMock()
+        self.term: Terminal = cast(Terminal, self.term_mock)
 
         # A workspace rooted at the sandbox home. run_auth_flow persists the
         # browser choice via StateFile(ws.state_file) and saves tokens via
@@ -2435,7 +2442,7 @@ class CookedWindowTests(AuthFlowTestBase):
 
     def _track_cooked(self, events: list[str]) -> None:
         """Instrument self.term.cooked() to record enter/exit events."""
-        cm = self.term.cooked.return_value
+        cm = self.term_mock.cooked.return_value
         cm.__enter__.side_effect = lambda *a: events.append("enter")
 
         def _record_exit(*a: object) -> bool:
@@ -2661,7 +2668,7 @@ class CookedWindowTests(AuthFlowTestBase):
                 self.term,
             )
 
-        self.term.cooked.assert_not_called()
+        self.term_mock.cooked.assert_not_called()
 
     def test_binary_lookup_failure_still_inside_cooked_window(self) -> None:
         """Even the binary-not-found print happens inside the cooked window."""
@@ -2692,7 +2699,7 @@ class CookedWindowTests(AuthFlowTestBase):
             )
 
         self.assertEqual(result, "failed")
-        self.term.cooked.assert_called_once()
+        self.term_mock.cooked.assert_called_once()
 
 
 # A realistic setup-token capture: label line, then the token. wizard's

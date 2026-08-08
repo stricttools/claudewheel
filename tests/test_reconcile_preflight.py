@@ -107,7 +107,10 @@ class PreflightReconcileTests(unittest.TestCase):
         return sp
 
     def _canonical_hooks(self) -> dict[str, Any]:
-        return build_canonical_shared_settings(self.ws.scripts_dir)["hooks"]
+        hooks: dict[str, Any] = build_canonical_shared_settings(self.ws.scripts_dir)[
+            "hooks"
+        ]
+        return hooks
 
     def _read(self, name: str) -> dict[str, Any]:
         data: dict[str, Any] = json.loads(

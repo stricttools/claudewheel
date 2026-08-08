@@ -15,8 +15,13 @@ import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest import mock
+
+if TYPE_CHECKING:
+    # Imported lazily inside the helpers at runtime; needed at module scope for
+    # the annotations only.
+    from claudewheel.preflight import PreflightContext
 
 from claudewheel import cli
 from claudewheel.appdata import StateFile
@@ -79,7 +84,10 @@ class _VanillaTestBase(unittest.TestCase):
         )
 
     def _canonical_hooks(self) -> dict[str, Any]:
-        return build_canonical_shared_settings(self.ws.scripts_dir)["hooks"]
+        hooks: dict[str, Any] = build_canonical_shared_settings(self.ws.scripts_dir)[
+            "hooks"
+        ]
+        return hooks
 
 
 class VanillaLaunchIntegrationTests(ClaudeDirWriteCanaryMixin, _VanillaTestBase):
@@ -161,7 +169,7 @@ class VanillaChoiceStepTests(_VanillaTestBase):
         setup_temp_config_dir(self.home)
         self.cfg = self.ws.appconfig()
 
-    def _ctx(self, profile: str | None, interactive: bool = True):
+    def _ctx(self, profile: str | None, interactive: bool = True) -> PreflightContext:
         from claudewheel.preflight import PreflightContext
 
         return PreflightContext(
@@ -172,7 +180,9 @@ class VanillaChoiceStepTests(_VanillaTestBase):
             interactive=interactive,
         )
 
-    def _run(self, ctx, keys: list[str], *, canary: bool = True) -> FakeTerminal:
+    def _run(
+        self, ctx: PreflightContext, keys: list[str], *, canary: bool = True
+    ) -> FakeTerminal:
         """Run the vanilla-choice preflight step.
 
         Runs under the claude_dir write canary by default (this preflight step
@@ -194,8 +204,12 @@ class VanillaChoiceStepTests(_VanillaTestBase):
             preflight._vanilla_choice_run(ctx)
         return term
 
-    def _opt_in(self):
-        return get_vanilla_guardrails_opt_in(StateFile(self.ws.state_file))
+    def _opt_in(self) -> bool | None:
+        # Tri-state: True (opted in), False (stays vanilla), None (unanswered).
+        value: bool | None = get_vanilla_guardrails_opt_in(
+            StateFile(self.ws.state_file)
+        )
+        return value
 
     def _claude_settings(self) -> Path:
         return self.claude_dir / "settings.json"
@@ -294,7 +308,7 @@ class VanillaGuardrailInjectRemoveTests(_VanillaTestBase):
 
         from claudewheel.patch_profiles import merge_hooks
 
-        hooks = deepcopy(self._USER_SETTINGS["hooks"])
+        hooks: dict[str, Any] = deepcopy(self._USER_SETTINGS["hooks"])
         merge_hooks(hooks, self._canonical_hooks())
         return hooks
 

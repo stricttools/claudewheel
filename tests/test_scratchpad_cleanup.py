@@ -13,10 +13,11 @@ import os
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any
 from unittest import mock
 
 from claudewheel.appdata import StateFile
-from claudewheel.preflight import PreflightContext, _scratchpad_cleanup_run
+from claudewheel.preflight import PreflightContext, StepResult, _scratchpad_cleanup_run
 from claudewheel.scratchpad import SCRATCHPAD_STALE_DAYS
 from claudewheel.state import (
     get_scratchpad_snooze_until,
@@ -65,7 +66,9 @@ class ScratchpadCleanupStepTests(SandboxHomeTestCase):
     def _statefile(self) -> StateFile:
         return StateFile(self.ws.state_file)
 
-    def _run_with_keys(self, keys: list[str], ctx: PreflightContext) -> tuple:
+    def _run_with_keys(
+        self, keys: list[str], ctx: PreflightContext
+    ) -> tuple[StepResult, FakeTerminal]:
         term = FakeTerminal(keys)
         with (
             mock.patch(
@@ -236,10 +239,11 @@ class ScratchpadCleanupStepTests(SandboxHomeTestCase):
         b = self._make_dir("projB", age_days=SCRATCHPAD_STALE_DAYS + 5)
         real_rmtree = __import__("shutil").rmtree
 
-        def flaky(path, *args, **kwargs):
+        def flaky(path: str | Path, *args: Any, **kwargs: Any) -> None:
             if Path(path) == a:
                 raise OSError("boom")
-            return real_rmtree(path, *args, **kwargs)
+            # rmtree returns None; not returning it keeps the annotation honest.
+            real_rmtree(path, *args, **kwargs)
 
         term = FakeTerminal(["y"])
         with (
