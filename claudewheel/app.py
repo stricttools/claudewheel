@@ -157,9 +157,7 @@ class App:
             findings = self.workspace.profiles.audit()
         except TokenStoreError:
             findings = []
-        self._orphan_findings = [
-            f for f in findings if f.kind == "orphan-token-entry"
-        ]
+        self._orphan_findings = [f for f in findings if f.kind == "orphan-token-entry"]
         n = len(self._orphan_findings)
         if n:
             noun = "entry" if n == 1 else "entries"
@@ -1022,9 +1020,7 @@ class App:
             Binding(
                 keys=frozenset({"T"}),
                 label="T: review",
-                condition=lambda ctx: (
-                    ctx.has_orphan_findings and not ctx.search_buffer
-                ),
+                condition=lambda ctx: ctx.has_orphan_findings and not ctx.search_buffer,
                 handler=App._h_main_review,
                 priority=55,
                 mode="main",

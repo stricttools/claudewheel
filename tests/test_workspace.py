@@ -176,7 +176,9 @@ class WorkspaceStoreTests(SandboxHomeTestCase):
 
     def test_tokens_accessor_round_trips(self) -> None:
         ws = Workspace.open(self.launcher_dir)
-        ws.tokens.add("prof", "tok-through-workspace", expiry=TokenExpiryDisposition.TTL)
+        ws.tokens.add(
+            "prof", "tok-through-workspace", expiry=TokenExpiryDisposition.TTL
+        )
         self.assertEqual(ws.tokens.token_for("prof"), "tok-through-workspace")
 
 

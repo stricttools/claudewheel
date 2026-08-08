@@ -141,9 +141,7 @@ class ScratchpadScannerTests(unittest.TestCase):
         self._write("projA/session1/ancient1.bin", b"x" * 512, mtime=old)
         self._write("projA/session1/ancient2.bin", b"x" * 512, mtime=old)
         # ...but one deeply-nested file was just touched.
-        self._write(
-            "projA/session9/deep/fresh.bin", b"y" * 512, mtime=now - 1 * _DAY
-        )
+        self._write("projA/session9/deep/fresh.bin", b"y" * 512, mtime=now - 1 * _DAY)
         d = self._get(scan_scratchpad_dirs(self.root), "projA")
         self.assertFalse(d.is_stale(now))
 

@@ -164,9 +164,7 @@ class LaunchSequenceWiringTests(unittest.TestCase):
         do_launch_mock = mock.MagicMock()
         with (
             mock.patch("claudewheel.preflight.PREFLIGHT_STEPS", steps),
-            mock.patch(
-                "claudewheel.hooks.run_hooks", autospec=True, return_value=True
-            ),
+            mock.patch("claudewheel.hooks.run_hooks", autospec=True, return_value=True),
             mock.patch("claudewheel.state.save_launch_state", autospec=True),
             mock.patch("claudewheel.state.record_inode", autospec=True),
             mock.patch(
@@ -247,9 +245,7 @@ class ModelVersionGuardTests(unittest.TestCase):
     def tearDown(self) -> None:
         self._tmp_obj.cleanup()
 
-    def _ctx_with(
-        self, selections: dict[str, str | None]
-    ) -> PreflightContext:
+    def _ctx_with(self, selections: dict[str, str | None]) -> PreflightContext:
         return PreflightContext(
             selections=selections,
             workspace=None,  # type: ignore[arg-type]

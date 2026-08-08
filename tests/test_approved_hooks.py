@@ -53,7 +53,9 @@ class ApprovedHooksStepTests(SandboxHomeTestCase):
         claude.mkdir(exist_ok=True)
         (claude / name).write_text(json.dumps(data))
 
-    def _ctx(self, *, interactive: bool = True, directory: str | None = None) -> PreflightContext:
+    def _ctx(
+        self, *, interactive: bool = True, directory: str | None = None
+    ) -> PreflightContext:
         return PreflightContext(
             selections={"directory": directory or str(self._proj)},
             workspace=self.ws,
@@ -79,7 +81,9 @@ class ApprovedHooksStepTests(SandboxHomeTestCase):
     def test_no_hooks_continues_and_stores_nothing(self) -> None:
         result = _approved_hooks_run(self._ctx())
         self.assertFalse(result.is_abort)
-        self.assertIsNone(get_project_hook_approvals(self._statefile(), str(self._proj)))
+        self.assertIsNone(
+            get_project_hook_approvals(self._statefile(), str(self._proj))
+        )
 
     def test_no_hooks_never_prompts(self) -> None:
         # A terminal factory that would explode proves no prompt is rendered.
@@ -109,13 +113,17 @@ class ApprovedHooksStepTests(SandboxHomeTestCase):
         result, _ = self._run_with_keys(["n"], self._ctx())
         self.assertTrue(result.is_abort)
         self.assertIn("Declined", result.message)
-        self.assertIsNone(get_project_hook_approvals(self._statefile(), str(self._proj)))
+        self.assertIsNone(
+            get_project_hook_approvals(self._statefile(), str(self._proj))
+        )
 
     def test_esc_declines(self) -> None:
         self._write_hooks(_POPULATED)
         result, _ = self._run_with_keys(["ESC"], self._ctx())
         self.assertTrue(result.is_abort)
-        self.assertIsNone(get_project_hook_approvals(self._statefile(), str(self._proj)))
+        self.assertIsNone(
+            get_project_hook_approvals(self._statefile(), str(self._proj))
+        )
 
     def test_first_sighting_title_says_contributes(self) -> None:
         self._write_hooks(_POPULATED)
@@ -166,7 +174,9 @@ class ApprovedHooksStepTests(SandboxHomeTestCase):
         result = _approved_hooks_run(self._ctx(interactive=False))
         self.assertTrue(result.is_abort)
         self.assertIn("interactive", result.message.lower())
-        self.assertIsNone(get_project_hook_approvals(self._statefile(), str(self._proj)))
+        self.assertIsNone(
+            get_project_hook_approvals(self._statefile(), str(self._proj))
+        )
 
     def test_non_interactive_matching_continues(self) -> None:
         self._write_hooks(_POPULATED)

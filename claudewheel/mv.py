@@ -262,11 +262,15 @@ def _rename_project_dir(old_project: Path, new_project: Path, dry_run: bool) -> 
         # are issued in both modes: under --dry-run the effects chokepoint
         # records them into the would-do log rather than performing them, so
         # this narration and the framework's preview describe the same run.
-        _log(f"  {'would merge' if dry_run else 'merging'} {old_project} -> {new_project}")
+        _log(
+            f"  {'would merge' if dry_run else 'merging'} {old_project} -> {new_project}"
+        )
         for item in sorted(old_project.iterdir()):
             dest = new_project / item.name
             if dest.exists():
-                _log(f"    {'would skip' if dry_run else 'skipping'} (already exists): {item.name}")
+                _log(
+                    f"    {'would skip' if dry_run else 'skipping'} (already exists): {item.name}"
+                )
                 continue
             if effects.issue(dry_run):
                 effects.move(item, dest)
@@ -276,9 +280,7 @@ def _rename_project_dir(old_project: Path, new_project: Path, dry_run: bool) -> 
             if effects.issue(dry_run):
                 effects.rmdir(old_project)
         except OSError:
-            _log(
-                f"  WARNING: could not remove {old_project} (not empty after merge)"
-            )
+            _log(f"  WARNING: could not remove {old_project} (not empty after merge)")
         return True
 
     if effects.issue(dry_run):

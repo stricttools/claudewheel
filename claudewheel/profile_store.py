@@ -564,7 +564,9 @@ class ProfileStore:
         pending_path = old_dir / _RENAME_PENDING_FILE
         write_json_atomic(pending_path, {"from": old, "to": new})
         effects.rename(old_dir, new_dir)
-        self.token_store.rename(old, new)  # effects: exempt -- TokenStore method, not Path.rename
+        self.token_store.rename(
+            old, new
+        )  # effects: exempt -- TokenStore method, not Path.rename
         self.options.rename_value(_PROFILE_SEGMENT, old, new, _OPTIONS_DEFAULT)
         self._update_state_rename(old, new)
         breadcrumb = new_dir / _RENAME_PENDING_FILE
@@ -623,7 +625,9 @@ class ProfileStore:
 
             if profile_dir.name == new:
                 # Post-rename window: finish the idempotent store updates.
-                self.token_store.rename(old, new)  # effects: exempt -- TokenStore method, not Path.rename
+                self.token_store.rename(
+                    old, new
+                )  # effects: exempt -- TokenStore method, not Path.rename
                 self.options.rename_value(_PROFILE_SEGMENT, old, new, _OPTIONS_DEFAULT)
                 self._update_state_rename(old, new)
                 effects.remove(pending)

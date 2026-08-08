@@ -2675,9 +2675,7 @@ class RenameProfileDispatchTests(unittest.TestCase):
 
     def test_dispatches(self) -> None:
         with (
-            mock.patch(
-                "sys.argv", ["c", "profile", "rename", "alpha", "beta"]
-            ),
+            mock.patch("sys.argv", ["c", "profile", "rename", "alpha", "beta"]),
             mock.patch.object(
                 cli, "_handle_rename_profile", autospec=True, return_value=0
             ) as mock_handler,
@@ -2849,17 +2847,15 @@ class ResumeTitleResolutionTests(unittest.TestCase):
             "customTitle": title,
         }
 
-    def _run_main(self, argv: list[str], directory: str) -> tuple[
-        mock.MagicMock, io.StringIO, int | None
-    ]:
+    def _run_main(
+        self, argv: list[str], directory: str
+    ) -> tuple[mock.MagicMock, io.StringIO, int | None]:
         launch_mock = mock.MagicMock()
         err = io.StringIO()
         code: int | None = None
         full_argv = list(argv) + ["--directory", directory]
         with (
-            mock.patch.dict(
-                os.environ, {"CLAUDEWHEEL_CONFIG_DIR": str(self.root)}
-            ),
+            mock.patch.dict(os.environ, {"CLAUDEWHEEL_CONFIG_DIR": str(self.root)}),
             mock.patch("sys.argv", full_argv),
             mock.patch(
                 "claudewheel.config.AppConfigStore",
@@ -2919,8 +2915,7 @@ class ResumeTitleResolutionTests(unittest.TestCase):
         encoded = SharedStore.encode_path(os.path.abspath(directory))
         # custom-title record buried deep past any head-scan limit.
         lines: list[dict[str, object]] = [
-            {"cwd": directory, "type": "user", "message": f"m{i}"}
-            for i in range(50)
+            {"cwd": directory, "type": "user", "message": f"m{i}"} for i in range(50)
         ]
         lines.append(self._custom_title(uuid, title))
         self._write_session(encoded, uuid, lines)

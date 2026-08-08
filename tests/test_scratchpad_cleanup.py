@@ -165,9 +165,9 @@ class ScratchpadCleanupStepTests(SandboxHomeTestCase):
         # `now < until` comparison must not raise (offset-naive vs offset-aware).
         # Assume-UTC preserves the legitimate snooze: no prompt, no scan.
         self._make_dir("projStale", age_days=SCRATCHPAD_STALE_DAYS + 5)
-        naive_future = (
-            datetime.now(timezone.utc) + timedelta(days=3)
-        ).replace(tzinfo=None)
+        naive_future = (datetime.now(timezone.utc) + timedelta(days=3)).replace(
+            tzinfo=None
+        )
         set_scratchpad_snooze_until(self._statefile(), naive_future.isoformat())
 
         with (
@@ -196,14 +196,17 @@ class ScratchpadCleanupStepTests(SandboxHomeTestCase):
 
     def test_fresh_dirs_never_offered(self) -> None:
         fresh = self._make_dir("projFresh", age_days=1)
-        with mock.patch(
-            "claudewheel.scratchpad.tmp_claude_dir",
-            autospec=True,
-            return_value=self._root,
-        ), mock.patch(
-            "claudewheel.preflight._make_terminal",
-            autospec=True,
-            side_effect=AssertionError("must not prompt for fresh dirs"),
+        with (
+            mock.patch(
+                "claudewheel.scratchpad.tmp_claude_dir",
+                autospec=True,
+                return_value=self._root,
+            ),
+            mock.patch(
+                "claudewheel.preflight._make_terminal",
+                autospec=True,
+                side_effect=AssertionError("must not prompt for fresh dirs"),
+            ),
         ):
             result = _scratchpad_cleanup_run(self._ctx())
         self.assertFalse(result.is_abort)
@@ -211,14 +214,17 @@ class ScratchpadCleanupStepTests(SandboxHomeTestCase):
 
     def test_no_stale_no_prompt(self) -> None:
         # Empty scratchpad root -> no stale dirs -> no prompt.
-        with mock.patch(
-            "claudewheel.scratchpad.tmp_claude_dir",
-            autospec=True,
-            return_value=self._root,
-        ), mock.patch(
-            "claudewheel.preflight._make_terminal",
-            autospec=True,
-            side_effect=AssertionError("must not prompt with nothing stale"),
+        with (
+            mock.patch(
+                "claudewheel.scratchpad.tmp_claude_dir",
+                autospec=True,
+                return_value=self._root,
+            ),
+            mock.patch(
+                "claudewheel.preflight._make_terminal",
+                autospec=True,
+                side_effect=AssertionError("must not prompt with nothing stale"),
+            ),
         ):
             result = _scratchpad_cleanup_run(self._ctx())
         self.assertFalse(result.is_abort)

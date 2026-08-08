@@ -405,9 +405,7 @@ def _prompt_hook_approval(
     lines = ["The target project would run these hooks:", ""]
     lines.extend(listing)
     lines.append("")
-    lines.append(
-        "Approve only if you trust them -- they run arbitrary commands."
-    )
+    lines.append("Approve only if you trust them -- they run arbitrary commands.")
     hint = "y: approve and continue   n/esc: decline and abort"
 
     terminal = _make_terminal()
@@ -576,8 +574,7 @@ def _scratchpad_cleanup_run(ctx: PreflightContext) -> StepResult:
                 errors.append(f"{d.name}: {e}")
         if errors:
             print(
-                "Warning: could not delete some scratchpad dirs: "
-                + "; ".join(errors),
+                "Warning: could not delete some scratchpad dirs: " + "; ".join(errors),
                 file=sys.stderr,
             )
         return StepResult.cont()

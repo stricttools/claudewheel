@@ -128,9 +128,7 @@ def _find_title_in_file(jsonl_path: Path, title: str) -> str | None:
     return None
 
 
-def find_sessions_by_title(
-    title: str, project_dirs: list[Path]
-) -> list[TitleMatch]:
+def find_sessions_by_title(title: str, project_dirs: list[Path]) -> list[TitleMatch]:
     """Find sessions whose user-assigned title equals *title* exactly.
 
     Scans ONLY the top-level ``*.jsonl`` files of each directory in

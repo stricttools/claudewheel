@@ -393,7 +393,9 @@ class FindSessionsByTitleTests(unittest.TestCase):
         )
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].session_id, sid)
-        self.assertEqual(matches[0].project_dir, self.projects_dir / "-home-m-Projects-a")
+        self.assertEqual(
+            matches[0].project_dir, self.projects_dir / "-home-m-Projects-a"
+        )
         self.assertGreater(matches[0].mtime, 0)
 
     def test_absent(self) -> None:
@@ -424,9 +426,7 @@ class FindSessionsByTitleTests(unittest.TestCase):
         all_dirs = sorted(p for p in self.projects_dir.iterdir() if p.is_dir())
         matches = find_sessions_by_title("Shared Title", all_dirs)
         self.assertEqual(len(matches), 2)
-        self.assertEqual(
-            {m.session_id for m in matches}, {sid1, sid2}
-        )
+        self.assertEqual({m.session_id for m in matches}, {sid1, sid2})
 
     def test_ai_title_and_agent_name_records_ignored(self) -> None:
         sid = "55555555-5555-5555-5555-555555555555"
@@ -496,9 +496,7 @@ class FindSessionsByTitleTests(unittest.TestCase):
                 fh.write(blob)
                 if i == 200:
                     fh.write(
-                        json.dumps(
-                            self._custom_title_line(target_sid, "Needle Title")
-                        )
+                        json.dumps(self._custom_title_line(target_sid, "Needle Title"))
                         + "\n"
                     )
         start = time.monotonic()

@@ -101,9 +101,7 @@ class VanillaLaunchIntegrationTests(ClaudeDirWriteCanaryMixin, _VanillaTestBase)
         out = io.StringIO()
         with (
             self.claude_dir_write_canary(),
-            mock.patch(
-                "claudewheel.hooks.run_hooks", autospec=True, return_value=True
-            ),
+            mock.patch("claudewheel.hooks.run_hooks", autospec=True, return_value=True),
             mock.patch(
                 "claudewheel.launch.fetch_gh_token", autospec=True, return_value=None
             ),

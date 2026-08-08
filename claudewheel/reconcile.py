@@ -186,7 +186,9 @@ def _reconcile_permissions(container: dict[str, Any]) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
-def _reconcile_hooks(container: dict[str, Any], canonical_hooks: dict[str, Any]) -> list[str]:
+def _reconcile_hooks(
+    container: dict[str, Any], canonical_hooks: dict[str, Any]
+) -> list[str]:
     """Set ``container['hooks']`` to EXACTLY *canonical_hooks*.
 
     Replaces the entire hooks structure -- user-added hook entries are pruned.
@@ -331,7 +333,9 @@ def _process_settings_file(
     error is captured (never raised) so a launch-time reconcile never aborts.
     """
     if not path.exists():
-        return TargetReport(label, changed=False, written=False, skip_reason="no settings.json")
+        return TargetReport(
+            label, changed=False, written=False, skip_reason="no settings.json"
+        )
     try:
         data = load_settings(path)
     except (json.JSONDecodeError, OSError) as e:

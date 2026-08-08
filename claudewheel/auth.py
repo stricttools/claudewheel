@@ -47,6 +47,7 @@ def looks_like_token(token: str) -> bool:
     """
     return bool(_TOKEN_FORMAT_RE.match(token))
 
+
 _LABEL = b"valid for 1 year"
 _MIN_TOKEN_LEN = 50
 

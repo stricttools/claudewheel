@@ -234,9 +234,7 @@ class ProfileStoreContractTests(SandboxHomeTestCase):
         # Even in 'raise' mode, an explicit view means no load happens, so the
         # corrupt file can never raise.
         result = self._store().discover(on_corrupt_tokens="raise", tokens={})
-        self.assertEqual(
-            [(x.name, x.has_token) for x in result], [("alpha", False)]
-        )
+        self.assertEqual([(x.name, x.has_token) for x in result], [("alpha", False)])
 
     def test_discover_rejects_unknown_mode(self) -> None:
         """An unrecognized corrupt-tokens mode is a hard ValueError."""

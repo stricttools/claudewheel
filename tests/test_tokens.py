@@ -305,7 +305,11 @@ class TokenStoreAddTierTests(unittest.TestCase):
 
     def test_tier_included_when_provided(self) -> None:
         self.store.add(
-            "prof", "tok-1", tier="default_claude_pro", subscription="claude_pro", expiry=TTL
+            "prof",
+            "tok-1",
+            tier="default_claude_pro",
+            subscription="claude_pro",
+            expiry=TTL,
         )
         entry = json.loads(self.tokens_file.read_text())["prof"]
         self.assertEqual(entry["rateLimitTier"], "default_claude_pro")
@@ -519,7 +523,11 @@ class TokenStoreTests(unittest.TestCase):
 
     def test_add_with_tier(self) -> None:
         self.store.add(
-            "prof", "tok-x", tier="default_claude_pro", subscription="claude_pro", expiry=TTL
+            "prof",
+            "tok-x",
+            tier="default_claude_pro",
+            subscription="claude_pro",
+            expiry=TTL,
         )
         entry = self.store.load()["prof"]
         self.assertEqual(entry["rateLimitTier"], "default_claude_pro")

@@ -55,9 +55,7 @@ def fetch_manifest(version: str) -> dict[str, Any]:
         # platform entry, checksum and destination path apply, so it must
         # execute in every mode -- a preview that could not read it could not
         # name the file it would write.
-        body = effects.http_read(
-            url, headers={"User-Agent": "claudewheel"}, timeout=10
-        )
+        body = effects.http_read(url, headers={"User-Agent": "claudewheel"}, timeout=10)
         parsed: Any = json.loads(body)
     except urllib.error.HTTPError as e:
         raise OSError(f"Version {version} not found on server (HTTP {e.code})") from e
@@ -153,7 +151,9 @@ def install_version(
         # not invent a byte count for bytes nobody fetched.
         effects.mkdir(versions_dir, parents=True, exist_ok=True)
         body = effects.http(
-            "GET", download_url, resource=f"claude-binary:{version}",
+            "GET",
+            download_url,
+            resource=f"claude-binary:{version}",
             grant="download",
         )
         effects.write(tmp, body)
@@ -163,9 +163,11 @@ def install_version(
 
     # Download with progress reporting
     try:
-        resp = effects.http_stream(download_url,
-                                   headers={"User-Agent": "claudewheel"},
-                                   timeout=DOWNLOAD_TIMEOUT)
+        resp = effects.http_stream(
+            download_url,
+            headers={"User-Agent": "claudewheel"},
+            timeout=DOWNLOAD_TIMEOUT,
+        )
     except Exception as e:
         raise OSError(f"Failed to download {version}: {e}") from e
 

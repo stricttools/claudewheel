@@ -557,8 +557,13 @@ class CheckTokenExpiryTests(_HomeDirTestCase):
     def test_unknown_expiry_never_flagged_as_expiring(self) -> None:
         """An externally-issued token (unknown expiry) is never expiring-soon."""
         self._write_tokens(
-            {"pasted": {"token": "sk-ant-x", "created": "2020-01-01",
-                        EXPIRY_UNKNOWN_FIELD: True}}
+            {
+                "pasted": {
+                    "token": "sk-ant-x",
+                    "created": "2020-01-01",
+                    EXPIRY_UNKNOWN_FIELD: True,
+                }
+            }
         )
         result = check_token_expiry(self.ws)
         self.assertTrue(result.ok)
@@ -570,8 +575,13 @@ class CheckTokenExpiryTests(_HomeDirTestCase):
 
         soon = (date.today() + timedelta(days=5)).isoformat()
         self._write_tokens(
-            {"scraped": {"token": "sk-ant-y", "created": "2020-01-01",
-                         "expires_at": soon}}
+            {
+                "scraped": {
+                    "token": "sk-ant-y",
+                    "created": "2020-01-01",
+                    "expires_at": soon,
+                }
+            }
         )
         result = check_token_expiry(self.ws)
         self.assertFalse(result.ok)
