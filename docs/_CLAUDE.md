@@ -13,7 +13,7 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 - `CHANGELOG.md` is generated from those entries -- never edit it by hand
 - Scaffold `.rlsbl/releases/unreleased.toml` with `rlsbl release init`, then set the bump type and description in it
 - Release with `rlsbl release run --no-allow-dirty --watch --approve-consequential`
-- CI publishes to both npm and PyPI via OIDC Trusted Publishing (no tokens needed); never run `npm publish` or `uv publish` by hand
+- CI publishes to both npm and PyPI, but the two authenticate differently: PyPI uses OIDC Trusted Publishing (no token, no secret), while npm authenticates with the repository's `NPM_TOKEN` secret passed as `NODE_AUTH_TOKEN`. The `--provenance` flag on `npm publish` is a signed-attestation feature, not an auth mechanism, so it does not remove the token requirement. Never run `npm publish` or `uv publish` by hand
 - Use the framework-owned `--dry-run` flag to preview a release without making changes
 
 ## Architecture
