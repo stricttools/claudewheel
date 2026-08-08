@@ -17,12 +17,22 @@ Any error is allowed to propagate: selfdoc turns an exception into a visible
 
 from __future__ import annotations
 
+import importlib
 import importlib.util
 import os
 import sys
+from types import ModuleType
+from typing import TYPE_CHECKING, Any, cast
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
+
+    # Typing-only: at runtime the rule model is reached through the
+    # file-loaded module below, never by importing the claudewheel package.
+    from claudewheel.guardrail import GuardrailRule
 
 
-def _load_guardrail_module():
+def _load_guardrail_module() -> ModuleType:
     """Load ``claudewheel/guardrail.py`` from the repo root and return it.
 
     The repo root is two directories above this file
@@ -33,6 +43,8 @@ def _load_guardrail_module():
     guardrail_path = os.path.join(repo_root, "claudewheel", "guardrail.py")
     module_name = "claudewheel_guardrail_for_docs"
     spec = importlib.util.spec_from_file_location(module_name, guardrail_path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"cannot load a module spec for {guardrail_path}")
     module = importlib.util.module_from_spec(spec)
     # Register before exec so @dataclass type resolution can find the module in
     # sys.modules (Python 3.12+ dataclasses look up cls.__module__ there).
@@ -41,14 +53,14 @@ def _load_guardrail_module():
     return module
 
 
-def _vendored_render(headers, rows):
+def _vendored_render(headers: Sequence[str], rows: Sequence[Sequence[str]]) -> str:
     """Minimal pipe-escaping markdown table renderer.
 
     Fallback used only when ``selfdoc_core.tables.render_markdown_table`` is not
     importable in the process resolving this directive.
     """
 
-    def esc(text):
+    def esc(text: object) -> str:
         return str(text).replace("|", "\\|").replace("\n", " ")
 
     lines = [
@@ -60,7 +72,7 @@ def _vendored_render(headers, rows):
     return "\n".join(lines)
 
 
-def _advice_for(rule, mod):
+def _advice_for(rule: GuardrailRule, mod: ModuleType) -> str:
     """Return the human-facing advice/note for *rule*.
 
     HARD_DENY and ADVISE rules carry ``main_advice``. ESCALATE rules have no
@@ -83,8 +95,13 @@ def _advice_for(rule, mod):
     return ""
 
 
-def resolve(attrs, config, body):
+def resolve(attrs: dict[str, str], config: dict[str, Any], body: list[str]) -> str:
     """Render the guardrail rule set as a markdown table.
+
+    selfdoc's resolver calls every custom directive with this exact triple:
+    the directive's parsed ``key="value"`` attributes, the validated
+    ``selfdoc.json`` config, and the directive's block body lines. This
+    directive takes no attributes and no body, so all three go unused.
 
     Columns: Key, Tier, Settings coverage (FULL/PARTIAL/NONE, or "n/a" when the
     tier has no settings backstop), and Advice.
@@ -92,7 +109,7 @@ def resolve(attrs, config, body):
     mod = _load_guardrail_module()
 
     headers = ["Key", "Tier", "Settings coverage", "Advice"]
-    rows = []
+    rows: list[list[str]] = []
     for rule in mod.RULES:
         coverage = rule.settings_coverage
         coverage_str = coverage.name if coverage is not None else "n/a"
@@ -105,8 +122,16 @@ def resolve(attrs, config, body):
             ]
         )
 
+    # selfdoc_core is deliberately NOT a claudewheel dependency: it exists only
+    # in the selfdoc process that resolves this directive. Import it by name so
+    # the absence is a plain runtime ImportError rather than an unresolvable
+    # static import, and cast the untyped callable to the shape used here.
     try:
-        from selfdoc_core.tables import render_markdown_table
+        tables = importlib.import_module("selfdoc_core.tables")
     except ImportError:
         return _vendored_render(headers, rows)
+    render_markdown_table = cast(
+        "Callable[[Sequence[str], Sequence[Sequence[str]]], str]",
+        tables.render_markdown_table,
+    )
     return render_markdown_table(headers, rows)

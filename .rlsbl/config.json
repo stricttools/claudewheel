@@ -32,7 +32,8 @@
       "tool": "mypy",
       "paths": [
         "claudewheel",
-        "tests"
+        "tests",
+        "docs"
       ],
       "tag": "preflight"
     },
