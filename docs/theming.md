@@ -1,6 +1,6 @@
 ---
 title: Theming
-description: "How claudewheel themes work: the hex color system, built-in dark and light themes, auto-detection, overflow styling, form wizard colors, and creating custom themes."
+description: "How claudewheel themes work: the hex color system, theme file structure, built-in dark and light themes, auto-detection, and creating custom themes."
 nav_group: "Concepts"
 order: 6
 ---
@@ -50,16 +50,34 @@ terminal to use its own default for that element.
 
 ## Theme file structure
 
-A theme file is a JSON object with five top-level sections:
+A theme file is a JSON object with a `name` string plus five top-level
+sections: `global`, `segments`, `search`, `overflow`, and `forms`. Sections
+and individual keys may be omitted; a missing color key parses to an empty
+escape sequence, so the terminal's own default applies to that element. The
+skeleton below shows one representative key per section, taken from the
+built-in dark theme; each section's full key set is documented under its own
+heading.
 
 ```json
 {
   "name": "dark",
-  "global": { ... },
-  "segments": { ... },
-  "search": { ... },
-  "overflow": { ... },
-  "forms": { ... }
+  "global": {
+    "fg": "#e0e0e0"
+  },
+  "segments": {
+    "profile": {
+      "value_fg": "#7ec8e3"
+    }
+  },
+  "search": {
+    "match_fg": "#ffff00"
+  },
+  "overflow": {
+    "arrow_fg": "#666666"
+  },
+  "forms": {
+    "title_fg": "#7ec8e3"
+  }
 }
 ```
 
