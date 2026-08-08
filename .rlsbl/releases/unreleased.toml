@@ -2,11 +2,28 @@
 format_version = 1
 # Version bump type: patch, minor, major, infra, or prerelease
 #   prerelease: advance an existing pre-release (0.6.0-beta.0 -> -beta.1)
-bump = ""
+bump = "patch"
 # Short description of this release (required)
-description = ""
+description = "Unblock Fable 5 on token-authed profiles by injecting the declared plan tier"
 # Optional context explaining why these changes were made
-context = ""
+context = """
+Claude Code reads a subscription tier from CLAUDE_CODE_SUBSCRIPTION_TYPE and
+only from there when auth arrives as a setup token. Its own fallback is the
+OAuth profile endpoint, which answers 403 for setup tokens because they are not
+granted the user:profile scope. The tier therefore resolves to null, and
+tier-dependent checks fail closed: Fable 5 is walled behind a usage-credits
+dialog whose only offered action is to ask an administrator, on personal
+accounts that have no administrator.
+
+Every claudewheel-launched profile authenticates this way, so this affected all
+of them. The tier is now declared per profile in tokens.json and injected at
+launch, which also removes the shell-exported workaround it replaces -- that
+lived in one shell and was absent from every other terminal.
+
+Declared values are validated against the sets the client actually compares
+against, because a value it does not recognize is inert and produces a failure
+identical to declaring nothing at all.
+"""
 # Pre-release channel: alpha, beta, rc, or stable (ordered;
 # demotion is an error). With patch/minor/major it ENTERS the
 # channel (0.5.2 + minor + alpha -> 0.6.0-alpha.0); with
