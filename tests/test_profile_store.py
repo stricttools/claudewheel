@@ -184,6 +184,78 @@ class ProfileStoreContractTests(SandboxHomeTestCase):
         self.assertEqual(env["CLAUDE_CONFIG_DIR"], str(p))
         self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN", env)
 
+    def test_env_injects_plan_tier_from_tokens(self) -> None:
+        """A tokens entry carrying plan-tier fields yields the matching env vars."""
+        self.make_profile("alpha", credentials=True)
+        write_json(
+            self.sandbox_paths["TOKENS_FILE"],
+            {
+                "alpha": {
+                    "token": "tok-alpha",
+                    "subscriptionType": "max",
+                    "rateLimitTier": "default_claude_max_20x",
+                }
+            },
+        )
+        env = self._store().env("alpha")
+        self.assertEqual(env["CLAUDE_CODE_SUBSCRIPTION_TYPE"], "max")
+        self.assertEqual(env["CLAUDE_CODE_RATE_LIMIT_TIER"], "default_claude_max_20x")
+        self.assertEqual(env["CLAUDE_CODE_OAUTH_TOKEN"], "tok-alpha")
+
+    def test_env_plan_tier_independent_of_token(self) -> None:
+        """Tier fields are injected even when the entry carries no token."""
+        self.make_profile("alpha", credentials=True)
+        write_json(
+            self.sandbox_paths["TOKENS_FILE"],
+            {"alpha": {"subscriptionType": "pro"}},
+        )
+        env = self._store().env("alpha")
+        self.assertEqual(env["CLAUDE_CODE_SUBSCRIPTION_TYPE"], "pro")
+        self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN", env)
+        self.assertNotIn("CLAUDE_CODE_RATE_LIMIT_TIER", env)
+
+    def test_env_omits_plan_tier_when_absent(self) -> None:
+        """An entry without tier fields injects neither var."""
+        self.make_profile("alpha", credentials=True)
+        write_json(self.sandbox_paths["TOKENS_FILE"], {"alpha": "tok-alpha"})
+        env = self._store().env("alpha")
+        self.assertNotIn("CLAUDE_CODE_SUBSCRIPTION_TYPE", env)
+        self.assertNotIn("CLAUDE_CODE_RATE_LIMIT_TIER", env)
+
+    def test_env_unknown_subscription_type_raises(self) -> None:
+        """An unrecognized subscriptionType is a hard error naming the valid values."""
+        self.make_profile("alpha", credentials=True)
+        write_json(
+            self.sandbox_paths["TOKENS_FILE"],
+            {"alpha": {"token": "t", "subscriptionType": "Max"}},
+        )
+        with self.assertRaises(ValueError) as ctx:
+            self._store().env("alpha")
+        msg = str(ctx.exception)
+        self.assertIn("'Max'", msg)
+        self.assertIn("alpha", msg)
+        self.assertIn("max", msg)
+
+    def test_env_unknown_rate_limit_tier_raises(self) -> None:
+        """An unrecognized rateLimitTier is a hard error naming the valid values."""
+        self.make_profile("alpha", credentials=True)
+        write_json(
+            self.sandbox_paths["TOKENS_FILE"],
+            {"alpha": {"token": "t", "rateLimitTier": "max_20x"}},
+        )
+        with self.assertRaises(ValueError) as ctx:
+            self._store().env("alpha")
+        self.assertIn("'max_20x'", str(ctx.exception))
+
+    def test_env_default_ignores_plan_tier(self) -> None:
+        """The vanilla default resolves empty even when a tokens entry has tiers."""
+        (self.home / ".claude").mkdir(parents=True, exist_ok=True)
+        write_json(
+            self.sandbox_paths["TOKENS_FILE"],
+            {"default": {"token": "t", "subscriptionType": "max"}},
+        )
+        self.assertEqual(self._store().env("default"), {})
+
     def test_env_unknown_name_raises_listing_available(self) -> None:
         self.make_profile("alpha", credentials=True)
         self.make_profile("beta", credentials=True)

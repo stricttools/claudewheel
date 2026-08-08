@@ -230,6 +230,64 @@ class ResolveTokenTests(ResolveLaunchConfigTestBase):
         _, _, env = self._resolve(selections={"profile": "work"})
         self.assertEqual(env["CLAUDE_CODE_OAUTH_TOKEN"], "tok-abc")
 
+    def test_plan_tier_reaches_launch_env(self) -> None:
+        """Plan-tier fields in tokens.json arrive in the exec environment.
+
+        This is the whole point of storing them: Claude Code reads
+        subscriptionType from CLAUDE_CODE_SUBSCRIPTION_TYPE when auth comes from
+        a setup token, and resolves it to null without it.
+        """
+        self._make_profile("work")
+        self.tokens_file.write_text(
+            json.dumps(
+                {
+                    "work": {
+                        "token": "tok-abc",
+                        "subscriptionType": "max",
+                        "rateLimitTier": "default_claude_max_20x",
+                    }
+                }
+            )
+        )
+
+        _, _, env = self._resolve(selections={"profile": "work"})
+        self.assertEqual(env["CLAUDE_CODE_SUBSCRIPTION_TYPE"], "max")
+        self.assertEqual(env["CLAUDE_CODE_RATE_LIMIT_TIER"], "default_claude_max_20x")
+
+    def test_ambient_plan_tier_overridden_by_profile(self) -> None:
+        """A profile's declared tier wins over an inherited shell value."""
+        self._make_profile("work")
+        self.tokens_file.write_text(
+            json.dumps({"work": {"token": "t", "subscriptionType": "pro"}})
+        )
+        os.environ["CLAUDE_CODE_SUBSCRIPTION_TYPE"] = "max"
+        self.addCleanup(os.environ.pop, "CLAUDE_CODE_SUBSCRIPTION_TYPE", None)
+
+        _, _, env = self._resolve(selections={"profile": "work"})
+        self.assertEqual(env["CLAUDE_CODE_SUBSCRIPTION_TYPE"], "pro")
+
+    def test_ambient_plan_tier_survives_undeclared_profile(self) -> None:
+        """With no declared tier, an inherited shell value is left alone."""
+        self._make_profile("work")
+        self.tokens_file.write_text(json.dumps({"work": "t"}))
+        os.environ["CLAUDE_CODE_SUBSCRIPTION_TYPE"] = "max"
+        self.addCleanup(os.environ.pop, "CLAUDE_CODE_SUBSCRIPTION_TYPE", None)
+
+        _, _, env = self._resolve(selections={"profile": "work"})
+        self.assertEqual(env["CLAUDE_CODE_SUBSCRIPTION_TYPE"], "max")
+
+    def test_vanilla_default_strips_ambient_plan_tier(self) -> None:
+        """The vanilla default injects nothing, so ambient tier vars are removed."""
+        self.claude_dir.mkdir(parents=True, exist_ok=True)
+        os.environ["CLAUDE_CODE_SUBSCRIPTION_TYPE"] = "max"
+        os.environ["CLAUDE_CODE_RATE_LIMIT_TIER"] = "default_claude_max_20x"
+        self.addCleanup(os.environ.pop, "CLAUDE_CODE_SUBSCRIPTION_TYPE", None)
+        self.addCleanup(os.environ.pop, "CLAUDE_CODE_RATE_LIMIT_TIER", None)
+
+        _, _, env = self._resolve(selections={"profile": "default"})
+        self.assertNotIn("CLAUDE_CODE_SUBSCRIPTION_TYPE", env)
+        self.assertNotIn("CLAUDE_CODE_RATE_LIMIT_TIER", env)
+
     def test_missing_tokens_file_yields_no_token(self) -> None:
         """A missing tokens.json is not an error and sets no OAuth token env."""
         self._make_profile("work")

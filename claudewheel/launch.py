@@ -11,7 +11,7 @@ from . import effects
 from .binaries import BinaryLocator
 from .clients import CLIENT_ADAPTERS, ClientContext
 from .defaults import DISALLOWED_TOOLS
-from .profile_store import ProfileStore
+from .profile_store import PROFILE_ENV_KEYS, ProfileStore
 
 
 def fetch_gh_token(account: str) -> str | None:
@@ -118,19 +118,18 @@ def resolve_launch_config(
     # 5. Environment (target-agnostic)
     env = dict(os.environ)
     if is_default:
-        # Vanilla default: strip any ambient CLAUDE_CONFIG_DIR / OAuth token so
-        # Claude Code manages ~/.claude entirely on its own. cw injects nothing.
-        env.pop("CLAUDE_CONFIG_DIR", None)
-        env.pop("CLAUDE_CODE_OAUTH_TOKEN", None)
+        # Vanilla default: strip every profile-owned variable so Claude Code
+        # manages ~/.claude entirely on its own. cw injects nothing, and an
+        # ambient value inherited from the shell must not stand in for the
+        # injection cw is declining to make.
+        for key in PROFILE_ENV_KEYS:
+            env.pop(key, None)
     else:
-        env["CLAUDE_CONFIG_DIR"] = profile_env["CLAUDE_CONFIG_DIR"]
-        # Long-lived OAuth token, supplied by ProfileStore.env() alongside the
-        # config dir. env() adds CLAUDE_CODE_OAUTH_TOKEN only when the store
-        # yields a truthy token for the profile; a missing file or absent entry
-        # yields none.
-        oauth_token = profile_env.get("CLAUDE_CODE_OAUTH_TOKEN")
-        if oauth_token:
-            env["CLAUDE_CODE_OAUTH_TOKEN"] = oauth_token
+        # Everything ProfileStore.env() yields is injected verbatim: the config
+        # dir, the OAuth token when one exists, and the declared plan tier. The
+        # store decides which keys apply; enumerating them here would mean a new
+        # key silently failing to reach the client.
+        env.update(profile_env)
     if gh_token:
         env["GH_TOKEN"] = gh_token
 

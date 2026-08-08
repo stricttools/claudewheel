@@ -15,6 +15,18 @@ from .effects import write_json_atomic_secret
 # Claude Code setup-token TTL. Single source of truth for token lifetime.
 TOKEN_TTL_DAYS = 365
 
+# Plan-tier values Claude Code compares against. Anything outside these sets is
+# inert there -- it resolves the tier to null exactly as an absent value would --
+# so declaring one is rejected rather than passed through.
+#
+# SUBSCRIPTION_TYPES are the tiers its entitlement checks test for.
+# RATE_LIMIT_TIERS are the only rate-limit strings present in the client;
+# notably there is none for Pro, and Team accounts use the max_5x value.
+SUBSCRIPTION_TYPES = frozenset({"max", "pro", "team", "enterprise"})
+RATE_LIMIT_TIERS = frozenset(
+    {"default_claude_max_20x", "default_claude_max_5x", "default_claude_zero"}
+)
+
 # Marker field written on entries whose expiry is genuinely unknown (a token
 # supplied from an external source, not a claude setup-token). Its presence
 # means "do not assume a 365-day lifetime -- we simply do not know".
@@ -243,6 +255,40 @@ class TokenStore:
     def token_for(self, name: str) -> str | None:
         """Return the token string for *name*, or None if absent/tier-only."""
         return parse_entry(self.load().get(name))
+
+    def plan_env_for(self, name: str) -> dict[str, str]:
+        """Return *name*'s declared plan tier as Claude Code env vars.
+
+        Reads the ``subscriptionType`` and ``rateLimitTier`` fields of the
+        entry, mapping each present one to its ``CLAUDE_CODE_*`` variable. An
+        entry that declares neither yields an empty dict; a legacy bare-string
+        entry likewise yields one.
+
+        Declared values are validated against the sets Claude Code actually
+        compares against, because a value it does not recognize behaves exactly
+        like no value at all -- the tier resolves to null and the failure looks
+        identical to not having configured anything. Raises
+        :class:`ValueError` naming the offending field and the accepted values.
+        """
+        entry = self.load().get(name)
+        if not isinstance(entry, dict):
+            return {}
+        env: dict[str, str] = {}
+        for field, var, allowed in (
+            ("subscriptionType", "CLAUDE_CODE_SUBSCRIPTION_TYPE", SUBSCRIPTION_TYPES),
+            ("rateLimitTier", "CLAUDE_CODE_RATE_LIMIT_TIER", RATE_LIMIT_TIERS),
+        ):
+            value = entry.get(field)
+            if value is None or value == "":
+                continue
+            if not isinstance(value, str) or value not in allowed:
+                raise ValueError(
+                    f"Profile {name!r} declares {field}={value!r} in "
+                    f"{self.path}, which Claude Code does not recognize. "
+                    f"Valid values: {', '.join(sorted(allowed))}."
+                )
+            env[var] = value
+        return env
 
     def names(self) -> set[str]:
         """Return the set of profile names present in the file."""

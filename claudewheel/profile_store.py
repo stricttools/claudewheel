@@ -34,6 +34,18 @@ _OPTIONS_DEFAULT: dict[str, Any] = {_PROFILE_SEGMENT: {"values": [], "pinned": [
 # profile_ops.RENAME_PENDING_FILE so both engines recognize the same crumbs.
 _RENAME_PENDING_FILE = ".rename_pending"
 
+# Every environment variable ProfileStore.env() can yield -- the profile's
+# identity as Claude Code sees it. The launch path injects these for a named
+# profile and removes them for the vanilla default, so both directions stay in
+# step from one list: a variable added to env() without being added here would
+# leak across a vanilla launch it was never meant to reach.
+PROFILE_ENV_KEYS: tuple[str, ...] = (
+    "CLAUDE_CONFIG_DIR",
+    "CLAUDE_CODE_OAUTH_TOKEN",
+    "CLAUDE_CODE_SUBSCRIPTION_TYPE",
+    "CLAUDE_CODE_RATE_LIMIT_TIER",
+)
+
 
 @dataclass(frozen=True)
 class Profile:
@@ -271,6 +283,16 @@ class ProfileStore:
         Claude Code's own ``~/.claude``, managed by Claude Code and strictly
         read-only to cw, so it resolves to an EMPTY env -- no
         ``CLAUDE_CONFIG_DIR`` and no token injection (the vanilla launch path).
+
+        A profile whose tokens entry declares plan-tier fields additionally
+        carries ``CLAUDE_CODE_SUBSCRIPTION_TYPE`` and/or
+        ``CLAUDE_CODE_RATE_LIMIT_TIER``. Claude Code reads a subscription tier
+        from those variables and ONLY from them when auth arrives as a setup
+        token (``CLAUDE_CODE_OAUTH_TOKEN``); its own fallback -- fetching the
+        OAuth profile -- is unavailable because setup tokens lack the
+        ``user:profile`` scope. Without them the tier resolves to null and
+        tier-dependent checks fail closed. Declared values are validated here:
+        an unrecognized one is a hard error, never a silently ignored field.
         """
         profiles = self.enumerate()
         names = {p.name for p in profiles}
@@ -289,6 +311,7 @@ class ProfileStore:
         token = self.token_store.token_for(name)
         if token:
             env["CLAUDE_CODE_OAUTH_TOKEN"] = token
+        env.update(self.token_store.plan_env_for(name))
         return env
 
     # --- Write operations ------------------------------------------------
