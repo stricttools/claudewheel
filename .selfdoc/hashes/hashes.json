@@ -236,93 +236,93 @@
     "source_docstring": "fe18bab92438b4b951c568eb30ffbf901e9f67cc2194d536a753c5dbd0934455"
   },
   "en/cli-config.md": {
-    "content": "73907ea71d689cdc207c39e2683c6d130df7959f2c9490b4a221c5f0600823f1",
+    "content": "7453e40703ae4b2194633d4d3cd5c3f6a9d03100d34d6b6dcc326040ae9ae252",
     "description": "7388a4eecb4b78175d5a7dcc97630a9743a9ab4243f1a47433b4535b65a8c8ad",
-    "schema_hash": "94fcce976c3ed77b7b56302f4b59fe3018812749640e28fbc3eaa54953f189c4"
+    "schema_hash": "0a952a4a9f48e1ba3543b9bbfeb70b472234ae6416cd744db3e7e40249b21866"
   },
   "en/cli-deploy-hooks.md": {
-    "content": "ee583822a39b3732f1566961a14e2db58a0468acd12d14a026c986347853e698",
+    "content": "19e5a12ff447c9488e883097ea58303baa117c0ea511384d00f2fec5105dd3a5",
     "description": "e268b8ee16d6c2925e4a1854dffa32bd98b32cd5d3624f984bd37df900bb95bc",
-    "schema_hash": "c379b232aec0e05c88dd4b116fdcb29b605d019cc67871a8205cf62e9153679f"
+    "schema_hash": "61c2017188d707266ca24d98d0eac958253b512455f7afb2be7c6b76fcaf6208"
   },
   "en/cli-health.md": {
-    "content": "33e8ac38fc942721403ca52be20617daaab0fe25953031b0f9ee36e74de9dcb3",
+    "content": "72310b1a9a76977b1a146d2292f2a29d5168dad32c0469797ef52d3ad077b0e0",
     "description": "bce660b2830d459ded0337e6af14bc0215f80ff3a85cd9ece389b405bb2a5c9b",
-    "schema_hash": "5e3e230af13acd9b02e528635715fff0bafd52a479758d21b93c637e27316c4f"
+    "schema_hash": "800f197c80cbc6f108d12b446ed69ea85d63def4b10a5cb8343ff8bccf29efe6"
   },
   "en/cli-import.md": {
-    "content": "4757f326e9ca0594c47c49d53c860766e84699a254ebe12085a5be9e371476d0",
+    "content": "16cfa7210261a42316f10567ba7d57827f90b95bbd43c162622cc8e770e6dea4",
     "description": "c2e616f64eae0fd89852be6a8b7afeadb9f470404ff4642278d96383fb67b0b7",
-    "schema_hash": "541eac633045878188810d2d18a829ee8fbf02abe83d0f1f9361a0b55fb5cbde"
+    "schema_hash": "54d0bce15baf991ed9089163e7631c8f73bd6c1d9be0470335fd6cb693ec38a7"
   },
   "en/cli-index.md": {
-    "content": "50584d4b66d3ce5504e5f77eed8bee31de5d10cab7d7934757c33c6c8d3d22b5",
+    "content": "d2c8ccca2d9b81b8bd9554144a1233898c49954b9cdbd18961cbd1d77e37bac0",
     "description": "f51789bc955adf454eddb8a98154f1b9f822049c3e11162a30159710bd6d75d7"
   },
   "en/cli-install.md": {
-    "content": "9a1cda2ce43b912b5699e16ee1808932a0b3bf992d4f01761da0f5109951cc9a",
+    "content": "278ecccbbfdb5d471be1feb1f4de71ca1959ac63341ae7360cbad8adef4c2c8c",
     "description": "524503b78d887a67fa9a366d6c627567002ecf68f5992a6142554599704e5819",
-    "schema_hash": "80a0084301fc6cc9afdafb1cb7134f1d262839bb69f69e6dafb4502b0d1d72f7"
+    "schema_hash": "51d307a1633812d0c597f13008070ee4b454c368026f4c72563862ed194e2fe6"
   },
   "en/cli-launch.md": {
-    "content": "a512c8fd9ae03e2e998baa0bee9d7c7128af614ab20ec0d9ce0f0d9c756fb3c2",
+    "content": "08cd3089c9ba405deb2f48cc2fe9f5e9dab7b4155ff7d7d82951b21fce52e62b",
     "description": "2471420568533420d5b04ef458eb476c84070a38fe198091d7a02f61be0b614d",
-    "schema_hash": "b34af3a71703976c7c4b4b1069a2051e13c1a5ef0d3c311a4752e8d443dd8d7c"
+    "schema_hash": "24f31736cd3300cd469a57832946ef1e3529cfc4c59e7bca0fca16c8286f6635"
   },
   "en/cli-migrate.md": {
-    "content": "404a673aa2ba1ff016536ce36329b22e125a02ea3557f233b0ca0be3f24fbd72",
+    "content": "0dc3b66772123e6fb76f08119ca180a93aa7a11f1f84255f3a16ad92297e575c",
     "description": "78134e3259a9e8294116b956a6a8ca5cc432c01e8da927081b0f2fa2d8013633",
-    "schema_hash": "77ffd9bb802913c0efe0298157e3036b89b94234301e86179d311252e5a31e8a"
+    "schema_hash": "83b905cf06a7820cf6bdfa7c49ccee5ca5e6f8df77c48fbc18fef1f17f0667a4"
   },
   "en/cli-mv.md": {
-    "content": "07725e818c36b833e284f066d70baee78f64bcdac85af26f305faae34e19b947",
+    "content": "4f7ff5f5b73c9a3e4031259ac22efab5f8b98ef406eecfc28e4bb8bacda4dc13",
     "description": "acfe5c998f98a7bb38099c70f03b2559516fb27d6fa250c753175fc2a7d3571f",
-    "schema_hash": "e4839bfc1e11acfed95ea0eccc801779577a19d5d7ea8a5740d4ab7dcc2d020d"
+    "schema_hash": "a4f396970b8e162abd85ef4a6bd74c6ae30a2ca3aeddd9b1daf31a875a0b2112"
   },
   "en/cli-patch-profiles.md": {
-    "content": "e358cb381156f46a3b79b133f6b456fd12789e14056bbae115279852965b53e6",
+    "content": "a718903e71b22f2f19a7d26058f2d1c54bb19edf26d052f7468f1cc62ae44699",
     "description": "06c48839bdd2cd785a449f655feb17faba37a9bcfc92010df5859f5b35656c7b",
-    "schema_hash": "50811bf9ac555cc57cfa6bd33bb6f80c7bf2c22031c6bc58ac82c072fbdfde73"
+    "schema_hash": "d3a1087e0b03b94cbb1b2e672a0ea731831e36e8fa41b4e356c3855c5acbef0a"
   },
   "en/cli-permission.md": {
-    "content": "1402e14872d8ea1c4b339cb5c2fb13c5c4ab1a086a4e344450aad59fe9b4df14",
+    "content": "164410b9418e1fcf4b89f77baffa8e0afcabcf4a4b512c5198ac643e31a4548b",
     "description": "96f33d3b151540d78d242b54b7c282d5bf0c1b82d959677a381d87dcdb0b2792",
-    "schema_hash": "9e1aae82769ae1cd962960f61fac5583d84e25e0703bd91badd013a016e24613"
+    "schema_hash": "c9335f56584c104cf8cc8109982450d5a5a19a88fabde90f2777d19dd0416d60"
   },
   "en/cli-profile.md": {
-    "content": "3d1ad82cb1ec462aaee09089feac6f8406989f84cf0913ef9146b0f0d3fd56e1",
+    "content": "92b02de3891fbd21a660007a36296c787176ae23d66aba120c67f52f7cc49a76",
     "description": "778625e9c13f4c2572079f7af3424ebed2e2b7cb0c63fd41407291af2acff0e1",
-    "schema_hash": "b2e77f0dd494ff62fa426d7ed41835cda8e703f4175319b8276ddba11ec8c3fc"
+    "schema_hash": "b83fa9cd1c26b41b9bf54c75a98c47d6755b4fc23bacb6a58beb2cf89efbb626"
   },
   "en/cli-reconcile-permissions.md": {
-    "content": "a3e66c254f12cadf9d572824a03525b67e43f9a3c083f86535217beb7e43fc38",
+    "content": "c13952baed63eee180ff24438f8b60b1df768a86df8b81615c34416ff73258d3",
     "description": "ffe4c05cd44508e95e978ef50014c8bf877b28db321f68b4e9476c913eb1681c",
-    "schema_hash": "f592c93e8c581facf23edb8d8075b2c830e4f602e0c0816f8a94e1fe350c2adb"
+    "schema_hash": "e6fe13f700e40930218f1dc508bc6fb7afb63a6553b0e435674f9e544fa394d9"
   },
   "en/cli-reset-options.md": {
-    "content": "e2bfcc661490460777d043e116a3403125bdecdf6786d45890ddd16af4654929",
+    "content": "d95149e4003f2e5920e48558b1585d8d75d256860174999a2b190e001b62b62b",
     "description": "b1540aaa2e1902de5a232890c6a8f6f5168c4ee206d81207075cf5a59b532236",
-    "schema_hash": "a6a1c799d47fba49b8e885d78bb378992e81047b7ee862fc998e6907977b1e21"
+    "schema_hash": "efe86d7eb5156648144b5b037c9b63f96f875061d8c17f9b2c2cbbb2d7c776f9"
   },
   "en/cli-show.md": {
-    "content": "f2fafb1fed5601fcb29573026264af37b789871d470da79fd67673648ab91cc2",
+    "content": "e9dfa3314cf642c905cadeab6e911d0d7486e42491b0ee6032347af3973cf010",
     "description": "104eb399c129d582429cb410639d162d042a98430b5c3a547cd5f788eaa0ee21",
-    "schema_hash": "57d6dcc6da3d3579e736d91512e89c8c0e8df70bda5e4accf2499c0674ba652b"
+    "schema_hash": "d671956b3156b5d51c11e15741f8a3629a26b1b9d664fcf153015ae0d4b9be31"
   },
   "en/cli-stats.md": {
-    "content": "7d18467d7c8456568405d3fbcc00644a29777decaa89138aa7dc0719fc2096ce",
+    "content": "23d51fa6fa367b11d155b43cdb6e186c18f44be3673e89bea509704cfa8ed02a",
     "description": "630091caa267ab4f474b2c1409c0974e24f1884ac6e9dd7d50938dc3d10b0a2a",
-    "schema_hash": "97e055881f24505ae8a8d0aecf2e9659f437412d50eb7fd0cce9a670d530ad0f"
+    "schema_hash": "bf204cd2f22c8f40a95b50aad629cae7bed67d4310d29eee41a1e3a9e5bc49f7"
   },
   "en/cli-uninstall.md": {
-    "content": "0ef110479d1a4888d04435f0f17ee0df99eba8cfa65bdd9dedaca5a136181785",
+    "content": "1dbb1e443e5a8e2e38971d2eb84bc65adec32f726b18d6f578a8379e65e3be0b",
     "description": "030379bc7788bf3c986cdeb315529152c19d5a45afa6c8a4830786d96ca2c5ca",
-    "schema_hash": "5bb6d2ce3212e7fabd1cd15d9c69773cb21ee3237ecbc6f867365aad03a55d0d"
+    "schema_hash": "8cd9c1a6e1f6033a09385ddb9e2e7d806a34fbadd6f890badbd05c73c77bc05a"
   },
   "en/cli-versions.md": {
-    "content": "229fc67d672cc43d520c55ec12a3b1a09dde2f933f5d8a278637c5e283d9ed9f",
+    "content": "b9b9e1fb2ba5564c794dbf0fdb98bd99cf5e6c535c8d4c8e5c4cb671cea5fa0d",
     "description": "2220c5148e4708a74d0f36a96189559abcc971592131c21d4f0be26c16d396f5",
-    "schema_hash": "94a2d51885e0553db237d5a292bb7256e7a11a2574d08a84106824d305e9db2d"
+    "schema_hash": "a4180181b38e4869af1a0fb3db224510b5d05539bd29d388094d73ce6cf91c65"
   },
   "en/config.md": {
     "content": "8958fe930e1acf5f0c1e6d28010a1d2879eafa506b15fa56347d427ba25e2874",
@@ -334,15 +334,15 @@
     "seed_hash": "40a84fc806a2f2512b9e9ffc575f64834280ab68fbc1986d4a5663fafe184934"
   },
   "en/getting-started.md": {
-    "content": "23b566349f9d94fb7ed1a2c0ec9e7642b1d0b7c5bcde256add66668f19666e64",
+    "content": "7252216e174094001becffd11ac604cee8e6bc13b3ded4806edf749a6322e061",
     "description": "c3b6a061ca38ba81f92e975e1a8f8ba464fe41c764bf4a6ac6e91ae7e73fbde2"
   },
   "en/guardrails.md": {
-    "content": "1f0733c280aa9f75bdbf3f2f41299477ef49592b171b95011dc1178ac5712518",
+    "content": "15ea2a73a07908d0510a99157a1310f132e852fd61bc9b6a2dd7c1ded29f2300",
     "description": "54b25f66599890ea069ab5859f2f4c910381c80cf5eb41b4580235a582248a7a"
   },
   "en/health.md": {
-    "content": "c89f9d203805763d071500082f2dc39159f56d330e423361e4a37527512222fe",
+    "content": "2e5ee3c85b6b90bbff518aed701821662d79bf824c2553465d735fba360baa03",
     "description": "5adff554d71470b344b86bfe6b3ccb6191d04bcbd40a5ad90b718cc3b9f4e98a"
   },
   "en/index.md": {
