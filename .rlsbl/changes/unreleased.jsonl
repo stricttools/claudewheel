@@ -7,3 +7,4 @@
 {"format_version":1,"id":"18c9db7aadc2d71c94a38a88eec0403bb0f433b857f5f5b2","commits":["917ed2471e0da6bcaeca1204a4a4a14e5fa470d6"],"user_facing":false}
 {"format_version":1,"id":"18c9e96ad19cf3ea70ffc56cdc14477a85f21cabfd8283c3","commits":["d68f9164ba4332761c375f95bbaaf1eff99ec851"],"user_facing":true,"description":"**Fable 5 works on token-authed profiles.** Profiles can declare `subscriptionType` and `rateLimitTier` in their `tokens.json` entry; claudewheel injects them into the launch environment. Without them Claude Code resolves the plan tier to null under setup-token auth and walls Fable 5 behind a usage-credits dialog offering no way forward.","type":"fix"}
 {"format_version":1,"id":"18c9e96e13f7546b382231c6ca054bd29f73bc59e8355d9a","commits":["da463ba08f692b529375e5fe4e2f562f85c57ff0"],"user_facing":false}
+{"format_version":1,"id":"18c9e9782e6b5b4e4148fb16dbfd4f03b2f06c90d7899f8d","commits":["011293578c2fb3d88c8828f72463760a52ae7721"],"user_facing":false}
