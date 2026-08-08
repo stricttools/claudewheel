@@ -58,6 +58,11 @@ HISTORICAL_DEFAULTS: dict[str, set[str]] = {
         "claude-haiku-4-5-20251001",
         "claude-sonnet-4-5-20241022",
         "claude-fable-5",
+        # Shipped in DEFAULT_OPTIONS until 0.24.2, then removed as a phantom
+        # (Fable 5 is natively 1M; the client discards the suffix). It stays
+        # here because this set records what EVER shipped, not what currently
+        # does -- migration 3 reads it to tell a shipped default apart from a
+        # user-added value.
         "claude-fable-5[1m]",
     },
     "mcp": {"default", "strict"},
@@ -178,6 +183,41 @@ def _migration_4_drop_profile_metadata(
         profile_seg.pop("metadata", None)
 
 
+def _migration_5_drop_fable_1m(
+    config: dict[str, Any],
+    segments_def: list[dict[str, Any]],
+    theme: dict[str, Any],
+    options_def: dict[str, Any],
+) -> None:
+    """Drop the ``claude-fable-5[1m]`` model option, which never meant anything.
+
+    Fable 5 runs at 1M context unconditionally: the client's model registry
+    marks it ``native_1m`` and, unlike Opus, withholds the
+    ``supports_1m_suffix`` flag, so a ``[1m]`` suffix on it is discarded before
+    the request is sent. Selecting it produced a session identical to plain
+    ``claude-fable-5`` in every respect -- same model id on the wire, same 1M
+    window -- while implying a choice existed.
+
+    Removing it from the defaults does not reach an options.json that already
+    lists it, and migration 3 would classify it as pinned (conservative,
+    correct in general -- but there is no user intent to preserve in a value
+    that cannot alter a launch). Both ``values`` and ``pinned`` are cleaned so
+    the option cannot survive in either place. Selections referring to it are
+    left alone: the id still resolves, and the launch it produces is the one
+    the user wanted.
+    """
+    model_seg = options_def.get("model")
+    if not isinstance(model_seg, dict):
+        return
+    for field in ("values", "pinned"):
+        entries = model_seg.get(field)
+        if isinstance(entries, list):
+            model_seg[field] = [v for v in entries if v != "claude-fable-5[1m]"]
+    metadata = model_seg.get("metadata")
+    if isinstance(metadata, dict):
+        metadata.pop("claude-fable-5[1m]", None)
+
+
 _MIGRATIONS: list[dict[str, Any]] = [
     {
         "version": 1,
@@ -198,6 +238,11 @@ _MIGRATIONS: list[dict[str, Any]] = [
         "version": 4,
         "description": "Drop the legacy profile-metadata block (locations derived from dir)",
         "apply": _migration_4_drop_profile_metadata,
+    },
+    {
+        "version": 5,
+        "description": "Drop the claude-fable-5[1m] model option (Fable 5 is natively 1M)",
+        "apply": _migration_5_drop_fable_1m,
     },
 ]
 

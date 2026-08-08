@@ -85,7 +85,7 @@ The segment bar is the core of the claudewheel interface -- a horizontal row of 
 | Profile | Profile | Which `~/.claudewheel/profiles/<name>/` directory to use as `CLAUDE_CONFIG_DIR` |
 | GitHub | GH | Which GitHub account to authenticate with (exports `GH_TOKEN`) |
 | Version | Ver | Which Claude Code binary version to use |
-| Model | Model | The model ID (e.g. `claude-sonnet-4-20250514`); a `[1m]` suffix enables the 1M-context window |
+| Model | Model | The model ID (e.g. `claude-fable-5`); on Opus and Sonnet a `[1m]` suffix selects the 1M-context window. Fable 5 runs at 1M unconditionally and takes no suffix |
 | Directory | Dir | The working directory Claude Code starts in |
 | MCP | MCP | MCP profile mode (`default` or `strict`) |
 | Permissions | Perms | Permission mode (`bypass`, `default`, `plan`, or `auto`) |

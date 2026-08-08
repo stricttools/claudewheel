@@ -84,7 +84,7 @@ The viewport activates automatically and deactivates when the terminal is resize
 | `profile`     | Profile | Maps to `CLAUDE_CONFIG_DIR` (e.g. `~/.claude-personal`)                        |
 | `github`      | GH      | Selects the GitHub account; `gh auth token --user <acct>` exported as `GH_TOKEN` |
 | `version`     | Ver     | Picks the Claude Code binary in `~/.local/share/claude/versions/`              |
-| `model`       | Model   | Sets the model ID (`ANTHROPIC_MODEL`); `[1m]` suffix enables 1M-context        |
+| `model`       | Model   | Passes the model id as `--model`; an Opus/Sonnet `[1m]` suffix selects 1M-context |
 | `directory`   | Dir     | Working directory to `cd` into before launch                                   |
 | `mcp`         | MCP     | MCP profile mode (`default`, `strict`)                                         |
 | `permissions` | Perms   | Permission mode passed to Claude Code (`bypass`, `default`, `plan`, `auto`)    |

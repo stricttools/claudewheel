@@ -246,15 +246,21 @@ DEFAULT_OPTIONS: dict[str, Any] = {
         },
     },
     "model": {
-        # The [1m] suffix enables the 1M token context window for models that
-        # support it (Opus 4.8, Fable 5, Opus 4.6, Opus 4.7, Sonnet 4.6). Claude Code
-        # strips the suffix before sending to the API.
+        # The [1m] suffix selects the 1M token context window on models that
+        # have a 200K default to switch away from (Opus 4.8, Opus 4.7, Opus 4.6,
+        # Sonnet 4.6). Claude Code strips it before sending to the API.
+        #
+        # Fable 5 is NOT among them: it runs at 1M unconditionally, carries
+        # native_1m in the client's model registry, and omits the
+        # supports_1m_suffix flag the others have. The client discards a [1m]
+        # suffix on it entirely, so a "claude-fable-5[1m]" entry would be an
+        # option that cannot differ from the plain one -- listing it implies a
+        # capability difference that does not exist.
         "values": [
             "claude-opus-5",
             "claude-opus-4-8",
             "claude-opus-4-8[1m]",
             "claude-fable-5",
-            "claude-fable-5[1m]",
             "claude-opus-4-7",
             "claude-opus-4-7[1m]",
             "claude-opus-4-6",

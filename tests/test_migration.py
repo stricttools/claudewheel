@@ -392,7 +392,19 @@ class Migration4Tests(unittest.TestCase):
         self.assertIn("metadata", on_disk["model"])  # model metadata survives
 
     def test_forward_from_each_historical_version(self) -> None:
-        """Fixtures at _schema_version 0..3 all migrate forward to 4 with metadata dropped."""
+        """Every historical _schema_version migrates forward to the latest.
+
+        The target is read from _MIGRATIONS rather than written as a literal,
+        so adding a migration does not fail this test for the wrong reason --
+        what it checks is that no starting version is stranded partway.
+
+        The starting versions are the ones predating migration 4, since that
+        is the one whose effect (profile metadata dropped) is asserted here;
+        a fixture already at 4 would legitimately keep its metadata block.
+        """
+        from claudewheel.config import _MIGRATIONS
+
+        latest = max(m["version"] for m in _MIGRATIONS)
         for start in (0, 1, 2, 3):
             with self.subTest(start=start):
                 tmp_obj = tempfile.TemporaryDirectory()
@@ -403,7 +415,7 @@ class Migration4Tests(unittest.TestCase):
                 paths = _setup_temp_config_dir(tmp, config=config, options=options)
                 cm = _appconfig(paths)
                 self.assertNotIn("metadata", cm.options_def["profile"])
-                self.assertEqual(cm.config["_schema_version"], 4)
+                self.assertEqual(cm.config["_schema_version"], latest)
                 # Model metadata survives regardless of start version.
                 self.assertEqual(
                     cm.options_def["model"]["metadata"]["my-custom"]["model_id"],
@@ -519,11 +531,13 @@ class ModelSyncTests(unittest.TestCase):
 
         user_models = cm.options_def["model"]["values"]
         self.assertIn("claude-fable-5", user_models)
-        self.assertIn("claude-fable-5[1m]", user_models)
+        # The [1m] spelling is no longer a default and is never introduced:
+        # Fable 5 is natively 1M and the client discards the suffix.
+        self.assertNotIn("claude-fable-5[1m]", user_models)
         # Verify on disk too
         on_disk = _read_json(paths["OPTIONS_FILE"])
         self.assertIn("claude-fable-5", on_disk["model"]["values"])
-        self.assertIn("claude-fable-5[1m]", on_disk["model"]["values"])
+        self.assertNotIn("claude-fable-5[1m]", on_disk["model"]["values"])
 
     def test_migrate_does_not_duplicate_existing_models(self) -> None:
         """Models already in the user's list are not added again."""
@@ -555,10 +569,41 @@ class ModelSyncTests(unittest.TestCase):
         self.assertIn("my-custom-model", user_models)
         # Default models that were missing are added
         self.assertIn("claude-fable-5", user_models)
-        self.assertIn("claude-fable-5[1m]", user_models)
+        self.assertNotIn("claude-fable-5[1m]", user_models)
         # Original models still there
         self.assertIn("claude-opus-4-7", user_models)
         self.assertIn("claude-opus-4-7[1m]", user_models)
+
+    def test_migrate_drops_fable_1m_from_values_and_pins(self) -> None:
+        """The phantom claude-fable-5[1m] is removed wherever it appears.
+
+        It never selected anything: Fable 5 is natively 1M and the client
+        strips the suffix, so the option could not differ from the plain id.
+        Removing it from the defaults alone would not reach an options.json
+        that already lists it, so migration 5 cleans values, pinned, and any
+        metadata entry.
+        """
+        options = {
+            **DEFAULT_OPTIONS,
+            "model": {
+                "values": ["claude-fable-5", "claude-fable-5[1m]", "my-custom-model"],
+                "pinned": ["claude-fable-5[1m]"],
+                "metadata": {"claude-fable-5[1m]": {"model_id": "claude-fable-5[1m]"}},
+            },
+        }
+        paths = _setup_temp_config_dir(self.tmp, options=options)
+        cm = self._make_cm(paths)
+
+        model_seg = cm.options_def["model"]
+        self.assertNotIn("claude-fable-5[1m]", model_seg["values"])
+        self.assertNotIn("claude-fable-5[1m]", model_seg["pinned"])
+        self.assertNotIn("claude-fable-5[1m]", model_seg.get("metadata", {}))
+        # The real model and the user's own addition both survive.
+        self.assertIn("claude-fable-5", model_seg["values"])
+        self.assertIn("my-custom-model", model_seg["values"])
+
+        on_disk = _read_json(paths["OPTIONS_FILE"])
+        self.assertNotIn("claude-fable-5[1m]", on_disk["model"]["values"])
 
     def test_migrate_adds_opus_5_without_disturbing_pins_or_order(self) -> None:
         """An old options.json (no opus-5, with pins + custom values) gains
