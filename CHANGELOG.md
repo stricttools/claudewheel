@@ -2,6 +2,53 @@
 
 # Changelog
 
+## 0.24.0
+
+The effects regime -- a real --dry-run and confirmation only where it is earned -- plus the vanilla default profile, approved project hooks, title-based resume, Opus 5, launch-time guardrail healing, scratchpad cleanup, and a full documentation site.
+
+<details>
+<summary>Context</summary>
+
+This release has two halves.
+
+The first is a launch-preflight stage that heals guardrail settings against the canonical model on every launch (so upgrades can no longer leave stale safety settings on disk), and the user-facing features built on top of it. ~/.claude is now a first-class launchable "default" profile whenever it exists — fixing invisibility on setups where credentials live outside the config dir (e.g. macOS Keychain) — and launches byte-for-byte vanilla, writing nothing into it. Project-contributed hooks now require one-time approval. cw -r accepts session titles (as printed by Claude Code's resume hint, including forks). Opus 5 is selectable with a guard that blocks launches on too-old binaries. Interactive launches offer confirmed cleanup of stale /tmp scratchpad dirs, and token entries whose profile is gone are surfaced and repairable.
+
+The second is claudewheel's adoption of strictcli's effects regime. Every subprocess launch, filesystem mutation and network call now routes through a single chokepoint, so --dry-run genuinely previews instead of writing, and every command is classified read-only or mutating. Confirmation stopped being inferred from a command being mutating and became a declaration: three commands ask (profile delete, reconcile-permissions, patch-profiles), everything else runs straight through, and --approve-consequential replaces --yes as the non-interactive consent flag.
+
+Documentation grew from a symbol skeleton into a real site: a getting-started tutorial and guides for profiles, theming, configuration, and health checks and preflight.
+
+Breaking: patch-profiles and reconcile-permissions prune to exactly the canonical model (the old additive, extras-preserving behavior is gone); the per-command --dry-run flags on stats, mv, import and patch-profiles and reconcile-permissions' --apply are replaced by the framework's single --dry-run flag.
+
+</details>
+
+### Breaking
+
+- **`patch-profiles` and `reconcile-permissions` now prune to exact canonical.** The old additive, extras-preserving behavior is gone; user-added hook or disallowed-tool extras are removed on sync.
+- **strictcli effects regime.** Every command is now classified `read_only` or `mutating`: read-only commands (`health`, `versions`, `show`, `profile show`, `profile check-tokens`, `permission list`) run unchanged, while mutating commands confirm before they write and accept the framework's `--dry-run`. The per-command `--dry-run` flags on `stats`, `mv`, `import` and `patch-profiles`, and `reconcile-permissions`' `--apply`, are replaced by that single framework flag.
+- **No more `Proceed? [y/N]` in front of routine work.** Confirmation is no longer inferred from a command being mutating -- it is declared. `c launch`, `deploy-hooks`, `install`, `mv`, `import` and the bare `claudewheel` that starts every session run straight through and prompt for nothing. The commands that do declare it confirm first and refuse on a non-interactive stdin unless you pass `--approve-consequential` (the skip flag, replacing `--yes`).
+
+### Features
+
+- **Launch-time guardrail healing.** Every launch now reconciles profile and shared guardrail settings (hooks, disallowed tools, deny/ask rules) to the canonical model, so upgrades can no longer leave stale safety settings on disk.
+- **Wizard token hardening.** Pasted tokens are entered masked (never echoed), checked for the `sk-ant-` format before any network call, and recorded with an honest "expiry unknown" marker instead of a fabricated one-year expiry.
+- **Resume by session title.** `cw -r` now accepts a session title (as printed by Claude Code's resume hint, e.g. after /fork) in addition to a UUID, resolving it across project directories with a disambiguation list on collisions.
+- **Opus 5 support.** `claude-opus-5` is available in the model picker, and launches are blocked with an actionable message when the selected model requires a newer Claude Code binary than the one in use (needs >= 2.1.219).
+- **Approved hooks.** cw now detects hooks contributed by a target project's `.claude/settings.json`/`settings.local.json`, shows them for one-key approval on first sighting or any change, and refuses non-interactive launches with unapproved hooks — project hooks are never silently trusted again.
+- **Scratchpad cleanup at launch.** Interactive launches now offer confirmed deletion of /tmp scratchpad directories untouched for 14+ days (with sizes and ages); declining snoozes the prompt for 7 days. Nothing is ever deleted without confirmation.
+- **Vanilla default profile.** `~/.claude` now appears as a launchable "default" profile whenever it exists (no longer requiring a credentials file — fixes invisibility on macOS-Keychain setups), launches byte-for-byte vanilla (no config-dir override, no token injection, zero writes), shows as "managed by Claude Code", and offers a one-time opt-in to inject cw guardrail hooks.
+- **Stale token surfacing.** Token entries whose profile no longer exists are now reported by `health`, shown as a persistent TUI notice with a review-and-remove page (press T), and repairable via `profile fix-auth`.
+- **`--dry-run` now previews instead of writing.** Every subprocess launch, filesystem mutation and network call routes through one effects chokepoint, so `c --dry-run reconcile-permissions`, `--dry-run deploy-hooks`, `--dry-run install` and the profile create/delete/rename commands record what they would do and leave `~/.claudewheel/` untouched.
+- **CLAUDE.md now states which commands confirm and which do not.** A new "Confirmation and preview" section documents the three consequential commands, the `--approve-consequential` skip flag, the framework-owned flag quartet, and what `--dry-run` guarantees.
+- **A real documentation site.** claudewheel now ships a getting-started tutorial plus guides for profiles, theming, configuration, and health checks and preflight, and every module reference page carries written prose instead of a bare symbol skeleton.
+
+### Fixes
+
+- **Fixed: two Claude Code versions installing at once could corrupt each other.** `c install 2.1.220` and `c install 2.1.221` both staged their download into a file named `2.1.downloading`, so one could rename the other's half-written bytes into place under a checksum that was never verified against them. Each install now stages into its own `<version>.downloading`.
+- **`c --dry-run install` no longer claims it installed anything.** It now says what it would download and where it would land, above the framework's would-do log.
+- **`reconcile-permissions` and `patch-profiles` confirm before writing.** Both rewrite every managed profile plus `shared-settings.json` to exactly canonical, pruning hand-added permission rules, hook entries and `disallowedTools` with nothing backed up. They now declare themselves consequential, so the CLI confirms first and refuses with `pass --approve-consequential to confirm` when there is no terminal. `--dry-run` still previews ungated.
+- **`--dry-run` no longer claims work it did not do.** Ten commands -- `profile delete`, `profile rename`, `profile create`, `deploy-hooks`, `uninstall`, `reset-options`, `migrate`, `permission add`, `permission remove` and `profile fix-auth` -- printed past-tense success text above the would-do log during a preview. They now narrate in the conditional ("Would delete profile 'x'."). `migrate` additionally ignored `--dry-run` in its own reporting entirely.
+- **The push guardrail no longer points at a command that does not exist.** Its escalation advice named `rlsbl push`, which rlsbl removed; it now names `rlsbl release run` only.
+
 ## 0.23.3
 
 mv now migrates nested project sessions and rewrites githubRepoPaths
