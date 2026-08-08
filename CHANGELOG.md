@@ -2,6 +2,38 @@
 
 # Changelog
 
+## 0.24.1
+
+Unblock Fable 5 on token-authed profiles by injecting the declared plan tier
+
+<details>
+<summary>Context</summary>
+
+Claude Code reads a subscription tier from CLAUDE_CODE_SUBSCRIPTION_TYPE and
+only from there when auth arrives as a setup token. Its own fallback is the
+OAuth profile endpoint, which answers 403 for setup tokens because they are not
+granted the user:profile scope. The tier therefore resolves to null, and
+tier-dependent checks fail closed: Fable 5 is walled behind a usage-credits
+dialog whose only offered action is to ask an administrator, on personal
+accounts that have no administrator.
+
+Every claudewheel-launched profile authenticates this way, so this affected all
+of them. The tier is now declared per profile in tokens.json and injected at
+launch, which also removes the shell-exported workaround it replaces -- that
+lived in one shell and was absent from every other terminal.
+
+Declared values are validated against the sets the client actually compares
+against, because a value it does not recognize is inert and produces a failure
+identical to declaring nothing at all.
+
+</details>
+
+### Fixes
+
+- **Corrected publish documentation.** The contributor docs claimed CI publishes to both npm and PyPI via OIDC Trusted Publishing with no tokens; in fact only PyPI is OIDC and npm requires the `NPM_TOKEN` secret.
+- **Valid theme file example.** The theme file structure example in the theming docs used `{ ... }` placeholders and was not valid JSON; it is now a copyable skeleton with a real key per section.
+- **Fable 5 works on token-authed profiles.** Profiles can declare `subscriptionType` and `rateLimitTier` in their `tokens.json` entry; claudewheel injects them into the launch environment. Without them Claude Code resolves the plan tier to null under setup-token auth and walls Fable 5 behind a usage-credits dialog offering no way forward.
+
 ## 0.24.0
 
 The effects regime -- a real --dry-run and confirmation only where it is earned -- plus the vanilla default profile, approved project hooks, title-based resume, Opus 5, launch-time guardrail healing, scratchpad cleanup, and a full documentation site.
