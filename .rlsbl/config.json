@@ -68,16 +68,6 @@
     }
   ],
   "batch_limits": {
-    "exclusions": [
-      {
-        "reason": "**A real documentation site.** claudewheel now ships a getting-started tutorial plus guides for profiles, theming, configuration, and health checks and preflight, and every module reference page carries written prose instead of a bare symbol skeleton.",
-        "entries": [
-          {
-            "version": "unreleased",
-            "line": 48
-          }
-        ]
-      }
-    ]
+    "exclusions": []
   }
 }
