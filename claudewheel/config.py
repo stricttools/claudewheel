@@ -209,10 +209,10 @@ def _migration_5_drop_fable_1m(
     model_seg = options_def.get("model")
     if not isinstance(model_seg, dict):
         return
-    for field in ("values", "pinned"):
-        entries = model_seg.get(field)
+    for list_key in ("values", "pinned"):
+        entries = model_seg.get(list_key)
         if isinstance(entries, list):
-            model_seg[field] = [v for v in entries if v != "claude-fable-5[1m]"]
+            model_seg[list_key] = [v for v in entries if v != "claude-fable-5[1m]"]
     metadata = model_seg.get("metadata")
     if isinstance(metadata, dict):
         metadata.pop("claude-fable-5[1m]", None)
