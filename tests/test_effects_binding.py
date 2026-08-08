@@ -10,7 +10,7 @@ Four guarantees this file holds:
    mutation: it may read the filesystem, issue declared reads over the
    network, and nothing else.
 
-2. **Exactly one command declares itself consequential.** ``consequential=``
+2. **Exactly three commands declare themselves consequential.** ``consequential=``
    is NOT mandatory (contract §8.1) and defaults to false, so an omission is
    silent in both directions: a missing declaration on a destructive command
    removes its only prompt, and a stray one on a routine command re-creates
