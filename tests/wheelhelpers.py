@@ -28,8 +28,11 @@ from pathlib import Path
 from typing import Any, Iterable, Iterator
 from unittest.mock import patch
 
+from claudewheel.binaries import BinaryLocator
+from claudewheel.config import AppConfigStore
 from claudewheel.shared_store import SharedStore
 from claudewheel.terminal import Terminal
+from claudewheel.workspace import Workspace
 from claudewheel.defaults import (
     DEFAULT_CONFIG,
     DEFAULT_OPTIONS,
@@ -95,6 +98,66 @@ class FakeTerminal(Terminal):
 
     def flush(self) -> None:
         pass
+
+
+class FakeAppConfigStore(AppConfigStore):
+    """A no-I/O :class:`claudewheel.config.AppConfigStore` for launch-path tests.
+
+    The real store's ``__post_init__`` is eager: it creates directories, reads
+    four JSON files, runs migrations and materializes shared-settings. Tests
+    that drive ``cli._do_launch_sequence`` need none of that -- they need an
+    object carrying the three attributes the launch path reads. Overriding
+    ``__init__`` (and never calling ``super().__init__``) skips the dataclass
+    constructor and its ``__post_init__`` entirely, the same way
+    :class:`FakeTerminal` subclasses ``Terminal`` without adopting its I/O.
+
+    Subclassing the real type rather than duck-typing a bare stand-in is what
+    lets call sites pass this where an ``AppConfigStore`` is annotated, with no
+    ``type: ignore`` at the boundary.
+
+    ``theme`` is present but inert: every launch-path reader spells the lookup
+    ``cfg.config.get("theme", "auto")``, so its presence changes nothing, and
+    :meth:`load_theme` returns an empty dict instead of touching the themes
+    directory the real store would have built.
+    """
+
+    def __init__(self) -> None:
+        # health_check_on_launch False so the health block is a no-op and tests
+        # do not need to stub run_health_check.
+        self.config: dict[str, Any] = {
+            "health_check_on_launch": False,
+            "default_flags": [],
+            "clients": {},
+            "theme": "auto",
+        }
+        self.options_def: dict[str, Any] = {}
+        self.state: dict[str, Any] = {}
+
+    def load_theme(self, name: str) -> dict[str, Any]:  # pragma: no cover - inert
+        return {}
+
+
+def inert_workspace(root: Path) -> Workspace:
+    """A real :class:`Workspace` at *root* for tests that never read its paths.
+
+    ``Workspace.open`` is pure value assembly -- zero filesystem I/O -- so this
+    hands back the genuine type without creating anything. *claude_dir* is
+    pinned under *root* rather than defaulted, so no ``Path.home()`` lookup
+    leaks into a test that has not sandboxed its home.
+    """
+    return Workspace.open(root=root, claude_dir=root / ".claude")
+
+
+def inert_locator(root: Path) -> BinaryLocator:
+    """A real :class:`BinaryLocator` under *root* for tests that never read it.
+
+    Like :func:`inert_workspace`, construction is pure: ``BinaryLocator`` is a
+    dataclass of two paths and touches neither at build time.
+    """
+    return BinaryLocator(
+        versions_dir=root / "versions",
+        claude_symlink=root / "bin" / "claude",
+    )
 
 
 def write_json(path: Path, data: dict[str, Any] | list[Any]) -> None:

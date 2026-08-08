@@ -33,27 +33,11 @@ from claudewheel.state import (
 )
 from tests.wheelhelpers import (
     ClaudeDirWriteCanaryMixin,
+    FakeAppConfigStore,
     FakeTerminal,
     claude_dir_write_canary,
     snapshot_tree,
 )
-
-
-class _FakeCfg:
-    """Minimal AppConfigStore stand-in for _do_launch_sequence."""
-
-    def __init__(self) -> None:
-        self.config = {
-            "health_check_on_launch": False,
-            "default_flags": [],
-            "clients": {},
-            "theme": "auto",
-        }
-        self.options_def: dict[str, Any] = {}
-        self.state: dict[str, Any] = {}
-
-    def load_theme(self, name: str) -> dict[str, Any]:  # pragma: no cover - inert
-        return {}
 
 
 class _VanillaTestBase(unittest.TestCase):
@@ -120,7 +104,7 @@ class VanillaLaunchIntegrationTests(ClaudeDirWriteCanaryMixin, _VanillaTestBase)
             cli._do_launch_sequence(
                 self.ws,
                 self.locator,
-                _FakeCfg(),  # type: ignore[arg-type]
+                FakeAppConfigStore(),
                 {"profile": profile, "directory": str(self.project)},
                 interactive=interactive,
             )

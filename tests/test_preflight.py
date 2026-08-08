@@ -7,7 +7,6 @@ import tempfile
 import unittest
 from contextlib import redirect_stderr
 from pathlib import Path
-from typing import Any
 from unittest import mock
 
 from claudewheel import cli
@@ -20,18 +19,29 @@ from claudewheel.preflight import (
     _model_version_guard_run,
     run_preflight,
 )
+from tests.wheelhelpers import (
+    FakeAppConfigStore,
+    inert_locator,
+    inert_workspace,
+)
+
+# Never created on disk. Workspace and BinaryLocator construction is pure value
+# assembly, and the synthetic steps below read no path off either object, so the
+# stand-ins built from this root touch nothing.
+_INERT_ROOT = Path(tempfile.gettempdir()) / "claudewheel-inert-preflight-root"
 
 
 def _ctx(interactive: bool = True) -> PreflightContext:
     """A PreflightContext whose non-step fields are inert stand-ins.
 
-    Synthetic steps never touch workspace/locator/cfg, so None is sufficient.
+    Synthetic steps never touch workspace/locator/cfg, so real but unpopulated
+    objects of the declared types are sufficient.
     """
     return PreflightContext(
         selections={},
-        workspace=None,  # type: ignore[arg-type]
-        locator=None,  # type: ignore[arg-type]
-        cfg=None,  # type: ignore[arg-type]
+        workspace=inert_workspace(_INERT_ROOT),
+        locator=inert_locator(_INERT_ROOT),
+        cfg=FakeAppConfigStore(),
         interactive=interactive,
     )
 
@@ -127,30 +137,6 @@ class RunPreflightUnitTests(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 
-class _FakeWs:
-    """Minimal Workspace stand-in for _do_launch_sequence."""
-
-    def __init__(self) -> None:
-        self.hooks_dir = "/tmp/hooks"
-        self.shared = object()
-        self.profiles = object()
-
-
-class _FakeCfg:
-    """Minimal AppConfigStore stand-in with the attrs the launch path reads."""
-
-    def __init__(self) -> None:
-        # health_check_on_launch False so the health block is a no-op and we do
-        # not need to stub run_health_check.
-        self.config = {
-            "health_check_on_launch": False,
-            "default_flags": [],
-            "clients": {},
-        }
-        self.options_def: dict[str, Any] = {}
-        self.state: dict[str, Any] = {}
-
-
 class LaunchSequenceWiringTests(unittest.TestCase):
     """The preflight runs on both launch paths, and ABORT stops the launch."""
 
@@ -177,9 +163,9 @@ class LaunchSequenceWiringTests(unittest.TestCase):
             mock.patch("claudewheel.cli._write_tier_stub", autospec=True),
         ):
             cli._do_launch_sequence(
-                _FakeWs(),  # type: ignore[arg-type]
+                inert_workspace(_INERT_ROOT),
                 mock.MagicMock(),
-                _FakeCfg(),  # type: ignore[arg-type]
+                FakeAppConfigStore(),
                 {"profile": "p"},
                 interactive=interactive,
             )
@@ -249,9 +235,9 @@ class ModelVersionGuardTests(unittest.TestCase):
     def _ctx_with(self, selections: dict[str, str | None]) -> PreflightContext:
         return PreflightContext(
             selections=selections,
-            workspace=None,  # type: ignore[arg-type]
+            workspace=inert_workspace(self.tmp),
             locator=self.loc,
-            cfg=None,  # type: ignore[arg-type]
+            cfg=FakeAppConfigStore(),
             interactive=True,
         )
 

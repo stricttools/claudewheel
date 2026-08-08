@@ -24,20 +24,7 @@ from unittest import mock
 from claudewheel import cli
 from claudewheel.defaults import DISALLOWED_TOOLS, build_canonical_shared_settings
 from claudewheel.guardrail import canonical_ask_rules, canonical_deny_rules
-from tests.wheelhelpers import claude_dir_write_canary
-
-
-class _FakeCfg:
-    """Minimal AppConfigStore stand-in for _do_launch_sequence."""
-
-    def __init__(self) -> None:
-        self.config = {
-            "health_check_on_launch": False,
-            "default_flags": [],
-            "clients": {},
-        }
-        self.options_def: dict[str, Any] = {}
-        self.state: dict[str, Any] = {}
+from tests.wheelhelpers import FakeAppConfigStore, claude_dir_write_canary
 
 
 def _drifted_profile_settings() -> dict[str, Any]:
@@ -145,7 +132,7 @@ class PreflightReconcileTests(unittest.TestCase):
             cli._do_launch_sequence(
                 self.ws,
                 mock.MagicMock(),
-                _FakeCfg(),  # type: ignore[arg-type]
+                FakeAppConfigStore(),
                 {"profile": "work", "directory": str(self.project)},
                 interactive=interactive,
             )
