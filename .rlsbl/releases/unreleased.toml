@@ -3,13 +3,17 @@ format_version = 1
 # Version bump type: patch, minor, major, infra, or prerelease
 bump = "minor"
 # Short description of this release (required)
-description = "Vanilla default profile, approved project hooks, title-based resume, Opus 5 support, launch-time guardrail healing, scratchpad cleanup, stale-token surfacing, and wizard token hardening."
+description = "The effects regime -- a real --dry-run and confirmation only where it is earned -- plus the vanilla default profile, approved project hooks, title-based resume, Opus 5, launch-time guardrail healing, scratchpad cleanup, and a full documentation site."
 context = """
-This release adds a launch-preflight stage that heals guardrail settings against the canonical model on every launch (so upgrades can no longer leave stale safety settings on disk), and builds several user-facing features on top of it.
+This release has two halves.
 
-~/.claude is now a first-class launchable "default" profile whenever it exists — fixing invisibility on setups where credentials live outside the config dir (e.g. macOS Keychain) — and launches byte-for-byte vanilla, writing nothing into it. Project-contributed hooks now require one-time approval. cw -r accepts session titles (as printed by Claude Code's resume hint, including forks). Opus 5 is selectable with a guard that blocks launches on too-old binaries.
+The first is a launch-preflight stage that heals guardrail settings against the canonical model on every launch (so upgrades can no longer leave stale safety settings on disk), and the user-facing features built on top of it. ~/.claude is now a first-class launchable "default" profile whenever it exists — fixing invisibility on setups where credentials live outside the config dir (e.g. macOS Keychain) — and launches byte-for-byte vanilla, writing nothing into it. Project-contributed hooks now require one-time approval. cw -r accepts session titles (as printed by Claude Code's resume hint, including forks). Opus 5 is selectable with a guard that blocks launches on too-old binaries. Interactive launches offer confirmed cleanup of stale /tmp scratchpad dirs, and token entries whose profile is gone are surfaced and repairable.
 
-Breaking: patch-profiles and reconcile-permissions now prune to exactly the canonical model; the old additive, extras-preserving behavior is gone.
+The second is claudewheel's adoption of strictcli's effects regime. Every subprocess launch, filesystem mutation and network call now routes through a single chokepoint, so --dry-run genuinely previews instead of writing, and every command is classified read-only or mutating. Confirmation stopped being inferred from a command being mutating and became a declaration: three commands ask (profile delete, reconcile-permissions, patch-profiles), everything else runs straight through, and --approve-consequential replaces --yes as the non-interactive consent flag.
+
+Documentation grew from a symbol skeleton into a real site: a getting-started tutorial and guides for profiles, theming, configuration, and health checks and preflight.
+
+Breaking: patch-profiles and reconcile-permissions prune to exactly the canonical model (the old additive, extras-preserving behavior is gone); the per-command --dry-run flags on stats, mv, import and patch-profiles and reconcile-permissions' --apply are replaced by the framework's single --dry-run flag.
 """
 # Pre-release identifier: alpha, beta, rc, or stable
 # preid = ""
