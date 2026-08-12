@@ -1,8 +1,7 @@
 ---
 title: claudewheel.session_registry
-description: "Read Claude Code's per-session registry into typed, liveness-checked records."
+description: "Reads Claude Code's per-process session files into liveness-checked records: stale claims and recycled PIDs drop out, and interactive ones block a delete."
 generated: true
-seeded: true
 nav_group: "API Reference"
 nav_order: 38
 ---

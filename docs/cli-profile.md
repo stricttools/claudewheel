@@ -33,7 +33,7 @@ remove a registered profile for good: unlink its shared-store symlinks, delete t
 
 | Name | Short | Type | Default | Env | Description |
 | --- | --- | --- | --- | --- | --- |
-| `--force-delete` |  | bool |  |  | force deletion even if sessions appear active; skips the safety check |
+| `--force-delete` |  | bool |  |  | delete anyway when the profile holds a live interactive Claude Code session (background jobs and daemons never block deletion) |
 | `--force-delete-data` |  | bool |  |  | delete even when shared-dir names hold REAL data instead of symlinks; this DESTROYS that data (e.g. conversation history) |
 
 ### Arguments
