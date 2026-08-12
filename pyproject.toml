@@ -88,3 +88,12 @@ strict = true
 # tests, docs), and rlsbl's mypy-strict-scope-guard fails if a competing scope
 # reappears here. A bare `uv run mypy` (no args) errors with "no files to
 # check" rather than silently checking a subset.
+#
+# `exclude` is not scope: it prunes recursive discovery inside the paths the
+# check already declares, so the scope guard (which polices `files`/`packages`/
+# `modules`) is untouched. docs/_build/ is the gitignored sphinx output tree; it
+# holds a byte copy of docs/_directives/guardrail_table.py, and mypy refuses to
+# check two files that map to one module name ("Duplicate module named
+# guardrail_table"), aborting the whole run. Excluding the build tree keeps the
+# real docs/ sources checked.
+exclude = ["^docs/_build/"]
