@@ -22,6 +22,7 @@ from pathlib import Path
 from unittest import mock
 
 from claudewheel import cli
+from claudewheel.profile_data import PROFILE_DATA_DIRNAME, TOKEN_FILE_NAME
 from tests.wheelhelpers import SandboxHomeTestCase
 
 
@@ -347,10 +348,34 @@ class RealConfigDirIsAbsentTests(unittest.TestCase):
             f"workspace root {ws.root} escapes the throwaway HOME",
         )
 
-    def test_the_real_claudewheel_store_is_unreachable(self) -> None:
-        """Nothing in the sandbox HOME is the developer's profile store."""
+    def test_the_real_per_profile_token_files_are_unreachable(self) -> None:
+        """No profile reachable from the sandbox HOME carries a stored token.
+
+        A developer's OAuth tokens live one per profile, at
+        ``<profile_dir>/.claudewheel/token.json``, so those files are what a
+        leaked HOME would expose. The glob is proved against a planted file of
+        exactly that shape first: a pattern that matched nothing would make the
+        assertion below vacuous, which is how the previous version of this test
+        (pointed at a central ``tokens.json`` that no longer exists anywhere)
+        stopped protecting anything.
+        """
+        pattern = f"profiles/*/{PROFILE_DATA_DIRNAME}/{TOKEN_FILE_NAME}"
+        with tempfile.TemporaryDirectory() as tmp:
+            planted = Path(tmp) / "profiles" / "work" / PROFILE_DATA_DIRNAME
+            planted.mkdir(parents=True)
+            (planted / TOKEN_FILE_NAME).write_text("{}")
+            self.assertEqual(
+                list(Path(tmp).glob(pattern)),
+                [planted / TOKEN_FILE_NAME],
+                "the pattern no longer describes where tokens are stored",
+            )
+
+        home = Path(os.environ["HOME"])
+        found = sorted(str(p) for p in (home / ".claudewheel").glob(pattern))
+        self.assertEqual(found, [], f"sandbox HOME exposes real token files: {found}")
+        # The built-in default profile keeps its data in the same place.
         self.assertFalse(
-            (Path(os.environ["HOME"]) / ".claudewheel" / "tokens.json").exists()
+            (home / ".claude" / PROFILE_DATA_DIRNAME / TOKEN_FILE_NAME).exists()
         )
 
 
