@@ -1,6 +1,6 @@
 ---
 title: claudewheel.constants
-description: "ANSI escape helpers and path constants for claudewheel."
+description: "ANSI escape sequences and terminal color helpers shared by the renderer, terminal and UI layers; filesystem paths live on the workspace stores."
 generated: true
 nav_group: "API Reference"
 nav_order: 10
