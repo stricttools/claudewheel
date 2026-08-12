@@ -1,6 +1,6 @@
 ---
 title: claudewheel.profile_ops
-description: "Profile lifecycle operations (delete, etc.) for claudewheel."
+description: "Auth-shadow repair and running-state detection: clears session credentials that shadow a stored token, drops orphan token entries, and spots live sessions."
 generated: true
 nav_group: "API Reference"
 nav_order: 29
