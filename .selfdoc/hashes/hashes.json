@@ -256,7 +256,7 @@
     "schema_hash": "54d0bce15baf991ed9089163e7631c8f73bd6c1d9be0470335fd6cb693ec38a7"
   },
   "en/cli-index.md": {
-    "content": "d2c8ccca2d9b81b8bd9554144a1233898c49954b9cdbd18961cbd1d77e37bac0",
+    "content": "83e2eff3a660f12f1f8aa660eb7c23a10da7acccba42981f51b47c6abbfc8e74",
     "description": "f51789bc955adf454eddb8a98154f1b9f822049c3e11162a30159710bd6d75d7"
   },
   "en/cli-install.md": {
@@ -290,9 +290,9 @@
     "schema_hash": "c9335f56584c104cf8cc8109982450d5a5a19a88fabde90f2777d19dd0416d60"
   },
   "en/cli-profile.md": {
-    "content": "92b02de3891fbd21a660007a36296c787176ae23d66aba120c67f52f7cc49a76",
+    "content": "82c47676e15343d6f2dc3a79d6a51e9c598214879e121e431772dc59c5ff54b7",
     "description": "778625e9c13f4c2572079f7af3424ebed2e2b7cb0c63fd41407291af2acff0e1",
-    "schema_hash": "b83fa9cd1c26b41b9bf54c75a98c47d6755b4fc23bacb6a58beb2cf89efbb626"
+    "schema_hash": "47ef43825746bd9064102168ca9734ea5d2170c797d82dba2e3de1a9da9f6528"
   },
   "en/cli-reconcile-permissions.md": {
     "content": "c13952baed63eee180ff24438f8b60b1df768a86df8b81615c34416ff73258d3",
@@ -334,7 +334,7 @@
     "seed_hash": "40a84fc806a2f2512b9e9ffc575f64834280ab68fbc1986d4a5663fafe184934"
   },
   "en/getting-started.md": {
-    "content": "940dbd1f8dd19ff197eae0619d254d67ab91c4a4d7f0e1b3462821276e5717f2",
+    "content": "58c042246e495e0621b239563317043d5802c98a95dbc625dd515cc21194ddd8",
     "description": "066562ec539cecf47b156579eaf7ac0e96a6231f7b676e7d1b809c6bd0dd415f"
   },
   "en/guardrails.md": {
@@ -346,7 +346,7 @@
     "description": "5adff554d71470b344b86bfe6b3ccb6191d04bcbd40a5ad90b718cc3b9f4e98a"
   },
   "en/index.md": {
-    "content": "8778a477a25f2899a72d3a0bc076a469345bf8592580c096ae419e2a024284b5",
+    "content": "4ea8d6fa842bfe90e34cee83beb7a2fedd4918cd247f169642e81a1140734c64",
     "description": "7de1ef473548ee584b5bc663bbd915be533722523facc5ecc0cfa3f3f35d4f1d",
     "source_docstring": "fe18bab92438b4b951c568eb30ffbf901e9f67cc2194d536a753c5dbd0934455"
   },
