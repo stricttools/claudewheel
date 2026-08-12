@@ -24,42 +24,32 @@
       "local": false
     }
   },
+  "checks": {
+    "type-check": {
+      "paths": [
+        "claudewheel",
+        "tests",
+        "docs"
+      ]
+    },
+    "lint": {
+      "paths": [
+        "claudewheel",
+        "tests",
+        "scripts",
+        "docs"
+      ]
+    },
+    "format": {
+      "paths": [
+        "claudewheel",
+        "tests",
+        "scripts",
+        "docs"
+      ]
+    }
+  },
   "external_checks": [
-    {
-      "name": "mypy-strict",
-      "kind": "structured",
-      "tool": "mypy",
-      "paths": [
-        "claudewheel",
-        "tests",
-        "docs"
-      ],
-      "tag": "preflight"
-    },
-    {
-      "name": "ruff-check",
-      "kind": "structured",
-      "tool": "ruff-check",
-      "paths": [
-        "claudewheel",
-        "tests",
-        "scripts",
-        "docs"
-      ],
-      "tag": "preflight"
-    },
-    {
-      "name": "ruff-format",
-      "kind": "structured",
-      "tool": "ruff-format",
-      "paths": [
-        "claudewheel",
-        "tests",
-        "scripts",
-        "docs"
-      ],
-      "tag": "preflight"
-    },
     {
       "name": "autospec-tests",
       "kind": "freeform",
