@@ -1,8 +1,7 @@
 ---
 title: claudewheel.profile_data
-description: "claudewheel's own data, stored inside each profile directory."
+description: "claudewheel's per-profile data store: the dot-prefixed directory inside each profile holding its OAuth token entry, that entry's format, and the owner-only modes both are written at."
 generated: true
-seeded: true
 nav_group: "API Reference"
 nav_order: 28
 ---
