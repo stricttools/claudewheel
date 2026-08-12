@@ -2,7 +2,7 @@
   "schema_version": 1,
   "name": "claudewheel",
   "slug": "claudewheel",
-  "version": "0.24.1",
+  "version": "0.24.2",
   "description": "TUI launcher for Claude Code: pick a profile, model, directory, and permissions from a segment bar, then launch.",
   "language": "python",
   "base_url": "https://claudewheel.smmh.dev",
@@ -10,364 +10,4703 @@
     {
       "path": "claudewheel-__main__.md",
       "title": "claudewheel.__main__",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.__main__",
+          "anchor": "claudewheel__main__"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.__main__",
+          "anchor": "claudewheel__main__"
+        }
+      ]
     },
     {
       "path": "claudewheel-app.md",
       "title": "claudewheel.app",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.app",
+          "anchor": "claudewheelapp"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.app",
+          "anchor": "claudewheelapp"
+        },
+        {
+          "level": 3,
+          "text": "KeyContext",
+          "anchor": "keycontext"
+        },
+        {
+          "level": 3,
+          "text": "Binding",
+          "anchor": "binding"
+        },
+        {
+          "level": 3,
+          "text": "App",
+          "anchor": "app"
+        },
+        {
+          "level": 4,
+          "text": "_refresh_orphan_findings",
+          "anchor": "_refresh_orphan_findings"
+        },
+        {
+          "level": 4,
+          "text": "run_tui",
+          "anchor": "run_tui"
+        },
+        {
+          "level": 4,
+          "text": "_select_client",
+          "anchor": "_select_client"
+        },
+        {
+          "level": 4,
+          "text": "_promote_ephemeral",
+          "anchor": "_promote_ephemeral"
+        },
+        {
+          "level": 4,
+          "text": "_run_slow_discovery_thread",
+          "anchor": "_run_slow_discovery_thread"
+        },
+        {
+          "level": 4,
+          "text": "_apply_slow_discovery",
+          "anchor": "_apply_slow_discovery"
+        },
+        {
+          "level": 4,
+          "text": "_apply_pending_for_segment",
+          "anchor": "_apply_pending_for_segment"
+        },
+        {
+          "level": 4,
+          "text": "_defocus",
+          "anchor": "_defocus"
+        },
+        {
+          "level": 4,
+          "text": "_build_context",
+          "anchor": "_build_context"
+        },
+        {
+          "level": 4,
+          "text": "_compute_hints",
+          "anchor": "_compute_hints"
+        },
+        {
+          "level": 4,
+          "text": "_handle_key",
+          "anchor": "_handle_key"
+        },
+        {
+          "level": 4,
+          "text": "_h_main_left",
+          "anchor": "_h_main_left"
+        },
+        {
+          "level": 4,
+          "text": "_h_main_right",
+          "anchor": "_h_main_right"
+        },
+        {
+          "level": 4,
+          "text": "_h_main_up",
+          "anchor": "_h_main_up"
+        },
+        {
+          "level": 4,
+          "text": "_h_main_down",
+          "anchor": "_h_main_down"
+        },
+        {
+          "level": 4,
+          "text": "_h_main_enter",
+          "anchor": "_h_main_enter"
+        },
+        {
+          "level": 4,
+          "text": "_h_main_tab",
+          "anchor": "_h_main_tab"
+        },
+        {
+          "level": 4,
+          "text": "_h_main_backspace",
+          "anchor": "_h_main_backspace"
+        },
+        {
+          "level": 4,
+          "text": "_h_main_esc",
+          "anchor": "_h_main_esc"
+        },
+        {
+          "level": 4,
+          "text": "_h_main_ctrl_c",
+          "anchor": "_h_main_ctrl_c"
+        },
+        {
+          "level": 4,
+          "text": "_h_main_delete",
+          "anchor": "_h_main_delete"
+        },
+        {
+          "level": 4,
+          "text": "_h_main_question",
+          "anchor": "_h_main_question"
+        },
+        {
+          "level": 4,
+          "text": "_h_main_inspect",
+          "anchor": "_h_main_inspect"
+        },
+        {
+          "level": 4,
+          "text": "_h_main_review",
+          "anchor": "_h_main_review"
+        },
+        {
+          "level": 4,
+          "text": "_h_main_freeform_seed",
+          "anchor": "_h_main_freeform_seed"
+        },
+        {
+          "level": 4,
+          "text": "_h_main_search",
+          "anchor": "_h_main_search"
+        },
+        {
+          "level": 4,
+          "text": "_h_main_quit",
+          "anchor": "_h_main_quit"
+        },
+        {
+          "level": 4,
+          "text": "_h_theme_switch",
+          "anchor": "_h_theme_switch"
+        },
+        {
+          "level": 4,
+          "text": "_h_freeform_enter",
+          "anchor": "_h_freeform_enter"
+        },
+        {
+          "level": 4,
+          "text": "_h_freeform_tab",
+          "anchor": "_h_freeform_tab"
+        },
+        {
+          "level": 4,
+          "text": "_h_freeform_backspace",
+          "anchor": "_h_freeform_backspace"
+        },
+        {
+          "level": 4,
+          "text": "_h_freeform_left",
+          "anchor": "_h_freeform_left"
+        },
+        {
+          "level": 4,
+          "text": "_h_freeform_right",
+          "anchor": "_h_freeform_right"
+        },
+        {
+          "level": 4,
+          "text": "_h_freeform_esc",
+          "anchor": "_h_freeform_esc"
+        },
+        {
+          "level": 4,
+          "text": "_h_freeform_ctrl_c",
+          "anchor": "_h_freeform_ctrl_c"
+        },
+        {
+          "level": 4,
+          "text": "_h_freeform_printable",
+          "anchor": "_h_freeform_printable"
+        },
+        {
+          "level": 4,
+          "text": "_h_create_enter",
+          "anchor": "_h_create_enter"
+        },
+        {
+          "level": 4,
+          "text": "_h_create_esc",
+          "anchor": "_h_create_esc"
+        },
+        {
+          "level": 4,
+          "text": "_h_create_backspace",
+          "anchor": "_h_create_backspace"
+        },
+        {
+          "level": 4,
+          "text": "_h_create_ctrl_c",
+          "anchor": "_h_create_ctrl_c"
+        },
+        {
+          "level": 4,
+          "text": "_h_create_printable",
+          "anchor": "_h_create_printable"
+        },
+        {
+          "level": 4,
+          "text": "_run_install_flow",
+          "anchor": "_run_install_flow"
+        },
+        {
+          "level": 4,
+          "text": "_build_bindings",
+          "anchor": "_build_bindings"
+        },
+        {
+          "level": 4,
+          "text": "_h_main_search_or_quit",
+          "anchor": "_h_main_search_or_quit"
+        },
+        {
+          "level": 4,
+          "text": "_intercept_unauth",
+          "anchor": "_intercept_unauth"
+        },
+        {
+          "level": 4,
+          "text": "_show_profile_inspect",
+          "anchor": "_show_profile_inspect"
+        },
+        {
+          "level": 4,
+          "text": "_show_stale_token_review",
+          "anchor": "_show_stale_token_review"
+        },
+        {
+          "level": 4,
+          "text": "_delete_profile_flow",
+          "anchor": "_delete_profile_flow"
+        },
+        {
+          "level": 4,
+          "text": "_refresh_profile_segment",
+          "anchor": "_refresh_profile_segment"
+        },
+        {
+          "level": 4,
+          "text": "_launch_profile_wizard",
+          "anchor": "_launch_profile_wizard"
+        },
+        {
+          "level": 4,
+          "text": "_confirm_create",
+          "anchor": "_confirm_create"
+        }
+      ]
     },
     {
       "path": "claudewheel-appdata.md",
       "title": "claudewheel.appdata",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.appdata",
+          "anchor": "claudewheelappdata"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.appdata",
+          "anchor": "claudewheelappdata"
+        },
+        {
+          "level": 3,
+          "text": "OptionsFile",
+          "anchor": "optionsfile"
+        },
+        {
+          "level": 4,
+          "text": "load",
+          "anchor": "load"
+        },
+        {
+          "level": 4,
+          "text": "add_pinned",
+          "anchor": "add_pinned"
+        },
+        {
+          "level": 4,
+          "text": "set_metadata",
+          "anchor": "set_metadata"
+        },
+        {
+          "level": 4,
+          "text": "rename_value",
+          "anchor": "rename_value"
+        },
+        {
+          "level": 4,
+          "text": "remove_value",
+          "anchor": "remove_value"
+        },
+        {
+          "level": 4,
+          "text": "write",
+          "anchor": "write"
+        },
+        {
+          "level": 3,
+          "text": "StateFile",
+          "anchor": "statefile"
+        },
+        {
+          "level": 4,
+          "text": "load",
+          "anchor": "load-1"
+        },
+        {
+          "level": 4,
+          "text": "save",
+          "anchor": "save"
+        },
+        {
+          "level": 4,
+          "text": "get_value",
+          "anchor": "get_value"
+        },
+        {
+          "level": 4,
+          "text": "set_value",
+          "anchor": "set_value"
+        }
+      ]
     },
     {
       "path": "claudewheel-auth.md",
       "title": "claudewheel.auth",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.auth",
+          "anchor": "claudewheelauth"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.auth",
+          "anchor": "claudewheelauth"
+        },
+        {
+          "level": 3,
+          "text": "looks_like_token",
+          "anchor": "looks_like_token"
+        },
+        {
+          "level": 3,
+          "text": "validate_token",
+          "anchor": "validate_token"
+        },
+        {
+          "level": 3,
+          "text": "extract_token",
+          "anchor": "extract_token"
+        },
+        {
+          "level": 3,
+          "text": "_best_candidate",
+          "anchor": "_best_candidate"
+        }
+      ]
     },
     {
       "path": "claudewheel-binaries.md",
       "title": "claudewheel.binaries",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.binaries",
+          "anchor": "claudewheelbinaries"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.binaries",
+          "anchor": "claudewheelbinaries"
+        },
+        {
+          "level": 3,
+          "text": "BinaryLocator",
+          "anchor": "binarylocator"
+        },
+        {
+          "level": 4,
+          "text": "default",
+          "anchor": "default"
+        },
+        {
+          "level": 4,
+          "text": "binary_for",
+          "anchor": "binary_for"
+        },
+        {
+          "level": 4,
+          "text": "fallback",
+          "anchor": "fallback"
+        },
+        {
+          "level": 4,
+          "text": "installed_versions",
+          "anchor": "installed_versions"
+        },
+        {
+          "level": 4,
+          "text": "symlink_target",
+          "anchor": "symlink_target"
+        }
+      ]
     },
     {
       "path": "claudewheel-cli.md",
       "title": "claudewheel.cli",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.cli",
+          "anchor": "claudewheelcli"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.cli",
+          "anchor": "claudewheelcli"
+        },
+        {
+          "level": 3,
+          "text": "_do_uninstall",
+          "anchor": "_do_uninstall"
+        },
+        {
+          "level": 3,
+          "text": "_do_reset_options",
+          "anchor": "_do_reset_options"
+        },
+        {
+          "level": 3,
+          "text": "_do_show",
+          "anchor": "_do_show"
+        },
+        {
+          "level": 3,
+          "text": "_write_tier_stub",
+          "anchor": "_write_tier_stub"
+        },
+        {
+          "level": 3,
+          "text": "_do_launch_sequence",
+          "anchor": "_do_launch_sequence"
+        },
+        {
+          "level": 3,
+          "text": "_handle_health",
+          "anchor": "_handle_health"
+        },
+        {
+          "level": 3,
+          "text": "_handle_config",
+          "anchor": "_handle_config"
+        },
+        {
+          "level": 3,
+          "text": "_handle_versions",
+          "anchor": "_handle_versions"
+        },
+        {
+          "level": 3,
+          "text": "_handle_install",
+          "anchor": "_handle_install"
+        },
+        {
+          "level": 3,
+          "text": "_handle_uninstall",
+          "anchor": "_handle_uninstall"
+        },
+        {
+          "level": 3,
+          "text": "_handle_reset_options",
+          "anchor": "_handle_reset_options"
+        },
+        {
+          "level": 3,
+          "text": "_handle_new_profile",
+          "anchor": "_handle_new_profile"
+        },
+        {
+          "level": 3,
+          "text": "_handle_delete_profile",
+          "anchor": "_handle_delete_profile"
+        },
+        {
+          "level": 3,
+          "text": "_handle_rename_profile",
+          "anchor": "_handle_rename_profile"
+        },
+        {
+          "level": 3,
+          "text": "_handle_check_tokens",
+          "anchor": "_handle_check_tokens"
+        },
+        {
+          "level": 3,
+          "text": "_handle_fix_auth",
+          "anchor": "_handle_fix_auth"
+        },
+        {
+          "level": 3,
+          "text": "_handle_show",
+          "anchor": "_handle_show"
+        },
+        {
+          "level": 3,
+          "text": "_handle_migrate",
+          "anchor": "_handle_migrate"
+        },
+        {
+          "level": 3,
+          "text": "_handle_stats",
+          "anchor": "_handle_stats"
+        },
+        {
+          "level": 3,
+          "text": "_handle_mv",
+          "anchor": "_handle_mv"
+        },
+        {
+          "level": 3,
+          "text": "_handle_import",
+          "anchor": "_handle_import"
+        },
+        {
+          "level": 3,
+          "text": "_handle_deploy_hooks",
+          "anchor": "_handle_deploy_hooks"
+        },
+        {
+          "level": 3,
+          "text": "_handle_patch_profiles",
+          "anchor": "_handle_patch_profiles"
+        },
+        {
+          "level": 3,
+          "text": "_handle_reconcile_permissions",
+          "anchor": "_handle_reconcile_permissions"
+        },
+        {
+          "level": 3,
+          "text": "_handle_permission_add",
+          "anchor": "_handle_permission_add"
+        },
+        {
+          "level": 3,
+          "text": "_handle_permission_remove",
+          "anchor": "_handle_permission_remove"
+        },
+        {
+          "level": 3,
+          "text": "_handle_permission_list",
+          "anchor": "_handle_permission_list"
+        },
+        {
+          "level": 3,
+          "text": "_resolve_resume_title",
+          "anchor": "_resolve_resume_title"
+        },
+        {
+          "level": 3,
+          "text": "_check_resume_session",
+          "anchor": "_check_resume_session"
+        },
+        {
+          "level": 3,
+          "text": "_check_cont_session",
+          "anchor": "_check_cont_session"
+        },
+        {
+          "level": 3,
+          "text": "_reject_claude_only_overrides",
+          "anchor": "_reject_claude_only_overrides"
+        },
+        {
+          "level": 3,
+          "text": "_handle_launch",
+          "anchor": "_handle_launch"
+        },
+        {
+          "level": 3,
+          "text": "_inject_launch",
+          "anchor": "_inject_launch"
+        },
+        {
+          "level": 3,
+          "text": "_bind",
+          "anchor": "_bind"
+        },
+        {
+          "level": 3,
+          "text": "_build_app",
+          "anchor": "_build_app"
+        },
+        {
+          "level": 3,
+          "text": "main",
+          "anchor": "main"
+        }
+      ]
     },
     {
       "path": "claudewheel-clients.md",
       "title": "claudewheel.clients",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.clients",
+          "anchor": "claudewheelclients"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.clients",
+          "anchor": "claudewheelclients"
+        },
+        {
+          "level": 3,
+          "text": "ClientContext",
+          "anchor": "clientcontext"
+        },
+        {
+          "level": 4,
+          "text": "session_flags",
+          "anchor": "session_flags"
+        },
+        {
+          "level": 3,
+          "text": "build_claude_argv",
+          "anchor": "build_claude_argv"
+        },
+        {
+          "level": 3,
+          "text": "build_miniclaude_argv",
+          "anchor": "build_miniclaude_argv"
+        },
+        {
+          "level": 3,
+          "text": "_miniclaude_session_flags",
+          "anchor": "_miniclaude_session_flags"
+        },
+        {
+          "level": 3,
+          "text": "resolve_default_client",
+          "anchor": "resolve_default_client"
+        },
+        {
+          "level": 3,
+          "text": "client_available",
+          "anchor": "client_available"
+        },
+        {
+          "level": 3,
+          "text": "build_client_choices",
+          "anchor": "build_client_choices"
+        },
+        {
+          "level": 3,
+          "text": "resolve_client",
+          "anchor": "resolve_client"
+        }
+      ]
     },
     {
       "path": "claudewheel-config.md",
       "title": "claudewheel.config",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.config",
+          "anchor": "claudewheelconfig"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.config",
+          "anchor": "claudewheelconfig"
+        },
+        {
+          "level": 3,
+          "text": "_migration_1_github_optional",
+          "anchor": "_migration_1_github_optional"
+        },
+        {
+          "level": 3,
+          "text": "_migration_2_profile_paths",
+          "anchor": "_migration_2_profile_paths"
+        },
+        {
+          "level": 3,
+          "text": "_migration_3_classify_pinned",
+          "anchor": "_migration_3_classify_pinned"
+        },
+        {
+          "level": 3,
+          "text": "_migration_4_drop_profile_metadata",
+          "anchor": "_migration_4_drop_profile_metadata"
+        },
+        {
+          "level": 3,
+          "text": "_migration_5_drop_fable_1m",
+          "anchor": "_migration_5_drop_fable_1m"
+        },
+        {
+          "level": 3,
+          "text": "resolve_theme_name",
+          "anchor": "resolve_theme_name"
+        },
+        {
+          "level": 3,
+          "text": "AppConfigStore",
+          "anchor": "appconfigstore"
+        },
+        {
+          "level": 4,
+          "text": "load_theme",
+          "anchor": "load_theme"
+        },
+        {
+          "level": 4,
+          "text": "_theme_specs",
+          "anchor": "_theme_specs"
+        },
+        {
+          "level": 4,
+          "text": "_recover_incomplete_renames",
+          "anchor": "_recover_incomplete_renames"
+        },
+        {
+          "level": 4,
+          "text": "_ensure_shared_settings",
+          "anchor": "_ensure_shared_settings"
+        },
+        {
+          "level": 4,
+          "text": "_ensure_dir",
+          "anchor": "_ensure_dir"
+        },
+        {
+          "level": 4,
+          "text": "_migrate",
+          "anchor": "_migrate"
+        },
+        {
+          "level": 4,
+          "text": "_run_versioned_migrations",
+          "anchor": "_run_versioned_migrations"
+        },
+        {
+          "level": 4,
+          "text": "_deep_merge_missing",
+          "anchor": "_deep_merge_missing"
+        },
+        {
+          "level": 4,
+          "text": "add_option",
+          "anchor": "add_option"
+        },
+        {
+          "level": 4,
+          "text": "save_state",
+          "anchor": "save_state"
+        }
+      ]
     },
     {
       "path": "claudewheel-constants.md",
       "title": "claudewheel.constants",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.constants",
+          "anchor": "claudewheelconstants"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.constants",
+          "anchor": "claudewheelconstants"
+        },
+        {
+          "level": 3,
+          "text": "csi",
+          "anchor": "csi"
+        },
+        {
+          "level": 3,
+          "text": "move_to",
+          "anchor": "move_to"
+        },
+        {
+          "level": 3,
+          "text": "fg_rgb",
+          "anchor": "fg_rgb"
+        },
+        {
+          "level": 3,
+          "text": "bg_rgb",
+          "anchor": "bg_rgb"
+        }
+      ]
     },
     {
       "path": "claudewheel-defaults.md",
       "title": "claudewheel.defaults",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.defaults",
+          "anchor": "claudewheeldefaults"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.defaults",
+          "anchor": "claudewheeldefaults"
+        },
+        {
+          "level": 3,
+          "text": "canonical_hook_command",
+          "anchor": "canonical_hook_command"
+        },
+        {
+          "level": 3,
+          "text": "_build_canonical_hooks",
+          "anchor": "_build_canonical_hooks"
+        },
+        {
+          "level": 3,
+          "text": "build_canonical_shared_settings",
+          "anchor": "build_canonical_shared_settings"
+        }
+      ]
     },
     {
       "path": "claudewheel-discovery.md",
       "title": "claudewheel.discovery",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.discovery",
+          "anchor": "claudewheeldiscovery"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.discovery",
+          "anchor": "claudewheeldiscovery"
+        },
+        {
+          "level": 3,
+          "text": "detect_browsers",
+          "anchor": "detect_browsers"
+        }
+      ]
     },
     {
       "path": "claudewheel-effects.md",
       "title": "claudewheel.effects",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.effects",
+          "anchor": "claudewheeleffects"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.effects",
+          "anchor": "claudewheeleffects"
+        },
+        {
+          "level": 3,
+          "text": "bound",
+          "anchor": "bound"
+        },
+        {
+          "level": 3,
+          "text": "unsettled",
+          "anchor": "unsettled"
+        },
+        {
+          "level": 3,
+          "text": "previewing",
+          "anchor": "previewing"
+        },
+        {
+          "level": 3,
+          "text": "issue",
+          "anchor": "issue"
+        },
+        {
+          "level": 3,
+          "text": "_handle",
+          "anchor": "_handle"
+        },
+        {
+          "level": 3,
+          "text": "_p",
+          "anchor": "_p"
+        },
+        {
+          "level": 3,
+          "text": "run",
+          "anchor": "run"
+        },
+        {
+          "level": 3,
+          "text": "exec_replace",
+          "anchor": "exec_replace"
+        },
+        {
+          "level": 3,
+          "text": "run_under_pty",
+          "anchor": "run_under_pty"
+        },
+        {
+          "level": 3,
+          "text": "_RecordedWriter",
+          "anchor": "_recordedwriter"
+        },
+        {
+          "level": 4,
+          "text": "close",
+          "anchor": "close"
+        },
+        {
+          "level": 3,
+          "text": "open_write",
+          "anchor": "open_write"
+        },
+        {
+          "level": 3,
+          "text": "write_text",
+          "anchor": "write_text"
+        },
+        {
+          "level": 3,
+          "text": "write_bytes",
+          "anchor": "write_bytes"
+        },
+        {
+          "level": 3,
+          "text": "write",
+          "anchor": "write"
+        },
+        {
+          "level": 3,
+          "text": "write_text_atomic",
+          "anchor": "write_text_atomic"
+        },
+        {
+          "level": 3,
+          "text": "write_json_atomic",
+          "anchor": "write_json_atomic"
+        },
+        {
+          "level": 3,
+          "text": "write_json_atomic_secret",
+          "anchor": "write_json_atomic_secret"
+        },
+        {
+          "level": 3,
+          "text": "mkdir",
+          "anchor": "mkdir"
+        },
+        {
+          "level": 3,
+          "text": "remove",
+          "anchor": "remove"
+        },
+        {
+          "level": 3,
+          "text": "rmdir",
+          "anchor": "rmdir"
+        },
+        {
+          "level": 3,
+          "text": "rmtree",
+          "anchor": "rmtree"
+        },
+        {
+          "level": 3,
+          "text": "rename",
+          "anchor": "rename"
+        },
+        {
+          "level": 3,
+          "text": "move",
+          "anchor": "move"
+        },
+        {
+          "level": 3,
+          "text": "chmod",
+          "anchor": "chmod"
+        },
+        {
+          "level": 3,
+          "text": "symlink",
+          "anchor": "symlink"
+        },
+        {
+          "level": 3,
+          "text": "copy_file",
+          "anchor": "copy_file"
+        },
+        {
+          "level": 3,
+          "text": "copytree",
+          "anchor": "copytree"
+        },
+        {
+          "level": 3,
+          "text": "http_read",
+          "anchor": "http_read"
+        },
+        {
+          "level": 3,
+          "text": "http_status",
+          "anchor": "http_status"
+        },
+        {
+          "level": 3,
+          "text": "http_stream",
+          "anchor": "http_stream"
+        },
+        {
+          "level": 3,
+          "text": "http",
+          "anchor": "http"
+        },
+        {
+          "level": 3,
+          "text": "_direct_run",
+          "anchor": "_direct_run"
+        },
+        {
+          "level": 3,
+          "text": "_completed_from",
+          "anchor": "_completed_from"
+        }
+      ]
     },
     {
       "path": "claudewheel-fuzzy.md",
       "title": "claudewheel.fuzzy",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.fuzzy",
+          "anchor": "claudewheelfuzzy"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.fuzzy",
+          "anchor": "claudewheelfuzzy"
+        },
+        {
+          "level": 3,
+          "text": "fuzzy_score",
+          "anchor": "fuzzy_score"
+        },
+        {
+          "level": 3,
+          "text": "fuzzy_rank",
+          "anchor": "fuzzy_rank"
+        },
+        {
+          "level": 3,
+          "text": "fuzzy_match_positions",
+          "anchor": "fuzzy_match_positions"
+        }
+      ]
     },
     {
       "path": "claudewheel-guardrail.md",
       "title": "claudewheel.guardrail",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.guardrail",
+          "anchor": "claudewheelguardrail"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.guardrail",
+          "anchor": "claudewheelguardrail"
+        },
+        {
+          "level": 3,
+          "text": "Tier",
+          "anchor": "tier"
+        },
+        {
+          "level": 3,
+          "text": "SettingsCoverage",
+          "anchor": "settingscoverage"
+        },
+        {
+          "level": 3,
+          "text": "GuardrailRule",
+          "anchor": "guardrailrule"
+        },
+        {
+          "level": 3,
+          "text": "_as_sentence",
+          "anchor": "_as_sentence"
+        },
+        {
+          "level": 3,
+          "text": "_cmd",
+          "anchor": "_cmd"
+        },
+        {
+          "level": 3,
+          "text": "_wrapped_matcher",
+          "anchor": "_wrapped_matcher"
+        },
+        {
+          "level": 3,
+          "text": "rules",
+          "anchor": "rules"
+        },
+        {
+          "level": 3,
+          "text": "rules_by_tier",
+          "anchor": "rules_by_tier"
+        },
+        {
+          "level": 3,
+          "text": "canonical_deny_rules",
+          "anchor": "canonical_deny_rules"
+        },
+        {
+          "level": 3,
+          "text": "canonical_ask_rules",
+          "anchor": "canonical_ask_rules"
+        },
+        {
+          "level": 3,
+          "text": "all_settings_rules",
+          "anchor": "all_settings_rules"
+        },
+        {
+          "level": 3,
+          "text": "_bash_squote",
+          "anchor": "_bash_squote"
+        },
+        {
+          "level": 3,
+          "text": "_bash_dquote_body",
+          "anchor": "_bash_dquote_body"
+        },
+        {
+          "level": 3,
+          "text": "_match_condition",
+          "anchor": "_match_condition"
+        },
+        {
+          "level": 3,
+          "text": "generate_blocker_script",
+          "anchor": "generate_blocker_script"
+        },
+        {
+          "level": 3,
+          "text": "generate_advise_script",
+          "anchor": "generate_advise_script"
+        }
+      ]
     },
     {
       "path": "claudewheel-health.md",
       "title": "claudewheel.health",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.health",
+          "anchor": "claudewheelhealth"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.health",
+          "anchor": "claudewheelhealth"
+        },
+        {
+          "level": 3,
+          "text": "HealthResult",
+          "anchor": "healthresult"
+        },
+        {
+          "level": 3,
+          "text": "check_tmpfs_quota",
+          "anchor": "check_tmpfs_quota"
+        },
+        {
+          "level": 3,
+          "text": "_tmp_claude_dir",
+          "anchor": "_tmp_claude_dir"
+        },
+        {
+          "level": 3,
+          "text": "_real_disk_usage",
+          "anchor": "_real_disk_usage"
+        },
+        {
+          "level": 3,
+          "text": "check_tmp_claude_size",
+          "anchor": "check_tmp_claude_size"
+        },
+        {
+          "level": 3,
+          "text": "_discover_profiles",
+          "anchor": "_discover_profiles"
+        },
+        {
+          "level": 3,
+          "text": "_managed_profiles",
+          "anchor": "_managed_profiles"
+        },
+        {
+          "level": 3,
+          "text": "check_shared_symlinks",
+          "anchor": "check_shared_symlinks"
+        },
+        {
+          "level": 3,
+          "text": "_hook_wired",
+          "anchor": "_hook_wired"
+        },
+        {
+          "level": 3,
+          "text": "check_hooks_wired",
+          "anchor": "check_hooks_wired"
+        },
+        {
+          "level": 3,
+          "text": "check_settings_defaults",
+          "anchor": "check_settings_defaults"
+        },
+        {
+          "level": 3,
+          "text": "_diff_json",
+          "anchor": "_diff_json"
+        },
+        {
+          "level": 3,
+          "text": "check_shared_settings_drift",
+          "anchor": "check_shared_settings_drift"
+        },
+        {
+          "level": 3,
+          "text": "_canonical_permission_diffs",
+          "anchor": "_canonical_permission_diffs"
+        },
+        {
+          "level": 3,
+          "text": "check_canonical_permissions_drift",
+          "anchor": "check_canonical_permissions_drift"
+        },
+        {
+          "level": 3,
+          "text": "check_auth_shadow",
+          "anchor": "check_auth_shadow"
+        },
+        {
+          "level": 3,
+          "text": "check_token_expiry",
+          "anchor": "check_token_expiry"
+        },
+        {
+          "level": 3,
+          "text": "check_tokens",
+          "anchor": "check_tokens"
+        },
+        {
+          "level": 3,
+          "text": "check_orphan_profiles",
+          "anchor": "check_orphan_profiles"
+        },
+        {
+          "level": 3,
+          "text": "check_orphan_token_entries",
+          "anchor": "check_orphan_token_entries"
+        },
+        {
+          "level": 3,
+          "text": "check_file_permissions",
+          "anchor": "check_file_permissions"
+        },
+        {
+          "level": 3,
+          "text": "check_inode_renames",
+          "anchor": "check_inode_renames"
+        },
+        {
+          "level": 3,
+          "text": "check_deployed_hook_drift",
+          "anchor": "check_deployed_hook_drift"
+        },
+        {
+          "level": 3,
+          "text": "_stale_hook_command_paths",
+          "anchor": "_stale_hook_command_paths"
+        },
+        {
+          "level": 3,
+          "text": "check_relocated_hook_paths",
+          "anchor": "check_relocated_hook_paths"
+        },
+        {
+          "level": 3,
+          "text": "run_health_check",
+          "anchor": "run_health_check"
+        },
+        {
+          "level": 3,
+          "text": "print_health_report",
+          "anchor": "print_health_report"
+        }
+      ]
     },
     {
       "path": "claudewheel-hook_scripts.md",
       "title": "claudewheel.hook_scripts",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.hook_scripts",
+          "anchor": "claudewheelhook_scripts"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.hook_scripts",
+          "anchor": "claudewheelhook_scripts"
+        },
+        {
+          "level": 3,
+          "text": "deploy_scripts",
+          "anchor": "deploy_scripts"
+        }
+      ]
     },
     {
       "path": "claudewheel-hooks.md",
       "title": "claudewheel.hooks",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.hooks",
+          "anchor": "claudewheelhooks"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.hooks",
+          "anchor": "claudewheelhooks"
+        },
+        {
+          "level": 3,
+          "text": "run_hooks",
+          "anchor": "run_hooks"
+        }
+      ]
     },
     {
       "path": "claudewheel-import_.md",
       "title": "claudewheel.import_",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.import_",
+          "anchor": "claudewheelimport_"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.import_",
+          "anchor": "claudewheelimport_"
+        },
+        {
+          "level": 3,
+          "text": "ImportResult",
+          "anchor": "importresult"
+        },
+        {
+          "level": 3,
+          "text": "_normalize_cwd",
+          "anchor": "_normalize_cwd"
+        },
+        {
+          "level": 3,
+          "text": "_build_rewriters",
+          "anchor": "_build_rewriters"
+        },
+        {
+          "level": 3,
+          "text": "_apply_rewrites",
+          "anchor": "_apply_rewrites"
+        },
+        {
+          "level": 3,
+          "text": "_rewrite_jsonl",
+          "anchor": "_rewrite_jsonl"
+        },
+        {
+          "level": 3,
+          "text": "_SessionBundle",
+          "anchor": "_sessionbundle"
+        },
+        {
+          "level": 3,
+          "text": "_scan_source",
+          "anchor": "_scan_source"
+        },
+        {
+          "level": 3,
+          "text": "run_import",
+          "anchor": "run_import"
+        },
+        {
+          "level": 3,
+          "text": "_copy_simple_artifacts",
+          "anchor": "_copy_simple_artifacts"
+        }
+      ]
     },
     {
       "path": "claudewheel-install.md",
       "title": "claudewheel.install",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.install",
+          "anchor": "claudewheelinstall"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.install",
+          "anchor": "claudewheelinstall"
+        },
+        {
+          "level": 3,
+          "text": "_detect_platform",
+          "anchor": "_detect_platform"
+        },
+        {
+          "level": 3,
+          "text": "fetch_manifest",
+          "anchor": "fetch_manifest"
+        },
+        {
+          "level": 3,
+          "text": "_staging_path",
+          "anchor": "_staging_path"
+        },
+        {
+          "level": 3,
+          "text": "install_version",
+          "anchor": "install_version"
+        }
+      ]
     },
     {
       "path": "claudewheel-launch.md",
       "title": "claudewheel.launch",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.launch",
+          "anchor": "claudewheellaunch"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.launch",
+          "anchor": "claudewheellaunch"
+        },
+        {
+          "level": 3,
+          "text": "fetch_gh_token",
+          "anchor": "fetch_gh_token"
+        },
+        {
+          "level": 3,
+          "text": "resolve_launch_config",
+          "anchor": "resolve_launch_config"
+        },
+        {
+          "level": 3,
+          "text": "do_launch",
+          "anchor": "do_launch"
+        }
+      ]
     },
     {
       "path": "claudewheel-migrate.md",
       "title": "claudewheel.migrate",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.migrate",
+          "anchor": "claudewheelmigrate"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.migrate",
+          "anchor": "claudewheelmigrate"
+        },
+        {
+          "level": 3,
+          "text": "MigrateResult",
+          "anchor": "migrateresult"
+        },
+        {
+          "level": 3,
+          "text": "_resolve_symlink_target",
+          "anchor": "_resolve_symlink_target"
+        },
+        {
+          "level": 3,
+          "text": "_discover_uuids",
+          "anchor": "_discover_uuids"
+        },
+        {
+          "level": 3,
+          "text": "_move_artifact",
+          "anchor": "_move_artifact"
+        },
+        {
+          "level": 3,
+          "text": "_shared_store",
+          "anchor": "_shared_store"
+        },
+        {
+          "level": 3,
+          "text": "migrate_sessions",
+          "anchor": "migrate_sessions"
+        }
+      ]
     },
     {
       "path": "claudewheel-mv.md",
       "title": "claudewheel.mv",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.mv",
+          "anchor": "claudewheelmv"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.mv",
+          "anchor": "claudewheelmv"
+        },
+        {
+          "level": 3,
+          "text": "MvResult",
+          "anchor": "mvresult"
+        },
+        {
+          "level": 3,
+          "text": "_discover_profile_dirs",
+          "anchor": "_discover_profile_dirs"
+        },
+        {
+          "level": 3,
+          "text": "_rewrite_jsonl_file",
+          "anchor": "_rewrite_jsonl_file"
+        },
+        {
+          "level": 3,
+          "text": "_plan_migrations",
+          "anchor": "_plan_migrations"
+        },
+        {
+          "level": 3,
+          "text": "_decode_rel",
+          "anchor": "_decode_rel"
+        },
+        {
+          "level": 3,
+          "text": "_collect_project_keys",
+          "anchor": "_collect_project_keys"
+        },
+        {
+          "level": 3,
+          "text": "_discover_descendants",
+          "anchor": "_discover_descendants"
+        },
+        {
+          "level": 3,
+          "text": "_verify_destinations",
+          "anchor": "_verify_destinations"
+        },
+        {
+          "level": 3,
+          "text": "_rename_project_dir",
+          "anchor": "_rename_project_dir"
+        },
+        {
+          "level": 3,
+          "text": "_rewrite_prefixed_path",
+          "anchor": "_rewrite_prefixed_path"
+        },
+        {
+          "level": 3,
+          "text": "_update_claude_json",
+          "anchor": "_update_claude_json"
+        },
+        {
+          "level": 3,
+          "text": "run_mv",
+          "anchor": "run_mv"
+        }
+      ]
     },
     {
       "path": "claudewheel-patch_profiles.md",
       "title": "claudewheel.patch_profiles",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.patch_profiles",
+          "anchor": "claudewheelpatch_profiles"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.patch_profiles",
+          "anchor": "claudewheelpatch_profiles"
+        },
+        {
+          "level": 3,
+          "text": "_script_basename",
+          "anchor": "_script_basename"
+        },
+        {
+          "level": 3,
+          "text": "merge_hooks",
+          "anchor": "merge_hooks"
+        },
+        {
+          "level": 3,
+          "text": "run_patch_profiles",
+          "anchor": "run_patch_profiles"
+        }
+      ]
     },
     {
       "path": "claudewheel-permission.md",
       "title": "claudewheel.permission",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.permission",
+          "anchor": "claudewheelpermission"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.permission",
+          "anchor": "claudewheelpermission"
+        },
+        {
+          "level": 3,
+          "text": "validate_rule",
+          "anchor": "validate_rule"
+        },
+        {
+          "level": 3,
+          "text": "load_settings",
+          "anchor": "load_settings"
+        },
+        {
+          "level": 3,
+          "text": "save_settings",
+          "anchor": "save_settings"
+        },
+        {
+          "level": 3,
+          "text": "add_rule",
+          "anchor": "add_rule"
+        },
+        {
+          "level": 3,
+          "text": "remove_rule",
+          "anchor": "remove_rule"
+        },
+        {
+          "level": 3,
+          "text": "resolve_profiles",
+          "anchor": "resolve_profiles"
+        }
+      ]
     },
     {
       "path": "claudewheel-preflight.md",
       "title": "claudewheel.preflight",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.preflight",
+          "anchor": "claudewheelpreflight"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.preflight",
+          "anchor": "claudewheelpreflight"
+        },
+        {
+          "level": 3,
+          "text": "Decision",
+          "anchor": "decision"
+        },
+        {
+          "level": 3,
+          "text": "StepResult",
+          "anchor": "stepresult"
+        },
+        {
+          "level": 4,
+          "text": "cont",
+          "anchor": "cont"
+        },
+        {
+          "level": 4,
+          "text": "abort",
+          "anchor": "abort"
+        },
+        {
+          "level": 4,
+          "text": "is_abort",
+          "anchor": "is_abort"
+        },
+        {
+          "level": 3,
+          "text": "PreflightContext",
+          "anchor": "preflightcontext"
+        },
+        {
+          "level": 3,
+          "text": "PreflightStep",
+          "anchor": "preflightstep"
+        },
+        {
+          "level": 3,
+          "text": "_canonical_hook_scripts",
+          "anchor": "_canonical_hook_scripts"
+        },
+        {
+          "level": 3,
+          "text": "ensure_vanilla_guardrails",
+          "anchor": "ensure_vanilla_guardrails"
+        },
+        {
+          "level": 3,
+          "text": "remove_vanilla_guardrails",
+          "anchor": "remove_vanilla_guardrails"
+        },
+        {
+          "level": 3,
+          "text": "_prompt_vanilla_choice",
+          "anchor": "_prompt_vanilla_choice"
+        },
+        {
+          "level": 3,
+          "text": "_vanilla_choice_run",
+          "anchor": "_vanilla_choice_run"
+        },
+        {
+          "level": 3,
+          "text": "_reconcile_guardrails_run",
+          "anchor": "_reconcile_guardrails_run"
+        },
+        {
+          "level": 3,
+          "text": "_model_version_guard_run",
+          "anchor": "_model_version_guard_run"
+        },
+        {
+          "level": 3,
+          "text": "_make_terminal",
+          "anchor": "_make_terminal"
+        },
+        {
+          "level": 3,
+          "text": "_prompt_hook_approval",
+          "anchor": "_prompt_hook_approval"
+        },
+        {
+          "level": 3,
+          "text": "_approved_hooks_run",
+          "anchor": "_approved_hooks_run"
+        },
+        {
+          "level": 3,
+          "text": "_prompt_scratchpad_cleanup",
+          "anchor": "_prompt_scratchpad_cleanup"
+        },
+        {
+          "level": 3,
+          "text": "_scratchpad_cleanup_run",
+          "anchor": "_scratchpad_cleanup_run"
+        },
+        {
+          "level": 3,
+          "text": "run_preflight",
+          "anchor": "run_preflight"
+        }
+      ]
     },
     {
       "path": "claudewheel-profile.md",
       "title": "claudewheel.profile",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.profile",
+          "anchor": "claudewheelprofile"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.profile",
+          "anchor": "claudewheelprofile"
+        },
+        {
+          "level": 3,
+          "text": "resolve_profile",
+          "anchor": "resolve_profile"
+        }
+      ]
     },
     {
       "path": "claudewheel-profile_info.md",
       "title": "claudewheel.profile_info",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.profile_info",
+          "anchor": "claudewheelprofile_info"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.profile_info",
+          "anchor": "claudewheelprofile_info"
+        },
+        {
+          "level": 3,
+          "text": "ProfileReport",
+          "anchor": "profilereport"
+        },
+        {
+          "level": 3,
+          "text": "_read_options_registration",
+          "anchor": "_read_options_registration"
+        },
+        {
+          "level": 3,
+          "text": "_read_token_state",
+          "anchor": "_read_token_state"
+        },
+        {
+          "level": 3,
+          "text": "_count_active_sessions",
+          "anchor": "_count_active_sessions"
+        },
+        {
+          "level": 3,
+          "text": "_disk_usage",
+          "anchor": "_disk_usage"
+        },
+        {
+          "level": 3,
+          "text": "_read_settings",
+          "anchor": "_read_settings"
+        },
+        {
+          "level": 3,
+          "text": "detect_auth_shadow",
+          "anchor": "detect_auth_shadow"
+        },
+        {
+          "level": 3,
+          "text": "gather_profile_info",
+          "anchor": "gather_profile_info"
+        },
+        {
+          "level": 3,
+          "text": "_format_size",
+          "anchor": "_format_size"
+        },
+        {
+          "level": 3,
+          "text": "format_report",
+          "anchor": "format_report"
+        }
+      ]
     },
     {
       "path": "claudewheel-profile_ops.md",
       "title": "claudewheel.profile_ops",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.profile_ops",
+          "anchor": "claudewheelprofile_ops"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.profile_ops",
+          "anchor": "claudewheelprofile_ops"
+        },
+        {
+          "level": 3,
+          "text": "RemoveOrphanTokenResult",
+          "anchor": "removeorphantokenresult"
+        },
+        {
+          "level": 3,
+          "text": "remove_orphan_token_entry",
+          "anchor": "remove_orphan_token_entry"
+        },
+        {
+          "level": 3,
+          "text": "FixAuthResult",
+          "anchor": "fixauthresult"
+        },
+        {
+          "level": 3,
+          "text": "fix_auth_shadow",
+          "anchor": "fix_auth_shadow"
+        },
+        {
+          "level": 3,
+          "text": "_is_profile_running",
+          "anchor": "_is_profile_running"
+        }
+      ]
     },
     {
       "path": "claudewheel-profile_store.md",
       "title": "claudewheel.profile_store",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.profile_store",
+          "anchor": "claudewheelprofile_store"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.profile_store",
+          "anchor": "claudewheelprofile_store"
+        },
+        {
+          "level": 3,
+          "text": "Profile",
+          "anchor": "profile"
+        },
+        {
+          "level": 4,
+          "text": "config_dir",
+          "anchor": "config_dir"
+        },
+        {
+          "level": 3,
+          "text": "AuditFinding",
+          "anchor": "auditfinding"
+        },
+        {
+          "level": 3,
+          "text": "DeletionResult",
+          "anchor": "deletionresult"
+        },
+        {
+          "level": 3,
+          "text": "ProfileStore",
+          "anchor": "profilestore"
+        },
+        {
+          "level": 4,
+          "text": "path_for",
+          "anchor": "path_for"
+        },
+        {
+          "level": 4,
+          "text": "enumerate",
+          "anchor": "enumerate"
+        },
+        {
+          "level": 4,
+          "text": "discover",
+          "anchor": "discover"
+        },
+        {
+          "level": 4,
+          "text": "get",
+          "anchor": "get"
+        },
+        {
+          "level": 4,
+          "text": "audit",
+          "anchor": "audit"
+        },
+        {
+          "level": 4,
+          "text": "env",
+          "anchor": "env"
+        },
+        {
+          "level": 4,
+          "text": "_require_write_stores",
+          "anchor": "_require_write_stores"
+        },
+        {
+          "level": 4,
+          "text": "_require_shared",
+          "anchor": "_require_shared"
+        },
+        {
+          "level": 4,
+          "text": "_set_onboarding_flag",
+          "anchor": "_set_onboarding_flag"
+        },
+        {
+          "level": 4,
+          "text": "create",
+          "anchor": "create"
+        },
+        {
+          "level": 4,
+          "text": "classify_shared_dirs",
+          "anchor": "classify_shared_dirs"
+        },
+        {
+          "level": 4,
+          "text": "_remove_profile_dir",
+          "anchor": "_remove_profile_dir"
+        },
+        {
+          "level": 4,
+          "text": "_purge_last_config",
+          "anchor": "_purge_last_config"
+        },
+        {
+          "level": 4,
+          "text": "delete",
+          "anchor": "delete"
+        },
+        {
+          "level": 4,
+          "text": "_update_state_rename",
+          "anchor": "_update_state_rename"
+        },
+        {
+          "level": 4,
+          "text": "rename",
+          "anchor": "rename"
+        },
+        {
+          "level": 4,
+          "text": "recover_incomplete_renames",
+          "anchor": "recover_incomplete_renames"
+        }
+      ]
     },
     {
       "path": "claudewheel-project_hooks.md",
       "title": "claudewheel.project_hooks",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.project_hooks",
+          "anchor": "claudewheelproject_hooks"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.project_hooks",
+          "anchor": "claudewheelproject_hooks"
+        },
+        {
+          "level": 3,
+          "text": "MalformedProjectHooksError",
+          "anchor": "malformedprojecthookserror"
+        },
+        {
+          "level": 3,
+          "text": "ProjectHooks",
+          "anchor": "projecthooks"
+        },
+        {
+          "level": 4,
+          "text": "has_hooks",
+          "anchor": "has_hooks"
+        },
+        {
+          "level": 4,
+          "text": "fingerprint",
+          "anchor": "fingerprint"
+        },
+        {
+          "level": 4,
+          "text": "listing_lines",
+          "anchor": "listing_lines"
+        },
+        {
+          "level": 3,
+          "text": "_entry_lines",
+          "anchor": "_entry_lines"
+        },
+        {
+          "level": 3,
+          "text": "_load_hooks_section",
+          "anchor": "_load_hooks_section"
+        },
+        {
+          "level": 3,
+          "text": "read_project_hooks",
+          "anchor": "read_project_hooks"
+        },
+        {
+          "level": 3,
+          "text": "target_directory",
+          "anchor": "target_directory"
+        }
+      ]
     },
     {
       "path": "claudewheel-pty_runner.md",
       "title": "claudewheel.pty_runner",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.pty_runner",
+          "anchor": "claudewheelpty_runner"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.pty_runner",
+          "anchor": "claudewheelpty_runner"
+        },
+        {
+          "level": 3,
+          "text": "_copy_winsize",
+          "anchor": "_copy_winsize"
+        },
+        {
+          "level": 3,
+          "text": "run_under_pty",
+          "anchor": "run_under_pty"
+        }
+      ]
     },
     {
       "path": "claudewheel-reconcile.md",
       "title": "claudewheel.reconcile",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.reconcile",
+          "anchor": "claudewheelreconcile"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.reconcile",
+          "anchor": "claudewheelreconcile"
+        },
+        {
+          "level": 3,
+          "text": "PermissionDiff",
+          "anchor": "permissiondiff"
+        },
+        {
+          "level": 4,
+          "text": "is_empty",
+          "anchor": "is_empty"
+        },
+        {
+          "level": 4,
+          "text": "change_count",
+          "anchor": "change_count"
+        },
+        {
+          "level": 3,
+          "text": "_reconcile_list",
+          "anchor": "_reconcile_list"
+        },
+        {
+          "level": 3,
+          "text": "compute_settings_diff",
+          "anchor": "compute_settings_diff"
+        },
+        {
+          "level": 3,
+          "text": "apply_settings_diff",
+          "anchor": "apply_settings_diff"
+        },
+        {
+          "level": 3,
+          "text": "_reconcile_permissions",
+          "anchor": "_reconcile_permissions"
+        },
+        {
+          "level": 3,
+          "text": "_reconcile_hooks",
+          "anchor": "_reconcile_hooks"
+        },
+        {
+          "level": 3,
+          "text": "_reconcile_profile_disallowed",
+          "anchor": "_reconcile_profile_disallowed"
+        },
+        {
+          "level": 3,
+          "text": "_reconcile_shared_disallowed",
+          "anchor": "_reconcile_shared_disallowed"
+        },
+        {
+          "level": 3,
+          "text": "reconcile_profile_dict",
+          "anchor": "reconcile_profile_dict"
+        },
+        {
+          "level": 3,
+          "text": "reconcile_shared_dict",
+          "anchor": "reconcile_shared_dict"
+        },
+        {
+          "level": 3,
+          "text": "_referenced_scripts",
+          "anchor": "_referenced_scripts"
+        },
+        {
+          "level": 3,
+          "text": "TargetReport",
+          "anchor": "targetreport"
+        },
+        {
+          "level": 3,
+          "text": "ReconcileReport",
+          "anchor": "reconcilereport"
+        },
+        {
+          "level": 4,
+          "text": "changed_any",
+          "anchor": "changed_any"
+        },
+        {
+          "level": 3,
+          "text": "_process_settings_file",
+          "anchor": "_process_settings_file"
+        },
+        {
+          "level": 3,
+          "text": "reconcile_workspace",
+          "anchor": "reconcile_workspace"
+        },
+        {
+          "level": 3,
+          "text": "_print_report",
+          "anchor": "_print_report"
+        },
+        {
+          "level": 3,
+          "text": "run_reconcile",
+          "anchor": "run_reconcile"
+        }
+      ]
     },
     {
       "path": "claudewheel-renderer.md",
       "title": "claudewheel.renderer",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.renderer",
+          "anchor": "claudewheelrenderer"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.renderer",
+          "anchor": "claudewheelrenderer"
+        },
+        {
+          "level": 3,
+          "text": "Renderer",
+          "anchor": "renderer"
+        },
+        {
+          "level": 4,
+          "text": "render",
+          "anchor": "render"
+        },
+        {
+          "level": 4,
+          "text": "_hint_line_count",
+          "anchor": "_hint_line_count"
+        },
+        {
+          "level": 4,
+          "text": "_seg_colors",
+          "anchor": "_seg_colors"
+        },
+        {
+          "level": 4,
+          "text": "_compute_bar_layout",
+          "anchor": "_compute_bar_layout"
+        },
+        {
+          "level": 4,
+          "text": "_compute_viewport",
+          "anchor": "_compute_viewport"
+        },
+        {
+          "level": 4,
+          "text": "_count_offscreen",
+          "anchor": "_count_offscreen"
+        },
+        {
+          "level": 4,
+          "text": "_render_arrows",
+          "anchor": "_render_arrows"
+        },
+        {
+          "level": 4,
+          "text": "_render_fan_out",
+          "anchor": "_render_fan_out"
+        },
+        {
+          "level": 4,
+          "text": "_render_option",
+          "anchor": "_render_option"
+        },
+        {
+          "level": 4,
+          "text": "_render_highlighted_option",
+          "anchor": "_render_highlighted_option"
+        },
+        {
+          "level": 4,
+          "text": "_render_minimap",
+          "anchor": "_render_minimap"
+        },
+        {
+          "level": 4,
+          "text": "_split_hints",
+          "anchor": "_split_hints"
+        },
+        {
+          "level": 4,
+          "text": "_fit_value",
+          "anchor": "_fit_value"
+        }
+      ]
     },
     {
       "path": "claudewheel-scratchpad.md",
       "title": "claudewheel.scratchpad",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.scratchpad",
+          "anchor": "claudewheelscratchpad"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.scratchpad",
+          "anchor": "claudewheelscratchpad"
+        },
+        {
+          "level": 3,
+          "text": "tmp_claude_dir",
+          "anchor": "tmp_claude_dir"
+        },
+        {
+          "level": 3,
+          "text": "ScratchpadDir",
+          "anchor": "scratchpaddir"
+        },
+        {
+          "level": 4,
+          "text": "age_days",
+          "anchor": "age_days"
+        },
+        {
+          "level": 4,
+          "text": "is_stale",
+          "anchor": "is_stale"
+        },
+        {
+          "level": 3,
+          "text": "_scan_tree",
+          "anchor": "_scan_tree"
+        },
+        {
+          "level": 3,
+          "text": "scan_scratchpad_dirs",
+          "anchor": "scan_scratchpad_dirs"
+        },
+        {
+          "level": 3,
+          "text": "stale_scratchpad_dirs",
+          "anchor": "stale_scratchpad_dirs"
+        }
+      ]
     },
     {
       "path": "claudewheel-segment.md",
       "title": "claudewheel.segment",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.segment",
+          "anchor": "claudewheelsegment"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.segment",
+          "anchor": "claudewheelsegment"
+        },
+        {
+          "level": 3,
+          "text": "DiscoveryResult",
+          "anchor": "discoveryresult"
+        },
+        {
+          "level": 3,
+          "text": "DiscoveryEntry",
+          "anchor": "discoveryentry"
+        },
+        {
+          "level": 3,
+          "text": "_deduplicate",
+          "anchor": "_deduplicate"
+        },
+        {
+          "level": 3,
+          "text": "SegmentState",
+          "anchor": "segmentstate"
+        },
+        {
+          "level": 4,
+          "text": "options",
+          "anchor": "options"
+        },
+        {
+          "level": 4,
+          "text": "set_discovered",
+          "anchor": "set_discovered"
+        },
+        {
+          "level": 4,
+          "text": "add_pinned",
+          "anchor": "add_pinned"
+        },
+        {
+          "level": 4,
+          "text": "remove_pinned",
+          "anchor": "remove_pinned"
+        },
+        {
+          "level": 4,
+          "text": "set_defaults",
+          "anchor": "set_defaults"
+        },
+        {
+          "level": 4,
+          "text": "add_ephemeral",
+          "anchor": "add_ephemeral"
+        },
+        {
+          "level": 4,
+          "text": "set_installed",
+          "anchor": "set_installed"
+        },
+        {
+          "level": 4,
+          "text": "has_installed",
+          "anchor": "has_installed"
+        },
+        {
+          "level": 4,
+          "text": "mark_installed",
+          "anchor": "mark_installed"
+        },
+        {
+          "level": 4,
+          "text": "set_metadata",
+          "anchor": "set_metadata"
+        },
+        {
+          "level": 4,
+          "text": "update_metadata",
+          "anchor": "update_metadata"
+        },
+        {
+          "level": 4,
+          "text": "source_of",
+          "anchor": "source_of"
+        },
+        {
+          "level": 4,
+          "text": "is_installed",
+          "anchor": "is_installed"
+        },
+        {
+          "level": 4,
+          "text": "set_authenticated",
+          "anchor": "set_authenticated"
+        },
+        {
+          "level": 4,
+          "text": "set_managed",
+          "anchor": "set_managed"
+        },
+        {
+          "level": 4,
+          "text": "has_auth_status",
+          "anchor": "has_auth_status"
+        },
+        {
+          "level": 4,
+          "text": "is_authenticated",
+          "anchor": "is_authenticated"
+        },
+        {
+          "level": 4,
+          "text": "is_managed",
+          "anchor": "is_managed"
+        },
+        {
+          "level": 3,
+          "text": "Segment",
+          "anchor": "segment"
+        },
+        {
+          "level": 4,
+          "text": "options",
+          "anchor": "options-1"
+        },
+        {
+          "level": 4,
+          "text": "display_options",
+          "anchor": "display_options"
+        },
+        {
+          "level": 4,
+          "text": "selected_idx",
+          "anchor": "selected_idx"
+        },
+        {
+          "level": 4,
+          "text": "value",
+          "anchor": "value"
+        },
+        {
+          "level": 4,
+          "text": "filtered_options",
+          "anchor": "filtered_options"
+        },
+        {
+          "level": 4,
+          "text": "cycle",
+          "anchor": "cycle"
+        },
+        {
+          "level": 4,
+          "text": "is_on_plus",
+          "anchor": "is_on_plus"
+        },
+        {
+          "level": 4,
+          "text": "select_value",
+          "anchor": "select_value"
+        },
+        {
+          "level": 3,
+          "text": "_Segment_init_wrapper",
+          "anchor": "_segment_init_wrapper"
+        },
+        {
+          "level": 3,
+          "text": "SegmentBar",
+          "anchor": "segmentbar"
+        },
+        {
+          "level": 4,
+          "text": "focused",
+          "anchor": "focused"
+        },
+        {
+          "level": 4,
+          "text": "move_focus",
+          "anchor": "move_focus"
+        },
+        {
+          "level": 4,
+          "text": "get_selections",
+          "anchor": "get_selections"
+        },
+        {
+          "level": 3,
+          "text": "version_sort_key",
+          "anchor": "version_sort_key"
+        },
+        {
+          "level": 3,
+          "text": "fetch_npm_versions",
+          "anchor": "fetch_npm_versions"
+        },
+        {
+          "level": 3,
+          "text": "_discover_directory_listing",
+          "anchor": "_discover_directory_listing"
+        },
+        {
+          "level": 3,
+          "text": "_discover_npm_and_local",
+          "anchor": "_discover_npm_and_local"
+        },
+        {
+          "level": 3,
+          "text": "_discover_npm_and_local_cached",
+          "anchor": "_discover_npm_and_local_cached"
+        },
+        {
+          "level": 3,
+          "text": "_discover_directory_scan",
+          "anchor": "_discover_directory_scan"
+        },
+        {
+          "level": 3,
+          "text": "_discover_profiles",
+          "anchor": "_discover_profiles"
+        },
+        {
+          "level": 3,
+          "text": "_discover_gh_accounts",
+          "anchor": "_discover_gh_accounts"
+        },
+        {
+          "level": 3,
+          "text": "_discover_state_field",
+          "anchor": "_discover_state_field"
+        },
+        {
+          "level": 3,
+          "text": "_parse_static_values",
+          "anchor": "_parse_static_values"
+        },
+        {
+          "level": 3,
+          "text": "_parse_requires",
+          "anchor": "_parse_requires"
+        },
+        {
+          "level": 3,
+          "text": "run_slow_discovery_via_registry",
+          "anchor": "run_slow_discovery_via_registry"
+        },
+        {
+          "level": 3,
+          "text": "populate_segment_state",
+          "anchor": "populate_segment_state"
+        },
+        {
+          "level": 3,
+          "text": "_update_auth_from_metadata",
+          "anchor": "_update_auth_from_metadata"
+        },
+        {
+          "level": 3,
+          "text": "build_segment_bar",
+          "anchor": "build_segment_bar"
+        },
+        {
+          "level": 3,
+          "text": "merge_slow_results",
+          "anchor": "merge_slow_results"
+        },
+        {
+          "level": 3,
+          "text": "evaluate_requires",
+          "anchor": "evaluate_requires"
+        },
+        {
+          "level": 3,
+          "text": "_satisfies_constraint",
+          "anchor": "_satisfies_constraint"
+        }
+      ]
     },
     {
       "path": "claudewheel-session.md",
       "title": "claudewheel.session",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.session",
+          "anchor": "claudewheelsession"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.session",
+          "anchor": "claudewheelsession"
+        },
+        {
+          "level": 3,
+          "text": "SessionInfo",
+          "anchor": "sessioninfo"
+        },
+        {
+          "level": 3,
+          "text": "TitleMatch",
+          "anchor": "titlematch"
+        },
+        {
+          "level": 3,
+          "text": "OrphanedProject",
+          "anchor": "orphanedproject"
+        },
+        {
+          "level": 3,
+          "text": "get_session_cwd",
+          "anchor": "get_session_cwd"
+        },
+        {
+          "level": 3,
+          "text": "find_session",
+          "anchor": "find_session"
+        },
+        {
+          "level": 3,
+          "text": "_find_title_in_file",
+          "anchor": "_find_title_in_file"
+        },
+        {
+          "level": 3,
+          "text": "find_sessions_by_title",
+          "anchor": "find_sessions_by_title"
+        },
+        {
+          "level": 3,
+          "text": "find_orphaned_project_dirs",
+          "anchor": "find_orphaned_project_dirs"
+        }
+      ]
     },
     {
       "path": "claudewheel-shared_store.md",
       "title": "claudewheel.shared_store",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.shared_store",
+          "anchor": "claudewheelshared_store"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.shared_store",
+          "anchor": "claudewheelshared_store"
+        },
+        {
+          "level": 3,
+          "text": "SharedStore",
+          "anchor": "sharedstore"
+        },
+        {
+          "level": 4,
+          "text": "projects_dir",
+          "anchor": "projects_dir"
+        },
+        {
+          "level": 4,
+          "text": "inodes_file",
+          "anchor": "inodes_file"
+        },
+        {
+          "level": 4,
+          "text": "subdir",
+          "anchor": "subdir"
+        },
+        {
+          "level": 4,
+          "text": "encode_path",
+          "anchor": "encode_path"
+        }
+      ]
     },
     {
       "path": "claudewheel-state.md",
       "title": "claudewheel.state",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.state",
+          "anchor": "claudewheelstate"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.state",
+          "anchor": "claudewheelstate"
+        },
+        {
+          "level": 3,
+          "text": "project_key",
+          "anchor": "project_key"
+        },
+        {
+          "level": 3,
+          "text": "_get_project_value",
+          "anchor": "_get_project_value"
+        },
+        {
+          "level": 3,
+          "text": "_set_project_value",
+          "anchor": "_set_project_value"
+        },
+        {
+          "level": 3,
+          "text": "get_project_hook_approvals",
+          "anchor": "get_project_hook_approvals"
+        },
+        {
+          "level": 3,
+          "text": "set_project_hook_approvals",
+          "anchor": "set_project_hook_approvals"
+        },
+        {
+          "level": 3,
+          "text": "get_vanilla_guardrails_opt_in",
+          "anchor": "get_vanilla_guardrails_opt_in"
+        },
+        {
+          "level": 3,
+          "text": "set_vanilla_guardrails_opt_in",
+          "anchor": "set_vanilla_guardrails_opt_in"
+        },
+        {
+          "level": 3,
+          "text": "get_scratchpad_snooze_until",
+          "anchor": "get_scratchpad_snooze_until"
+        },
+        {
+          "level": 3,
+          "text": "set_scratchpad_snooze_until",
+          "anchor": "set_scratchpad_snooze_until"
+        },
+        {
+          "level": 3,
+          "text": "save_launch_state",
+          "anchor": "save_launch_state"
+        },
+        {
+          "level": 3,
+          "text": "record_inode",
+          "anchor": "record_inode"
+        }
+      ]
     },
     {
       "path": "claudewheel-stats.md",
       "title": "claudewheel.stats",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.stats",
+          "anchor": "claudewheelstats"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.stats",
+          "anchor": "claudewheelstats"
+        },
+        {
+          "level": 3,
+          "text": "_report_shared_stats",
+          "anchor": "_report_shared_stats"
+        },
+        {
+          "level": 3,
+          "text": "run_stats",
+          "anchor": "run_stats"
+        }
+      ]
     },
     {
       "path": "claudewheel-terminal.md",
       "title": "claudewheel.terminal",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.terminal",
+          "anchor": "claudewheelterminal"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.terminal",
+          "anchor": "claudewheelterminal"
+        },
+        {
+          "level": 3,
+          "text": "Terminal",
+          "anchor": "terminal"
+        },
+        {
+          "level": 4,
+          "text": "get_size",
+          "anchor": "get_size"
+        },
+        {
+          "level": 4,
+          "text": "enter_raw",
+          "anchor": "enter_raw"
+        },
+        {
+          "level": 4,
+          "text": "subscribe_mode2031",
+          "anchor": "subscribe_mode2031"
+        },
+        {
+          "level": 4,
+          "text": "exit_raw",
+          "anchor": "exit_raw"
+        },
+        {
+          "level": 4,
+          "text": "cooked",
+          "anchor": "cooked"
+        },
+        {
+          "level": 4,
+          "text": "read_key",
+          "anchor": "read_key"
+        },
+        {
+          "level": 4,
+          "text": "read_masked_line",
+          "anchor": "read_masked_line"
+        },
+        {
+          "level": 4,
+          "text": "_write_tty",
+          "anchor": "_write_tty"
+        },
+        {
+          "level": 4,
+          "text": "write",
+          "anchor": "write"
+        },
+        {
+          "level": 4,
+          "text": "flush",
+          "anchor": "flush"
+        },
+        {
+          "level": 4,
+          "text": "close",
+          "anchor": "close"
+        },
+        {
+          "level": 3,
+          "text": "detect_terminal_background",
+          "anchor": "detect_terminal_background"
+        },
+        {
+          "level": 3,
+          "text": "detect_mode2031_support",
+          "anchor": "detect_mode2031_support"
+        },
+        {
+          "level": 3,
+          "text": "_parse_mode2031_response",
+          "anchor": "_parse_mode2031_response"
+        },
+        {
+          "level": 3,
+          "text": "_parse_osc11_response",
+          "anchor": "_parse_osc11_response"
+        },
+        {
+          "level": 3,
+          "text": "_classify_rgb",
+          "anchor": "_classify_rgb"
+        }
+      ]
     },
     {
       "path": "claudewheel-theme.md",
       "title": "claudewheel.theme",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.theme",
+          "anchor": "claudewheeltheme"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.theme",
+          "anchor": "claudewheeltheme"
+        },
+        {
+          "level": 3,
+          "text": "parse_hex",
+          "anchor": "parse_hex"
+        },
+        {
+          "level": 3,
+          "text": "_hex_to_fg",
+          "anchor": "_hex_to_fg"
+        },
+        {
+          "level": 3,
+          "text": "_hex_to_bg",
+          "anchor": "_hex_to_bg"
+        },
+        {
+          "level": 3,
+          "text": "ThemeColors",
+          "anchor": "themecolors"
+        },
+        {
+          "level": 3,
+          "text": "parse_theme",
+          "anchor": "parse_theme"
+        }
+      ]
     },
     {
       "path": "claudewheel-tokens.md",
       "title": "claudewheel.tokens",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.tokens",
+          "anchor": "claudewheeltokens"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.tokens",
+          "anchor": "claudewheeltokens"
+        },
+        {
+          "level": 3,
+          "text": "TokenExpiryDisposition",
+          "anchor": "tokenexpirydisposition"
+        },
+        {
+          "level": 3,
+          "text": "parse_entry",
+          "anchor": "parse_entry"
+        },
+        {
+          "level": 3,
+          "text": "TokenExpiry",
+          "anchor": "tokenexpiry"
+        },
+        {
+          "level": 3,
+          "text": "compute_expiry",
+          "anchor": "compute_expiry"
+        },
+        {
+          "level": 3,
+          "text": "_read_tokens_for_write",
+          "anchor": "_read_tokens_for_write"
+        },
+        {
+          "level": 3,
+          "text": "_write_token",
+          "anchor": "_write_token"
+        },
+        {
+          "level": 3,
+          "text": "_write_tier",
+          "anchor": "_write_tier"
+        },
+        {
+          "level": 3,
+          "text": "TokenStoreError",
+          "anchor": "tokenstoreerror"
+        },
+        {
+          "level": 3,
+          "text": "TokenStore",
+          "anchor": "tokenstore"
+        },
+        {
+          "level": 4,
+          "text": "load",
+          "anchor": "load"
+        },
+        {
+          "level": 4,
+          "text": "token_for",
+          "anchor": "token_for"
+        },
+        {
+          "level": 4,
+          "text": "plan_env_for",
+          "anchor": "plan_env_for"
+        },
+        {
+          "level": 4,
+          "text": "names",
+          "anchor": "names"
+        },
+        {
+          "level": 4,
+          "text": "expiry_for",
+          "anchor": "expiry_for"
+        },
+        {
+          "level": 4,
+          "text": "add",
+          "anchor": "add"
+        },
+        {
+          "level": 4,
+          "text": "set_tier",
+          "anchor": "set_tier"
+        },
+        {
+          "level": 4,
+          "text": "rename",
+          "anchor": "rename"
+        },
+        {
+          "level": 4,
+          "text": "remove",
+          "anchor": "remove"
+        }
+      ]
     },
     {
       "path": "claudewheel-ui.md",
       "title": "claudewheel.ui",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.ui",
+          "anchor": "claudewheelui"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.ui",
+          "anchor": "claudewheelui"
+        },
+        {
+          "level": 3,
+          "text": "_erase_inline",
+          "anchor": "_erase_inline"
+        },
+        {
+          "level": 3,
+          "text": "run_selection",
+          "anchor": "run_selection"
+        },
+        {
+          "level": 3,
+          "text": "FormField",
+          "anchor": "formfield"
+        },
+        {
+          "level": 3,
+          "text": "get_field",
+          "anchor": "get_field"
+        },
+        {
+          "level": 3,
+          "text": "_visible_indices",
+          "anchor": "_visible_indices"
+        },
+        {
+          "level": 3,
+          "text": "_focusable_indices",
+          "anchor": "_focusable_indices"
+        },
+        {
+          "level": 3,
+          "text": "_move_focus",
+          "anchor": "_move_focus"
+        },
+        {
+          "level": 3,
+          "text": "_cycle_radio",
+          "anchor": "_cycle_radio"
+        },
+        {
+          "level": 3,
+          "text": "_cycle_select",
+          "anchor": "_cycle_select"
+        },
+        {
+          "level": 3,
+          "text": "_hints_for_field",
+          "anchor": "_hints_for_field"
+        },
+        {
+          "level": 3,
+          "text": "_field_lines",
+          "anchor": "_field_lines"
+        },
+        {
+          "level": 3,
+          "text": "_render_form_alt",
+          "anchor": "_render_form_alt"
+        },
+        {
+          "level": 3,
+          "text": "_render_form_inline",
+          "anchor": "_render_form_inline"
+        },
+        {
+          "level": 3,
+          "text": "_form_session",
+          "anchor": "_form_session"
+        },
+        {
+          "level": 3,
+          "text": "run_form",
+          "anchor": "run_form"
+        },
+        {
+          "level": 3,
+          "text": "show_page",
+          "anchor": "show_page"
+        }
+      ]
     },
     {
       "path": "claudewheel-wizard.md",
       "title": "claudewheel.wizard",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.wizard",
+          "anchor": "claudewheelwizard"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.wizard",
+          "anchor": "claudewheelwizard"
+        },
+        {
+          "level": 3,
+          "text": "WizardResult",
+          "anchor": "wizardresult"
+        },
+        {
+          "level": 3,
+          "text": "_real_config_dir",
+          "anchor": "_real_config_dir"
+        },
+        {
+          "level": 3,
+          "text": "_display_config_dir",
+          "anchor": "_display_config_dir"
+        },
+        {
+          "level": 3,
+          "text": "_validate_name",
+          "anchor": "_validate_name"
+        },
+        {
+          "level": 3,
+          "text": "_build_fields",
+          "anchor": "_build_fields"
+        },
+        {
+          "level": 3,
+          "text": "_build_result",
+          "anchor": "_build_result"
+        },
+        {
+          "level": 3,
+          "text": "_cancelled_result",
+          "anchor": "_cancelled_result"
+        },
+        {
+          "level": 3,
+          "text": "run_profile_wizard",
+          "anchor": "run_profile_wizard"
+        },
+        {
+          "level": 3,
+          "text": "_load_shared_settings",
+          "anchor": "_load_shared_settings"
+        },
+        {
+          "level": 3,
+          "text": "_set_onboarding_flag",
+          "anchor": "_set_onboarding_flag"
+        },
+        {
+          "level": 3,
+          "text": "create_profile",
+          "anchor": "create_profile"
+        },
+        {
+          "level": 3,
+          "text": "_find_claude_binary",
+          "anchor": "_find_claude_binary"
+        },
+        {
+          "level": 3,
+          "text": "run_auth_flow",
+          "anchor": "run_auth_flow"
+        },
+        {
+          "level": 3,
+          "text": "_apply_browser_env",
+          "anchor": "_apply_browser_env"
+        },
+        {
+          "level": 3,
+          "text": "_capture_tier_from_credentials",
+          "anchor": "_capture_tier_from_credentials"
+        },
+        {
+          "level": 3,
+          "text": "_auth_session_login",
+          "anchor": "_auth_session_login"
+        },
+        {
+          "level": 3,
+          "text": "_read_pasted_token",
+          "anchor": "_read_pasted_token"
+        },
+        {
+          "level": 3,
+          "text": "_format_gate",
+          "anchor": "_format_gate"
+        },
+        {
+          "level": 3,
+          "text": "_capture_setup_token",
+          "anchor": "_capture_setup_token"
+        },
+        {
+          "level": 3,
+          "text": "_save_token",
+          "anchor": "_save_token"
+        },
+        {
+          "level": 3,
+          "text": "_auth_paste_token",
+          "anchor": "_auth_paste_token"
+        },
+        {
+          "level": 3,
+          "text": "_auth_long_lived_token",
+          "anchor": "_auth_long_lived_token"
+        }
+      ]
     },
     {
       "path": "claudewheel-workspace.md",
       "title": "claudewheel.workspace",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.workspace",
+          "anchor": "claudewheelworkspace"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel.workspace",
+          "anchor": "claudewheelworkspace"
+        },
+        {
+          "level": 3,
+          "text": "Workspace",
+          "anchor": "workspace"
+        },
+        {
+          "level": 4,
+          "text": "open",
+          "anchor": "open"
+        },
+        {
+          "level": 4,
+          "text": "default",
+          "anchor": "default"
+        },
+        {
+          "level": 4,
+          "text": "profiles_dir",
+          "anchor": "profiles_dir"
+        },
+        {
+          "level": 4,
+          "text": "tokens_file",
+          "anchor": "tokens_file"
+        },
+        {
+          "level": 4,
+          "text": "options_file",
+          "anchor": "options_file"
+        },
+        {
+          "level": 4,
+          "text": "state_file",
+          "anchor": "state_file"
+        },
+        {
+          "level": 4,
+          "text": "config_file",
+          "anchor": "config_file"
+        },
+        {
+          "level": 4,
+          "text": "segments_file",
+          "anchor": "segments_file"
+        },
+        {
+          "level": 4,
+          "text": "themes_dir",
+          "anchor": "themes_dir"
+        },
+        {
+          "level": 4,
+          "text": "hooks_dir",
+          "anchor": "hooks_dir"
+        },
+        {
+          "level": 4,
+          "text": "scripts_dir",
+          "anchor": "scripts_dir"
+        },
+        {
+          "level": 4,
+          "text": "shared_dir",
+          "anchor": "shared_dir"
+        },
+        {
+          "level": 4,
+          "text": "skills_dir",
+          "anchor": "skills_dir"
+        },
+        {
+          "level": 4,
+          "text": "shared_settings_file",
+          "anchor": "shared_settings_file"
+        },
+        {
+          "level": 4,
+          "text": "inodes_file",
+          "anchor": "inodes_file"
+        },
+        {
+          "level": 4,
+          "text": "tokens",
+          "anchor": "tokens"
+        },
+        {
+          "level": 4,
+          "text": "shared",
+          "anchor": "shared"
+        },
+        {
+          "level": 4,
+          "text": "profiles",
+          "anchor": "profiles"
+        },
+        {
+          "level": 4,
+          "text": "appconfig",
+          "anchor": "appconfig"
+        }
+      ]
     },
     {
       "path": "claudewheel.md",
       "title": "claudewheel",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel",
+          "anchor": "claudewheel"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel",
+          "anchor": "claudewheel"
+        },
+        {
+          "level": 3,
+          "text": "_default_package_json",
+          "anchor": "_default_package_json"
+        },
+        {
+          "level": 3,
+          "text": "_detect_version",
+          "anchor": "_detect_version"
+        }
+      ]
     },
     {
       "path": "cli-config.md",
       "title": "c config",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "c config",
+          "anchor": "c-config"
+        }
+      ]
     },
     {
       "path": "cli-deploy-hooks.md",
       "title": "c deploy-hooks",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "c deploy-hooks",
+          "anchor": "c-deploy-hooks"
+        },
+        {
+          "level": 2,
+          "text": "Flags",
+          "anchor": "flags"
+        },
+        {
+          "level": 2,
+          "text": "Arguments",
+          "anchor": "arguments"
+        }
+      ]
     },
     {
       "path": "cli-health.md",
       "title": "c health",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "c health",
+          "anchor": "c-health"
+        }
+      ]
     },
     {
       "path": "cli-import.md",
       "title": "c import",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "c import",
+          "anchor": "c-import"
+        },
+        {
+          "level": 2,
+          "text": "Flags",
+          "anchor": "flags"
+        },
+        {
+          "level": 2,
+          "text": "Arguments",
+          "anchor": "arguments"
+        }
+      ]
     },
     {
       "path": "cli-index.md",
       "title": "c CLI Reference",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "c CLI Reference",
+          "anchor": "c-cli-reference"
+        },
+        {
+          "level": 2,
+          "text": "Commands",
+          "anchor": "commands"
+        },
+        {
+          "level": 2,
+          "text": "Command Groups",
+          "anchor": "command-groups"
+        },
+        {
+          "level": 2,
+          "text": "Framework flags",
+          "anchor": "framework-flags"
+        },
+        {
+          "level": 2,
+          "text": "Deprecated",
+          "anchor": "deprecated"
+        }
+      ]
     },
     {
       "path": "cli-install.md",
       "title": "c install",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "c install",
+          "anchor": "c-install"
+        },
+        {
+          "level": 2,
+          "text": "Arguments",
+          "anchor": "arguments"
+        },
+        {
+          "level": 2,
+          "text": "Grants",
+          "anchor": "grants"
+        }
+      ]
     },
     {
       "path": "cli-launch.md",
       "title": "c launch",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "c launch",
+          "anchor": "c-launch"
+        },
+        {
+          "level": 2,
+          "text": "Flags",
+          "anchor": "flags"
+        },
+        {
+          "level": 2,
+          "text": "Grants",
+          "anchor": "grants"
+        }
+      ]
     },
     {
       "path": "cli-migrate.md",
       "title": "c migrate",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "c migrate",
+          "anchor": "c-migrate"
+        },
+        {
+          "level": 2,
+          "text": "Arguments",
+          "anchor": "arguments"
+        }
+      ]
     },
     {
       "path": "cli-mv.md",
       "title": "c mv",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "c mv",
+          "anchor": "c-mv"
+        },
+        {
+          "level": 2,
+          "text": "Flags",
+          "anchor": "flags"
+        },
+        {
+          "level": 2,
+          "text": "Arguments",
+          "anchor": "arguments"
+        }
+      ]
     },
     {
       "path": "cli-patch-profiles.md",
       "title": "c patch-profiles",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "c patch-profiles",
+          "anchor": "c-patch-profiles"
+        }
+      ]
     },
     {
       "path": "cli-permission.md",
       "title": "c permission",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "c permission",
+          "anchor": "c-permission"
+        },
+        {
+          "level": 2,
+          "text": "permission add",
+          "anchor": "permission-add"
+        },
+        {
+          "level": 3,
+          "text": "Flags",
+          "anchor": "flags"
+        },
+        {
+          "level": 3,
+          "text": "Arguments",
+          "anchor": "arguments"
+        },
+        {
+          "level": 2,
+          "text": "permission remove",
+          "anchor": "permission-remove"
+        },
+        {
+          "level": 3,
+          "text": "Flags",
+          "anchor": "flags-1"
+        },
+        {
+          "level": 3,
+          "text": "Arguments",
+          "anchor": "arguments-1"
+        },
+        {
+          "level": 2,
+          "text": "permission list",
+          "anchor": "permission-list"
+        },
+        {
+          "level": 3,
+          "text": "Flags",
+          "anchor": "flags-2"
+        }
+      ]
     },
     {
       "path": "cli-profile.md",
       "title": "c profile",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "c profile",
+          "anchor": "c-profile"
+        },
+        {
+          "level": 2,
+          "text": "profile create",
+          "anchor": "profile-create"
+        },
+        {
+          "level": 3,
+          "text": "Grants",
+          "anchor": "grants"
+        },
+        {
+          "level": 2,
+          "text": "profile delete",
+          "anchor": "profile-delete"
+        },
+        {
+          "level": 3,
+          "text": "Flags",
+          "anchor": "flags"
+        },
+        {
+          "level": 3,
+          "text": "Arguments",
+          "anchor": "arguments"
+        },
+        {
+          "level": 3,
+          "text": "Grants",
+          "anchor": "grants-1"
+        },
+        {
+          "level": 2,
+          "text": "profile show",
+          "anchor": "profile-show"
+        },
+        {
+          "level": 3,
+          "text": "Arguments",
+          "anchor": "arguments-1"
+        },
+        {
+          "level": 2,
+          "text": "profile rename",
+          "anchor": "profile-rename"
+        },
+        {
+          "level": 3,
+          "text": "Arguments",
+          "anchor": "arguments-2"
+        },
+        {
+          "level": 2,
+          "text": "profile fix-auth",
+          "anchor": "profile-fix-auth"
+        },
+        {
+          "level": 3,
+          "text": "Arguments",
+          "anchor": "arguments-3"
+        },
+        {
+          "level": 2,
+          "text": "profile check-tokens",
+          "anchor": "profile-check-tokens"
+        }
+      ]
     },
     {
       "path": "cli-reconcile-permissions.md",
       "title": "c reconcile-permissions",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "c reconcile-permissions",
+          "anchor": "c-reconcile-permissions"
+        },
+        {
+          "level": 2,
+          "text": "Flags",
+          "anchor": "flags"
+        }
+      ]
     },
     {
       "path": "cli-reset-options.md",
       "title": "c reset-options",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "c reset-options",
+          "anchor": "c-reset-options"
+        }
+      ]
     },
     {
       "path": "cli-show.md",
       "title": "c show",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "c show",
+          "anchor": "c-show"
+        }
+      ]
     },
     {
       "path": "cli-stats.md",
       "title": "c stats",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "c stats",
+          "anchor": "c-stats"
+        }
+      ]
     },
     {
       "path": "cli-uninstall.md",
       "title": "c uninstall",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "c uninstall",
+          "anchor": "c-uninstall"
+        },
+        {
+          "level": 2,
+          "text": "Arguments",
+          "anchor": "arguments"
+        }
+      ]
     },
     {
       "path": "cli-versions.md",
       "title": "c versions",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "c versions",
+          "anchor": "c-versions"
+        }
+      ]
     },
     {
       "path": "config.md",
       "title": "Configuration",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "Configuration",
+          "anchor": "configuration"
+        },
+        {
+          "level": 2,
+          "text": "File layout",
+          "anchor": "file-layout"
+        },
+        {
+          "level": 2,
+          "text": "config.json",
+          "anchor": "configjson"
+        },
+        {
+          "level": 2,
+          "text": "Segments and options",
+          "anchor": "segments-and-options"
+        },
+        {
+          "level": 3,
+          "text": "Option collections",
+          "anchor": "option-collections"
+        },
+        {
+          "level": 3,
+          "text": "Discovery types",
+          "anchor": "discovery-types"
+        },
+        {
+          "level": 3,
+          "text": "Staleness verification",
+          "anchor": "staleness-verification"
+        },
+        {
+          "level": 3,
+          "text": "Cross-segment constraints",
+          "anchor": "cross-segment-constraints"
+        },
+        {
+          "level": 3,
+          "text": "options.json structure",
+          "anchor": "optionsjson-structure"
+        },
+        {
+          "level": 2,
+          "text": "segments.json",
+          "anchor": "segmentsjson"
+        },
+        {
+          "level": 2,
+          "text": "state.json",
+          "anchor": "statejson"
+        },
+        {
+          "level": 2,
+          "text": "Schema migration",
+          "anchor": "schema-migration"
+        },
+        {
+          "level": 3,
+          "text": "Key-additive migration (`_migrate`)",
+          "anchor": "key-additive-migration-_migrate"
+        },
+        {
+          "level": 3,
+          "text": "Versioned migrations (`_run_versioned_migrations`)",
+          "anchor": "versioned-migrations-_run_versioned_migrations"
+        },
+        {
+          "level": 3,
+          "text": "Adding a new migration",
+          "anchor": "adding-a-new-migration"
+        },
+        {
+          "level": 2,
+          "text": "Non-interactive overrides (the `--set` flag)",
+          "anchor": "non-interactive-overrides-the-set-flag"
+        },
+        {
+          "level": 3,
+          "text": "Per-segment flags",
+          "anchor": "per-segment-flags"
+        },
+        {
+          "level": 3,
+          "text": "The `-s` / `--set` flag",
+          "anchor": "the-s-set-flag"
+        },
+        {
+          "level": 3,
+          "text": "TUI bypass",
+          "anchor": "tui-bypass"
+        },
+        {
+          "level": 3,
+          "text": "Interaction with `--print-prompt`",
+          "anchor": "interaction-with-print-prompt"
+        },
+        {
+          "level": 2,
+          "text": "Resetting configuration",
+          "anchor": "resetting-configuration"
+        }
+      ]
     },
     {
       "path": "gen-index.md",
       "title": "API Reference",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "API Reference",
+          "anchor": "api-reference"
+        }
+      ]
     },
     {
       "path": "getting-started.md",
       "title": "Getting Started",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "Getting Started",
+          "anchor": "getting-started"
+        },
+        {
+          "level": 2,
+          "text": "Prerequisites",
+          "anchor": "prerequisites"
+        },
+        {
+          "level": 2,
+          "text": "Install claudewheel",
+          "anchor": "install-claudewheel"
+        },
+        {
+          "level": 2,
+          "text": "First run",
+          "anchor": "first-run"
+        },
+        {
+          "level": 2,
+          "text": "Create a profile",
+          "anchor": "create-a-profile"
+        },
+        {
+          "level": 2,
+          "text": "Understanding the segment bar",
+          "anchor": "understanding-the-segment-bar"
+        },
+        {
+          "level": 3,
+          "text": "The segments",
+          "anchor": "the-segments"
+        },
+        {
+          "level": 3,
+          "text": "Navigation",
+          "anchor": "navigation"
+        },
+        {
+          "level": 3,
+          "text": "Fan-out display",
+          "anchor": "fan-out-display"
+        },
+        {
+          "level": 3,
+          "text": "Narrow terminals",
+          "anchor": "narrow-terminals"
+        },
+        {
+          "level": 2,
+          "text": "Launch a session",
+          "anchor": "launch-a-session"
+        },
+        {
+          "level": 3,
+          "text": "Skipping the TUI",
+          "anchor": "skipping-the-tui"
+        },
+        {
+          "level": 3,
+          "text": "Session passthrough",
+          "anchor": "session-passthrough"
+        },
+        {
+          "level": 2,
+          "text": "Common workflows",
+          "anchor": "common-workflows"
+        },
+        {
+          "level": 3,
+          "text": "Switching profiles",
+          "anchor": "switching-profiles"
+        },
+        {
+          "level": 3,
+          "text": "Changing models",
+          "anchor": "changing-models"
+        },
+        {
+          "level": 3,
+          "text": "Running health checks",
+          "anchor": "running-health-checks"
+        },
+        {
+          "level": 3,
+          "text": "Managing versions",
+          "anchor": "managing-versions"
+        },
+        {
+          "level": 3,
+          "text": "Keeping guardrails up to date",
+          "anchor": "keeping-guardrails-up-to-date"
+        },
+        {
+          "level": 2,
+          "text": "Next steps",
+          "anchor": "next-steps"
+        }
+      ]
     },
     {
       "path": "guardrails.md",
       "title": "Guardrails",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "Guardrails",
+          "anchor": "guardrails"
+        },
+        {
+          "level": 2,
+          "text": "Enforcement tiers",
+          "anchor": "enforcement-tiers"
+        },
+        {
+          "level": 2,
+          "text": "Subagents versus the main agent",
+          "anchor": "subagents-versus-the-main-agent"
+        },
+        {
+          "level": 2,
+          "text": "Command-string caveat",
+          "anchor": "command-string-caveat"
+        },
+        {
+          "level": 2,
+          "text": "Upgrading existing profiles",
+          "anchor": "upgrading-existing-profiles"
+        },
+        {
+          "level": 2,
+          "text": "Rule reference",
+          "anchor": "rule-reference"
+        }
+      ]
     },
     {
       "path": "health.md",
       "title": "Health Checks and Preflight",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "Health Checks and Preflight",
+          "anchor": "health-checks-and-preflight"
+        },
+        {
+          "level": 2,
+          "text": "Health checks",
+          "anchor": "health-checks"
+        },
+        {
+          "level": 3,
+          "text": "Output format",
+          "anchor": "output-format"
+        },
+        {
+          "level": 3,
+          "text": "Check inventory",
+          "anchor": "check-inventory"
+        },
+        {
+          "level": 4,
+          "text": "tmpfs",
+          "anchor": "tmpfs"
+        },
+        {
+          "level": 4,
+          "text": "/tmp/claude",
+          "anchor": "tmpclaude"
+        },
+        {
+          "level": 4,
+          "text": "shared-symlinks",
+          "anchor": "shared-symlinks"
+        },
+        {
+          "level": 4,
+          "text": "hooks-wired",
+          "anchor": "hooks-wired"
+        },
+        {
+          "level": 4,
+          "text": "settings-defaults",
+          "anchor": "settings-defaults"
+        },
+        {
+          "level": 4,
+          "text": "settings-drift",
+          "anchor": "settings-drift"
+        },
+        {
+          "level": 4,
+          "text": "canonical-drift",
+          "anchor": "canonical-drift"
+        },
+        {
+          "level": 4,
+          "text": "hook-drift",
+          "anchor": "hook-drift"
+        },
+        {
+          "level": 4,
+          "text": "hook-path-drift",
+          "anchor": "hook-path-drift"
+        },
+        {
+          "level": 4,
+          "text": "tokens",
+          "anchor": "tokens"
+        },
+        {
+          "level": 4,
+          "text": "token-expiry",
+          "anchor": "token-expiry"
+        },
+        {
+          "level": 4,
+          "text": "auth-shadow",
+          "anchor": "auth-shadow"
+        },
+        {
+          "level": 4,
+          "text": "orphan-profiles",
+          "anchor": "orphan-profiles"
+        },
+        {
+          "level": 4,
+          "text": "orphan-tokens",
+          "anchor": "orphan-tokens"
+        },
+        {
+          "level": 4,
+          "text": "file-perms",
+          "anchor": "file-perms"
+        },
+        {
+          "level": 4,
+          "text": "inode-renames",
+          "anchor": "inode-renames"
+        },
+        {
+          "level": 2,
+          "text": "Preflight steps",
+          "anchor": "preflight-steps"
+        },
+        {
+          "level": 3,
+          "text": "Step sequence",
+          "anchor": "step-sequence"
+        },
+        {
+          "level": 4,
+          "text": "1. vanilla-choice",
+          "anchor": "1-vanilla-choice"
+        },
+        {
+          "level": 4,
+          "text": "2. reconcile-guardrails",
+          "anchor": "2-reconcile-guardrails"
+        },
+        {
+          "level": 4,
+          "text": "3. model-version-guard",
+          "anchor": "3-model-version-guard"
+        },
+        {
+          "level": 4,
+          "text": "4. approved-hooks",
+          "anchor": "4-approved-hooks"
+        },
+        {
+          "level": 4,
+          "text": "5. scratchpad-cleanup",
+          "anchor": "5-scratchpad-cleanup"
+        },
+        {
+          "level": 2,
+          "text": "The reconciliation model",
+          "anchor": "the-reconciliation-model"
+        },
+        {
+          "level": 3,
+          "text": "What is reconciled",
+          "anchor": "what-is-reconciled"
+        },
+        {
+          "level": 3,
+          "text": "Targets",
+          "anchor": "targets"
+        },
+        {
+          "level": 3,
+          "text": "Hook script deployment",
+          "anchor": "hook-script-deployment"
+        },
+        {
+          "level": 3,
+          "text": "Compare-then-write",
+          "anchor": "compare-then-write"
+        },
+        {
+          "level": 3,
+          "text": "CLI commands",
+          "anchor": "cli-commands"
+        },
+        {
+          "level": 3,
+          "text": "Preflight auto-heal",
+          "anchor": "preflight-auto-heal"
+        },
+        {
+          "level": 2,
+          "text": "Common problems and solutions",
+          "anchor": "common-problems-and-solutions"
+        },
+        {
+          "level": 3,
+          "text": "Stale tokens",
+          "anchor": "stale-tokens"
+        },
+        {
+          "level": 3,
+          "text": "Missing shared symlinks",
+          "anchor": "missing-shared-symlinks"
+        },
+        {
+          "level": 3,
+          "text": "Permission drift",
+          "anchor": "permission-drift"
+        },
+        {
+          "level": 3,
+          "text": "Disk usage (/tmp)",
+          "anchor": "disk-usage-tmp"
+        },
+        {
+          "level": 3,
+          "text": "Auth shadow",
+          "anchor": "auth-shadow-1"
+        },
+        {
+          "level": 3,
+          "text": "Relocated workspace (hook path drift)",
+          "anchor": "relocated-workspace-hook-path-drift"
+        },
+        {
+          "level": 3,
+          "text": "Orphan profiles or tokens",
+          "anchor": "orphan-profiles-or-tokens"
+        },
+        {
+          "level": 3,
+          "text": "File permission issues",
+          "anchor": "file-permission-issues"
+        }
+      ]
     },
     {
       "path": "index.md",
       "title": "claudewheel",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel",
+          "anchor": "claudewheel"
+        },
+        {
+          "level": 2,
+          "text": "Documentation",
+          "anchor": "documentation"
+        },
+        {
+          "level": 2,
+          "text": "Overview",
+          "anchor": "overview"
+        },
+        {
+          "level": 2,
+          "text": "API Reference",
+          "anchor": "api-reference"
+        },
+        {
+          "level": 2,
+          "text": "claudewheel",
+          "anchor": "claudewheel"
+        },
+        {
+          "level": 3,
+          "text": "_default_package_json",
+          "anchor": "_default_package_json"
+        },
+        {
+          "level": 3,
+          "text": "_detect_version",
+          "anchor": "_detect_version"
+        }
+      ]
     },
     {
       "path": "profiles.md",
       "title": "Profiles",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "Profiles",
+          "anchor": "profiles"
+        },
+        {
+          "level": 2,
+          "text": "Why profiles exist",
+          "anchor": "why-profiles-exist"
+        },
+        {
+          "level": 2,
+          "text": "The `~/.claudewheel/` layout",
+          "anchor": "the-claudewheel-layout"
+        },
+        {
+          "level": 3,
+          "text": "Key files",
+          "anchor": "key-files"
+        },
+        {
+          "level": 2,
+          "text": "Profile discovery",
+          "anchor": "profile-discovery"
+        },
+        {
+          "level": 2,
+          "text": "Profile creation wizard",
+          "anchor": "profile-creation-wizard"
+        },
+        {
+          "level": 3,
+          "text": "Authentication",
+          "anchor": "authentication"
+        },
+        {
+          "level": 2,
+          "text": "Shared store and symlinks",
+          "anchor": "shared-store-and-symlinks"
+        },
+        {
+          "level": 3,
+          "text": "Symlink health states",
+          "anchor": "symlink-health-states"
+        },
+        {
+          "level": 2,
+          "text": "Token management",
+          "anchor": "token-management"
+        },
+        {
+          "level": 3,
+          "text": "Entry format",
+          "anchor": "entry-format"
+        },
+        {
+          "level": 3,
+          "text": "Token lifetime",
+          "anchor": "token-lifetime"
+        },
+        {
+          "level": 3,
+          "text": "Token resolution at launch",
+          "anchor": "token-resolution-at-launch"
+        },
+        {
+          "level": 3,
+          "text": "Auth shadow detection",
+          "anchor": "auth-shadow-detection"
+        },
+        {
+          "level": 3,
+          "text": "Orphan token cleanup",
+          "anchor": "orphan-token-cleanup"
+        },
+        {
+          "level": 3,
+          "text": "Token validation",
+          "anchor": "token-validation"
+        },
+        {
+          "level": 2,
+          "text": "Profile isolation model",
+          "anchor": "profile-isolation-model"
+        },
+        {
+          "level": 3,
+          "text": "Profile operations",
+          "anchor": "profile-operations"
+        },
+        {
+          "level": 3,
+          "text": "The `default` profile",
+          "anchor": "the-default-profile"
+        }
+      ]
     },
     {
       "path": "theming.md",
       "title": "Theming",
-      "type": "doc"
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "Theming",
+          "anchor": "theming"
+        },
+        {
+          "level": 2,
+          "text": "Theme selection",
+          "anchor": "theme-selection"
+        },
+        {
+          "level": 3,
+          "text": "Live theme switching",
+          "anchor": "live-theme-switching"
+        },
+        {
+          "level": 2,
+          "text": "Hex color system",
+          "anchor": "hex-color-system"
+        },
+        {
+          "level": 2,
+          "text": "Theme file structure",
+          "anchor": "theme-file-structure"
+        },
+        {
+          "level": 3,
+          "text": "global",
+          "anchor": "global"
+        },
+        {
+          "level": 3,
+          "text": "segments",
+          "anchor": "segments"
+        },
+        {
+          "level": 3,
+          "text": "search",
+          "anchor": "search"
+        },
+        {
+          "level": 3,
+          "text": "overflow",
+          "anchor": "overflow"
+        },
+        {
+          "level": 3,
+          "text": "forms",
+          "anchor": "forms"
+        },
+        {
+          "level": 2,
+          "text": "Built-in themes",
+          "anchor": "built-in-themes"
+        },
+        {
+          "level": 2,
+          "text": "Overflow section styling",
+          "anchor": "overflow-section-styling"
+        },
+        {
+          "level": 2,
+          "text": "Creating custom themes",
+          "anchor": "creating-custom-themes"
+        }
+      ]
     }
   ],
   "posts": [],
-  "last_gen": "2026-08-08T20:37:13.227019+00:00"
+  "last_gen": "2026-08-12T03:42:48.107798+00:00"
 }

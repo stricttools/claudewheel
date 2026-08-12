@@ -16,26 +16,26 @@ Version: :-: var key="project.version"
 
 ## Commands
 
-- [health](cli-health.html) -- run diagnostic health checks on profiles, tokens, and hooks, then exit
-- [config](cli-config.html) -- open the ~/.claudewheel/ config directory in your $EDITOR
-- [versions](cli-versions.html) -- list all installed Claude Code versions, marking the current symlink target
-- [install](cli-install.html) -- download and install a specific Claude Code version
-- [uninstall](cli-uninstall.html) -- delete an installed Claude Code version binary from the versions directory
-- [reset-options](cli-reset-options.html) -- delete options.json so it regenerates from defaults
-- [show](cli-show.html) -- print a summary of current segment selections, theme, and recent directories
-- [migrate](cli-migrate.html) -- move session data files from one profile to another, optionally filtered by UUID
-- [stats](cli-stats.html) -- report shared-store stats and clean up legacy data
-- [mv](cli-mv.html) -- rename a project directory and migrate session data
-- [import](cli-import.html) -- import session data from an external Claude Code directory
-- [deploy-hooks](cli-deploy-hooks.html) -- deploy built-in hook scripts to the ~/.claudewheel/scripts/ directory
-- [patch-profiles](cli-patch-profiles.html) -- reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask); prunes drift and user-added extras -- the old additive, extras-preserving behavior is gone. Deploys any missing guardrail hook scripts. The 'default' profile (~/.claude) is never touched. Preview with --dry-run; writing needs a terminal or --approve-consequential.
-- [reconcile-permissions](cli-reconcile-permissions.html) -- reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask made exact; allow keeps only its non-conflicting entries); prunes all drift and user-added extras. The 'default' profile (~/.claude) is never touched. Pass --dry-run to preview the per-target diff without writing; writing needs a terminal to confirm at, or --approve-consequential.
-- [launch](cli-launch.html) -- start the interactive TUI launcher to select a profile, model, and directory
+- [health](../cli-health/) -- run diagnostic health checks on profiles, tokens, and hooks, then exit
+- [config](../cli-config/) -- open the ~/.claudewheel/ config directory in your $EDITOR
+- [versions](../cli-versions/) -- list all installed Claude Code versions, marking the current symlink target
+- [install](../cli-install/) -- download and install a specific Claude Code version
+- [uninstall](../cli-uninstall/) -- delete an installed Claude Code version binary from the versions directory
+- [reset-options](../cli-reset-options/) -- delete options.json so it regenerates from defaults
+- [show](../cli-show/) -- print a summary of current segment selections, theme, and recent directories
+- [migrate](../cli-migrate/) -- move session data files from one profile to another, optionally filtered by UUID
+- [stats](../cli-stats/) -- report shared-store stats and clean up legacy data
+- [mv](../cli-mv/) -- rename a project directory and migrate session data
+- [import](../cli-import/) -- import session data from an external Claude Code directory
+- [deploy-hooks](../cli-deploy-hooks/) -- deploy built-in hook scripts to the ~/.claudewheel/scripts/ directory
+- [patch-profiles](../cli-patch-profiles/) -- reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask); prunes drift and user-added extras -- the old additive, extras-preserving behavior is gone. Deploys any missing guardrail hook scripts. The 'default' profile (~/.claude) is never touched. Preview with --dry-run; writing needs a terminal or --approve-consequential.
+- [reconcile-permissions](../cli-reconcile-permissions/) -- reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask made exact; allow keeps only its non-conflicting entries); prunes all drift and user-added extras. The 'default' profile (~/.claude) is never touched. Pass --dry-run to preview the per-target diff without writing; writing needs a terminal to confirm at, or --approve-consequential.
+- [launch](../cli-launch/) -- start the interactive TUI launcher to select a profile, model, and directory
 
 ## Command Groups
 
-- [profile](cli-profile.html) -- create, inspect, rename, delete, and manage Claude Code profiles and their stored tokens
-- [permission](cli-permission.html) -- add, remove, and list permission rules across Claude profiles
+- [profile](../cli-profile/) -- create, inspect, rename, delete, and manage Claude Code profiles and their stored tokens
+- [permission](../cli-permission/) -- add, remove, and list permission rules across Claude profiles
 
 ## Framework flags
 
