@@ -428,7 +428,7 @@ def _handle_delete_profile(
     # Running check is CLI policy (ProfileStore.delete does not enforce it).
     if not force_delete and _is_profile_running(ws, name):
         print(
-            f"Profile '{name}' appears to have active sessions. "
+            f"Profile '{name}' has a live interactive session. "
             "Use --force-delete to delete anyway.",
             file=sys.stderr,
         )
@@ -556,7 +556,7 @@ def _handle_rename_profile(ws: "Workspace", old: str, new: str) -> int:
     # Check not running
     if _is_profile_running(ws, old):
         print(
-            f"Profile '{old}' has active sessions. Stop them before renaming.",
+            f"Profile '{old}' has a live interactive session. Stop it before renaming.",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -1785,7 +1785,7 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
                 strictcli.FILE_WRITE,
             )
         ],
-        help="remove a registered profile for good: unlink its shared-store symlinks, delete the real entries in its directory, drop its tokens.json entry and its options.json registration, and clear any last_config reference in state.json. Refuses a profile with active sessions unless --force-delete, and takes conversation history only with --force-delete-data",
+        help="remove a registered profile for good: unlink its shared-store symlinks, delete the real entries in its directory, drop its tokens.json entry and its options.json registration, and clear any last_config reference in state.json. Refuses a profile holding a live interactive Claude Code session unless --force-delete (background jobs and daemons do not block it), and takes conversation history only with --force-delete-data",
         args=[
             Arg(
                 name="name",
@@ -1809,7 +1809,7 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
     profile_grp.command(
         "rename",
         effect="mutating",
-        help="move a profile to a new name, taking its directory, its tokens.json entry, its options.json registration and its session data with it. Validates that the old name exists, that the new one is free in both the directory tree and the options file, and that it fits the lowercase-letters-digits-hyphens charset. Refuses running profiles and the reserved name default",
+        help="move a profile to a new name, taking its directory, its tokens.json entry, its options.json registration and its session data with it. Validates that the old name exists, that the new one is free in both the directory tree and the options file, and that it fits the lowercase-letters-digits-hyphens charset. Refuses a profile holding a live interactive Claude Code session, and the reserved name default",
         args=[
             Arg(
                 name="old",

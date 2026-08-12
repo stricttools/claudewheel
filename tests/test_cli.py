@@ -1921,7 +1921,7 @@ class DeleteProfileHandlerTests(unittest.TestCase):
                     ws, "work", force_delete=False, force_delete_data=False
                 )
         self.assertEqual(ctx.exception.code, 1)
-        self.assertIn("active sessions", err.getvalue())
+        self.assertIn("live interactive session", err.getvalue())
         mock_store.delete.assert_not_called()
 
     def test_store_refusal_exits_1(self) -> None:

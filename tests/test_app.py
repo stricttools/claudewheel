@@ -1545,6 +1545,7 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         report.has_token = False
         report.disk_usage_bytes = 2048
         report.active_sessions = 0
+        report.interactive_sessions = 0
         return report
 
     def _flow_mocks(
@@ -1789,23 +1790,38 @@ class ProfileDeleteKeyTests(unittest.TestCase):
     # -- refusals -------------------------------------------------------------
 
     def test_running_profile_blocked_and_skips_cleanup(self) -> None:
-        """A profile with active sessions is refused (TUI policy) before the
-        store is touched; no cleanup happens."""
+        """A profile holding a live interactive session is refused (TUI policy)
+        before the store is touched; no cleanup happens."""
         seg = _make_profile_segment(discovered=["work"])
         seg.select_value("work")
         state = {"last_config": {"profile": "work"}}
         app = self._make_app(seg, state=state)
         report = self._report()
         report.active_sessions = 1
+        report.interactive_sessions = 1
         gather, ws, sel, page = self._flow_mocks(app, report=report, selection="delete")
         with gather, ws, sel, page:
             app._handle_key("CTRL_D")
-        self.assertIn("active sessions", app._flash)
+        self.assertIn("live interactive session", app._flash)
         self._store.delete.assert_not_called()
         # No cleanup: selection and last_config untouched
         self.assertEqual(seg.value, "work")
         self.assertEqual(state["last_config"]["profile"], "work")
         self._refresh_mock.assert_not_called()
+
+    def test_background_sessions_do_not_block(self) -> None:
+        """Live background work holds the profile but is not a person at a
+        terminal, so it does not veto the deletion (Phase 2.2)."""
+        seg = _make_profile_segment(discovered=["work"])
+        seg.select_value("work")
+        app = self._make_app(seg)
+        report = self._report()
+        report.active_sessions = 2
+        report.interactive_sessions = 0
+        gather, ws, sel, page = self._flow_mocks(app, report=report, selection="delete")
+        with gather, ws, sel, page:
+            app._handle_key("CTRL_D")
+        self._store.delete.assert_called_once_with("work")
 
     def test_store_refusal_flashes_message(self) -> None:
         """A ValueError refusal from the store surfaces as a flash; no cleanup."""

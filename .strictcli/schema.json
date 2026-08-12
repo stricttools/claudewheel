@@ -360,7 +360,7 @@
         },
         "delete": {
           "name": "delete",
-          "help": "remove a registered profile for good: unlink its shared-store symlinks, delete the real entries in its directory, drop its tokens.json entry and its options.json registration, and clear any last_config reference in state.json. Refuses a profile with active sessions unless --force-delete, and takes conversation history only with --force-delete-data",
+          "help": "remove a registered profile for good: unlink its shared-store symlinks, delete the real entries in its directory, drop its tokens.json entry and its options.json registration, and clear any last_config reference in state.json. Refuses a profile holding a live interactive Claude Code session unless --force-delete (background jobs and daemons do not block it), and takes conversation history only with --force-delete-data",
           "effect": "mutating",
           "consequential": true,
           "flags": [
@@ -404,7 +404,7 @@
         },
         "rename": {
           "name": "rename",
-          "help": "move a profile to a new name, taking its directory, its tokens.json entry, its options.json registration and its session data with it. Validates that the old name exists, that the new one is free in both the directory tree and the options file, and that it fits the lowercase-letters-digits-hyphens charset. Refuses running profiles and the reserved name default",
+          "help": "move a profile to a new name, taking its directory, its tokens.json entry, its options.json registration and its session data with it. Validates that the old name exists, that the new one is free in both the directory tree and the options file, and that it fits the lowercase-letters-digits-hyphens charset. Refuses a profile holding a live interactive Claude Code session, and the reserved name default",
           "effect": "mutating",
           "args": [
             {

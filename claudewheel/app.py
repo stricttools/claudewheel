@@ -1266,7 +1266,8 @@ class App:
             auth = "no auth"
         facts = (
             f"{auth}, {_format_size(report.disk_usage_bytes)}, "
-            f"{report.active_sessions} active sessions"
+            f"{report.active_sessions} active sessions "
+            f"({report.interactive_sessions} interactive)"
         )
         choice = run_selection(
             f"Delete profile '{name}'?",
@@ -1279,8 +1280,10 @@ class App:
             return
 
         # Running check is TUI policy (ProfileStore.delete does not enforce it).
-        if report.active_sessions > 0:
-            self._flash = f"Not deleted: '{name}' has active sessions"
+        # Only a live interactive session blocks: background jobs and daemons
+        # hold the profile too, but they are not a person at a terminal.
+        if report.interactive_sessions > 0:
+            self._flash = f"Not deleted: '{name}' has a live interactive session"
             return
 
         try:
