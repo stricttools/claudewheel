@@ -83,15 +83,16 @@ select = ["E4", "E7", "E9", "F"]
 
 [tool.mypy]
 strict = true
-# No `files` here on purpose: the mypy scope is owned solely by the
-# `mypy-strict` external check in .rlsbl/config.json (paths: claudewheel,
-# tests, docs), and rlsbl's mypy-strict-scope-guard fails if a competing scope
-# reappears here. A bare `uv run mypy` (no args) errors with "no files to
-# check" rather than silently checking a subset.
+# No `files` here on purpose: the mypy scope is owned solely by rlsbl's
+# built-in `type-check` check, configured under `checks.type-check` in
+# .rlsbl/config.json (paths: claudewheel, tests, docs), and rlsbl's
+# type-check-scope-guard fails if a competing scope reappears here. A bare
+# `uv run mypy` (no args) errors with "no files to check" rather than silently
+# checking a subset.
 #
 # `exclude` is not scope: it prunes recursive discovery inside the paths the
 # check already declares, so the scope guard (which polices `files`/`packages`/
-# `modules`) is untouched. docs/_build/ is the gitignored sphinx output tree; it
+# `modules`) is untouched. docs/_build/ is the gitignored selfdoc output tree; it
 # holds a byte copy of docs/_directives/guardrail_table.py, and mypy refuses to
 # check two files that map to one module name ("Duplicate module named
 # guardrail_table"), aborting the whole run. Excluding the build tree keeps the
