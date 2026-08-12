@@ -139,13 +139,16 @@ class ProfileStore:
         """
         return self._enumerate(on_corrupt_tokens="raise")
 
-    def _enumerate(
-        self, *, on_corrupt_tokens: Literal["raise", "swallow"]
-    ) -> list[Profile]:
-        """Enumeration proper; the per-profile corrupt-token policy is applied here."""
-        # (name, path, has_credentials) records; has_token derived last.
+    def _records(self) -> list[tuple[str, Path, bool]]:
+        """Apply the discovery rules WITHOUT opening any token file.
+
+        Returns ``(name, path, has_credentials)`` for every profile the
+        directory layout reveals -- rules 1 and 2 of :meth:`enumerate`, which
+        need nothing but directory presence. Token reads (rule 3) happen in the
+        callers, so a caller resolving ONE profile opens ONE profile's secret
+        file and a corrupt file in an unrelated profile cannot decide its fate.
+        """
         records: list[tuple[str, Path, bool]] = []
-        found_names: set[str] = set()
 
         # Rule 1: claude_dir as "default" whenever it is a directory (lenient --
         # ~/.claude is managed by Claude Code, so cw cannot require credentials
@@ -153,7 +156,6 @@ class ProfileStore:
         if self.claude_dir.is_dir():
             has_default_credentials = (self.claude_dir / ".credentials.json").exists()
             records.append(("default", self.claude_dir, has_default_credentials))
-            found_names.add("default")
 
         # Rule 2: profiles_dir subdirectories.
         if self.profiles_dir.is_dir():
@@ -168,11 +170,27 @@ class ProfileStore:
                 has_data = (entry / PROFILE_DATA_DIRNAME).is_dir()
                 if has_credentials or has_settings or has_data:
                     records.append((name, entry, has_credentials))
-                    found_names.add(name)
 
-        # Rule 3: mark token presence, one read per profile.
+        return records
+
+    def _record_for(self, name: str) -> tuple[str, Path, bool] | None:
+        """The discovery record for *name*, or None when no profile answers to it.
+
+        Presence only -- no token file is opened, by this profile or any other.
+        """
+        for record in self._records():
+            if record[0] == name:
+                return record
+        return None
+
+    def _enumerate(
+        self, *, on_corrupt_tokens: Literal["raise", "swallow"]
+    ) -> list[Profile]:
+        """Enumeration proper; the per-profile corrupt-token policy is applied here."""
+        # Rule 3 over the presence records: mark token presence, one read per
+        # profile.
         profiles: list[Profile] = []
-        for name, path, has_credentials in records:
+        for name, path, has_credentials in self._records():
             try:
                 has_token = ProfileDataStore(path).has_token()
             except TokenStoreError:
@@ -213,18 +231,30 @@ class ProfileStore:
         return self._enumerate(on_corrupt_tokens=on_corrupt_tokens)
 
     def get(self, name: str) -> Profile | None:
-        """Return the enumerated :class:`Profile` for *name*, or None if absent."""
-        for profile in self.enumerate():
-            if profile.name == name:
-                return profile
-        return None
+        """Return the :class:`Profile` for *name*, or None if absent.
+
+        Single-profile resolution: the name is answered from directory presence
+        and only *name*'s own token file is read, so a corrupt token file in an
+        unrelated profile cannot break this lookup. A corrupt file in *name*
+        itself still raises :class:`TokenStoreError`, naming that file.
+        """
+        record = self._record_for(name)
+        if record is None:
+            return None
+        found, path, has_credentials = record
+        return Profile(found, path, has_credentials, ProfileDataStore(path).has_token())
 
     def env(self, name: str) -> dict[str, str]:
         """Resolve a profile name to launch env vars. Read-only, no terminal I/O.
 
-        Enumerates the profiles (a corrupt token file raises
-        :class:`TokenStoreError`). An unknown *name* raises :class:`ValueError`
-        listing the available profile names.
+        Resolving *name* reads *name*'s data and nothing else: the name is
+        answered from directory presence (the discovery rules), then that one
+        profile's token file is opened. A corrupt token file in some unrelated
+        profile therefore cannot break this launch, while a corrupt file in
+        *name* itself raises :class:`TokenStoreError` naming that file. An
+        unknown *name* raises :class:`ValueError` listing the available profile
+        names -- itself derived from directory presence, so producing the list
+        opens no token file either.
 
         For every named profile the result carries ``CLAUDE_CONFIG_DIR`` and
         adds ``CLAUDE_CODE_OAUTH_TOKEN`` when the profile's own data store
@@ -243,10 +273,8 @@ class ProfileStore:
         tier-dependent checks fail closed. Declared values are validated here:
         an unrecognized one is a hard error, never a silently ignored field.
         """
-        profiles = self.enumerate()
-        names = {p.name for p in profiles}
-        if name not in names:
-            available = sorted(names)
+        if self._record_for(name) is None:
+            available = sorted(n for n, _, _ in self._records())
             raise ValueError(
                 f"Profile {name!r} not found. Available profiles: {available}"
             )

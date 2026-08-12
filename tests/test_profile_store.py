@@ -4,8 +4,13 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from unittest.mock import patch
 
-from claudewheel.profile_data import PROFILE_DATA_DIRNAME
+from claudewheel.profile_data import (
+    PROFILE_DATA_DIRNAME,
+    TOKEN_FILE_NAME,
+    ProfileDataStore,
+)
 from claudewheel.profile_store import Profile, ProfileStore
 from claudewheel.tokens import TokenStoreError
 from claudewheel.workspace import Workspace
@@ -293,6 +298,88 @@ class ProfileStoreContractTests(SandboxHomeTestCase):
         """An unrecognized corrupt-tokens mode is a hard ValueError."""
         with self.assertRaises(ValueError):
             self._store().discover(on_corrupt_tokens="ignore")  # type: ignore[arg-type]
+
+    # --- single-profile resolution reads only that profile ---------------
+
+    def test_env_resolves_a_good_profile_despite_a_corrupt_sibling(self) -> None:
+        """Resolving beta must not care that alpha's token file is unreadable."""
+        bad = self.make_profile("alpha", credentials=True)
+        good = self.make_profile("beta", credentials=True)
+        write_token_entry(good, {"token": "tok-beta"})
+        self._corrupt_token(bad)
+        env = self._store().env("beta")
+        self.assertEqual(env["CLAUDE_CONFIG_DIR"], str(good))
+        self.assertEqual(env["CLAUDE_CODE_OAUTH_TOKEN"], "tok-beta")
+
+    def test_env_on_the_corrupt_profile_itself_raises_naming_it(self) -> None:
+        """The profile being resolved still hard-errors, naming its own file."""
+        bad = self.make_profile("alpha", credentials=True)
+        good = self.make_profile("beta", credentials=True)
+        write_token_entry(good, {"token": "tok-beta"})
+        self._corrupt_token(bad)
+        with self.assertRaises(TokenStoreError) as ctx:
+            self._store().env("alpha")
+        self.assertIn("alpha", str(ctx.exception))
+
+    def test_env_unknown_name_raises_valueerror_despite_a_corrupt_profile(self) -> None:
+        """Listing the available names must not read anyone's token file."""
+        bad = self.make_profile("alpha", credentials=True)
+        self.make_profile("beta", credentials=True)
+        self._corrupt_token(bad)
+        with self.assertRaises(ValueError) as ctx:
+            self._store().env("nope")
+        msg = str(ctx.exception)
+        self.assertIn("alpha", msg)
+        self.assertIn("beta", msg)
+
+    def test_env_opens_only_the_resolved_profiles_token_file(self) -> None:
+        """The secondary effect: no other profile's secret file is opened."""
+        self.make_profile("alpha", credentials=True)
+        good = self.make_profile("beta", credentials=True)
+        write_token_entry(self.sandbox_paths["PROFILES_DIR"] / "alpha", {"token": "a"})
+        write_token_entry(good, {"token": "tok-beta"})
+
+        read_files: list[Path] = []
+        real_load = ProfileDataStore.load
+
+        def recording_load(store: ProfileDataStore) -> dict[str, object]:
+            read_files.append(store.token_file)
+            return real_load(store)
+
+        with patch.object(ProfileDataStore, "load", recording_load):
+            self._store().env("beta")
+
+        self.assertTrue(read_files, "env() read no token file at all")
+        self.assertEqual(
+            {f for f in read_files},
+            {good / PROFILE_DATA_DIRNAME / TOKEN_FILE_NAME},
+        )
+
+    def test_get_survives_a_corrupt_sibling(self) -> None:
+        """get() resolves one profile: a corrupt neighbour is not its business."""
+        bad = self.make_profile("alpha", credentials=True)
+        good = self.make_profile("beta", credentials=True)
+        write_token_entry(good, {"token": "tok-beta"})
+        self._corrupt_token(bad)
+        got = self._store().get("beta")
+        assert got is not None
+        self.assertEqual(
+            (got.name, got.path, got.has_credentials, got.has_token),
+            ("beta", good, True, True),
+        )
+
+    def test_get_on_the_corrupt_profile_itself_raises_naming_it(self) -> None:
+        bad = self.make_profile("alpha", credentials=True)
+        self.make_profile("beta", credentials=True)
+        self._corrupt_token(bad)
+        with self.assertRaises(TokenStoreError) as ctx:
+            self._store().get("alpha")
+        self.assertIn("alpha", str(ctx.exception))
+
+    def test_get_unknown_name_returns_none_despite_a_corrupt_profile(self) -> None:
+        bad = self.make_profile("alpha", credentials=True)
+        self._corrupt_token(bad)
+        self.assertIsNone(self._store().get("missing"))
 
     def test_env_on_readonly_tree_succeeds_with_zero_writes(self) -> None:
         p = self.make_profile("alpha", credentials=True)
