@@ -436,7 +436,7 @@ def _apply_browser_env(env: dict[str, str], browser: str) -> None:
 def _capture_tier_from_credentials(
     ws: "Workspace", credentials: Path, profile_name: str
 ) -> None:
-    """Read rateLimitTier/subscriptionType from .credentials.json and store in tokens.json.
+    """Read rateLimitTier/subscriptionType from .credentials.json into the profile store.
 
     Best-effort: silently skips if the credentials file cannot be parsed or
     the expected fields are absent (older Claude Code versions omit them).
@@ -453,7 +453,9 @@ def _capture_tier_from_credentials(
     if not tier and not subscription:
         return
     try:
-        ws.tokens.set_tier(profile_name, tier=tier, subscription=subscription)
+        ws.profiles.data_for(profile_name).set_tier(
+            tier=tier, subscription=subscription
+        )
     except OSError:
         pass  # best-effort: don't fail auth flow over tier storage
 
@@ -608,13 +610,13 @@ def _save_token(
     token: str,
     expiry: TokenExpiryDisposition,
 ) -> bool:
-    """Write the token via the workspace TokenStore; print + return False on OSError.
+    """Write the token into the profile's own store; print + return False on OSError.
 
     *expiry* records how the token's lifetime is stored: setup-tokens are TTL
     (365 days); externally-pasted tokens are UNKNOWN (no assumed expiry).
     """
     try:
-        ws.tokens.add(profile_name, token, expiry=expiry)
+        ws.profiles.data_for(profile_name).write_token(token, expiry=expiry)
     except OSError as e:
         print(f"Error saving token: {e}")
         return False

@@ -13,7 +13,7 @@ from typing import Any
 from claudewheel import profile_info
 from claudewheel.shared_store import SharedStore
 from claudewheel.tokens import EXPIRY_UNKNOWN_FIELD
-from tests.wheelhelpers import live_record, stale_record
+from tests.wheelhelpers import live_record, stale_record, write_token_entry
 
 
 class ProfileInfoFixture(unittest.TestCase):
@@ -26,7 +26,6 @@ class ProfileInfoFixture(unittest.TestCase):
         self.profiles_dir = root / ".claudewheel" / "profiles"
         self.shared_dir = root / ".claudewheel" / "shared"
         self.skills_dir = root / ".claudewheel" / "skills"
-        self.tokens_file = root / ".claudewheel" / "tokens.json"
         self.options_file = root / ".claudewheel" / "options.json"
         self.profile = self.profiles_dir / "work"
         self.profile.mkdir(parents=True)
@@ -47,8 +46,9 @@ class ProfileInfoFixture(unittest.TestCase):
             (self.profile / d).symlink_to(self.shared_dir / d)
         (self.profile / "skills").symlink_to(self.skills_dir)
 
-    def _write_tokens(self, entries: dict[str, Any]) -> None:
-        self.tokens_file.write_text(json.dumps(entries))
+    def _write_token(self, entry: dict[str, Any]) -> None:
+        """Store a token entry inside the 'work' profile directory."""
+        write_token_entry(self.profile, entry)
 
     def _write_options(self, values: list[str], pinned: list[str]) -> None:
         self.options_file.write_text(
@@ -74,13 +74,11 @@ class GatherAuthTests(ProfileInfoFixture):
     def test_token_expiry_math(self) -> None:
         created = date.today() - timedelta(days=100)
         expires = created + timedelta(days=365)
-        self._write_tokens(
+        self._write_token(
             {
-                "work": {
-                    "token": "tok",
-                    "created": created.isoformat(),
-                    "expires_at": expires.isoformat(),
-                }
+                "token": "tok",
+                "created": created.isoformat(),
+                "expires_at": expires.isoformat(),
             }
         )
         report = profile_info.gather_profile_info(self.ws, "work")
@@ -90,8 +88,8 @@ class GatherAuthTests(ProfileInfoFixture):
         self.assertEqual(report.token_expiry.expires, expires)
         self.assertEqual(report.token_expiry.remaining_days, 265)
 
-    def test_token_for_other_profile_not_picked_up(self) -> None:
-        self._write_tokens({"other": {"token": "tok"}})
+    def test_another_profiles_token_not_picked_up(self) -> None:
+        write_token_entry(self.profiles_dir / "other", {"token": "tok"})
         report = profile_info.gather_profile_info(self.ws, "work")
         self.assertFalse(report.has_token)
         self.assertIsNone(report.token_expiry)
@@ -249,16 +247,14 @@ class GatherUnknownAndDefaultTests(ProfileInfoFixture):
 
 
 class GatherTierTests(ProfileInfoFixture):
-    """Tier data from tokens.json entry."""
+    """Tier data from the profile's own token entry."""
 
-    def test_tier_from_tokens(self) -> None:
-        self._write_tokens(
+    def test_tier_from_token_entry(self) -> None:
+        self._write_token(
             {
-                "work": {
-                    "token": "tok",
-                    "rateLimitTier": "default_claude_pro",
-                    "subscriptionType": "claude_pro",
-                }
+                "token": "tok",
+                "rateLimitTier": "default_claude_pro",
+                "subscriptionType": "claude_pro",
             }
         )
         report = profile_info.gather_profile_info(self.ws, "work")
@@ -266,31 +262,22 @@ class GatherTierTests(ProfileInfoFixture):
         self.assertEqual(report.subscription_type, "claude_pro")
 
     def test_no_tier_returns_none(self) -> None:
-        self._write_tokens({"work": {"token": "tok"}})
+        self._write_token({"token": "tok"})
         report = profile_info.gather_profile_info(self.ws, "work")
         self.assertIsNone(report.rate_limit_tier)
         self.assertIsNone(report.subscription_type)
 
     def test_tier_only_entry_no_token(self) -> None:
         """Tier-only entry (from session login) has tier but no token."""
-        self._write_tokens(
+        self._write_token(
             {
-                "work": {
-                    "rateLimitTier": "default_claude_max_5x",
-                    "subscriptionType": "claude_max_5x",
-                }
+                "rateLimitTier": "default_claude_max_5x",
+                "subscriptionType": "claude_max_5x",
             }
         )
         report = profile_info.gather_profile_info(self.ws, "work")
         self.assertTrue(report.has_token)  # entry exists
         self.assertEqual(report.rate_limit_tier, "default_claude_max_5x")
-
-    def test_bare_string_entry_no_tier(self) -> None:
-        """Legacy bare-string entries have no tier fields."""
-        self._write_tokens({"work": "tok-legacy"})
-        report = profile_info.gather_profile_info(self.ws, "work")
-        self.assertIsNone(report.rate_limit_tier)
-        self.assertIsNone(report.subscription_type)
 
 
 class GatherAuthShadowTests(ProfileInfoFixture):
@@ -301,7 +288,7 @@ class GatherAuthShadowTests(ProfileInfoFixture):
         (self.profile / ".credentials.json").write_text(
             json.dumps({"claudeAiOauth": {"accessToken": "short-lived"}})
         )
-        self._write_tokens({"work": {"token": "tok-long-lived"}})
+        self._write_token({"token": "tok-long-lived"})
         report = profile_info.gather_profile_info(self.ws, "work")
         self.assertTrue(report.has_auth_shadow)
 
@@ -310,7 +297,7 @@ class GatherAuthShadowTests(ProfileInfoFixture):
         (self.profile / ".credentials.json").write_text(
             json.dumps({"mcpOAuth": {"x": "y"}})
         )
-        self._write_tokens({"work": {"token": "tok-long"}})
+        self._write_token({"token": "tok-long"})
         report = profile_info.gather_profile_info(self.ws, "work")
         self.assertFalse(report.has_auth_shadow)
 
@@ -325,7 +312,7 @@ class GatherAuthShadowTests(ProfileInfoFixture):
 
     def test_no_shadow_when_no_credentials_file(self) -> None:
         """has_auth_shadow is False when .credentials.json doesn't exist."""
-        self._write_tokens({"work": {"token": "tok"}})
+        self._write_token({"token": "tok"})
         report = profile_info.gather_profile_info(self.ws, "work")
         self.assertFalse(report.has_auth_shadow)
 
@@ -334,7 +321,7 @@ class GatherAuthShadowTests(ProfileInfoFixture):
         (self.profile / ".credentials.json").write_text(
             json.dumps({"claudeAiOauth": {"accessToken": "short"}})
         )
-        self._write_tokens({"work": {"token": "tok"}})
+        self._write_token({"token": "tok"})
         report = profile_info.gather_profile_info(self.ws, "work")
         lines = profile_info.format_report(report)
         text = "\n".join(lines)
@@ -367,13 +354,11 @@ class FormatReportTests(ProfileInfoFixture):
         )
         created = date.today() - timedelta(days=10)
         expires = created + timedelta(days=365)
-        self._write_tokens(
+        self._write_token(
             {
-                "work": {
-                    "token": "tok",
-                    "created": created.isoformat(),
-                    "expires_at": expires.isoformat(),
-                }
+                "token": "tok",
+                "created": created.isoformat(),
+                "expires_at": expires.isoformat(),
             }
         )
         self._write_options(values=["work"], pinned=["work"])
@@ -395,18 +380,16 @@ class FormatReportTests(ProfileInfoFixture):
         self.assertIn("awaySummaryEnabled: False", text)
         self.assertIn("Active sessions: 0", text)
         self.assertIn("Disk usage:", text)
-        # Tier should show "unknown" since no tier in tokens entry
+        # Tier should show "unknown" since the entry declares none
         self.assertIn("Tier: unknown", text)
 
     def test_unknown_expiry_token_renders_externally_issued(self) -> None:
         """A pasted token with unknown expiry renders 'unknown (externally issued)'."""
-        self._write_tokens(
+        self._write_token(
             {
-                "work": {
-                    "token": "sk-ant-external",
-                    "created": date.today().isoformat(),
-                    EXPIRY_UNKNOWN_FIELD: True,
-                }
+                "token": "sk-ant-external",
+                "created": date.today().isoformat(),
+                EXPIRY_UNKNOWN_FIELD: True,
             }
         )
         report = profile_info.gather_profile_info(self.ws, "work")
@@ -427,13 +410,11 @@ class FormatReportTests(ProfileInfoFixture):
 
     def test_tier_display_with_subscription(self) -> None:
         """When tier and subscription are present, both appear."""
-        self._write_tokens(
+        self._write_token(
             {
-                "work": {
-                    "token": "tok",
-                    "rateLimitTier": "default_claude_pro",
-                    "subscriptionType": "claude_pro",
-                }
+                "token": "tok",
+                "rateLimitTier": "default_claude_pro",
+                "subscriptionType": "claude_pro",
             }
         )
         report = profile_info.gather_profile_info(self.ws, "work")
@@ -443,12 +424,10 @@ class FormatReportTests(ProfileInfoFixture):
 
     def test_tier_display_without_subscription(self) -> None:
         """When only tier is present, no parenthetical."""
-        self._write_tokens(
+        self._write_token(
             {
-                "work": {
-                    "token": "tok",
-                    "rateLimitTier": "default_claude_max_20x",
-                }
+                "token": "tok",
+                "rateLimitTier": "default_claude_max_20x",
             }
         )
         report = profile_info.gather_profile_info(self.ws, "work")

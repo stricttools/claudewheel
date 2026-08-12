@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 
 from . import session_registry
 from .appdata import OptionsFile
-from .tokens import TokenExpiry, TokenStoreError, parse_entry
+from .tokens import TokenExpiry, TokenStoreError, entry_expiry, parse_entry
 
 if TYPE_CHECKING:
     from .workspace import Workspace
@@ -26,11 +26,11 @@ class ProfileReport:
     registered: bool  # in options.json profile values
     pinned: bool  # in options.json profile pinned list
     has_credentials: bool  # .credentials.json present
-    has_token: bool  # entry in tokens.json
+    has_token: bool  # token entry in the profile's claudewheel data dir
     token_expiry: TokenExpiry | None  # only when has_token
     has_auth_shadow: bool = False  # claudeAiOauth in creds AND valid token
-    rate_limit_tier: str | None = None  # from tokens.json entry
-    subscription_type: str | None = None  # from tokens.json entry
+    rate_limit_tier: str | None = None  # from the token entry
+    subscription_type: str | None = None  # from the token entry
     shared_dirs: dict[str, str] = field(default_factory=dict)
     danger: bool = False  # any shared entry is a real dir/file
     settings_found: bool = False
@@ -56,20 +56,18 @@ def _read_options_registration(ws: "Workspace", name: str) -> tuple[bool, bool]:
 def _read_token_state(
     ws: "Workspace", name: str
 ) -> tuple[bool, TokenExpiry | None, str | None, str | None]:
-    """Return (has_token, expiry, tier, subscription) for *name* from tokens.json.
+    """Return (has_token, expiry, tier, subscription) from *name*'s own store.
 
-    A corrupt tokens.json raises :class:`TokenStoreError` (the hard-error
+    A corrupt token entry raises :class:`TokenStoreError` (the hard-error
     contract): profile inspection is a CLI command, so token corruption is a
     workspace-integrity problem the operator must fix, never a silent skip.
     """
-    store = ws.tokens
-    tokens = store.load()
-    if name not in tokens:
+    data = ws.profiles.data_for(name)
+    entry = data.load()
+    if not entry:
         return False, None, None, None
-    entry = tokens[name]
-    tier = entry.get("rateLimitTier") if isinstance(entry, dict) else None
-    subscription = entry.get("subscriptionType") if isinstance(entry, dict) else None
-    return True, store.expiry_for(name), tier, subscription
+    tier, subscription = data.tier()
+    return True, entry_expiry(entry), tier, subscription
 
 
 def _count_active_sessions(config_dir: Path) -> tuple[int, int]:
@@ -129,21 +127,21 @@ def detect_auth_shadow(ws: "Workspace", name: str) -> bool:
     """Return True if profile has session credentials shadowing a long-lived token.
 
     Conditions (all must be true):
-    - A valid token entry exists in tokens.json for *name*
+    - A valid token entry exists in *name*'s own claudewheel data dir
     - .credentials.json exists in the profile's config dir
     - .credentials.json contains a "claudeAiOauth" key
 
     Lightweight check usable from both gather_profile_info and health checks.
     """
-    # Token read tolerates a corrupt tokens.json (returns False). This helper is
-    # shared with health checks, which carry the tokens-corruption carve-out;
+    # Token read tolerates a corrupt entry (returns False). This helper is
+    # shared with health checks, which report an unreadable entry themselves;
     # gather_profile_info calls _read_token_state first, so the CLI inspection
-    # path still hard-errors on corrupt tokens before ever reaching here.
+    # path still hard-errors on a corrupt entry before ever reaching here.
     try:
-        tokens = ws.tokens.load()
+        entry = ws.profiles.data_for(name).load()
     except TokenStoreError:
         return False
-    if parse_entry(tokens.get(name)) is None:
+    if parse_entry(entry) is None:
         return False
 
     # Check .credentials.json for claudeAiOauth

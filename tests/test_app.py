@@ -1578,7 +1578,6 @@ class ProfileDeleteKeyTests(unittest.TestCase):
                     removed_symlinks=0,
                     removed_real=0,
                     removed_from_options=True,
-                    removed_from_tokens=True,
                     last_config_purged=True,
                 )
             self._store.delete.return_value = result

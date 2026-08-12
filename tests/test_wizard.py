@@ -28,6 +28,7 @@ from claudewheel.defaults import (
 )
 from claudewheel.terminal import Terminal
 from claudewheel.theme import parse_theme
+from claudewheel.profile_data import ProfileDataStore
 from claudewheel.tokens import TokenExpiryDisposition
 
 from tests.wheelhelpers import FakeTerminal
@@ -1458,7 +1459,9 @@ class AuthFlowTests(AuthFlowTestBase):
                 autospec=True,
                 return_value=auth.VALID,
             ) as mock_probe,
-            mock.patch("claudewheel.tokens.TokenStore.add", autospec=True) as mock_add,
+            mock.patch(
+                "claudewheel.profile_data.ProfileDataStore.write_token", autospec=True
+            ) as mock_add,
         ):
             result = run_auth_flow(
                 self.ws,
@@ -1469,7 +1472,7 @@ class AuthFlowTests(AuthFlowTestBase):
                 self.term,
             )
         self.assertEqual(result, "authenticated")
-        mock_add.assert_called_once_with(mock.ANY, "test", CAPTURED_TOKEN, expiry=TTL)
+        mock_add.assert_called_once_with(mock.ANY, CAPTURED_TOKEN, expiry=TTL)
         mock_probe.assert_called_once_with(CAPTURED_TOKEN)
         # No recovery paste was needed, so no keys were consumed.
         self.assertEqual(self.term._index, 0)
@@ -1593,7 +1596,9 @@ class AuthFlowTests(AuthFlowTestBase):
                 autospec=True,
                 return_value=(0, b"no token in this output"),
             ),
-            mock.patch("claudewheel.tokens.TokenStore.add", autospec=True) as mock_add,
+            mock.patch(
+                "claudewheel.profile_data.ProfileDataStore.write_token", autospec=True
+            ) as mock_add,
         ):
             result = run_auth_flow(
                 self.ws,
@@ -1640,7 +1645,9 @@ class AuthFlowTests(AuthFlowTestBase):
                 autospec=True,
                 return_value=auth.VALID,
             ) as mock_probe,
-            mock.patch("claudewheel.tokens.TokenStore.add", autospec=True) as mock_add,
+            mock.patch(
+                "claudewheel.profile_data.ProfileDataStore.write_token", autospec=True
+            ) as mock_add,
         ):
             result = run_auth_flow(
                 self.ws,
@@ -1653,9 +1660,7 @@ class AuthFlowTests(AuthFlowTestBase):
         self.assertEqual(result, "authenticated")
         self.assertNotIn("Warning", self._stdout_buf.getvalue())
         mock_probe.assert_called_once_with("sk-ant-recovered")
-        mock_add.assert_called_once_with(
-            mock.ANY, "test", "sk-ant-recovered", expiry=TTL
-        )
+        mock_add.assert_called_once_with(mock.ANY, "sk-ant-recovered", expiry=TTL)
 
     def test_long_lived_token_keyboard_interrupt_on_recovery_paste(self) -> None:
         """KeyboardInterrupt during the recovery paste returns 'failed'."""
@@ -1680,7 +1685,9 @@ class AuthFlowTests(AuthFlowTestBase):
                 autospec=True,
                 return_value=(0, b"nothing to extract"),
             ),
-            mock.patch("claudewheel.tokens.TokenStore.add", autospec=True) as mock_add,
+            mock.patch(
+                "claudewheel.profile_data.ProfileDataStore.write_token", autospec=True
+            ) as mock_add,
         ):
             result = run_auth_flow(
                 self.ws,
@@ -1722,7 +1729,7 @@ class AuthFlowTests(AuthFlowTestBase):
                 return_value=auth.VALID,
             ),
             mock.patch(
-                "claudewheel.tokens.TokenStore.add",
+                "claudewheel.profile_data.ProfileDataStore.write_token",
                 side_effect=OSError("disk full"),
                 autospec=True,
             ),
@@ -2182,7 +2189,9 @@ class AuthBrowserPersistenceTests(AuthFlowTestBase):
                 autospec=True,
                 return_value=auth.VALID,
             ),
-            mock.patch("claudewheel.tokens.TokenStore.add", autospec=True),
+            mock.patch(
+                "claudewheel.profile_data.ProfileDataStore.write_token", autospec=True
+            ),
         ):
             result = run_auth_flow(
                 self.ws,
@@ -2228,7 +2237,9 @@ class AuthBrowserPersistenceTests(AuthFlowTestBase):
                 autospec=True,
                 return_value=auth.UNREACHABLE,
             ),
-            mock.patch("claudewheel.tokens.TokenStore.add", autospec=True),
+            mock.patch(
+                "claudewheel.profile_data.ProfileDataStore.write_token", autospec=True
+            ),
         ):
             result = run_auth_flow(
                 self.ws,
@@ -2526,7 +2537,9 @@ class CookedWindowTests(AuthFlowTestBase):
                 autospec=True,
                 return_value=auth.VALID,
             ),
-            mock.patch("claudewheel.tokens.TokenStore.add", autospec=True),
+            mock.patch(
+                "claudewheel.profile_data.ProfileDataStore.write_token", autospec=True
+            ),
         ):
             result = run_auth_flow(
                 self.ws,
@@ -2576,7 +2589,9 @@ class CookedWindowTests(AuthFlowTestBase):
                 autospec=True,
                 return_value=auth.VALID,
             ),
-            mock.patch("claudewheel.tokens.TokenStore.add", autospec=True) as mock_add,
+            mock.patch(
+                "claudewheel.profile_data.ProfileDataStore.write_token", autospec=True
+            ) as mock_add,
         ):
             result = run_auth_flow(
                 self.ws,
@@ -2588,9 +2603,7 @@ class CookedWindowTests(AuthFlowTestBase):
             )
 
         self.assertEqual(result, "authenticated")
-        mock_add.assert_called_once_with(
-            mock.ANY, "test", "sk-ant-recovered", expiry=TTL
-        )
+        mock_add.assert_called_once_with(mock.ANY, "sk-ant-recovered", expiry=TTL)
         # The recovery paste was actually read from the terminal.
         self.assertGreater(self.term._index, 0)
 
@@ -2762,7 +2775,9 @@ class TokenValidationRedGreenTests(AuthFlowTestBase):
                 return_value=str(fake_binary),
                 autospec=True,
             ),
-            mock.patch("claudewheel.tokens.TokenStore.add", autospec=True) as mock_add,
+            mock.patch(
+                "claudewheel.profile_data.ProfileDataStore.write_token", autospec=True
+            ) as mock_add,
         ):
             result = run_auth_flow(
                 self.ws,
@@ -2822,7 +2837,9 @@ class TokenRecoveryPasteTests(AuthFlowTestBase):
                 autospec=True,
                 return_value=probe_result,
             ),
-            mock.patch("claudewheel.tokens.TokenStore.add", autospec=True) as mock_add,
+            mock.patch(
+                "claudewheel.profile_data.ProfileDataStore.write_token", autospec=True
+            ) as mock_add,
         ):
             result = run_auth_flow(
                 self.ws,
@@ -2838,15 +2855,13 @@ class TokenRecoveryPasteTests(AuthFlowTestBase):
         """Linebreaks, spaces, and tabs from a wrapped terminal copy are stripped."""
         result, mock_add = self._run_recovery_flow("sk-ant-oat01-\nABC DEF\t123")
         self.assertEqual(result, "authenticated")
-        mock_add.assert_called_once_with(
-            mock.ANY, "test", "sk-ant-oat01-ABCDEF123", expiry=TTL
-        )
+        mock_add.assert_called_once_with(mock.ANY, "sk-ant-oat01-ABCDEF123", expiry=TTL)
 
     def test_surrounding_whitespace_removed(self) -> None:
         """Leading/trailing whitespace is stripped like the old .strip() did."""
         result, mock_add = self._run_recovery_flow("  sk-ant-token-1  \n")
         self.assertEqual(result, "authenticated")
-        mock_add.assert_called_once_with(mock.ANY, "test", "sk-ant-token-1", expiry=TTL)
+        mock_add.assert_called_once_with(mock.ANY, "sk-ant-token-1", expiry=TTL)
 
     def test_whitespace_only_input_fails(self) -> None:
         """Input that cleans down to nothing is treated as no token."""
@@ -2924,7 +2939,9 @@ class TokenValidationOutcomeTests(AuthFlowTestBase):
                 autospec=True,
                 side_effect=probe_results,
             ) as mock_probe,
-            mock.patch("claudewheel.tokens.TokenStore.add", autospec=True) as mock_add,
+            mock.patch(
+                "claudewheel.profile_data.ProfileDataStore.write_token", autospec=True
+            ) as mock_add,
         ):
             result = run_auth_flow(
                 self.ws,
@@ -2942,7 +2959,7 @@ class TokenValidationOutcomeTests(AuthFlowTestBase):
 
         result, mock_add, mock_probe, term, _sel = self._run_scraped_flow([auth.VALID])
         self.assertEqual(result, "authenticated")
-        mock_add.assert_called_once_with(mock.ANY, "test", CAPTURED_TOKEN, expiry=TTL)
+        mock_add.assert_called_once_with(mock.ANY, CAPTURED_TOKEN, expiry=TTL)
         mock_probe.assert_called_once_with(CAPTURED_TOKEN)
         # No re-prompt fired, so no paste keys were read.
         self.assertEqual(term._index, 0)
@@ -2955,9 +2972,7 @@ class TokenValidationOutcomeTests(AuthFlowTestBase):
             [auth.INVALID, auth.VALID], reprompt="sk-ant-oat01-repasted"
         )
         self.assertEqual(result, "authenticated")
-        mock_add.assert_called_once_with(
-            mock.ANY, "test", "sk-ant-oat01-repasted", expiry=TTL
-        )
+        mock_add.assert_called_once_with(mock.ANY, "sk-ant-oat01-repasted", expiry=TTL)
         self.assertEqual(
             mock_probe.call_args_list,
             [mock.call(CAPTURED_TOKEN), mock.call("sk-ant-oat01-repasted")],
@@ -2996,7 +3011,7 @@ class TokenValidationOutcomeTests(AuthFlowTestBase):
             [auth.UNREACHABLE], selections=["token", "copy", "save"]
         )
         self.assertEqual(result, "unverified")
-        mock_add.assert_called_once_with(mock.ANY, "test", CAPTURED_TOKEN, expiry=TTL)
+        mock_add.assert_called_once_with(mock.ANY, CAPTURED_TOKEN, expiry=TTL)
         self.assertEqual(term._index, 0)
         # The third run_selection call is the save/abort choice form
         args, _kwargs = mock_sel.call_args_list[2]
@@ -3032,7 +3047,7 @@ class TokenValidationOutcomeTests(AuthFlowTestBase):
             [auth.INDETERMINATE], selections=["token", "copy", "save"]
         )
         self.assertEqual(result, "unverified")
-        mock_add.assert_called_once_with(mock.ANY, "test", CAPTURED_TOKEN, expiry=TTL)
+        mock_add.assert_called_once_with(mock.ANY, CAPTURED_TOKEN, expiry=TTL)
         args, _kwargs = mock_sel.call_args_list[2]
         self.assertIn("validation inconclusive", args[0])
 
@@ -3075,7 +3090,7 @@ class TokenValidationOutcomeTests(AuthFlowTestBase):
                 return_value=auth.UNREACHABLE,
             ),
             mock.patch(
-                "claudewheel.tokens.TokenStore.add",
+                "claudewheel.profile_data.ProfileDataStore.write_token",
                 side_effect=OSError("disk full"),
                 autospec=True,
             ),
@@ -3101,9 +3116,7 @@ class TokenValidationOutcomeTests(AuthFlowTestBase):
             reprompt="sk-ant-oat01-repasted",
         )
         self.assertEqual(result, "unverified")
-        mock_add.assert_called_once_with(
-            mock.ANY, "test", "sk-ant-oat01-repasted", expiry=TTL
-        )
+        mock_add.assert_called_once_with(mock.ANY, "sk-ant-oat01-repasted", expiry=TTL)
 
 
 class OnboardingFlagTests(CreateProfileTestBase):
@@ -3216,7 +3229,9 @@ class OnboardingFlagAuthTests(AuthFlowTestBase):
                 autospec=True,
                 return_value=auth.VALID,
             ),
-            mock.patch("claudewheel.tokens.TokenStore.add", autospec=True),
+            mock.patch(
+                "claudewheel.profile_data.ProfileDataStore.write_token", autospec=True
+            ),
         ):
             result = run_auth_flow(
                 self.ws, self.locator, config_dir_str, "tokenonboard", THEME, self.term
@@ -3260,7 +3275,9 @@ class OnboardingFlagAuthTests(AuthFlowTestBase):
                 autospec=True,
                 return_value=auth.UNREACHABLE,
             ),
-            mock.patch("claudewheel.tokens.TokenStore.add", autospec=True),
+            mock.patch(
+                "claudewheel.profile_data.ProfileDataStore.write_token", autospec=True
+            ),
         ):
             result = run_auth_flow(
                 self.ws, self.locator, config_dir_str, "unverified", THEME, self.term
@@ -3343,7 +3360,9 @@ class OnboardingFlagAuthTests(AuthFlowTestBase):
                 autospec=True,
                 return_value=auth.VALID,
             ),
-            mock.patch("claudewheel.tokens.TokenStore.add", autospec=True),
+            mock.patch(
+                "claudewheel.profile_data.ProfileDataStore.write_token", autospec=True
+            ),
         ):
             result = run_auth_flow(
                 self.ws, self.locator, config_dir_str, "mergeauth", THEME, self.term
@@ -3360,15 +3379,12 @@ class TierCaptureTests(AuthFlowTestBase):
     """Tests for rate-limit tier capture during session login."""
 
     def test_tier_captured_on_session_login(self) -> None:
-        """When .credentials.json has rateLimitTier, it is stored in tokens.json."""
+        """When .credentials.json has rateLimitTier, it lands in the profile store."""
         from claudewheel.wizard import run_auth_flow
 
         config_dir = self._profile_dir("tiertest")
         config_dir.mkdir(parents=True, exist_ok=True)
         config_dir_str = str(config_dir)
-
-        tokens_file = self.fake_home / ".claudewheel" / "tokens.json"
-        tokens_file.parent.mkdir(parents=True, exist_ok=True)
 
         fake_binary = self._make_fake_binary()
 
@@ -3407,23 +3423,19 @@ class TierCaptureTests(AuthFlowTestBase):
             )
 
         self.assertEqual(result, "authenticated")
-        tokens = json.loads(tokens_file.read_text())
-        entry = tokens["tiertest"]
+        entry = ProfileDataStore(config_dir).load()
         self.assertEqual(entry["rateLimitTier"], "default_claude_pro")
         self.assertEqual(entry["subscriptionType"], "claude_pro")
         # Should NOT have the access token
         self.assertNotIn("accessToken", entry)
 
     def test_tier_not_captured_when_absent(self) -> None:
-        """When .credentials.json has no tier fields, tokens.json is not written."""
+        """When .credentials.json has no tier fields, nothing is stored."""
         from claudewheel.wizard import run_auth_flow
 
         config_dir = self._profile_dir("notier")
         config_dir.mkdir(parents=True, exist_ok=True)
         config_dir_str = str(config_dir)
-
-        tokens_file = self.fake_home / ".claudewheel" / "tokens.json"
-        tokens_file.parent.mkdir(parents=True, exist_ok=True)
 
         fake_binary = self._make_fake_binary()
 
@@ -3449,7 +3461,7 @@ class TierCaptureTests(AuthFlowTestBase):
                 "claudewheel.wizard.effects.run", side_effect=fake_run, autospec=True
             ),
             mock.patch(
-                "claudewheel.tokens.TokenStore.set_tier", autospec=True
+                "claudewheel.profile_data.ProfileDataStore.set_tier", autospec=True
             ) as mock_store,
         ):
             result = run_auth_flow(
@@ -3492,7 +3504,7 @@ class TierCaptureTests(AuthFlowTestBase):
                 "claudewheel.wizard.effects.run", side_effect=fake_run, autospec=True
             ),
             mock.patch(
-                "claudewheel.tokens.TokenStore.set_tier", autospec=True
+                "claudewheel.profile_data.ProfileDataStore.set_tier", autospec=True
             ) as mock_store,
         ):
             result = run_auth_flow(
@@ -3622,7 +3634,9 @@ class PasteTokenTests(AuthFlowTestBase):
                 autospec=True,
                 return_value=auth.VALID,
             ) as mock_probe,
-            mock.patch("claudewheel.tokens.TokenStore.add", autospec=True) as mock_add,
+            mock.patch(
+                "claudewheel.profile_data.ProfileDataStore.write_token", autospec=True
+            ) as mock_add,
         ):
             result = run_auth_flow(
                 self.ws,
@@ -3635,7 +3649,7 @@ class PasteTokenTests(AuthFlowTestBase):
 
         self.assertEqual(result, "authenticated")
         mock_add.assert_called_once_with(
-            mock.ANY, "test", "sk-ant-oat01-GOODTOKEN123", expiry=UNKNOWN
+            mock.ANY, "sk-ant-oat01-GOODTOKEN123", expiry=UNKNOWN
         )
         mock_probe.assert_called_once_with("sk-ant-oat01-GOODTOKEN123")
 
@@ -3655,7 +3669,9 @@ class PasteTokenTests(AuthFlowTestBase):
                 autospec=True,
                 side_effect=[auth.INVALID, auth.VALID],
             ) as mock_probe,
-            mock.patch("claudewheel.tokens.TokenStore.add", autospec=True) as mock_add,
+            mock.patch(
+                "claudewheel.profile_data.ProfileDataStore.write_token", autospec=True
+            ) as mock_add,
         ):
             result = run_auth_flow(
                 self.ws,
@@ -3667,9 +3683,7 @@ class PasteTokenTests(AuthFlowTestBase):
             )
 
         self.assertEqual(result, "authenticated")
-        mock_add.assert_called_once_with(
-            mock.ANY, "test", "sk-ant-good", expiry=UNKNOWN
-        )
+        mock_add.assert_called_once_with(mock.ANY, "sk-ant-good", expiry=UNKNOWN)
         self.assertEqual(mock_probe.call_count, 2)
         self.assertIn("rejected by the API (401)", self._stdout_buf.getvalue())
 
@@ -3689,7 +3703,9 @@ class PasteTokenTests(AuthFlowTestBase):
                 autospec=True,
                 side_effect=[auth.INVALID, auth.INVALID],
             ),
-            mock.patch("claudewheel.tokens.TokenStore.add", autospec=True) as mock_add,
+            mock.patch(
+                "claudewheel.profile_data.ProfileDataStore.write_token", autospec=True
+            ) as mock_add,
         ):
             result = run_auth_flow(
                 self.ws,
@@ -3721,7 +3737,9 @@ class PasteTokenTests(AuthFlowTestBase):
                 autospec=True,
                 return_value=auth.UNREACHABLE,
             ),
-            mock.patch("claudewheel.tokens.TokenStore.add", autospec=True) as mock_add,
+            mock.patch(
+                "claudewheel.profile_data.ProfileDataStore.write_token", autospec=True
+            ) as mock_add,
         ):
             result = run_auth_flow(
                 self.ws,
@@ -3733,9 +3751,7 @@ class PasteTokenTests(AuthFlowTestBase):
             )
 
         self.assertEqual(result, "unverified")
-        mock_add.assert_called_once_with(
-            mock.ANY, "test", "sk-ant-token", expiry=UNKNOWN
-        )
+        mock_add.assert_called_once_with(mock.ANY, "sk-ant-token", expiry=UNKNOWN)
         # The second run_selection call is the save/abort choice form
         args, _kwargs = mock_sel.call_args_list[1]
         self.assertIn("API unreachable", args[0])
@@ -3758,7 +3774,9 @@ class PasteTokenTests(AuthFlowTestBase):
                 autospec=True,
                 return_value=auth.UNREACHABLE,
             ),
-            mock.patch("claudewheel.tokens.TokenStore.add", autospec=True) as mock_add,
+            mock.patch(
+                "claudewheel.profile_data.ProfileDataStore.write_token", autospec=True
+            ) as mock_add,
         ):
             result = run_auth_flow(
                 self.ws,
@@ -3782,7 +3800,9 @@ class PasteTokenTests(AuthFlowTestBase):
             mock.patch(
                 "claudewheel.wizard.run_selection", autospec=True, return_value="paste"
             ),
-            mock.patch("claudewheel.tokens.TokenStore.add", autospec=True) as mock_add,
+            mock.patch(
+                "claudewheel.profile_data.ProfileDataStore.write_token", autospec=True
+            ) as mock_add,
         ):
             result = run_auth_flow(
                 self.ws,
@@ -3812,7 +3832,9 @@ class PasteTokenTests(AuthFlowTestBase):
                 autospec=True,
                 return_value=auth.VALID,
             ),
-            mock.patch("claudewheel.tokens.TokenStore.add", autospec=True),
+            mock.patch(
+                "claudewheel.profile_data.ProfileDataStore.write_token", autospec=True
+            ),
         ):
             run_auth_flow(
                 self.ws,
@@ -3845,7 +3867,9 @@ class PasteTokenTests(AuthFlowTestBase):
                 autospec=True,
                 return_value=auth.VALID,
             ),
-            mock.patch("claudewheel.tokens.TokenStore.add", autospec=True),
+            mock.patch(
+                "claudewheel.profile_data.ProfileDataStore.write_token", autospec=True
+            ),
         ):
             result = run_auth_flow(
                 self.ws,
@@ -3879,7 +3903,9 @@ class PasteTokenTests(AuthFlowTestBase):
                 autospec=True,
                 return_value=auth.VALID,
             ),
-            mock.patch("claudewheel.tokens.TokenStore.add", autospec=True),
+            mock.patch(
+                "claudewheel.profile_data.ProfileDataStore.write_token", autospec=True
+            ),
         ):
             result = run_auth_flow(
                 self.ws, self.locator, config_dir_str, "pasteonboard", THEME, self.term
@@ -3930,7 +3956,9 @@ class PasteTokenTests(AuthFlowTestBase):
                 autospec=True,
                 return_value=auth.INDETERMINATE,
             ),
-            mock.patch("claudewheel.tokens.TokenStore.add", autospec=True) as mock_add,
+            mock.patch(
+                "claudewheel.profile_data.ProfileDataStore.write_token", autospec=True
+            ) as mock_add,
         ):
             result = run_auth_flow(
                 self.ws,
@@ -3942,9 +3970,7 @@ class PasteTokenTests(AuthFlowTestBase):
             )
 
         self.assertEqual(result, "unverified")
-        mock_add.assert_called_once_with(
-            mock.ANY, "test", "sk-ant-token", expiry=UNKNOWN
-        )
+        mock_add.assert_called_once_with(mock.ANY, "sk-ant-token", expiry=UNKNOWN)
         args, _kwargs = mock_sel.call_args_list[1]
         self.assertIn("validation inconclusive", args[0])
 
@@ -3965,7 +3991,7 @@ class PasteTokenTests(AuthFlowTestBase):
                 return_value=auth.VALID,
             ),
             mock.patch(
-                "claudewheel.tokens.TokenStore.add",
+                "claudewheel.profile_data.ProfileDataStore.write_token",
                 side_effect=OSError("disk full"),
                 autospec=True,
             ),
@@ -3999,7 +4025,9 @@ class PasteTokenTests(AuthFlowTestBase):
                 autospec=True,
                 return_value=auth.VALID,
             ),
-            mock.patch("claudewheel.tokens.TokenStore.add", autospec=True),
+            mock.patch(
+                "claudewheel.profile_data.ProfileDataStore.write_token", autospec=True
+            ),
         ):
             result = run_auth_flow(
                 self.ws,
@@ -4033,7 +4061,9 @@ class PasteTokenTests(AuthFlowTestBase):
                 "claudewheel.wizard.run_selection", autospec=True, return_value="paste"
             ),
             mock.patch("claudewheel.auth.validate_token", autospec=True) as mock_probe,
-            mock.patch("claudewheel.tokens.TokenStore.add", autospec=True) as mock_add,
+            mock.patch(
+                "claudewheel.profile_data.ProfileDataStore.write_token", autospec=True
+            ) as mock_add,
         ):
             result = run_auth_flow(
                 self.ws,
@@ -4064,7 +4094,9 @@ class PasteTokenTests(AuthFlowTestBase):
                 autospec=True,
                 return_value=auth.VALID,
             ) as mock_probe,
-            mock.patch("claudewheel.tokens.TokenStore.add", autospec=True) as mock_add,
+            mock.patch(
+                "claudewheel.profile_data.ProfileDataStore.write_token", autospec=True
+            ) as mock_add,
         ):
             result = run_auth_flow(
                 self.ws,
@@ -4077,9 +4109,7 @@ class PasteTokenTests(AuthFlowTestBase):
 
         self.assertEqual(result, "authenticated")
         mock_probe.assert_called_once_with("sk-ant-fixed")
-        mock_add.assert_called_once_with(
-            mock.ANY, "test", "sk-ant-fixed", expiry=UNKNOWN
-        )
+        mock_add.assert_called_once_with(mock.ANY, "sk-ant-fixed", expiry=UNKNOWN)
 
 
 if __name__ == "__main__":

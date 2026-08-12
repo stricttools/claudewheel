@@ -10,9 +10,9 @@ from typing import Any, Literal
 from .appdata import OptionsFile, StateFile
 from . import effects
 from .effects import write_json_atomic
-from .profile_data import PROFILE_DATA_DIRNAME
+from .profile_data import PROFILE_DATA_DIRNAME, ProfileDataStore
 from .shared_store import SharedStore
-from .tokens import TokenStore, TokenStoreError
+from .tokens import TokenStoreError
 
 __all__ = [
     "Profile",
@@ -67,13 +67,15 @@ class DeletionResult:
     """Success record from :meth:`ProfileStore.delete` (refusals raise instead).
 
     Mirrors the success-path fields of ``profile_ops.DeleteResult``: symlink and
-    real-entry removal counts plus which stores were touched.
+    real-entry removal counts plus which stores were touched.  The profile's
+    claudewheel data (its token entry) needs no field of its own: it lives
+    inside the profile directory, so removing that directory removes it and it
+    is counted among ``removed_real``.
     """
 
     removed_symlinks: int
     removed_real: int
     removed_from_options: bool
-    removed_from_tokens: bool
     last_config_purged: bool
 
 
@@ -84,13 +86,13 @@ class ProfileStore:
     All paths are explicit -- the store never reads module path constants and
     never calls ``Path.home()``. ``profiles_dir`` is the claudewheel profiles
     directory; ``claude_dir`` is Claude Code's built-in ``~/.claude`` (the
-    "default" profile); ``token_store`` supplies token data. Every method is
-    read-only: zero filesystem writes, zero terminal I/O.
+    "default" profile). Token data comes from each profile's own
+    :class:`~claudewheel.profile_data.ProfileDataStore`, reached through
+    :meth:`data_for`.
     """
 
     profiles_dir: Path
     claude_dir: Path
-    token_store: TokenStore
     # Write-path stores. None keeps the read APIs working with zero write deps;
     # every write op guards on their presence (explicit config, not silent skip).
     shared: SharedStore | None = None
@@ -107,13 +109,20 @@ class ProfileStore:
             return self.claude_dir
         return self.profiles_dir / name
 
-    def enumerate(self, tokens: dict[str, Any] | None = None) -> list[Profile]:
+    def data_for(self, name: str) -> ProfileDataStore:
+        """The claudewheel data store inside *name*'s profile directory.
+
+        The single door to a profile's token entry and plan-tier fields: one
+        file per profile, inside the profile directory itself.
+        """
+        return ProfileDataStore(self.path_for(name))
+
+    def enumerate(self) -> list[Profile]:
         """Discover all profiles, encoding the historical discovery rules verbatim.
 
-        *tokens* ``None`` loads token data via ``token_store.load()`` (a corrupt
-        tokens.json raises :class:`TokenStoreError` -- the hard-error contract).
-        An explicit dict (e.g. ``{}``) is the explicit token view for callers
-        that must proceed without token data.
+        ``has_token`` is read from each profile's own data store, so a corrupt
+        token file raises :class:`TokenStoreError` -- the hard-error contract.
+        :meth:`discover` is the variant that takes an explicit policy for that.
 
         Rules encoding the profile-discovery behavior:
         1. ``claude_dir`` qualifies as "default" whenever it IS A DIRECTORY.
@@ -125,12 +134,15 @@ class ProfileStore:
            ``.credentials.json``, ``settings.json``, or claudewheel's own
            per-profile data directory (:data:`PROFILE_DATA_DIRNAME`);
            has_credentials tracks the ``.credentials.json`` presence.
-        3. has_token is True for any profile whose name is a tokens key.
+        3. has_token is True when the profile's own data store holds a token.
         Result is sorted by name.
         """
-        if tokens is None:
-            tokens = self.token_store.load()
+        return self._enumerate(on_corrupt_tokens="raise")
 
+    def _enumerate(
+        self, *, on_corrupt_tokens: Literal["raise", "swallow"]
+    ) -> list[Profile]:
+        """Enumeration proper; the per-profile corrupt-token policy is applied here."""
         # (name, path, has_credentials) records; has_token derived last.
         records: list[tuple[str, Path, bool]] = []
         found_names: set[str] = set()
@@ -158,57 +170,51 @@ class ProfileStore:
                     records.append((name, entry, has_credentials))
                     found_names.add(name)
 
-        # Rule 3: mark token presence.
-        profiles = [
-            Profile(name, path, has_credentials, name in tokens)
-            for name, path, has_credentials in records
-        ]
+        # Rule 3: mark token presence, one read per profile.
+        profiles: list[Profile] = []
+        for name, path, has_credentials in records:
+            try:
+                has_token = ProfileDataStore(path).has_token()
+            except TokenStoreError:
+                if on_corrupt_tokens == "raise":
+                    raise
+                has_token = False
+            profiles.append(Profile(name, path, has_credentials, has_token))
         profiles.sort(key=lambda p: p.name)
         return profiles
 
     def discover(
-        self,
-        *,
-        on_corrupt_tokens: Literal["raise", "swallow"],
-        tokens: dict[str, Any] | None = None,
+        self, *, on_corrupt_tokens: Literal["raise", "swallow"]
     ) -> list[Profile]:
-        """Enumerate profiles with an EXPLICIT corrupt-tokens policy.
+        """Enumerate profiles with an EXPLICIT corrupt-token policy.
 
         The single shared home of the "enumerate profiles, deciding what to do
-        about a corrupt tokens.json" convention. Every consumer (health,
+        about a corrupt token file" convention. Every consumer (health,
         reconcile, patch-profiles) routes through here so the swallow
         ``try/except`` lives in exactly one place.
 
         *on_corrupt_tokens* is mandatory and has no default -- the caller must
         choose:
 
-        - ``"raise"``: a corrupt tokens.json raises :class:`TokenStoreError`
-          (the hard-error contract; health records the error once elsewhere).
-        - ``"swallow"``: a corrupt tokens.json is swallowed to ``{}`` (additive
-          maintenance that touches permissions/hooks, not tokens).
+        - ``"raise"``: a corrupt token file raises :class:`TokenStoreError`
+          (the hard-error contract; health reports the failing profile).
+        - ``"swallow"``: a corrupt token file leaves that profile's
+          ``has_token`` False (additive maintenance that touches
+          permissions/hooks, not tokens).
 
-        *tokens* is an explicit preloaded token view. When provided it is used
-        verbatim and never re-loaded, so *on_corrupt_tokens* is moot -- this is
-        how health passes the single view it loaded once. When ``None``, this
-        loads via ``token_store.load()`` and applies *on_corrupt_tokens*.
+        The policy is applied per profile now that each profile carries its own
+        token file: one unreadable file no longer decides the whole run.
         """
         if on_corrupt_tokens not in ("raise", "swallow"):
             raise ValueError(
                 "on_corrupt_tokens must be 'raise' or 'swallow', got "
                 f"{on_corrupt_tokens!r}"
             )
-        if tokens is None:
-            try:
-                tokens = self.token_store.load()
-            except TokenStoreError:
-                if on_corrupt_tokens == "raise":
-                    raise
-                tokens = {}
-        return self.enumerate(tokens)
+        return self._enumerate(on_corrupt_tokens=on_corrupt_tokens)
 
-    def get(self, name: str, tokens: dict[str, Any] | None = None) -> Profile | None:
+    def get(self, name: str) -> Profile | None:
         """Return the enumerated :class:`Profile` for *name*, or None if absent."""
-        for profile in self.enumerate(tokens):
+        for profile in self.enumerate():
             if profile.name == name:
                 return profile
         return None
@@ -216,18 +222,18 @@ class ProfileStore:
     def env(self, name: str) -> dict[str, str]:
         """Resolve a profile name to launch env vars. Read-only, no terminal I/O.
 
-        Enumerates via the TokenStore (a corrupt tokens.json raises
+        Enumerates the profiles (a corrupt token file raises
         :class:`TokenStoreError`). An unknown *name* raises :class:`ValueError`
         listing the available profile names.
 
         For every named profile the result carries ``CLAUDE_CONFIG_DIR`` and
-        adds ``CLAUDE_CODE_OAUTH_TOKEN`` when the token_store yields a truthy
-        token for *name*. The ``"default"`` profile is the EXCEPTION: it is
+        adds ``CLAUDE_CODE_OAUTH_TOKEN`` when the profile's own data store
+        yields a truthy token. The ``"default"`` profile is the EXCEPTION: it is
         Claude Code's own ``~/.claude``, managed by Claude Code and strictly
         read-only to cw, so it resolves to an EMPTY env -- no
         ``CLAUDE_CONFIG_DIR`` and no token injection (the vanilla launch path).
 
-        A profile whose tokens entry declares plan-tier fields additionally
+        A profile whose token entry declares plan-tier fields additionally
         carries ``CLAUDE_CODE_SUBSCRIPTION_TYPE`` and/or
         ``CLAUDE_CODE_RATE_LIMIT_TIER``. Claude Code reads a subscription tier
         from those variables and ONLY from them when auth arrives as a setup
@@ -251,10 +257,11 @@ class ProfileStore:
             return {}
 
         env: dict[str, str] = {"CLAUDE_CONFIG_DIR": str(self.path_for(name))}
-        token = self.token_store.token_for(name)
+        data = self.data_for(name)
+        token = data.token()
         if token:
             env["CLAUDE_CODE_OAUTH_TOKEN"] = token
-        env.update(self.token_store.plan_env_for(name))
+        env.update(data.plan_env())
         return env
 
     # --- Write operations ------------------------------------------------
@@ -362,7 +369,7 @@ class ProfileStore:
             self.options.add_pinned(_PROFILE_SEGMENT, name, _OPTIONS_DEFAULT)
 
             has_credentials = (target / ".credentials.json").exists()
-            has_token = name in self.token_store.load()
+            has_token = self.data_for(name).has_token()
             return Profile(
                 name=name,
                 path=target,
@@ -488,14 +495,12 @@ class ProfileStore:
 
         sym, real = self._remove_profile_dir(name)
         self.options.remove_value(_PROFILE_SEGMENT, name, _OPTIONS_DEFAULT)
-        removed_from_tokens = self.token_store.remove(name)
         purged = self._purge_last_config(name)
 
         return DeletionResult(
             removed_symlinks=sym,
             removed_real=real,
             removed_from_options=removed_from_options,
-            removed_from_tokens=removed_from_tokens,
             last_config_purged=purged,
         )
 
@@ -512,9 +517,12 @@ class ProfileStore:
         """Rename a profile dir and swap all stores, crash-safe via a breadcrumb.
 
         Redesigned transaction: atomic breadcrumb write into the old dir,
-        ``os.rename`` of the dir, token key move, options values+pinned swap
-        (plus a verbatim metadata-key move -- NO config_dir rewrite), state swap,
-        breadcrumb removal. Refuses "default" in either position.
+        ``os.rename`` of the dir, options values+pinned swap (plus a verbatim
+        metadata-key move -- NO config_dir rewrite), state swap, breadcrumb
+        removal. Refuses "default" in either position.
+
+        The profile's token entry needs no step of its own: it lives inside the
+        directory being renamed, so it travels with it.
         """
         self._require_write_stores()
         assert self.options is not None
@@ -530,9 +538,6 @@ class ProfileStore:
         pending_path = old_dir / _RENAME_PENDING_FILE
         write_json_atomic(pending_path, {"from": old, "to": new})
         effects.rename(old_dir, new_dir)
-        self.token_store.rename(
-            old, new
-        )  # effects: exempt -- TokenStore method, not Path.rename
         self.options.rename_value(_PROFILE_SEGMENT, old, new, _OPTIONS_DEFAULT)
         self._update_state_rename(old, new)
         breadcrumb = new_dir / _RENAME_PENDING_FILE
@@ -544,7 +549,7 @@ class ProfileStore:
 
         Scans ``profiles_dir/*/.rename_pending``. Two crash windows:
 
-        - dir already at ``to`` -> POST-rename crash: re-run the three idempotent
+        - dir already at ``to`` -> POST-rename crash: re-run the idempotent
           store updates and drop the breadcrumb (the old code's behavior).
         - dir still at ``from`` -> PRE-rename crash: remove the stale breadcrumb.
           This fixes today's leak, where a pre-rename crash left the crumb
@@ -591,9 +596,6 @@ class ProfileStore:
 
             if profile_dir.name == new:
                 # Post-rename window: finish the idempotent store updates.
-                self.token_store.rename(
-                    old, new
-                )  # effects: exempt -- TokenStore method, not Path.rename
                 self.options.rename_value(_PROFILE_SEGMENT, old, new, _OPTIONS_DEFAULT)
                 self._update_state_rename(old, new)
                 effects.remove(pending)

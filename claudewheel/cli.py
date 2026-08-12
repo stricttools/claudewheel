@@ -116,12 +116,12 @@ def _do_show(cfg: "AppConfigStore") -> int:
 def _write_tier_stub(
     ws: "Workspace", profile: str | None, config_dir: str | None
 ) -> None:
-    """Write a rateLimitTier stub into .credentials.json if tokens.json has tier data.
+    """Write a rateLimitTier stub into .credentials.json from the profile's store.
 
     This lets downstream tools (e.g. howmuchleft) read the tier from
     .credentials.json even when auth is via CLAUDE_CODE_OAUTH_TOKEN.
     Short-circuits if .credentials.json already has the same tier value.
-    A corrupt tokens.json raises TokenStoreError (surfaced cleanly by the
+    A corrupt token entry raises TokenStoreError (surfaced cleanly by the
     launch handler); the .credentials.json write remains best-effort.
     """
     import json
@@ -134,14 +134,9 @@ def _write_tier_stub(
     # and keeps the skip robust regardless of how config_dir is derived.
     if not profile or profile == "default" or not config_dir:
         return
-    tokens = ws.tokens.load()
-    entry = tokens.get(profile)
-    if not isinstance(entry, dict):
-        return
-    tier = entry.get("rateLimitTier")
+    tier, subscription = ws.profiles.data_for(profile).tier()
     if not tier:
         return
-    subscription = entry.get("subscriptionType")
 
     creds_path = Path(config_dir) / ".credentials.json"
     # Short-circuit: skip write if existing file already has matching tier
@@ -228,7 +223,7 @@ def _do_launch_sequence(
         sys.exit(1)
     # The workspace ProfileStore supplies both config dir and token via env(). A
     # stale/unknown profile name raises ValueError (the hard-error contract); a
-    # corrupt tokens.json raises TokenStoreError. Both are caught here so the
+    # corrupt token entry raises TokenStoreError. Both are caught here so the
     # user sees a clean message, never a traceback.
     try:
         cwd, argv, env = resolve_launch_config(
@@ -454,10 +449,6 @@ def _handle_delete_profile(
         print(f"  {removed} from options.json")
     else:
         print("  Not found in options.json (already clean)")
-    if result.removed_from_tokens:
-        print(f"  {removed} from tokens.json")
-    else:
-        print("  Not found in tokens.json (already clean)")
     if result.last_config_purged:
         print(
             f"  {'Would clear' if previewing else 'Cleared'} last_config "
@@ -474,7 +465,7 @@ def _handle_show_profile(ws: "Workspace", name: str) -> int:
     from .profile_info import format_report, gather_profile_info
     from .tokens import TokenStoreError
 
-    # A corrupt tokens.json surfaces as a TokenStoreError from gather_profile_info
+    # A corrupt token entry surfaces as a TokenStoreError from gather_profile_info
     # (it reads token state). Catch it narrowly here so the user sees a clean,
     # actionable message and a nonzero exit, never a Python traceback.
     try:
@@ -499,7 +490,7 @@ def _handle_show_profile(ws: "Workspace", name: str) -> int:
 def _handle_rename_profile(ws: "Workspace", old: str, new: str) -> int:
     """Rename a profile: validate inputs, then delegate to ProfileStore.rename.
 
-    The charset, name-collision (options + tokens), and running checks stay
+    The charset, name-collision (options + directory), and running checks stay
     here as CLI policy -- they produce clean, targeted messages. The store
     enforces dir-existence and the 'default' reservation as a backstop; its
     ValueErrors are mapped to the same error-print + exit-1 style.
@@ -507,7 +498,6 @@ def _handle_rename_profile(ws: "Workspace", old: str, new: str) -> int:
     import re
     from .appdata import OptionsFile
     from .profile_ops import _is_profile_running
-    from .tokens import TokenStoreError
 
     # Validate old exists
     old_dir = ws.profiles.path_for(old)
@@ -544,15 +534,6 @@ def _handle_rename_profile(ws: "Workspace", old: str, new: str) -> int:
     if new_in_values or new_in_pinned:
         print(f"Profile '{new}' already registered in options.", file=sys.stderr)
         sys.exit(1)
-    try:
-        tokens = ws.tokens.load()
-    except TokenStoreError as e:
-        print(str(e), file=sys.stderr)
-        sys.exit(1)
-    if new in tokens:
-        print(f"Profile '{new}' already has a token entry.", file=sys.stderr)
-        sys.exit(1)
-
     # Check not running
     if _is_profile_running(ws, old):
         print(
@@ -575,19 +556,19 @@ def _handle_rename_profile(ws: "Workspace", old: str, new: str) -> int:
 
 def _handle_check_tokens(ws: "Workspace") -> int:
     """Validate stored tokens for all discovered profiles against the Anthropic API."""
-    from .tokens import TokenStoreError, parse_entry
+    from .tokens import TokenStoreError
+
     from .auth import validate_token, INVALID, UNREACHABLE, INDETERMINATE
 
-    # Load tokens.json via TokenStore. A corrupt/unreadable file raises
+    # Each profile carries its own token entry. A corrupt/unreadable one raises
     # TokenStoreError -- catch it narrowly here so the user sees the actionable
     # message and a nonzero exit, never a traceback (mirrors the launch path).
     try:
-        tokens = ws.tokens.load()
+        profiles = ws.profiles.enumerate()
     except TokenStoreError as e:
         print(str(e), file=sys.stderr)
         return 1
 
-    profiles = ws.profiles.enumerate(tokens)
     if not profiles:
         print("No profiles found.")
         return 0
@@ -595,8 +576,11 @@ def _handle_check_tokens(ws: "Workspace") -> int:
     # Collect results: (name, status, token_display)
     results: list[tuple[str, str, str]] = []
     for p in profiles:
-        entry = tokens.get(p.name)
-        token = parse_entry(entry)
+        try:
+            token = ws.profiles.data_for(p.name).token()
+        except TokenStoreError as e:
+            print(str(e), file=sys.stderr)
+            return 1
         if token is None:
             results.append((p.name, "no token", "-"))
             continue
@@ -1455,7 +1439,7 @@ def _handle_launch(
         print(f"Launch failed: {e}", file=sys.stderr)
         sys.exit(1)
 
-    # A corrupt tokens.json surfaces as a TokenStoreError from the launch
+    # A corrupt token entry surfaces as a TokenStoreError from the launch
     # sequence. Catch it narrowly at this handler boundary so the user sees a
     # clean, actionable message instead of a Python traceback.
     from .tokens import TokenStoreError
@@ -1754,8 +1738,8 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
         # alongside reconcile-permissions and patch-profiles -- and the only
         # one that destroys user data rather than pruning it to canonical. Even
         # the bare form is irreversible: the profile directory goes, taking
-        # .credentials.json and settings.json with it, and the tokens.json
-        # entry goes with it. --force-delete-data only widens that from
+        # .credentials.json, settings.json and the stored token entry with it.
+        # --force-delete-data only widens that from
         # "credentials and settings" to "credentials, settings and
         # conversation history", so there is no harmless invocation to keep
         # quiet and the command -- not the flag -- is the right granularity.
@@ -1767,7 +1751,7 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
                 strictcli.FILE_WRITE,
             )
         ],
-        help="remove a registered profile for good: unlink its shared-store symlinks, delete the real entries in its directory, drop its tokens.json entry and its options.json registration, and clear any last_config reference in state.json. Refuses a profile holding a live interactive Claude Code session unless --force-delete (background jobs and daemons do not block it), and takes conversation history only with --force-delete-data",
+        help="remove a registered profile for good: unlink its shared-store symlinks, delete the real entries in its directory (its stored token among them), drop its options.json registration, and clear any last_config reference in state.json. Refuses a profile holding a live interactive Claude Code session unless --force-delete (background jobs and daemons do not block it), and takes conversation history only with --force-delete-data",
         args=[
             Arg(
                 name="name",
@@ -1791,7 +1775,7 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
     profile_grp.command(
         "rename",
         effect="mutating",
-        help="move a profile to a new name, taking its directory, its tokens.json entry, its options.json registration and its session data with it. Validates that the old name exists, that the new one is free in both the directory tree and the options file, and that it fits the lowercase-letters-digits-hyphens charset. Refuses a profile holding a live interactive Claude Code session, and the reserved name default",
+        help="move a profile to a new name, taking its directory (with the token stored inside it), its options.json registration and its session data with it. Validates that the old name exists, that the new one is free in both the directory tree and the options file, and that it fits the lowercase-letters-digits-hyphens charset. Refuses a profile holding a live interactive Claude Code session, and the reserved name default",
         args=[
             Arg(
                 name="old",
@@ -1819,7 +1803,7 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
     profile_grp.command(
         "check-tokens",
         effect="read_only",
-        help="read every discovered profile's stored OAuth token from tokens.json and validate each one against the Anthropic API, then print a table of profile name, status and a truncated token preview. The status distinguishes a valid token from an invalid one, an unreachable API and an indeterminate answer, and profiles holding no token are listed too",
+        help="read every discovered profile's own stored OAuth token and validate each one against the Anthropic API, then print a table of profile name, status and a truncated token preview. The status distinguishes a valid token from an invalid one, an unreachable API and an indeterminate answer, and profiles holding no token are listed too",
     )(_bind(_handle_check_tokens, ws))
 
     # Hard-break old top-level names so they fail loudly with migration guidance

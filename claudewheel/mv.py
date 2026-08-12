@@ -43,7 +43,7 @@ def _discover_profile_dirs(ws: "Workspace") -> list[Path]:
 
     Enumerates profiles via the workspace's ProfileStore, then includes the
     shared store directory as a peer target (it holds the actual session data).
-    A corrupt tokens.json raises ``TokenStoreError`` -- the uniform hard-error
+    A corrupt token entry raises ``TokenStoreError`` -- the uniform hard-error
     contract.
     """
     dirs: list[Path] = [p.path for p in ws.profiles.enumerate()]

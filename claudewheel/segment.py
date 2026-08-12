@@ -548,10 +548,11 @@ def _discover_profiles(
 ) -> DiscoveryResult:
     """Discover Claude Code profiles via ProfileStore enumeration.
 
-    Profile identity comes solely from the store (profile dirs + tokens);
-    config_dir is never persisted, so metadata carries only auth-presence
-    fields. A corrupt tokens.json raises TokenStoreError, which propagates so
-    discovery fails loudly rather than silently omitting profiles.
+    Profile identity comes solely from the store (profile dirs and the token
+    each one carries); config_dir is never persisted, so metadata holds only
+    auth-presence fields. A corrupt token entry raises TokenStoreError, which
+    propagates so discovery fails loudly rather than silently omitting
+    profiles.
     """
     discovered = ws.profiles.enumerate()
     values: list[str] = [p.name for p in discovered]

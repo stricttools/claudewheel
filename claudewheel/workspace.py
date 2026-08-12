@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING
 from .appdata import OptionsFile, StateFile
 from .profile_store import ProfileStore
 from .shared_store import SharedStore
-from .tokens import TokenStore
 
 if TYPE_CHECKING:
     from .config import AppConfigStore
@@ -61,11 +60,6 @@ class Workspace:
     def profiles_dir(self) -> Path:
         """Path to the profiles directory."""
         return self.root / "profiles"
-
-    @property
-    def tokens_file(self) -> Path:
-        """Path to the tokens.json file."""
-        return self.root / "tokens.json"
 
     @property
     def options_file(self) -> Path:
@@ -125,27 +119,22 @@ class Workspace:
     # --- Store accessors -------------------------------------------------
 
     @property
-    def tokens(self) -> TokenStore:
-        """The path-injected TokenStore over this workspace's tokens.json."""
-        return TokenStore(self.tokens_file)
-
-    @property
     def shared(self) -> SharedStore:
         """The path-injected SharedStore over this workspace's shared + skills dirs."""
         return SharedStore(self.shared_dir, self.skills_dir)
 
     @property
     def profiles(self) -> ProfileStore:
-        """The path-injected ProfileStore over this workspace's profiles + tokens.
+        """The path-injected ProfileStore over this workspace's profiles.
 
         Wires ALL write-path stores (shared/options/state) so the store's write
         operations (create/delete/rename/recover) are usable; the read APIs work
-        with or without them.
+        with or without them.  Token data is per profile, reached through
+        ``ProfileStore.data_for``.
         """
         return ProfileStore(
             self.profiles_dir,
             self.claude_dir,
-            self.tokens,
             shared=SharedStore(self.shared_dir, self.skills_dir),
             options=OptionsFile(self.options_file),
             state=StateFile(self.state_file),

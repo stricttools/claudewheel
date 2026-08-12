@@ -9,7 +9,6 @@ module-constant patching.
 
 from __future__ import annotations
 
-import json
 import os
 import tempfile
 import unittest
@@ -20,8 +19,9 @@ from claudewheel.binaries import BinaryLocator
 from claudewheel.defaults import DISALLOWED_TOOLS
 from claudewheel.launch import resolve_launch_config
 from claudewheel.profile_store import ProfileStore
-from claudewheel.tokens import TokenStore, TokenStoreError
-from tests.wheelhelpers import build_profile_dir
+from claudewheel.tokens import TokenStoreError
+from claudewheel.profile_data import PROFILE_DATA_DIRNAME
+from tests.wheelhelpers import build_profile_dir, write_token_entry
 
 
 class ResolveLaunchConfigTestBase(unittest.TestCase):
@@ -36,7 +36,6 @@ class ResolveLaunchConfigTestBase(unittest.TestCase):
         self.versions_dir = self.tmp / "versions"
         self.versions_dir.mkdir()
         self.symlink_path = self.tmp / "claude"
-        self.tokens_file = self.tmp / "tokens.json"
         self.profiles_dir = self.tmp / "profiles"
         self.profiles_dir.mkdir()
         self.claude_dir = self.tmp / ".claude"
@@ -45,11 +44,9 @@ class ResolveLaunchConfigTestBase(unittest.TestCase):
             versions_dir=self.versions_dir,
             claude_symlink=self.symlink_path,
         )
-        self.token_store = TokenStore(self.tokens_file)
         self.profiles = ProfileStore(
             self.profiles_dir,
             self.claude_dir,
-            self.token_store,
         )
 
     def _make_profile(self, name: str) -> Path:
@@ -189,10 +186,10 @@ class ResolveProfileConfigDirTests(ResolveLaunchConfigTestBase):
                 self.assertNotIn("CLAUDE_CONFIG_DIR", env)
                 self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN", env)
 
-    def test_default_ignores_default_token_key(self) -> None:
-        """Even a 'default' tokens key must not inject a token on the vanilla path."""
+    def test_default_ignores_a_token_stored_under_claude_dir(self) -> None:
+        """Even a token entry under ~/.claude must not inject one on the vanilla path."""
         self.claude_dir.mkdir(parents=True, exist_ok=True)
-        self.tokens_file.write_text(json.dumps({"default": "tok-default"}))
+        write_token_entry(self.claude_dir, {"token": "tok-default"})
         _, _, env = self._resolve(selections={"profile": "default"})
         self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN", env)
         self.assertNotIn("CLAUDE_CONFIG_DIR", env)
@@ -229,30 +226,27 @@ class ResolveTokenTests(ResolveLaunchConfigTestBase):
 
     def test_token_from_store_sets_env(self) -> None:
         """A token present for the profile is written to CLAUDE_CODE_OAUTH_TOKEN."""
-        self._make_profile("work")
-        self.tokens_file.write_text(json.dumps({"work": "tok-abc"}))
+        pdir = self._make_profile("work")
+        write_token_entry(pdir, {"token": "tok-abc"})
 
         _, _, env = self._resolve(selections={"profile": "work"})
         self.assertEqual(env["CLAUDE_CODE_OAUTH_TOKEN"], "tok-abc")
 
     def test_plan_tier_reaches_launch_env(self) -> None:
-        """Plan-tier fields in tokens.json arrive in the exec environment.
+        """Plan-tier fields in the token entry arrive in the exec environment.
 
         This is the whole point of storing them: Claude Code reads
         subscriptionType from CLAUDE_CODE_SUBSCRIPTION_TYPE when auth comes from
         a setup token, and resolves it to null without it.
         """
-        self._make_profile("work")
-        self.tokens_file.write_text(
-            json.dumps(
-                {
-                    "work": {
-                        "token": "tok-abc",
-                        "subscriptionType": "max",
-                        "rateLimitTier": "default_claude_max_20x",
-                    }
-                }
-            )
+        pdir = self._make_profile("work")
+        write_token_entry(
+            pdir,
+            {
+                "token": "tok-abc",
+                "subscriptionType": "max",
+                "rateLimitTier": "default_claude_max_20x",
+            },
         )
 
         _, _, env = self._resolve(selections={"profile": "work"})
@@ -261,10 +255,8 @@ class ResolveTokenTests(ResolveLaunchConfigTestBase):
 
     def test_ambient_plan_tier_overridden_by_profile(self) -> None:
         """A profile's declared tier wins over an inherited shell value."""
-        self._make_profile("work")
-        self.tokens_file.write_text(
-            json.dumps({"work": {"token": "t", "subscriptionType": "pro"}})
-        )
+        pdir = self._make_profile("work")
+        write_token_entry(pdir, {"token": "t", "subscriptionType": "pro"})
         os.environ["CLAUDE_CODE_SUBSCRIPTION_TYPE"] = "max"
         self.addCleanup(os.environ.pop, "CLAUDE_CODE_SUBSCRIPTION_TYPE", None)
 
@@ -273,8 +265,8 @@ class ResolveTokenTests(ResolveLaunchConfigTestBase):
 
     def test_ambient_plan_tier_survives_undeclared_profile(self) -> None:
         """With no declared tier, an inherited shell value is left alone."""
-        self._make_profile("work")
-        self.tokens_file.write_text(json.dumps({"work": "t"}))
+        pdir = self._make_profile("work")
+        write_token_entry(pdir, {"token": "t"})
         os.environ["CLAUDE_CODE_SUBSCRIPTION_TYPE"] = "max"
         self.addCleanup(os.environ.pop, "CLAUDE_CODE_SUBSCRIPTION_TYPE", None)
 
@@ -293,36 +285,41 @@ class ResolveTokenTests(ResolveLaunchConfigTestBase):
         self.assertNotIn("CLAUDE_CODE_SUBSCRIPTION_TYPE", env)
         self.assertNotIn("CLAUDE_CODE_RATE_LIMIT_TIER", env)
 
-    def test_missing_tokens_file_yields_no_token(self) -> None:
-        """A missing tokens.json is not an error and sets no OAuth token env."""
-        self._make_profile("work")
-        self.assertFalse(self.tokens_file.exists())
+    def test_profile_without_a_token_entry_yields_no_token(self) -> None:
+        """A profile storing no token is not an error and sets no OAuth token env."""
+        pdir = self._make_profile("work")
+        self.assertFalse((pdir / PROFILE_DATA_DIRNAME).exists())
 
         _, _, env = self._resolve(selections={"profile": "work"})
         self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN", env)
 
-    def test_absent_entry_yields_no_token(self) -> None:
-        """A tokens.json without the profile's entry sets no OAuth token env."""
-        self._make_profile("work")
-        self.tokens_file.write_text(json.dumps({"other": "tok"}))
+    def test_another_profiles_token_is_never_used(self) -> None:
+        """Each profile reads only its own entry."""
+        pdir = self._make_profile("work")
+        other = self._make_profile("other")
+        write_token_entry(other, {"token": "tok"})
+        self.assertFalse((pdir / PROFILE_DATA_DIRNAME).exists())
 
         _, _, env = self._resolve(selections={"profile": "work"})
         self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN", env)
 
     def test_no_profile_skips_token_lookup(self) -> None:
         """With no profile selected, no OAuth token is looked up even if corrupt."""
-        self.tokens_file.write_text("{ not valid json")
+        pdir = self._make_profile("work")
+        write_token_entry(pdir, {"token": "t"}).write_text("{ not valid json")
 
         _, _, env = self._resolve(selections={"profile": None})
         self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN", env)
 
-    def test_corrupt_tokens_raises_tokenstoreerror(self) -> None:
-        """A corrupt tokens.json raises TokenStoreError naming the file path."""
-        self.tokens_file.write_text("{ not valid json")
+    def test_corrupt_token_entry_raises_tokenstoreerror(self) -> None:
+        """A corrupt token entry raises TokenStoreError naming the file path."""
+        pdir = self._make_profile("work")
+        path = write_token_entry(pdir, {"token": "t"})
+        path.write_text("{ not valid json")
 
         with self.assertRaises(TokenStoreError) as ctx:
             self._resolve(selections={"profile": "work"})
-        self.assertIn(str(self.tokens_file), str(ctx.exception))
+        self.assertIn(str(path), str(ctx.exception))
 
 
 if __name__ == "__main__":

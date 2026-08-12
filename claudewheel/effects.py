@@ -12,7 +12,7 @@ branch is unreachable from the parent process).
 Why a chokepoint: claudewheel rides strictcli's ``ctx.effects`` regime, where
 every mutation is declared, previewable under ``--dry-run``, and recorded into
 the would-do log.  This CLI creates, renames and deletes Claude Code profile
-directories, writes OAuth tokens into ``~/.claudewheel/tokens.json``, rewrites
+directories, writes OAuth tokens into each profile's own data directory, rewrites
 every managed profile's ``settings.json`` to the canonical guardrail model,
 deploys hook scripts and downloads and installs release binaries -- a
 ``--dry-run`` that executed any of that would be worse than no dry run at all.

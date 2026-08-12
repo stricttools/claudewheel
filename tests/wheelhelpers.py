@@ -30,6 +30,12 @@ from unittest.mock import patch
 
 from claudewheel.binaries import BinaryLocator
 from claudewheel.config import AppConfigStore
+from claudewheel.profile_data import (
+    PROFILE_DATA_DIRNAME,
+    PROFILE_DATA_DIR_MODE,
+    TOKEN_FILE_MODE,
+    TOKEN_FILE_NAME,
+)
 from claudewheel.session_registry import process_start_token
 from claudewheel.shared_store import SharedStore
 from claudewheel.terminal import Terminal
@@ -207,6 +213,22 @@ def build_profile_dir(
     elif settings_text is not None:
         (pdir / "settings.json").write_text(settings_text)
     return pdir
+
+
+def write_token_entry(profile_dir: Path, entry: dict[str, Any] | str) -> Path:
+    """Write *entry* as a profile's claudewheel token entry and return its path.
+
+    The one description of what a stored token looks like on disk: a single JSON
+    object inside ``<profile_dir>/.claudewheel/token.json``, at the modes the
+    production writer uses. Tests that exercise mode drift chmod it afterwards.
+    """
+    data_dir = profile_dir / PROFILE_DATA_DIRNAME
+    data_dir.mkdir(parents=True, exist_ok=True)
+    path = data_dir / TOKEN_FILE_NAME
+    path.write_text(json.dumps(entry, indent=2) + "\n")
+    path.chmod(TOKEN_FILE_MODE)
+    data_dir.chmod(PROFILE_DATA_DIR_MODE)
+    return path
 
 
 # ---------------------------------------------------------------------------
@@ -642,7 +664,7 @@ class SandboxHomeTestCase(unittest.TestCase):
     - creates ``<tmp_home>/.claudewheel`` with ``profiles/``, ``shared/``
       (plus the ``SharedStore.SHARED_SUBDIRS`` subdirs), ``skills/``, ``themes/``,
       ``scripts/``, ``hooks/`` and minimal valid ``config.json``,
-      ``state.json``, ``options.json``, ``segments.json``, ``tokens.json``,
+      ``state.json``, ``options.json``, ``segments.json``,
       ``shared-settings.json``, and ``themes/{dark,light}.json``;
     - points the ``HOME`` env var at the fake home;
     - patches ``pathlib.Path.home`` to return the fake home (POISONED HOME) so
@@ -717,7 +739,6 @@ class SandboxHomeTestCase(unittest.TestCase):
         write_json(ld / "segments.json", DEFAULT_SEGMENTS)
         write_json(ld / "options.json", DEFAULT_OPTIONS)
         write_json(ld / "state.json", DEFAULT_STATE)
-        write_json(ld / "tokens.json", {})
         write_json(ld / "shared-settings.json", {})
         write_json(themes_dir / "dark.json", DEFAULT_THEME_DARK)
         write_json(themes_dir / "light.json", DEFAULT_THEME_LIGHT)
@@ -731,7 +752,6 @@ class SandboxHomeTestCase(unittest.TestCase):
             "STATE_FILE": ld / "state.json",
             "THEMES_DIR": themes_dir,
             "HOOKS_DIR": hooks_dir,
-            "TOKENS_FILE": ld / "tokens.json",
             "PROFILES_DIR": profiles_dir,
             "SHARED_SETTINGS_FILE": ld / "shared-settings.json",
             "SCRIPTS_DIR": scripts_dir,
@@ -754,3 +774,9 @@ class SandboxHomeTestCase(unittest.TestCase):
             exist_ok=True,
             credentials=credentials,
         )
+
+    def write_token(self, name: str, entry: dict[str, Any] | str) -> Path:
+        """Write *name*'s stored token entry inside its profile directory."""
+        pdir = self.sandbox_paths["PROFILES_DIR"] / name
+        pdir.mkdir(parents=True, exist_ok=True)
+        return write_token_entry(pdir, entry)

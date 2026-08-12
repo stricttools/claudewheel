@@ -33,7 +33,9 @@ class LaunchIntegrationTests(SandboxHomeTestCase):
         self.profiles = self.ws.profiles
         # A real, discoverable profile with a token.
         self.profiles.create("work", {"model": "claude-opus-4-8"})
-        self.ws.tokens.add("work", "tok-xyz", expiry=TokenExpiryDisposition.TTL)
+        self.ws.profiles.data_for("work").write_token(
+            "tok-xyz", expiry=TokenExpiryDisposition.TTL
+        )
 
         # A tmpdir-backed locator so no version is required (fallback symlink).
         self.locator = BinaryLocator(

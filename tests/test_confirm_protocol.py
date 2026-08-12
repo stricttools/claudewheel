@@ -27,7 +27,6 @@ consequential.
 from __future__ import annotations
 
 import io
-import json
 from contextlib import redirect_stderr, redirect_stdout
 from typing import Any
 from unittest import mock
@@ -53,7 +52,6 @@ class _CliCase(SandboxHomeTestCase):
         super().setUp()
         self.store = Workspace.default().profiles
         self.profiles_dir = self.sandbox_paths["PROFILES_DIR"]
-        self.tokens_file = self.sandbox_paths["TOKENS_FILE"]
 
     def run_cli(self, argv: list[str]) -> tuple[str, str, int]:
         """Run cli.main() with argv and return (stdout, stderr, exit code)."""
@@ -71,7 +69,9 @@ class _CliCase(SandboxHomeTestCase):
     def seed_profile(self, name: str) -> None:
         """Create a fully registered profile: dir, settings, options entry, token."""
         self.store.create(name, dict(self._SETTINGS))
-        self.store.token_store.add(name, "TOKEN", expiry=TokenExpiryDisposition.TTL)
+        self.store.data_for(name).write_token(
+            "TOKEN", expiry=TokenExpiryDisposition.TTL
+        )
 
 
 class ConsequentialProfileDeleteTests(_CliCase):
@@ -124,7 +124,7 @@ class ConsequentialProfileDeleteTests(_CliCase):
         # profile is still on disk with its settings and its token entry.
         self.assertIn("would", out.lower())
         self.assertTrue((self.profiles_dir / "work" / "settings.json").is_file())
-        self.assertIn("work", json.loads(self.tokens_file.read_text()))
+        self.assertEqual(self.store.data_for("work").token(), "TOKEN")
 
 
 class ConsequentialReconcileTests(_CliCase):

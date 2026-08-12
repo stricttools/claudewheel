@@ -128,7 +128,7 @@ class DryRunNarrationIsConditionalTests(SandboxHomeTestCase):
 
         store = self.ws.profiles
         store.create(name, {"permissions": {"allow": [], "deny": [], "ask": []}})
-        store.token_store.add(name, "TOKEN", expiry=TokenExpiryDisposition.TTL)
+        store.data_for(name).write_token("TOKEN", expiry=TokenExpiryDisposition.TTL)
 
     # -- the three confirmed in the report --------------------------------
 

@@ -44,7 +44,6 @@ class PoisonedHomeTests(SandboxHomeTestCase):
             "state.json",
             "options.json",
             "segments.json",
-            "tokens.json",
             "shared-settings.json",
         ):
             self.assertTrue((ld / f).is_file(), f"missing {f}")

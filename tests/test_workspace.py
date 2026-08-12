@@ -9,7 +9,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 import claudewheel
-from claudewheel.tokens import TokenExpiryDisposition, TokenStore
+from claudewheel.tokens import TokenExpiryDisposition
+from claudewheel.profile_data import ProfileDataStore
 from claudewheel.workspace import Workspace
 
 from tests.wheelhelpers import SandboxHomeTestCase
@@ -74,7 +75,7 @@ class WorkspaceOpenTests(SandboxHomeTestCase):
         ws = Workspace.open(ro)
         self.assertEqual(ws.root, ro)
         # Deriving paths must not touch disk either.
-        self.assertEqual(ws.tokens_file, ro / "tokens.json")
+        self.assertEqual(ws.profiles_dir, ro / "profiles")
 
     def test_workspace_is_frozen(self) -> None:
         ws = Workspace.open(self.launcher_dir)
@@ -129,7 +130,6 @@ class WorkspacePathTests(SandboxHomeTestCase):
         ws = Workspace.open(root)
         expected = {
             "profiles_dir": root / "profiles",
-            "tokens_file": root / "tokens.json",
             "options_file": root / "options.json",
             "state_file": root / "state.json",
             "config_file": root / "config.json",
@@ -151,7 +151,6 @@ class WorkspacePathTests(SandboxHomeTestCase):
         sp = self.sandbox_paths
         ws = Workspace.open(sp["CONFIG_DIR"])
         self.assertEqual(ws.profiles_dir, sp["PROFILES_DIR"])
-        self.assertEqual(ws.tokens_file, sp["TOKENS_FILE"])
         self.assertEqual(ws.options_file, sp["OPTIONS_FILE"])
         self.assertEqual(ws.state_file, sp["STATE_FILE"])
         self.assertEqual(ws.config_file, sp["CONFIG_FILE"])
@@ -166,20 +165,21 @@ class WorkspacePathTests(SandboxHomeTestCase):
 
 
 class WorkspaceStoreTests(SandboxHomeTestCase):
-    """The tokens store accessor."""
+    """The per-profile data store reached through the profile store."""
 
-    def test_tokens_accessor_is_path_injected_tokenstore(self) -> None:
-        ws = Workspace.open(self.launcher_dir)
-        store = ws.tokens
-        self.assertIsInstance(store, TokenStore)
-        self.assertEqual(store.path, ws.tokens_file)
+    def test_data_for_is_path_injected_under_the_profile_dir(self) -> None:
+        ws = Workspace.open(self.launcher_dir, claude_dir=self.home / ".claude")
+        store = ws.profiles.data_for("prof")
+        self.assertIsInstance(store, ProfileDataStore)
+        self.assertEqual(store.profile_dir, ws.profiles_dir / "prof")
 
-    def test_tokens_accessor_round_trips(self) -> None:
-        ws = Workspace.open(self.launcher_dir)
-        ws.tokens.add(
-            "prof", "tok-through-workspace", expiry=TokenExpiryDisposition.TTL
+    def test_token_round_trips_through_the_workspace(self) -> None:
+        ws = Workspace.open(self.launcher_dir, claude_dir=self.home / ".claude")
+        self.make_profile("prof")
+        ws.profiles.data_for("prof").write_token(
+            "tok-through-workspace", expiry=TokenExpiryDisposition.TTL
         )
-        self.assertEqual(ws.tokens.token_for("prof"), "tok-through-workspace")
+        self.assertEqual(ws.profiles.data_for("prof").token(), "tok-through-workspace")
 
 
 if __name__ == "__main__":

@@ -111,9 +111,9 @@ def resolve_profiles(
 
     Exactly one of *profile* or *all_profiles* must be truthy (enforced
     by the caller's MutexGroup).  Prints to stderr and exits on error.
-    Enumeration uses the workspace's ProfileStore, so a corrupt tokens.json
+    Enumeration uses the workspace's ProfileStore, so a corrupt token entry
     raises ``TokenStoreError`` -- the uniform hard-error contract; permission
-    commands are settings.json operations, but a corrupt tokens.json is a
+    commands are settings.json operations, but an unreadable token entry is a
     workspace-integrity problem the operator must fix.
     """
     if profile is not None:

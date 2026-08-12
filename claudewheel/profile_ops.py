@@ -27,8 +27,8 @@ class FixAuthResult:
 
     ok: True when the shadow was removed, False otherwise.
     reason: None on success; "no-token" / "no-shadow" / "unreadable-creds" on failure.
-    tier_saved: rateLimitTier value preserved into tokens.json, or None.
-    subscription_saved: subscriptionType value preserved into tokens.json, or None.
+    tier_saved: rateLimitTier value preserved into the token entry, or None.
+    subscription_saved: subscriptionType value preserved into the entry, or None.
     """
 
     ok: bool
@@ -41,18 +41,19 @@ def fix_auth_shadow(ws: "Workspace", name: str) -> FixAuthResult:
     """Remove session credentials (claudeAiOauth) that shadow a long-lived token.
 
     Reads the profile's .credentials.json, strips the claudeAiOauth key, and
-    preserves any tier/subscription metadata into tokens.json. Zero printing,
-    zero sys.exit -- returns a FixAuthResult describing what happened.
+    preserves any tier/subscription metadata into the profile's own token
+    entry. Zero printing, zero sys.exit -- returns a FixAuthResult describing
+    what happened.
 
-    A corrupt tokens.json raises :class:`TokenStoreError` (the hard-error
+    A corrupt token entry raises :class:`TokenStoreError` (the hard-error
     contract) -- token resolution cannot proceed and the operator must fix it.
     """
     store = ws.profiles
     config_dir = store.path_for(name)
+    data = store.data_for(name)
 
-    # 1. Check tokens.json has a valid entry (corrupt -> TokenStoreError).
-    tokens = store.token_store.load()
-    if parse_entry(tokens.get(name)) is None:
+    # 1. Check the profile holds a valid token entry (corrupt -> TokenStoreError).
+    if parse_entry(data.load()) is None:
         return FixAuthResult(ok=False, reason="no-token")
 
     # 2. Read .credentials.json
@@ -75,13 +76,9 @@ def fix_auth_shadow(ws: "Workspace", name: str) -> FixAuthResult:
     )
 
     if tier or sub_type:
-        # Merge tier data into the tokens.json entry. TokenStore.set_tier applies
-        # the identical merge (bare-string -> dict upgrade, field-wise set) the
-        # inline code used; `or None` preserves the old truthy guard so empty
-        # strings are never written.
-        store.token_store.set_tier(
-            name, tier=tier or None, subscription=sub_type or None
-        )
+        # Merge tier data into the profile's own token entry; `or None`
+        # preserves the old truthy guard so empty strings are never written.
+        data.set_tier(tier=tier or None, subscription=sub_type or None)
 
     # 4. Strip claudeAiOauth and write back
     creds.pop("claudeAiOauth", None)

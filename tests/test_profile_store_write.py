@@ -41,10 +41,15 @@ from claudewheel.profile_store import (
     _RENAME_PENDING_FILE,
 )
 from claudewheel.shared_store import SharedStore
-from claudewheel.tokens import TokenExpiryDisposition, TokenStore
+from claudewheel.profile_data import ProfileDataStore
+from claudewheel.tokens import TokenExpiryDisposition
 from claudewheel.wizard import WizardResult
 from claudewheel.workspace import Workspace
-from tests.wheelhelpers import SandboxHomeTestCase, write_json
+from tests.wheelhelpers import (
+    SandboxHomeTestCase,
+    write_json,
+    write_token_entry,
+)
 
 
 class _WriteBase(SandboxHomeTestCase):
@@ -57,7 +62,6 @@ class _WriteBase(SandboxHomeTestCase):
         self.store = Workspace.default().profiles
         self.profiles_dir = self.sandbox_paths["PROFILES_DIR"]
         self.options_file = self.sandbox_paths["OPTIONS_FILE"]
-        self.tokens_file = self.sandbox_paths["TOKENS_FILE"]
         self.state_file = self.sandbox_paths["STATE_FILE"]
         self.shared_dir = self.sandbox_paths["SHARED_DIR"]
         self.skills_dir = self.sandbox_paths["SKILLS_DIR"]
@@ -66,9 +70,9 @@ class _WriteBase(SandboxHomeTestCase):
         data: dict[str, Any] = json.loads(self.options_file.read_text())
         return data
 
-    def _read_tokens(self) -> dict[str, Any]:
-        data: dict[str, Any] = json.loads(self.tokens_file.read_text())
-        return data
+    def _read_token(self, name: str) -> dict[str, Any]:
+        """The token entry stored inside *name*'s profile directory."""
+        return ProfileDataStore(self.profiles_dir / name).load()
 
     def _read_state(self) -> dict[str, Any]:
         data: dict[str, Any] = json.loads(self.state_file.read_text())
@@ -87,9 +91,7 @@ class _WriteBase(SandboxHomeTestCase):
 
 class WriteGuardTests(_WriteBase):
     def _readonly_store(self) -> ProfileStore:
-        return ProfileStore(
-            self.profiles_dir, self.home / ".claude", TokenStore(self.tokens_file)
-        )
+        return ProfileStore(self.profiles_dir, self.home / ".claude")
 
     def test_write_ops_require_stores(self) -> None:
         store = self._readonly_store()
@@ -410,17 +412,20 @@ class DeleteTests(_WriteBase):
 
     def test_delete_full_cleanup(self) -> None:
         self.store.create("full", self._SETTINGS)
-        self.store.token_store.add("full", "TOKEN", expiry=TokenExpiryDisposition.TTL)
+        self.store.data_for("full").write_token(
+            "TOKEN", expiry=TokenExpiryDisposition.TTL
+        )
         assert self.store.state is not None
         self.store.state.set_value("last_config", {"profile": "full", "model": "m"})
 
         result = self.store.delete("full")
 
         self.assertTrue(result.removed_from_options)
-        self.assertTrue(result.removed_from_tokens)
         self.assertTrue(result.last_config_purged)
         self.assertNotIn("full", self._read_options()["profile"]["pinned"])
-        self.assertNotIn("full", self._read_tokens())
+        # The token went with the directory -- there is nowhere else it lives.
+        self.assertFalse((self.profiles_dir / "full").exists())
+        self.assertEqual(self._read_token("full"), {})
         self.assertNotIn("profile", self._read_state()["last_config"])
         # Other last_config keys are preserved.
         self.assertEqual(self._read_state()["last_config"].get("model"), "m")
@@ -446,16 +451,16 @@ class RenameTests(_WriteBase):
                 "metadata": {"old": dict(self._OLD_META)},
             }
         )
-        write_json(self.tokens_file, {"old": {"token": "T", "created": "2026-01-01"}})
+        write_token_entry(old_dir, {"token": "T", "created": "2026-01-01"})
         assert self.store.state is not None
         self.store.state.set_value("last_config", {"profile": "old"})
 
     def _assert_clean_rename(self) -> None:
         self.assertFalse((self.profiles_dir / "old").exists())
         self.assertTrue((self.profiles_dir / "new").is_dir())
-        tokens = self._read_tokens()
-        self.assertIn("new", tokens)
-        self.assertNotIn("old", tokens)
+        # The token travelled inside the directory.
+        self.assertEqual(self._read_token("new").get("token"), "T")
+        self.assertEqual(self._read_token("old"), {})
         sec = self._read_options()["profile"]
         self.assertEqual(sec["values"], ["new"])
         self.assertEqual(sec["pinned"], ["new"])
@@ -469,9 +474,7 @@ class RenameTests(_WriteBase):
     def _assert_clean_no_rename(self) -> None:
         self.assertTrue((self.profiles_dir / "old").is_dir())
         self.assertFalse((self.profiles_dir / "new").exists())
-        tokens = self._read_tokens()
-        self.assertIn("old", tokens)
-        self.assertNotIn("new", tokens)
+        self.assertEqual(self._read_token("old").get("token"), "T")
         sec = self._read_options()["profile"]
         self.assertEqual(sec["values"], ["old"])
         self.assertEqual(sec["pinned"], ["old"])
@@ -538,19 +541,7 @@ class RenameTests(_WriteBase):
         self.store.recover_incomplete_renames()
         self._assert_clean_no_rename()
 
-    def test_crash_after_os_rename_before_tokens(self) -> None:
-        self._seed()
-        with patch.object(
-            self.store.token_store, "rename", autospec=True, side_effect=OSError("boom")
-        ):
-            with self.assertRaises(OSError):
-                self.store.rename("old", "new")
-        self.assertTrue((self.profiles_dir / "new").is_dir())
-        self.assertTrue((self.profiles_dir / "new" / _RENAME_PENDING_FILE).exists())
-        self.store.recover_incomplete_renames()
-        self._assert_clean_rename()
-
-    def test_crash_after_tokens_before_options(self) -> None:
+    def test_crash_after_os_rename_before_options(self) -> None:
         self._seed()
         with patch.object(
             self.store.options,
@@ -560,6 +551,8 @@ class RenameTests(_WriteBase):
         ):
             with self.assertRaises(OSError):
                 self.store.rename("old", "new")
+        self.assertTrue((self.profiles_dir / "new").is_dir())
+        self.assertTrue((self.profiles_dir / "new" / _RENAME_PENDING_FILE).exists())
         self.store.recover_incomplete_renames()
         self._assert_clean_rename()
 
@@ -604,7 +597,10 @@ class RenameTests(_WriteBase):
     def test_recovery_reports_completed_action(self) -> None:
         self._seed()
         with patch.object(
-            self.store.token_store, "rename", autospec=True, side_effect=OSError("boom")
+            self.store.options,
+            "rename_value",
+            autospec=True,
+            side_effect=OSError("boom"),
         ):
             with self.assertRaises(OSError):
                 self.store.rename("old", "new")
@@ -647,15 +643,18 @@ class RenameTests(_WriteBase):
         config store: ``AppConfigStore.__post_init__`` calls
         ``workspace.profiles.recover_incomplete_renames()``. This pins that
         wiring: seed an interrupted rename (dir moved, breadcrumb present,
-        tokens/options/state still on 'old'), then build the store via
+        options/state still on 'old'), then build the store via
         ``Workspace.appconfig()`` and assert -- purely from the recovered on-disk
         state -- that the rename was rolled forward and the breadcrumb cleared.
         """
         self._seed()
-        # Crash after the directory rename but before token migration: leaves the
-        # 'new' dir with a pending breadcrumb; the roll-forward completes it.
+        # Crash after the directory rename but before the options swap: leaves
+        # the 'new' dir with a pending breadcrumb; the roll-forward completes it.
         with patch.object(
-            self.store.token_store, "rename", autospec=True, side_effect=OSError("boom")
+            self.store.options,
+            "rename_value",
+            autospec=True,
+            side_effect=OSError("boom"),
         ):
             with self.assertRaises(OSError):
                 self.store.rename("old", "new")
@@ -672,12 +671,10 @@ class RenameTests(_WriteBase):
         # metadata check does not apply through this boundary):
         #   - directory rolled forward (new present, old gone)
         #   - no pending breadcrumb left anywhere
-        #   - token entry migrated old -> new
+        #   - the token entry travelled with the directory
         #   - last_config profile migrated old -> new
         self.assertTrue((self.profiles_dir / "new").is_dir())
         self.assertFalse((self.profiles_dir / "old").exists())
         self._assert_no_breadcrumbs()
-        tokens = self._read_tokens()
-        self.assertIn("new", tokens)
-        self.assertNotIn("old", tokens)
+        self.assertEqual(self._read_token("new").get("token"), "T")
         self.assertEqual(self._read_state()["last_config"]["profile"], "new")

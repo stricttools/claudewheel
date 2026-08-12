@@ -43,7 +43,6 @@ All claudewheel data lives under a single root directory, defaulting to
   segments.json          # segment bar layout
   options.json           # per-segment option lists and pinned values
   state.json             # persistent state (last selections, counts)
-  tokens.json            # centralized OAuth tokens keyed by profile name
   shared-settings.json   # shared hooks, disallowedTools, profileDefaults
 
   profiles/              # one subdirectory per profile
@@ -79,11 +78,11 @@ All claudewheel data lives under a single root directory, defaulting to
 
 ### Key files
 
-- **`tokens.json`**: centralized token store. Each key is a profile name;
-  each value is either a bare token string (legacy) or a dict with `token`,
-  `created`, `expires_at`, and optional `rateLimitTier`/`subscriptionType`
-  fields. File permissions are 0600 (owner-only read/write). Managed by
-  `TokenStore` (`tokens.py`).
+- **`profiles/<name>/.claudewheel/token.json`**: the profile's own OAuth
+  token entry -- a single JSON object with `token`, `created`, `expires_at`,
+  and optional `rateLimitTier`/`subscriptionType` fields. The file is 0600 and
+  its directory 0700 (owner-only). Managed by `ProfileDataStore`
+  (`profile_data.py`); the entry format lives in `tokens.py`.
 
 - **`shared-settings.json`**: hooks and `disallowedTools` arrays inherited by
   all profiles. When a new profile is created, the wizard reads
@@ -108,18 +107,16 @@ order:
    Keychain).
 
 2. **Named profiles**: each subdirectory of `~/.claudewheel/profiles/` that
-   contains `.credentials.json` or `settings.json` qualifies as a profile
-   with the directory name as its profile name.
+   contains `.credentials.json`, `settings.json`, or claudewheel's own
+   `.claudewheel/` data directory qualifies as a profile with the directory
+   name as its profile name.
 
-3. **Token-only profiles**: each key in `tokens.json` not already discovered
-   whose `path_for()` directory exists on disk qualifies with
-   `has_credentials=False`.
+3. **Token presence**: a profile whose own `.claudewheel/token.json` holds a
+   token string is marked `has_token=True`.
 
-4. **Token presence**: any profile whose name appears as a key in
-   `tokens.json` is marked `has_token=True`.
-
-The result is sorted by name. A corrupt `tokens.json` raises
-`TokenStoreError` (hard error); a missing `tokens.json` is treated as empty.
+The result is sorted by name. A corrupt token entry raises `TokenStoreError`
+(hard error); a profile storing no entry is simply tokenless. `discover()`
+takes an explicit policy for that error, applied per profile.
 
 ## Profile creation wizard
 
@@ -224,31 +221,25 @@ actual data rather than just unlinking a symlink.
 
 ## Token management
 
-Tokens are stored centrally in `~/.claudewheel/tokens.json`, managed by the
-`TokenStore` class (`tokens.py`). The file has 0600 permissions (atomic
-writes via `write_json_atomic_secret`).
+Each profile stores its own token inside its own directory, at
+`profiles/<name>/.claudewheel/token.json`, managed by the `ProfileDataStore`
+class (`profile_data.py`). The file is written 0600 and its directory 0700
+(atomic writes via `write_json_atomic_secret`). Because the entry lives inside
+the profile directory, a rename carries it along and a delete removes it --
+there is no second place to keep in step.
 
 ### Entry format
 
-Each entry is keyed by profile name. Two formats are supported:
+The file holds one JSON object -- it already belongs to exactly one profile,
+so nothing is keyed by name:
 
-**Legacy (bare string)**:
 ```json
 {
-  "work": "sk-ant-..."
-}
-```
-
-**Current (dict)**:
-```json
-{
-  "work": {
-    "token": "sk-ant-...",
-    "created": "2026-01-15",
-    "expires_at": "2027-01-15",
-    "rateLimitTier": "t3",
-    "subscriptionType": "pro"
-  }
+  "token": "sk-ant-...",
+  "created": "2026-01-15",
+  "expires_at": "2027-01-15",
+  "rateLimitTier": "default_claude_max_20x",
+  "subscriptionType": "max"
 }
 ```
 
@@ -266,10 +257,9 @@ recorded:
   and the `expiry_unknown` marker. Expiry is reported as unknown, never
   assumed.
 
-The `compute_expiry()` function resolves an entry's lifetime using the
+The `entry_expiry()` function resolves an entry's lifetime using the
 following precedence: explicit `expiry_unknown` marker yields unknown;
-explicit `expires_at` date; `created` + 365 days; file mtime + 365 days
-(legacy bare-string fallback).
+explicit `expires_at` date; `created` + 365 days.
 
 ### Token resolution at launch
 
@@ -277,22 +267,21 @@ When launching a session, `ProfileStore.env()` resolves the profile name to
 environment variables:
 
 - `CLAUDE_CONFIG_DIR` is set to the profile's directory path
-- `CLAUDE_CODE_OAUTH_TOKEN` is set to the token string if one exists in
-  `tokens.json`
+- `CLAUDE_CODE_OAUTH_TOKEN` is set to the token string when the profile
+  stores one
 
 The `default` profile is the exception: it resolves to an empty environment
 (no config dir override, no token injection).
 
 ### Auth shadow detection
 
-An "auth shadow" occurs when a profile has both a long-lived token in
-`tokens.json` AND session credentials (`claudeAiOauth` key) in
-`.credentials.json`. The session credentials take priority in Claude Code,
+An "auth shadow" occurs when a profile has both a long-lived token of its own
+AND session credentials (`claudeAiOauth` key) in `.credentials.json`. The session credentials take priority in Claude Code,
 effectively shadowing the long-lived token.
 
 The `profile fix-auth` command repairs this by stripping the `claudeAiOauth`
-key from `.credentials.json` and preserving any tier metadata into
-`tokens.json`.
+key from `.credentials.json` and preserving any tier metadata into the
+profile's own token entry.
 
 ### Token validation
 
@@ -311,8 +300,8 @@ variable injection:
   cloning at creation time copies settings once.
 
 - **Credential isolation**: each profile can have its own
-  `.credentials.json` (session-scoped, written by Claude Code) and/or a
-  token entry in `tokens.json` (long-lived, managed by claudewheel). The
+  `.credentials.json` (session-scoped, written by Claude Code) and/or its own
+  token entry under `.claudewheel/` (long-lived, managed by claudewheel). The
   two mechanisms are independent.
 
 - **Session data sharing**: the six shared-store symlinks mean that session
@@ -330,13 +319,14 @@ variable injection:
 ### Profile operations
 
 - **Rename** (`profile rename`): atomically renames the profile directory
-  and updates `tokens.json`, `options.json`, and `state.json`. A crash-safe
+  (the token entry travels inside it) and updates `options.json` and
+  `state.json`. A crash-safe
   breadcrumb file (`.rename_pending`) ensures incomplete renames can be
   recovered on next startup.
 
 - **Delete** (`profile delete`): removes the profile directory (unlinking
-  symlinks without following them into shared data), removes the token
-  entry, unregisters from `options.json`, and clears any `last_config`
+  symlinks without following them into shared data, and taking the stored
+  token with it), unregisters from `options.json`, and clears any `last_config`
   reference in `state.json`. Refuses to delete the `default` profile.
   Refuses to delete profiles with real data at shared-dir names unless
   `--force-delete` is passed.

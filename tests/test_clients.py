@@ -20,7 +20,6 @@ from unittest import mock
 from claudewheel.binaries import BinaryLocator
 from claudewheel.launch import resolve_launch_config
 from claudewheel.profile_store import ProfileStore
-from claudewheel.tokens import TokenStore
 from tests.wheelhelpers import build_profile_dir
 
 
@@ -38,7 +37,6 @@ class MiniclaudeAdapterTestBase(unittest.TestCase):
         self.versions_dir = self.tmp / "versions"
         self.versions_dir.mkdir()
         self.symlink_path = self.tmp / "claude"
-        self.tokens_file = self.tmp / "tokens.json"
         self.profiles_dir = self.tmp / "profiles"
         self.profiles_dir.mkdir()
         self.claude_dir = self.tmp / ".claude"
@@ -47,11 +45,9 @@ class MiniclaudeAdapterTestBase(unittest.TestCase):
             versions_dir=self.versions_dir,
             claude_symlink=self.symlink_path,
         )
-        self.token_store = TokenStore(self.tokens_file)
         self.profiles = ProfileStore(
             self.profiles_dir,
             self.claude_dir,
-            self.token_store,
         )
         # Every test that reaches the binary step gets a discoverable "work"
         # profile so profile resolution succeeds.

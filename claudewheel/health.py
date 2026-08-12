@@ -7,7 +7,7 @@ import os
 import stat
 from dataclasses import dataclass
 from pathlib import Path
-from typing import IO, TYPE_CHECKING, Any
+from typing import IO, TYPE_CHECKING
 
 from . import guardrail
 from .appdata import OptionsFile
@@ -17,11 +17,14 @@ from .effects import write_json_atomic
 from .hook_scripts import HOOK_SCRIPTS
 from .profile_store import Profile
 from .shared_store import SharedStore
+from .profile_data import (
+    PROFILE_DATA_DIRNAME,
+    PROFILE_DATA_DIR_MODE,
+    TOKEN_FILE_MODE,
+)
 from .tokens import (
-    TOKEN_TTL_DAYS,
-    TokenStore,
     TokenStoreError,
-    compute_expiry,
+    entry_expiry,
     parse_entry,
 )
 
@@ -103,21 +106,22 @@ def check_tmp_claude_size() -> HealthResult:
 
 
 def _discover_profiles(
-    ws: "Workspace", tokens: dict[str, Any] | None = None
+    ws: "Workspace",
 ) -> list[Profile]:
     """Enumerate profiles via the workspace's ProfileStore.
 
     Thin adapter over the shared :meth:`ProfileStore.discover` helper in the
-    ``"raise"`` mode: *tokens* ``None`` loads token data via the store (a corrupt
-    tokens.json raises :class:`TokenStoreError`). Callers inside a health run
-    pass the single token view loaded once by :func:`run_health_check` (``{}``
-    when corrupt) so enumeration never re-reads the file.
+    ``"swallow"`` mode -- the health-run carve-out: an unreadable token file
+    must not abort a diagnostic run, so enumeration proceeds with that profile's
+    ``has_token`` False and :func:`check_tokens` / :func:`check_token_expiry`
+    report the unreadable entry, naming the profile.  Each profile carries its
+    own token file, so one bad file no longer decides the whole run.
     """
-    return ws.profiles.discover(on_corrupt_tokens="raise", tokens=tokens)
+    return ws.profiles.discover(on_corrupt_tokens="swallow")
 
 
 def _managed_profiles(
-    ws: "Workspace", tokens: dict[str, Any] | None = None
+    ws: "Workspace",
 ) -> list[Profile]:
     """Discovered profiles EXCLUDING the vanilla ``"default"`` (~/.claude).
 
@@ -129,17 +133,17 @@ def _managed_profiles(
     integrity checks (auth shadow, file permissions) still see it via
     :func:`_discover_profiles`, where a bare ~/.claude self-skips harmlessly.
     """
-    return [p for p in _discover_profiles(ws, tokens) if p.name != "default"]
+    return [p for p in _discover_profiles(ws) if p.name != "default"]
 
 
 # -- Shared-store profile checks -------------------------------------------
 
 
 def check_shared_symlinks(
-    ws: "Workspace", tokens: dict[str, Any] | None = None
+    ws: "Workspace",
 ) -> HealthResult:
     """Verify each profile's shared dirs are symlinks to ~/.claudewheel/shared/."""
-    profiles = _managed_profiles(ws, tokens)
+    profiles = _managed_profiles(ws)
     if not profiles:
         return HealthResult(True, "shared-symlinks", "no profiles found")
 
@@ -192,7 +196,7 @@ def _hook_wired(
 
 
 def check_hooks_wired(
-    ws: "Workspace", tokens: dict[str, Any] | None = None
+    ws: "Workspace",
 ) -> HealthResult:
     """Verify each profile wires every expected hook in settings.json.
 
@@ -203,7 +207,7 @@ def check_hooks_wired(
     command (``scripts_dir / script``) for that triple. A hook pointing at the
     right basename under the wrong directory does NOT satisfy the wiring.
     """
-    profiles = _managed_profiles(ws, tokens)
+    profiles = _managed_profiles(ws)
     if not profiles:
         return HealthResult(True, "hooks-wired", "no profiles found")
 
@@ -235,10 +239,10 @@ def check_hooks_wired(
 
 
 def check_settings_defaults(
-    ws: "Workspace", tokens: dict[str, Any] | None = None
+    ws: "Workspace",
 ) -> HealthResult:
     """Verify each profile enforces expected defaults in settings.json."""
-    profiles = _managed_profiles(ws, tokens)
+    profiles = _managed_profiles(ws)
     if not profiles:
         return HealthResult(True, "settings-defaults", "no profiles found")
 
@@ -314,7 +318,7 @@ def _diff_json(label: str, canonical: object, actual: object) -> list[str]:
 
 
 def check_shared_settings_drift(
-    ws: "Workspace", tokens: dict[str, Any] | None = None
+    ws: "Workspace",
 ) -> HealthResult:
     """Compare each profile's hooks and disallowedTools against shared-settings.json."""
     # Load shared settings
@@ -336,7 +340,7 @@ def check_shared_settings_drift(
     canonical_hooks = shared.get("hooks", {})
     canonical_disallowed = shared.get("disallowedTools", [])
 
-    profiles = _managed_profiles(ws, tokens)
+    profiles = _managed_profiles(ws)
     if not profiles:
         return HealthResult(True, "settings-drift", "no profiles found")
 
@@ -402,7 +406,7 @@ def _canonical_permission_diffs(label: str, perms: object) -> list[str]:
 
 
 def check_canonical_permissions_drift(
-    ws: "Workspace", tokens: dict[str, Any] | None = None
+    ws: "Workspace",
 ) -> HealthResult:
     """Compare each profile's permissions against the canonical guardrail model.
 
@@ -429,7 +433,7 @@ def check_canonical_permissions_drift(
             for d in _canonical_permission_diffs("permissions", pd_perms):
                 all_diffs.append(f"profileDefaults: {d}")
 
-    profiles = _managed_profiles(ws, tokens)
+    profiles = _managed_profiles(ws)
     for p in profiles:
         settings_file = p.path / "settings.json"
         if not settings_file.exists():
@@ -454,12 +458,12 @@ def check_canonical_permissions_drift(
 
 
 def check_auth_shadow(
-    ws: "Workspace", tokens: dict[str, Any] | None = None
+    ws: "Workspace",
 ) -> HealthResult:
     """Detect profiles where .credentials.json claudeAiOauth shadows a long-lived token."""
     from .profile_info import detect_auth_shadow
 
-    profiles = _discover_profiles(ws, tokens)
+    profiles = _discover_profiles(ws)
     if not profiles:
         return HealthResult(True, "auth-shadow", "no profiles found")
 
@@ -477,105 +481,94 @@ def check_auth_shadow(
     return HealthResult(True, "auth-shadow", "no auth shadow detected")
 
 
-def check_token_expiry(
-    ws: "Workspace",
-    tokens: dict[str, Any] | None = None,
-    token_error: TokenStoreError | None = None,
-) -> HealthResult:
-    """Warn if any token is approaching 1-year expiry (setup-token TTL).
+def check_token_expiry(ws: "Workspace") -> HealthResult:
+    """Warn if any profile's token is approaching its 1-year expiry.
 
-    Token corruption surfaces here as a FAILED check: a *token_error* recorded by
-    the single run-level load, or (for standalone calls) a fresh
-    :class:`TokenStoreError` raised while loading. The actionable exception
-    message is the detail.
+    One read per profile: each token entry dates itself, so an unreadable entry
+    fails the check naming that profile instead of taking the whole run's token
+    view down with it.
     """
-    if token_error is not None:
-        return HealthResult(False, "token-expiry", str(token_error))
-    tokens_file = ws.tokens_file
-    if not tokens_file.exists():
-        return HealthResult(True, "token-expiry", "no tokens.json")
-    if tokens is None:
-        try:
-            tokens = TokenStore(tokens_file).load()
-        except TokenStoreError as e:
-            return HealthResult(False, "token-expiry", str(e))
     from datetime import date
 
+    profiles = _managed_profiles(ws)
     today = date.today()
-    mtime = tokens_file.stat().st_mtime
     expiring: list[str] = []
-    min_remaining: float = TOKEN_TTL_DAYS
-    for name, entry in tokens.items():
-        remaining = compute_expiry(entry, mtime, today=today).remaining_days
+    unreadable: list[str] = []
+    min_remaining: float | None = None
+    for p in profiles:
+        try:
+            entry = ws.profiles.data_for(p.name).load()
+        except TokenStoreError as e:
+            unreadable.append(f"{p.name}: {e}")
+            continue
+        if not entry:
+            continue
+        remaining = entry_expiry(entry, today=today).remaining_days
         if remaining is None:
             # Externally-issued token with an unknown expiry: never flag it as
             # expiring soon -- we have no expiry date to compare against.
             continue
-        min_remaining = min(min_remaining, remaining)
+        min_remaining = (
+            remaining if min_remaining is None else min(min_remaining, remaining)
+        )
         if remaining < 30:
-            expiring.append(f"{name} (~{max(0, int(remaining))}d)")
+            expiring.append(f"{p.name} (~{max(0, int(remaining))}d)")
+    if unreadable:
+        return HealthResult(False, "token-expiry", "; ".join(unreadable))
     if expiring:
         return HealthResult(
             False,
             "token-expiry",
             f"expiring soon: {', '.join(expiring)} — run claude setup-token",
         )
+    if min_remaining is None:
+        return HealthResult(True, "token-expiry", "no stored tokens")
     return HealthResult(True, "token-expiry", f"~{int(min_remaining)} days remaining")
 
 
-def check_tokens(
-    ws: "Workspace",
-    tokens: dict[str, Any] | None = None,
-    token_error: TokenStoreError | None = None,
-) -> HealthResult:
-    """Verify each profile has a matching entry in ~/.claudewheel/tokens.json.
+def check_tokens(ws: "Workspace") -> HealthResult:
+    """Verify each profile holds a stored OAuth token of its own.
 
-    A corrupt tokens.json is the FAILED-check carve-out: when *token_error* is
-    recorded (single run-level load) or a standalone call hits a
-    :class:`TokenStoreError`, this check fails with the exception's actionable
-    message instead of crashing the whole run.
+    One read per profile, from the profile's own data directory. An unreadable
+    entry fails the check naming that profile, with the actionable message.
     """
-    if token_error is not None:
-        return HealthResult(False, "tokens", str(token_error))
-    tokens_file = ws.tokens_file
-    if not tokens_file.exists():
-        return HealthResult(True, "tokens", "tokens.json not found")
-
-    if tokens is None:
-        try:
-            tokens = TokenStore(tokens_file).load()
-        except TokenStoreError as e:
-            return HealthResult(False, "tokens", str(e))
-
     # The vanilla default is exempt: it legitimately has no cw-managed token
     # (Claude Code owns ~/.claude and cw cannot verify its auth).
-    profiles = _managed_profiles(ws, tokens)
+    profiles = _managed_profiles(ws)
     if not profiles:
         return HealthResult(True, "tokens", "no profiles found")
 
     missing: list[str] = []
+    unreadable: list[str] = []
     for p in profiles:
+        try:
+            entry = ws.profiles.data_for(p.name).load()
+        except TokenStoreError as e:
+            unreadable.append(f"{p.name}: {e}")
+            continue
         # Settings-only profiles (no credentials, no token) are brand-new
         # profiles that haven't set up auth yet -- don't warn about them.
         if not p.has_credentials and not p.has_token:
             continue
-        if parse_entry(tokens.get(p.name)) is None:
+        if parse_entry(entry) is None:
             missing.append(p.name)
 
+    if unreadable:
+        return HealthResult(False, "tokens", "; ".join(unreadable))
     if missing:
         return HealthResult(False, "tokens", f"missing tokens: {', '.join(missing)}")
     return HealthResult(True, "tokens", f"all {len(profiles)} profiles OK")
 
 
 def check_orphan_profiles(
-    ws: "Workspace", tokens: dict[str, Any] | None = None
+    ws: "Workspace",
 ) -> HealthResult:
     """Detect profile dirs in ~/.claudewheel/profiles/ that are not registered.
 
     A directory is "orphan" if it:
       - lives in ~/.claudewheel/profiles/
       - is NOT discovered by _discover_profiles() (which checks .credentials.json,
-        settings.json, and tokens.json)
+        settings.json, and claudewheel's own per-profile data directory)
       - is NOT listed in options.json's profile values
 
     For each orphan, we also flag if it contains broken symlinks (symlinks
@@ -585,8 +578,9 @@ def check_orphan_profiles(
     if not store.profiles_dir.is_dir():
         return HealthResult(True, "orphan-profiles", "no profiles dir found")
 
-    # Registered profiles (discovered via .credentials.json, settings.json, or tokens.json)
-    registered = {p.name for p in store.enumerate(tokens)}
+    # Registered profiles (discovered via .credentials.json, settings.json, or
+    # claudewheel's own per-profile data directory).
+    registered = {p.name for p in _discover_profiles(ws)}
 
     # Profiles known to options.json (may not have .credentials.json yet).
     options = OptionsFile(ws.options_file).load({})
@@ -622,10 +616,16 @@ def check_orphan_profiles(
 
 
 def check_file_permissions(
-    ws: "Workspace", tokens: dict[str, Any] | None = None
+    ws: "Workspace",
 ) -> HealthResult:
-    """Verify sensitive files have restrictive permissions (0600)."""
-    profiles = _discover_profiles(ws, tokens)
+    """Verify sensitive files and directories have restrictive permissions.
+
+    Per profile: Claude Code's ``.credentials.json`` and claudewheel's own token
+    entry must be 0600, and the data directory holding that entry must be 0700 --
+    a readable directory exposes the entry's name, size and mtime even when the
+    file itself is locked down.
+    """
+    profiles = _discover_profiles(ws)
     issues: list[str] = []
     for p in profiles:
         creds = p.path / ".credentials.json"
@@ -633,14 +633,20 @@ def check_file_permissions(
             mode = oct(creds.stat().st_mode & 0o777)
             if mode != "0o600":
                 issues.append(f"{p.name}/.credentials.json is {mode}")
-    tokens_file = ws.tokens_file
-    if tokens_file.exists():
-        mode = oct(tokens_file.stat().st_mode & 0o777)
-        if mode != "0o600":
-            issues.append(f"tokens.json is {mode}")
+        data = ws.profiles.data_for(p.name)
+        if data.data_dir.is_dir():
+            mode = oct(data.data_dir.stat().st_mode & 0o777)
+            if mode != oct(PROFILE_DATA_DIR_MODE):
+                issues.append(f"{p.name}/{PROFILE_DATA_DIRNAME} is {mode}")
+        if data.token_file.exists():
+            mode = oct(data.token_file.stat().st_mode & 0o777)
+            if mode != oct(TOKEN_FILE_MODE):
+                issues.append(
+                    f"{p.name}/{PROFILE_DATA_DIRNAME}/{data.token_file.name} is {mode}"
+                )
     if issues:
         return HealthResult(False, "file-perms", "; ".join(issues))
-    return HealthResult(True, "file-perms", "all sensitive files 0600")
+    return HealthResult(True, "file-perms", "all sensitive files and dirs locked down")
 
 
 def check_inode_renames(ws: "Workspace") -> HealthResult:
@@ -789,7 +795,7 @@ def _stale_hook_command_paths(hooks: object, scripts_dir: Path) -> list[str]:
 
 
 def check_relocated_hook_paths(
-    ws: "Workspace", tokens: dict[str, Any] | None = None
+    ws: "Workspace",
 ) -> HealthResult:
     """Detect hook commands pointing at a scripts dir other than the current one.
 
@@ -815,7 +821,7 @@ def check_relocated_hook_paths(
             for cmd in _stale_hook_command_paths(shared.get("hooks", {}), scripts_dir):
                 issues.append(f"shared-settings.json: {cmd}")
 
-    for p in _managed_profiles(ws, tokens):
+    for p in _managed_profiles(ws):
         settings_file = p.path / "settings.json"
         if not settings_file.exists():
             continue
@@ -841,34 +847,26 @@ def check_relocated_hook_paths(
 def run_health_check(ws: "Workspace") -> list[HealthResult]:
     """Run all health checks and return results.
 
-    Token data is loaded ONCE here (the single-load carve-out): a corrupt
-    tokens.json does not crash the run -- the error is recorded, ``{}`` is used as
-    the explicit token view so every profile-based check still runs (profiles
-    enumerate dir-only, has_token False), and the recorded error surfaces as a
-    FAILED token check via ``check_tokens`` / ``check_token_expiry``.
+    Token data is read per profile, inside the checks that need it: an
+    unreadable entry fails ``check_tokens`` / ``check_token_expiry`` naming the
+    profile, while every other check still runs (enumeration tolerates it and
+    reports that profile as tokenless).
     """
-    token_error: TokenStoreError | None = None
-    try:
-        tokens = ws.tokens.load()
-    except TokenStoreError as e:
-        token_error = e
-        tokens = {}
-
     return [
         check_tmpfs_quota(),
         check_tmp_claude_size(),
-        check_shared_symlinks(ws, tokens),
-        check_hooks_wired(ws, tokens),
-        check_settings_defaults(ws, tokens),
-        check_shared_settings_drift(ws, tokens),
-        check_canonical_permissions_drift(ws, tokens),
+        check_shared_symlinks(ws),
+        check_hooks_wired(ws),
+        check_settings_defaults(ws),
+        check_shared_settings_drift(ws),
+        check_canonical_permissions_drift(ws),
         check_deployed_hook_drift(ws),
-        check_relocated_hook_paths(ws, tokens),
-        check_tokens(ws, tokens, token_error),
-        check_token_expiry(ws, tokens, token_error),
-        check_auth_shadow(ws, tokens),
-        check_orphan_profiles(ws, tokens),
-        check_file_permissions(ws, tokens),
+        check_relocated_hook_paths(ws),
+        check_tokens(ws),
+        check_token_expiry(ws),
+        check_auth_shadow(ws),
+        check_orphan_profiles(ws),
+        check_file_permissions(ws),
         check_inode_renames(ws),
     ]
 

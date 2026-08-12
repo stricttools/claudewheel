@@ -8,14 +8,13 @@ SandboxHomeTestCase.
 
 Scenario accounting (relative to the pre-facade ResolveProfileTests):
 
-- PRESERVED (4): happy path with a token; profile without a token entry;
-  unknown profile raises ValueError listing the available profiles; a
-  bare-string legacy token entry still resolves.
+- PRESERVED (3): happy path with a token; profile without a token entry;
+  unknown profile raises ValueError listing the available profiles.
 - DELETED (1): the old "metadata missing config_dir raises ValueError" case is
   unrepresentable -- config_dir is now computed from the on-disk profile
   directory, never stored in options.json metadata.
-- INVERTED (1): a corrupt tokens.json now RAISES TokenStoreError (naming the
-  tokens.json path) instead of being silently ignored.
+- INVERTED (1): a corrupt token entry now RAISES TokenStoreError (naming the
+  entry's path) instead of being silently ignored.
 - ADDED (1): read-only resolution against a chmod-locked (0o555 dirs / 0o444
   files) sandbox workspace, proving zero-write resolution.
 
@@ -33,7 +32,6 @@ from claudewheel.tokens import TokenStoreError
 from tests.wheelhelpers import (
     SandboxHomeTestCase,
     set_tree_mode as _set_tree_mode,
-    write_json,
 )
 
 
@@ -51,33 +49,23 @@ class ResolveProfileTests(SandboxHomeTestCase):
         else:
             os.environ["CLAUDEWHEEL_CONFIG_DIR"] = self._orig_cw
 
-    def _write_tokens(self, tokens: dict[str, Any]) -> None:
-        write_json(self.launcher_dir / "tokens.json", tokens)
+    def _write_token(self, name: str, entry: dict[str, Any]) -> None:
+        self.write_token(name, entry)
 
     def test_valid_profile_with_token(self) -> None:
         """Returns both CLAUDE_CONFIG_DIR and CLAUDE_CODE_OAUTH_TOKEN (dict entry)."""
         pdir = self.make_profile("work")
-        self._write_tokens({"work": {"token": "tok_dict", "created": "2025-01-01"}})
+        self._write_token("work", {"token": "tok_dict", "created": "2025-01-01"})
 
         result = resolve_profile("work")
 
         self.assertEqual(result["CLAUDE_CONFIG_DIR"], str(pdir))
         self.assertEqual(result["CLAUDE_CODE_OAUTH_TOKEN"], "tok_dict")
 
-    def test_valid_profile_with_bare_string_token(self) -> None:
-        """A legacy bare-string token entry still resolves to the token."""
-        pdir = self.make_profile("work")
-        self._write_tokens({"work": "tok_bare"})
-
-        result = resolve_profile("work")
-
-        self.assertEqual(result["CLAUDE_CONFIG_DIR"], str(pdir))
-        self.assertEqual(result["CLAUDE_CODE_OAUTH_TOKEN"], "tok_bare")
-
     def test_valid_profile_without_token(self) -> None:
         """Returns only CLAUDE_CONFIG_DIR when no token entry exists."""
         pdir = self.make_profile("personal")
-        # tokens.json stays {} from the sandbox.
+        # The profile stores no token entry at all.
 
         result = resolve_profile("personal")
 
@@ -94,20 +82,21 @@ class ResolveProfileTests(SandboxHomeTestCase):
         self.assertIn("nonexistent", str(ctx.exception))
         self.assertIn("work", str(ctx.exception))
 
-    def test_corrupt_tokens_file_raises(self) -> None:
-        """Corrupt tokens.json is a hard error naming the file (inverted contract)."""
+    def test_corrupt_token_entry_raises(self) -> None:
+        """A corrupt token entry is a hard error naming the file (inverted contract)."""
         self.make_profile("work")
-        (self.launcher_dir / "tokens.json").write_text("not valid json{")
+        path = self.write_token("work", {"token": "t"})
+        path.write_text("not valid json{")
 
         with self.assertRaises(TokenStoreError) as ctx:
             resolve_profile("work")
 
-        self.assertIn("tokens.json", str(ctx.exception))
+        self.assertIn(str(path), str(ctx.exception))
 
     def test_readonly_resolution(self) -> None:
         """Resolution succeeds against a chmod-locked, read-only workspace."""
         pdir = self.make_profile("work")
-        self._write_tokens({"work": "tok_ro"})
+        self._write_token("work", {"token": "tok_ro"})
 
         # Restore write bits before sandbox cleanup (LIFO: runs before rmtree).
         self.addCleanup(_set_tree_mode, self.launcher_dir, 0o755, 0o644)

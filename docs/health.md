@@ -39,9 +39,9 @@ detail message explains what and usually names the command to fix it.
 
 ### Check inventory
 
-The checks run in a fixed order. Token data is loaded once at the start of
-the run; a corrupt `tokens.json` degrades gracefully (the error surfaces as
-a failed token check rather than crashing the entire run).
+The checks run in a fixed order. Token data is read per profile, inside the
+checks that need it; an unreadable entry degrades gracefully (it surfaces as a
+failed token check naming that profile, rather than crashing the entire run).
 
 #### tmpfs
 
@@ -141,9 +141,9 @@ Fix: `claudewheel patch-profiles`
 
 #### tokens
 
-Verifies every managed profile has a matching entry in
-`~/.claudewheel/tokens.json`. Profiles that have neither credentials nor a
-token (brand-new profiles that have not set up auth) are skipped. The
+Verifies every managed profile holds its own stored token entry. Profiles that
+have neither credentials nor a token (brand-new profiles that have not set up
+auth) are skipped. The
 `default` profile is excluded (it has no claudewheel-managed token).
 
 #### token-expiry
@@ -157,7 +157,7 @@ Fix: `claude setup-token` to re-authenticate
 #### auth-shadow
 
 Detects profiles where a session-scoped `.credentials.json` `claudeAiOauth`
-entry shadows a long-lived token from `tokens.json`. The session credential
+entry shadows the profile's own long-lived token. The session credential
 takes precedence at runtime, which can cause surprising auth behavior when
 the session credential expires.
 
@@ -166,14 +166,16 @@ Fix: `claudewheel profile fix-auth <name>`
 #### orphan-profiles
 
 Finds directories under `~/.claudewheel/profiles/` that are not discoverable
-as profiles (no `.credentials.json`, no `settings.json`, no token entry) and
+as profiles (no `.credentials.json`, no `settings.json`, no `.claudewheel/`
+data directory) and
 not listed in `options.json`. For each orphan, also reports any broken
 symlinks inside the directory.
 
 #### file-perms
 
-Verifies that sensitive files (`.credentials.json` per profile,
-`tokens.json`) have mode `0600`. Overly permissive modes are flagged.
+Verifies per-profile secrets are locked down: `.credentials.json` and the
+stored token entry at mode `0600`, and the `.claudewheel/` data directory that
+holds the entry at mode `0700`. Overly permissive modes are flagged.
 
 #### inode-renames
 

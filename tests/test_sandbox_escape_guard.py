@@ -20,7 +20,8 @@ Captured under ``wheelhelpers.REAL_HOME / ".claudewheel"``:
 - ``profiles/*/settings.json`` and ``profiles/*/.credentials.json``
 - ``shared-settings.json``
 - ``scripts/**`` (files) and ``hooks/**`` (files)
-- ``config.json``, ``segments.json``, ``options.json``, ``tokens.json``
+- ``config.json``, ``segments.json``, ``options.json``, every profile's stored
+  token entry
 - ``themes/**`` (files)
 
 Files that do not exist are recorded as MISSING (see
@@ -52,7 +53,7 @@ a same-size in-place rewrite trip the comparison.
 
 Concurrency caveat
 ------------------
-``options.json``, every profile ``settings.json``, and ``tokens.json`` are
+``options.json``, every profile ``settings.json``, and every stored token entry are
 steady-state quiescent -- nothing rewrites them except explicit operator
 actions. A concurrent launcher pin, ``claudewheel config`` edit, or auth flow
 landing inside this test's window would change one of them and produce a rare,
@@ -105,11 +106,11 @@ def _real_home_allowlist_paths() -> list[Path]:
         cw / "config.json",
         cw / "segments.json",
         cw / "options.json",
-        cw / "tokens.json",
         cw / "shared-settings.json",
     ]
     paths += sorted(cw.glob("profiles/*/settings.json"))
     paths += sorted(cw.glob("profiles/*/.credentials.json"))
+    paths += sorted(cw.glob("profiles/*/.claudewheel/token.json"))
     for family in ("scripts", "hooks", "themes"):
         base = cw / family
         if base.is_dir():
@@ -238,11 +239,11 @@ class SandboxEscapeGuardTest(SandboxHomeTestCase):
         state.save({"guard": "value"})
         state.set_value("guard_key", "guard_val")
 
-        # 10. TokenStore add / set_tier / rename / remove (sandbox tokens.json).
-        ws.tokens.add("gp-tok", "token-value", expiry=TokenExpiryDisposition.TTL)
-        ws.tokens.set_tier("gp-tok", tier="pro", subscription="max")
-        ws.tokens.rename("gp-tok", "gp-tok2")
-        ws.tokens.remove("gp-tok2")
+        # 10. Per-profile token writes (inside the sandbox profile dir).
+        token_store = ws.profiles.data_for("gp-tok")
+        token_store.write_token("token-value", expiry=TokenExpiryDisposition.TTL)
+        token_store.set_tier(tier="pro", subscription="max")
+        token_store.remove_token()
 
         # 11. run_import against a small fake source (writes sandbox shared/).
         source = self.home / "import-src"

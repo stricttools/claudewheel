@@ -17,7 +17,13 @@ from unittest.mock import patch
 
 
 from claudewheel import profile_ops
-from tests.wheelhelpers import build_profile_dir, live_record, stale_record
+from claudewheel.profile_data import ProfileDataStore
+from tests.wheelhelpers import (
+    build_profile_dir,
+    write_token_entry,
+    live_record,
+    stale_record,
+)
 
 
 class _ProfileOpsTestCase(unittest.TestCase):
@@ -33,7 +39,6 @@ class _ProfileOpsTestCase(unittest.TestCase):
 
         self.launcher_dir = self.home / ".claudewheel"
         self.launcher_dir.mkdir()
-        self.tokens_file = self.launcher_dir / "tokens.json"
         self.profiles_dir = self.launcher_dir / "profiles"
         from claudewheel.workspace import Workspace
 
@@ -43,8 +48,12 @@ class _ProfileOpsTestCase(unittest.TestCase):
         self._patcher_home.stop()
         self._tmp.cleanup()
 
-    def _write_tokens(self, tokens: dict[str, Any]) -> None:
-        self.tokens_file.write_text(json.dumps(tokens, indent=2) + "\n")
+    def _write_token(self, name: str, entry: dict[str, Any]) -> None:
+        """Store *name*'s token entry inside its own profile directory."""
+        write_token_entry(self.profiles_dir / name, entry)
+
+    def _read_token(self, name: str) -> dict[str, Any]:
+        return ProfileDataStore(self.profiles_dir / name).load()
 
     def _make_profile_dir(self, name: str) -> Path:
         return build_profile_dir(
@@ -109,9 +118,8 @@ class FixAuthShadowTests(_ProfileOpsTestCase):
         creds.chmod(0o600)
 
     def test_no_token_returns_reason(self) -> None:
-        """When tokens.json has no entry for the profile, reason is 'no-token'."""
+        """When the profile stores no token entry, reason is 'no-token'."""
         self._make_profile_dir("orphan")
-        self._write_tokens({})
         result = profile_ops.fix_auth_shadow(self.ws, "orphan")
         self.assertFalse(result.ok)
         self.assertEqual(result.reason, "no-token")
@@ -120,7 +128,7 @@ class FixAuthShadowTests(_ProfileOpsTestCase):
         """When .credentials.json doesn't exist, reason is 'no-shadow'."""
         pdir = self._make_profile_dir("clean")
         (pdir / ".credentials.json").unlink()
-        self._write_tokens({"clean": {"token": "tok-abc"}})
+        self._write_token("clean", {"token": "tok-abc"})
         result = profile_ops.fix_auth_shadow(self.ws, "clean")
         self.assertFalse(result.ok)
         self.assertEqual(result.reason, "no-shadow")
@@ -129,7 +137,7 @@ class FixAuthShadowTests(_ProfileOpsTestCase):
         """When .credentials.json exists but has no claudeAiOauth, reason is 'no-shadow'."""
         pdir = self._make_profile_dir("noshadow")
         self._write_credentials(pdir, {"mcpOAuth": {"x": "y"}})
-        self._write_tokens({"noshadow": {"token": "tok-ns"}})
+        self._write_token("noshadow", {"token": "tok-ns"})
         result = profile_ops.fix_auth_shadow(self.ws, "noshadow")
         self.assertFalse(result.ok)
         self.assertEqual(result.reason, "no-shadow")
@@ -138,13 +146,13 @@ class FixAuthShadowTests(_ProfileOpsTestCase):
         """When .credentials.json is corrupt JSON, reason is 'unreadable-creds'."""
         pdir = self._make_profile_dir("corrupt")
         (pdir / ".credentials.json").write_text("{not json at all")
-        self._write_tokens({"corrupt": {"token": "tok-c"}})
+        self._write_token("corrupt", {"token": "tok-c"})
         result = profile_ops.fix_auth_shadow(self.ws, "corrupt")
         self.assertFalse(result.ok)
         self.assertEqual(result.reason, "unreadable-creds")
 
     def test_strips_shadow_and_saves_tier(self) -> None:
-        """Shadow is stripped, tier data saved to tokens.json."""
+        """Shadow is stripped, tier data saved into the profile's token entry."""
         pdir = self._make_profile_dir("work")
         self._write_credentials(
             pdir,
@@ -157,7 +165,7 @@ class FixAuthShadowTests(_ProfileOpsTestCase):
                 "mcpOAuth": {"keep": "this"},
             },
         )
-        self._write_tokens({"work": {"token": "tok-work"}})
+        self._write_token("work", {"token": "tok-work"})
 
         result = profile_ops.fix_auth_shadow(self.ws, "work")
 
@@ -170,10 +178,10 @@ class FixAuthShadowTests(_ProfileOpsTestCase):
         self.assertNotIn("claudeAiOauth", creds)
         self.assertIn("mcpOAuth", creds)
 
-        tokens = json.loads(self.tokens_file.read_text())
-        self.assertEqual(tokens["work"]["rateLimitTier"], "default_claude_pro")
-        self.assertEqual(tokens["work"]["subscriptionType"], "claude_pro")
-        self.assertEqual(tokens["work"]["token"], "tok-work")
+        entry = self._read_token("work")
+        self.assertEqual(entry["rateLimitTier"], "default_claude_pro")
+        self.assertEqual(entry["subscriptionType"], "claude_pro")
+        self.assertEqual(entry["token"], "tok-work")
 
     def test_strips_shadow_no_tier_data(self) -> None:
         """Shadow stripped even without tier fields; no tier saved."""
@@ -184,7 +192,7 @@ class FixAuthShadowTests(_ProfileOpsTestCase):
                 "claudeAiOauth": {"accessToken": "short"},
             },
         )
-        self._write_tokens({"notier": {"token": "tok-nt"}})
+        self._write_token("notier", {"token": "tok-nt"})
 
         result = profile_ops.fix_auth_shadow(self.ws, "notier")
 
@@ -195,31 +203,7 @@ class FixAuthShadowTests(_ProfileOpsTestCase):
         creds = json.loads((pdir / ".credentials.json").read_text())
         self.assertNotIn("claudeAiOauth", creds)
 
-        tokens = json.loads(self.tokens_file.read_text())
-        self.assertNotIn("rateLimitTier", tokens.get("notier", {}))
-
-    def test_bare_string_token_upgraded_to_dict_with_tier(self) -> None:
-        """When token entry is a bare string, it's upgraded to a dict to hold tier."""
-        pdir = self._make_profile_dir("legacy")
-        self._write_credentials(
-            pdir,
-            {
-                "claudeAiOauth": {
-                    "accessToken": "ephemeral",
-                    "rateLimitTier": "tier_max",
-                },
-            },
-        )
-        self._write_tokens({"legacy": "bare-tok-string"})
-
-        result = profile_ops.fix_auth_shadow(self.ws, "legacy")
-
-        self.assertTrue(result.ok)
-        self.assertEqual(result.tier_saved, "tier_max")
-
-        tokens = json.loads(self.tokens_file.read_text())
-        self.assertEqual(tokens["legacy"]["token"], "bare-tok-string")
-        self.assertEqual(tokens["legacy"]["rateLimitTier"], "tier_max")
+        self.assertNotIn("rateLimitTier", self._read_token("notier"))
 
     def test_atomic_write_preserves_credentials_permissions(self) -> None:
         """The atomic write to .credentials.json preserves 0600 permissions."""
@@ -233,7 +217,7 @@ class FixAuthShadowTests(_ProfileOpsTestCase):
         )
         creds_path = pdir / ".credentials.json"
         creds_path.chmod(0o600)
-        self._write_tokens({"perms": {"token": "tok-p"}})
+        self._write_token("perms", {"token": "tok-p"})
 
         profile_ops.fix_auth_shadow(self.ws, "perms")
 

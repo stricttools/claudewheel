@@ -12,11 +12,10 @@ has landed:
    first run, mkdirs + default files), so it crashed when the tree was locked
    down. This is now the LIVE contract.
 
-2. A corrupt ``tokens.json`` is a HARD ERROR (``TokenStoreError``) that names
-   the file, rather than being silently swallowed (historically
-   ``resolve_profile`` caught ``json.JSONDecodeError`` and returned env WITHOUT
-   the token). A MISSING file and a MISSING entry remain fine (no token, no
-   error).
+2. A corrupt token entry is a HARD ERROR (``TokenStoreError``) that names the
+   file, rather than being silently swallowed (historically ``resolve_profile``
+   caught ``json.JSONDecodeError`` and returned env WITHOUT the token). A
+   profile that stores no entry at all remains fine (no token, no error).
 
 Both contracts are enforced live -- no ``@unittest.expectedFailure`` remains.
 """
@@ -46,6 +45,7 @@ from claudewheel.workspace import Workspace
 from tests.wheelhelpers import (
     set_tree_mode as _set_tree_mode,
     snapshot_tree as _snapshot,
+    write_token_entry,
 )
 
 
@@ -56,7 +56,7 @@ def _write_json(path: Path, data: object) -> None:
         f.write("\n")
 
 
-def _build_fake_home(home: Path, *, tokens: str | dict[str, Any] | None) -> Path:
+def _build_fake_home(home: Path, *, token: dict[str, Any] | None) -> Path:
     """Populate *home* with a complete ~/.claudewheel tree and profile 'alpha'.
 
     Creates every dir/file AppConfigStore.__post_init__ would otherwise create,
@@ -86,14 +86,18 @@ def _build_fake_home(home: Path, *, tokens: str | dict[str, Any] | None) -> Path
     _write_json(themes / "light.json", DEFAULT_THEME_LIGHT)
     _write_json(cw / "shared-settings.json", {})
 
-    if tokens is not None:
-        _write_json(cw / "tokens.json", tokens)
+    if token is not None:
+        write_token_entry(alpha, token)
 
     return alpha
 
 
-def _write_corrupt_tokens(home: Path) -> None:
-    (home / ".claudewheel" / "tokens.json").write_text("{invalid json")
+def _corrupt_token_path(home: Path) -> Path:
+    """Leave an unparseable token entry in the 'alpha' profile; return its path."""
+    alpha = home / ".claudewheel" / "profiles" / "alpha"
+    path = write_token_entry(alpha, {"token": "t"})
+    path.write_text("{invalid json")
+    return path
 
 
 class _FakeHomeMixin:
@@ -147,7 +151,7 @@ class ReadOnlyResolutionContractTests(_FakeHomeMixin, unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
         self.home = Path(self._tmp.name)
-        self.alpha_dir = _build_fake_home(self.home, tokens={"alpha": "tok-alpha"})
+        self.alpha_dir = _build_fake_home(self.home, token={"token": "tok-alpha"})
         # Lock the whole tree down: dirs r-x, files r--.
         _set_tree_mode(self.home, dir_mode=0o555, file_mode=0o444)
 
@@ -163,7 +167,7 @@ class ReadOnlyResolutionContractTests(_FakeHomeMixin, unittest.TestCase):
         read-only mount, so the errno is 13, not 30) (verified undecorated).
 
         Live contract: pure read-only resolution -- returns the profile dir and
-        token from tokens.json, performs zero writes, and never queries the TTY.
+        token from its own store, performs zero writes, and never queries the TTY.
         """
         # Spy that fails loudly if terminal background detection is attempted.
         spy = mock.Mock(side_effect=AssertionError("terminal I/O attempted"))
@@ -180,7 +184,7 @@ class ReadOnlyResolutionContractTests(_FakeHomeMixin, unittest.TestCase):
 
 
 class CorruptTokensContractTests(_FakeHomeMixin, unittest.TestCase):
-    """corrupt tokens.json -> hard error; missing file / missing entry -> fine."""
+    """A corrupt token entry -> hard error; no entry at all -> fine."""
 
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
@@ -190,33 +194,35 @@ class CorruptTokensContractTests(_FakeHomeMixin, unittest.TestCase):
     def tearDown(self) -> None:
         self._tmp.cleanup()
 
-    def test_corrupt_tokens_is_hard_error(self) -> None:
-        """Historically RED: corrupt tokens.json was silently swallowed (no
+    def test_corrupt_token_entry_is_hard_error(self) -> None:
+        """Historically RED: a corrupt token store was silently swallowed (no
         exception, env returned without a token) (verified undecorated).
 
-        Live contract: a corrupt tokens.json raises TokenStoreError naming the file.
+        Live contract: a corrupt entry raises TokenStoreError naming the file.
         """
-        _build_fake_home(self.home, tokens=None)  # writable tree
-        _write_corrupt_tokens(self.home)
+        _build_fake_home(self.home, token=None)  # writable tree
+        path = _corrupt_token_path(self.home)
         self._patch_env(self.home, detect="dark")
 
         with self.assertRaises(TokenStoreError) as ctx:
             resolve_profile("alpha")
-        self.assertIn("tokens.json", str(ctx.exception))
+        self.assertIn(str(path), str(ctx.exception))
 
-    def test_missing_tokens_file_is_fine(self) -> None:
-        """No tokens.json at all: succeeds, returns env WITHOUT a token."""
-        _build_fake_home(self.home, tokens=None)
-        self.assertFalse((self.home / ".claudewheel" / "tokens.json").exists())
+    def test_profile_storing_no_token_is_fine(self) -> None:
+        """No stored entry at all: succeeds, returns env WITHOUT a token."""
+        _build_fake_home(self.home, token=None)
         self._patch_env(self.home, detect="dark")
 
         env = resolve_profile("alpha")
         self.assertEqual(env["CLAUDE_CONFIG_DIR"], str(self.alpha_dir))
         self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN", env)
 
-    def test_tokens_present_but_no_entry_is_fine(self) -> None:
-        """tokens.json exists but has no entry for the profile: succeeds, no token."""
-        _build_fake_home(self.home, tokens={"someone-else": "tok-other"})
+    def test_another_profiles_entry_is_never_used(self) -> None:
+        """A token stored by a different profile is not this profile's token."""
+        _build_fake_home(self.home, token=None)
+        other = self.home / ".claudewheel" / "profiles" / "someone-else"
+        other.mkdir(parents=True, exist_ok=True)
+        write_token_entry(other, {"token": "tok-other"})
         self._patch_env(self.home, detect="dark")
 
         env = resolve_profile("alpha")
@@ -234,7 +240,7 @@ class WholePackageReadOnlyContractTests(_FakeHomeMixin, unittest.TestCase):
 
     - ``ProfileStore.enumerate`` / ``profiles.env(name)``
     - the ``resolve_profile`` facade (via ``Workspace.default()``)
-    - ``TokenStore.load``
+    - each profile's own token store
     - ``SharedStore`` path accessors
     - ``run_health_check`` -- a diagnostic that must COMPLETE and report on a
       read-only tree, never crash. The inode-renames check attempts to rewrite
@@ -248,7 +254,7 @@ class WholePackageReadOnlyContractTests(_FakeHomeMixin, unittest.TestCase):
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
         self.home = Path(self._tmp.name)
-        self.alpha_dir = _build_fake_home(self.home, tokens={"alpha": "tok-alpha"})
+        self.alpha_dir = _build_fake_home(self.home, token={"token": "tok-alpha"})
 
         # Construct the store once WHILE WRITABLE so every migration/seed runs
         # (schema bump writes config.json, dir seeding creates shared subdirs).
@@ -290,9 +296,8 @@ class WholePackageReadOnlyContractTests(_FakeHomeMixin, unittest.TestCase):
         self.assertEqual(resolved["CLAUDE_CONFIG_DIR"], str(self.alpha_dir))
         self.assertEqual(resolved["CLAUDE_CODE_OAUTH_TOKEN"], "tok-alpha")
 
-        # -- TokenStore.load --
-        tokens = self.ws.tokens.load()
-        self.assertIn("alpha", tokens)
+        # -- the profile's own token store --
+        self.assertEqual(self.ws.profiles.data_for("alpha").token(), "tok-alpha")
 
         # -- SharedStore path accessors (pure path reads) --
         shared = self.ws.shared

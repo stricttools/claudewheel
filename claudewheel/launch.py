@@ -66,7 +66,7 @@ def resolve_launch_config(
     The selected profile is resolved through the injected *profiles*
     ProfileStore -- the single source of profile identity. A named profile that
     no longer exists raises :class:`ValueError` (the hard-error contract that
-    replaced the old silent ~/.claude fallback); a corrupt tokens.json raises
+    replaced the old silent ~/.claude fallback); a corrupt token entry raises
     :class:`TokenStoreError`.
 
     The ``"default"`` profile -- selected explicitly OR reached via the
@@ -74,8 +74,8 @@ def resolve_launch_config(
     own config dir, managed by Claude Code and strictly read-only to cw. The
     built env therefore carries NEITHER ``CLAUDE_CONFIG_DIR`` (any ambient one
     inherited from ``os.environ`` is explicitly removed) NOR
-    ``CLAUDE_CODE_OAUTH_TOKEN`` (no token injection, even if a "default" tokens
-    key exists).
+    ``CLAUDE_CODE_OAUTH_TOKEN`` (no token injection, even if a token entry
+    exists under ``~/.claude``).
 
     When *metadata* is provided (TUI path), use it for model lookups. When
     None (skip-TUI path), fall back to reading from *options_def*.
@@ -88,7 +88,7 @@ def resolve_launch_config(
     # flag so the type checker narrows `profile` to str for the env() call.
     if profile and profile != "default":
         is_default = False
-        # Unknown/stale name -> ValueError; corrupt tokens.json -> TokenStoreError.
+        # Unknown/stale name -> ValueError; corrupt token entry -> TokenStoreError.
         profile_env = profiles.env(profile)
     else:
         is_default = True

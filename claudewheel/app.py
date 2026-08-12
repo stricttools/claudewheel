@@ -1067,7 +1067,7 @@ class App:
         # The inspect binding guarantees a selected profile, so value is non-None.
         name = seg.value
         assert name is not None
-        # A corrupt tokens.json surfaces as TokenStoreError from gather_profile_info.
+        # A corrupt token entry surfaces as TokenStoreError from gather_profile_info.
         # Catch it narrowly and surface a clean flash instead of crashing the TUI.
         try:
             report = gather_profile_info(self.workspace, name)

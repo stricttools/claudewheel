@@ -37,15 +37,16 @@ def resolve_profile(name: str) -> dict[str, str]:
 
     - **Unknown profile** -> :class:`ValueError` whose message lists the
       available profile names.
-    - **Corrupt or unreadable ``tokens.json``** ->
-      :class:`~claudewheel.tokens.TokenStoreError` (a hard error). A *missing*
-      tokens.json file or a *missing* entry for *name* is NOT an error --
-      resolution succeeds, simply without a token.
+    - **Corrupt or unreadable token entry** ->
+      :class:`~claudewheel.tokens.TokenStoreError` (a hard error). A profile
+      with no stored token entry at all is NOT an error -- resolution succeeds,
+      simply without a token.
     - Profiles are resolved purely from the on-disk workspace layout: the
-      ``profiles/`` directory scan, the built-in ``~/.claude`` default, and
-      ``tokens.json``. Profile locations are derived from directories, never
-      persisted; ``options.json`` metadata is no longer consulted (a deliberate
-      contract change from earlier versions).
+      ``profiles/`` directory scan plus the built-in ``~/.claude`` default, and
+      each profile's token comes from its own claudewheel data directory.
+      Profile locations are derived from directories, never persisted;
+      ``options.json`` metadata is no longer consulted (a deliberate contract
+      change from earlier versions).
     - The workspace root is chosen by :meth:`Workspace.default`: the
       ``CLAUDEWHEEL_CONFIG_DIR`` environment variable when set (expanduser'd),
       otherwise ``~/.claudewheel``.

@@ -29,7 +29,7 @@ from claudewheel.health import (
 )
 from claudewheel.profile_data import PROFILE_DATA_DIRNAME
 from claudewheel.tokens import EXPIRY_UNKNOWN_FIELD
-from tests.wheelhelpers import build_profile_dir
+from tests.wheelhelpers import build_profile_dir, write_token_entry
 
 
 class _HomeDirTestCase(unittest.TestCase):
@@ -46,7 +46,6 @@ class _HomeDirTestCase(unittest.TestCase):
         self._shared_dir = self.home / ".claudewheel" / "shared"
         self._skills_dir = self.home / ".claudewheel" / "skills"
         self._profiles_dir = self.home / ".claudewheel" / "profiles"
-        self._tokens_file = self.home / ".claudewheel" / "tokens.json"
         # Health now takes an explicit workspace; build one rooted at the sandbox.
         from claudewheel.workspace import Workspace
 
@@ -70,6 +69,12 @@ class _HomeDirTestCase(unittest.TestCase):
             exist_ok=True,
             credentials=True,
         )
+
+    def _write_token(self, name: str, entry: dict[str, Any] | str) -> Path:
+        """Store *name*'s token entry inside its own profile directory."""
+        pdir = self._profiles_dir / name
+        pdir.mkdir(parents=True, exist_ok=True)
+        return write_token_entry(pdir, entry)
 
 
 # ---------------------------------------------------------------------------
@@ -545,24 +550,15 @@ class CheckSettingsDefaultsTests(_HomeDirTestCase):
 class CheckTokenExpiryTests(_HomeDirTestCase):
     """Tests for check_token_expiry(self.ws), focused on the unknown case."""
 
-    def setUp(self) -> None:
-        super().setUp()
-        self._tokens_file = self.home / ".claudewheel" / "tokens.json"
-
-    def _write_tokens(self, tokens: dict[str, Any]) -> None:
-        self._tokens_file.parent.mkdir(parents=True, exist_ok=True)
-        self._tokens_file.write_text(json.dumps(tokens))
-
     def test_unknown_expiry_never_flagged_as_expiring(self) -> None:
         """An externally-issued token (unknown expiry) is never expiring-soon."""
-        self._write_tokens(
+        self._write_token(
+            "pasted",
             {
-                "pasted": {
-                    "token": "sk-ant-x",
-                    "created": "2020-01-01",
-                    EXPIRY_UNKNOWN_FIELD: True,
-                }
-            }
+                "token": "sk-ant-x",
+                "created": "2020-01-01",
+                EXPIRY_UNKNOWN_FIELD: True,
+            },
         )
         result = check_token_expiry(self.ws)
         self.assertTrue(result.ok)
@@ -573,14 +569,9 @@ class CheckTokenExpiryTests(_HomeDirTestCase):
         from datetime import date, timedelta
 
         soon = (date.today() + timedelta(days=5)).isoformat()
-        self._write_tokens(
-            {
-                "scraped": {
-                    "token": "sk-ant-y",
-                    "created": "2020-01-01",
-                    "expires_at": soon,
-                }
-            }
+        self._write_token(
+            "scraped",
+            {"token": "sk-ant-y", "created": "2020-01-01", "expires_at": soon},
         )
         result = check_token_expiry(self.ws)
         self.assertFalse(result.ok)
@@ -591,12 +582,8 @@ class CheckTokenExpiryTests(_HomeDirTestCase):
         from datetime import date, timedelta
 
         soon = (date.today() + timedelta(days=3)).isoformat()
-        self._write_tokens(
-            {
-                "pasted": {"token": "sk-ant-x", EXPIRY_UNKNOWN_FIELD: True},
-                "scraped": {"token": "sk-ant-y", "expires_at": soon},
-            }
-        )
+        self._write_token("pasted", {"token": "sk-ant-x", EXPIRY_UNKNOWN_FIELD: True})
+        self._write_token("scraped", {"token": "sk-ant-y", "expires_at": soon})
         result = check_token_expiry(self.ws)
         self.assertFalse(result.ok)
         self.assertIn("scraped", result.detail)
@@ -606,54 +593,54 @@ class CheckTokenExpiryTests(_HomeDirTestCase):
 class CheckTokensTests(_HomeDirTestCase):
     """Tests for check_tokens(self.ws)."""
 
-    def setUp(self) -> None:
-        super().setUp()
-        # check_tokens(self.ws) uses the module-level TOKENS_FILE constant (computed at
-        # import time), so we redirect it at the temp home's .claudewheel/tokens.json.
-        self._tokens_file = self.home / ".claudewheel" / "tokens.json"
-
-    def _write_tokens(self, tokens: dict[str, Any]) -> None:
-        """Write tokens.json in the temp home's .claudewheel/ dir."""
-        self._tokens_file.parent.mkdir(parents=True, exist_ok=True)
-        self._tokens_file.write_text(json.dumps(tokens))
-
     def test_ok_when_all_profiles_have_tokens(self) -> None:
         """Returns OK when every profile has a matching token entry."""
         self._make_profile("alpha")
         self._make_profile("beta")
-        self._write_tokens({"alpha": "tok-aaa", "beta": "tok-bbb"})
+        self._write_token("alpha", {"token": "tok-aaa"})
+        self._write_token("beta", {"token": "tok-bbb"})
 
         result = check_tokens(self.ws)
         self.assertTrue(result.ok)
         self.assertIn("2 profiles OK", result.detail)
 
-    def test_warn_when_profile_missing_from_tokens(self) -> None:
-        """Returns WARN when a profile has no entry in tokens.json."""
+    def test_warn_when_profile_stores_no_token(self) -> None:
+        """Returns WARN when a credentialed profile stores no token entry."""
         self._make_profile("alpha")
         self._make_profile("beta")
-        self._write_tokens({"alpha": "tok-aaa"})
+        self._write_token("alpha", {"token": "tok-aaa"})
 
         result = check_tokens(self.ws)
         self.assertFalse(result.ok)
         self.assertIn("beta", result.detail)
 
-    def test_ok_when_tokens_file_missing(self) -> None:
-        """Returns OK when tokens.json does not exist (nothing to check against)."""
+    def test_warn_when_no_profile_stores_a_token(self) -> None:
+        """A credentialed profile with nothing stored is reported, not excused."""
         self._make_profile("lonely")
 
         result = check_tokens(self.ws)
-        self.assertTrue(result.ok)
-        self.assertIn("tokens.json not found", result.detail)
+        self.assertFalse(result.ok)
+        self.assertIn("lonely", result.detail)
 
-    def test_ok_no_profiles_no_tokens(self) -> None:
-        """Returns OK when neither profiles nor tokens.json exist."""
+    def test_ok_no_profiles(self) -> None:
+        """Returns OK when there are no profiles at all."""
         result = check_tokens(self.ws)
         self.assertTrue(result.ok)
+
+    def test_unreadable_entry_fails_naming_the_profile(self) -> None:
+        """A corrupt entry fails the check and names the profile it belongs to."""
+        self._make_profile("broken")
+        self._write_token("broken", {"token": "t"}).write_text("{not json")
+
+        result = check_tokens(self.ws)
+        self.assertFalse(result.ok)
+        self.assertIn("broken", result.detail)
+        self.assertIn("corrupt", result.detail)
 
     def test_warn_when_token_value_empty(self) -> None:
         """Returns WARN when a profile's token value is empty string."""
         self._make_profile("empty")
-        self._write_tokens({"empty": ""})
+        self._write_token("empty", {"token": ""})
 
         result = check_tokens(self.ws)
         self.assertFalse(result.ok)
@@ -662,7 +649,7 @@ class CheckTokensTests(_HomeDirTestCase):
     def test_warn_when_token_value_not_string(self) -> None:
         """Returns WARN when a profile's token value is not a string."""
         self._make_profile("numeric")
-        self._write_tokens({"numeric": 12345})
+        self._write_token("numeric", {"token": 12345})
 
         result = check_tokens(self.ws)
         self.assertFalse(result.ok)
@@ -674,8 +661,6 @@ class CheckTokensTests(_HomeDirTestCase):
         pdir = self._profiles_dir / "newprof"
         pdir.mkdir(parents=True, exist_ok=True)
         (pdir / "settings.json").write_text("{}")
-        # Tokens file exists but has no entry for "newprof"
-        self._write_tokens({})
 
         result = check_tokens(self.ws)
         self.assertTrue(result.ok)
@@ -794,28 +779,15 @@ class CheckOrphanProfilesTests(_HomeDirTestCase):
 class CheckAuthShadowTests(_HomeDirTestCase):
     """Tests for check_auth_shadow(self.ws)."""
 
-    def setUp(self) -> None:
-        super().setUp()
-        self._tokens_file = self.home / ".claudewheel" / "tokens.json"
-
-    def _write_tokens(self, tokens: dict[str, Any]) -> None:
-        self._tokens_file.parent.mkdir(parents=True, exist_ok=True)
-        self._tokens_file.write_text(json.dumps(tokens))
-
     def _write_credentials(self, pdir: Path, data: dict[str, Any]) -> None:
         (pdir / ".credentials.json").write_text(json.dumps(data))
 
     def test_flagged_when_both_token_and_claude_ai_oauth(self) -> None:
         """Profile with both tokens.json entry AND claudeAiOauth in .credentials.json is flagged."""
         pdir = self._make_profile("work")
-        self._write_tokens(
-            {
-                "work": {
-                    "token": "tok-xxx",
-                    "created": "2025-01-01",
-                    "expires_at": "2026-01-01",
-                }
-            }
+        self._write_token(
+            "work",
+            {"token": "tok-xxx", "created": "2025-01-01", "expires_at": "2026-01-01"},
         )
         self._write_credentials(pdir, {"claudeAiOauth": {"accessToken": "short-lived"}})
 
@@ -827,7 +799,7 @@ class CheckAuthShadowTests(_HomeDirTestCase):
     def test_not_flagged_when_only_token(self) -> None:
         """Profile with only tokens.json entry (no claudeAiOauth) is not flagged."""
         pdir = self._make_profile("clean")
-        self._write_tokens({"clean": "tok-abc"})
+        self._write_token("clean", {"token": "tok-abc"})
         self._write_credentials(pdir, {"mcpOAuth": {"some": "data"}})
 
         result = check_auth_shadow(self.ws)
@@ -836,8 +808,7 @@ class CheckAuthShadowTests(_HomeDirTestCase):
 
     def test_not_flagged_when_only_credentials(self) -> None:
         """Profile with claudeAiOauth but no tokens.json entry is not flagged."""
-        pdir = self._make_profile("session-only")
-        self._write_tokens({})  # no entry for "session-only"
+        pdir = self._make_profile("session-only")  # stores no token entry
         self._write_credentials(pdir, {"claudeAiOauth": {"accessToken": "x"}})
 
         result = check_auth_shadow(self.ws)
@@ -847,15 +818,15 @@ class CheckAuthShadowTests(_HomeDirTestCase):
     def test_not_flagged_when_mcp_oauth_only(self) -> None:
         """Profile with mcpOAuth but no claudeAiOauth is not flagged."""
         pdir = self._make_profile("mcp-only")
-        self._write_tokens({"mcp-only": "tok-mcp"})
+        self._write_token("mcp-only", {"token": "tok-mcp"})
         self._write_credentials(pdir, {"mcpOAuth": {"provider": "github"}})
 
         result = check_auth_shadow(self.ws)
         self.assertTrue(result.ok)
         self.assertIn("no auth shadow", result.detail)
 
-    def test_no_tokens_file(self) -> None:
-        """Returns OK when tokens.json does not exist (no shadow possible)."""
+    def test_no_stored_tokens(self) -> None:
+        """Returns OK when no profile stores a token (no shadow possible)."""
         self._make_profile("any")
         result = check_auth_shadow(self.ws)
         self.assertTrue(result.ok)
@@ -863,8 +834,6 @@ class CheckAuthShadowTests(_HomeDirTestCase):
 
     def test_no_profiles(self) -> None:
         """Returns OK when no profiles are discovered."""
-        self._tokens_file.parent.mkdir(parents=True, exist_ok=True)
-        self._tokens_file.write_text("{}")
         result = check_auth_shadow(self.ws)
         self.assertTrue(result.ok)
         self.assertIn("no profiles found", result.detail)
@@ -1186,25 +1155,17 @@ class CheckDeployedHookDriftTests(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# run_health_check -- corrupt tokens.json carve-out
+# run_health_check -- an unreadable token entry
 # ---------------------------------------------------------------------------
 
 
 class HealthRunCorruptTokensTests(_HomeDirTestCase):
-    """The single-load carve-out: a corrupt tokens.json fails the token checks
-    but the full health run still completes with every check reported."""
+    """One profile's unreadable token entry fails the token checks while the
+    full health run still completes with every check reported."""
 
-    def setUp(self) -> None:
-        super().setUp()
-        cw = self.home / ".claudewheel"
-        cw.mkdir(parents=True, exist_ok=True)
-        # All health paths now derive from self.ws (built in the base setUp),
-        # which is rooted at cw -- so the full run stays hermetic.
-
-    def test_corrupt_tokens_fails_token_checks_but_run_completes(self) -> None:
+    def test_corrupt_entry_fails_token_checks_but_run_completes(self) -> None:
         self._make_profile("work")
-        self._tokens_file.parent.mkdir(parents=True, exist_ok=True)
-        self._tokens_file.write_text("not valid json{{{")
+        self._write_token("work", {"token": "t"}).write_text("not valid json{{{")
 
         results = run_health_check(self.ws)
 
@@ -1222,19 +1183,21 @@ class HealthRunCorruptTokensTests(_HomeDirTestCase):
         self.assertFalse(expiry_result.ok)
         self.assertIn("corrupt", expiry_result.detail)
 
-        # Profile-based checks still ran (dir-only enumeration, has_token False).
+        # Profile-based checks still ran (enumeration tolerated the bad entry).
         self.assertIn("hooks-wired", labels)
         self.assertIn("orphan-profiles", labels)
 
-    def test_standalone_check_tokens_fails_on_corrupt_file(self) -> None:
-        """Called directly (no run-level token view), check_tokens still fails."""
+    def test_one_bad_entry_does_not_hide_a_good_profile(self) -> None:
+        """The other profile's token is still read and reported."""
         self._make_profile("work")
-        self._tokens_file.parent.mkdir(parents=True, exist_ok=True)
-        self._tokens_file.write_text("{not json")
+        self._make_profile("other")
+        self._write_token("other", {"token": "tok-other"})
+        self._write_token("work", {"token": "t"}).write_text("{not json")
 
         result = check_tokens(self.ws)
         self.assertFalse(result.ok)
-        self.assertIn("corrupt", result.detail)
+        self.assertIn("work", result.detail)
+        self.assertNotIn("other", result.detail)
 
 
 # ---------------------------------------------------------------------------

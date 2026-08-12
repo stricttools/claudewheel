@@ -103,7 +103,9 @@ class ResolveThenDoLaunchEndToEndTests(SandboxHomeTestCase):
         self.ws = Workspace.default()
         self.profiles = self.ws.profiles
         self.profiles.create("work", {"model": "claude-opus-4-8"})
-        self.ws.tokens.add("work", "tok-xyz", expiry=TokenExpiryDisposition.TTL)
+        self.ws.profiles.data_for("work").write_token(
+            "tok-xyz", expiry=TokenExpiryDisposition.TTL
+        )
         # A tmpdir-backed locator so no installed version is required (fallback
         # symlink stands in for the binary path).
         self.locator = BinaryLocator(

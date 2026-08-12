@@ -7,9 +7,9 @@ from pathlib import Path
 
 from claudewheel.profile_data import PROFILE_DATA_DIRNAME
 from claudewheel.profile_store import Profile, ProfileStore
-from claudewheel.tokens import TokenStore, TokenStoreError
+from claudewheel.tokens import TokenStoreError
 from claudewheel.workspace import Workspace
-from tests.wheelhelpers import SandboxHomeTestCase, write_json
+from tests.wheelhelpers import SandboxHomeTestCase, write_token_entry
 
 
 def _tree_mode(root: Path, dir_mode: int, file_mode: int) -> None:
@@ -39,7 +39,6 @@ class ProfileStoreEnumerateTests(SandboxHomeTestCase):
         return ProfileStore(
             profiles_dir=self.sandbox_paths["PROFILES_DIR"],
             claude_dir=self.home / ".claude",
-            token_store=TokenStore(self.sandbox_paths["TOKENS_FILE"]),
         )
 
     def _tuples(self, profiles: list[Profile]) -> list[tuple[str, Path, bool, bool]]:
@@ -76,10 +75,10 @@ class ProfileStoreEnumerateTests(SandboxHomeTestCase):
         self.assertEqual(self._store().enumerate(), [])
 
     def test_default_token_only(self) -> None:
-        """Corrected-rule case: tokens key 'default', dir exists, no credentials."""
+        """A ~/.claude holding only a stored token entry, no credentials."""
         d = self.home / ".claude"
         d.mkdir(parents=True, exist_ok=True)
-        write_json(self.sandbox_paths["TOKENS_FILE"], {"default": "tok-default"})
+        write_token_entry(d, {"token": "tok-default"})
         self.assertEqual(
             self._tuples(self._store().enumerate()),
             [("default", self.home / ".claude", False, True)],
@@ -130,13 +129,12 @@ class ProfileStoreEnumerateTests(SandboxHomeTestCase):
             [("delta", p, False, False)],
         )
 
-    def test_token_entry_without_dir_is_invisible(self) -> None:
-        write_json(self.sandbox_paths["TOKENS_FILE"], {"ghost": "tok-ghost"})
+    def test_name_with_no_directory_is_invisible(self) -> None:
         self.assertEqual(self._store().enumerate(), [])
 
     def test_token_marking_on_credentialed_profile(self) -> None:
         p = self.make_profile("epsilon", credentials=True)
-        write_json(self.sandbox_paths["TOKENS_FILE"], {"epsilon": "tok-eps"})
+        write_token_entry(p, {"token": "tok-eps"})
         self.assertEqual(
             self._tuples(self._store().enumerate()),
             [("epsilon", p, True, True)],
@@ -166,12 +164,11 @@ class ProfileStoreContractTests(SandboxHomeTestCase):
         return ProfileStore(
             profiles_dir=self.sandbox_paths["PROFILES_DIR"],
             claude_dir=self.home / ".claude",
-            token_store=TokenStore(self.sandbox_paths["TOKENS_FILE"]),
         )
 
     def test_env_happy_path(self) -> None:
         p = self.make_profile("alpha", credentials=True)
-        write_json(self.sandbox_paths["TOKENS_FILE"], {"alpha": "tok-alpha"})
+        write_token_entry(p, {"token": "tok-alpha"})
         env = self._store().env("alpha")
         self.assertEqual(env["CLAUDE_CONFIG_DIR"], str(p))
         self.assertEqual(env["CLAUDE_CODE_OAUTH_TOKEN"], "tok-alpha")
@@ -184,17 +181,15 @@ class ProfileStoreContractTests(SandboxHomeTestCase):
         self.assertEqual(env["CLAUDE_CONFIG_DIR"], str(p))
         self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN", env)
 
-    def test_env_injects_plan_tier_from_tokens(self) -> None:
-        """A tokens entry carrying plan-tier fields yields the matching env vars."""
-        self.make_profile("alpha", credentials=True)
-        write_json(
-            self.sandbox_paths["TOKENS_FILE"],
+    def test_env_injects_plan_tier_from_token_entry(self) -> None:
+        """A token entry carrying plan-tier fields yields the matching env vars."""
+        p = self.make_profile("alpha", credentials=True)
+        write_token_entry(
+            p,
             {
-                "alpha": {
-                    "token": "tok-alpha",
-                    "subscriptionType": "max",
-                    "rateLimitTier": "default_claude_max_20x",
-                }
+                "token": "tok-alpha",
+                "subscriptionType": "max",
+                "rateLimitTier": "default_claude_max_20x",
             },
         )
         env = self._store().env("alpha")
@@ -204,11 +199,8 @@ class ProfileStoreContractTests(SandboxHomeTestCase):
 
     def test_env_plan_tier_independent_of_token(self) -> None:
         """Tier fields are injected even when the entry carries no token."""
-        self.make_profile("alpha", credentials=True)
-        write_json(
-            self.sandbox_paths["TOKENS_FILE"],
-            {"alpha": {"subscriptionType": "pro"}},
-        )
+        p = self.make_profile("alpha", credentials=True)
+        write_token_entry(p, {"subscriptionType": "pro"})
         env = self._store().env("alpha")
         self.assertEqual(env["CLAUDE_CODE_SUBSCRIPTION_TYPE"], "pro")
         self.assertNotIn("CLAUDE_CODE_OAUTH_TOKEN", env)
@@ -216,19 +208,16 @@ class ProfileStoreContractTests(SandboxHomeTestCase):
 
     def test_env_omits_plan_tier_when_absent(self) -> None:
         """An entry without tier fields injects neither var."""
-        self.make_profile("alpha", credentials=True)
-        write_json(self.sandbox_paths["TOKENS_FILE"], {"alpha": "tok-alpha"})
+        p = self.make_profile("alpha", credentials=True)
+        write_token_entry(p, {"token": "tok-alpha"})
         env = self._store().env("alpha")
         self.assertNotIn("CLAUDE_CODE_SUBSCRIPTION_TYPE", env)
         self.assertNotIn("CLAUDE_CODE_RATE_LIMIT_TIER", env)
 
     def test_env_unknown_subscription_type_raises(self) -> None:
         """An unrecognized subscriptionType is a hard error naming the valid values."""
-        self.make_profile("alpha", credentials=True)
-        write_json(
-            self.sandbox_paths["TOKENS_FILE"],
-            {"alpha": {"token": "t", "subscriptionType": "Max"}},
-        )
+        p = self.make_profile("alpha", credentials=True)
+        write_token_entry(p, {"token": "t", "subscriptionType": "Max"})
         with self.assertRaises(ValueError) as ctx:
             self._store().env("alpha")
         msg = str(ctx.exception)
@@ -238,22 +227,17 @@ class ProfileStoreContractTests(SandboxHomeTestCase):
 
     def test_env_unknown_rate_limit_tier_raises(self) -> None:
         """An unrecognized rateLimitTier is a hard error naming the valid values."""
-        self.make_profile("alpha", credentials=True)
-        write_json(
-            self.sandbox_paths["TOKENS_FILE"],
-            {"alpha": {"token": "t", "rateLimitTier": "max_20x"}},
-        )
+        p = self.make_profile("alpha", credentials=True)
+        write_token_entry(p, {"token": "t", "rateLimitTier": "max_20x"})
         with self.assertRaises(ValueError) as ctx:
             self._store().env("alpha")
         self.assertIn("'max_20x'", str(ctx.exception))
 
     def test_env_default_ignores_plan_tier(self) -> None:
-        """The vanilla default resolves empty even when a tokens entry has tiers."""
-        (self.home / ".claude").mkdir(parents=True, exist_ok=True)
-        write_json(
-            self.sandbox_paths["TOKENS_FILE"],
-            {"default": {"token": "t", "subscriptionType": "max"}},
-        )
+        """The vanilla default resolves empty even with a token entry carrying tiers."""
+        d = self.home / ".claude"
+        d.mkdir(parents=True, exist_ok=True)
+        write_token_entry(d, {"token": "t", "subscriptionType": "max"})
         self.assertEqual(self._store().env("default"), {})
 
     def test_env_unknown_name_raises_listing_available(self) -> None:
@@ -266,47 +250,44 @@ class ProfileStoreContractTests(SandboxHomeTestCase):
         self.assertIn("alpha", msg)
         self.assertIn("beta", msg)
 
-    def test_enumerate_explicit_empty_tokens_survives_corrupt_file(self) -> None:
-        """enumerate(tokens={}) never touches the file, so a corrupt one can't raise."""
-        p = self.make_profile("alpha", credentials=True)
-        self.sandbox_paths["TOKENS_FILE"].write_text("{invalid json")
-        result = self._store().enumerate(tokens={})
-        self.assertEqual(
-            [(x.name, x.path, x.has_credentials, x.has_token) for x in result],
-            [("alpha", p, True, False)],
-        )
+    def _corrupt_token(self, profile_dir: Path) -> None:
+        """Leave an unparseable token entry in *profile_dir*."""
+        path = write_token_entry(profile_dir, {"token": "t"})
+        path.write_text("{invalid json")
 
-    def test_enumerate_none_on_corrupt_tokens_raises(self) -> None:
-        self.make_profile("alpha", credentials=True)
-        self.sandbox_paths["TOKENS_FILE"].write_text("{invalid json")
+    def test_enumerate_on_corrupt_token_entry_raises(self) -> None:
+        p = self.make_profile("alpha", credentials=True)
+        self._corrupt_token(p)
         with self.assertRaises(TokenStoreError):
             self._store().enumerate()
 
-    def test_discover_swallow_survives_corrupt_tokens(self) -> None:
-        """discover(on_corrupt_tokens='swallow') loads-and-swallows to {}."""
+    def test_discover_swallow_survives_a_corrupt_entry(self) -> None:
+        """The swallow policy leaves that profile tokenless rather than raising."""
         p = self.make_profile("alpha", credentials=True)
-        self.sandbox_paths["TOKENS_FILE"].write_text("{invalid json")
+        self._corrupt_token(p)
         result = self._store().discover(on_corrupt_tokens="swallow")
         self.assertEqual(
             [(x.name, x.path, x.has_credentials, x.has_token) for x in result],
             [("alpha", p, True, False)],
         )
 
-    def test_discover_raise_propagates_corrupt_tokens(self) -> None:
-        """discover(on_corrupt_tokens='raise') loads and re-raises TokenStoreError."""
-        self.make_profile("alpha", credentials=True)
-        self.sandbox_paths["TOKENS_FILE"].write_text("{invalid json")
+    def test_discover_raise_propagates_a_corrupt_entry(self) -> None:
+        p = self.make_profile("alpha", credentials=True)
+        self._corrupt_token(p)
         with self.assertRaises(TokenStoreError):
             self._store().discover(on_corrupt_tokens="raise")
 
-    def test_discover_preloaded_view_never_reloads(self) -> None:
-        """A preloaded tokens view is used verbatim; a corrupt file is never read."""
-        self.make_profile("alpha", credentials=True)
-        self.sandbox_paths["TOKENS_FILE"].write_text("{invalid json")
-        # Even in 'raise' mode, an explicit view means no load happens, so the
-        # corrupt file can never raise.
-        result = self._store().discover(on_corrupt_tokens="raise", tokens={})
-        self.assertEqual([(x.name, x.has_token) for x in result], [("alpha", False)])
+    def test_one_corrupt_entry_does_not_hide_other_profiles(self) -> None:
+        """Per-profile reads: a bad entry only affects its own profile."""
+        bad = self.make_profile("alpha", credentials=True)
+        good = self.make_profile("beta", credentials=True)
+        write_token_entry(good, {"token": "tok-beta"})
+        self._corrupt_token(bad)
+        result = self._store().discover(on_corrupt_tokens="swallow")
+        self.assertEqual(
+            [(x.name, x.has_token) for x in result],
+            [("alpha", False), ("beta", True)],
+        )
 
     def test_discover_rejects_unknown_mode(self) -> None:
         """An unrecognized corrupt-tokens mode is a hard ValueError."""
@@ -315,7 +296,7 @@ class ProfileStoreContractTests(SandboxHomeTestCase):
 
     def test_env_on_readonly_tree_succeeds_with_zero_writes(self) -> None:
         p = self.make_profile("alpha", credentials=True)
-        write_json(self.sandbox_paths["TOKENS_FILE"], {"alpha": "tok-alpha"})
+        write_token_entry(p, {"token": "tok-alpha"})
         # Lock the whole sandbox home down: dirs r-x, files r--.
         _tree_mode(self.home, dir_mode=0o555, file_mode=0o444)
         self.addCleanup(_tree_mode, self.home, 0o755, 0o644)
@@ -334,7 +315,7 @@ class ProfileStoreContractTests(SandboxHomeTestCase):
         """
         d = self.home / ".claude"
         d.mkdir(parents=True, exist_ok=True)
-        write_json(self.sandbox_paths["TOKENS_FILE"], {"default": "tok-default"})
+        write_token_entry(d, {"token": "tok-default"})
         env = self._store().env("default")
         self.assertEqual(env, {})
 
@@ -355,7 +336,7 @@ class ProfileStoreContractTests(SandboxHomeTestCase):
 
     def test_workspace_profiles_returns_working_store(self) -> None:
         p = self.make_profile("alpha", credentials=True)
-        write_json(self.sandbox_paths["TOKENS_FILE"], {"alpha": "tok-alpha"})
+        write_token_entry(p, {"token": "tok-alpha"})
         ws = Workspace.open(root=self.launcher_dir, claude_dir=self.home / ".claude")
         store = ws.profiles
         self.assertIsInstance(store, ProfileStore)

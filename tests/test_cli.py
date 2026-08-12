@@ -21,7 +21,7 @@ from unittest.mock import MagicMock
 
 from claudewheel import cli
 from claudewheel.config import AppConfigStore
-from tests.wheelhelpers import build_profile_dir
+from tests.wheelhelpers import build_profile_dir, write_token_entry
 
 if TYPE_CHECKING:
     from claudewheel.profile_info import ProfileReport
@@ -649,12 +649,13 @@ class ClientSelectionCliTests(unittest.TestCase):
 
 
 class LaunchCorruptTokensTests(unittest.TestCase):
-    """A corrupt tokens.json on the launch path fails cleanly.
+    """A corrupt token entry on the launch path fails cleanly.
 
     Exercises the real _do_launch_sequence -> resolve_launch_config path (only
     AppConfigStore and run_hooks are stubbed) so the TokenStoreError raised while
-    reading tokens.json propagates to the _handle_launch boundary, which must
-    print a clean, actionable message and exit nonzero -- never a traceback.
+    reading the profile's token entry propagates to the _handle_launch boundary,
+    which must print a clean, actionable message and exit nonzero -- never a
+    traceback.
     """
 
     SEGMENTS_DEF = PrintModeTests.SEGMENTS_DEF
@@ -673,10 +674,17 @@ class LaunchCorruptTokensTests(unittest.TestCase):
             options_def={},
         )
 
-    def test_corrupt_tokens_clean_error_no_traceback(self) -> None:
+    def test_corrupt_token_entry_clean_error_no_traceback(self) -> None:
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
-        tokens_file = Path(tmp.name) / "tokens.json"
+        pdir = build_profile_dir(
+            Path(tmp.name) / "profiles",
+            "work",
+            parents=True,
+            exist_ok=True,
+            credentials=True,
+        )
+        tokens_file = write_token_entry(pdir, {"token": "t"})
         tokens_file.write_text("{ not valid json")
 
         fake_cfg = self._make_cfg()
@@ -1857,7 +1865,6 @@ class DeleteProfileHandlerTests(unittest.TestCase):
             removed_symlinks=1,
             removed_real=2,
             removed_from_options=True,
-            removed_from_tokens=True,
             last_config_purged=False,
         )
 
@@ -2077,7 +2084,6 @@ class FixAuthTests(unittest.TestCase):
         self.home = Path(self._tmp.name)
         self.profiles_dir = self.home / ".claudewheel" / "profiles"
         self.profiles_dir.mkdir(parents=True)
-        self.tokens_file = self.home / ".claudewheel" / "tokens.json"
         from claudewheel.workspace import Workspace
 
         self.ws = Workspace.open(
@@ -2093,12 +2099,13 @@ class FixAuthTests(unittest.TestCase):
             credentials=False,
         )
 
-    def _write_tokens(self, data: dict[str, Any]) -> None:
-        import json
+    def _write_token(self, name: str, entry: dict[str, Any]) -> None:
+        write_token_entry(self.profiles_dir / name, entry)
 
-        self.tokens_file.parent.mkdir(parents=True, exist_ok=True)
-        self.tokens_file.write_text(json.dumps(data))
-        self.tokens_file.chmod(0o600)
+    def _read_token(self, name: str) -> dict[str, Any]:
+        from claudewheel.profile_data import ProfileDataStore
+
+        return ProfileDataStore(self.profiles_dir / name).load()
 
     def _write_credentials(self, pdir: Path, data: dict[str, Any]) -> None:
         import json
@@ -2124,14 +2131,9 @@ class FixAuthTests(unittest.TestCase):
         import json
 
         pdir = self._make_profile("work")
-        self._write_tokens(
-            {
-                "work": {
-                    "token": "tok-abc",
-                    "created": "2025-01-01",
-                    "expires_at": "2026-01-01",
-                }
-            }
+        self._write_token(
+            "work",
+            {"token": "tok-abc", "created": "2025-01-01", "expires_at": "2026-01-01"},
         )
         self._write_credentials(
             pdir,
@@ -2155,15 +2157,15 @@ class FixAuthTests(unittest.TestCase):
         self.assertNotIn("claudeAiOauth", creds)
         self.assertIn("mcpOAuth", creds)
 
-        # Verify tokens.json has tier fields
-        tokens = json.loads(self.tokens_file.read_text())
-        self.assertEqual(tokens["work"]["rateLimitTier"], "tier4")
-        self.assertEqual(tokens["work"]["subscriptionType"], "pro")
+        # Verify the profile's token entry carries the tier fields
+        entry = self._read_token("work")
+        self.assertEqual(entry["rateLimitTier"], "tier4")
+        self.assertEqual(entry["subscriptionType"], "pro")
 
     def test_fix_auth_no_shadow_exits_0(self) -> None:
         """When no claudeAiOauth key exists, prints 'no auth shadow' and exits 0."""
         pdir = self._make_profile("clean")
-        self._write_tokens({"clean": "tok-xyz"})
+        self._write_token("clean", {"token": "tok-xyz"})
         self._write_credentials(pdir, {"mcpOAuth": {"x": "y"}})
 
         rc, out, err = self._run_fix_auth("clean")
@@ -2171,9 +2173,8 @@ class FixAuthTests(unittest.TestCase):
         self.assertIn("No auth shadow detected", out)
 
     def test_fix_auth_no_token_exits_1(self) -> None:
-        """When profile has no tokens.json entry, exits 1 with error."""
+        """When the profile stores no token entry, exits 1 with error."""
         self._make_profile("orphan")
-        self._write_tokens({})
 
         rc, out, err = self._run_fix_auth("orphan")
         self.assertEqual(rc, 1)
@@ -2184,14 +2185,9 @@ class FixAuthTests(unittest.TestCase):
         import json
 
         pdir = self._make_profile("notier")
-        self._write_tokens(
-            {
-                "notier": {
-                    "token": "tok-nt",
-                    "created": "2025-01-01",
-                    "expires_at": "2026-01-01",
-                }
-            }
+        self._write_token(
+            "notier",
+            {"token": "tok-nt", "created": "2025-01-01", "expires_at": "2026-01-01"},
         )
         self._write_credentials(
             pdir,
@@ -2209,13 +2205,11 @@ class FixAuthTests(unittest.TestCase):
         creds = json.loads((pdir / ".credentials.json").read_text())
         self.assertNotIn("claudeAiOauth", creds)
 
-        # Verify tokens.json was NOT modified (no tier fields)
-        tokens = json.loads(self.tokens_file.read_text())
-        self.assertNotIn("rateLimitTier", tokens.get("notier", {}))
+        # Verify the token entry was NOT modified (no tier fields)
+        self.assertNotIn("rateLimitTier", self._read_token("notier"))
 
     def test_fix_auth_missing_profile_exits_1(self) -> None:
         """No profile directory behind the name -> exit 1 with an error."""
-        self._write_tokens({"other": {"token": "t"}})
 
         rc, out, err = self._run_fix_auth("absent")
         self.assertEqual(rc, 1)
@@ -2229,7 +2223,6 @@ class WriteTierStubTests(unittest.TestCase):
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
         self.root = Path(self._tmp.name)
-        self.tokens_file = self.root / "tokens.json"
         self.config_dir = self.root / "profiles" / "work"
         self.config_dir.mkdir(parents=True)
 
@@ -2237,10 +2230,8 @@ class WriteTierStubTests(unittest.TestCase):
 
         self.ws = Workspace.open(self.root, claude_dir=self.root / ".claude")
 
-    def _write_tokens(self, data: dict[str, Any]) -> None:
-        import json
-
-        self.tokens_file.write_text(json.dumps(data))
+    def _write_token(self, entry: dict[str, Any]) -> None:
+        write_token_entry(self.config_dir, entry)
 
     def _read_creds(self) -> dict[str, Any]:
         import json
@@ -2251,14 +2242,12 @@ class WriteTierStubTests(unittest.TestCase):
         return data
 
     def test_writes_tier_stub(self) -> None:
-        """When tokens.json has tier data, .credentials.json gets a stub."""
-        self._write_tokens(
+        """When the token entry has tier data, .credentials.json gets a stub."""
+        self._write_token(
             {
-                "work": {
-                    "token": "tok-1",
-                    "rateLimitTier": "default_claude_pro",
-                    "subscriptionType": "claude_pro",
-                }
+                "token": "tok-1",
+                "rateLimitTier": "default_claude_pro",
+                "subscriptionType": "claude_pro",
             }
         )
 
@@ -2269,8 +2258,8 @@ class WriteTierStubTests(unittest.TestCase):
         self.assertEqual(creds["claudeAiOauth"]["subscriptionType"], "claude_pro")
 
     def test_no_tier_no_write(self) -> None:
-        """When tokens.json has no tier field, .credentials.json is not created."""
-        self._write_tokens({"work": {"token": "tok-2"}})
+        """When the token entry has no tier field, .credentials.json is not created."""
+        self._write_token({"token": "tok-2"})
 
         cli._write_tier_stub(self.ws, "work", str(self.config_dir))
 
@@ -2280,12 +2269,10 @@ class WriteTierStubTests(unittest.TestCase):
         """When .credentials.json already has the matching tier, no write occurs."""
         import json
 
-        self._write_tokens(
+        self._write_token(
             {
-                "work": {
-                    "token": "tok-3",
-                    "rateLimitTier": "default_claude_pro",
-                }
+                "token": "tok-3",
+                "rateLimitTier": "default_claude_pro",
             }
         )
         # Pre-populate matching credentials
@@ -2308,12 +2295,10 @@ class WriteTierStubTests(unittest.TestCase):
         """When .credentials.json has a different tier, it is updated."""
         import json
 
-        self._write_tokens(
+        self._write_token(
             {
-                "work": {
-                    "token": "tok-4",
-                    "rateLimitTier": "default_claude_max_5x",
-                }
+                "token": "tok-4",
+                "rateLimitTier": "default_claude_max_5x",
             }
         )
         creds_path = self.config_dir / ".credentials.json"
@@ -2330,12 +2315,10 @@ class WriteTierStubTests(unittest.TestCase):
 
     def test_no_profile_no_write(self) -> None:
         """When profile is None, nothing happens."""
-        self._write_tokens(
+        self._write_token(
             {
-                "work": {
-                    "token": "tok-5",
-                    "rateLimitTier": "default_claude_pro",
-                }
+                "token": "tok-5",
+                "rateLimitTier": "default_claude_pro",
             }
         )
 
@@ -2345,12 +2328,10 @@ class WriteTierStubTests(unittest.TestCase):
 
     def test_no_config_dir_no_write(self) -> None:
         """When config_dir is None, nothing happens."""
-        self._write_tokens(
+        self._write_token(
             {
-                "work": {
-                    "token": "tok-6",
-                    "rateLimitTier": "default_claude_pro",
-                }
+                "token": "tok-6",
+                "rateLimitTier": "default_claude_pro",
             }
         )
 
@@ -2360,12 +2341,10 @@ class WriteTierStubTests(unittest.TestCase):
         """Existing keys in .credentials.json are preserved."""
         import json
 
-        self._write_tokens(
+        self._write_token(
             {
-                "work": {
-                    "token": "tok-7",
-                    "rateLimitTier": "default_claude_pro",
-                }
+                "token": "tok-7",
+                "rateLimitTier": "default_claude_pro",
             }
         )
         creds_path = self.config_dir / ".credentials.json"
@@ -2377,9 +2356,8 @@ class WriteTierStubTests(unittest.TestCase):
         self.assertEqual(creds["otherKey"], "preserved")
         self.assertEqual(creds["claudeAiOauth"]["rateLimitTier"], "default_claude_pro")
 
-    def test_missing_tokens_file_no_crash(self) -> None:
-        """When tokens.json doesn't exist, function silently returns."""
-        self.assertFalse(self.tokens_file.exists())
+    def test_missing_token_entry_no_crash(self) -> None:
+        """When the profile stores no entry, the function silently returns."""
         cli._write_tier_stub(self.ws, "work", str(self.config_dir))
         self.assertFalse((self.config_dir / ".credentials.json").exists())
 
@@ -2608,15 +2586,18 @@ class CheckTokensTests(unittest.TestCase):
         self.assertIn("valid", out)
         self.assertIn("no token", out)
 
-    def test_corrupt_tokens_clean_error_no_traceback(self) -> None:
-        """A corrupt tokens.json makes check-tokens fail cleanly: nonzero exit,
+    def test_corrupt_token_entry_clean_error_no_traceback(self) -> None:
+        """A corrupt token entry makes check-tokens fail cleanly: nonzero exit,
         actionable message on stderr, no traceback (mirrors the launch path)."""
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         from claudewheel.workspace import Workspace
 
         ws = Workspace.open(Path(tmp.name), claude_dir=Path(tmp.name) / ".claude")
-        tokens_file = ws.tokens_file
+        pdir = build_profile_dir(
+            ws.profiles_dir, "work", parents=True, exist_ok=True, credentials=True
+        )
+        tokens_file = write_token_entry(pdir, {"token": "t"})
         tokens_file.write_text("{ not valid json")
 
         err = io.StringIO()
@@ -2639,8 +2620,17 @@ class CheckTokensTests(unittest.TestCase):
 
         buf = io.StringIO()
         ws = mock.MagicMock()
-        ws.tokens.load.return_value = tokens_data
         ws.profiles.enumerate.return_value = profiles
+
+        def fake_data_for(name: str) -> Any:
+            entry = tokens_data.get(name)
+            store = mock.MagicMock()
+            store.token.return_value = (
+                entry.get("token") if isinstance(entry, dict) else entry
+            )
+            return store
+
+        ws.profiles.data_for.side_effect = fake_data_for
 
         with (
             mock.patch(
@@ -2689,7 +2679,6 @@ class RenameProfileHandlerTests(unittest.TestCase):
         self.profiles_dir = self.home / ".claudewheel" / "profiles"
         self.profiles_dir.mkdir(parents=True)
         self.options_file = self.home / ".claudewheel" / "options.json"
-        self.tokens_file = self.home / ".claudewheel" / "tokens.json"
         from claudewheel.workspace import Workspace
 
         self.ws = Workspace.open(
@@ -2743,7 +2732,6 @@ class RenameProfileHandlerTests(unittest.TestCase):
     def test_running_profile_exits(self) -> None:
         (self.profiles_dir / "active").mkdir()
         self._write_options(["active"])
-        self.tokens_file.write_text("{}")
         with (
             mock.patch(
                 "claudewheel.profile_ops._is_profile_running",
@@ -2758,7 +2746,6 @@ class RenameProfileHandlerTests(unittest.TestCase):
     def test_success_calls_store_rename(self) -> None:
         (self.profiles_dir / "old").mkdir()
         self._write_options(["old"])
-        self.tokens_file.write_text("{}")
         buf = io.StringIO()
         with (
             mock.patch(
@@ -2778,16 +2765,6 @@ class RenameProfileHandlerTests(unittest.TestCase):
         mock_rename.assert_called_once()
         self.assertEqual(mock_rename.call_args.args[1:], ("old", "new-name"))
         self.assertIn("Renamed", buf.getvalue())
-
-    def test_token_conflict_exits(self) -> None:
-        (self.profiles_dir / "src").mkdir()
-        self._write_options(["src"])
-        self.tokens_file.write_text(json.dumps({"dst": "tok-conflict"}))
-        with (
-            self.assertRaises(SystemExit) as ctx,
-        ):
-            cli._handle_rename_profile(self.ws, "src", "dst")
-        self.assertEqual(ctx.exception.code, 1)
 
 
 class ResumeTitleResolutionTests(unittest.TestCase):

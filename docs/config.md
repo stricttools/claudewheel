@@ -26,10 +26,10 @@ All configuration lives under `~/.claudewheel/` (overridable via the
 | `themes/dark.json` | Dark theme color definitions |
 | `themes/light.json` | Light theme color definitions |
 | `shared-settings.json` | Canonical shared settings applied to all profiles: hooks, disallowedTools, and profileDefaults (permissions deny/ask arrays) |
-| `tokens.json` | Centralized OAuth tokens keyed by profile name |
 
 Additionally, `profiles/<name>/` directories hold per-profile settings and
-credentials, and `shared/` holds session data symlinked from each profile.
+credentials plus claudewheel's own `.claudewheel/` data directory (the stored
+OAuth token), and `shared/` holds session data symlinked from each profile.
 
 ## config.json
 

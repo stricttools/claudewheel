@@ -462,7 +462,7 @@ class Migration4LaunchResolutionTests(SandboxHomeTestCase):
         """
         # A real profile dir on disk with credentials + a token entry.
         pdir = self.make_profile("work", credentials=True)
-        write_json(self.sandbox_paths["TOKENS_FILE"], {"work": "tok-work"})
+        self.write_token("work", {"token": "tok-work"})
 
         # Legacy options.json: profile metadata present with a stale config_dir.
         write_json(
@@ -664,14 +664,12 @@ class RenameRecoveryOnStartupTests(unittest.TestCase):
             json.dumps({"from": "broken", "to": "repaired"})
         )
 
-        tokens_file = self.cw_dir / "tokens.json"
-        tokens_file.write_text(json.dumps({"broken": "tok-b"}))
         options_file = self.cw_dir / "options.json"
         _write_json(options_file, {"profile": {"values": ["broken"]}})
         state_file = self.cw_dir / "state.json"
         _write_json(state_file, {"last_config": {"profile": "broken"}})
 
-        # The workspace derives profiles/tokens/options/state paths from the
+        # The workspace derives profiles/options/state paths from the
         # launcher root, so construction alone drives recovery -- no per-module
         # path patching, and no terminal detection is attempted at construction.
         # A spy proves construction never queries the terminal.
@@ -683,9 +681,6 @@ class RenameRecoveryOnStartupTests(unittest.TestCase):
         # Breadcrumb gone
         self.assertFalse((new_dir / ".rename_pending").exists())
         # Stores updated
-        tokens = json.loads(tokens_file.read_text())
-        self.assertNotIn("broken", tokens)
-        self.assertIn("repaired", tokens)
         opts = json.loads(options_file.read_text())
         self.assertIn("repaired", opts["profile"]["values"])
         self.assertNotIn("broken", opts["profile"]["values"])
@@ -707,11 +702,11 @@ class ConstructionContractTests(unittest.TestCase):
         self._tmp_obj.cleanup()
 
     def test_open_and_store_accessors_do_not_touch_disk(self) -> None:
-        """Workspace.open + .tokens + .profiles create/modify nothing on disk."""
+        """Workspace.open + .profiles create/modify nothing on disk."""
         root = self.tmp / "cw"  # deliberately does not exist yet
         ws = Workspace.open(root)
-        _ = ws.tokens
         _ = ws.profiles
+        _ = ws.profiles.data_for("any")
         self.assertFalse(root.exists(), "accessors must not create the root")
 
     def test_reopen_is_a_no_op(self) -> None:
