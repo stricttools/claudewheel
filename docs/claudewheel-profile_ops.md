@@ -1,6 +1,6 @@
 ---
 title: claudewheel.profile_ops
-description: "Auth-shadow repair and running-state detection: clears session credentials that shadow a stored token, drops orphan token entries, and spots live sessions."
+description: "Auth-shadow repair and running-state detection: clears the session credentials that shadow a profile's stored token, and spots live Claude Code sessions."
 generated: true
 nav_group: "API Reference"
 nav_order: 30

@@ -42,7 +42,6 @@ class _ReconcileTestCase(unittest.TestCase):
         cw = self.home / ".claudewheel"
         self.profiles_dir = cw / "profiles"
         self.shared_settings = cw / "shared-settings.json"
-        self.tokens_file = cw / "tokens.json"
         cw.mkdir(parents=True, exist_ok=True)
 
         from claudewheel.workspace import Workspace

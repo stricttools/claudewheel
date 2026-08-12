@@ -76,9 +76,9 @@ _BANNED_CALLS = {
 
 # Method names that are unambiguously filesystem mutations on a Path.  ``rename``
 # is in the set even though claudewheel also has a domain method by that name
-# (``TokenStore.rename``): a scan that dropped it would stop seeing
-# ``Path.rename``, which is the commit seam of every atomic write.  The two
-# domain call sites carry the inline marker.
+# (``ProfileStore.rename``): a scan that dropped it would stop seeing
+# ``Path.rename``, which is the commit seam of every atomic write.  The domain
+# call site carries the inline marker.
 _BANNED_METHODS = {
     "write_text",
     "write_bytes",

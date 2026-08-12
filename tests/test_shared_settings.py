@@ -28,7 +28,6 @@ class _HomeDirTestCase(unittest.TestCase):
         self._profiles_dir = self.home / ".claudewheel" / "profiles"
         self._shared_settings = self.home / ".claudewheel" / "shared-settings.json"
         self._scripts_dir = self.home / ".claudewheel" / "scripts"
-        self._tokens_file = self.home / ".claudewheel" / "tokens.json"
         from claudewheel.workspace import Workspace
 
         self.ws = Workspace.open(

@@ -1,7 +1,7 @@
 """ANSI escape sequences and terminal color helpers.
 
 Filesystem paths live on the workspace/store layer (``Workspace`` and its
-``ProfileStore``/``TokenStore``/``SharedStore``/``OptionsFile``/``StateFile``/
+``ProfileStore``/``SharedStore``/``OptionsFile``/``StateFile``/
 ``BinaryLocator`` members); the path-encoding codec lives on ``SharedStore``.
 This module is now purely the terminal/ANSI primitives shared across the
 renderer, terminal, and UI layers.

@@ -1162,9 +1162,9 @@ class AuthFlowTestBase(unittest.TestCase):
         self.term: Terminal = cast(Terminal, self.term_mock)
 
         # A workspace rooted at the sandbox home. run_auth_flow persists the
-        # browser choice via StateFile(ws.state_file) and saves tokens via
-        # ws.tokens, so ws.state_file == self.state_file and ws.tokens_file stay
-        # inside the sandbox.
+        # browser choice via StateFile(ws.state_file) and saves the token via
+        # the profile's own data store (ws.profiles.data_for), so both the state
+        # file and the token file stay inside the sandbox.
         from claudewheel.workspace import Workspace
         from claudewheel.binaries import BinaryLocator
 

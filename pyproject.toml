@@ -51,8 +51,9 @@ dev = [
 #
 # claudewheel is the highest-value target in the fleet for this floor. It owns
 # ~/.claudewheel/: every profile directory, every profile's settings.json, the
-# shared session store, and tokens.json -- a file of long-lived Anthropic OAuth
-# tokens. Its suite drives the real CLI entry point end to end and its wizard
+# shared session store, and each profile's own token.json -- a long-lived
+# Anthropic OAuth token per profile, stored inside the profile directory.
+# Its suite drives the real CLI entry point end to end and its wizard
 # shells out to `claude auth login` and `claude setup-token`. Before the floor,
 # safety rested on each test remembering to set CLAUDEWHEEL_CONFIG_DIR or mock
 # the subprocess; the throwaway HOME removes the real store and the ambient

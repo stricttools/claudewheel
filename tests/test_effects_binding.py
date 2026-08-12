@@ -101,9 +101,9 @@ EFFECTS = {
 #
 # `profile delete` is here because its BARE form is already irreversible
 # destruction the framework cannot walk back: it removes the profile directory
-# -- .credentials.json and settings.json with it -- drops the profile's entry
-# from tokens.json, and de-registers it from options.json. Re-creating the
-# profile means a fresh OAuth login and a hand-rebuilt settings file.
+# -- .credentials.json, settings.json and the profile's own stored token entry
+# with it -- and de-registers it from options.json. Re-creating the profile
+# means a fresh OAuth login and a hand-rebuilt settings file.
 #
 # safegit reached the opposite conclusion on `doctor --uninstall` and kept a
 # flag-granular seam inside the handler instead, so the harmless invocation

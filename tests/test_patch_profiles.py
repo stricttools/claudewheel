@@ -52,7 +52,6 @@ class _PatchProfilesTestCase(unittest.TestCase):
         self.profiles_dir = cw / "profiles"
         self.scripts_dir = cw / "scripts"
         self.shared_settings = cw / "shared-settings.json"
-        self.tokens_file = cw / "tokens.json"
 
         from claudewheel.workspace import Workspace
 
