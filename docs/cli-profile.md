@@ -25,7 +25,7 @@ run the create-profile wizard in one continuous alt-screen session: prompt for t
 
 ## profile delete
 
-remove a registered profile for good: unlink its shared-store symlinks, delete the real entries in its directory, drop its tokens.json entry and its options.json registration, and clear any last_config reference in state.json. Refuses a profile holding a live interactive Claude Code session unless --force-delete (background jobs and daemons do not block it), and takes conversation history only with --force-delete-data
+remove a registered profile for good: unlink its shared-store symlinks, delete the real entries in its directory (its stored token among them), drop its options.json registration, and clear any last_config reference in state.json. Refuses a profile holding a live interactive Claude Code session unless --force-delete (background jobs and daemons do not block it), and takes conversation history only with --force-delete-data
 
 **Effect:** mutating · **consequential** (prompts before running; `--approve-consequential` skips)
 
@@ -62,7 +62,7 @@ print a detailed report for one profile: whether its directory exists on disk, w
 
 ## profile rename
 
-move a profile to a new name, taking its directory, its tokens.json entry, its options.json registration and its session data with it. Validates that the old name exists, that the new one is free in both the directory tree and the options file, and that it fits the lowercase-letters-digits-hyphens charset. Refuses a profile holding a live interactive Claude Code session, and the reserved name default
+move a profile to a new name, taking its directory (with the token stored inside it), its options.json registration and its session data with it. Validates that the old name exists, that the new one is free in both the directory tree and the options file, and that it fits the lowercase-letters-digits-hyphens charset. Refuses a profile holding a live interactive Claude Code session, and the reserved name default
 
 **Effect:** mutating
 
@@ -75,7 +75,7 @@ move a profile to a new name, taking its directory, its tokens.json entry, its o
 
 ## profile fix-auth
 
-repair one profile's authentication in whichever of two shapes applies. When the profile directory exists, strip the session credentials that shadow a stored long-lived token so the token is used again. When the directory is gone but tokens.json still lists the profile, remove that stale entry. Says so plainly when there is nothing to repair
+repair one profile's authentication: strip the session credentials that shadow its stored long-lived token so the token is used again. Says so plainly when there is nothing to repair, and refuses a name with no profile directory behind it
 
 **Effect:** mutating
 
@@ -83,10 +83,10 @@ repair one profile's authentication in whichever of two shapes applies. When the
 
 | Name | Required | Description |
 | --- | --- | --- |
-| `name` | yes | name of the profile to repair: an existing profile's shadowing session credentials are removed; a missing profile's stale token entry is removed |
+| `name` | yes | name of the profile to repair: its shadowing session credentials are removed |
 
 ## profile check-tokens
 
-read every discovered profile's stored OAuth token from tokens.json and validate each one against the Anthropic API, then print a table of profile name, status and a truncated token preview. The status distinguishes a valid token from an invalid one, an unreachable API and an indeterminate answer, and profiles holding no token are listed too
+read every discovered profile's own stored OAuth token and validate each one against the Anthropic API, then print a table of profile name, status and a truncated token preview. The status distinguishes a valid token from an invalid one, an unreachable API and an indeterminate answer, and profiles holding no token are listed too
 
 **Effect:** read_only

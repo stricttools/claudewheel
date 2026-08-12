@@ -56,11 +56,6 @@
         },
         {
           "level": 4,
-          "text": "`_refresh_orphan_findings`",
-          "anchor": "_refresh_orphan_findings"
-        },
-        {
-          "level": 4,
           "text": "`run_tui`",
           "anchor": "run_tui"
         },
@@ -171,11 +166,6 @@
         },
         {
           "level": 4,
-          "text": "`_h_main_review`",
-          "anchor": "_h_main_review"
-        },
-        {
-          "level": 4,
           "text": "`_h_main_freeform_seed`",
           "anchor": "_h_main_freeform_seed"
         },
@@ -283,11 +273,6 @@
           "level": 4,
           "text": "`_show_profile_inspect`",
           "anchor": "_show_profile_inspect"
-        },
-        {
-          "level": 4,
-          "text": "`_show_stale_token_review`",
-          "anchor": "_show_stale_token_review"
         },
         {
           "level": 4,
@@ -1352,11 +1337,6 @@
         },
         {
           "level": 3,
-          "text": "`check_orphan_token_entries`",
-          "anchor": "check_orphan_token_entries"
-        },
-        {
-          "level": 3,
           "text": "`check_file_permissions`",
           "anchor": "check_file_permissions"
         },
@@ -1910,6 +1890,118 @@
       ]
     },
     {
+      "path": "claudewheel-profile_data.md",
+      "title": "claudewheel.profile_data",
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.profile_data",
+          "anchor": "claudewheelprofile_data"
+        },
+        {
+          "level": 2,
+          "text": "`claudewheel.profile_data`",
+          "anchor": "claudewheelprofile_data"
+        },
+        {
+          "level": 3,
+          "text": "`ProfileDataStore`",
+          "anchor": "profiledatastore"
+        },
+        {
+          "level": 4,
+          "text": "`data_dir`",
+          "anchor": "data_dir"
+        },
+        {
+          "level": 4,
+          "text": "`token_file`",
+          "anchor": "token_file"
+        },
+        {
+          "level": 4,
+          "text": "`exists`",
+          "anchor": "exists"
+        },
+        {
+          "level": 4,
+          "text": "`load`",
+          "anchor": "load"
+        },
+        {
+          "level": 4,
+          "text": "`_corrupt_message`",
+          "anchor": "_corrupt_message"
+        },
+        {
+          "level": 4,
+          "text": "`token`",
+          "anchor": "token"
+        },
+        {
+          "level": 4,
+          "text": "`has_token`",
+          "anchor": "has_token"
+        },
+        {
+          "level": 4,
+          "text": "`expiry`",
+          "anchor": "expiry"
+        },
+        {
+          "level": 4,
+          "text": "`tier`",
+          "anchor": "tier"
+        },
+        {
+          "level": 4,
+          "text": "`plan_env`",
+          "anchor": "plan_env"
+        },
+        {
+          "level": 4,
+          "text": "`ensure_dir`",
+          "anchor": "ensure_dir"
+        },
+        {
+          "level": 4,
+          "text": "`write_token`",
+          "anchor": "write_token"
+        },
+        {
+          "level": 4,
+          "text": "`set_tier`",
+          "anchor": "set_tier"
+        },
+        {
+          "level": 4,
+          "text": "`remove_token`",
+          "anchor": "remove_token"
+        },
+        {
+          "level": 3,
+          "text": "`PROFILE_DATA_DIRNAME`",
+          "anchor": "profile_data_dirname"
+        },
+        {
+          "level": 3,
+          "text": "`PROFILE_DATA_DIR_MODE`",
+          "anchor": "profile_data_dir_mode"
+        },
+        {
+          "level": 3,
+          "text": "`TOKEN_FILE_NAME`",
+          "anchor": "token_file_name"
+        },
+        {
+          "level": 3,
+          "text": "`TOKEN_FILE_MODE`",
+          "anchor": "token_file_mode"
+        }
+      ]
+    },
+    {
       "path": "claudewheel-profile_info.md",
       "title": "claudewheel.profile_info",
       "type": "doc",
@@ -1993,16 +2085,6 @@
         },
         {
           "level": 3,
-          "text": "`RemoveOrphanTokenResult`",
-          "anchor": "removeorphantokenresult"
-        },
-        {
-          "level": 3,
-          "text": "`remove_orphan_token_entry`",
-          "anchor": "remove_orphan_token_entry"
-        },
-        {
-          "level": 3,
           "text": "`FixAuthResult`",
           "anchor": "fixauthresult"
         },
@@ -2045,11 +2127,6 @@
         },
         {
           "level": 3,
-          "text": "`AuditFinding`",
-          "anchor": "auditfinding"
-        },
-        {
-          "level": 3,
           "text": "`DeletionResult`",
           "anchor": "deletionresult"
         },
@@ -2065,8 +2142,18 @@
         },
         {
           "level": 4,
+          "text": "`data_for`",
+          "anchor": "data_for"
+        },
+        {
+          "level": 4,
           "text": "`enumerate`",
           "anchor": "enumerate"
+        },
+        {
+          "level": 4,
+          "text": "`_enumerate`",
+          "anchor": "_enumerate"
         },
         {
           "level": 4,
@@ -2077,11 +2164,6 @@
           "level": 4,
           "text": "`get`",
           "anchor": "get"
-        },
-        {
-          "level": 4,
-          "text": "`audit`",
-          "anchor": "audit"
         },
         {
           "level": 4,
@@ -3223,78 +3305,23 @@
         },
         {
           "level": 3,
-          "text": "`compute_expiry`",
-          "anchor": "compute_expiry"
+          "text": "`entry_expiry`",
+          "anchor": "entry_expiry"
         },
         {
           "level": 3,
-          "text": "`_read_tokens_for_write`",
-          "anchor": "_read_tokens_for_write"
+          "text": "`entry_plan_env`",
+          "anchor": "entry_plan_env"
         },
         {
           "level": 3,
-          "text": "`_write_token`",
-          "anchor": "_write_token"
-        },
-        {
-          "level": 3,
-          "text": "`_write_tier`",
-          "anchor": "_write_tier"
+          "text": "`build_entry`",
+          "anchor": "build_entry"
         },
         {
           "level": 3,
           "text": "`TokenStoreError`",
           "anchor": "tokenstoreerror"
-        },
-        {
-          "level": 3,
-          "text": "`TokenStore`",
-          "anchor": "tokenstore"
-        },
-        {
-          "level": 4,
-          "text": "`load`",
-          "anchor": "load"
-        },
-        {
-          "level": 4,
-          "text": "`token_for`",
-          "anchor": "token_for"
-        },
-        {
-          "level": 4,
-          "text": "`plan_env_for`",
-          "anchor": "plan_env_for"
-        },
-        {
-          "level": 4,
-          "text": "`names`",
-          "anchor": "names"
-        },
-        {
-          "level": 4,
-          "text": "`expiry_for`",
-          "anchor": "expiry_for"
-        },
-        {
-          "level": 4,
-          "text": "`add`",
-          "anchor": "add"
-        },
-        {
-          "level": 4,
-          "text": "`set_tier`",
-          "anchor": "set_tier"
-        },
-        {
-          "level": 4,
-          "text": "`rename`",
-          "anchor": "rename"
-        },
-        {
-          "level": 4,
-          "text": "`remove`",
-          "anchor": "remove"
         }
       ]
     },
@@ -3559,11 +3586,6 @@
         },
         {
           "level": 4,
-          "text": "`tokens_file`",
-          "anchor": "tokens_file"
-        },
-        {
-          "level": 4,
           "text": "`options_file`",
           "anchor": "options_file"
         },
@@ -3616,11 +3638,6 @@
           "level": 4,
           "text": "`inodes_file`",
           "anchor": "inodes_file"
-        },
-        {
-          "level": 4,
-          "text": "`tokens`",
-          "anchor": "tokens"
         },
         {
           "level": 4,
@@ -4432,11 +4449,6 @@
         },
         {
           "level": 4,
-          "text": "orphan-tokens",
-          "anchor": "orphan-tokens"
-        },
-        {
-          "level": 4,
           "text": "file-perms",
           "anchor": "file-perms"
         },
@@ -4552,8 +4564,8 @@
         },
         {
           "level": 3,
-          "text": "Orphan profiles or tokens",
-          "anchor": "orphan-profiles-or-tokens"
+          "text": "Orphan profiles",
+          "anchor": "orphan-profiles-1"
         },
         {
           "level": 3,
@@ -4681,11 +4693,6 @@
         },
         {
           "level": 3,
-          "text": "Orphan token cleanup",
-          "anchor": "orphan-token-cleanup"
-        },
-        {
-          "level": 3,
           "text": "Token validation",
           "anchor": "token-validation"
         },
@@ -4780,5 +4787,5 @@
     }
   ],
   "posts": [],
-  "last_gen": "2026-08-12T19:34:57.718531+00:00"
+  "last_gen": "2026-08-12T20:50:12.905184+00:00"
 }
