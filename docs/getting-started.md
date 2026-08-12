@@ -208,6 +208,6 @@ backed up. From a script, where there is no terminal to confirm at, pass
 
 ## Next steps
 
-- [CLI Reference](cli-index.html) -- full documentation for every command and flag
-- [Guardrails](guardrails.html) -- how the enforcement tiers, hooks, and permission arrays work
-- [API Reference](gen-index.html) -- module-level documentation for contributors
+- [CLI Reference](../cli-index/) -- full documentation for every command and flag
+- [Guardrails](../guardrails/) -- how the enforcement tiers, hooks, and permission arrays work
+- [API Reference](../gen-index/) -- module-level documentation for contributors

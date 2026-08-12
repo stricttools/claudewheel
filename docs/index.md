@@ -8,9 +8,9 @@ A TUI launcher for Claude Code that presents a horizontal segment bar for select
 
 ## Documentation
 
-- [CLI Reference](cli-index.html) -- all commands, flags, and arguments
-- [API Reference](gen-index.html) -- auto-generated module and function docs
-- [Guardrails](guardrails.html) -- enforcement tiers, subagent handling, command-string caveats, and upgrading profiles
+- [CLI Reference](cli-index/) -- all commands, flags, and arguments
+- [API Reference](gen-index/) -- auto-generated module and function docs
+- [Guardrails](guardrails/) -- enforcement tiers, subagent handling, command-string caveats, and upgrading profiles
 
 ## Overview
 
