@@ -19,7 +19,7 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.__main__`",
+          "text": "claudewheel.__main__",
           "anchor": "claudewheel__main__"
         }
       ]
@@ -36,277 +36,277 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.app`",
+          "text": "claudewheel.app",
           "anchor": "claudewheelapp"
         },
         {
           "level": 3,
-          "text": "`KeyContext`",
+          "text": "KeyContext",
           "anchor": "keycontext"
         },
         {
           "level": 3,
-          "text": "`Binding`",
+          "text": "Binding",
           "anchor": "binding"
         },
         {
           "level": 3,
-          "text": "`App`",
+          "text": "App",
           "anchor": "app"
         },
         {
           "level": 4,
-          "text": "`_refresh_orphan_findings`",
+          "text": "_refresh_orphan_findings",
           "anchor": "_refresh_orphan_findings"
         },
         {
           "level": 4,
-          "text": "`run_tui`",
+          "text": "run_tui",
           "anchor": "run_tui"
         },
         {
           "level": 4,
-          "text": "`_select_client`",
+          "text": "_select_client",
           "anchor": "_select_client"
         },
         {
           "level": 4,
-          "text": "`_promote_ephemeral`",
+          "text": "_promote_ephemeral",
           "anchor": "_promote_ephemeral"
         },
         {
           "level": 4,
-          "text": "`_run_slow_discovery_thread`",
+          "text": "_run_slow_discovery_thread",
           "anchor": "_run_slow_discovery_thread"
         },
         {
           "level": 4,
-          "text": "`_apply_slow_discovery`",
+          "text": "_apply_slow_discovery",
           "anchor": "_apply_slow_discovery"
         },
         {
           "level": 4,
-          "text": "`_apply_pending_for_segment`",
+          "text": "_apply_pending_for_segment",
           "anchor": "_apply_pending_for_segment"
         },
         {
           "level": 4,
-          "text": "`_defocus`",
+          "text": "_defocus",
           "anchor": "_defocus"
         },
         {
           "level": 4,
-          "text": "`_build_context`",
+          "text": "_build_context",
           "anchor": "_build_context"
         },
         {
           "level": 4,
-          "text": "`_compute_hints`",
+          "text": "_compute_hints",
           "anchor": "_compute_hints"
         },
         {
           "level": 4,
-          "text": "`_handle_key`",
+          "text": "_handle_key",
           "anchor": "_handle_key"
         },
         {
           "level": 4,
-          "text": "`_h_main_left`",
+          "text": "_h_main_left",
           "anchor": "_h_main_left"
         },
         {
           "level": 4,
-          "text": "`_h_main_right`",
+          "text": "_h_main_right",
           "anchor": "_h_main_right"
         },
         {
           "level": 4,
-          "text": "`_h_main_up`",
+          "text": "_h_main_up",
           "anchor": "_h_main_up"
         },
         {
           "level": 4,
-          "text": "`_h_main_down`",
+          "text": "_h_main_down",
           "anchor": "_h_main_down"
         },
         {
           "level": 4,
-          "text": "`_h_main_enter`",
+          "text": "_h_main_enter",
           "anchor": "_h_main_enter"
         },
         {
           "level": 4,
-          "text": "`_h_main_tab`",
+          "text": "_h_main_tab",
           "anchor": "_h_main_tab"
         },
         {
           "level": 4,
-          "text": "`_h_main_backspace`",
+          "text": "_h_main_backspace",
           "anchor": "_h_main_backspace"
         },
         {
           "level": 4,
-          "text": "`_h_main_esc`",
+          "text": "_h_main_esc",
           "anchor": "_h_main_esc"
         },
         {
           "level": 4,
-          "text": "`_h_main_ctrl_c`",
+          "text": "_h_main_ctrl_c",
           "anchor": "_h_main_ctrl_c"
         },
         {
           "level": 4,
-          "text": "`_h_main_delete`",
+          "text": "_h_main_delete",
           "anchor": "_h_main_delete"
         },
         {
           "level": 4,
-          "text": "`_h_main_question`",
+          "text": "_h_main_question",
           "anchor": "_h_main_question"
         },
         {
           "level": 4,
-          "text": "`_h_main_inspect`",
+          "text": "_h_main_inspect",
           "anchor": "_h_main_inspect"
         },
         {
           "level": 4,
-          "text": "`_h_main_review`",
+          "text": "_h_main_review",
           "anchor": "_h_main_review"
         },
         {
           "level": 4,
-          "text": "`_h_main_freeform_seed`",
+          "text": "_h_main_freeform_seed",
           "anchor": "_h_main_freeform_seed"
         },
         {
           "level": 4,
-          "text": "`_h_main_search`",
+          "text": "_h_main_search",
           "anchor": "_h_main_search"
         },
         {
           "level": 4,
-          "text": "`_h_main_quit`",
+          "text": "_h_main_quit",
           "anchor": "_h_main_quit"
         },
         {
           "level": 4,
-          "text": "`_h_theme_switch`",
+          "text": "_h_theme_switch",
           "anchor": "_h_theme_switch"
         },
         {
           "level": 4,
-          "text": "`_h_freeform_enter`",
+          "text": "_h_freeform_enter",
           "anchor": "_h_freeform_enter"
         },
         {
           "level": 4,
-          "text": "`_h_freeform_tab`",
+          "text": "_h_freeform_tab",
           "anchor": "_h_freeform_tab"
         },
         {
           "level": 4,
-          "text": "`_h_freeform_backspace`",
+          "text": "_h_freeform_backspace",
           "anchor": "_h_freeform_backspace"
         },
         {
           "level": 4,
-          "text": "`_h_freeform_left`",
+          "text": "_h_freeform_left",
           "anchor": "_h_freeform_left"
         },
         {
           "level": 4,
-          "text": "`_h_freeform_right`",
+          "text": "_h_freeform_right",
           "anchor": "_h_freeform_right"
         },
         {
           "level": 4,
-          "text": "`_h_freeform_esc`",
+          "text": "_h_freeform_esc",
           "anchor": "_h_freeform_esc"
         },
         {
           "level": 4,
-          "text": "`_h_freeform_ctrl_c`",
+          "text": "_h_freeform_ctrl_c",
           "anchor": "_h_freeform_ctrl_c"
         },
         {
           "level": 4,
-          "text": "`_h_freeform_printable`",
+          "text": "_h_freeform_printable",
           "anchor": "_h_freeform_printable"
         },
         {
           "level": 4,
-          "text": "`_h_create_enter`",
+          "text": "_h_create_enter",
           "anchor": "_h_create_enter"
         },
         {
           "level": 4,
-          "text": "`_h_create_esc`",
+          "text": "_h_create_esc",
           "anchor": "_h_create_esc"
         },
         {
           "level": 4,
-          "text": "`_h_create_backspace`",
+          "text": "_h_create_backspace",
           "anchor": "_h_create_backspace"
         },
         {
           "level": 4,
-          "text": "`_h_create_ctrl_c`",
+          "text": "_h_create_ctrl_c",
           "anchor": "_h_create_ctrl_c"
         },
         {
           "level": 4,
-          "text": "`_h_create_printable`",
+          "text": "_h_create_printable",
           "anchor": "_h_create_printable"
         },
         {
           "level": 4,
-          "text": "`_run_install_flow`",
+          "text": "_run_install_flow",
           "anchor": "_run_install_flow"
         },
         {
           "level": 4,
-          "text": "`_build_bindings`",
+          "text": "_build_bindings",
           "anchor": "_build_bindings"
         },
         {
           "level": 4,
-          "text": "`_h_main_search_or_quit`",
+          "text": "_h_main_search_or_quit",
           "anchor": "_h_main_search_or_quit"
         },
         {
           "level": 4,
-          "text": "`_intercept_unauth`",
+          "text": "_intercept_unauth",
           "anchor": "_intercept_unauth"
         },
         {
           "level": 4,
-          "text": "`_show_profile_inspect`",
+          "text": "_show_profile_inspect",
           "anchor": "_show_profile_inspect"
         },
         {
           "level": 4,
-          "text": "`_show_stale_token_review`",
+          "text": "_show_stale_token_review",
           "anchor": "_show_stale_token_review"
         },
         {
           "level": 4,
-          "text": "`_delete_profile_flow`",
+          "text": "_delete_profile_flow",
           "anchor": "_delete_profile_flow"
         },
         {
           "level": 4,
-          "text": "`_refresh_profile_segment`",
+          "text": "_refresh_profile_segment",
           "anchor": "_refresh_profile_segment"
         },
         {
           "level": 4,
-          "text": "`_launch_profile_wizard`",
+          "text": "_launch_profile_wizard",
           "anchor": "_launch_profile_wizard"
         },
         {
           "level": 4,
-          "text": "`_confirm_create`",
+          "text": "_confirm_create",
           "anchor": "_confirm_create"
         }
       ]
@@ -323,67 +323,67 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.appdata`",
+          "text": "claudewheel.appdata",
           "anchor": "claudewheelappdata"
         },
         {
           "level": 3,
-          "text": "`OptionsFile`",
+          "text": "OptionsFile",
           "anchor": "optionsfile"
         },
         {
           "level": 4,
-          "text": "`load`",
+          "text": "load",
           "anchor": "load"
         },
         {
           "level": 4,
-          "text": "`add_pinned`",
+          "text": "add_pinned",
           "anchor": "add_pinned"
         },
         {
           "level": 4,
-          "text": "`set_metadata`",
+          "text": "set_metadata",
           "anchor": "set_metadata"
         },
         {
           "level": 4,
-          "text": "`rename_value`",
+          "text": "rename_value",
           "anchor": "rename_value"
         },
         {
           "level": 4,
-          "text": "`remove_value`",
+          "text": "remove_value",
           "anchor": "remove_value"
         },
         {
           "level": 4,
-          "text": "`write`",
+          "text": "write",
           "anchor": "write"
         },
         {
           "level": 3,
-          "text": "`StateFile`",
+          "text": "StateFile",
           "anchor": "statefile"
         },
         {
           "level": 4,
-          "text": "`load`",
+          "text": "load",
           "anchor": "load-1"
         },
         {
           "level": 4,
-          "text": "`save`",
+          "text": "save",
           "anchor": "save"
         },
         {
           "level": 4,
-          "text": "`get_value`",
+          "text": "get_value",
           "anchor": "get_value"
         },
         {
           "level": 4,
-          "text": "`set_value`",
+          "text": "set_value",
           "anchor": "set_value"
         }
       ]
@@ -400,27 +400,27 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.auth`",
+          "text": "claudewheel.auth",
           "anchor": "claudewheelauth"
         },
         {
           "level": 3,
-          "text": "`looks_like_token`",
+          "text": "looks_like_token",
           "anchor": "looks_like_token"
         },
         {
           "level": 3,
-          "text": "`validate_token`",
+          "text": "validate_token",
           "anchor": "validate_token"
         },
         {
           "level": 3,
-          "text": "`extract_token`",
+          "text": "extract_token",
           "anchor": "extract_token"
         },
         {
           "level": 3,
-          "text": "`_best_candidate`",
+          "text": "_best_candidate",
           "anchor": "_best_candidate"
         }
       ]
@@ -437,37 +437,37 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.binaries`",
+          "text": "claudewheel.binaries",
           "anchor": "claudewheelbinaries"
         },
         {
           "level": 3,
-          "text": "`BinaryLocator`",
+          "text": "BinaryLocator",
           "anchor": "binarylocator"
         },
         {
           "level": 4,
-          "text": "`default`",
+          "text": "default",
           "anchor": "default"
         },
         {
           "level": 4,
-          "text": "`binary_for`",
+          "text": "binary_for",
           "anchor": "binary_for"
         },
         {
           "level": 4,
-          "text": "`fallback`",
+          "text": "fallback",
           "anchor": "fallback"
         },
         {
           "level": 4,
-          "text": "`installed_versions`",
+          "text": "installed_versions",
           "anchor": "installed_versions"
         },
         {
           "level": 4,
-          "text": "`symlink_target`",
+          "text": "symlink_target",
           "anchor": "symlink_target"
         }
       ]
@@ -484,187 +484,187 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.cli`",
+          "text": "claudewheel.cli",
           "anchor": "claudewheelcli"
         },
         {
           "level": 3,
-          "text": "`_do_uninstall`",
+          "text": "_do_uninstall",
           "anchor": "_do_uninstall"
         },
         {
           "level": 3,
-          "text": "`_do_reset_options`",
+          "text": "_do_reset_options",
           "anchor": "_do_reset_options"
         },
         {
           "level": 3,
-          "text": "`_do_show`",
+          "text": "_do_show",
           "anchor": "_do_show"
         },
         {
           "level": 3,
-          "text": "`_write_tier_stub`",
+          "text": "_write_tier_stub",
           "anchor": "_write_tier_stub"
         },
         {
           "level": 3,
-          "text": "`_do_launch_sequence`",
+          "text": "_do_launch_sequence",
           "anchor": "_do_launch_sequence"
         },
         {
           "level": 3,
-          "text": "`_handle_health`",
+          "text": "_handle_health",
           "anchor": "_handle_health"
         },
         {
           "level": 3,
-          "text": "`_handle_config`",
+          "text": "_handle_config",
           "anchor": "_handle_config"
         },
         {
           "level": 3,
-          "text": "`_handle_versions`",
+          "text": "_handle_versions",
           "anchor": "_handle_versions"
         },
         {
           "level": 3,
-          "text": "`_handle_install`",
+          "text": "_handle_install",
           "anchor": "_handle_install"
         },
         {
           "level": 3,
-          "text": "`_handle_uninstall`",
+          "text": "_handle_uninstall",
           "anchor": "_handle_uninstall"
         },
         {
           "level": 3,
-          "text": "`_handle_reset_options`",
+          "text": "_handle_reset_options",
           "anchor": "_handle_reset_options"
         },
         {
           "level": 3,
-          "text": "`_handle_new_profile`",
+          "text": "_handle_new_profile",
           "anchor": "_handle_new_profile"
         },
         {
           "level": 3,
-          "text": "`_handle_delete_profile`",
+          "text": "_handle_delete_profile",
           "anchor": "_handle_delete_profile"
         },
         {
           "level": 3,
-          "text": "`_handle_rename_profile`",
+          "text": "_handle_rename_profile",
           "anchor": "_handle_rename_profile"
         },
         {
           "level": 3,
-          "text": "`_handle_check_tokens`",
+          "text": "_handle_check_tokens",
           "anchor": "_handle_check_tokens"
         },
         {
           "level": 3,
-          "text": "`_handle_fix_auth`",
+          "text": "_handle_fix_auth",
           "anchor": "_handle_fix_auth"
         },
         {
           "level": 3,
-          "text": "`_handle_show`",
+          "text": "_handle_show",
           "anchor": "_handle_show"
         },
         {
           "level": 3,
-          "text": "`_handle_migrate`",
+          "text": "_handle_migrate",
           "anchor": "_handle_migrate"
         },
         {
           "level": 3,
-          "text": "`_handle_stats`",
+          "text": "_handle_stats",
           "anchor": "_handle_stats"
         },
         {
           "level": 3,
-          "text": "`_handle_mv`",
+          "text": "_handle_mv",
           "anchor": "_handle_mv"
         },
         {
           "level": 3,
-          "text": "`_handle_import`",
+          "text": "_handle_import",
           "anchor": "_handle_import"
         },
         {
           "level": 3,
-          "text": "`_handle_deploy_hooks`",
+          "text": "_handle_deploy_hooks",
           "anchor": "_handle_deploy_hooks"
         },
         {
           "level": 3,
-          "text": "`_handle_patch_profiles`",
+          "text": "_handle_patch_profiles",
           "anchor": "_handle_patch_profiles"
         },
         {
           "level": 3,
-          "text": "`_handle_reconcile_permissions`",
+          "text": "_handle_reconcile_permissions",
           "anchor": "_handle_reconcile_permissions"
         },
         {
           "level": 3,
-          "text": "`_handle_permission_add`",
+          "text": "_handle_permission_add",
           "anchor": "_handle_permission_add"
         },
         {
           "level": 3,
-          "text": "`_handle_permission_remove`",
+          "text": "_handle_permission_remove",
           "anchor": "_handle_permission_remove"
         },
         {
           "level": 3,
-          "text": "`_handle_permission_list`",
+          "text": "_handle_permission_list",
           "anchor": "_handle_permission_list"
         },
         {
           "level": 3,
-          "text": "`_resolve_resume_title`",
+          "text": "_resolve_resume_title",
           "anchor": "_resolve_resume_title"
         },
         {
           "level": 3,
-          "text": "`_check_resume_session`",
+          "text": "_check_resume_session",
           "anchor": "_check_resume_session"
         },
         {
           "level": 3,
-          "text": "`_check_cont_session`",
+          "text": "_check_cont_session",
           "anchor": "_check_cont_session"
         },
         {
           "level": 3,
-          "text": "`_reject_claude_only_overrides`",
+          "text": "_reject_claude_only_overrides",
           "anchor": "_reject_claude_only_overrides"
         },
         {
           "level": 3,
-          "text": "`_handle_launch`",
+          "text": "_handle_launch",
           "anchor": "_handle_launch"
         },
         {
           "level": 3,
-          "text": "`_inject_launch`",
+          "text": "_inject_launch",
           "anchor": "_inject_launch"
         },
         {
           "level": 3,
-          "text": "`_bind`",
+          "text": "_bind",
           "anchor": "_bind"
         },
         {
           "level": 3,
-          "text": "`_build_app`",
+          "text": "_build_app",
           "anchor": "_build_app"
         },
         {
           "level": 3,
-          "text": "`main`",
+          "text": "main",
           "anchor": "main"
         }
       ]
@@ -681,52 +681,52 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.clients`",
+          "text": "claudewheel.clients",
           "anchor": "claudewheelclients"
         },
         {
           "level": 3,
-          "text": "`ClientContext`",
+          "text": "ClientContext",
           "anchor": "clientcontext"
         },
         {
           "level": 4,
-          "text": "`session_flags`",
+          "text": "session_flags",
           "anchor": "session_flags"
         },
         {
           "level": 3,
-          "text": "`build_claude_argv`",
+          "text": "build_claude_argv",
           "anchor": "build_claude_argv"
         },
         {
           "level": 3,
-          "text": "`build_miniclaude_argv`",
+          "text": "build_miniclaude_argv",
           "anchor": "build_miniclaude_argv"
         },
         {
           "level": 3,
-          "text": "`_miniclaude_session_flags`",
+          "text": "_miniclaude_session_flags",
           "anchor": "_miniclaude_session_flags"
         },
         {
           "level": 3,
-          "text": "`resolve_default_client`",
+          "text": "resolve_default_client",
           "anchor": "resolve_default_client"
         },
         {
           "level": 3,
-          "text": "`client_available`",
+          "text": "client_available",
           "anchor": "client_available"
         },
         {
           "level": 3,
-          "text": "`build_client_choices`",
+          "text": "build_client_choices",
           "anchor": "build_client_choices"
         },
         {
           "level": 3,
-          "text": "`resolve_client`",
+          "text": "resolve_client",
           "anchor": "resolve_client"
         }
       ]
@@ -743,92 +743,92 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.config`",
+          "text": "claudewheel.config",
           "anchor": "claudewheelconfig"
         },
         {
           "level": 3,
-          "text": "`_migration_1_github_optional`",
+          "text": "_migration_1_github_optional",
           "anchor": "_migration_1_github_optional"
         },
         {
           "level": 3,
-          "text": "`_migration_2_profile_paths`",
+          "text": "_migration_2_profile_paths",
           "anchor": "_migration_2_profile_paths"
         },
         {
           "level": 3,
-          "text": "`_migration_3_classify_pinned`",
+          "text": "_migration_3_classify_pinned",
           "anchor": "_migration_3_classify_pinned"
         },
         {
           "level": 3,
-          "text": "`_migration_4_drop_profile_metadata`",
+          "text": "_migration_4_drop_profile_metadata",
           "anchor": "_migration_4_drop_profile_metadata"
         },
         {
           "level": 3,
-          "text": "`_migration_5_drop_fable_1m`",
+          "text": "_migration_5_drop_fable_1m",
           "anchor": "_migration_5_drop_fable_1m"
         },
         {
           "level": 3,
-          "text": "`resolve_theme_name`",
+          "text": "resolve_theme_name",
           "anchor": "resolve_theme_name"
         },
         {
           "level": 3,
-          "text": "`AppConfigStore`",
+          "text": "AppConfigStore",
           "anchor": "appconfigstore"
         },
         {
           "level": 4,
-          "text": "`load_theme`",
+          "text": "load_theme",
           "anchor": "load_theme"
         },
         {
           "level": 4,
-          "text": "`_theme_specs`",
+          "text": "_theme_specs",
           "anchor": "_theme_specs"
         },
         {
           "level": 4,
-          "text": "`_recover_incomplete_renames`",
+          "text": "_recover_incomplete_renames",
           "anchor": "_recover_incomplete_renames"
         },
         {
           "level": 4,
-          "text": "`_ensure_shared_settings`",
+          "text": "_ensure_shared_settings",
           "anchor": "_ensure_shared_settings"
         },
         {
           "level": 4,
-          "text": "`_ensure_dir`",
+          "text": "_ensure_dir",
           "anchor": "_ensure_dir"
         },
         {
           "level": 4,
-          "text": "`_migrate`",
+          "text": "_migrate",
           "anchor": "_migrate"
         },
         {
           "level": 4,
-          "text": "`_run_versioned_migrations`",
+          "text": "_run_versioned_migrations",
           "anchor": "_run_versioned_migrations"
         },
         {
           "level": 4,
-          "text": "`_deep_merge_missing`",
+          "text": "_deep_merge_missing",
           "anchor": "_deep_merge_missing"
         },
         {
           "level": 4,
-          "text": "`add_option`",
+          "text": "add_option",
           "anchor": "add_option"
         },
         {
           "level": 4,
-          "text": "`save_state`",
+          "text": "save_state",
           "anchor": "save_state"
         }
       ]
@@ -845,27 +845,27 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.constants`",
+          "text": "claudewheel.constants",
           "anchor": "claudewheelconstants"
         },
         {
           "level": 3,
-          "text": "`csi`",
+          "text": "csi",
           "anchor": "csi"
         },
         {
           "level": 3,
-          "text": "`move_to`",
+          "text": "move_to",
           "anchor": "move_to"
         },
         {
           "level": 3,
-          "text": "`fg_rgb`",
+          "text": "fg_rgb",
           "anchor": "fg_rgb"
         },
         {
           "level": 3,
-          "text": "`bg_rgb`",
+          "text": "bg_rgb",
           "anchor": "bg_rgb"
         }
       ]
@@ -882,22 +882,22 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.defaults`",
+          "text": "claudewheel.defaults",
           "anchor": "claudewheeldefaults"
         },
         {
           "level": 3,
-          "text": "`canonical_hook_command`",
+          "text": "canonical_hook_command",
           "anchor": "canonical_hook_command"
         },
         {
           "level": 3,
-          "text": "`_build_canonical_hooks`",
+          "text": "_build_canonical_hooks",
           "anchor": "_build_canonical_hooks"
         },
         {
           "level": 3,
-          "text": "`build_canonical_shared_settings`",
+          "text": "build_canonical_shared_settings",
           "anchor": "build_canonical_shared_settings"
         }
       ]
@@ -914,12 +914,12 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.discovery`",
+          "text": "claudewheel.discovery",
           "anchor": "claudewheeldiscovery"
         },
         {
           "level": 3,
-          "text": "`detect_browsers`",
+          "text": "detect_browsers",
           "anchor": "detect_browsers"
         }
       ]
@@ -936,177 +936,177 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.effects`",
+          "text": "claudewheel.effects",
           "anchor": "claudewheeleffects"
         },
         {
           "level": 3,
-          "text": "`bound`",
+          "text": "bound",
           "anchor": "bound"
         },
         {
           "level": 3,
-          "text": "`unsettled`",
+          "text": "unsettled",
           "anchor": "unsettled"
         },
         {
           "level": 3,
-          "text": "`previewing`",
+          "text": "previewing",
           "anchor": "previewing"
         },
         {
           "level": 3,
-          "text": "`issue`",
+          "text": "issue",
           "anchor": "issue"
         },
         {
           "level": 3,
-          "text": "`_handle`",
+          "text": "_handle",
           "anchor": "_handle"
         },
         {
           "level": 3,
-          "text": "`_p`",
+          "text": "_p",
           "anchor": "_p"
         },
         {
           "level": 3,
-          "text": "`run`",
+          "text": "run",
           "anchor": "run"
         },
         {
           "level": 3,
-          "text": "`exec_replace`",
+          "text": "exec_replace",
           "anchor": "exec_replace"
         },
         {
           "level": 3,
-          "text": "`run_under_pty`",
+          "text": "run_under_pty",
           "anchor": "run_under_pty"
         },
         {
           "level": 3,
-          "text": "`_RecordedWriter`",
+          "text": "_RecordedWriter",
           "anchor": "_recordedwriter"
         },
         {
           "level": 4,
-          "text": "`close`",
+          "text": "close",
           "anchor": "close"
         },
         {
           "level": 3,
-          "text": "`open_write`",
+          "text": "open_write",
           "anchor": "open_write"
         },
         {
           "level": 3,
-          "text": "`write_text`",
+          "text": "write_text",
           "anchor": "write_text"
         },
         {
           "level": 3,
-          "text": "`write_bytes`",
+          "text": "write_bytes",
           "anchor": "write_bytes"
         },
         {
           "level": 3,
-          "text": "`write`",
+          "text": "write",
           "anchor": "write"
         },
         {
           "level": 3,
-          "text": "`write_text_atomic`",
+          "text": "write_text_atomic",
           "anchor": "write_text_atomic"
         },
         {
           "level": 3,
-          "text": "`write_json_atomic`",
+          "text": "write_json_atomic",
           "anchor": "write_json_atomic"
         },
         {
           "level": 3,
-          "text": "`write_json_atomic_secret`",
+          "text": "write_json_atomic_secret",
           "anchor": "write_json_atomic_secret"
         },
         {
           "level": 3,
-          "text": "`mkdir`",
+          "text": "mkdir",
           "anchor": "mkdir"
         },
         {
           "level": 3,
-          "text": "`remove`",
+          "text": "remove",
           "anchor": "remove"
         },
         {
           "level": 3,
-          "text": "`rmdir`",
+          "text": "rmdir",
           "anchor": "rmdir"
         },
         {
           "level": 3,
-          "text": "`rmtree`",
+          "text": "rmtree",
           "anchor": "rmtree"
         },
         {
           "level": 3,
-          "text": "`rename`",
+          "text": "rename",
           "anchor": "rename"
         },
         {
           "level": 3,
-          "text": "`move`",
+          "text": "move",
           "anchor": "move"
         },
         {
           "level": 3,
-          "text": "`chmod`",
+          "text": "chmod",
           "anchor": "chmod"
         },
         {
           "level": 3,
-          "text": "`symlink`",
+          "text": "symlink",
           "anchor": "symlink"
         },
         {
           "level": 3,
-          "text": "`copy_file`",
+          "text": "copy_file",
           "anchor": "copy_file"
         },
         {
           "level": 3,
-          "text": "`copytree`",
+          "text": "copytree",
           "anchor": "copytree"
         },
         {
           "level": 3,
-          "text": "`http_read`",
+          "text": "http_read",
           "anchor": "http_read"
         },
         {
           "level": 3,
-          "text": "`http_status`",
+          "text": "http_status",
           "anchor": "http_status"
         },
         {
           "level": 3,
-          "text": "`http_stream`",
+          "text": "http_stream",
           "anchor": "http_stream"
         },
         {
           "level": 3,
-          "text": "`http`",
+          "text": "http",
           "anchor": "http"
         },
         {
           "level": 3,
-          "text": "`_direct_run`",
+          "text": "_direct_run",
           "anchor": "_direct_run"
         },
         {
           "level": 3,
-          "text": "`_completed_from`",
+          "text": "_completed_from",
           "anchor": "_completed_from"
         }
       ]
@@ -1123,22 +1123,22 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.fuzzy`",
+          "text": "claudewheel.fuzzy",
           "anchor": "claudewheelfuzzy"
         },
         {
           "level": 3,
-          "text": "`fuzzy_score`",
+          "text": "fuzzy_score",
           "anchor": "fuzzy_score"
         },
         {
           "level": 3,
-          "text": "`fuzzy_rank`",
+          "text": "fuzzy_rank",
           "anchor": "fuzzy_rank"
         },
         {
           "level": 3,
-          "text": "`fuzzy_match_positions`",
+          "text": "fuzzy_match_positions",
           "anchor": "fuzzy_match_positions"
         }
       ]
@@ -1155,87 +1155,87 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.guardrail`",
+          "text": "claudewheel.guardrail",
           "anchor": "claudewheelguardrail"
         },
         {
           "level": 3,
-          "text": "`Tier`",
+          "text": "Tier",
           "anchor": "tier"
         },
         {
           "level": 3,
-          "text": "`SettingsCoverage`",
+          "text": "SettingsCoverage",
           "anchor": "settingscoverage"
         },
         {
           "level": 3,
-          "text": "`GuardrailRule`",
+          "text": "GuardrailRule",
           "anchor": "guardrailrule"
         },
         {
           "level": 3,
-          "text": "`_as_sentence`",
+          "text": "_as_sentence",
           "anchor": "_as_sentence"
         },
         {
           "level": 3,
-          "text": "`_cmd`",
+          "text": "_cmd",
           "anchor": "_cmd"
         },
         {
           "level": 3,
-          "text": "`_wrapped_matcher`",
+          "text": "_wrapped_matcher",
           "anchor": "_wrapped_matcher"
         },
         {
           "level": 3,
-          "text": "`rules`",
+          "text": "rules",
           "anchor": "rules"
         },
         {
           "level": 3,
-          "text": "`rules_by_tier`",
+          "text": "rules_by_tier",
           "anchor": "rules_by_tier"
         },
         {
           "level": 3,
-          "text": "`canonical_deny_rules`",
+          "text": "canonical_deny_rules",
           "anchor": "canonical_deny_rules"
         },
         {
           "level": 3,
-          "text": "`canonical_ask_rules`",
+          "text": "canonical_ask_rules",
           "anchor": "canonical_ask_rules"
         },
         {
           "level": 3,
-          "text": "`all_settings_rules`",
+          "text": "all_settings_rules",
           "anchor": "all_settings_rules"
         },
         {
           "level": 3,
-          "text": "`_bash_squote`",
+          "text": "_bash_squote",
           "anchor": "_bash_squote"
         },
         {
           "level": 3,
-          "text": "`_bash_dquote_body`",
+          "text": "_bash_dquote_body",
           "anchor": "_bash_dquote_body"
         },
         {
           "level": 3,
-          "text": "`_match_condition`",
+          "text": "_match_condition",
           "anchor": "_match_condition"
         },
         {
           "level": 3,
-          "text": "`generate_blocker_script`",
+          "text": "generate_blocker_script",
           "anchor": "generate_blocker_script"
         },
         {
           "level": 3,
-          "text": "`generate_advise_script`",
+          "text": "generate_advise_script",
           "anchor": "generate_advise_script"
         }
       ]
@@ -1252,142 +1252,142 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.health`",
+          "text": "claudewheel.health",
           "anchor": "claudewheelhealth"
         },
         {
           "level": 3,
-          "text": "`HealthResult`",
+          "text": "HealthResult",
           "anchor": "healthresult"
         },
         {
           "level": 3,
-          "text": "`check_tmpfs_quota`",
+          "text": "check_tmpfs_quota",
           "anchor": "check_tmpfs_quota"
         },
         {
           "level": 3,
-          "text": "`_tmp_claude_dir`",
+          "text": "_tmp_claude_dir",
           "anchor": "_tmp_claude_dir"
         },
         {
           "level": 3,
-          "text": "`_real_disk_usage`",
+          "text": "_real_disk_usage",
           "anchor": "_real_disk_usage"
         },
         {
           "level": 3,
-          "text": "`check_tmp_claude_size`",
+          "text": "check_tmp_claude_size",
           "anchor": "check_tmp_claude_size"
         },
         {
           "level": 3,
-          "text": "`_discover_profiles`",
+          "text": "_discover_profiles",
           "anchor": "_discover_profiles"
         },
         {
           "level": 3,
-          "text": "`_managed_profiles`",
+          "text": "_managed_profiles",
           "anchor": "_managed_profiles"
         },
         {
           "level": 3,
-          "text": "`check_shared_symlinks`",
+          "text": "check_shared_symlinks",
           "anchor": "check_shared_symlinks"
         },
         {
           "level": 3,
-          "text": "`_hook_wired`",
+          "text": "_hook_wired",
           "anchor": "_hook_wired"
         },
         {
           "level": 3,
-          "text": "`check_hooks_wired`",
+          "text": "check_hooks_wired",
           "anchor": "check_hooks_wired"
         },
         {
           "level": 3,
-          "text": "`check_settings_defaults`",
+          "text": "check_settings_defaults",
           "anchor": "check_settings_defaults"
         },
         {
           "level": 3,
-          "text": "`_diff_json`",
+          "text": "_diff_json",
           "anchor": "_diff_json"
         },
         {
           "level": 3,
-          "text": "`check_shared_settings_drift`",
+          "text": "check_shared_settings_drift",
           "anchor": "check_shared_settings_drift"
         },
         {
           "level": 3,
-          "text": "`_canonical_permission_diffs`",
+          "text": "_canonical_permission_diffs",
           "anchor": "_canonical_permission_diffs"
         },
         {
           "level": 3,
-          "text": "`check_canonical_permissions_drift`",
+          "text": "check_canonical_permissions_drift",
           "anchor": "check_canonical_permissions_drift"
         },
         {
           "level": 3,
-          "text": "`check_auth_shadow`",
+          "text": "check_auth_shadow",
           "anchor": "check_auth_shadow"
         },
         {
           "level": 3,
-          "text": "`check_token_expiry`",
+          "text": "check_token_expiry",
           "anchor": "check_token_expiry"
         },
         {
           "level": 3,
-          "text": "`check_tokens`",
+          "text": "check_tokens",
           "anchor": "check_tokens"
         },
         {
           "level": 3,
-          "text": "`check_orphan_profiles`",
+          "text": "check_orphan_profiles",
           "anchor": "check_orphan_profiles"
         },
         {
           "level": 3,
-          "text": "`check_orphan_token_entries`",
+          "text": "check_orphan_token_entries",
           "anchor": "check_orphan_token_entries"
         },
         {
           "level": 3,
-          "text": "`check_file_permissions`",
+          "text": "check_file_permissions",
           "anchor": "check_file_permissions"
         },
         {
           "level": 3,
-          "text": "`check_inode_renames`",
+          "text": "check_inode_renames",
           "anchor": "check_inode_renames"
         },
         {
           "level": 3,
-          "text": "`check_deployed_hook_drift`",
+          "text": "check_deployed_hook_drift",
           "anchor": "check_deployed_hook_drift"
         },
         {
           "level": 3,
-          "text": "`_stale_hook_command_paths`",
+          "text": "_stale_hook_command_paths",
           "anchor": "_stale_hook_command_paths"
         },
         {
           "level": 3,
-          "text": "`check_relocated_hook_paths`",
+          "text": "check_relocated_hook_paths",
           "anchor": "check_relocated_hook_paths"
         },
         {
           "level": 3,
-          "text": "`run_health_check`",
+          "text": "run_health_check",
           "anchor": "run_health_check"
         },
         {
           "level": 3,
-          "text": "`print_health_report`",
+          "text": "print_health_report",
           "anchor": "print_health_report"
         }
       ]
@@ -1404,12 +1404,12 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.hook_scripts`",
+          "text": "claudewheel.hook_scripts",
           "anchor": "claudewheelhook_scripts"
         },
         {
           "level": 3,
-          "text": "`deploy_scripts`",
+          "text": "deploy_scripts",
           "anchor": "deploy_scripts"
         }
       ]
@@ -1426,12 +1426,12 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.hooks`",
+          "text": "claudewheel.hooks",
           "anchor": "claudewheelhooks"
         },
         {
           "level": 3,
-          "text": "`run_hooks`",
+          "text": "run_hooks",
           "anchor": "run_hooks"
         }
       ]
@@ -1448,52 +1448,52 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.import_`",
+          "text": "claudewheel.import_",
           "anchor": "claudewheelimport_"
         },
         {
           "level": 3,
-          "text": "`ImportResult`",
+          "text": "ImportResult",
           "anchor": "importresult"
         },
         {
           "level": 3,
-          "text": "`_normalize_cwd`",
+          "text": "_normalize_cwd",
           "anchor": "_normalize_cwd"
         },
         {
           "level": 3,
-          "text": "`_build_rewriters`",
+          "text": "_build_rewriters",
           "anchor": "_build_rewriters"
         },
         {
           "level": 3,
-          "text": "`_apply_rewrites`",
+          "text": "_apply_rewrites",
           "anchor": "_apply_rewrites"
         },
         {
           "level": 3,
-          "text": "`_rewrite_jsonl`",
+          "text": "_rewrite_jsonl",
           "anchor": "_rewrite_jsonl"
         },
         {
           "level": 3,
-          "text": "`_SessionBundle`",
+          "text": "_SessionBundle",
           "anchor": "_sessionbundle"
         },
         {
           "level": 3,
-          "text": "`_scan_source`",
+          "text": "_scan_source",
           "anchor": "_scan_source"
         },
         {
           "level": 3,
-          "text": "`run_import`",
+          "text": "run_import",
           "anchor": "run_import"
         },
         {
           "level": 3,
-          "text": "`_copy_simple_artifacts`",
+          "text": "_copy_simple_artifacts",
           "anchor": "_copy_simple_artifacts"
         }
       ]
@@ -1510,27 +1510,27 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.install`",
+          "text": "claudewheel.install",
           "anchor": "claudewheelinstall"
         },
         {
           "level": 3,
-          "text": "`_detect_platform`",
+          "text": "_detect_platform",
           "anchor": "_detect_platform"
         },
         {
           "level": 3,
-          "text": "`fetch_manifest`",
+          "text": "fetch_manifest",
           "anchor": "fetch_manifest"
         },
         {
           "level": 3,
-          "text": "`_staging_path`",
+          "text": "_staging_path",
           "anchor": "_staging_path"
         },
         {
           "level": 3,
-          "text": "`install_version`",
+          "text": "install_version",
           "anchor": "install_version"
         }
       ]
@@ -1547,22 +1547,22 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.launch`",
+          "text": "claudewheel.launch",
           "anchor": "claudewheellaunch"
         },
         {
           "level": 3,
-          "text": "`fetch_gh_token`",
+          "text": "fetch_gh_token",
           "anchor": "fetch_gh_token"
         },
         {
           "level": 3,
-          "text": "`resolve_launch_config`",
+          "text": "resolve_launch_config",
           "anchor": "resolve_launch_config"
         },
         {
           "level": 3,
-          "text": "`do_launch`",
+          "text": "do_launch",
           "anchor": "do_launch"
         }
       ]
@@ -1579,37 +1579,37 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.migrate`",
+          "text": "claudewheel.migrate",
           "anchor": "claudewheelmigrate"
         },
         {
           "level": 3,
-          "text": "`MigrateResult`",
+          "text": "MigrateResult",
           "anchor": "migrateresult"
         },
         {
           "level": 3,
-          "text": "`_resolve_symlink_target`",
+          "text": "_resolve_symlink_target",
           "anchor": "_resolve_symlink_target"
         },
         {
           "level": 3,
-          "text": "`_discover_uuids`",
+          "text": "_discover_uuids",
           "anchor": "_discover_uuids"
         },
         {
           "level": 3,
-          "text": "`_move_artifact`",
+          "text": "_move_artifact",
           "anchor": "_move_artifact"
         },
         {
           "level": 3,
-          "text": "`_shared_store`",
+          "text": "_shared_store",
           "anchor": "_shared_store"
         },
         {
           "level": 3,
-          "text": "`migrate_sessions`",
+          "text": "migrate_sessions",
           "anchor": "migrate_sessions"
         }
       ]
@@ -1626,67 +1626,67 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.mv`",
+          "text": "claudewheel.mv",
           "anchor": "claudewheelmv"
         },
         {
           "level": 3,
-          "text": "`MvResult`",
+          "text": "MvResult",
           "anchor": "mvresult"
         },
         {
           "level": 3,
-          "text": "`_discover_profile_dirs`",
+          "text": "_discover_profile_dirs",
           "anchor": "_discover_profile_dirs"
         },
         {
           "level": 3,
-          "text": "`_rewrite_jsonl_file`",
+          "text": "_rewrite_jsonl_file",
           "anchor": "_rewrite_jsonl_file"
         },
         {
           "level": 3,
-          "text": "`_plan_migrations`",
+          "text": "_plan_migrations",
           "anchor": "_plan_migrations"
         },
         {
           "level": 3,
-          "text": "`_decode_rel`",
+          "text": "_decode_rel",
           "anchor": "_decode_rel"
         },
         {
           "level": 3,
-          "text": "`_collect_project_keys`",
+          "text": "_collect_project_keys",
           "anchor": "_collect_project_keys"
         },
         {
           "level": 3,
-          "text": "`_discover_descendants`",
+          "text": "_discover_descendants",
           "anchor": "_discover_descendants"
         },
         {
           "level": 3,
-          "text": "`_verify_destinations`",
+          "text": "_verify_destinations",
           "anchor": "_verify_destinations"
         },
         {
           "level": 3,
-          "text": "`_rename_project_dir`",
+          "text": "_rename_project_dir",
           "anchor": "_rename_project_dir"
         },
         {
           "level": 3,
-          "text": "`_rewrite_prefixed_path`",
+          "text": "_rewrite_prefixed_path",
           "anchor": "_rewrite_prefixed_path"
         },
         {
           "level": 3,
-          "text": "`_update_claude_json`",
+          "text": "_update_claude_json",
           "anchor": "_update_claude_json"
         },
         {
           "level": 3,
-          "text": "`run_mv`",
+          "text": "run_mv",
           "anchor": "run_mv"
         }
       ]
@@ -1703,22 +1703,22 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.patch_profiles`",
+          "text": "claudewheel.patch_profiles",
           "anchor": "claudewheelpatch_profiles"
         },
         {
           "level": 3,
-          "text": "`_script_basename`",
+          "text": "_script_basename",
           "anchor": "_script_basename"
         },
         {
           "level": 3,
-          "text": "`merge_hooks`",
+          "text": "merge_hooks",
           "anchor": "merge_hooks"
         },
         {
           "level": 3,
-          "text": "`run_patch_profiles`",
+          "text": "run_patch_profiles",
           "anchor": "run_patch_profiles"
         }
       ]
@@ -1735,37 +1735,37 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.permission`",
+          "text": "claudewheel.permission",
           "anchor": "claudewheelpermission"
         },
         {
           "level": 3,
-          "text": "`validate_rule`",
+          "text": "validate_rule",
           "anchor": "validate_rule"
         },
         {
           "level": 3,
-          "text": "`load_settings`",
+          "text": "load_settings",
           "anchor": "load_settings"
         },
         {
           "level": 3,
-          "text": "`save_settings`",
+          "text": "save_settings",
           "anchor": "save_settings"
         },
         {
           "level": 3,
-          "text": "`add_rule`",
+          "text": "add_rule",
           "anchor": "add_rule"
         },
         {
           "level": 3,
-          "text": "`remove_rule`",
+          "text": "remove_rule",
           "anchor": "remove_rule"
         },
         {
           "level": 3,
-          "text": "`resolve_profiles`",
+          "text": "resolve_profiles",
           "anchor": "resolve_profiles"
         }
       ]
@@ -1782,107 +1782,107 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.preflight`",
+          "text": "claudewheel.preflight",
           "anchor": "claudewheelpreflight"
         },
         {
           "level": 3,
-          "text": "`Decision`",
+          "text": "Decision",
           "anchor": "decision"
         },
         {
           "level": 3,
-          "text": "`StepResult`",
+          "text": "StepResult",
           "anchor": "stepresult"
         },
         {
           "level": 4,
-          "text": "`cont`",
+          "text": "cont",
           "anchor": "cont"
         },
         {
           "level": 4,
-          "text": "`abort`",
+          "text": "abort",
           "anchor": "abort"
         },
         {
           "level": 4,
-          "text": "`is_abort`",
+          "text": "is_abort",
           "anchor": "is_abort"
         },
         {
           "level": 3,
-          "text": "`PreflightContext`",
+          "text": "PreflightContext",
           "anchor": "preflightcontext"
         },
         {
           "level": 3,
-          "text": "`PreflightStep`",
+          "text": "PreflightStep",
           "anchor": "preflightstep"
         },
         {
           "level": 3,
-          "text": "`_canonical_hook_scripts`",
+          "text": "_canonical_hook_scripts",
           "anchor": "_canonical_hook_scripts"
         },
         {
           "level": 3,
-          "text": "`ensure_vanilla_guardrails`",
+          "text": "ensure_vanilla_guardrails",
           "anchor": "ensure_vanilla_guardrails"
         },
         {
           "level": 3,
-          "text": "`remove_vanilla_guardrails`",
+          "text": "remove_vanilla_guardrails",
           "anchor": "remove_vanilla_guardrails"
         },
         {
           "level": 3,
-          "text": "`_prompt_vanilla_choice`",
+          "text": "_prompt_vanilla_choice",
           "anchor": "_prompt_vanilla_choice"
         },
         {
           "level": 3,
-          "text": "`_vanilla_choice_run`",
+          "text": "_vanilla_choice_run",
           "anchor": "_vanilla_choice_run"
         },
         {
           "level": 3,
-          "text": "`_reconcile_guardrails_run`",
+          "text": "_reconcile_guardrails_run",
           "anchor": "_reconcile_guardrails_run"
         },
         {
           "level": 3,
-          "text": "`_model_version_guard_run`",
+          "text": "_model_version_guard_run",
           "anchor": "_model_version_guard_run"
         },
         {
           "level": 3,
-          "text": "`_make_terminal`",
+          "text": "_make_terminal",
           "anchor": "_make_terminal"
         },
         {
           "level": 3,
-          "text": "`_prompt_hook_approval`",
+          "text": "_prompt_hook_approval",
           "anchor": "_prompt_hook_approval"
         },
         {
           "level": 3,
-          "text": "`_approved_hooks_run`",
+          "text": "_approved_hooks_run",
           "anchor": "_approved_hooks_run"
         },
         {
           "level": 3,
-          "text": "`_prompt_scratchpad_cleanup`",
+          "text": "_prompt_scratchpad_cleanup",
           "anchor": "_prompt_scratchpad_cleanup"
         },
         {
           "level": 3,
-          "text": "`_scratchpad_cleanup_run`",
+          "text": "_scratchpad_cleanup_run",
           "anchor": "_scratchpad_cleanup_run"
         },
         {
           "level": 3,
-          "text": "`run_preflight`",
+          "text": "run_preflight",
           "anchor": "run_preflight"
         }
       ]
@@ -1899,12 +1899,12 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.profile`",
+          "text": "claudewheel.profile",
           "anchor": "claudewheelprofile"
         },
         {
           "level": 3,
-          "text": "`resolve_profile`",
+          "text": "resolve_profile",
           "anchor": "resolve_profile"
         }
       ]
@@ -1921,57 +1921,57 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.profile_info`",
+          "text": "claudewheel.profile_info",
           "anchor": "claudewheelprofile_info"
         },
         {
           "level": 3,
-          "text": "`ProfileReport`",
+          "text": "ProfileReport",
           "anchor": "profilereport"
         },
         {
           "level": 3,
-          "text": "`_read_options_registration`",
+          "text": "_read_options_registration",
           "anchor": "_read_options_registration"
         },
         {
           "level": 3,
-          "text": "`_read_token_state`",
+          "text": "_read_token_state",
           "anchor": "_read_token_state"
         },
         {
           "level": 3,
-          "text": "`_count_active_sessions`",
+          "text": "_count_active_sessions",
           "anchor": "_count_active_sessions"
         },
         {
           "level": 3,
-          "text": "`_disk_usage`",
+          "text": "_disk_usage",
           "anchor": "_disk_usage"
         },
         {
           "level": 3,
-          "text": "`_read_settings`",
+          "text": "_read_settings",
           "anchor": "_read_settings"
         },
         {
           "level": 3,
-          "text": "`detect_auth_shadow`",
+          "text": "detect_auth_shadow",
           "anchor": "detect_auth_shadow"
         },
         {
           "level": 3,
-          "text": "`gather_profile_info`",
+          "text": "gather_profile_info",
           "anchor": "gather_profile_info"
         },
         {
           "level": 3,
-          "text": "`_format_size`",
+          "text": "_format_size",
           "anchor": "_format_size"
         },
         {
           "level": 3,
-          "text": "`format_report`",
+          "text": "format_report",
           "anchor": "format_report"
         }
       ]
@@ -1988,32 +1988,32 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.profile_ops`",
+          "text": "claudewheel.profile_ops",
           "anchor": "claudewheelprofile_ops"
         },
         {
           "level": 3,
-          "text": "`RemoveOrphanTokenResult`",
+          "text": "RemoveOrphanTokenResult",
           "anchor": "removeorphantokenresult"
         },
         {
           "level": 3,
-          "text": "`remove_orphan_token_entry`",
+          "text": "remove_orphan_token_entry",
           "anchor": "remove_orphan_token_entry"
         },
         {
           "level": 3,
-          "text": "`FixAuthResult`",
+          "text": "FixAuthResult",
           "anchor": "fixauthresult"
         },
         {
           "level": 3,
-          "text": "`fix_auth_shadow`",
+          "text": "fix_auth_shadow",
           "anchor": "fix_auth_shadow"
         },
         {
           "level": 3,
-          "text": "`_is_profile_running`",
+          "text": "_is_profile_running",
           "anchor": "_is_profile_running"
         }
       ]
@@ -2030,117 +2030,117 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.profile_store`",
+          "text": "claudewheel.profile_store",
           "anchor": "claudewheelprofile_store"
         },
         {
           "level": 3,
-          "text": "`Profile`",
+          "text": "Profile",
           "anchor": "profile"
         },
         {
           "level": 4,
-          "text": "`config_dir`",
+          "text": "config_dir",
           "anchor": "config_dir"
         },
         {
           "level": 3,
-          "text": "`AuditFinding`",
+          "text": "AuditFinding",
           "anchor": "auditfinding"
         },
         {
           "level": 3,
-          "text": "`DeletionResult`",
+          "text": "DeletionResult",
           "anchor": "deletionresult"
         },
         {
           "level": 3,
-          "text": "`ProfileStore`",
+          "text": "ProfileStore",
           "anchor": "profilestore"
         },
         {
           "level": 4,
-          "text": "`path_for`",
+          "text": "path_for",
           "anchor": "path_for"
         },
         {
           "level": 4,
-          "text": "`enumerate`",
+          "text": "enumerate",
           "anchor": "enumerate"
         },
         {
           "level": 4,
-          "text": "`discover`",
+          "text": "discover",
           "anchor": "discover"
         },
         {
           "level": 4,
-          "text": "`get`",
+          "text": "get",
           "anchor": "get"
         },
         {
           "level": 4,
-          "text": "`audit`",
+          "text": "audit",
           "anchor": "audit"
         },
         {
           "level": 4,
-          "text": "`env`",
+          "text": "env",
           "anchor": "env"
         },
         {
           "level": 4,
-          "text": "`_require_write_stores`",
+          "text": "_require_write_stores",
           "anchor": "_require_write_stores"
         },
         {
           "level": 4,
-          "text": "`_require_shared`",
+          "text": "_require_shared",
           "anchor": "_require_shared"
         },
         {
           "level": 4,
-          "text": "`_set_onboarding_flag`",
+          "text": "_set_onboarding_flag",
           "anchor": "_set_onboarding_flag"
         },
         {
           "level": 4,
-          "text": "`create`",
+          "text": "create",
           "anchor": "create"
         },
         {
           "level": 4,
-          "text": "`classify_shared_dirs`",
+          "text": "classify_shared_dirs",
           "anchor": "classify_shared_dirs"
         },
         {
           "level": 4,
-          "text": "`_remove_profile_dir`",
+          "text": "_remove_profile_dir",
           "anchor": "_remove_profile_dir"
         },
         {
           "level": 4,
-          "text": "`_purge_last_config`",
+          "text": "_purge_last_config",
           "anchor": "_purge_last_config"
         },
         {
           "level": 4,
-          "text": "`delete`",
+          "text": "delete",
           "anchor": "delete"
         },
         {
           "level": 4,
-          "text": "`_update_state_rename`",
+          "text": "_update_state_rename",
           "anchor": "_update_state_rename"
         },
         {
           "level": 4,
-          "text": "`rename`",
+          "text": "rename",
           "anchor": "rename"
         },
         {
           "level": 4,
-          "text": "`recover_incomplete_renames`",
+          "text": "recover_incomplete_renames",
           "anchor": "recover_incomplete_renames"
         }
       ]
@@ -2157,52 +2157,52 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.project_hooks`",
+          "text": "claudewheel.project_hooks",
           "anchor": "claudewheelproject_hooks"
         },
         {
           "level": 3,
-          "text": "`MalformedProjectHooksError`",
+          "text": "MalformedProjectHooksError",
           "anchor": "malformedprojecthookserror"
         },
         {
           "level": 3,
-          "text": "`ProjectHooks`",
+          "text": "ProjectHooks",
           "anchor": "projecthooks"
         },
         {
           "level": 4,
-          "text": "`has_hooks`",
+          "text": "has_hooks",
           "anchor": "has_hooks"
         },
         {
           "level": 4,
-          "text": "`fingerprint`",
+          "text": "fingerprint",
           "anchor": "fingerprint"
         },
         {
           "level": 4,
-          "text": "`listing_lines`",
+          "text": "listing_lines",
           "anchor": "listing_lines"
         },
         {
           "level": 3,
-          "text": "`_entry_lines`",
+          "text": "_entry_lines",
           "anchor": "_entry_lines"
         },
         {
           "level": 3,
-          "text": "`_load_hooks_section`",
+          "text": "_load_hooks_section",
           "anchor": "_load_hooks_section"
         },
         {
           "level": 3,
-          "text": "`read_project_hooks`",
+          "text": "read_project_hooks",
           "anchor": "read_project_hooks"
         },
         {
           "level": 3,
-          "text": "`target_directory`",
+          "text": "target_directory",
           "anchor": "target_directory"
         }
       ]
@@ -2219,17 +2219,17 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.pty_runner`",
+          "text": "claudewheel.pty_runner",
           "anchor": "claudewheelpty_runner"
         },
         {
           "level": 3,
-          "text": "`_copy_winsize`",
+          "text": "_copy_winsize",
           "anchor": "_copy_winsize"
         },
         {
           "level": 3,
-          "text": "`run_under_pty`",
+          "text": "run_under_pty",
           "anchor": "run_under_pty"
         }
       ]
@@ -2246,107 +2246,107 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.reconcile`",
+          "text": "claudewheel.reconcile",
           "anchor": "claudewheelreconcile"
         },
         {
           "level": 3,
-          "text": "`PermissionDiff`",
+          "text": "PermissionDiff",
           "anchor": "permissiondiff"
         },
         {
           "level": 4,
-          "text": "`is_empty`",
+          "text": "is_empty",
           "anchor": "is_empty"
         },
         {
           "level": 4,
-          "text": "`change_count`",
+          "text": "change_count",
           "anchor": "change_count"
         },
         {
           "level": 3,
-          "text": "`_reconcile_list`",
+          "text": "_reconcile_list",
           "anchor": "_reconcile_list"
         },
         {
           "level": 3,
-          "text": "`compute_settings_diff`",
+          "text": "compute_settings_diff",
           "anchor": "compute_settings_diff"
         },
         {
           "level": 3,
-          "text": "`apply_settings_diff`",
+          "text": "apply_settings_diff",
           "anchor": "apply_settings_diff"
         },
         {
           "level": 3,
-          "text": "`_reconcile_permissions`",
+          "text": "_reconcile_permissions",
           "anchor": "_reconcile_permissions"
         },
         {
           "level": 3,
-          "text": "`_reconcile_hooks`",
+          "text": "_reconcile_hooks",
           "anchor": "_reconcile_hooks"
         },
         {
           "level": 3,
-          "text": "`_reconcile_profile_disallowed`",
+          "text": "_reconcile_profile_disallowed",
           "anchor": "_reconcile_profile_disallowed"
         },
         {
           "level": 3,
-          "text": "`_reconcile_shared_disallowed`",
+          "text": "_reconcile_shared_disallowed",
           "anchor": "_reconcile_shared_disallowed"
         },
         {
           "level": 3,
-          "text": "`reconcile_profile_dict`",
+          "text": "reconcile_profile_dict",
           "anchor": "reconcile_profile_dict"
         },
         {
           "level": 3,
-          "text": "`reconcile_shared_dict`",
+          "text": "reconcile_shared_dict",
           "anchor": "reconcile_shared_dict"
         },
         {
           "level": 3,
-          "text": "`_referenced_scripts`",
+          "text": "_referenced_scripts",
           "anchor": "_referenced_scripts"
         },
         {
           "level": 3,
-          "text": "`TargetReport`",
+          "text": "TargetReport",
           "anchor": "targetreport"
         },
         {
           "level": 3,
-          "text": "`ReconcileReport`",
+          "text": "ReconcileReport",
           "anchor": "reconcilereport"
         },
         {
           "level": 4,
-          "text": "`changed_any`",
+          "text": "changed_any",
           "anchor": "changed_any"
         },
         {
           "level": 3,
-          "text": "`_process_settings_file`",
+          "text": "_process_settings_file",
           "anchor": "_process_settings_file"
         },
         {
           "level": 3,
-          "text": "`reconcile_workspace`",
+          "text": "reconcile_workspace",
           "anchor": "reconcile_workspace"
         },
         {
           "level": 3,
-          "text": "`_print_report`",
+          "text": "_print_report",
           "anchor": "_print_report"
         },
         {
           "level": 3,
-          "text": "`run_reconcile`",
+          "text": "run_reconcile",
           "anchor": "run_reconcile"
         }
       ]
@@ -2363,77 +2363,77 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.renderer`",
+          "text": "claudewheel.renderer",
           "anchor": "claudewheelrenderer"
         },
         {
           "level": 3,
-          "text": "`Renderer`",
+          "text": "Renderer",
           "anchor": "renderer"
         },
         {
           "level": 4,
-          "text": "`render`",
+          "text": "render",
           "anchor": "render"
         },
         {
           "level": 4,
-          "text": "`_hint_line_count`",
+          "text": "_hint_line_count",
           "anchor": "_hint_line_count"
         },
         {
           "level": 4,
-          "text": "`_seg_colors`",
+          "text": "_seg_colors",
           "anchor": "_seg_colors"
         },
         {
           "level": 4,
-          "text": "`_compute_bar_layout`",
+          "text": "_compute_bar_layout",
           "anchor": "_compute_bar_layout"
         },
         {
           "level": 4,
-          "text": "`_compute_viewport`",
+          "text": "_compute_viewport",
           "anchor": "_compute_viewport"
         },
         {
           "level": 4,
-          "text": "`_count_offscreen`",
+          "text": "_count_offscreen",
           "anchor": "_count_offscreen"
         },
         {
           "level": 4,
-          "text": "`_render_arrows`",
+          "text": "_render_arrows",
           "anchor": "_render_arrows"
         },
         {
           "level": 4,
-          "text": "`_render_fan_out`",
+          "text": "_render_fan_out",
           "anchor": "_render_fan_out"
         },
         {
           "level": 4,
-          "text": "`_render_option`",
+          "text": "_render_option",
           "anchor": "_render_option"
         },
         {
           "level": 4,
-          "text": "`_render_highlighted_option`",
+          "text": "_render_highlighted_option",
           "anchor": "_render_highlighted_option"
         },
         {
           "level": 4,
-          "text": "`_render_minimap`",
+          "text": "_render_minimap",
           "anchor": "_render_minimap"
         },
         {
           "level": 4,
-          "text": "`_split_hints`",
+          "text": "_split_hints",
           "anchor": "_split_hints"
         },
         {
           "level": 4,
-          "text": "`_fit_value`",
+          "text": "_fit_value",
           "anchor": "_fit_value"
         }
       ]
@@ -2450,42 +2450,42 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.scratchpad`",
+          "text": "claudewheel.scratchpad",
           "anchor": "claudewheelscratchpad"
         },
         {
           "level": 3,
-          "text": "`tmp_claude_dir`",
+          "text": "tmp_claude_dir",
           "anchor": "tmp_claude_dir"
         },
         {
           "level": 3,
-          "text": "`ScratchpadDir`",
+          "text": "ScratchpadDir",
           "anchor": "scratchpaddir"
         },
         {
           "level": 4,
-          "text": "`age_days`",
+          "text": "age_days",
           "anchor": "age_days"
         },
         {
           "level": 4,
-          "text": "`is_stale`",
+          "text": "is_stale",
           "anchor": "is_stale"
         },
         {
           "level": 3,
-          "text": "`_scan_tree`",
+          "text": "_scan_tree",
           "anchor": "_scan_tree"
         },
         {
           "level": 3,
-          "text": "`scan_scratchpad_dirs`",
+          "text": "scan_scratchpad_dirs",
           "anchor": "scan_scratchpad_dirs"
         },
         {
           "level": 3,
-          "text": "`stale_scratchpad_dirs`",
+          "text": "stale_scratchpad_dirs",
           "anchor": "stale_scratchpad_dirs"
         }
       ]
@@ -2502,277 +2502,277 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.segment`",
+          "text": "claudewheel.segment",
           "anchor": "claudewheelsegment"
         },
         {
           "level": 3,
-          "text": "`DiscoveryResult`",
+          "text": "DiscoveryResult",
           "anchor": "discoveryresult"
         },
         {
           "level": 3,
-          "text": "`DiscoveryEntry`",
+          "text": "DiscoveryEntry",
           "anchor": "discoveryentry"
         },
         {
           "level": 3,
-          "text": "`_deduplicate`",
+          "text": "_deduplicate",
           "anchor": "_deduplicate"
         },
         {
           "level": 3,
-          "text": "`SegmentState`",
+          "text": "SegmentState",
           "anchor": "segmentstate"
         },
         {
           "level": 4,
-          "text": "`options`",
+          "text": "options",
           "anchor": "options"
         },
         {
           "level": 4,
-          "text": "`set_discovered`",
+          "text": "set_discovered",
           "anchor": "set_discovered"
         },
         {
           "level": 4,
-          "text": "`add_pinned`",
+          "text": "add_pinned",
           "anchor": "add_pinned"
         },
         {
           "level": 4,
-          "text": "`remove_pinned`",
+          "text": "remove_pinned",
           "anchor": "remove_pinned"
         },
         {
           "level": 4,
-          "text": "`set_defaults`",
+          "text": "set_defaults",
           "anchor": "set_defaults"
         },
         {
           "level": 4,
-          "text": "`add_ephemeral`",
+          "text": "add_ephemeral",
           "anchor": "add_ephemeral"
         },
         {
           "level": 4,
-          "text": "`set_installed`",
+          "text": "set_installed",
           "anchor": "set_installed"
         },
         {
           "level": 4,
-          "text": "`has_installed`",
+          "text": "has_installed",
           "anchor": "has_installed"
         },
         {
           "level": 4,
-          "text": "`mark_installed`",
+          "text": "mark_installed",
           "anchor": "mark_installed"
         },
         {
           "level": 4,
-          "text": "`set_metadata`",
+          "text": "set_metadata",
           "anchor": "set_metadata"
         },
         {
           "level": 4,
-          "text": "`update_metadata`",
+          "text": "update_metadata",
           "anchor": "update_metadata"
         },
         {
           "level": 4,
-          "text": "`source_of`",
+          "text": "source_of",
           "anchor": "source_of"
         },
         {
           "level": 4,
-          "text": "`is_installed`",
+          "text": "is_installed",
           "anchor": "is_installed"
         },
         {
           "level": 4,
-          "text": "`set_authenticated`",
+          "text": "set_authenticated",
           "anchor": "set_authenticated"
         },
         {
           "level": 4,
-          "text": "`set_managed`",
+          "text": "set_managed",
           "anchor": "set_managed"
         },
         {
           "level": 4,
-          "text": "`has_auth_status`",
+          "text": "has_auth_status",
           "anchor": "has_auth_status"
         },
         {
           "level": 4,
-          "text": "`is_authenticated`",
+          "text": "is_authenticated",
           "anchor": "is_authenticated"
         },
         {
           "level": 4,
-          "text": "`is_managed`",
+          "text": "is_managed",
           "anchor": "is_managed"
         },
         {
           "level": 3,
-          "text": "`Segment`",
+          "text": "Segment",
           "anchor": "segment"
         },
         {
           "level": 4,
-          "text": "`options`",
+          "text": "options",
           "anchor": "options-1"
         },
         {
           "level": 4,
-          "text": "`display_options`",
+          "text": "display_options",
           "anchor": "display_options"
         },
         {
           "level": 4,
-          "text": "`selected_idx`",
+          "text": "selected_idx",
           "anchor": "selected_idx"
         },
         {
           "level": 4,
-          "text": "`value`",
+          "text": "value",
           "anchor": "value"
         },
         {
           "level": 4,
-          "text": "`filtered_options`",
+          "text": "filtered_options",
           "anchor": "filtered_options"
         },
         {
           "level": 4,
-          "text": "`cycle`",
+          "text": "cycle",
           "anchor": "cycle"
         },
         {
           "level": 4,
-          "text": "`is_on_plus`",
+          "text": "is_on_plus",
           "anchor": "is_on_plus"
         },
         {
           "level": 4,
-          "text": "`select_value`",
+          "text": "select_value",
           "anchor": "select_value"
         },
         {
           "level": 3,
-          "text": "`_Segment_init_wrapper`",
+          "text": "_Segment_init_wrapper",
           "anchor": "_segment_init_wrapper"
         },
         {
           "level": 3,
-          "text": "`SegmentBar`",
+          "text": "SegmentBar",
           "anchor": "segmentbar"
         },
         {
           "level": 4,
-          "text": "`focused`",
+          "text": "focused",
           "anchor": "focused"
         },
         {
           "level": 4,
-          "text": "`move_focus`",
+          "text": "move_focus",
           "anchor": "move_focus"
         },
         {
           "level": 4,
-          "text": "`get_selections`",
+          "text": "get_selections",
           "anchor": "get_selections"
         },
         {
           "level": 3,
-          "text": "`version_sort_key`",
+          "text": "version_sort_key",
           "anchor": "version_sort_key"
         },
         {
           "level": 3,
-          "text": "`fetch_npm_versions`",
+          "text": "fetch_npm_versions",
           "anchor": "fetch_npm_versions"
         },
         {
           "level": 3,
-          "text": "`_discover_directory_listing`",
+          "text": "_discover_directory_listing",
           "anchor": "_discover_directory_listing"
         },
         {
           "level": 3,
-          "text": "`_discover_npm_and_local`",
+          "text": "_discover_npm_and_local",
           "anchor": "_discover_npm_and_local"
         },
         {
           "level": 3,
-          "text": "`_discover_npm_and_local_cached`",
+          "text": "_discover_npm_and_local_cached",
           "anchor": "_discover_npm_and_local_cached"
         },
         {
           "level": 3,
-          "text": "`_discover_directory_scan`",
+          "text": "_discover_directory_scan",
           "anchor": "_discover_directory_scan"
         },
         {
           "level": 3,
-          "text": "`_discover_profiles`",
+          "text": "_discover_profiles",
           "anchor": "_discover_profiles"
         },
         {
           "level": 3,
-          "text": "`_discover_gh_accounts`",
+          "text": "_discover_gh_accounts",
           "anchor": "_discover_gh_accounts"
         },
         {
           "level": 3,
-          "text": "`_discover_state_field`",
+          "text": "_discover_state_field",
           "anchor": "_discover_state_field"
         },
         {
           "level": 3,
-          "text": "`_parse_static_values`",
+          "text": "_parse_static_values",
           "anchor": "_parse_static_values"
         },
         {
           "level": 3,
-          "text": "`_parse_requires`",
+          "text": "_parse_requires",
           "anchor": "_parse_requires"
         },
         {
           "level": 3,
-          "text": "`run_slow_discovery_via_registry`",
+          "text": "run_slow_discovery_via_registry",
           "anchor": "run_slow_discovery_via_registry"
         },
         {
           "level": 3,
-          "text": "`populate_segment_state`",
+          "text": "populate_segment_state",
           "anchor": "populate_segment_state"
         },
         {
           "level": 3,
-          "text": "`_update_auth_from_metadata`",
+          "text": "_update_auth_from_metadata",
           "anchor": "_update_auth_from_metadata"
         },
         {
           "level": 3,
-          "text": "`build_segment_bar`",
+          "text": "build_segment_bar",
           "anchor": "build_segment_bar"
         },
         {
           "level": 3,
-          "text": "`merge_slow_results`",
+          "text": "merge_slow_results",
           "anchor": "merge_slow_results"
         },
         {
           "level": 3,
-          "text": "`evaluate_requires`",
+          "text": "evaluate_requires",
           "anchor": "evaluate_requires"
         },
         {
           "level": 3,
-          "text": "`_satisfies_constraint`",
+          "text": "_satisfies_constraint",
           "anchor": "_satisfies_constraint"
         }
       ]
@@ -2789,47 +2789,47 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.session`",
+          "text": "claudewheel.session",
           "anchor": "claudewheelsession"
         },
         {
           "level": 3,
-          "text": "`SessionInfo`",
+          "text": "SessionInfo",
           "anchor": "sessioninfo"
         },
         {
           "level": 3,
-          "text": "`TitleMatch`",
+          "text": "TitleMatch",
           "anchor": "titlematch"
         },
         {
           "level": 3,
-          "text": "`OrphanedProject`",
+          "text": "OrphanedProject",
           "anchor": "orphanedproject"
         },
         {
           "level": 3,
-          "text": "`get_session_cwd`",
+          "text": "get_session_cwd",
           "anchor": "get_session_cwd"
         },
         {
           "level": 3,
-          "text": "`find_session`",
+          "text": "find_session",
           "anchor": "find_session"
         },
         {
           "level": 3,
-          "text": "`_find_title_in_file`",
+          "text": "_find_title_in_file",
           "anchor": "_find_title_in_file"
         },
         {
           "level": 3,
-          "text": "`find_sessions_by_title`",
+          "text": "find_sessions_by_title",
           "anchor": "find_sessions_by_title"
         },
         {
           "level": 3,
-          "text": "`find_orphaned_project_dirs`",
+          "text": "find_orphaned_project_dirs",
           "anchor": "find_orphaned_project_dirs"
         }
       ]
@@ -2846,62 +2846,62 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.session_registry`",
+          "text": "claudewheel.session_registry",
           "anchor": "claudewheelsession_registry"
         },
         {
           "level": 3,
-          "text": "`SessionRecord`",
+          "text": "SessionRecord",
           "anchor": "sessionrecord"
         },
         {
           "level": 4,
-          "text": "`interactive`",
+          "text": "interactive",
           "anchor": "interactive"
         },
         {
           "level": 3,
-          "text": "`process_start_token`",
+          "text": "process_start_token",
           "anchor": "process_start_token"
         },
         {
           "level": 3,
-          "text": "`_pid_exists`",
+          "text": "_pid_exists",
           "anchor": "_pid_exists"
         },
         {
           "level": 3,
-          "text": "`_is_live`",
+          "text": "_is_live",
           "anchor": "_is_live"
         },
         {
           "level": 3,
-          "text": "`_text`",
+          "text": "_text",
           "anchor": "_text"
         },
         {
           "level": 3,
-          "text": "`_parse`",
+          "text": "_parse",
           "anchor": "_parse"
         },
         {
           "level": 3,
-          "text": "`read_records`",
+          "text": "read_records",
           "anchor": "read_records"
         },
         {
           "level": 3,
-          "text": "`live_records`",
+          "text": "live_records",
           "anchor": "live_records"
         },
         {
           "level": 3,
-          "text": "`live_interactive_records`",
+          "text": "live_interactive_records",
           "anchor": "live_interactive_records"
         },
         {
           "level": 3,
-          "text": "`has_live_interactive`",
+          "text": "has_live_interactive",
           "anchor": "has_live_interactive"
         }
       ]
@@ -2918,32 +2918,32 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.shared_store`",
+          "text": "claudewheel.shared_store",
           "anchor": "claudewheelshared_store"
         },
         {
           "level": 3,
-          "text": "`SharedStore`",
+          "text": "SharedStore",
           "anchor": "sharedstore"
         },
         {
           "level": 4,
-          "text": "`projects_dir`",
+          "text": "projects_dir",
           "anchor": "projects_dir"
         },
         {
           "level": 4,
-          "text": "`inodes_file`",
+          "text": "inodes_file",
           "anchor": "inodes_file"
         },
         {
           "level": 4,
-          "text": "`subdir`",
+          "text": "subdir",
           "anchor": "subdir"
         },
         {
           "level": 4,
-          "text": "`encode_path`",
+          "text": "encode_path",
           "anchor": "encode_path"
         }
       ]
@@ -2960,62 +2960,62 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.state`",
+          "text": "claudewheel.state",
           "anchor": "claudewheelstate"
         },
         {
           "level": 3,
-          "text": "`project_key`",
+          "text": "project_key",
           "anchor": "project_key"
         },
         {
           "level": 3,
-          "text": "`_get_project_value`",
+          "text": "_get_project_value",
           "anchor": "_get_project_value"
         },
         {
           "level": 3,
-          "text": "`_set_project_value`",
+          "text": "_set_project_value",
           "anchor": "_set_project_value"
         },
         {
           "level": 3,
-          "text": "`get_project_hook_approvals`",
+          "text": "get_project_hook_approvals",
           "anchor": "get_project_hook_approvals"
         },
         {
           "level": 3,
-          "text": "`set_project_hook_approvals`",
+          "text": "set_project_hook_approvals",
           "anchor": "set_project_hook_approvals"
         },
         {
           "level": 3,
-          "text": "`get_vanilla_guardrails_opt_in`",
+          "text": "get_vanilla_guardrails_opt_in",
           "anchor": "get_vanilla_guardrails_opt_in"
         },
         {
           "level": 3,
-          "text": "`set_vanilla_guardrails_opt_in`",
+          "text": "set_vanilla_guardrails_opt_in",
           "anchor": "set_vanilla_guardrails_opt_in"
         },
         {
           "level": 3,
-          "text": "`get_scratchpad_snooze_until`",
+          "text": "get_scratchpad_snooze_until",
           "anchor": "get_scratchpad_snooze_until"
         },
         {
           "level": 3,
-          "text": "`set_scratchpad_snooze_until`",
+          "text": "set_scratchpad_snooze_until",
           "anchor": "set_scratchpad_snooze_until"
         },
         {
           "level": 3,
-          "text": "`save_launch_state`",
+          "text": "save_launch_state",
           "anchor": "save_launch_state"
         },
         {
           "level": 3,
-          "text": "`record_inode`",
+          "text": "record_inode",
           "anchor": "record_inode"
         }
       ]
@@ -3032,17 +3032,17 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.stats`",
+          "text": "claudewheel.stats",
           "anchor": "claudewheelstats"
         },
         {
           "level": 3,
-          "text": "`_report_shared_stats`",
+          "text": "_report_shared_stats",
           "anchor": "_report_shared_stats"
         },
         {
           "level": 3,
-          "text": "`run_stats`",
+          "text": "run_stats",
           "anchor": "run_stats"
         }
       ]
@@ -3059,92 +3059,92 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.terminal`",
+          "text": "claudewheel.terminal",
           "anchor": "claudewheelterminal"
         },
         {
           "level": 3,
-          "text": "`Terminal`",
+          "text": "Terminal",
           "anchor": "terminal"
         },
         {
           "level": 4,
-          "text": "`get_size`",
+          "text": "get_size",
           "anchor": "get_size"
         },
         {
           "level": 4,
-          "text": "`enter_raw`",
+          "text": "enter_raw",
           "anchor": "enter_raw"
         },
         {
           "level": 4,
-          "text": "`subscribe_mode2031`",
+          "text": "subscribe_mode2031",
           "anchor": "subscribe_mode2031"
         },
         {
           "level": 4,
-          "text": "`exit_raw`",
+          "text": "exit_raw",
           "anchor": "exit_raw"
         },
         {
           "level": 4,
-          "text": "`cooked`",
+          "text": "cooked",
           "anchor": "cooked"
         },
         {
           "level": 4,
-          "text": "`read_key`",
+          "text": "read_key",
           "anchor": "read_key"
         },
         {
           "level": 4,
-          "text": "`read_masked_line`",
+          "text": "read_masked_line",
           "anchor": "read_masked_line"
         },
         {
           "level": 4,
-          "text": "`_write_tty`",
+          "text": "_write_tty",
           "anchor": "_write_tty"
         },
         {
           "level": 4,
-          "text": "`write`",
+          "text": "write",
           "anchor": "write"
         },
         {
           "level": 4,
-          "text": "`flush`",
+          "text": "flush",
           "anchor": "flush"
         },
         {
           "level": 4,
-          "text": "`close`",
+          "text": "close",
           "anchor": "close"
         },
         {
           "level": 3,
-          "text": "`detect_terminal_background`",
+          "text": "detect_terminal_background",
           "anchor": "detect_terminal_background"
         },
         {
           "level": 3,
-          "text": "`detect_mode2031_support`",
+          "text": "detect_mode2031_support",
           "anchor": "detect_mode2031_support"
         },
         {
           "level": 3,
-          "text": "`_parse_mode2031_response`",
+          "text": "_parse_mode2031_response",
           "anchor": "_parse_mode2031_response"
         },
         {
           "level": 3,
-          "text": "`_parse_osc11_response`",
+          "text": "_parse_osc11_response",
           "anchor": "_parse_osc11_response"
         },
         {
           "level": 3,
-          "text": "`_classify_rgb`",
+          "text": "_classify_rgb",
           "anchor": "_classify_rgb"
         }
       ]
@@ -3161,32 +3161,32 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.theme`",
+          "text": "claudewheel.theme",
           "anchor": "claudewheeltheme"
         },
         {
           "level": 3,
-          "text": "`parse_hex`",
+          "text": "parse_hex",
           "anchor": "parse_hex"
         },
         {
           "level": 3,
-          "text": "`_hex_to_fg`",
+          "text": "_hex_to_fg",
           "anchor": "_hex_to_fg"
         },
         {
           "level": 3,
-          "text": "`_hex_to_bg`",
+          "text": "_hex_to_bg",
           "anchor": "_hex_to_bg"
         },
         {
           "level": 3,
-          "text": "`ThemeColors`",
+          "text": "ThemeColors",
           "anchor": "themecolors"
         },
         {
           "level": 3,
-          "text": "`parse_theme`",
+          "text": "parse_theme",
           "anchor": "parse_theme"
         }
       ]
@@ -3203,97 +3203,97 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.tokens`",
+          "text": "claudewheel.tokens",
           "anchor": "claudewheeltokens"
         },
         {
           "level": 3,
-          "text": "`TokenExpiryDisposition`",
+          "text": "TokenExpiryDisposition",
           "anchor": "tokenexpirydisposition"
         },
         {
           "level": 3,
-          "text": "`parse_entry`",
+          "text": "parse_entry",
           "anchor": "parse_entry"
         },
         {
           "level": 3,
-          "text": "`TokenExpiry`",
+          "text": "TokenExpiry",
           "anchor": "tokenexpiry"
         },
         {
           "level": 3,
-          "text": "`compute_expiry`",
+          "text": "compute_expiry",
           "anchor": "compute_expiry"
         },
         {
           "level": 3,
-          "text": "`_read_tokens_for_write`",
+          "text": "_read_tokens_for_write",
           "anchor": "_read_tokens_for_write"
         },
         {
           "level": 3,
-          "text": "`_write_token`",
+          "text": "_write_token",
           "anchor": "_write_token"
         },
         {
           "level": 3,
-          "text": "`_write_tier`",
+          "text": "_write_tier",
           "anchor": "_write_tier"
         },
         {
           "level": 3,
-          "text": "`TokenStoreError`",
+          "text": "TokenStoreError",
           "anchor": "tokenstoreerror"
         },
         {
           "level": 3,
-          "text": "`TokenStore`",
+          "text": "TokenStore",
           "anchor": "tokenstore"
         },
         {
           "level": 4,
-          "text": "`load`",
+          "text": "load",
           "anchor": "load"
         },
         {
           "level": 4,
-          "text": "`token_for`",
+          "text": "token_for",
           "anchor": "token_for"
         },
         {
           "level": 4,
-          "text": "`plan_env_for`",
+          "text": "plan_env_for",
           "anchor": "plan_env_for"
         },
         {
           "level": 4,
-          "text": "`names`",
+          "text": "names",
           "anchor": "names"
         },
         {
           "level": 4,
-          "text": "`expiry_for`",
+          "text": "expiry_for",
           "anchor": "expiry_for"
         },
         {
           "level": 4,
-          "text": "`add`",
+          "text": "add",
           "anchor": "add"
         },
         {
           "level": 4,
-          "text": "`set_tier`",
+          "text": "set_tier",
           "anchor": "set_tier"
         },
         {
           "level": 4,
-          "text": "`rename`",
+          "text": "rename",
           "anchor": "rename"
         },
         {
           "level": 4,
-          "text": "`remove`",
+          "text": "remove",
           "anchor": "remove"
         }
       ]
@@ -3310,87 +3310,87 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.ui`",
+          "text": "claudewheel.ui",
           "anchor": "claudewheelui"
         },
         {
           "level": 3,
-          "text": "`_erase_inline`",
+          "text": "_erase_inline",
           "anchor": "_erase_inline"
         },
         {
           "level": 3,
-          "text": "`run_selection`",
+          "text": "run_selection",
           "anchor": "run_selection"
         },
         {
           "level": 3,
-          "text": "`FormField`",
+          "text": "FormField",
           "anchor": "formfield"
         },
         {
           "level": 3,
-          "text": "`get_field`",
+          "text": "get_field",
           "anchor": "get_field"
         },
         {
           "level": 3,
-          "text": "`_visible_indices`",
+          "text": "_visible_indices",
           "anchor": "_visible_indices"
         },
         {
           "level": 3,
-          "text": "`_focusable_indices`",
+          "text": "_focusable_indices",
           "anchor": "_focusable_indices"
         },
         {
           "level": 3,
-          "text": "`_move_focus`",
+          "text": "_move_focus",
           "anchor": "_move_focus"
         },
         {
           "level": 3,
-          "text": "`_cycle_radio`",
+          "text": "_cycle_radio",
           "anchor": "_cycle_radio"
         },
         {
           "level": 3,
-          "text": "`_cycle_select`",
+          "text": "_cycle_select",
           "anchor": "_cycle_select"
         },
         {
           "level": 3,
-          "text": "`_hints_for_field`",
+          "text": "_hints_for_field",
           "anchor": "_hints_for_field"
         },
         {
           "level": 3,
-          "text": "`_field_lines`",
+          "text": "_field_lines",
           "anchor": "_field_lines"
         },
         {
           "level": 3,
-          "text": "`_render_form_alt`",
+          "text": "_render_form_alt",
           "anchor": "_render_form_alt"
         },
         {
           "level": 3,
-          "text": "`_render_form_inline`",
+          "text": "_render_form_inline",
           "anchor": "_render_form_inline"
         },
         {
           "level": 3,
-          "text": "`_form_session`",
+          "text": "_form_session",
           "anchor": "_form_session"
         },
         {
           "level": 3,
-          "text": "`run_form`",
+          "text": "run_form",
           "anchor": "run_form"
         },
         {
           "level": 3,
-          "text": "`show_page`",
+          "text": "show_page",
           "anchor": "show_page"
         }
       ]
@@ -3407,117 +3407,117 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.wizard`",
+          "text": "claudewheel.wizard",
           "anchor": "claudewheelwizard"
         },
         {
           "level": 3,
-          "text": "`WizardResult`",
+          "text": "WizardResult",
           "anchor": "wizardresult"
         },
         {
           "level": 3,
-          "text": "`_real_config_dir`",
+          "text": "_real_config_dir",
           "anchor": "_real_config_dir"
         },
         {
           "level": 3,
-          "text": "`_display_config_dir`",
+          "text": "_display_config_dir",
           "anchor": "_display_config_dir"
         },
         {
           "level": 3,
-          "text": "`_validate_name`",
+          "text": "_validate_name",
           "anchor": "_validate_name"
         },
         {
           "level": 3,
-          "text": "`_build_fields`",
+          "text": "_build_fields",
           "anchor": "_build_fields"
         },
         {
           "level": 3,
-          "text": "`_build_result`",
+          "text": "_build_result",
           "anchor": "_build_result"
         },
         {
           "level": 3,
-          "text": "`_cancelled_result`",
+          "text": "_cancelled_result",
           "anchor": "_cancelled_result"
         },
         {
           "level": 3,
-          "text": "`run_profile_wizard`",
+          "text": "run_profile_wizard",
           "anchor": "run_profile_wizard"
         },
         {
           "level": 3,
-          "text": "`_load_shared_settings`",
+          "text": "_load_shared_settings",
           "anchor": "_load_shared_settings"
         },
         {
           "level": 3,
-          "text": "`_set_onboarding_flag`",
+          "text": "_set_onboarding_flag",
           "anchor": "_set_onboarding_flag"
         },
         {
           "level": 3,
-          "text": "`create_profile`",
+          "text": "create_profile",
           "anchor": "create_profile"
         },
         {
           "level": 3,
-          "text": "`_find_claude_binary`",
+          "text": "_find_claude_binary",
           "anchor": "_find_claude_binary"
         },
         {
           "level": 3,
-          "text": "`run_auth_flow`",
+          "text": "run_auth_flow",
           "anchor": "run_auth_flow"
         },
         {
           "level": 3,
-          "text": "`_apply_browser_env`",
+          "text": "_apply_browser_env",
           "anchor": "_apply_browser_env"
         },
         {
           "level": 3,
-          "text": "`_capture_tier_from_credentials`",
+          "text": "_capture_tier_from_credentials",
           "anchor": "_capture_tier_from_credentials"
         },
         {
           "level": 3,
-          "text": "`_auth_session_login`",
+          "text": "_auth_session_login",
           "anchor": "_auth_session_login"
         },
         {
           "level": 3,
-          "text": "`_read_pasted_token`",
+          "text": "_read_pasted_token",
           "anchor": "_read_pasted_token"
         },
         {
           "level": 3,
-          "text": "`_format_gate`",
+          "text": "_format_gate",
           "anchor": "_format_gate"
         },
         {
           "level": 3,
-          "text": "`_capture_setup_token`",
+          "text": "_capture_setup_token",
           "anchor": "_capture_setup_token"
         },
         {
           "level": 3,
-          "text": "`_save_token`",
+          "text": "_save_token",
           "anchor": "_save_token"
         },
         {
           "level": 3,
-          "text": "`_auth_paste_token`",
+          "text": "_auth_paste_token",
           "anchor": "_auth_paste_token"
         },
         {
           "level": 3,
-          "text": "`_auth_long_lived_token`",
+          "text": "_auth_long_lived_token",
           "anchor": "_auth_long_lived_token"
         }
       ]
@@ -3534,107 +3534,107 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel.workspace`",
+          "text": "claudewheel.workspace",
           "anchor": "claudewheelworkspace"
         },
         {
           "level": 3,
-          "text": "`Workspace`",
+          "text": "Workspace",
           "anchor": "workspace"
         },
         {
           "level": 4,
-          "text": "`open`",
+          "text": "open",
           "anchor": "open"
         },
         {
           "level": 4,
-          "text": "`default`",
+          "text": "default",
           "anchor": "default"
         },
         {
           "level": 4,
-          "text": "`profiles_dir`",
+          "text": "profiles_dir",
           "anchor": "profiles_dir"
         },
         {
           "level": 4,
-          "text": "`tokens_file`",
+          "text": "tokens_file",
           "anchor": "tokens_file"
         },
         {
           "level": 4,
-          "text": "`options_file`",
+          "text": "options_file",
           "anchor": "options_file"
         },
         {
           "level": 4,
-          "text": "`state_file`",
+          "text": "state_file",
           "anchor": "state_file"
         },
         {
           "level": 4,
-          "text": "`config_file`",
+          "text": "config_file",
           "anchor": "config_file"
         },
         {
           "level": 4,
-          "text": "`segments_file`",
+          "text": "segments_file",
           "anchor": "segments_file"
         },
         {
           "level": 4,
-          "text": "`themes_dir`",
+          "text": "themes_dir",
           "anchor": "themes_dir"
         },
         {
           "level": 4,
-          "text": "`hooks_dir`",
+          "text": "hooks_dir",
           "anchor": "hooks_dir"
         },
         {
           "level": 4,
-          "text": "`scripts_dir`",
+          "text": "scripts_dir",
           "anchor": "scripts_dir"
         },
         {
           "level": 4,
-          "text": "`shared_dir`",
+          "text": "shared_dir",
           "anchor": "shared_dir"
         },
         {
           "level": 4,
-          "text": "`skills_dir`",
+          "text": "skills_dir",
           "anchor": "skills_dir"
         },
         {
           "level": 4,
-          "text": "`shared_settings_file`",
+          "text": "shared_settings_file",
           "anchor": "shared_settings_file"
         },
         {
           "level": 4,
-          "text": "`inodes_file`",
+          "text": "inodes_file",
           "anchor": "inodes_file"
         },
         {
           "level": 4,
-          "text": "`tokens`",
+          "text": "tokens",
           "anchor": "tokens"
         },
         {
           "level": 4,
-          "text": "`shared`",
+          "text": "shared",
           "anchor": "shared"
         },
         {
           "level": 4,
-          "text": "`profiles`",
+          "text": "profiles",
           "anchor": "profiles"
         },
         {
           "level": 4,
-          "text": "`appconfig`",
+          "text": "appconfig",
           "anchor": "appconfig"
         }
       ]
@@ -3651,17 +3651,17 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel`",
+          "text": "claudewheel",
           "anchor": "claudewheel"
         },
         {
           "level": 3,
-          "text": "`_default_package_json`",
+          "text": "_default_package_json",
           "anchor": "_default_package_json"
         },
         {
           "level": 3,
-          "text": "`_detect_version`",
+          "text": "_detect_version",
           "anchor": "_detect_version"
         }
       ]
@@ -4589,17 +4589,17 @@
         },
         {
           "level": 2,
-          "text": "`claudewheel`",
+          "text": "claudewheel",
           "anchor": "claudewheel"
         },
         {
           "level": 3,
-          "text": "`_default_package_json`",
+          "text": "_default_package_json",
           "anchor": "_default_package_json"
         },
         {
           "level": 3,
-          "text": "`_detect_version`",
+          "text": "_detect_version",
           "anchor": "_detect_version"
         }
       ]
@@ -4780,5 +4780,5 @@
     }
   ],
   "posts": [],
-  "last_gen": "2026-08-12T13:29:44.965395+00:00"
+  "last_gen": "2026-08-12T15:03:45.702846+00:00"
 }
