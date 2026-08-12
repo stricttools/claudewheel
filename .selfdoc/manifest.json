@@ -2152,6 +2152,16 @@
         },
         {
           "level": 4,
+          "text": "`_records`",
+          "anchor": "_records"
+        },
+        {
+          "level": 4,
+          "text": "`_record_for`",
+          "anchor": "_record_for"
+        },
+        {
+          "level": 4,
           "text": "`_enumerate`",
           "anchor": "_enumerate"
         },
@@ -4787,5 +4797,5 @@
     }
   ],
   "posts": [],
-  "last_gen": "2026-08-12T20:50:12.905184+00:00"
+  "last_gen": "2026-08-12T23:17:39.009161+00:00"
 }
