@@ -14,8 +14,7 @@
   "base_url": "https://claudewheel.smmh.dev",
   "versions": [
     {
-      "version": "0.24.2",
-      "indexed": true
+      "version": "0.24.2"
     }
   ],
   "locales": [
@@ -27,9 +26,11 @@
   ],
   "description": "TUI launcher for Claude Code: pick a profile, model, directory, and permissions from a segment bar, then launch.",
   "author": {
-    "name": "smm-h",
-    "type": "Person",
-    "url": "https://github.com/smm-h"
+    "name": "SMMH",
+    "url": "https://smmh.dev",
+    "same_as": [
+      "https://github.com/smm-h"
+    ]
   },
   "repo": "https://github.com/smm-h/claudewheel",
   "root_files": [
@@ -65,7 +66,7 @@
   },
   "topology": {
     "slug": "claudewheel",
-    "docs_base": "https://docs.smmh.dev",
+    "docs_base": "https://smmh.dev",
     "posts_base": "https://blog.smmh.dev",
     "projects": {
       "pixelweaver": "https://docs.smmh.dev/pixelweaver",
@@ -85,5 +86,6 @@
   },
   "assembly": {
     "repo": "smm-h/selfdoc-cache"
-  }
+  },
+  "search_engine": "pagefind"
 }
