@@ -1,6 +1,6 @@
 ---
 title: Configuration
-description: "How the claudewheel configuration system works: file layout, segments and options, the migration framework, schema versioning, and non-interactive overrides."
+description: "How the claudewheel configuration system works: the root file layout, per-profile directories and their claudewheel data, segments and options, the migration framework, schema versioning, and non-interactive overrides."
 nav_group: "Concepts"
 order: 4
 ---

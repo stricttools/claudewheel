@@ -1,6 +1,6 @@
 ---
 title: Health Checks and Preflight
-description: "How claudewheel's diagnostic health checks and pre-launch preflight steps work: what each check detects, how to interpret output, common problems and solutions, and the reconciliation model."
+description: "How claudewheel's diagnostic health checks and pre-launch preflight steps work: what each check detects, how per-profile token data is read, how to interpret the output, common problems and their fixes, and the reconciliation model."
 nav_group: "Concepts"
 order: 6
 ---

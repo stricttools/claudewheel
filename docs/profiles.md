@@ -1,6 +1,6 @@
 ---
 title: Profiles
-description: "How claudewheel profiles work: the ~/.claudewheel/ layout, profile creation wizard, shared store symlinks, token management, and isolation model."
+description: "How claudewheel profiles work: the ~/.claudewheel/ layout, profile discovery, the creation wizard, shared store symlinks, per-profile token storage inside each profile directory, and the isolation model."
 nav_group: "Concepts"
 order: 4
 ---
@@ -115,7 +115,7 @@ order:
    token string is marked `has_token=True`.
 
 The result is sorted by name. A corrupt token entry raises `TokenStoreError`
-(hard error); a profile storing no entry is simply tokenless. `discover()`
+(hard error); a profile storing no entry simply has no token. `discover()`
 takes an explicit policy for that error, applied per profile.
 
 ## Profile creation wizard
