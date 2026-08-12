@@ -2,16 +2,18 @@
 
 Profile create/delete/rename live in :mod:`claudewheel.profile_store` now; this
 module retains only the fix-auth flow and the session running-state check that
-callers apply as policy before delegating deletions to the store.
+callers apply as policy before delegating deletions to the store.  That check is
+a delegate: :mod:`claudewheel.session_registry` owns every read of Claude Code's
+per-session registry.
 """
 
 from __future__ import annotations
 
 import json
-import os
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from . import session_registry
 from .effects import write_json_atomic_secret
 from .tokens import parse_entry
 
@@ -130,19 +132,14 @@ def fix_auth_shadow(ws: "Workspace", name: str) -> FixAuthResult:
 
 
 def _is_profile_running(ws: "Workspace", name: str) -> bool:
-    """Check if a profile has active sessions by scanning its sessions/ dir for PID files."""
-    profile_dir = ws.profiles.path_for(name)
-    sessions_dir = profile_dir / "sessions"
-    if not sessions_dir.is_dir():
-        return False
-    for entry in sessions_dir.iterdir():
-        if entry.suffix == ".pid" and entry.is_file():
-            try:
-                pid = int(entry.read_text().strip())
-                # Check if process is alive (signal 0 = existence check)
-                os.kill(pid, 0)
-                return True
-            except (ValueError, OSError):
-                # Stale PID file or process gone -- not running
-                continue
-    return False
+    """True when a human's Claude Code session is live in this profile.
+
+    A delegate to :func:`claudewheel.session_registry.has_live_interactive` --
+    the single reader of Claude Code's per-session registry, which parses the
+    ``sessions/<pid>.json`` files, filters out phantoms (a stale file, or a PID
+    the kernel has since handed to something else) and classifies each record by
+    kind.  Background jobs, daemons and daemon workers are live processes but do
+    not answer True here: they are not a person at a terminal, and the delete
+    flow offers the user a choice about them rather than a veto.
+    """
+    return session_registry.has_live_interactive(ws.profiles.path_for(name))

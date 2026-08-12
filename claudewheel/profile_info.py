@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from . import session_registry
 from .appdata import OptionsFile
 from .tokens import TokenExpiry, TokenStoreError, parse_entry
 
@@ -37,7 +38,8 @@ class ProfileReport:
     away_summary_enabled: bool | None = None
     cleanup_period_days: int | None = None
     auto_memory_enabled: bool | None = None
-    active_sessions: int = 0
+    active_sessions: int = 0  # live registry records of any kind
+    interactive_sessions: int = 0  # the subset a human is sitting in front of
     disk_usage_bytes: int = 0
 
 
@@ -70,27 +72,18 @@ def _read_token_state(
     return True, store.expiry_for(name), tier, subscription
 
 
-def _count_active_sessions(config_dir: Path) -> int:
-    """Count live sessions by scanning <config_dir>/sessions/*.pid.
+def _count_active_sessions(config_dir: Path) -> tuple[int, int]:
+    """Return ``(live, live_interactive)`` session counts for *config_dir*.
 
-    The .pid files are written by Claude Code itself (an external
-    dependency, not claudewheel). A session counts as active when its
-    recorded PID is a live process (os.kill(pid, 0) succeeds).
+    A delegate to :mod:`claudewheel.session_registry`, the single reader of
+    Claude Code's per-session registry: it parses ``sessions/<pid>.json`` and
+    drops phantoms (a leftover file, or a PID the kernel has recycled).  The
+    two numbers are kept apart because they answer different questions -- the
+    report shows how much is running, while the delete guard only refuses for a
+    human's session.
     """
-    sessions_dir = config_dir / "sessions"
-    if not sessions_dir.is_dir():
-        return 0
-    count = 0
-    for entry in sessions_dir.iterdir():
-        if entry.suffix != ".pid" or not entry.is_file():
-            continue
-        try:
-            pid = int(entry.read_text().strip())
-            os.kill(pid, 0)
-            count += 1
-        except (ValueError, OSError):
-            continue  # stale PID file or process gone
-    return count
+    records = session_registry.live_records(config_dir)
+    return len(records), len([r for r in records if r.interactive])
 
 
 def _disk_usage(config_dir: Path) -> int:
@@ -181,13 +174,14 @@ def gather_profile_info(ws: "Workspace", name: str) -> ProfileReport:
 
     shared_dirs: dict[str, str] = {}
     active_sessions = 0
+    interactive_sessions = 0
     disk_usage_bytes = 0
     settings_found = False
     permission_counts: dict[str, int] = {}
     away, cleanup, auto_memory = None, None, None
     if exists:
         shared_dirs = ws.profiles.classify_shared_dirs(name)
-        active_sessions = _count_active_sessions(config_dir)
+        active_sessions, interactive_sessions = _count_active_sessions(config_dir)
         disk_usage_bytes = _disk_usage(config_dir)
         (settings_found, permission_counts, away, cleanup, auto_memory) = (
             _read_settings(config_dir)
@@ -215,6 +209,7 @@ def gather_profile_info(ws: "Workspace", name: str) -> ProfileReport:
         cleanup_period_days=cleanup,
         auto_memory_enabled=auto_memory,
         active_sessions=active_sessions,
+        interactive_sessions=interactive_sessions,
         disk_usage_bytes=disk_usage_bytes,
     )
 
@@ -299,6 +294,9 @@ def format_report(report: ProfileReport) -> list[str]:
     else:
         lines.append("Settings: no settings.json")
 
-    lines.append(f"Active sessions: {report.active_sessions}")
+    lines.append(
+        f"Active sessions: {report.active_sessions} "
+        f"({report.interactive_sessions} interactive)"
+    )
     lines.append(f"Disk usage: {_format_size(report.disk_usage_bytes)}")
     return lines

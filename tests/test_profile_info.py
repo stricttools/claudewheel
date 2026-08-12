@@ -3,16 +3,17 @@
 from __future__ import annotations
 
 import json
+import os
 import tempfile
 import unittest
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
-from unittest import mock
 
 from claudewheel import profile_info
 from claudewheel.shared_store import SharedStore
 from claudewheel.tokens import EXPIRY_UNKNOWN_FIELD
+from tests.wheelhelpers import live_record, stale_record
 
 
 class ProfileInfoFixture(unittest.TestCase):
@@ -181,29 +182,27 @@ class GatherSettingsTests(ProfileInfoFixture):
 
 
 class GatherSessionsTests(ProfileInfoFixture):
-    """Active session count from sessions/*.pid liveness checks."""
+    """Session counts, delegated to claudewheel.session_registry.
 
-    def test_live_and_stale_pids(self) -> None:
+    The registry parsing and phantom filtering are covered in
+    ``tests/test_session_registry.py``; what is asserted here is that the report
+    reads the profile's own registry and keeps the two counts apart.
+    """
+
+    def test_live_stale_and_background_records(self) -> None:
         sessions = self.profile / "sessions"
-        sessions.mkdir()
-        (sessions / "a.pid").write_text("111")
-        (sessions / "b.pid").write_text("222")
-        (sessions / "c.pid").write_text("garbage")  # unparseable -> stale
-        (sessions / "notes.txt").write_text("999")  # not a .pid file
+        live_record(sessions)  # this process, real start token
+        stale_record(sessions)  # a PID that does not exist
+        live_record(sessions, pid=os.getppid(), kind="daemon", name=None)
 
-        def fake_kill(pid: int, sig: int) -> None:
-            if pid != 111:
-                raise OSError("no such process")
-
-        with mock.patch(
-            "claudewheel.profile_info.os.kill", autospec=True, side_effect=fake_kill
-        ):
-            report = profile_info.gather_profile_info(self.ws, "work")
-        self.assertEqual(report.active_sessions, 1)
+        report = profile_info.gather_profile_info(self.ws, "work")
+        self.assertEqual(report.active_sessions, 2)
+        self.assertEqual(report.interactive_sessions, 1)
 
     def test_no_sessions_dir(self) -> None:
         report = profile_info.gather_profile_info(self.ws, "work")
         self.assertEqual(report.active_sessions, 0)
+        self.assertEqual(report.interactive_sessions, 0)
 
 
 class GatherDiskUsageTests(ProfileInfoFixture):

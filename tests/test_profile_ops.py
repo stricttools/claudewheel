@@ -9,7 +9,6 @@ flow and the running-state check that callers apply as policy.
 from __future__ import annotations
 
 import json
-import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -18,7 +17,7 @@ from unittest.mock import patch
 
 
 from claudewheel import profile_ops
-from tests.wheelhelpers import build_profile_dir
+from tests.wheelhelpers import build_profile_dir, live_record, stale_record
 
 
 class _ProfileOpsTestCase(unittest.TestCase):
@@ -64,26 +63,33 @@ class _ProfileOpsTestCase(unittest.TestCase):
 
 
 class IsProfileRunningTests(_ProfileOpsTestCase):
-    """The running-state check drives CLI/TUI delete policy."""
+    """The running-state check drives CLI/TUI delete policy.
+
+    It is a delegate to :mod:`claudewheel.session_registry`; the registry
+    parsing, phantom filtering and kind classification are covered in
+    ``tests/test_session_registry.py``.  What is asserted here is the wiring:
+    the profile's own config dir is what gets read, and a live interactive
+    record in it answers True.
+    """
 
     def test_no_sessions_dir_not_running(self) -> None:
         self._make_profile_dir("idle")
         self.assertFalse(profile_ops._is_profile_running(self.ws, "idle"))
 
-    def test_live_pid_is_running(self) -> None:
+    def test_live_interactive_record_is_running(self) -> None:
         pdir = self._make_profile_dir("busy")
-        sessions = pdir / "sessions"
-        sessions.mkdir()
-        (sessions / "sess.pid").write_text(str(os.getpid()))
+        live_record(pdir / "sessions")
         self.assertTrue(profile_ops._is_profile_running(self.ws, "busy"))
 
-    def test_stale_pid_not_running(self) -> None:
+    def test_stale_record_not_running(self) -> None:
         pdir = self._make_profile_dir("stale")
-        sessions = pdir / "sessions"
-        sessions.mkdir()
-        # A PID that is almost certainly not alive.
-        (sessions / "sess.pid").write_text("999999")
+        stale_record(pdir / "sessions")
         self.assertFalse(profile_ops._is_profile_running(self.ws, "stale"))
+
+    def test_background_record_not_running(self) -> None:
+        pdir = self._make_profile_dir("daemonised")
+        live_record(pdir / "sessions", kind="daemon")
+        self.assertFalse(profile_ops._is_profile_running(self.ws, "daemonised"))
 
     def test_missing_profile_not_running(self) -> None:
         self.assertFalse(profile_ops._is_profile_running(self.ws, "nonexistent"))

@@ -30,6 +30,7 @@ from unittest.mock import patch
 
 from claudewheel.binaries import BinaryLocator
 from claudewheel.config import AppConfigStore
+from claudewheel.session_registry import process_start_token
 from claudewheel.shared_store import SharedStore
 from claudewheel.terminal import Terminal
 from claudewheel.workspace import Workspace
@@ -206,6 +207,92 @@ def build_profile_dir(
     elif settings_text is not None:
         (pdir / "settings.json").write_text(settings_text)
     return pdir
+
+
+# ---------------------------------------------------------------------------
+# Claude Code session-registry fixtures
+#
+# The one description of what a registry file looks like, mirroring the shape
+# Claude Code 2.1.226 really writes to ``<config_dir>/sessions/<pid>.json``.
+# Liveness is simulated without spawning anything: a *live* record names a
+# process that exists (this test process, or its parent when a second live PID
+# is needed) and carries that process's real kernel start token; a
+# *reused-identifier* record names a live PID with the wrong token; a *stale*
+# record names a PID that does not exist.
+# ---------------------------------------------------------------------------
+
+
+def dead_pid() -> int:
+    """A PID that is not a live process, probed rather than assumed."""
+    for candidate in range(999_999, 1_000_200):
+        try:
+            os.kill(candidate, 0)
+        except ProcessLookupError:
+            return candidate
+        except OSError:  # pragma: no cover - EPERM means it is alive
+            continue
+    raise unittest.SkipTest("no free PID found to stand in for a stale record")
+
+
+def write_session_record(
+    sessions_dir: Path,
+    pid: int,
+    *,
+    proc_start: str | None,
+    kind: str = "interactive",
+    status: str | None = "busy",
+    name: str | None = "projects-9a",
+    extra: dict[str, Any] | None = None,
+) -> Path:
+    """Write one registry file in Claude Code's real shape and return its path."""
+    sessions_dir.mkdir(parents=True, exist_ok=True)
+    record: dict[str, Any] = {
+        "pid": pid,
+        "sessionId": "4d97ca01-9d56-4f49-8047-77f5160febde",
+        "cwd": "/home/m/Projects",
+        "startedAt": 1786521494735,
+        "version": "2.1.226",
+        "peerProtocol": 1,
+        "kind": kind,
+        "entrypoint": "cli",
+        "messagingSocketPath": f"/run/user/1000/cc-socks/{pid}.sock",
+        "nameSource": "derived",
+        "updatedAt": 1786540262239,
+        "statusUpdatedAt": 1786540262239,
+    }
+    if proc_start is not None:
+        record["procStart"] = proc_start
+    if status is not None:
+        record["status"] = status
+    if name is not None:
+        record["name"] = name
+    if extra:
+        record.update(extra)
+    path = sessions_dir / f"{pid}.json"
+    path.write_text(json.dumps(record))
+    return path
+
+
+def live_record(sessions_dir: Path, pid: int | None = None, **kwargs: Any) -> Path:
+    """A record for a really-live process, carrying its real start token.
+
+    Defaults to this test process; pass ``os.getppid()`` when a second live
+    process is needed (one file per PID, so two live records need two PIDs).
+    """
+    pid = os.getpid() if pid is None else pid
+    return write_session_record(
+        sessions_dir, pid, proc_start=process_start_token(pid), **kwargs
+    )
+
+
+def phantom_record(sessions_dir: Path, **kwargs: Any) -> Path:
+    """A record for this test process with a start token from another era."""
+    return write_session_record(sessions_dir, os.getpid(), proc_start="1", **kwargs)
+
+
+def stale_record(sessions_dir: Path, **kwargs: Any) -> Path:
+    """A record for a process that no longer exists."""
+    return write_session_record(sessions_dir, dead_pid(), proc_start="4242", **kwargs)
 
 
 # ---------------------------------------------------------------------------
