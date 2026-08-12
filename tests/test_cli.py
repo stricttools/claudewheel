@@ -21,6 +21,7 @@ from unittest.mock import MagicMock
 
 from claudewheel import cli
 from claudewheel.config import AppConfigStore
+from tests.wheelhelpers import build_profile_dir
 
 if TYPE_CHECKING:
     from claudewheel.profile_info import ProfileReport
@@ -2084,9 +2085,13 @@ class FixAuthTests(unittest.TestCase):
         )
 
     def _make_profile(self, name: str) -> Path:
-        pdir = self.profiles_dir / name
-        pdir.mkdir(parents=True, exist_ok=True)
-        return pdir
+        return build_profile_dir(
+            self.profiles_dir,
+            name,
+            parents=True,
+            exist_ok=True,
+            credentials=False,
+        )
 
     def _write_tokens(self, data: dict[str, Any]) -> None:
         import json

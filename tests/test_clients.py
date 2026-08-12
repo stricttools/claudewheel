@@ -21,6 +21,7 @@ from claudewheel.binaries import BinaryLocator
 from claudewheel.launch import resolve_launch_config
 from claudewheel.profile_store import ProfileStore
 from claudewheel.tokens import TokenStore
+from tests.wheelhelpers import build_profile_dir
 
 
 class MiniclaudeAdapterTestBase(unittest.TestCase):
@@ -57,10 +58,14 @@ class MiniclaudeAdapterTestBase(unittest.TestCase):
         self._make_profile("work")
 
     def _make_profile(self, name: str) -> Path:
-        pdir = self.profiles_dir / name
-        pdir.mkdir()
-        (pdir / "settings.json").write_text("{}")
-        return pdir
+        return build_profile_dir(
+            self.profiles_dir,
+            name,
+            parents=False,
+            exist_ok=False,
+            credentials=False,
+            settings_text="{}",
+        )
 
     def _resolve(
         self,

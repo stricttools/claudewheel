@@ -21,6 +21,7 @@ from claudewheel.defaults import DISALLOWED_TOOLS
 from claudewheel.launch import resolve_launch_config
 from claudewheel.profile_store import ProfileStore
 from claudewheel.tokens import TokenStore, TokenStoreError
+from tests.wheelhelpers import build_profile_dir
 
 
 class ResolveLaunchConfigTestBase(unittest.TestCase):
@@ -53,10 +54,14 @@ class ResolveLaunchConfigTestBase(unittest.TestCase):
 
     def _make_profile(self, name: str) -> Path:
         """Create a discoverable profile dir under profiles_dir."""
-        pdir = self.profiles_dir / name
-        pdir.mkdir()
-        (pdir / "settings.json").write_text("{}")
-        return pdir
+        return build_profile_dir(
+            self.profiles_dir,
+            name,
+            parents=False,
+            exist_ok=False,
+            credentials=False,
+            settings_text="{}",
+        )
 
     def _resolve(
         self,

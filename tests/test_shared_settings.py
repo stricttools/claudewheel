@@ -12,6 +12,7 @@ from unittest.mock import patch
 from claudewheel import guardrail
 from claudewheel.defaults import DISALLOWED_TOOLS, build_canonical_shared_settings
 from claudewheel.health import check_shared_settings_drift
+from tests.wheelhelpers import build_profile_dir
 
 
 class _HomeDirTestCase(unittest.TestCase):
@@ -40,10 +41,13 @@ class _HomeDirTestCase(unittest.TestCase):
 
     def _make_profile(self, name: str) -> Path:
         """Create a profile dir with .credentials.json and return its path."""
-        pdir = self._profiles_dir / name
-        pdir.mkdir(parents=True, exist_ok=True)
-        (pdir / ".credentials.json").write_text("{}")
-        return pdir
+        return build_profile_dir(
+            self._profiles_dir,
+            name,
+            parents=True,
+            exist_ok=True,
+            credentials=True,
+        )
 
     def _write_shared_settings(self, data: dict[str, Any]) -> None:
         """Write shared-settings.json in the temp home."""

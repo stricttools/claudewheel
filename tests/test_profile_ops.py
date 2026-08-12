@@ -18,6 +18,7 @@ from unittest.mock import patch
 
 
 from claudewheel import profile_ops
+from tests.wheelhelpers import build_profile_dir
 
 
 class _ProfileOpsTestCase(unittest.TestCase):
@@ -47,11 +48,14 @@ class _ProfileOpsTestCase(unittest.TestCase):
         self.tokens_file.write_text(json.dumps(tokens, indent=2) + "\n")
 
     def _make_profile_dir(self, name: str) -> Path:
-        pdir = self.profiles_dir / name
-        pdir.mkdir(parents=True, exist_ok=True)
-        (pdir / ".credentials.json").write_text("{}")
-        (pdir / "settings.json").write_text("{}")
-        return pdir
+        return build_profile_dir(
+            self.profiles_dir,
+            name,
+            parents=True,
+            exist_ok=True,
+            credentials=True,
+            settings_text="{}",
+        )
 
 
 # ---------------------------------------------------------------------------

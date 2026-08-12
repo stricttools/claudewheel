@@ -24,7 +24,11 @@ from unittest import mock
 from claudewheel import cli
 from claudewheel.defaults import DISALLOWED_TOOLS, build_canonical_shared_settings
 from claudewheel.guardrail import canonical_ask_rules, canonical_deny_rules
-from tests.wheelhelpers import FakeAppConfigStore, claude_dir_write_canary
+from tests.wheelhelpers import (
+    FakeAppConfigStore,
+    build_profile_dir,
+    claude_dir_write_canary,
+)
 
 
 def _drifted_profile_settings() -> dict[str, Any]:
@@ -80,11 +84,14 @@ class PreflightReconcileTests(unittest.TestCase):
     # -- fixtures ----------------------------------------------------------
 
     def _make_profile(self, name: str, settings: dict[str, Any]) -> Path:
-        pdir = self.profiles_dir / name
-        pdir.mkdir(parents=True, exist_ok=True)
-        (pdir / ".credentials.json").write_text("{}")
-        (pdir / "settings.json").write_text(json.dumps(settings, indent=2) + "\n")
-        return pdir
+        return build_profile_dir(
+            self.profiles_dir,
+            name,
+            parents=True,
+            exist_ok=True,
+            credentials=True,
+            settings=settings,
+        )
 
     def _make_default_claude(self, settings: dict[str, Any]) -> Path:
         self.claude_dir.mkdir(parents=True, exist_ok=True)

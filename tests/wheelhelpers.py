@@ -168,6 +168,46 @@ def write_json(path: Path, data: dict[str, Any] | list[Any]) -> None:
         f.write("\n")
 
 
+def build_profile_dir(
+    parent: Path,
+    name: str,
+    *,
+    parents: bool,
+    exist_ok: bool,
+    credentials: bool,
+    settings: dict[str, Any] | None = None,
+    settings_text: str | None = None,
+) -> Path:
+    """Create ``<parent>/<name>/`` as a profile directory and return it.
+
+    The one description of what a profile directory contains. Every
+    ``make_profile``-style builder in the suite delegates here; the ways they
+    differ are exactly the parameters, and those differences are deliberate --
+    tests exist that check behaviour when a marker file is absent, so a builder
+    that carries only ``settings.json`` must keep carrying only that.
+
+    - *parents* / *exist_ok* are passed straight to :meth:`Path.mkdir`. A
+      builder using bare ``pdir.mkdir()`` passes ``False`` for both, so a
+      missing parent or a pre-existing directory still raises.
+    - *credentials* writes ``.credentials.json`` containing ``{}``.
+    - *settings* writes ``settings.json`` as ``json.dumps(..., indent=2)``
+      plus a trailing newline; *settings_text* writes the given text verbatim
+      (the builders that write a bare ``"{}"`` with no newline use this). They
+      are mutually exclusive; passing neither writes no ``settings.json``.
+    """
+    if settings is not None and settings_text is not None:
+        raise ValueError("pass settings or settings_text, not both")
+    pdir = parent / name
+    pdir.mkdir(parents=parents, exist_ok=exist_ok)
+    if credentials:
+        (pdir / ".credentials.json").write_text("{}")
+    if settings is not None:
+        (pdir / "settings.json").write_text(json.dumps(settings, indent=2) + "\n")
+    elif settings_text is not None:
+        (pdir / "settings.json").write_text(settings_text)
+    return pdir
+
+
 # ---------------------------------------------------------------------------
 # Filesystem snapshot / chmod helpers (hoisted from test_workspace_contracts,
 # test_profile, and test_migration so the sandbox-escape guard and the
@@ -620,8 +660,10 @@ class SandboxHomeTestCase(unittest.TestCase):
 
     def make_profile(self, name: str, *, credentials: bool = True) -> Path:
         """Create ``<sandbox>/.claudewheel/profiles/<name>/`` and return it."""
-        pdir = self.sandbox_paths["PROFILES_DIR"] / name
-        pdir.mkdir(parents=True, exist_ok=True)
-        if credentials:
-            (pdir / ".credentials.json").write_text("{}")
-        return pdir
+        return build_profile_dir(
+            self.sandbox_paths["PROFILES_DIR"],
+            name,
+            parents=True,
+            exist_ok=True,
+            credentials=credentials,
+        )

@@ -23,6 +23,7 @@ from claudewheel.reconcile import (
     compute_settings_diff,
     run_reconcile,
 )
+from tests.wheelhelpers import build_profile_dir
 
 
 class _ReconcileTestCase(unittest.TestCase):
@@ -51,11 +52,14 @@ class _ReconcileTestCase(unittest.TestCase):
     # -- fixture helpers ---------------------------------------------------
 
     def make_profile(self, name: str, settings: dict[str, Any]) -> Path:
-        pdir = self.profiles_dir / name
-        pdir.mkdir(parents=True, exist_ok=True)
-        (pdir / ".credentials.json").write_text("{}")
-        (pdir / "settings.json").write_text(json.dumps(settings, indent=2) + "\n")
-        return pdir
+        return build_profile_dir(
+            self.profiles_dir,
+            name,
+            parents=True,
+            exist_ok=True,
+            credentials=True,
+            settings=settings,
+        )
 
     def settings_path(self, name: str) -> Path:
         return self.profiles_dir / name / "settings.json"

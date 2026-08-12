@@ -22,6 +22,7 @@ from claudewheel import cli
 from claudewheel.defaults import DISALLOWED_TOOLS, build_canonical_shared_settings
 from claudewheel.health import check_relocated_hook_paths
 from claudewheel.patch_profiles import merge_hooks, run_patch_profiles
+from tests.wheelhelpers import build_profile_dir
 
 _CANONICAL_SCRIPT_NAMES = (
     "hook-timestamp",
@@ -63,11 +64,14 @@ class _PatchProfilesTestCase(unittest.TestCase):
         return build_canonical_shared_settings(self.scripts_dir)
 
     def make_profile(self, name: str, settings: dict[str, Any]) -> Path:
-        pdir = self.profiles_dir / name
-        pdir.mkdir(parents=True, exist_ok=True)
-        (pdir / ".credentials.json").write_text("{}")
-        (pdir / "settings.json").write_text(json.dumps(settings, indent=2) + "\n")
-        return pdir
+        return build_profile_dir(
+            self.profiles_dir,
+            name,
+            parents=True,
+            exist_ok=True,
+            credentials=True,
+            settings=settings,
+        )
 
     def read_settings(self, name: str) -> dict[str, Any]:
         data: dict[str, Any] = json.loads(

@@ -16,6 +16,7 @@ from claudewheel.segment import DiscoveryResult, Segment, SegmentBar
 from claudewheel.appdata import StateFile
 from claudewheel.state import AUTH_BROWSER_KEY
 from claudewheel import app as app_mod
+from tests.wheelhelpers import build_profile_dir
 
 
 def _make_profile_segment(
@@ -1910,7 +1911,13 @@ class StaleTokenReviewTests(unittest.TestCase):
         self.tokens_file.write_text(json.dumps(data))
 
     def _make_profile(self, name: str) -> None:
-        (self.profiles_dir / name).mkdir(parents=True, exist_ok=True)
+        build_profile_dir(
+            self.profiles_dir,
+            name,
+            parents=True,
+            exist_ok=True,
+            credentials=False,
+        )
 
     def _make_app(self, keys: list[str]) -> Any:
         from claudewheel.defaults import DEFAULT_THEME_DARK
