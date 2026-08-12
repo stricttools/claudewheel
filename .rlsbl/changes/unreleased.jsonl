@@ -1,3 +1,4 @@
 {"format_version":1,"id":"18c9eff1785bc9a35715ae6441c64102932740d1bb858b1e","commits":["e7c0603cbfae4bd01fbb2839c1b3000286b16dfc"],"user_facing":false}
 {"format_version":1,"id":"18ca273481f14e1c2864aa6a9330428c928720cfc3ba74f9","commits":["60df7e58f90b1ba712be3d16dffe6e893e5d88c7"],"user_facing":false}
 {"format_version":1,"id":"18cad85e008d9672bfe8a8dd335841cdbb66d7d89bafb22c","commits":["9e2763a9240f1e67536fa4d377dcbb72072e3ca1"],"user_facing":false}
+{"format_version":1,"id":"18caf27b315b28d79a1befe83c87441e9eade4be6e8908e1","commits":["fe74e6a63ebe6974fad7cace15db36cde9e45089"],"user_facing":true,"description":"**`claudewheel profile` subcommands now explain themselves in `--help`.** Every command in the group -- create, delete, show, rename, fix-auth and check-tokens -- carries a full description of what it does and what it refuses, instead of a one-line label.","type":"feature"}
