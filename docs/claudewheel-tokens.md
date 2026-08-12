@@ -1,6 +1,6 @@
 ---
 title: claudewheel.tokens
-description: "Parse, expire, and write OAuth token entries in ~/.claudewheel/tokens.json."
+description: "The OAuth token entry format: assemble an entry, compute its expiry from the dates it carries, and resolve its plan-tier fields into the environment variables Claude Code reads."
 generated: true
 nav_group: "API Reference"
 nav_order: 45
