@@ -1762,7 +1762,7 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
                 strictcli.PROC_MUTATE,
             )
         ],
-        help="create a new profile interactively through a guided wizard, then set up its authentication",
+        help="run the create-profile wizard in one continuous alt-screen session: prompt for the profile name, config directory and launch options, write the profile directory together with its symlinks into the shared store, then drive an interactive Claude Code OAuth login so the profile is authenticated before you leave. Requires a real terminal, and prints the summary and auth outcome afterwards",
     )(_bind(_handle_new_profile, ws, locator))
 
     profile_grp.command(
@@ -1785,11 +1785,11 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
                 strictcli.FILE_WRITE,
             )
         ],
-        help="delete a registered profile and clean up its directory, tokens, and options entries",
+        help="remove a registered profile for good: unlink its shared-store symlinks, delete the real entries in its directory, drop its tokens.json entry and its options.json registration, and clear any last_config reference in state.json. Refuses a profile with active sessions unless --force-delete, and takes conversation history only with --force-delete-data",
         args=[
             Arg(
                 name="name",
-                help="name of the profile to delete (e.g. work, personal, lisa)",
+                help="name of the profile to delete (e.g. work, personal, research)",
             )
         ],
     )(_bind(_handle_delete_profile, ws))
@@ -1797,7 +1797,7 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
     profile_grp.command(
         "show",
         effect="read_only",
-        help="inspect a profile's configuration, authentication status, and session data in a detailed report",
+        help="print a detailed report for one profile: whether its directory exists on disk, whether it is registered or pinned in options.json, the state of its stored token, its resolved configuration and the session data it holds. Inspects default (~/.claude) like any other profile, and exits non-zero when the name matches no directory, registration or token",
         args=[
             Arg(
                 name="name",
@@ -1809,7 +1809,7 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
     profile_grp.command(
         "rename",
         effect="mutating",
-        help="rename a profile, moving its directory, tokens, and session data to the new name",
+        help="move a profile to a new name, taking its directory, its tokens.json entry, its options.json registration and its session data with it. Validates that the old name exists, that the new one is free in both the directory tree and the options file, and that it fits the lowercase-letters-digits-hyphens charset. Refuses running profiles and the reserved name default",
         args=[
             Arg(
                 name="old",
@@ -1825,7 +1825,7 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
     profile_grp.command(
         "fix-auth",
         effect="mutating",
-        help="repair a profile's auth: remove session credentials that shadow a long-lived token, or remove a stale token entry whose profile directory is missing",
+        help="repair one profile's authentication in whichever of two shapes applies. When the profile directory exists, strip the session credentials that shadow a stored long-lived token so the token is used again. When the directory is gone but tokens.json still lists the profile, remove that stale entry. Says so plainly when there is nothing to repair",
         args=[
             Arg(
                 name="name",
@@ -1837,7 +1837,7 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
     profile_grp.command(
         "check-tokens",
         effect="read_only",
-        help="validate every discovered profile's stored OAuth token against the Anthropic API",
+        help="read every discovered profile's stored OAuth token from tokens.json and validate each one against the Anthropic API, then print a table of profile name, status and a truncated token preview. The status distinguishes a valid token from an invalid one, an unreachable API and an indeterminate answer, and profiles holding no token are listed too",
     )(_bind(_handle_check_tokens, ws))
 
     # Hard-break old top-level names so they fail loudly with migration guidance
