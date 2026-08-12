@@ -25,7 +25,7 @@ run the create-profile wizard in one continuous alt-screen session: prompt for t
 
 ## profile delete
 
-remove a registered profile for good: unlink its shared-store symlinks, delete the real entries in its directory, drop its tokens.json entry and its options.json registration, and clear any last_config reference in state.json. Refuses a profile with active sessions unless --force-delete, and takes conversation history only with --force-delete-data
+remove a registered profile for good: unlink its shared-store symlinks, delete the real entries in its directory, drop its tokens.json entry and its options.json registration, and clear any last_config reference in state.json. Refuses a profile holding a live interactive Claude Code session unless --force-delete (background jobs and daemons do not block it), and takes conversation history only with --force-delete-data
 
 **Effect:** mutating · **consequential** (prompts before running; `--approve-consequential` skips)
 
@@ -62,7 +62,7 @@ print a detailed report for one profile: whether its directory exists on disk, w
 
 ## profile rename
 
-move a profile to a new name, taking its directory, its tokens.json entry, its options.json registration and its session data with it. Validates that the old name exists, that the new one is free in both the directory tree and the options file, and that it fits the lowercase-letters-digits-hyphens charset. Refuses running profiles and the reserved name default
+move a profile to a new name, taking its directory, its tokens.json entry, its options.json registration and its session data with it. Validates that the old name exists, that the new one is free in both the directory tree and the options file, and that it fits the lowercase-letters-digits-hyphens charset. Refuses a profile holding a live interactive Claude Code session, and the reserved name default
 
 **Effect:** mutating
 
