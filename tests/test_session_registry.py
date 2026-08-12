@@ -130,6 +130,21 @@ class ReadRecordsTests(unittest.TestCase):
         self.assertEqual(record.kind, "interactive")
         self.assertTrue(record.interactive)
 
+    def test_unrecognized_kind_is_read_as_interactive(self) -> None:
+        """A kind claudewheel has never heard of must not become deletable.
+
+        Only the three known background kinds are non-interactive; every other
+        string -- a future Claude Code kind, a typo, anything -- is read the
+        conservative way, so a delete or a rename still refuses.
+        """
+        for kind in ("supervisor", "interactive-remote", ""):
+            with self.subTest(kind=kind):
+                config_dir = self.config_dir / f"kind-{kind or 'empty'}"
+                live_record(config_dir / "sessions", kind=kind)
+                (record,) = session_registry.read_records(config_dir)
+                self.assertTrue(record.live)
+                self.assertTrue(record.interactive)
+
 
 class LiveHelperTests(unittest.TestCase):
     """live_records() / has_live_interactive() over the same fixtures."""
@@ -283,6 +298,15 @@ class DeleteGuardTests(_ProfileFixture):
         code, _err = self._delete()
         self.assertIsNone(code)
         self.assertFalse(self.profile.is_dir())
+
+    def test_unrecognized_kind_refuses_deletion(self) -> None:
+        """A live record whose kind is not one of the known background ones
+        blocks the delete, exactly as an interactive one does."""
+        live_record(self.sessions, kind="supervisor")
+        code, err = self._delete()
+        self.assertEqual(code, 1)
+        self.assertIn("interactive", err)
+        self.assertTrue(self.profile.is_dir())
 
     def test_stale_interactive_record_does_not_refuse_deletion(self) -> None:
         stale_record(self.sessions)

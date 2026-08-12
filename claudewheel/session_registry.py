@@ -42,8 +42,13 @@ Kinds and what they mean for policy
 the profile, and only that blocks a delete or a rename -- a background job or a
 daemon worker holding the profile is not a reason to refuse, per the program's
 ruling that deletion offers the user a choice about those rather than a veto.
-An unlabelled record is read as interactive: the conservative direction, so a
-future kind claudewheel has not heard of can never silently become deletable.
+
+Only those three background kinds are read as background.  An unlabelled record
+and a record carrying a kind claudewheel has never heard of -- a future Claude
+Code kind, a typo -- are both read as interactive: the conservative direction,
+so nothing can silently become deletable by wearing a name this module does not
+recognize.  Widening the background set is a deliberate edit to
+``BACKGROUND_KINDS``.
 """
 
 from __future__ import annotations
@@ -87,8 +92,13 @@ class SessionRecord:
 
     @property
     def interactive(self) -> bool:
-        """True when this record is a human's session rather than background work."""
-        return self.kind == KIND_INTERACTIVE
+        """True when this record is a human's session rather than background work.
+
+        The test is "not one of the known background kinds", not "equal to
+        ``interactive``": a kind claudewheel has never heard of is read the
+        conservative way, so it can never silently become deletable.
+        """
+        return self.kind not in BACKGROUND_KINDS
 
 
 def process_start_token(pid: int) -> str | None:
