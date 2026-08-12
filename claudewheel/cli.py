@@ -412,7 +412,7 @@ def _handle_new_profile(ws: "Workspace", locator: "BinaryLocator") -> int:
 @strictcli.flag(
     "force-delete",
     type=bool,
-    help="force deletion even if sessions appear active; skips the safety check",
+    help="delete anyway when the profile holds a live interactive Claude Code session (background jobs and daemons never block deletion)",
 )
 @strictcli.flag(
     "force-delete-data",
