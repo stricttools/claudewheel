@@ -2213,28 +2213,13 @@ class FixAuthTests(unittest.TestCase):
         tokens = json.loads(self.tokens_file.read_text())
         self.assertNotIn("rateLimitTier", tokens.get("notier", {}))
 
-    def test_fix_auth_removes_orphan_token_entry(self) -> None:
-        """Missing profile dir + token entry -> stale entry removed, exit 0."""
-        import json
-
-        # No profile dir for "ghost", but a lingering token entry exists.
-        self._write_tokens({"ghost": {"token": "tok-ghost"}, "keep": {"token": "t"}})
-
-        rc, out, err = self._run_fix_auth("ghost")
-        self.assertEqual(rc, 0)
-        self.assertIn("Removed stale token entry for 'ghost'", out)
-
-        tokens = json.loads(self.tokens_file.read_text())
-        self.assertNotIn("ghost", tokens)
-        self.assertIn("keep", tokens)
-
-    def test_fix_auth_missing_profile_no_entry_exits_1(self) -> None:
-        """Missing profile dir and no token entry -> exit 1 with error."""
+    def test_fix_auth_missing_profile_exits_1(self) -> None:
+        """No profile directory behind the name -> exit 1 with an error."""
         self._write_tokens({"other": {"token": "t"}})
 
         rc, out, err = self._run_fix_auth("absent")
         self.assertEqual(rc, 1)
-        self.assertIn("no stale token entry", err)
+        self.assertIn("No profile 'absent'", err)
 
 
 class WriteTierStubTests(unittest.TestCase):

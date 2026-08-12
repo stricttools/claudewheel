@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from claudewheel.profile_data import PROFILE_DATA_DIRNAME
 from claudewheel.profile_store import Profile, ProfileStore
 from claudewheel.tokens import TokenStore, TokenStoreError
 from claudewheel.workspace import Workspace
@@ -118,15 +119,15 @@ class ProfileStoreEnumerateTests(SandboxHomeTestCase):
         )
         self.assertEqual(self._store().enumerate(), [])
 
-    # --- token entry variants -------------------------------------------
+    # --- claudewheel data dir -------------------------------------------
 
-    def test_token_entry_with_existing_dir(self) -> None:
+    def test_profile_carrying_only_the_data_dir_is_discovered(self) -> None:
+        """The data directory alone qualifies a profile (no cred/settings)."""
         p = self.sandbox_paths["PROFILES_DIR"] / "delta"
-        p.mkdir(parents=True, exist_ok=True)  # empty dir, no cred/settings
-        write_json(self.sandbox_paths["TOKENS_FILE"], {"delta": "tok-delta"})
+        (p / PROFILE_DATA_DIRNAME).mkdir(parents=True, exist_ok=True)
         self.assertEqual(
             self._tuples(self._store().enumerate()),
-            [("delta", p, False, True)],
+            [("delta", p, False, False)],
         )
 
     def test_token_entry_without_dir_is_invisible(self) -> None:
@@ -151,10 +152,9 @@ class ProfileStoreEnumerateTests(SandboxHomeTestCase):
         d = self.home / ".claude"
         d.mkdir(parents=True, exist_ok=True)
         (d / ".credentials.json").write_text("{}")
-        # A token-only profile with an existing dir.
+        # A profile carrying only claudewheel's own data directory.
         tp = self.sandbox_paths["PROFILES_DIR"] / "beta"
-        tp.mkdir(parents=True, exist_ok=True)
-        write_json(self.sandbox_paths["TOKENS_FILE"], {"beta": "tok-beta"})
+        (tp / PROFILE_DATA_DIRNAME).mkdir(parents=True, exist_ok=True)
         names = [p.name for p in self._store().enumerate()]
         self.assertEqual(names, ["alpha", "beta", "default", "mu", "zeta"])
 
@@ -363,43 +363,6 @@ class ProfileStoreContractTests(SandboxHomeTestCase):
         env = store.env("alpha")
         self.assertEqual(env["CLAUDE_CONFIG_DIR"], str(p))
         self.assertEqual(env["CLAUDE_CODE_OAUTH_TOKEN"], "tok-alpha")
-
-
-class ProfileStoreAuditTests(SandboxHomeTestCase):
-    """ProfileStore.audit() structured integrity findings."""
-
-    def _store(self) -> ProfileStore:
-        return ProfileStore(
-            profiles_dir=self.sandbox_paths["PROFILES_DIR"],
-            claude_dir=self.home / ".claude",
-            token_store=TokenStore(self.sandbox_paths["TOKENS_FILE"]),
-        )
-
-    def test_healthy_store_has_no_findings(self) -> None:
-        p = self.sandbox_paths["PROFILES_DIR"] / "alpha"
-        p.mkdir(parents=True, exist_ok=True)
-        write_json(self.sandbox_paths["TOKENS_FILE"], {"alpha": "tok-alpha"})
-        self.assertEqual(self._store().audit(), [])
-
-    def test_orphan_token_entry_is_reported(self) -> None:
-        write_json(self.sandbox_paths["TOKENS_FILE"], {"ghost": "tok-ghost"})
-        findings = self._store().audit()
-        self.assertEqual(len(findings), 1)
-        self.assertEqual(findings[0].kind, "orphan-token-entry")
-        self.assertEqual(findings[0].name, "ghost")
-        self.assertIn("ghost", findings[0].detail)
-
-    def test_audit_enumerate_return_type_unchanged(self) -> None:
-        """enumerate() still returns a plain profile list (audit is separate)."""
-        write_json(self.sandbox_paths["TOKENS_FILE"], {"ghost": "tok-ghost"})
-        result = self._store().enumerate()
-        self.assertTrue(all(isinstance(x, Profile) for x in result))
-
-    def test_audit_explicit_tokens_view_used_verbatim(self) -> None:
-        # An explicit view means the (corrupt) file is never read.
-        self.sandbox_paths["TOKENS_FILE"].write_text("{invalid json")
-        findings = self._store().audit(tokens={"ghost": "t"})
-        self.assertEqual([f.name for f in findings], ["ghost"])
 
 
 if __name__ == "__main__":

@@ -22,43 +22,6 @@ if TYPE_CHECKING:
 
 
 @dataclass
-class RemoveOrphanTokenResult:
-    """Outcome of remove_orphan_token_entry(): success or a reason for no-op.
-
-    ok: True when the orphan token entry was removed, False otherwise.
-    reason: None on success; "profile-exists" (a real profile dir exists, so the
-    entry is not an orphan -- use fix_auth_shadow) or "no-token-entry" (nothing
-    in tokens.json under that name) on failure.
-    """
-
-    ok: bool
-    reason: str | None = None
-
-
-def remove_orphan_token_entry(ws: "Workspace", name: str) -> RemoveOrphanTokenResult:
-    """Remove a tokens.json entry whose profile directory no longer exists.
-
-    An "orphan token entry" is a key in tokens.json with no profile dir behind
-    it (audit kind ``"orphan-token-entry"``). This removes exactly that key and
-    nothing else. Zero printing, zero sys.exit -- returns a structured result.
-
-    A corrupt tokens.json raises :class:`TokenStoreError` via ``audit()`` (the
-    hard-error contract). If *name* has a real profile dir the entry is NOT an
-    orphan (``reason="profile-exists"``); if there is no entry at all,
-    ``reason="no-token-entry"``.
-    """
-    store = ws.profiles
-    findings = store.audit()
-    orphans = {f.name for f in findings if f.kind == "orphan-token-entry"}
-    if name not in orphans:
-        if store.path_for(name).is_dir():
-            return RemoveOrphanTokenResult(ok=False, reason="profile-exists")
-        return RemoveOrphanTokenResult(ok=False, reason="no-token-entry")
-    store.token_store.remove(name)
-    return RemoveOrphanTokenResult(ok=True)
-
-
-@dataclass
 class FixAuthResult:
     """Outcome of fix_auth_shadow(): success or a reason for no-op/failure.
 

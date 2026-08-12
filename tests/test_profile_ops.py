@@ -241,57 +241,5 @@ class FixAuthShadowTests(_ProfileOpsTestCase):
         self.assertEqual(mode, 0o600)
 
 
-# ---------------------------------------------------------------------------
-# remove_orphan_token_entry
-# ---------------------------------------------------------------------------
-
-
-class RemoveOrphanTokenEntryTests(_ProfileOpsTestCase):
-    """Tests for remove_orphan_token_entry: remove a stale tokens.json key."""
-
-    def test_removes_only_the_orphan_key(self) -> None:
-        """The orphan key is removed; every other entry is preserved intact."""
-        # "live" has a profile dir; "ghost" does not (orphan).
-        self._make_profile_dir("live")
-        self._write_tokens(
-            {
-                "live": {"token": "tok-live", "rateLimitTier": "max"},
-                "ghost": {"token": "tok-ghost"},
-            }
-        )
-
-        result = profile_ops.remove_orphan_token_entry(self.ws, "ghost")
-        self.assertTrue(result.ok)
-        self.assertIsNone(result.reason)
-
-        remaining = json.loads(self.tokens_file.read_text())
-        # Only "ghost" is gone; "live" is byte-for-byte the same value it had.
-        self.assertNotIn("ghost", remaining)
-        self.assertEqual(
-            remaining, {"live": {"token": "tok-live", "rateLimitTier": "max"}}
-        )
-
-    def test_refuses_when_profile_dir_exists(self) -> None:
-        """A key with a real profile dir is not an orphan -> 'profile-exists'."""
-        self._make_profile_dir("real")
-        self._write_tokens({"real": {"token": "tok-real"}})
-
-        result = profile_ops.remove_orphan_token_entry(self.ws, "real")
-        self.assertFalse(result.ok)
-        self.assertEqual(result.reason, "profile-exists")
-        # tokens.json is untouched.
-        self.assertIn("real", json.loads(self.tokens_file.read_text()))
-
-    def test_no_token_entry_reason(self) -> None:
-        """No dir and no token entry -> 'no-token-entry'."""
-        self._write_tokens({"other": {"token": "tok-other"}})
-        result = profile_ops.remove_orphan_token_entry(self.ws, "absent")
-        self.assertFalse(result.ok)
-        self.assertEqual(result.reason, "no-token-entry")
-        self.assertEqual(
-            json.loads(self.tokens_file.read_text()), {"other": {"token": "tok-other"}}
-        )
-
-
 if __name__ == "__main__":
     unittest.main()

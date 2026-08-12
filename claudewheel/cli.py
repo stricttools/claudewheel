@@ -625,29 +625,11 @@ def _handle_check_tokens(ws: "Workspace") -> int:
 
 
 def _handle_fix_auth(ws: "Workspace", name: str) -> int:
-    """Remove a credential shadow, or a stale token entry for a missing profile.
+    """Strip session credentials that shadow a profile's long-lived token."""
+    from .profile_ops import fix_auth_shadow
 
-    Two repair kinds through one surface:
-    - existing profile: strip session credentials that shadow a long-lived token
-    - missing profile: remove a stale tokens.json entry whose profile dir is gone
-    """
-    from .profile_ops import fix_auth_shadow, remove_orphan_token_entry
-
-    # A missing profile dir with a lingering token entry is a stale/orphan entry,
-    # not a credential shadow -- fix_auth_shadow cannot repair it. Handle it here.
     if not ws.profiles.path_for(name).is_dir():
-        orphan = remove_orphan_token_entry(ws, name)
-        if orphan.ok:
-            verb = "Would remove" if effects.previewing() else "Removed"
-            print(
-                f"{verb} stale token entry for '{name}' (no profile directory exists)."
-            )
-            return 0
-        # The only reachable reason here is "no-token-entry": nothing to remove.
-        print(
-            f"No profile '{name}' and no stale token entry to remove.",
-            file=sys.stderr,
-        )
+        print(f"No profile '{name}'.", file=sys.stderr)
         sys.exit(1)
 
     result = fix_auth_shadow(ws, name)
@@ -1825,11 +1807,11 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
     profile_grp.command(
         "fix-auth",
         effect="mutating",
-        help="repair one profile's authentication in whichever of two shapes applies. When the profile directory exists, strip the session credentials that shadow a stored long-lived token so the token is used again. When the directory is gone but tokens.json still lists the profile, remove that stale entry. Says so plainly when there is nothing to repair",
+        help="repair one profile's authentication: strip the session credentials that shadow its stored long-lived token so the token is used again. Says so plainly when there is nothing to repair, and refuses a name with no profile directory behind it",
         args=[
             Arg(
                 name="name",
-                help="name of the profile to repair: an existing profile's shadowing session credentials are removed; a missing profile's stale token entry is removed",
+                help="name of the profile to repair: its shadowing session credentials are removed",
             )
         ],
     )(_bind(_handle_fix_auth, ws))

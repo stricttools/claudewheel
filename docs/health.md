@@ -170,13 +170,6 @@ as profiles (no `.credentials.json`, no `settings.json`, no token entry) and
 not listed in `options.json`. For each orphan, also reports any broken
 symlinks inside the directory.
 
-#### orphan-tokens
-
-Detects `tokens.json` keys whose profile directory no longer exists -- stale
-entries left behind after a profile was deleted or renamed without cleanup.
-
-Fix: `claudewheel profile fix-auth <name>`
-
 #### file-perms
 
 Verifies that sensitive files (`.credentials.json` per profile,
@@ -419,17 +412,13 @@ a workspace move.
 **Fix**: `claudewheel patch-profiles` rewrites all hook command paths to the
 current scripts directory.
 
-### Orphan profiles or tokens
+### Orphan profiles
 
-**Symptom**: `[WARN] orphan-profiles: orphans: old-profile` or
-`[WARN] orphan-tokens: stale token entries (no profile dir): old-profile`
+**Symptom**: `[WARN] orphan-profiles: orphans: old-profile`
 
-Leftover directories or token entries from profiles that were incompletely
-deleted or renamed.
+Leftover directories from profiles that were incompletely deleted or renamed.
 
-**Fix**: For orphan token entries, `claudewheel profile fix-auth <name>`.
-For orphan directories, inspect and delete manually if they contain no
-useful data.
+**Fix**: Inspect and delete manually if they contain no useful data.
 
 ### File permission issues
 

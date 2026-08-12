@@ -419,12 +419,12 @@
         },
         "fix-auth": {
           "name": "fix-auth",
-          "help": "repair one profile's authentication in whichever of two shapes applies. When the profile directory exists, strip the session credentials that shadow a stored long-lived token so the token is used again. When the directory is gone but tokens.json still lists the profile, remove that stale entry. Says so plainly when there is nothing to repair",
+          "help": "repair one profile's authentication: strip the session credentials that shadow its stored long-lived token so the token is used again. Says so plainly when there is nothing to repair, and refuses a name with no profile directory behind it",
           "effect": "mutating",
           "args": [
             {
               "name": "name",
-              "help": "name of the profile to repair: an existing profile's shadowing session credentials are removed; a missing profile's stale token entry is removed"
+              "help": "name of the profile to repair: its shadowing session credentials are removed"
             }
           ]
         },

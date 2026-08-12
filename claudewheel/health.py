@@ -621,36 +621,6 @@ def check_orphan_profiles(
     return HealthResult(True, "orphan-profiles", "no orphan dirs found")
 
 
-def check_orphan_token_entries(
-    ws: "Workspace",
-    tokens: dict[str, Any] | None = None,
-    token_error: TokenStoreError | None = None,
-) -> HealthResult:
-    """Detect tokens.json keys whose profile directory no longer exists.
-
-    A stale/orphan token entry is a tokens.json key with no profile dir behind
-    it -- silently absent from profile enumeration, so it never surfaces as a
-    profile. Consumes :meth:`ProfileStore.audit` (kind ``"orphan-token-entry"``).
-    Zero findings -> OK. Distinct from ``check_orphan_profiles``, which flags
-    orphan profile DIRECTORIES rather than orphan TOKEN ENTRIES.
-
-    A corrupt tokens.json is the FAILED-check carve-out: a recorded *token_error*
-    (from the single run-level load) surfaces the actionable message here.
-    """
-    if token_error is not None:
-        return HealthResult(False, "orphan-tokens", str(token_error))
-    findings = ws.profiles.audit(tokens)
-    orphans = [f.name for f in findings if f.kind == "orphan-token-entry"]
-    if orphans:
-        return HealthResult(
-            False,
-            "orphan-tokens",
-            f"stale token entries (no profile dir): {', '.join(orphans)} "
-            "— run 'claudewheel profile fix-auth <name>' to remove",
-        )
-    return HealthResult(True, "orphan-tokens", "no stale token entries")
-
-
 def check_file_permissions(
     ws: "Workspace", tokens: dict[str, Any] | None = None
 ) -> HealthResult:
@@ -898,7 +868,6 @@ def run_health_check(ws: "Workspace") -> list[HealthResult]:
         check_token_expiry(ws, tokens, token_error),
         check_auth_shadow(ws, tokens),
         check_orphan_profiles(ws, tokens),
-        check_orphan_token_entries(ws, tokens, token_error),
         check_file_permissions(ws, tokens),
         check_inode_renames(ws),
     ]

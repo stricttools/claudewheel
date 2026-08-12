@@ -27,6 +27,7 @@ from claudewheel.health import (
     check_tokens,
     run_health_check,
 )
+from claudewheel.profile_data import PROFILE_DATA_DIRNAME
 from claudewheel.tokens import EXPIRY_UNKNOWN_FIELD
 from tests.wheelhelpers import build_profile_dir
 
@@ -107,27 +108,21 @@ class DiscoverProfilesTests(_HomeDirTestCase):
         names = [p.name for p in result]
         self.assertEqual(names, ["alpha", "mid", "zeta"])
 
-    def test_finds_token_backed_profile_without_credentials(self) -> None:
-        """A profile dir with a token entry but no .credentials.json is discovered."""
-        # Dir exists but has no .credentials.json
-        (self._profiles_dir / "work").mkdir(parents=True, exist_ok=True)
-        # Write tokens.json with a key for "work"
-        tokens_dir = self.home / ".claudewheel"
-        tokens_dir.mkdir(parents=True, exist_ok=True)
-        tokens_file = tokens_dir / "tokens.json"
-        tokens_file.write_text(json.dumps({"work": "tok-abc"}))
+    def test_finds_data_backed_profile_without_credentials(self) -> None:
+        """A profile dir carrying only claudewheel's data dir is discovered."""
+        (self._profiles_dir / "work" / PROFILE_DATA_DIRNAME).mkdir(
+            parents=True, exist_ok=True
+        )
         result = _discover_profiles(self.ws)
         names = [p.name for p in result]
         self.assertIn("work", names)
 
-    def test_token_profile_merged_and_sorted(self) -> None:
-        """Token-backed profiles are merged with credential-based ones and sorted."""
+    def test_data_profile_merged_and_sorted(self) -> None:
+        """Data-dir-backed profiles merge with credential-based ones and sort."""
         self._make_profile("beta")
-        (self._profiles_dir / "alpha").mkdir(parents=True, exist_ok=True)
-        tokens_dir = self.home / ".claudewheel"
-        tokens_dir.mkdir(parents=True, exist_ok=True)
-        tokens_file = tokens_dir / "tokens.json"
-        tokens_file.write_text(json.dumps({"alpha": "tok-a"}))
+        (self._profiles_dir / "alpha" / PROFILE_DATA_DIRNAME).mkdir(
+            parents=True, exist_ok=True
+        )
         result = _discover_profiles(self.ws)
         names = [p.name for p in result]
         self.assertEqual(names, ["alpha", "beta"])
@@ -753,13 +748,12 @@ class CheckOrphanProfilesTests(_HomeDirTestCase):
             result = check_orphan_profiles(self.ws)
         self.assertTrue(result.ok)
 
-    def test_dir_in_tokens_not_orphan(self) -> None:
-        """A profile dir with an entry in tokens.json is not orphan."""
-        (self._profiles_dir / "work").mkdir(parents=True, exist_ok=True)
+    def test_dir_with_claudewheel_data_not_orphan(self) -> None:
+        """A profile dir carrying claudewheel's data dir is discovered, not orphan."""
+        (self._profiles_dir / "work" / PROFILE_DATA_DIRNAME).mkdir(
+            parents=True, exist_ok=True
+        )
         self._write_options([])
-        tokens_dir = self.home / ".claudewheel"
-        tokens_dir.mkdir(parents=True, exist_ok=True)
-        (tokens_dir / "tokens.json").write_text(json.dumps({"work": "tok-abc123"}))
         with patch.object(health, "print_health_report", health.print_health_report):
             result = check_orphan_profiles(self.ws)
         self.assertTrue(result.ok)
@@ -790,71 +784,6 @@ class CheckOrphanProfilesTests(_HomeDirTestCase):
             result = check_orphan_profiles(self.ws)
         self.assertTrue(result.ok)
         self.assertIn("no orphan", result.detail)
-
-
-# ---------------------------------------------------------------------------
-# check_orphan_token_entries
-# ---------------------------------------------------------------------------
-
-
-class CheckOrphanTokenEntriesTests(_HomeDirTestCase):
-    """Tests for check_orphan_token_entries(self.ws)."""
-
-    def setUp(self) -> None:
-        super().setUp()
-        self._tokens_file = self.home / ".claudewheel" / "tokens.json"
-
-    def _write_tokens(self, tokens: dict[str, Any]) -> None:
-        self._tokens_file.parent.mkdir(parents=True, exist_ok=True)
-        self._tokens_file.write_text(json.dumps(tokens))
-
-    def test_ok_when_no_tokens_file(self) -> None:
-        """No tokens.json -> no entries -> OK."""
-        result = health.check_orphan_token_entries(self.ws)
-        self.assertTrue(result.ok)
-        self.assertIn("no stale token entries", result.detail)
-
-    def test_ok_when_entry_has_profile_dir(self) -> None:
-        """A token entry whose profile dir exists is not stale."""
-        self._make_profile("live")
-        self._write_tokens({"live": "tok-abc123"})
-        result = health.check_orphan_token_entries(self.ws)
-        self.assertTrue(result.ok)
-
-    def test_flags_orphan_entry(self) -> None:
-        """A token entry with no profile dir behind it is flagged."""
-        # No profile dir created for "ghost".
-        self._write_tokens({"ghost": "tok-xyz789"})
-        result = health.check_orphan_token_entries(self.ws)
-        self.assertFalse(result.ok)
-        self.assertIn("ghost", result.detail)
-        self.assertIn("fix-auth", result.detail)
-
-    def test_flags_only_orphans_not_live(self) -> None:
-        """Live entries are not reported; only the orphan is."""
-        self._make_profile("live")
-        self._write_tokens({"live": "tok-1", "ghost": "tok-2"})
-        result = health.check_orphan_token_entries(self.ws)
-        self.assertFalse(result.ok)
-        self.assertIn("ghost", result.detail)
-        self.assertNotIn("live", result.detail)
-
-    def test_token_error_surfaces_as_failed(self) -> None:
-        """A recorded token_error fails the check with its message."""
-        from claudewheel.tokens import TokenStoreError
-
-        err = TokenStoreError("corrupt tokens.json")
-        result = health.check_orphan_token_entries(self.ws, {}, err)
-        self.assertFalse(result.ok)
-        self.assertIn("corrupt", result.detail)
-
-    def test_included_in_run_health_check(self) -> None:
-        """The orphan-tokens check is registered in the full run."""
-        self._write_tokens({"ghost": "tok-xyz"})
-        results = run_health_check(self.ws)
-        labels = {r.label: r for r in results}
-        self.assertIn("orphan-tokens", labels)
-        self.assertFalse(labels["orphan-tokens"].ok)
 
 
 # ---------------------------------------------------------------------------
@@ -1280,7 +1209,7 @@ class HealthRunCorruptTokensTests(_HomeDirTestCase):
         results = run_health_check(self.ws)
 
         # Every check is reported -- nothing crashed or was skipped.
-        self.assertEqual(len(results), 16)
+        self.assertEqual(len(results), 15)
         labels = [r.label for r in results]
 
         # Both token checks failed with the actionable exception message.
@@ -1292,11 +1221,6 @@ class HealthRunCorruptTokensTests(_HomeDirTestCase):
         expiry_result = next(r for r in results if r.label == "token-expiry")
         self.assertFalse(expiry_result.ok)
         self.assertIn("corrupt", expiry_result.detail)
-
-        # The orphan-token check also fails on corruption (token_error carve-out).
-        orphan_tokens_result = next(r for r in results if r.label == "orphan-tokens")
-        self.assertFalse(orphan_tokens_result.ok)
-        self.assertIn("corrupt", orphan_tokens_result.detail)
 
         # Profile-based checks still ran (dir-only enumeration, has_token False).
         self.assertIn("hooks-wired", labels)

@@ -10,6 +10,7 @@ from typing import Any, Literal
 from .appdata import OptionsFile, StateFile
 from . import effects
 from .effects import write_json_atomic
+from .profile_data import PROFILE_DATA_DIRNAME
 from .shared_store import SharedStore
 from .tokens import TokenStore, TokenStoreError
 
@@ -17,7 +18,6 @@ __all__ = [
     "Profile",
     "ProfileStore",
     "DeletionResult",
-    "AuditFinding",
 ]
 
 # Segment key under which profiles are registered in options.json.
@@ -60,21 +60,6 @@ class Profile:
     def config_dir(self) -> Path:
         """Alias for :attr:`path` -- the CLAUDE_CONFIG_DIR of this profile."""
         return self.path
-
-
-@dataclass(frozen=True)
-class AuditFinding:
-    """One structured integrity finding from :meth:`ProfileStore.audit`.
-
-    - ``kind``: a stable finding category. Currently the only kind is
-      ``"orphan-token-entry"`` -- a tokens.json key with no directory on disk.
-    - ``name``: the profile name the finding is about.
-    - ``detail``: a human-readable explanation.
-    """
-
-    kind: str
-    name: str
-    detail: str
 
 
 @dataclass(frozen=True)
@@ -137,11 +122,10 @@ class ProfileStore:
            may live elsewhere, e.g. macOS Keychain). ``has_credentials`` tracks
            the ``.credentials.json`` presence but is NOT required for discovery.
         2. Each subdir of ``profiles_dir`` qualifies when it holds
-           ``.credentials.json`` OR ``settings.json``; has_credentials tracks
-           the ``.credentials.json`` presence.
-        3. Token-only: each tokens key not already found whose path_for() dir
-           exists qualifies with has_credentials=False.
-        4. has_token is True for any profile whose name is a tokens key.
+           ``.credentials.json``, ``settings.json``, or claudewheel's own
+           per-profile data directory (:data:`PROFILE_DATA_DIRNAME`);
+           has_credentials tracks the ``.credentials.json`` presence.
+        3. has_token is True for any profile whose name is a tokens key.
         Result is sorted by name.
         """
         if tokens is None:
@@ -169,21 +153,12 @@ class ProfileStore:
                     continue
                 has_credentials = (entry / ".credentials.json").exists()
                 has_settings = (entry / "settings.json").exists()
-                if has_credentials or has_settings:
+                has_data = (entry / PROFILE_DATA_DIRNAME).is_dir()
+                if has_credentials or has_settings or has_data:
                     records.append((name, entry, has_credentials))
                     found_names.add(name)
 
-        # Rule 3: token-only entries whose dir exists.
-        for key in tokens:
-            if key in found_names:
-                continue
-            pdir = self.path_for(key)
-            if pdir.is_dir():
-                records.append((key, pdir, False))
-                found_names.add(key)
-
-        # Rule 4: mark token presence (equivalent to discovery's two-pass form --
-        # every token-only record's name is already a tokens key).
+        # Rule 3: mark token presence.
         profiles = [
             Profile(name, path, has_credentials, name in tokens)
             for name, path, has_credentials in records
@@ -237,38 +212,6 @@ class ProfileStore:
             if profile.name == name:
                 return profile
         return None
-
-    def audit(self, tokens: dict[str, Any] | None = None) -> list[AuditFinding]:
-        """Return structured integrity findings about the profile store.
-
-        Read-only: zero filesystem writes. *tokens* ``None`` loads token data via
-        ``token_store.load()`` (a corrupt tokens.json raises
-        :class:`TokenStoreError`); an explicit dict is used verbatim.
-
-        Currently one finding kind:
-
-        - ``"orphan-token-entry"``: a tokens.json key whose ``path_for()`` dir
-          does not exist on disk (a token entry with no profile behind it).
-
-        Findings are returned in sorted-name order for deterministic output.
-        """
-        if tokens is None:
-            tokens = self.token_store.load()
-        findings: list[AuditFinding] = []
-        for key in sorted(tokens):
-            pdir = self.path_for(key)
-            if not pdir.is_dir():
-                findings.append(
-                    AuditFinding(
-                        kind="orphan-token-entry",
-                        name=key,
-                        detail=(
-                            f"tokens.json has an entry for {key!r} but no profile "
-                            f"directory exists at {pdir}"
-                        ),
-                    )
-                )
-        return findings
 
     def env(self, name: str) -> dict[str, str]:
         """Resolve a profile name to launch env vars. Read-only, no terminal I/O.

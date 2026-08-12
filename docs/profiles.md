@@ -294,13 +294,6 @@ The `profile fix-auth` command repairs this by stripping the `claudeAiOauth`
 key from `.credentials.json` and preserving any tier metadata into
 `tokens.json`.
 
-### Orphan token cleanup
-
-The `profile fix-auth` command also handles orphan token entries: keys in
-`tokens.json` whose profile directory no longer exists on disk. These are
-detected by `ProfileStore.audit()` and removed by
-`remove_orphan_token_entry()`.
-
 ### Token validation
 
 The `profile check-tokens` command validates every discovered profile's
