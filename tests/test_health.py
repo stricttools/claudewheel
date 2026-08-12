@@ -772,6 +772,120 @@ class CheckOrphanProfilesTests(_HomeDirTestCase):
 
 
 # ---------------------------------------------------------------------------
+# check_file_permissions
+# ---------------------------------------------------------------------------
+
+
+class CheckFilePermissionsTests(_HomeDirTestCase):
+    """Tests for check_file_permissions(self.ws) -- the 0700/0600 invariant.
+
+    Every profile's ``.credentials.json`` and claudewheel token entry must be
+    0600 and the data directory holding the entry 0700, so the check has to fail
+    on each of those three modes individually and name the offending profile.
+    """
+
+    def _locked_profile(self, name: str) -> Path:
+        """A profile at the modes the production writers produce."""
+        pdir = self._make_profile(name)
+        (pdir / ".credentials.json").chmod(0o600)
+        return pdir
+
+    def test_ok_when_everything_is_locked_down(self) -> None:
+        """Credentials 0600, data dir 0700, token file 0600 -> pass."""
+        self._locked_profile("alpha")
+        self._write_token("alpha", {"token": "tok-aaa"})
+        self._locked_profile("beta")
+        self._write_token("beta", {"token": "tok-bbb"})
+
+        result = health.check_file_permissions(self.ws)
+        self.assertTrue(result.ok, result.detail)
+        self.assertIn("locked down", result.detail)
+
+    def test_ok_when_no_profiles(self) -> None:
+        """Nothing discovered -> nothing to complain about."""
+        result = health.check_file_permissions(self.ws)
+        self.assertTrue(result.ok, result.detail)
+
+    def test_world_readable_token_file_fails_naming_the_profile(self) -> None:
+        self._locked_profile("alpha")
+        token_file = self._write_token("alpha", {"token": "tok-aaa"})
+        token_file.chmod(0o644)
+
+        result = health.check_file_permissions(self.ws)
+        self.assertFalse(result.ok)
+        self.assertIn("alpha", result.detail)
+        self.assertIn("token.json", result.detail)
+        self.assertIn("0o644", result.detail)
+
+    def test_world_readable_data_dir_fails_naming_the_profile(self) -> None:
+        self._locked_profile("alpha")
+        self._write_token("alpha", {"token": "tok-aaa"})
+        (self._profiles_dir / "alpha" / PROFILE_DATA_DIRNAME).chmod(0o755)
+
+        result = health.check_file_permissions(self.ws)
+        self.assertFalse(result.ok)
+        self.assertIn(f"alpha/{PROFILE_DATA_DIRNAME}", result.detail)
+        self.assertIn("0o755", result.detail)
+
+    def test_world_readable_credentials_fails_naming_the_profile(self) -> None:
+        pdir = self._locked_profile("alpha")
+        self._write_token("alpha", {"token": "tok-aaa"})
+        (pdir / ".credentials.json").chmod(0o644)
+
+        result = health.check_file_permissions(self.ws)
+        self.assertFalse(result.ok)
+        self.assertIn("alpha/.credentials.json", result.detail)
+        self.assertIn("0o644", result.detail)
+
+    def test_every_offender_is_reported_not_just_the_first(self) -> None:
+        """Two profiles, three kinds of drift -> all of them named."""
+        good = self._locked_profile("alpha")
+        (good / ".credentials.json").chmod(0o644)
+        bad = self._locked_profile("beta")
+        token_file = self._write_token("beta", {"token": "t"})
+        token_file.chmod(0o640)
+        (bad / PROFILE_DATA_DIRNAME).chmod(0o750)
+
+        result = health.check_file_permissions(self.ws)
+        self.assertFalse(result.ok)
+        self.assertIn("alpha/.credentials.json", result.detail)
+        self.assertIn(f"beta/{PROFILE_DATA_DIRNAME}/token.json", result.detail)
+        self.assertIn(f"beta/{PROFILE_DATA_DIRNAME} is 0o750", result.detail)
+
+    def test_profile_without_credentials_or_data_passes(self) -> None:
+        """A settings-only profile has neither file: absence is not drift."""
+        pdir = self._profiles_dir / "fresh"
+        pdir.mkdir(parents=True, exist_ok=True)
+        (pdir / "settings.json").write_text("{}")
+
+        result = health.check_file_permissions(self.ws)
+        self.assertTrue(result.ok, result.detail)
+
+    def test_data_dir_without_a_token_file_is_checked_alone(self) -> None:
+        """The dir mode is enforced even when no entry has been written yet."""
+        self._locked_profile("alpha")
+        data_dir = self._profiles_dir / "alpha" / PROFILE_DATA_DIRNAME
+        data_dir.mkdir(parents=True, exist_ok=True)
+        data_dir.chmod(0o700)
+        self.assertTrue(health.check_file_permissions(self.ws).ok)
+
+        data_dir.chmod(0o777)
+        result = health.check_file_permissions(self.ws)
+        self.assertFalse(result.ok)
+        self.assertIn(f"alpha/{PROFILE_DATA_DIRNAME} is 0o777", result.detail)
+
+    def test_corrupt_token_entry_does_not_break_the_permission_check(self) -> None:
+        """Permissions are a stat question -- an unparseable entry is irrelevant."""
+        self._locked_profile("alpha")
+        token_file = self._write_token("alpha", {"token": "t"})
+        token_file.write_text("{not json")
+        token_file.chmod(0o600)
+
+        result = health.check_file_permissions(self.ws)
+        self.assertTrue(result.ok, result.detail)
+
+
+# ---------------------------------------------------------------------------
 # check_auth_shadow
 # ---------------------------------------------------------------------------
 
