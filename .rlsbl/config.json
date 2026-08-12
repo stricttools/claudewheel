@@ -1,5 +1,9 @@
 {
   "changelog_format_version_enforced": true,
+  "internal_dep_floors": [
+    "strictcli",
+    "stricttest"
+  ],
   "targets": [
     "npm",
     "pypi"
