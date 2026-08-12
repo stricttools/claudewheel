@@ -71,7 +71,7 @@ dev = [
     { name = "mypy", specifier = ">=2.3.0" },
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "ruff", specifier = ">=0.15.20" },
-    { name = "stricttest", specifier = ">=0.1.1" },
+    { name = "stricttest", specifier = ">=0.2.0" },
 ]
 
 [[package]]
@@ -319,14 +319,14 @@ wheels = [
 
 [[package]]
 name = "stricttest"
-version = "0.1.1"
+version = "0.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pytest" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/06/30/d9d2804cd2c3e9c80e5761760e0c75daf3f07005dcafe3ca536eb58f2e64/stricttest-0.1.1.tar.gz", hash = "sha256:6f184641b5bd8bd983a4714db9cee1d6c60c8a4b9a79ed81257467bc31e338bf", size = 49841, upload-time = "2026-08-03T13:33:59.568Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/20/5d/abb037f117142f4063f43c0e92123d324bed5420a13bbae27bf21c3e7358/stricttest-0.2.0.tar.gz", hash = "sha256:f0d180017fe4781dc82500024f0123c761e0ed4ce930135afc7ffc00e7efbd69", size = 51302, upload-time = "2026-08-07T12:02:35.988Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/dc/77/ce2c6952fbd9d7c565394a11c741529e38bfbeef7651a9b48339d433ac88/stricttest-0.1.1-py3-none-any.whl", hash = "sha256:845b4178dc89595af2640424bf2e10de3e39458bf7dd85c72c2bdc7351ad6b60", size = 27893, upload-time = "2026-08-03T13:33:58.555Z" },
+    { url = "https://files.pythonhosted.org/packages/6e/b1/d79c6786287ec589e94d5255d585d3f5e837e9ecbaf15c3c0d7fdee65c23/stricttest-0.2.0-py3-none-any.whl", hash = "sha256:e945a7b0f7d47bba88f4de43417683b2db57dc38d4dfc304f52f1b3605a58964", size = 28626, upload-time = "2026-08-07T12:02:34.723Z" },
 ]
 
 [[package]]
