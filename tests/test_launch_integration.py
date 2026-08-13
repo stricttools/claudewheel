@@ -17,7 +17,7 @@ from unittest import mock
 
 from claudewheel.binaries import BinaryLocator
 from claudewheel.launch import resolve_launch_config
-from claudewheel.tokens import TokenExpiryDisposition
+from claudewheel.tokens import TokenExpiryDisposition, plan_by_key
 from claudewheel.segment import _discover_profiles
 from claudewheel.workspace import Workspace
 from tests.wheelhelpers import SandboxHomeTestCase
@@ -34,7 +34,7 @@ class LaunchIntegrationTests(SandboxHomeTestCase):
         # A real, discoverable profile with a token.
         self.profiles.create("work", {"model": "claude-opus-4-8"})
         self.ws.profiles.data_for("work").write_token(
-            "tok-xyz", expiry=TokenExpiryDisposition.TTL
+            "tok-xyz", expiry=TokenExpiryDisposition.TTL, plan=plan_by_key("max-20x")
         )
 
         # A tmpdir-backed locator so no version is required (fallback symlink).

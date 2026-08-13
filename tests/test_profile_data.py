@@ -20,10 +20,15 @@ from claudewheel.tokens import (
     TOKEN_TTL_DAYS,
     TokenExpiryDisposition,
     TokenStoreError,
+    plan_by_key,
 )
 
 TTL = TokenExpiryDisposition.TTL
 UNKNOWN = TokenExpiryDisposition.UNKNOWN
+
+# Every token write states a plan; these two are the ones used throughout.
+MAX_20X = plan_by_key("max-20x")
+PRO = plan_by_key("pro")
 
 
 class ProfileDataStoreTestCase(unittest.TestCase):
@@ -61,29 +66,29 @@ class RoundTripTests(ProfileDataStoreTestCase):
     """A token written for one profile reads back, at the intended modes."""
 
     def test_write_then_read(self) -> None:
-        self.store.write_token("tok-abc", expiry=TTL)
+        self.store.write_token("tok-abc", expiry=TTL, plan=MAX_20X)
         self.assertEqual(self.store.token(), "tok-abc")
         self.assertTrue(self.store.has_token())
         self.assertTrue(self.store.exists())
 
     def test_token_file_mode_is_restrictive(self) -> None:
-        self.store.write_token("tok-abc", expiry=TTL)
+        self.store.write_token("tok-abc", expiry=TTL, plan=MAX_20X)
         self.assertEqual(self.mode_of(self.store.token_file), TOKEN_FILE_MODE)
         self.assertEqual(TOKEN_FILE_MODE, 0o600)
 
     def test_data_dir_mode_is_owner_only(self) -> None:
-        self.store.write_token("tok-abc", expiry=TTL)
+        self.store.write_token("tok-abc", expiry=TTL, plan=MAX_20X)
         self.assertEqual(self.mode_of(self.store.data_dir), PROFILE_DATA_DIR_MODE)
         self.assertEqual(PROFILE_DATA_DIR_MODE, 0o700)
 
     def test_dir_mode_fixed_on_a_preexisting_loose_dir(self) -> None:
         self.store.data_dir.mkdir()
         self.store.data_dir.chmod(0o755)
-        self.store.write_token("tok-abc", expiry=TTL)
+        self.store.write_token("tok-abc", expiry=TTL, plan=MAX_20X)
         self.assertEqual(self.mode_of(self.store.data_dir), PROFILE_DATA_DIR_MODE)
 
     def test_entry_is_a_bare_object_not_keyed_by_name(self) -> None:
-        self.store.write_token("tok-abc", expiry=TTL)
+        self.store.write_token("tok-abc", expiry=TTL, plan=MAX_20X)
         entry = json.loads(self.store.token_file.read_text())
         self.assertEqual(entry["token"], "tok-abc")
         self.assertNotIn("work", entry)
@@ -97,12 +102,24 @@ class RoundTripTests(ProfileDataStoreTestCase):
         self.assertEqual(self.store.plan_env(), {})
 
     def test_write_replaces_a_previous_entry(self) -> None:
-        self.store.write_token("tok-old", expiry=TTL, tier="default_claude_max_5x")
-        self.store.write_token("tok-new", expiry=UNKNOWN)
+        self.store.write_token("tok-old", expiry=TTL, plan=MAX_20X)
+        self.store.write_token("tok-new", expiry=UNKNOWN, plan=PRO)
         entry = self.store.load()
         self.assertEqual(entry["token"], "tok-new")
-        self.assertNotIn("rateLimitTier", entry)
         self.assertNotIn("expires_at", entry)
+
+    def test_replacing_a_token_invalidates_the_declared_plan(self) -> None:
+        """The new token carries the plan stated for IT, never the old one's.
+
+        A plan declared for a retired token says nothing about the account the
+        new one belongs to, so the entry is rebuilt rather than merged into and
+        the caller has to state a plan again.
+        """
+        self.store.write_token("tok-old", expiry=TTL, plan=MAX_20X)
+        self.store.write_token("tok-new", expiry=TTL, plan=PRO)
+        entry = self.store.load()
+        self.assertEqual(entry["subscriptionType"], "pro")
+        self.assertNotIn("rateLimitTier", entry)
 
 
 class EntryFormatTests(ProfileDataStoreTestCase):
@@ -110,7 +127,7 @@ class EntryFormatTests(ProfileDataStoreTestCase):
 
     def test_ttl_disposition_records_created_and_expires(self) -> None:
         today = date(2026, 3, 1)
-        self.store.write_token("tok", expiry=TTL, today=today)
+        self.store.write_token("tok", expiry=TTL, plan=MAX_20X, today=today)
         entry = self.store.load()
         self.assertEqual(entry["created"], "2026-03-01")
         self.assertEqual(
@@ -119,29 +136,33 @@ class EntryFormatTests(ProfileDataStoreTestCase):
         self.assertNotIn(EXPIRY_UNKNOWN_FIELD, entry)
 
     def test_unknown_disposition_records_the_marker_and_no_expiry(self) -> None:
-        self.store.write_token("tok", expiry=UNKNOWN, today=date(2026, 3, 1))
+        self.store.write_token(
+            "tok", expiry=UNKNOWN, plan=MAX_20X, today=date(2026, 3, 1)
+        )
         entry = self.store.load()
         self.assertTrue(entry[EXPIRY_UNKNOWN_FIELD])
         self.assertNotIn("expires_at", entry)
 
-    def test_tier_fields_stored_on_write(self) -> None:
-        self.store.write_token(
-            "tok",
-            expiry=TTL,
-            tier="default_claude_max_20x",
-            subscription="max",
-        )
+    def test_plan_fields_stored_on_write(self) -> None:
+        self.store.write_token("tok", expiry=TTL, plan=MAX_20X)
         self.assertEqual(self.store.tier(), ("default_claude_max_20x", "max"))
+        self.assertTrue(self.store.declares_plan())
+
+    def test_a_plan_with_no_rate_limit_tier_writes_only_its_field(self) -> None:
+        self.store.write_token("tok", expiry=TTL, plan=PRO)
+        self.assertEqual(self.store.tier(), (None, "pro"))
+        self.assertNotIn("rateLimitTier", self.store.load())
+        self.assertTrue(self.store.declares_plan())
 
     def test_expiry_computed_from_the_entry(self) -> None:
-        self.store.write_token("tok", expiry=TTL, today=date.today())
+        self.store.write_token("tok", expiry=TTL, plan=MAX_20X, today=date.today())
         expiry = self.store.expiry()
         assert expiry is not None
         self.assertEqual(expiry.created, date.today())
         self.assertEqual(expiry.remaining_days, TOKEN_TTL_DAYS)
 
     def test_expiry_unknown_reports_none_remaining(self) -> None:
-        self.store.write_token("tok", expiry=UNKNOWN)
+        self.store.write_token("tok", expiry=UNKNOWN, plan=MAX_20X)
         expiry = self.store.expiry()
         assert expiry is not None
         self.assertIsNone(expiry.remaining_days)
@@ -151,9 +172,7 @@ class PlanEnvTests(ProfileDataStoreTestCase):
     """Plan-tier fields resolve to Claude Code env vars, validated."""
 
     def test_declared_tier_maps_to_env(self) -> None:
-        self.store.write_token(
-            "tok", expiry=TTL, tier="default_claude_max_20x", subscription="max"
-        )
+        self.store.write_token("tok", expiry=TTL, plan=MAX_20X)
         self.assertEqual(
             self.store.plan_env(),
             {
@@ -163,41 +182,51 @@ class PlanEnvTests(ProfileDataStoreTestCase):
         )
 
     def test_unrecognized_value_is_a_hard_error_naming_the_file(self) -> None:
-        self.store.write_token("tok", expiry=TTL, tier="turbo")
+        """A hand-edited entry is validated on read, not trusted."""
+        self.store.data_dir.mkdir(parents=True, exist_ok=True)
+        self.store.token_file.write_text(
+            json.dumps({"token": "tok", "rateLimitTier": "turbo"})
+        )
         with self.assertRaises(ValueError) as cm:
             self.store.plan_env()
         self.assertIn(str(self.store.token_file), str(cm.exception))
         self.assertIn("rateLimitTier", str(cm.exception))
 
 
-class SetTierTests(ProfileDataStoreTestCase):
-    """set_tier merges into the entry without disturbing the token."""
+class SetPlanTests(ProfileDataStoreTestCase):
+    """set_plan merges the plan into the entry without disturbing the token."""
 
     def test_merges_into_an_existing_entry(self) -> None:
-        self.store.write_token("tok", expiry=TTL)
-        self.store.set_tier(tier="default_claude_max_5x", subscription="max")
+        self.store.write_token("tok", expiry=TTL, plan=MAX_20X)
+        self.store.set_plan(plan_by_key("max-5x"))
         entry = self.store.load()
         self.assertEqual(entry["token"], "tok")
         self.assertEqual(entry["rateLimitTier"], "default_claude_max_5x")
         self.assertEqual(entry["subscriptionType"], "max")
 
-    def test_creates_a_tier_only_entry(self) -> None:
-        self.store.set_tier(tier="default_claude_max_5x")
-        self.assertEqual(self.store.load(), {"rateLimitTier": "default_claude_max_5x"})
+    def test_a_plan_without_a_rate_limit_tier_leaves_the_old_one_behind(self) -> None:
+        """Declaring Pro over Max 20x drops the field Pro does not carry."""
+        self.store.write_token("tok", expiry=TTL, plan=MAX_20X)
+        self.store.set_plan(PRO)
+        entry = self.store.load()
+        self.assertEqual(entry["subscriptionType"], "pro")
+        self.assertEqual(
+            self.store.plan_env(), {"CLAUDE_CODE_SUBSCRIPTION_TYPE": "pro"}
+        )
+
+    def test_creates_a_plan_only_entry(self) -> None:
+        self.store.set_plan(PRO)
+        self.assertEqual(self.store.load(), {"subscriptionType": "pro"})
         self.assertIsNone(self.store.token())
         self.assertEqual(self.mode_of(self.store.token_file), TOKEN_FILE_MODE)
         self.assertEqual(self.mode_of(self.store.data_dir), PROFILE_DATA_DIR_MODE)
-
-    def test_no_fields_is_a_no_op(self) -> None:
-        self.store.set_tier()
-        self.assertFalse(self.store.data_dir.exists())
 
 
 class RemoveTests(ProfileDataStoreTestCase):
     """remove_token reports whether there was anything to remove."""
 
     def test_removes_an_existing_entry(self) -> None:
-        self.store.write_token("tok", expiry=TTL)
+        self.store.write_token("tok", expiry=TTL, plan=MAX_20X)
         self.assertTrue(self.store.remove_token())
         self.assertFalse(self.store.token_file.exists())
         self.assertIsNone(self.store.token())
@@ -224,10 +253,10 @@ class CorruptEntryTests(ProfileDataStoreTestCase):
         with self.assertRaises(TokenStoreError):
             self.store.load()
 
-    def test_set_tier_refuses_to_clobber_a_corrupt_entry(self) -> None:
+    def test_set_plan_refuses_to_clobber_a_corrupt_entry(self) -> None:
         self._write_raw("{not json")
         with self.assertRaises(TokenStoreError):
-            self.store.set_tier(tier="default_claude_max_5x")
+            self.store.set_plan(MAX_20X)
         self.assertEqual(self.store.token_file.read_text(), "{not json")
 
 
@@ -238,8 +267,8 @@ class IsolationTests(ProfileDataStoreTestCase):
         other_dir = self.profile_dir.parent / "hn"
         other_dir.mkdir()
         other = ProfileDataStore(other_dir)
-        self.store.write_token("tok-work", expiry=TTL)
-        other.write_token("tok-hn", expiry=TTL)
+        self.store.write_token("tok-work", expiry=TTL, plan=MAX_20X)
+        other.write_token("tok-hn", expiry=TTL, plan=MAX_20X)
         self.assertEqual(self.store.token(), "tok-work")
         self.assertEqual(other.token(), "tok-hn")
         other.remove_token()

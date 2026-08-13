@@ -42,7 +42,7 @@ from claudewheel.profile_store import (
 )
 from claudewheel.shared_store import SharedStore
 from claudewheel.profile_data import ProfileDataStore
-from claudewheel.tokens import TokenExpiryDisposition
+from claudewheel.tokens import TokenExpiryDisposition, plan_by_key
 from claudewheel.wizard import WizardResult
 from claudewheel.workspace import Workspace
 from tests.wheelhelpers import (
@@ -413,7 +413,7 @@ class DeleteTests(_WriteBase):
     def test_delete_full_cleanup(self) -> None:
         self.store.create("full", self._SETTINGS)
         self.store.data_for("full").write_token(
-            "TOKEN", expiry=TokenExpiryDisposition.TTL
+            "TOKEN", expiry=TokenExpiryDisposition.TTL, plan=plan_by_key("max-20x")
         )
         assert self.store.state is not None
         self.store.state.set_value("last_config", {"profile": "full", "model": "m"})

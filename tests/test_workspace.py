@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import claudewheel
-from claudewheel.tokens import TokenExpiryDisposition
+from claudewheel.tokens import TokenExpiryDisposition, plan_by_key
 from claudewheel.profile_data import ProfileDataStore
 from claudewheel.workspace import Workspace
 
@@ -177,7 +177,9 @@ class WorkspaceStoreTests(SandboxHomeTestCase):
         ws = Workspace.open(self.launcher_dir, claude_dir=self.home / ".claude")
         self.make_profile("prof")
         ws.profiles.data_for("prof").write_token(
-            "tok-through-workspace", expiry=TokenExpiryDisposition.TTL
+            "tok-through-workspace",
+            expiry=TokenExpiryDisposition.TTL,
+            plan=plan_by_key("max-20x"),
         )
         self.assertEqual(ws.profiles.data_for("prof").token(), "tok-through-workspace")
 

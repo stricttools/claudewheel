@@ -29,7 +29,7 @@ from claudewheel.defaults import (
 from claudewheel.terminal import Terminal
 from claudewheel.theme import parse_theme
 from claudewheel.profile_data import ProfileDataStore
-from claudewheel.tokens import TokenExpiryDisposition
+from claudewheel.tokens import TokenExpiryDisposition, plan_by_key
 
 from tests.wheelhelpers import FakeTerminal
 
@@ -37,6 +37,12 @@ THEME = parse_theme(DEFAULT_THEME_DARK)
 
 TTL = TokenExpiryDisposition.TTL
 UNKNOWN = TokenExpiryDisposition.UNKNOWN
+
+# The plan the auth flow's picker is answered with in these tests. Every
+# token-writing method asks for one, so the mocked run_selection side-effect
+# lists carry this key between the method choice and whatever comes next.
+PLAN = plan_by_key("max-20x")
+PLAN_KEY = PLAN.key
 
 
 def _paste_terminal(*pastes: str) -> FakeTerminal:
@@ -1442,7 +1448,7 @@ class AuthFlowTests(AuthFlowTestBase):
             mock.patch(
                 "claudewheel.wizard.run_selection",
                 autospec=True,
-                side_effect=["token", "copy"],
+                side_effect=["token", PLAN_KEY, "copy"],
             ),
             mock.patch(
                 "claudewheel.wizard._find_claude_binary",
@@ -1472,7 +1478,9 @@ class AuthFlowTests(AuthFlowTestBase):
                 self.term,
             )
         self.assertEqual(result, "authenticated")
-        mock_add.assert_called_once_with(mock.ANY, CAPTURED_TOKEN, expiry=TTL)
+        mock_add.assert_called_once_with(
+            mock.ANY, CAPTURED_TOKEN, expiry=TTL, plan=PLAN
+        )
         mock_probe.assert_called_once_with(CAPTURED_TOKEN)
         # No recovery paste was needed, so no keys were consumed.
         self.assertEqual(self.term._index, 0)
@@ -1485,7 +1493,7 @@ class AuthFlowTests(AuthFlowTestBase):
             mock.patch(
                 "claudewheel.wizard.run_selection",
                 autospec=True,
-                side_effect=["token", "copy"],
+                side_effect=["token", PLAN_KEY, "copy"],
             ),
             mock.patch(
                 "claudewheel.wizard._find_claude_binary",
@@ -1516,7 +1524,7 @@ class AuthFlowTests(AuthFlowTestBase):
             mock.patch(
                 "claudewheel.wizard.run_selection",
                 autospec=True,
-                side_effect=["token", "copy"],
+                side_effect=["token", PLAN_KEY, "copy"],
             ),
             mock.patch(
                 "claudewheel.wizard._find_claude_binary",
@@ -1549,7 +1557,7 @@ class AuthFlowTests(AuthFlowTestBase):
             mock.patch(
                 "claudewheel.wizard.run_selection",
                 autospec=True,
-                side_effect=["token", "copy"],
+                side_effect=["token", PLAN_KEY, "copy"],
             ),
             mock.patch(
                 "claudewheel.wizard._find_claude_binary",
@@ -1584,7 +1592,7 @@ class AuthFlowTests(AuthFlowTestBase):
             mock.patch(
                 "claudewheel.wizard.run_selection",
                 autospec=True,
-                side_effect=["token", "copy"],
+                side_effect=["token", PLAN_KEY, "copy"],
             ),
             mock.patch(
                 "claudewheel.wizard._find_claude_binary",
@@ -1628,7 +1636,7 @@ class AuthFlowTests(AuthFlowTestBase):
             mock.patch(
                 "claudewheel.wizard.run_selection",
                 autospec=True,
-                side_effect=["token", "copy"],
+                side_effect=["token", PLAN_KEY, "copy"],
             ),
             mock.patch(
                 "claudewheel.wizard._find_claude_binary",
@@ -1660,7 +1668,9 @@ class AuthFlowTests(AuthFlowTestBase):
         self.assertEqual(result, "authenticated")
         self.assertNotIn("Warning", self._stdout_buf.getvalue())
         mock_probe.assert_called_once_with("sk-ant-recovered")
-        mock_add.assert_called_once_with(mock.ANY, "sk-ant-recovered", expiry=TTL)
+        mock_add.assert_called_once_with(
+            mock.ANY, "sk-ant-recovered", expiry=TTL, plan=PLAN
+        )
 
     def test_long_lived_token_keyboard_interrupt_on_recovery_paste(self) -> None:
         """KeyboardInterrupt during the recovery paste returns 'failed'."""
@@ -1673,7 +1683,7 @@ class AuthFlowTests(AuthFlowTestBase):
             mock.patch(
                 "claudewheel.wizard.run_selection",
                 autospec=True,
-                side_effect=["token", "copy"],
+                side_effect=["token", PLAN_KEY, "copy"],
             ),
             mock.patch(
                 "claudewheel.wizard._find_claude_binary",
@@ -1711,7 +1721,7 @@ class AuthFlowTests(AuthFlowTestBase):
             mock.patch(
                 "claudewheel.wizard.run_selection",
                 autospec=True,
-                side_effect=["token", "copy"],
+                side_effect=["token", PLAN_KEY, "copy"],
             ),
             mock.patch(
                 "claudewheel.wizard._find_claude_binary",
@@ -1855,7 +1865,7 @@ class BrowserSelectionTests(AuthFlowTestBase):
             mock.patch(
                 "claudewheel.wizard.run_selection",
                 autospec=True,
-                side_effect=["token", "copy"],
+                side_effect=["token", PLAN_KEY, "copy"],
             ) as mock_sel,
             mock.patch(
                 "claudewheel.wizard._find_claude_binary",
@@ -1877,8 +1887,9 @@ class BrowserSelectionTests(AuthFlowTestBase):
                 self.term,
             )
 
-        self.assertEqual(mock_sel.call_count, 2)
-        args, _kwargs = mock_sel.call_args_list[1]
+        # method choice, plan picker, browser choice
+        self.assertEqual(mock_sel.call_count, 3)
+        args, _kwargs = mock_sel.call_args_list[2]
         self.assertEqual(args[0], "Choose browser")
 
     def test_no_browser_form_on_skip(self) -> None:
@@ -2046,7 +2057,7 @@ class BrowserSelectionTests(AuthFlowTestBase):
             mock.patch(
                 "claudewheel.wizard.run_selection",
                 autospec=True,
-                side_effect=["token", "/usr/bin/firefox"],
+                side_effect=["token", PLAN_KEY, "/usr/bin/firefox"],
             ),
             mock.patch(
                 "claudewheel.wizard._find_claude_binary",
@@ -2082,7 +2093,7 @@ class BrowserSelectionTests(AuthFlowTestBase):
             mock.patch(
                 "claudewheel.wizard.run_selection",
                 autospec=True,
-                side_effect=["token", "copy"],
+                side_effect=["token", PLAN_KEY, "copy"],
             ),
             mock.patch(
                 "claudewheel.wizard._find_claude_binary",
@@ -2172,7 +2183,7 @@ class AuthBrowserPersistenceTests(AuthFlowTestBase):
             mock.patch(
                 "claudewheel.wizard.run_selection",
                 autospec=True,
-                side_effect=["token", "/usr/bin/firefox"],
+                side_effect=["token", PLAN_KEY, "/usr/bin/firefox"],
             ),
             mock.patch(
                 "claudewheel.wizard._find_claude_binary",
@@ -2220,7 +2231,7 @@ class AuthBrowserPersistenceTests(AuthFlowTestBase):
             mock.patch(
                 "claudewheel.wizard.run_selection",
                 autospec=True,
-                side_effect=["token", "/usr/bin/firefox", "save"],
+                side_effect=["token", PLAN_KEY, "/usr/bin/firefox", "save"],
             ),
             mock.patch(
                 "claudewheel.wizard._find_claude_binary",
@@ -2520,7 +2531,7 @@ class CookedWindowTests(AuthFlowTestBase):
             mock.patch(
                 "claudewheel.wizard.run_selection",
                 autospec=True,
-                side_effect=["token", "copy"],
+                side_effect=["token", PLAN_KEY, "copy"],
             ),
             mock.patch(
                 "claudewheel.wizard._find_claude_binary",
@@ -2572,7 +2583,7 @@ class CookedWindowTests(AuthFlowTestBase):
             mock.patch(
                 "claudewheel.wizard.run_selection",
                 autospec=True,
-                side_effect=["token", "copy"],
+                side_effect=["token", PLAN_KEY, "copy"],
             ),
             mock.patch(
                 "claudewheel.wizard._find_claude_binary",
@@ -2603,7 +2614,9 @@ class CookedWindowTests(AuthFlowTestBase):
             )
 
         self.assertEqual(result, "authenticated")
-        mock_add.assert_called_once_with(mock.ANY, "sk-ant-recovered", expiry=TTL)
+        mock_add.assert_called_once_with(
+            mock.ANY, "sk-ant-recovered", expiry=TTL, plan=PLAN
+        )
         # The recovery paste was actually read from the terminal.
         self.assertGreater(self.term._index, 0)
 
@@ -2628,9 +2641,11 @@ class CookedWindowTests(AuthFlowTestBase):
                 events.append("choice-form")
                 return "abort"
             events.append("form")
-            return {"Authenticate profile 'test'": "token", "Choose browser": "copy"}[
-                title
-            ]
+            return {
+                "Authenticate profile 'test'": "token",
+                "Plan for profile 'test'": PLAN_KEY,
+                "Choose browser": "copy",
+            }[title]
 
         with (
             mock.patch(
@@ -2664,7 +2679,10 @@ class CookedWindowTests(AuthFlowTestBase):
             )
 
         self.assertEqual(result, "failed")
-        self.assertEqual(events, ["form", "form", "enter", "exit", "choice-form"])
+        # method choice, plan picker, browser choice -- then the cooked window.
+        self.assertEqual(
+            events, ["form", "form", "form", "enter", "exit", "choice-form"]
+        )
 
     def test_no_cooked_window_on_skip(self) -> None:
         from claudewheel.wizard import run_auth_flow
@@ -2752,7 +2770,7 @@ class TokenValidationRedGreenTests(AuthFlowTestBase):
             mock.patch(
                 "claudewheel.wizard.run_selection",
                 autospec=True,
-                side_effect=["token", "copy"],
+                side_effect=["token", PLAN_KEY, "copy"],
             ),
             mock.patch(
                 "claudewheel.wizard.effects.run",
@@ -2820,7 +2838,7 @@ class TokenRecoveryPasteTests(AuthFlowTestBase):
             mock.patch(
                 "claudewheel.wizard.run_selection",
                 autospec=True,
-                side_effect=["token", "copy"],
+                side_effect=["token", PLAN_KEY, "copy"],
             ),
             mock.patch(
                 "claudewheel.wizard._find_claude_binary",
@@ -2855,13 +2873,17 @@ class TokenRecoveryPasteTests(AuthFlowTestBase):
         """Linebreaks, spaces, and tabs from a wrapped terminal copy are stripped."""
         result, mock_add = self._run_recovery_flow("sk-ant-oat01-\nABC DEF\t123")
         self.assertEqual(result, "authenticated")
-        mock_add.assert_called_once_with(mock.ANY, "sk-ant-oat01-ABCDEF123", expiry=TTL)
+        mock_add.assert_called_once_with(
+            mock.ANY, "sk-ant-oat01-ABCDEF123", expiry=TTL, plan=PLAN
+        )
 
     def test_surrounding_whitespace_removed(self) -> None:
         """Leading/trailing whitespace is stripped like the old .strip() did."""
         result, mock_add = self._run_recovery_flow("  sk-ant-token-1  \n")
         self.assertEqual(result, "authenticated")
-        mock_add.assert_called_once_with(mock.ANY, "sk-ant-token-1", expiry=TTL)
+        mock_add.assert_called_once_with(
+            mock.ANY, "sk-ant-token-1", expiry=TTL, plan=PLAN
+        )
 
     def test_whitespace_only_input_fails(self) -> None:
         """Input that cleans down to nothing is treated as no token."""
@@ -2913,7 +2935,7 @@ class TokenValidationOutcomeTests(AuthFlowTestBase):
 
         fake_binary = self._make_fake_binary()
         if selections is None:
-            selections = ["token", "copy"]
+            selections = ["token", PLAN_KEY, "copy"]
         # The 4th returned value is the FakeTerminal (formerly the input mock):
         # it feeds the INVALID re-prompt paste, if any.
         self.term = _paste_terminal(reprompt)
@@ -2959,7 +2981,9 @@ class TokenValidationOutcomeTests(AuthFlowTestBase):
 
         result, mock_add, mock_probe, term, _sel = self._run_scraped_flow([auth.VALID])
         self.assertEqual(result, "authenticated")
-        mock_add.assert_called_once_with(mock.ANY, CAPTURED_TOKEN, expiry=TTL)
+        mock_add.assert_called_once_with(
+            mock.ANY, CAPTURED_TOKEN, expiry=TTL, plan=PLAN
+        )
         mock_probe.assert_called_once_with(CAPTURED_TOKEN)
         # No re-prompt fired, so no paste keys were read.
         self.assertEqual(term._index, 0)
@@ -2972,7 +2996,9 @@ class TokenValidationOutcomeTests(AuthFlowTestBase):
             [auth.INVALID, auth.VALID], reprompt="sk-ant-oat01-repasted"
         )
         self.assertEqual(result, "authenticated")
-        mock_add.assert_called_once_with(mock.ANY, "sk-ant-oat01-repasted", expiry=TTL)
+        mock_add.assert_called_once_with(
+            mock.ANY, "sk-ant-oat01-repasted", expiry=TTL, plan=PLAN
+        )
         self.assertEqual(
             mock_probe.call_args_list,
             [mock.call(CAPTURED_TOKEN), mock.call("sk-ant-oat01-repasted")],
@@ -3008,13 +3034,15 @@ class TokenValidationOutcomeTests(AuthFlowTestBase):
         from claudewheel import auth
 
         result, mock_add, _probe, term, mock_sel = self._run_scraped_flow(
-            [auth.UNREACHABLE], selections=["token", "copy", "save"]
+            [auth.UNREACHABLE], selections=["token", PLAN_KEY, "copy", "save"]
         )
         self.assertEqual(result, "unverified")
-        mock_add.assert_called_once_with(mock.ANY, CAPTURED_TOKEN, expiry=TTL)
+        mock_add.assert_called_once_with(
+            mock.ANY, CAPTURED_TOKEN, expiry=TTL, plan=PLAN
+        )
         self.assertEqual(term._index, 0)
         # The third run_selection call is the save/abort choice form
-        args, _kwargs = mock_sel.call_args_list[2]
+        args, _kwargs = mock_sel.call_args_list[3]
         self.assertIn("Token could not be validated", args[0])
         self.assertIn("API unreachable", args[0])
         self.assertEqual([key for key, _label in args[1]], ["save", "abort"])
@@ -3024,7 +3052,7 @@ class TokenValidationOutcomeTests(AuthFlowTestBase):
         from claudewheel import auth
 
         result, mock_add, _probe, _input, _sel = self._run_scraped_flow(
-            [auth.UNREACHABLE], selections=["token", "copy", "abort"]
+            [auth.UNREACHABLE], selections=["token", PLAN_KEY, "copy", "abort"]
         )
         self.assertEqual(result, "failed")
         mock_add.assert_not_called()
@@ -3034,7 +3062,7 @@ class TokenValidationOutcomeTests(AuthFlowTestBase):
         from claudewheel import auth
 
         result, mock_add, _probe, _input, _sel = self._run_scraped_flow(
-            [auth.UNREACHABLE], selections=["token", "copy", None]
+            [auth.UNREACHABLE], selections=["token", PLAN_KEY, "copy", None]
         )
         self.assertEqual(result, "failed")
         mock_add.assert_not_called()
@@ -3044,11 +3072,13 @@ class TokenValidationOutcomeTests(AuthFlowTestBase):
         from claudewheel import auth
 
         result, mock_add, _probe, _term, mock_sel = self._run_scraped_flow(
-            [auth.INDETERMINATE], selections=["token", "copy", "save"]
+            [auth.INDETERMINATE], selections=["token", PLAN_KEY, "copy", "save"]
         )
         self.assertEqual(result, "unverified")
-        mock_add.assert_called_once_with(mock.ANY, CAPTURED_TOKEN, expiry=TTL)
-        args, _kwargs = mock_sel.call_args_list[2]
+        mock_add.assert_called_once_with(
+            mock.ANY, CAPTURED_TOKEN, expiry=TTL, plan=PLAN
+        )
+        args, _kwargs = mock_sel.call_args_list[3]
         self.assertIn("validation inconclusive", args[0])
 
     def test_indeterminate_abort_choice_fails_not_saved(self) -> None:
@@ -3056,7 +3086,7 @@ class TokenValidationOutcomeTests(AuthFlowTestBase):
         from claudewheel import auth
 
         result, mock_add, _probe, _input, _sel = self._run_scraped_flow(
-            [auth.INDETERMINATE], selections=["token", "copy", "abort"]
+            [auth.INDETERMINATE], selections=["token", PLAN_KEY, "copy", "abort"]
         )
         self.assertEqual(result, "failed")
         mock_add.assert_not_called()
@@ -3072,7 +3102,7 @@ class TokenValidationOutcomeTests(AuthFlowTestBase):
             mock.patch(
                 "claudewheel.wizard.run_selection",
                 autospec=True,
-                side_effect=["token", "copy", "save"],
+                side_effect=["token", PLAN_KEY, "copy", "save"],
             ),
             mock.patch(
                 "claudewheel.wizard._find_claude_binary",
@@ -3112,11 +3142,13 @@ class TokenValidationOutcomeTests(AuthFlowTestBase):
 
         result, mock_add, mock_probe, _term, _sel = self._run_scraped_flow(
             [auth.INVALID, auth.UNREACHABLE],
-            selections=["token", "copy", "save"],
+            selections=["token", PLAN_KEY, "copy", "save"],
             reprompt="sk-ant-oat01-repasted",
         )
         self.assertEqual(result, "unverified")
-        mock_add.assert_called_once_with(mock.ANY, "sk-ant-oat01-repasted", expiry=TTL)
+        mock_add.assert_called_once_with(
+            mock.ANY, "sk-ant-oat01-repasted", expiry=TTL, plan=PLAN
+        )
 
 
 class OnboardingFlagTests(CreateProfileTestBase):
@@ -3212,7 +3244,7 @@ class OnboardingFlagAuthTests(AuthFlowTestBase):
             mock.patch(
                 "claudewheel.wizard.run_selection",
                 autospec=True,
-                side_effect=["token", "copy"],
+                side_effect=["token", PLAN_KEY, "copy"],
             ),
             mock.patch(
                 "claudewheel.wizard._find_claude_binary",
@@ -3258,7 +3290,7 @@ class OnboardingFlagAuthTests(AuthFlowTestBase):
             mock.patch(
                 "claudewheel.wizard.run_selection",
                 autospec=True,
-                side_effect=["token", "copy", "save"],
+                side_effect=["token", PLAN_KEY, "copy", "save"],
             ),
             mock.patch(
                 "claudewheel.wizard._find_claude_binary",
@@ -3343,7 +3375,7 @@ class OnboardingFlagAuthTests(AuthFlowTestBase):
             mock.patch(
                 "claudewheel.wizard.run_selection",
                 autospec=True,
-                side_effect=["token", "copy"],
+                side_effect=["token", PLAN_KEY, "copy"],
             ),
             mock.patch(
                 "claudewheel.wizard._find_claude_binary",
@@ -3375,32 +3407,26 @@ class OnboardingFlagAuthTests(AuthFlowTestBase):
         self.assertEqual(cj["someOther"], 42)
 
 
-class TierCaptureTests(AuthFlowTestBase):
-    """Tests for rate-limit tier capture during session login."""
+class SessionLoginStoresNothingTests(AuthFlowTestBase):
+    """A session login writes nothing into claudewheel's own per-profile store.
 
-    def test_tier_captured_on_session_login(self) -> None:
-        """When .credentials.json has rateLimitTier, it lands in the profile store."""
+    Claude Code owns the credentials it wrote and resolves its own plan tier
+    from them. Copying those fields back into claudewheel's token entry was the
+    other end of the credential-file back-channel: it stored values no picker
+    had validated, for a profile that needs no declaration at all.
+    """
+
+    def _run_session_login(self, name: str, creds: str) -> tuple[str, Path]:
         from claudewheel.wizard import run_auth_flow
 
-        config_dir = self._profile_dir("tiertest")
+        config_dir = self._profile_dir(name)
         config_dir.mkdir(parents=True, exist_ok=True)
-        config_dir_str = str(config_dir)
-
         fake_binary = self._make_fake_binary()
 
         def fake_run(
             cmd: list[str], env: dict[str, str], **_kw: object
         ) -> subprocess.CompletedProcess[str]:
-            creds = {
-                "claudeAiOauth": {
-                    "rateLimitTier": "default_claude_pro",
-                    "subscriptionType": "claude_pro",
-                    "accessToken": "secret",
-                }
-            }
-            (Path(env["CLAUDE_CONFIG_DIR"]) / ".credentials.json").write_text(
-                json.dumps(creds)
-            )
+            (Path(env["CLAUDE_CONFIG_DIR"]) / ".credentials.json").write_text(creds)
             return subprocess.CompletedProcess(cmd, 0)
 
         with (
@@ -3419,30 +3445,21 @@ class TierCaptureTests(AuthFlowTestBase):
             ),
         ):
             result = run_auth_flow(
-                self.ws, self.locator, config_dir_str, "tiertest", THEME, self.term
+                self.ws, self.locator, str(config_dir), name, THEME, self.term
             )
+        return result, config_dir
 
-        self.assertEqual(result, "authenticated")
-        entry = ProfileDataStore(config_dir).load()
-        self.assertEqual(entry["rateLimitTier"], "default_claude_pro")
-        self.assertEqual(entry["subscriptionType"], "claude_pro")
-        # Should NOT have the access token
-        self.assertNotIn("accessToken", entry)
-
-    def test_tier_not_captured_when_absent(self) -> None:
-        """When .credentials.json has no tier fields, nothing is stored."""
+    def test_session_login_never_asks_for_a_plan(self) -> None:
+        """No token is stored, so there is nothing to declare a plan for."""
         from claudewheel.wizard import run_auth_flow
 
-        config_dir = self._profile_dir("notier")
+        config_dir = self._profile_dir("noplan")
         config_dir.mkdir(parents=True, exist_ok=True)
-        config_dir_str = str(config_dir)
-
         fake_binary = self._make_fake_binary()
 
         def fake_run(
             cmd: list[str], env: dict[str, str], **_kw: object
         ) -> subprocess.CompletedProcess[str]:
-            # No claudeAiOauth section
             (Path(env["CLAUDE_CONFIG_DIR"]) / ".credentials.json").write_text("{}")
             return subprocess.CompletedProcess(cmd, 0)
 
@@ -3451,7 +3468,7 @@ class TierCaptureTests(AuthFlowTestBase):
                 "claudewheel.wizard.run_selection",
                 autospec=True,
                 side_effect=["session", "copy"],
-            ),
+            ) as mock_sel,
             mock.patch(
                 "claudewheel.wizard._find_claude_binary",
                 return_value=str(fake_binary),
@@ -3460,60 +3477,37 @@ class TierCaptureTests(AuthFlowTestBase):
             mock.patch(
                 "claudewheel.wizard.effects.run", side_effect=fake_run, autospec=True
             ),
-            mock.patch(
-                "claudewheel.profile_data.ProfileDataStore.set_tier", autospec=True
-            ) as mock_store,
         ):
             result = run_auth_flow(
-                self.ws, self.locator, config_dir_str, "notier", THEME, self.term
+                self.ws, self.locator, str(config_dir), "noplan", THEME, self.term
             )
 
         self.assertEqual(result, "authenticated")
-        mock_store.assert_not_called()
+        titles = [call.args[0] for call in mock_sel.call_args_list]
+        self.assertNotIn("Plan for profile 'noplan'", titles)
 
-    def test_tier_capture_tolerates_corrupt_credentials(self) -> None:
-        """Corrupt .credentials.json does not crash the auth flow."""
-        from claudewheel.wizard import run_auth_flow
+    def test_tier_fields_in_the_credential_file_are_not_copied(self) -> None:
+        """Claude Code's own tier fields stay where Claude Code wrote them."""
+        creds = json.dumps(
+            {
+                "claudeAiOauth": {
+                    "rateLimitTier": "default_claude_max_5x",
+                    "subscriptionType": "pro",
+                    "accessToken": "secret",
+                }
+            }
+        )
+        result, config_dir = self._run_session_login("tiertest", creds)
 
-        config_dir = self._profile_dir("corrupt")
-        config_dir.mkdir(parents=True, exist_ok=True)
-        config_dir_str = str(config_dir)
-
-        fake_binary = self._make_fake_binary()
-
-        def fake_run(
-            cmd: list[str], env: dict[str, str], **_kw: object
-        ) -> subprocess.CompletedProcess[str]:
-            (Path(env["CLAUDE_CONFIG_DIR"]) / ".credentials.json").write_text(
-                "{bad json"
-            )
-            return subprocess.CompletedProcess(cmd, 0)
-
-        with (
-            mock.patch(
-                "claudewheel.wizard.run_selection",
-                autospec=True,
-                side_effect=["session", "copy"],
-            ),
-            mock.patch(
-                "claudewheel.wizard._find_claude_binary",
-                return_value=str(fake_binary),
-                autospec=True,
-            ),
-            mock.patch(
-                "claudewheel.wizard.effects.run", side_effect=fake_run, autospec=True
-            ),
-            mock.patch(
-                "claudewheel.profile_data.ProfileDataStore.set_tier", autospec=True
-            ) as mock_store,
-        ):
-            result = run_auth_flow(
-                self.ws, self.locator, config_dir_str, "corrupt", THEME, self.term
-            )
-
-        # Auth succeeds (credentials file exists) despite corrupt JSON
         self.assertEqual(result, "authenticated")
-        mock_store.assert_not_called()
+        self.assertEqual(ProfileDataStore(config_dir).load(), {})
+
+    def test_corrupt_credential_file_does_not_break_the_flow(self) -> None:
+        """Nothing parses that file, so nothing can trip over it."""
+        result, config_dir = self._run_session_login("corrupt", "{bad json")
+
+        self.assertEqual(result, "authenticated")
+        self.assertEqual(ProfileDataStore(config_dir).load(), {})
 
 
 class HookMergeGapTests(CreateProfileTestBase):
@@ -3627,7 +3621,9 @@ class PasteTokenTests(AuthFlowTestBase):
 
         with (
             mock.patch(
-                "claudewheel.wizard.run_selection", autospec=True, return_value="paste"
+                "claudewheel.wizard.run_selection",
+                autospec=True,
+                side_effect=["paste", PLAN_KEY],
             ),
             mock.patch(
                 "claudewheel.auth.validate_token",
@@ -3649,7 +3645,7 @@ class PasteTokenTests(AuthFlowTestBase):
 
         self.assertEqual(result, "authenticated")
         mock_add.assert_called_once_with(
-            mock.ANY, "sk-ant-oat01-GOODTOKEN123", expiry=UNKNOWN
+            mock.ANY, "sk-ant-oat01-GOODTOKEN123", expiry=UNKNOWN, plan=PLAN
         )
         mock_probe.assert_called_once_with("sk-ant-oat01-GOODTOKEN123")
 
@@ -3662,7 +3658,9 @@ class PasteTokenTests(AuthFlowTestBase):
 
         with (
             mock.patch(
-                "claudewheel.wizard.run_selection", autospec=True, return_value="paste"
+                "claudewheel.wizard.run_selection",
+                autospec=True,
+                side_effect=["paste", PLAN_KEY],
             ),
             mock.patch(
                 "claudewheel.auth.validate_token",
@@ -3683,7 +3681,9 @@ class PasteTokenTests(AuthFlowTestBase):
             )
 
         self.assertEqual(result, "authenticated")
-        mock_add.assert_called_once_with(mock.ANY, "sk-ant-good", expiry=UNKNOWN)
+        mock_add.assert_called_once_with(
+            mock.ANY, "sk-ant-good", expiry=UNKNOWN, plan=PLAN
+        )
         self.assertEqual(mock_probe.call_count, 2)
         self.assertIn("rejected by the API (401)", self._stdout_buf.getvalue())
 
@@ -3696,7 +3696,9 @@ class PasteTokenTests(AuthFlowTestBase):
 
         with (
             mock.patch(
-                "claudewheel.wizard.run_selection", autospec=True, return_value="paste"
+                "claudewheel.wizard.run_selection",
+                autospec=True,
+                side_effect=["paste", PLAN_KEY],
             ),
             mock.patch(
                 "claudewheel.auth.validate_token",
@@ -3730,7 +3732,7 @@ class PasteTokenTests(AuthFlowTestBase):
             mock.patch(
                 "claudewheel.wizard.run_selection",
                 autospec=True,
-                side_effect=["paste", "save"],
+                side_effect=["paste", PLAN_KEY, "save"],
             ) as mock_sel,
             mock.patch(
                 "claudewheel.auth.validate_token",
@@ -3751,9 +3753,11 @@ class PasteTokenTests(AuthFlowTestBase):
             )
 
         self.assertEqual(result, "unverified")
-        mock_add.assert_called_once_with(mock.ANY, "sk-ant-token", expiry=UNKNOWN)
+        mock_add.assert_called_once_with(
+            mock.ANY, "sk-ant-token", expiry=UNKNOWN, plan=PLAN
+        )
         # The second run_selection call is the save/abort choice form
-        args, _kwargs = mock_sel.call_args_list[1]
+        args, _kwargs = mock_sel.call_args_list[2]
         self.assertIn("API unreachable", args[0])
 
     def test_paste_unreachable_abort_fails(self) -> None:
@@ -3767,7 +3771,7 @@ class PasteTokenTests(AuthFlowTestBase):
             mock.patch(
                 "claudewheel.wizard.run_selection",
                 autospec=True,
-                side_effect=["paste", "abort"],
+                side_effect=["paste", PLAN_KEY, "abort"],
             ),
             mock.patch(
                 "claudewheel.auth.validate_token",
@@ -3798,7 +3802,9 @@ class PasteTokenTests(AuthFlowTestBase):
 
         with (
             mock.patch(
-                "claudewheel.wizard.run_selection", autospec=True, return_value="paste"
+                "claudewheel.wizard.run_selection",
+                autospec=True,
+                side_effect=["paste", PLAN_KEY],
             ),
             mock.patch(
                 "claudewheel.profile_data.ProfileDataStore.write_token", autospec=True
@@ -3825,7 +3831,9 @@ class PasteTokenTests(AuthFlowTestBase):
 
         with (
             mock.patch(
-                "claudewheel.wizard.run_selection", autospec=True, return_value="paste"
+                "claudewheel.wizard.run_selection",
+                autospec=True,
+                side_effect=["paste", PLAN_KEY],
             ) as mock_sel,
             mock.patch(
                 "claudewheel.auth.validate_token",
@@ -3845,11 +3853,12 @@ class PasteTokenTests(AuthFlowTestBase):
                 self.term,
             )
 
-        # Only one run_selection call: the auth method choice.
+        # Two run_selection calls: the auth method choice and the plan picker.
         # No "Choose browser" call.
-        mock_sel.assert_called_once()
-        args, _kwargs = mock_sel.call_args
-        self.assertIn("Authenticate profile", args[0])
+        self.assertEqual(mock_sel.call_count, 2)
+        titles = [call.args[0] for call in mock_sel.call_args_list]
+        self.assertIn("Authenticate profile", titles[0])
+        self.assertIn("Plan for profile", titles[1])
 
     def test_paste_does_not_persist_browser_state(self) -> None:
         """The paste path has no browser -- auth_browser must not be written."""
@@ -3860,7 +3869,9 @@ class PasteTokenTests(AuthFlowTestBase):
 
         with (
             mock.patch(
-                "claudewheel.wizard.run_selection", autospec=True, return_value="paste"
+                "claudewheel.wizard.run_selection",
+                autospec=True,
+                side_effect=["paste", PLAN_KEY],
             ),
             mock.patch(
                 "claudewheel.auth.validate_token",
@@ -3896,7 +3907,9 @@ class PasteTokenTests(AuthFlowTestBase):
 
         with (
             mock.patch(
-                "claudewheel.wizard.run_selection", autospec=True, return_value="paste"
+                "claudewheel.wizard.run_selection",
+                autospec=True,
+                side_effect=["paste", PLAN_KEY],
             ),
             mock.patch(
                 "claudewheel.auth.validate_token",
@@ -3949,7 +3962,7 @@ class PasteTokenTests(AuthFlowTestBase):
             mock.patch(
                 "claudewheel.wizard.run_selection",
                 autospec=True,
-                side_effect=["paste", "save"],
+                side_effect=["paste", PLAN_KEY, "save"],
             ) as mock_sel,
             mock.patch(
                 "claudewheel.auth.validate_token",
@@ -3970,8 +3983,10 @@ class PasteTokenTests(AuthFlowTestBase):
             )
 
         self.assertEqual(result, "unverified")
-        mock_add.assert_called_once_with(mock.ANY, "sk-ant-token", expiry=UNKNOWN)
-        args, _kwargs = mock_sel.call_args_list[1]
+        mock_add.assert_called_once_with(
+            mock.ANY, "sk-ant-token", expiry=UNKNOWN, plan=PLAN
+        )
+        args, _kwargs = mock_sel.call_args_list[2]
         self.assertIn("validation inconclusive", args[0])
 
     def test_paste_save_error_returns_failed(self) -> None:
@@ -3983,7 +3998,9 @@ class PasteTokenTests(AuthFlowTestBase):
 
         with (
             mock.patch(
-                "claudewheel.wizard.run_selection", autospec=True, return_value="paste"
+                "claudewheel.wizard.run_selection",
+                autospec=True,
+                side_effect=["paste", PLAN_KEY],
             ),
             mock.patch(
                 "claudewheel.auth.validate_token",
@@ -4018,7 +4035,9 @@ class PasteTokenTests(AuthFlowTestBase):
 
         with (
             mock.patch(
-                "claudewheel.wizard.run_selection", autospec=True, return_value="paste"
+                "claudewheel.wizard.run_selection",
+                autospec=True,
+                side_effect=["paste", PLAN_KEY],
             ),
             mock.patch(
                 "claudewheel.auth.validate_token",
@@ -4058,7 +4077,9 @@ class PasteTokenTests(AuthFlowTestBase):
 
         with (
             mock.patch(
-                "claudewheel.wizard.run_selection", autospec=True, return_value="paste"
+                "claudewheel.wizard.run_selection",
+                autospec=True,
+                side_effect=["paste", PLAN_KEY],
             ),
             mock.patch("claudewheel.auth.validate_token", autospec=True) as mock_probe,
             mock.patch(
@@ -4087,7 +4108,9 @@ class PasteTokenTests(AuthFlowTestBase):
 
         with (
             mock.patch(
-                "claudewheel.wizard.run_selection", autospec=True, return_value="paste"
+                "claudewheel.wizard.run_selection",
+                autospec=True,
+                side_effect=["paste", PLAN_KEY],
             ),
             mock.patch(
                 "claudewheel.auth.validate_token",
@@ -4109,7 +4132,9 @@ class PasteTokenTests(AuthFlowTestBase):
 
         self.assertEqual(result, "authenticated")
         mock_probe.assert_called_once_with("sk-ant-fixed")
-        mock_add.assert_called_once_with(mock.ANY, "sk-ant-fixed", expiry=UNKNOWN)
+        mock_add.assert_called_once_with(
+            mock.ANY, "sk-ant-fixed", expiry=UNKNOWN, plan=PLAN
+        )
 
 
 if __name__ == "__main__":

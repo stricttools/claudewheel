@@ -19,7 +19,7 @@ from .effects import write_json_atomic
 from .patch_profiles import merge_hooks
 from .state import AUTH_BROWSER_KEY
 from .terminal import Terminal
-from .tokens import TokenExpiryDisposition
+from .tokens import PLAN_TIERS, PlanTier, TokenExpiryDisposition, plan_by_key
 from .theme import ThemeColors
 from .ui import FormField, get_field, run_form, run_selection
 
@@ -378,8 +378,20 @@ def run_auth_flow(
     if choice not in ("session", "token", "paste"):
         return "cancel"
 
+    # Both token methods put a token in claudewheel's own store, and a stored
+    # token is exactly the case where Claude Code cannot work its plan out for
+    # itself -- so the plan is asked for before the token is captured, never
+    # after it is already on disk. A session login stores no token and needs no
+    # declaration: Claude Code reads its own credential file.
+    plan: PlanTier | None = None
+    if choice in ("token", "paste"):
+        plan = pick_plan(f"Plan for profile '{profile_name}'", theme, terminal)
+        if plan is None:
+            return "cancel"
+
     if choice == "paste":
-        outcome = _auth_paste_token(ws, config_dir, profile_name, theme, terminal)
+        assert plan is not None
+        outcome = _auth_paste_token(ws, config_dir, profile_name, plan, theme, terminal)
     else:
         # Pre-focus the browser chosen in the last successful auth. If that
         # browser is gone from the options (uninstalled), run_selection falls
@@ -404,8 +416,9 @@ def run_auth_flow(
             )
             outcome = "authenticated" if ok else "failed"
         else:
+            assert plan is not None
             outcome = _auth_long_lived_token(
-                ws, locator, config_dir, profile_name, browser, theme, terminal
+                ws, locator, config_dir, profile_name, browser, plan, theme, terminal
             )
 
     if outcome in ("authenticated", "unverified"):
@@ -433,31 +446,25 @@ def _apply_browser_env(env: dict[str, str], browser: str) -> None:
         env["BROWSER"] = browser
 
 
-def _capture_tier_from_credentials(
-    ws: "Workspace", credentials: Path, profile_name: str
-) -> None:
-    """Read rateLimitTier/subscriptionType from .credentials.json into the profile store.
+def pick_plan(title: str, theme: ThemeColors, terminal: Terminal) -> PlanTier | None:
+    """Ask which plan applies. THE composite plan picker.
 
-    Best-effort: silently skips if the credentials file cannot be parsed or
-    the expected fields are absent (older Claude Code versions omit them).
+    One list, one choice, both stored fields -- the creation flow, the
+    pre-launch prompt and the scripted command all resolve a plan through here
+    or through :func:`~claudewheel.tokens.plan_by_key`, so no surface can store
+    a pairing another surface cannot.
+
+    Returns None when the user cancels (Esc/Ctrl-C).
     """
-    try:
-        data = json.loads(credentials.read_text())
-    except (json.JSONDecodeError, OSError):
-        return
-    oauth = data.get("claudeAiOauth")
-    if not isinstance(oauth, dict):
-        return
-    tier = oauth.get("rateLimitTier")
-    subscription = oauth.get("subscriptionType")
-    if not tier and not subscription:
-        return
-    try:
-        ws.profiles.data_for(profile_name).set_tier(
-            tier=tier, subscription=subscription
-        )
-    except OSError:
-        pass  # best-effort: don't fail auth flow over tier storage
+    choice = run_selection(
+        title,
+        [(plan.key, plan.label) for plan in PLAN_TIERS],
+        theme,
+        terminal,
+    )
+    if choice is None:
+        return None
+    return plan_by_key(choice)
 
 
 def _auth_session_login(
@@ -501,8 +508,10 @@ def _auth_session_login(
 
         credentials = Path(config_dir).expanduser() / ".credentials.json"
         if credentials.exists():
-            # Extract rate-limit tier metadata if present
-            _capture_tier_from_credentials(ws, credentials, profile_name)
+            # Nothing of Claude Code's credential file is copied into
+            # claudewheel's store. A session-authed profile launches on those
+            # credentials, so Claude Code reads its own tier from them; the
+            # declared plan exists only for the stored-token path.
             print("Authentication successful.")
             return True
 
@@ -609,14 +618,17 @@ def _save_token(
     profile_name: str,
     token: str,
     expiry: TokenExpiryDisposition,
+    plan: PlanTier,
 ) -> bool:
     """Write the token into the profile's own store; print + return False on OSError.
 
     *expiry* records how the token's lifetime is stored: setup-tokens are TTL
     (365 days); externally-pasted tokens are UNKNOWN (no assumed expiry).
+    *plan* is the declared plan the entry is written with -- the store refuses a
+    token without one.
     """
     try:
-        ws.profiles.data_for(profile_name).write_token(token, expiry=expiry)
+        ws.profiles.data_for(profile_name).write_token(token, expiry=expiry, plan=plan)
     except OSError as e:
         print(f"Error saving token: {e}")
         return False
@@ -627,6 +639,7 @@ def _auth_paste_token(
     ws: "Workspace",
     config_dir: str,
     profile_name: str,
+    plan: PlanTier,
     theme: ThemeColors,
     terminal: Terminal,
 ) -> str:
@@ -674,7 +687,9 @@ def _auth_paste_token(
 
     if status == auth.VALID:
         # Externally-pasted token: expiry is unknown, never assume 365 days.
-        if not _save_token(ws, profile_name, token, TokenExpiryDisposition.UNKNOWN):
+        if not _save_token(
+            ws, profile_name, token, TokenExpiryDisposition.UNKNOWN, plan
+        ):
             return "failed"
         print("Token validated and saved successfully.")
         return "authenticated"
@@ -697,7 +712,7 @@ def _auth_paste_token(
     if choice != "save":
         return "failed"
 
-    if not _save_token(ws, profile_name, token, TokenExpiryDisposition.UNKNOWN):
+    if not _save_token(ws, profile_name, token, TokenExpiryDisposition.UNKNOWN, plan):
         return "failed"
     print("Token saved WITHOUT validation.")
     return "unverified"
@@ -709,6 +724,7 @@ def _auth_long_lived_token(
     config_dir: str,
     profile_name: str,
     browser: str,
+    plan: PlanTier,
     theme: ThemeColors,
     terminal: Terminal,
 ) -> str:
@@ -756,7 +772,9 @@ def _auth_long_lived_token(
 
         if status == auth.VALID:
             # A setup-token is genuinely valid for 365 days.
-            if not _save_token(ws, profile_name, token, TokenExpiryDisposition.TTL):
+            if not _save_token(
+                ws, profile_name, token, TokenExpiryDisposition.TTL, plan
+            ):
                 return "failed"
             print("Token validated and saved successfully.")
             return "authenticated"
@@ -779,7 +797,7 @@ def _auth_long_lived_token(
     if choice != "save":
         return "failed"
 
-    if not _save_token(ws, profile_name, token, TokenExpiryDisposition.TTL):
+    if not _save_token(ws, profile_name, token, TokenExpiryDisposition.TTL, plan):
         return "failed"
     print("Token saved WITHOUT validation.")
     return "unverified"

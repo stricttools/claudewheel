@@ -125,11 +125,13 @@ class DryRunNarrationIsConditionalTests(SandboxHomeTestCase):
         return out.getvalue(), err.getvalue(), code
 
     def seed_profile(self, name: str) -> None:
-        from claudewheel.tokens import TokenExpiryDisposition
+        from claudewheel.tokens import TokenExpiryDisposition, plan_by_key
 
         store = self.ws.profiles
         store.create(name, {"permissions": {"allow": [], "deny": [], "ask": []}})
-        store.data_for(name).write_token("TOKEN", expiry=TokenExpiryDisposition.TTL)
+        store.data_for(name).write_token(
+            "TOKEN", expiry=TokenExpiryDisposition.TTL, plan=plan_by_key("max-20x")
+        )
 
     # -- the three confirmed in the report --------------------------------
 

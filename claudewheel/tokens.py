@@ -3,10 +3,15 @@
 The entry itself is stored per profile by :mod:`claudewheel.profile_data`, one
 file inside each profile directory.  This module owns nothing on disk -- only
 the shape of an entry and what its fields mean.
+
+It also owns the plan tier: :class:`PlanTier` and the closed
+:data:`PLAN_TIERS` list every writer resolves against, so the two stored fields
+are only ever written as one coherent pair.
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import date, timedelta
 from enum import Enum
 from typing import Any, NamedTuple
@@ -30,6 +35,118 @@ RATE_LIMIT_TIERS = frozenset(
 # supplied from an external source, not a claude setup-token). Its presence
 # means "do not assume a 365-day lifetime -- we simply do not know".
 EXPIRY_UNKNOWN_FIELD = "expiry_unknown"
+
+# The two entry fields carrying the declared plan, named exactly as Claude Code
+# names them (and one-to-one with the CLAUDE_CODE_* variables they become).
+SUBSCRIPTION_FIELD = "subscriptionType"
+RATE_LIMIT_FIELD = "rateLimitTier"
+
+
+@dataclass(frozen=True)
+class PlanTier:
+    """One declarable plan: a label, and the two fields it stores.
+
+    The pair is the unit. Claude Code reads a subscription type and a
+    rate-limit tier and combines them (a Max account on the 20x tier is
+    ``max`` + ``default_claude_max_20x``; Team is ``team`` +
+    ``default_claude_max_5x``; Pro has no rate-limit string at all), so
+    declaring one field without the other describes no real account. Every
+    writer therefore passes a whole :class:`PlanTier`.
+
+    Both fields are validated at construction against the sets Claude Code
+    actually compares against: a value it does not recognize is inert there --
+    the tier resolves to null exactly as an absent value would -- so an
+    unrecognized value is a hard error naming the accepted ones, never a
+    silently stored string.
+    """
+
+    key: str
+    label: str
+    subscription_type: str
+    rate_limit_tier: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.subscription_type not in SUBSCRIPTION_TYPES:
+            raise ValueError(
+                f"{SUBSCRIPTION_FIELD}={self.subscription_type!r} is not a value "
+                "Claude Code recognizes. Valid values: "
+                f"{', '.join(sorted(SUBSCRIPTION_TYPES))}."
+            )
+        if self.rate_limit_tier is not None and (
+            self.rate_limit_tier not in RATE_LIMIT_TIERS
+        ):
+            raise ValueError(
+                f"{RATE_LIMIT_FIELD}={self.rate_limit_tier!r} is not a value "
+                "Claude Code recognizes. Valid values: "
+                f"{', '.join(sorted(RATE_LIMIT_TIERS))}."
+            )
+
+    def fields(self) -> dict[str, str]:
+        """The entry fields this plan writes, omitting a field it does not carry."""
+        fields = {SUBSCRIPTION_FIELD: self.subscription_type}
+        if self.rate_limit_tier is not None:
+            fields[RATE_LIMIT_FIELD] = self.rate_limit_tier
+        return fields
+
+
+# The declarable plans, in picker order. This is the closed list every writer
+# resolves against -- the creation flow, the pre-launch prompt and the scripted
+# command all pick from here, so the three cannot drift apart.
+#
+# The pairings are measured from the Claude Code binary: it tests
+# ``max`` + ``default_claude_max_20x`` for the top Max tier and
+# ``team`` + ``default_claude_max_5x`` for Team, and carries no rate-limit
+# string for Pro or Enterprise.
+PLAN_TIERS: tuple[PlanTier, ...] = (
+    PlanTier("max-20x", "Max 20x", "max", "default_claude_max_20x"),
+    PlanTier("max-5x", "Max 5x", "max", "default_claude_max_5x"),
+    PlanTier("pro", "Pro", "pro"),
+    PlanTier("team", "Team", "team", "default_claude_max_5x"),
+    PlanTier("enterprise", "Enterprise", "enterprise"),
+)
+
+
+def apply_plan(entry: dict[str, Any], plan: PlanTier) -> None:
+    """Write *plan*'s fields into *entry*, in place.
+
+    Both plan fields are cleared first, so a plan that carries no rate-limit
+    tier (Pro, Enterprise) leaves none behind. Otherwise declaring Pro over Max
+    20x would store ``pro`` beside ``default_claude_max_20x`` -- a pair no
+    account has, injected into the launch environment as if it did.
+    """
+    for field in (SUBSCRIPTION_FIELD, RATE_LIMIT_FIELD):
+        entry.pop(field, None)
+    entry.update(plan.fields())
+
+
+def plan_keys() -> list[str]:
+    """The declarable plan keys, in picker order."""
+    return [plan.key for plan in PLAN_TIERS]
+
+
+def plan_by_key(key: str) -> PlanTier:
+    """Resolve a plan key to its :class:`PlanTier`.
+
+    The single door every writer goes through. An unknown key is a
+    :class:`ValueError` naming the valid ones.
+    """
+    for plan in PLAN_TIERS:
+        if plan.key == key:
+            return plan
+    raise ValueError(f"Unknown plan {key!r}. Valid plans: {', '.join(plan_keys())}.")
+
+
+def entry_declares_plan(entry: dict[str, Any]) -> bool:
+    """True when *entry* declares a plan.
+
+    Keyed on the subscription type: it is the field every plan carries, and the
+    one Claude Code's entitlement checks read. An entry holding only a
+    rate-limit tier declares no plan -- that is the shape a hand-edit or an
+    older claudewheel could leave behind, and it is exactly as unusable as an
+    empty entry.
+    """
+    value = entry.get(SUBSCRIPTION_FIELD)
+    return isinstance(value, str) and bool(value)
 
 
 class TokenExpiryDisposition(Enum):
@@ -133,8 +250,8 @@ def entry_plan_env(entry: dict[str, Any], *, source: object) -> dict[str, str]:
     """
     env: dict[str, str] = {}
     for field, var, allowed in (
-        ("subscriptionType", "CLAUDE_CODE_SUBSCRIPTION_TYPE", SUBSCRIPTION_TYPES),
-        ("rateLimitTier", "CLAUDE_CODE_RATE_LIMIT_TIER", RATE_LIMIT_TIERS),
+        (SUBSCRIPTION_FIELD, "CLAUDE_CODE_SUBSCRIPTION_TYPE", SUBSCRIPTION_TYPES),
+        (RATE_LIMIT_FIELD, "CLAUDE_CODE_RATE_LIMIT_TIER", RATE_LIMIT_TIERS),
     ):
         value = entry.get(field)
         if value is None or value == "":
@@ -152,15 +269,20 @@ def build_entry(
     token: str,
     *,
     expiry: TokenExpiryDisposition,
-    tier: str | None = None,
-    subscription: str | None = None,
+    plan: PlanTier,
     today: date | None = None,
 ) -> dict[str, Any]:
     """Assemble a token entry dict in the canonical shape.
 
     The one description of the entry format: ``token`` plus ``created``, then
     either ``expires_at`` (a TTL disposition) or the ``expiry_unknown`` marker
-    (an externally-issued token), plus the optional plan-tier fields.
+    (an externally-issued token), plus the plan fields.
+
+    *plan* is required and has no default: a token written without a stated
+    plan would launch Claude Code with the tier resolved to null, and there is
+    no value to guess from. Writing a token also RE-STATES the plan -- the
+    entry is rebuilt, so a replaced token can never inherit the plan declared
+    for the one before it.
     """
     created = date.today() if today is None else today
     entry: dict[str, Any] = {"token": token, "created": created.isoformat()}
@@ -168,10 +290,7 @@ def build_entry(
         entry["expires_at"] = (created + timedelta(days=TOKEN_TTL_DAYS)).isoformat()
     elif expiry is TokenExpiryDisposition.UNKNOWN:
         entry[EXPIRY_UNKNOWN_FIELD] = True
-    if tier is not None:
-        entry["rateLimitTier"] = tier
-    if subscription is not None:
-        entry["subscriptionType"] = subscription
+    apply_plan(entry, plan)
     return entry
 
 

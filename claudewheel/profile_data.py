@@ -45,10 +45,15 @@ from typing import Any
 from . import effects
 from .effects import write_json_atomic_secret
 from .tokens import (
+    RATE_LIMIT_FIELD,
+    SUBSCRIPTION_FIELD,
+    PlanTier,
+    apply_plan,
     TokenExpiry,
     TokenExpiryDisposition,
     TokenStoreError,
     build_entry,
+    entry_declares_plan,
     entry_expiry,
     entry_plan_env,
     parse_entry,
@@ -159,12 +164,20 @@ class ProfileDataStore:
         validates -- see :meth:`plan_env`).
         """
         entry = self.load()
-        tier = entry.get("rateLimitTier")
-        subscription = entry.get("subscriptionType")
+        tier = entry.get(RATE_LIMIT_FIELD)
+        subscription = entry.get(SUBSCRIPTION_FIELD)
         return (
             tier if isinstance(tier, str) and tier else None,
             subscription if isinstance(subscription, str) and subscription else None,
         )
+
+    def declares_plan(self) -> bool:
+        """True when this profile's entry declares a plan.
+
+        The pre-launch prompt's question: a profile launching on a stored token
+        without one leaves Claude Code's tier null.
+        """
+        return entry_declares_plan(self.load())
 
     def plan_env(self) -> dict[str, str]:
         """The declared plan tier as Claude Code env vars, validated.
@@ -187,41 +200,40 @@ class ProfileDataStore:
         token: str,
         *,
         expiry: TokenExpiryDisposition,
-        tier: str | None = None,
-        subscription: str | None = None,
+        plan: PlanTier,
         today: date | None = None,
     ) -> None:
         """Write the token entry, replacing whatever was there.
 
         *expiry* is required: the caller must choose how the token's lifetime is
         recorded (see :class:`~claudewheel.tokens.TokenExpiryDisposition`), so a
-        lifetime is never silently fabricated.  The directory is created at
-        0700 and the file written 0600 from creation.
+        lifetime is never silently fabricated.
+
+        *plan* is required too, and for the same reason -- no code path may put
+        a token on disk without stating the plan it belongs to.  Because the
+        entry is rebuilt rather than merged into, replacing a profile's token
+        invalidates the plan declared for the previous one: the caller states a
+        plan again or writes nothing.
+
+        The directory is created at 0700 and the file written 0600 from
+        creation.
         """
         self.ensure_dir()
         write_json_atomic_secret(
             self.token_file,
-            build_entry(
-                token, expiry=expiry, tier=tier, subscription=subscription, today=today
-            ),
+            build_entry(token, expiry=expiry, plan=plan, today=today),
         )
 
-    def set_tier(
-        self, *, tier: str | None = None, subscription: str | None = None
-    ) -> None:
-        """Merge plan-tier fields into the entry, creating it if absent.
+    def set_plan(self, plan: PlanTier) -> None:
+        """Merge *plan*'s fields into the entry, creating it if absent.
 
-        Passing neither field is a no-op.  A corrupt entry file raises
-        :class:`~claudewheel.tokens.TokenStoreError` rather than being
-        overwritten.
+        The declaration path for a profile that already holds a token: the
+        token, its dates and everything else in the entry are left alone.  A
+        corrupt entry file raises :class:`~claudewheel.tokens.TokenStoreError`
+        rather than being overwritten.
         """
-        if tier is None and subscription is None:
-            return
         entry = self.load()
-        if tier is not None:
-            entry["rateLimitTier"] = tier
-        if subscription is not None:
-            entry["subscriptionType"] = subscription
+        apply_plan(entry, plan)
         self.ensure_dir()
         write_json_atomic_secret(self.token_file, entry)
 

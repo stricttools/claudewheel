@@ -32,7 +32,7 @@ from typing import Any
 from unittest import mock
 
 from claudewheel import cli
-from claudewheel.tokens import TokenExpiryDisposition
+from claudewheel.tokens import TokenExpiryDisposition, plan_by_key
 from claudewheel.workspace import Workspace
 from tests.wheelhelpers import SandboxHomeTestCase
 
@@ -70,7 +70,7 @@ class _CliCase(SandboxHomeTestCase):
         """Create a fully registered profile: dir, settings, options entry, token."""
         self.store.create(name, dict(self._SETTINGS))
         self.store.data_for(name).write_token(
-            "TOKEN", expiry=TokenExpiryDisposition.TTL
+            "TOKEN", expiry=TokenExpiryDisposition.TTL, plan=plan_by_key("max-20x")
         )
 
 

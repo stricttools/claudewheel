@@ -74,7 +74,7 @@ from unittest import mock
 from claudewheel.appdata import OptionsFile, StateFile
 from claudewheel.hook_scripts import HOOK_SCRIPTS, deploy_scripts
 from claudewheel.import_ import run_import
-from claudewheel.tokens import TokenExpiryDisposition
+from claudewheel.tokens import TokenExpiryDisposition, plan_by_key
 from claudewheel.migrate import migrate_sessions
 from claudewheel.mv import run_mv
 from claudewheel.patch_profiles import run_patch_profiles
@@ -241,8 +241,12 @@ class SandboxEscapeGuardTest(SandboxHomeTestCase):
 
         # 10. Per-profile token writes (inside the sandbox profile dir).
         token_store = ws.profiles.data_for("gp-tok")
-        token_store.write_token("token-value", expiry=TokenExpiryDisposition.TTL)
-        token_store.set_tier(tier="pro", subscription="max")
+        token_store.write_token(
+            "token-value",
+            expiry=TokenExpiryDisposition.TTL,
+            plan=plan_by_key("max-20x"),
+        )
+        token_store.set_plan(plan_by_key("pro"))
         token_store.remove_token()
 
         # 11. run_import against a small fake source (writes sandbox shared/).

@@ -7,9 +7,21 @@ from datetime import date, timedelta
 
 from claudewheel.tokens import (
     EXPIRY_UNKNOWN_FIELD,
+    PLAN_TIERS,
+    RATE_LIMIT_FIELD,
+    RATE_LIMIT_TIERS,
+    SUBSCRIPTION_FIELD,
+    SUBSCRIPTION_TYPES,
     TOKEN_TTL_DAYS,
+    PlanTier,
+    TokenExpiryDisposition,
+    apply_plan,
+    build_entry,
+    entry_declares_plan,
     entry_expiry,
     parse_entry,
+    plan_by_key,
+    plan_keys,
 )
 
 
@@ -137,6 +149,103 @@ class EntryExpiryTests(unittest.TestCase):
         entry = {"token": "t", "created": created.isoformat()}
         result = entry_expiry(entry)
         self.assertEqual(result.remaining_days, TOKEN_TTL_DAYS - 100)
+
+
+# ---------------------------------------------------------------------------
+# The plan tier
+# ---------------------------------------------------------------------------
+
+
+class PlanTierValidationTests(unittest.TestCase):
+    """Both fields are closed enums, checked when the plan is constructed."""
+
+    def test_an_unrecognized_subscription_type_is_a_hard_error(self) -> None:
+        with self.assertRaises(ValueError) as cm:
+            PlanTier("x", "X", "platinum")
+        message = str(cm.exception)
+        self.assertIn(SUBSCRIPTION_FIELD, message)
+        self.assertIn("platinum", message)
+        for value in SUBSCRIPTION_TYPES:
+            self.assertIn(value, message)
+
+    def test_an_unrecognized_rate_limit_tier_is_a_hard_error(self) -> None:
+        with self.assertRaises(ValueError) as cm:
+            PlanTier("x", "X", "max", "turbo")
+        message = str(cm.exception)
+        self.assertIn(RATE_LIMIT_FIELD, message)
+        self.assertIn("turbo", message)
+        for value in RATE_LIMIT_TIERS:
+            self.assertIn(value, message)
+
+    def test_no_rate_limit_tier_is_legal(self) -> None:
+        """Pro and Enterprise have no rate-limit string in the client."""
+        plan = PlanTier("x", "X", "pro")
+        self.assertIsNone(plan.rate_limit_tier)
+        self.assertEqual(plan.fields(), {SUBSCRIPTION_FIELD: "pro"})
+
+
+class PlanCatalogTests(unittest.TestCase):
+    """The closed list every writer resolves against."""
+
+    def test_keys_are_unique_and_ordered(self) -> None:
+        keys = plan_keys()
+        self.assertEqual(len(keys), len(set(keys)))
+        self.assertEqual(keys, [plan.key for plan in PLAN_TIERS])
+
+    def test_every_declared_plan_is_valid(self) -> None:
+        for plan in PLAN_TIERS:
+            self.assertIn(plan.subscription_type, SUBSCRIPTION_TYPES)
+            if plan.rate_limit_tier is not None:
+                self.assertIn(plan.rate_limit_tier, RATE_LIMIT_TIERS)
+
+    def test_lookup_by_key(self) -> None:
+        self.assertEqual(
+            plan_by_key("max-20x").rate_limit_tier, "default_claude_max_20x"
+        )
+        self.assertEqual(plan_by_key("team").subscription_type, "team")
+
+    def test_unknown_key_is_a_hard_error_naming_the_valid_ones(self) -> None:
+        with self.assertRaises(ValueError) as cm:
+            plan_by_key("max")
+        message = str(cm.exception)
+        for key in plan_keys():
+            self.assertIn(key, message)
+
+
+class ApplyPlanTests(unittest.TestCase):
+    """Writing a plan into an entry replaces BOTH fields."""
+
+    def test_sets_both_fields(self) -> None:
+        entry: dict[str, object] = {"token": "t"}
+        apply_plan(entry, plan_by_key("max-5x"))
+        self.assertEqual(entry[SUBSCRIPTION_FIELD], "max")
+        self.assertEqual(entry[RATE_LIMIT_FIELD], "default_claude_max_5x")
+
+    def test_clears_a_rate_limit_tier_the_new_plan_does_not_carry(self) -> None:
+        entry: dict[str, object] = {"token": "t"}
+        apply_plan(entry, plan_by_key("max-20x"))
+        apply_plan(entry, plan_by_key("pro"))
+        self.assertEqual(entry[SUBSCRIPTION_FIELD], "pro")
+        self.assertNotIn(RATE_LIMIT_FIELD, entry)
+
+
+class EntryDeclaresPlanTests(unittest.TestCase):
+    """A declaration is keyed on the subscription type."""
+
+    def test_a_built_entry_declares_one(self) -> None:
+        entry = build_entry(
+            "t", expiry=TokenExpiryDisposition.TTL, plan=plan_by_key("pro")
+        )
+        self.assertTrue(entry_declares_plan(entry))
+
+    def test_an_empty_entry_declares_none(self) -> None:
+        self.assertFalse(entry_declares_plan({}))
+        self.assertFalse(entry_declares_plan({"token": "t"}))
+
+    def test_a_rate_limit_tier_alone_declares_none(self) -> None:
+        self.assertFalse(
+            entry_declares_plan({"token": "t", RATE_LIMIT_FIELD: "default_claude_zero"})
+        )
 
 
 if __name__ == "__main__":
