@@ -113,6 +113,25 @@ def _do_show(cfg: "AppConfigStore") -> int:
     return 0
 
 
+def _launch_is_interactive(print_prompt: str | None) -> bool:
+    """Whether this launch may prompt: is there a terminal, and a human's session?
+
+    Two conditions, and the terminal one is the substantive half. A launch
+    whose segments all came from flags skips the TUI but is otherwise an
+    ordinary interactive run -- it may prompt when a person is there and must
+    not when nobody is. Deriving that from print mode alone made a headless,
+    flag-driven launch believe it was interactive, so every prompting step went
+    ahead and tried to open a terminal that does not exist.
+
+    Print mode stays non-interactive regardless: ``--print`` is a machine
+    invocation whose stdout is the answer, so a prompt would corrupt it even
+    with a terminal attached.
+    """
+    from .terminal import has_controlling_terminal
+
+    return print_prompt is None and has_controlling_terminal()
+
+
 def _do_launch_sequence(
     ws: "Workspace",
     locator: "BinaryLocator",
@@ -1454,7 +1473,7 @@ def _handle_launch(
                 cfg,
                 merged,
                 extra_flags=extra_flags,
-                interactive=print_prompt_val is None,
+                interactive=_launch_is_interactive(print_prompt_val),
                 client=client_val,
                 passthrough=list(_passthrough),
             )

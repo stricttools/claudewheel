@@ -439,6 +439,39 @@ class PlanDeclarationStepTests(unittest.TestCase):
             result = _plan_declaration_run(self._ctx(interactive=False))
         self.assertTrue(result.is_abort)
 
+    def test_a_terminal_less_launch_stops_before_exec_naming_the_remedy(self) -> None:
+        """End to end: no terminal, no declaration -> nonzero exit, no launch.
+
+        The step runs through the real launch sequence here, on the path a
+        flag-driven headless invocation takes, so nothing between it and the
+        exec can quietly swallow the refusal.
+        """
+        from claudewheel.preflight import PREFLIGHT_STEPS
+
+        self._give_token()
+        step = next(s for s in PREFLIGHT_STEPS if s.name == "plan-declaration")
+        do_launch_mock = mock.MagicMock()
+        err = io.StringIO()
+
+        with (
+            mock.patch("claudewheel.preflight.PREFLIGHT_STEPS", [step]),
+            mock.patch("claudewheel.hooks.run_hooks", autospec=True, return_value=True),
+            mock.patch("claudewheel.launch.do_launch", do_launch_mock),
+            redirect_stderr(err),
+        ):
+            with self.assertRaises(SystemExit) as ctx:
+                cli._do_launch_sequence(
+                    self.ws,
+                    inert_locator(self.tmp),
+                    FakeAppConfigStore(),
+                    {"profile": "work"},
+                    interactive=False,
+                )
+
+        self.assertNotEqual(ctx.exception.code, 0)
+        do_launch_mock.assert_not_called()
+        self.assertIn("profile set-plan work", err.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()

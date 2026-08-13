@@ -252,6 +252,27 @@ class Terminal:
             self._tty_file.close()
 
 
+def has_controlling_terminal() -> bool:
+    """True when this process has a controlling terminal it can prompt at.
+
+    Every interactive surface here -- :class:`Terminal`, the PTY proxy, the
+    forms -- reaches the user by opening ``/dev/tty`` rather than by reading
+    stdin, precisely so a piped stdin does not disable them. So the honest test
+    for "is there anybody to ask" is whether that same open succeeds: an
+    ``isatty`` check on stdin or stdout would answer a different question and
+    disagree in both directions (a piped stdin with a real terminal attached;
+    a daemon with stdout on a pipe and no terminal at all).
+
+    Opens and immediately closes; nothing is read, written, or left open.
+    """
+    try:
+        tty_file = open("/dev/tty", "r+b", buffering=0)
+    except OSError:
+        return False
+    tty_file.close()
+    return True
+
+
 def detect_terminal_background() -> str | None:
     """Detect whether the terminal has a light or dark background.
 

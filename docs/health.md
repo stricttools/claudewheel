@@ -200,7 +200,13 @@ that has nothing to do returns `CONTINUE`.
 Steps run in a fixed registration order. The first `ABORT` halts the entire
 sequence. Steps marked `renders_ui=True` manage their own raw-mode terminal;
 steps marked `runs_in_non_interactive=False` are skipped on the
-non-interactive (print/skip-TUI) code path.
+non-interactive code path.
+
+A launch is interactive when it has a controlling terminal (`/dev/tty` opens)
+and is not in print mode -- not merely when print mode is off. A flag-driven
+launch that covers every required segment skips the TUI but still prompts when
+a person is there, and a launch with no terminal reaches the non-interactive
+branch of every step instead of trying to open one.
 
 ### Step sequence
 
@@ -238,7 +244,22 @@ version. If the effective binary version (explicit selection or symlink
 target) is older than the model's minimum, the launch aborts with a message
 naming the required version and the install command.
 
-#### 4. approved-hooks
+#### 4. plan-declaration
+
+Requires a declared plan for a profile that launches on claudewheel's stored
+token. Claude Code resolves its subscription tier from the launch environment
+and only from there when auth is a setup token, so an undeclared profile
+launches with the tier null and tier-dependent features failing closed.
+
+- No profile, the vanilla `default`, or no stored token: continue (a
+  session-authed profile reads its tier from Claude Code's own credentials).
+- Already declared: continue silently.
+- Undeclared, interactive: render the composite plan picker and store the
+  answer. Cancelling aborts.
+- Undeclared, non-interactive: abort, naming
+  `claudewheel profile set-plan <name> <plan>` and the valid plans.
+
+#### 5. approved-hooks
 
 Gates the launch on the target project's Claude Code hooks
 (`.claude/settings.json` and `settings.local.json` in the project directory).
@@ -252,7 +273,7 @@ stored per-project approval:
 - New or changed fingerprint, non-interactive: abort (never silent trust).
 - Malformed project hooks config: abort.
 
-#### 5. scratchpad-cleanup
+#### 6. scratchpad-cleanup
 
 Interactive-only. Scans `/tmp/claude-$UID/` for stale per-project scratchpad
 directories. When stale directories are found, renders a confirmation page

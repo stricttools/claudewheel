@@ -360,10 +360,10 @@ class PrintModeTests(unittest.TestCase):
         _, kwargs = launch_mock.call_args
         self.assertFalse(kwargs["interactive"])
 
-    # -- 3. Non-print skip_tui sets interactive=True --
+    # -- 3. Interactivity comes from the terminal, not from print mode --
 
-    def test_non_print_skip_tui_sets_interactive_true(self) -> None:
-        """When all required segments are provided via flags (no -p), interactive defaults to True."""
+    def _run_flag_driven_launch(self, has_terminal: bool) -> mock.MagicMock:
+        """A flag-driven (skip-TUI, non-print) launch with the terminal faked."""
         fake_cfg = self._make_cfg(last_config={})
         launch_mock = mock.MagicMock()
 
@@ -391,6 +391,11 @@ class PrintModeTests(unittest.TestCase):
             mock.patch("claudewheel.cli._do_launch_sequence", launch_mock),
             mock.patch("claudewheel.cli._check_cont_session", autospec=True),
             mock.patch("os.getcwd", autospec=True, return_value="/test/dir"),
+            mock.patch(
+                "claudewheel.terminal.has_controlling_terminal",
+                autospec=True,
+                return_value=has_terminal,
+            ),
         ):
             try:
                 cli.main()
@@ -398,8 +403,52 @@ class PrintModeTests(unittest.TestCase):
                 pass
 
         launch_mock.assert_called_once()
+        return launch_mock
+
+    def test_flag_driven_launch_is_interactive_with_a_terminal(self) -> None:
+        """Flags cover every required segment and a terminal exists: prompts are fine."""
+        launch_mock = self._run_flag_driven_launch(has_terminal=True)
         _, kwargs = launch_mock.call_args
         self.assertTrue(kwargs["interactive"])
+
+    def test_flag_driven_launch_is_non_interactive_without_a_terminal(self) -> None:
+        """No controlling terminal: nothing may try to open one.
+
+        A flag-driven launch used to believe it was interactive purely because
+        print mode was off, so every prompting step went ahead and opened
+        /dev/tty -- which fails, loudly, exactly where there is nobody to
+        answer.
+        """
+        launch_mock = self._run_flag_driven_launch(has_terminal=False)
+        _, kwargs = launch_mock.call_args
+        self.assertFalse(kwargs["interactive"])
+
+    def test_print_mode_is_non_interactive_even_with_a_terminal(self) -> None:
+        """Print mode is still non-interactive: the session is not a human's."""
+        fake_cfg = self._make_cfg(self.FULL_LAST_CONFIG)
+        launch_mock = mock.MagicMock()
+        with (
+            mock.patch("sys.argv", ["c", "-p", "test"]),
+            mock.patch(
+                "claudewheel.config.AppConfigStore",
+                autospec=True,
+                return_value=fake_cfg,
+            ),
+            mock.patch("claudewheel.cli._do_launch_sequence", launch_mock),
+            mock.patch("os.getcwd", autospec=True, return_value="/test/dir"),
+            mock.patch(
+                "claudewheel.terminal.has_controlling_terminal",
+                autospec=True,
+                return_value=True,
+            ),
+        ):
+            try:
+                cli.main()
+            except SystemExit:
+                pass
+        launch_mock.assert_called_once()
+        _, kwargs = launch_mock.call_args
+        self.assertFalse(kwargs["interactive"])
 
     # -- 4. Print mode adds --print to extra_flags --
 

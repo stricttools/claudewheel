@@ -278,8 +278,14 @@ c --profile work -s profile=personal   # error: duplicate
 ### TUI bypass
 
 When all required segments have values (from flags, `-s`, or defaults), the TUI
-is skipped entirely and the launch proceeds non-interactively. The `directory`
-segment defaults to the current working directory when not explicitly set.
+is skipped entirely. The `directory` segment defaults to the current working
+directory when not explicitly set.
+
+Skipping the TUI does not make the launch non-interactive: pre-launch steps
+still prompt when there is a controlling terminal to prompt at. Interactivity
+is derived from `/dev/tty` being openable (and print mode being off), so a
+launch from a script or a daemon takes the non-interactive branch of every
+step rather than trying to open a terminal that does not exist.
 
 Values from `last_config` in `state.json` fill in any segments not covered by
 flags, so a user who always uses the same profile and model can launch with no
