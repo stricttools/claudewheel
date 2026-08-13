@@ -431,6 +431,99 @@ class DeleteTests(_WriteBase):
         self.assertEqual(self._read_state()["last_config"].get("model"), "m")
 
 
+class DeletionSurveyTests(_WriteBase):
+    """The safety properties survive the removal loop being replaced."""
+
+    _SETTINGS = {"model": "claude-opus-4-8"}
+
+    def _walk(self, target: Path) -> tuple[int, int]:
+        """Count the directory by hand, before anything touches it."""
+        symlinks = sum(1 for c in target.iterdir() if c.is_symlink())
+        real = sum(1 for c in target.iterdir() if not c.is_symlink())
+        return symlinks, real
+
+    def test_the_survey_matches_a_directory_walked_by_hand(self) -> None:
+        self.store.create("surveyed", self._SETTINGS)
+        target = self.profiles_dir / "surveyed"
+        symlinks, real = self._walk(target)
+
+        survey = self.store.survey_profile_dir("surveyed")
+        self.assertEqual(survey.symlinks, symlinks)
+        self.assertEqual(survey.real_children, real)
+        self.assertEqual(set(survey.names), {c.name for c in target.iterdir()})
+
+    def test_the_reported_counts_are_the_surveyed_ones(self) -> None:
+        self.store.create("counted", self._SETTINGS)
+        target = self.profiles_dir / "counted"
+        survey = self.store.survey_profile_dir("counted")
+
+        result = self.store.delete("counted")
+        self.assertFalse(target.exists())
+        self.assertEqual(result.removed_symlinks, survey.symlinks)
+        self.assertEqual(result.removed_real, survey.real_children)
+
+    def test_the_survey_runs_before_the_first_removal(self) -> None:
+        """The counts must not be a by-product of removing anything."""
+        self.store.create("ordered", self._SETTINGS)
+        order: list[str] = []
+        real_survey = ProfileStore.survey_profile_dir
+
+        def spy(store: ProfileStore, name: str) -> Any:
+            order.append("survey")
+            return real_survey(store, name)
+
+        with (
+            patch.object(ProfileStore, "survey_profile_dir", spy),
+            patch(
+                "claudewheel.profile_store.effects.remove",
+                side_effect=lambda *a, **k: order.append("remove"),
+            ),
+            patch(
+                "claudewheel.profile_store.effects.rmtree",
+                side_effect=lambda *a, **k: order.append("remove"),
+            ),
+            patch("claudewheel.profile_store.effects.rmdir"),
+        ):
+            with self.assertRaises(RuntimeError):
+                self.store.delete("ordered")
+        self.assertEqual(order[0], "survey")
+        self.assertIn("remove", order)
+
+    def test_a_directory_not_emptied_is_a_hard_error(self) -> None:
+        """The must-be-empty property belongs to the deletion, not to the loop
+        that happens to implement it today."""
+        self.store.create("stubborn", self._SETTINGS)
+        with (
+            patch("claudewheel.profile_store.effects.remove"),
+            patch("claudewheel.profile_store.effects.rmtree"),
+            patch("claudewheel.profile_store.effects.rmdir") as rmdir,
+        ):
+            with self.assertRaises(RuntimeError) as ctx:
+                self.store.delete("stubborn")
+        self.assertIn("not empty", str(ctx.exception))
+        rmdir.assert_not_called()
+        self.assertTrue((self.profiles_dir / "stubborn").is_dir())
+
+    def test_a_symlink_is_counted_not_followed(self) -> None:
+        target = self.profiles_dir / "linked"
+        target.mkdir(parents=True)
+        payload = self.shared_dir / "elsewhere"
+        payload.mkdir(parents=True)
+        (payload / "a").write_text("x")
+        (payload / "b").write_text("y")
+        (target / "link").symlink_to(payload)
+
+        survey = self.store.survey_profile_dir("linked")
+        self.assertEqual(survey.symlinks, 1)
+        self.assertEqual(survey.real_children, 0)
+
+    def test_a_missing_directory_surveys_as_nothing(self) -> None:
+        survey = self.store.survey_profile_dir("never-existed")
+        self.assertEqual(survey.symlinks, 0)
+        self.assertEqual(survey.real_children, 0)
+        self.assertEqual(survey.names, ())
+
+
 # ---------------------------------------------------------------------------
 # rename() + recovery
 # ---------------------------------------------------------------------------

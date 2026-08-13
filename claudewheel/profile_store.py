@@ -18,6 +18,7 @@ __all__ = [
     "Profile",
     "ProfileStore",
     "DeletionResult",
+    "DirSurvey",
 ]
 
 # Segment key under which profiles are registered in options.json.
@@ -72,7 +73,8 @@ class DeletionResult:
     """Success record from :meth:`ProfileStore.delete` (refusals raise instead).
 
     Mirrors the success-path fields of ``profile_ops.DeleteResult``: symlink and
-    real-entry removal counts plus which stores were touched.  The profile's
+    real-entry counts, taken by a read-only pass over the directory before it
+    is removed, plus which stores were touched.  The profile's
     claudewheel data (its token entry) needs no field of its own: it lives
     inside the profile directory, so removing that directory removes it and it
     is counted among ``removed_real``.
@@ -82,6 +84,21 @@ class DeletionResult:
     removed_real: int
     removed_from_options: bool
     last_config_purged: bool
+
+
+@dataclass(frozen=True)
+class DirSurvey:
+    """What a profile directory holds, read before anything is removed.
+
+    ``symlinks`` are the shared-store links (unlinked, never followed);
+    ``real_children`` is everything else at the top level, files and
+    directories alike. ``names`` is what was seen, so a caller can say which
+    entries the counts came from.
+    """
+
+    symlinks: int
+    real_children: int
+    names: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -458,29 +475,66 @@ class ProfileStore:
                 states[entry_name] = "missing"
         return states
 
-    def _remove_profile_dir(self, name: str) -> tuple[int, int]:
-        """Remove *name*'s dir, unlinking symlinks WITHOUT following real data.
+    def survey_profile_dir(self, name: str) -> DirSurvey:
+        """Count what *name*'s directory holds, WITHOUT touching any of it.
 
-        Replicates ``profile_ops._remove_profile_dir``. Returns
-        (removed_symlinks, removed_real).
+        A pure read, taken before anything is removed. The counts used to fall
+        out of the removal loop, which tied two things together that are not
+        the same thing: what the directory contained, and how it was emptied.
+        Only the second is going to change (the removal is later delegated to
+        an archiving tool), and the first must survive that intact.
+
+        Symlinks are counted as symlinks and never followed -- the shared-store
+        links point at data that outlives the profile.
         """
         profile_dir = self.path_for(name)
         if not profile_dir.is_dir():
-            return 0, 0
-        removed_symlinks = 0
-        removed_real = 0
+            return DirSurvey(symlinks=0, real_children=0, names=())
+        symlinks = 0
+        real_children = 0
+        names: list[str] = []
+        for child in sorted(profile_dir.iterdir()):
+            names.append(child.name)
+            if child.is_symlink():
+                symlinks += 1
+            else:
+                real_children += 1
+        return DirSurvey(
+            symlinks=symlinks, real_children=real_children, names=tuple(names)
+        )
+
+    def _remove_profile_dir(self, name: str) -> None:
+        """Remove *name*'s dir, unlinking symlinks WITHOUT following real data.
+
+        Removal only: what was there is :meth:`survey_profile_dir`'s answer,
+        taken before this runs.
+
+        The directory is removed with ``rmdir``, which fails on a directory
+        that still holds anything -- the must-be-empty safety property. It is
+        checked explicitly first, from a fresh read of the directory, so the
+        property belongs to the deletion rather than to this particular removal
+        loop: a delegated removal that quietly left a child behind must be just
+        as loud about it. Under a preview nothing was really removed, so the
+        check would fire on every profile and is skipped there.
+        """
+        profile_dir = self.path_for(name)
+        if not profile_dir.is_dir():
+            return
         for child in list(profile_dir.iterdir()):
             if child.is_symlink():
                 effects.remove(child)
-                removed_symlinks += 1
             elif child.is_dir():
                 effects.rmtree(child)
-                removed_real += 1
             else:
                 effects.remove(child)
-                removed_real += 1
+        if not effects.previewing():
+            leftovers = sorted(p.name for p in profile_dir.iterdir())
+            if leftovers:
+                raise RuntimeError(
+                    f"Profile directory {profile_dir} is not empty after "
+                    f"removal: {', '.join(leftovers)}"
+                )
         effects.rmdir(profile_dir)
-        return removed_symlinks, removed_real
 
     def _purge_last_config(self, name: str) -> bool:
         """Drop ``last_config['profile']`` from state.json when it names *name*.
@@ -548,13 +602,16 @@ class ProfileStore:
                     "pass allow_data_destruction=True to proceed."
                 )
 
-        sym, real = self._remove_profile_dir(name)
+        # Counted before anything goes: the report describes the directory
+        # that was there, not the loop that emptied it.
+        survey = self.survey_profile_dir(name)
+        self._remove_profile_dir(name)
         self.options.remove_value(_PROFILE_SEGMENT, name, _OPTIONS_DEFAULT)
         purged = self._purge_last_config(name)
 
         return DeletionResult(
-            removed_symlinks=sym,
-            removed_real=real,
+            removed_symlinks=survey.symlinks,
+            removed_real=survey.real_children,
             removed_from_options=removed_from_options,
             last_config_purged=purged,
         )
