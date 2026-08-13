@@ -7,7 +7,9 @@ boundary stubbed, and assert that:
 
   - injected drift is healed to canonical on disk after a launch;
   - a second launch performs no writes (idempotent, byte-identical);
-  - a discoverable ``~/.claude`` (the "default" profile) is never touched.
+  - a discoverable ``~/.claude`` (the "default" profile) is never touched;
+  - a managed profile's ``.credentials.json`` is byte-identical after a launch
+    that rewrote ``settings.json`` right beside it.
 """
 
 from __future__ import annotations
@@ -28,6 +30,7 @@ from tests.wheelhelpers import (
     FakeAppConfigStore,
     build_profile_dir,
     claude_dir_write_canary,
+    hash_snapshot,
 )
 
 
@@ -208,6 +211,45 @@ class PreflightReconcileTests(unittest.TestCase):
         self.assertEqual(default_sp.stat().st_mtime_ns, before_mtime)
         # The real (managed) profile WAS healed, proving the launch reconciled.
         self.assertEqual(self._read("work")["hooks"], self._canonical_hooks())
+
+    # -- the credential file is never a launch's business -------------------
+
+    def test_launch_leaves_the_credential_file_untouched(self) -> None:
+        """A launch never writes the launched profile's ``.credentials.json``.
+
+        Claude Code owns that file; claudewheel's launch path reads a profile's
+        stored token and never rewrites the session credentials beside it. No
+        writer for it exists today, so the property holds by construction --
+        this is what would fail the day one comes back, and it runs on the
+        launch that DOES write, rewriting ``settings.json`` in the very same
+        directory.
+
+        Byte-level (``hash_snapshot``) rather than mtime/size alone, so an
+        in-place rewrite of identical length would still be seen; mtime and
+        size are asserted too, so even a rewrite of the same bytes shows up.
+        """
+        self._make_profile("work", _drifted_profile_settings())
+        self.shared_settings.write_text(
+            json.dumps(_drifted_shared_settings(), indent=2) + "\n"
+        )
+        creds = self.profiles_dir / "work" / ".credentials.json"
+        creds.write_text(
+            json.dumps({"claudeAiOauth": {"accessToken": "sk-ant-known-bytes"}}) + "\n"
+        )
+        before_hash = hash_snapshot([creds])
+        before_stat = creds.stat()
+
+        for interactive in (True, False):
+            with self.subTest(interactive=interactive):
+                self._launch(interactive=interactive)
+
+                self.assertEqual(hash_snapshot([creds]), before_hash)
+                after_stat = creds.stat()
+                self.assertEqual(after_stat.st_mtime_ns, before_stat.st_mtime_ns)
+                self.assertEqual(after_stat.st_size, before_stat.st_size)
+                # The launch really ran a writer next to it: the drifted
+                # profile settings were healed to canonical.
+                self.assertEqual(self._read("work")["hooks"], self._canonical_hooks())
 
 
 if __name__ == "__main__":
