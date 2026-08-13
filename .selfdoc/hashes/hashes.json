@@ -50,6 +50,11 @@
     "description": "8c4137327637e2a8f3b5c6f95a7a230ccd9f4fe91c947fea9e724f001d7991db",
     "source_docstring": "8c4137327637e2a8f3b5c6f95a7a230ccd9f4fe91c947fea9e724f001d7991db"
   },
+  "en/claudewheel-deletion_checklist.md": {
+    "content": "7797f7c5c3114158f98592ae2ce1b0bda47cd5a22fed80e40ccf28d5a1dec6e0",
+    "description": "46f833c26aca6a3338232be30c37a2e5db942db8fa1e0a64e26b9d7481ab8e83",
+    "seed_hash": "46f833c26aca6a3338232be30c37a2e5db942db8fa1e0a64e26b9d7481ab8e83"
+  },
   "en/claudewheel-discovery.md": {
     "content": "576d3f1784788a0857b95b5cbd85b568ebd549210d0ed241f8e9a0f0d0dfe1e1",
     "description": "7e7fb434a504cf3fa3085cff75f2cf05d84c88c7373bd0058a4d9cc2858033a0",
@@ -125,10 +130,20 @@
     "description": "d0c760be58f3455ca4fd73a3ab6041550a3d3fd858f701bdd43a5f8f67b87819",
     "source_docstring": "d0c760be58f3455ca4fd73a3ab6041550a3d3fd858f701bdd43a5f8f67b87819"
   },
+  "en/claudewheel-plugins.md": {
+    "content": "0e54ada9a404efc7462151a0b53a8c3f0210cbf91f34e33702565373d323cdac",
+    "description": "d4d75fdf929aae67859dcb2ce0c33842323439cfeaa2bd256949fb06257fdf79",
+    "seed_hash": "d4d75fdf929aae67859dcb2ce0c33842323439cfeaa2bd256949fb06257fdf79"
+  },
   "en/claudewheel-preflight.md": {
     "content": "1a6e7b30d2c5d9df45b7fd04c7cf0778fb960a0ce2875a029536eab399422a42",
     "description": "9bca9cbb0cac41c335a79f3df73c07702e8117213796061bd91218baae3ef8cb",
     "source_docstring": "66671064c047113e3cb1de18b995f2f7e0766324722cab0aea0cdd14d4c0bd32"
+  },
+  "en/claudewheel-processes.md": {
+    "content": "4d63367764f8b822798894bd46a60223e8871274b7709f4cd4b5a38b5fcd5e05",
+    "description": "87b1d6b87645539a7603c8061705b97e21f393dace99016d9875d2818aac95b4",
+    "seed_hash": "87b1d6b87645539a7603c8061705b97e21f393dace99016d9875d2818aac95b4"
   },
   "en/claudewheel-profile.md": {
     "content": "912b63113198ae7bf75a1f7e93eb44e1cd65892c713336d14cd193afce5602f4",
@@ -189,6 +204,11 @@
     "content": "3edf921a6676a721aacccdc1d7a2029b5837e8977e39cd440d935a6848f40a3d",
     "description": "2b08ce2cb44ae42f935be1df46ccdf734ad62753410397b0188e4997c914b491",
     "source_docstring": "2b08ce2cb44ae42f935be1df46ccdf734ad62753410397b0188e4997c914b491"
+  },
+  "en/claudewheel-session_list.md": {
+    "content": "fa57fbf5360da708544d26829a5fb46bb3ee817eda033a7cb5c170cff008866b",
+    "description": "645692978f1658f871c6a0bc7c424f6b05f15782d014f02e29497f46f1273bf2",
+    "seed_hash": "645692978f1658f871c6a0bc7c424f6b05f15782d014f02e29497f46f1273bf2"
   },
   "en/claudewheel-session_registry.md": {
     "content": "0486585a854d87b39e3a73f4deac0a57b70ed7d977aaf51efe9c4059cd228a3e",
@@ -314,6 +334,11 @@
     "description": "95c7ba00eceabedb9094cf03d4bec427ac66090c83714386355a02236d0408f0",
     "schema_hash": "a5857dbc01f32c0a3ecd911a5ffa47d12c35ea11c53b23cce1ba741594b40814"
   },
+  "en/cli-purge-plugins.md": {
+    "content": "80d142798cb69c8d09507cd126fc65ece300dddfa36e27ddf113e145d32efef4",
+    "description": "8bff7d668792997f1a8cc4180f40cd4378183f0d1a396fc4e6cb17e945217f85",
+    "seed_hash": "8bff7d668792997f1a8cc4180f40cd4378183f0d1a396fc4e6cb17e945217f85"
+  },
   "en/cli-reconcile-permissions.md": {
     "content": "c13952baed63eee180ff24438f8b60b1df768a86df8b81615c34416ff73258d3",
     "description": "ffe4c05cd44508e95e978ef50014c8bf877b28db321f68b4e9476c913eb1681c",
@@ -349,9 +374,9 @@
     "description": "7727d0de02a5c1263a26048e71526efc8aeed087fe3a3db982d471969c2a4a35"
   },
   "en/gen-index.md": {
-    "content": "75d145fbb6ecae6e59cd610304fa6ad898654dcf838be494a857a7c88bdd8ee2",
-    "description": "68d2e0d43d15e23a874eba2c802768e324848d8f192521aad4ea0500d265614e",
-    "seed_hash": "68d2e0d43d15e23a874eba2c802768e324848d8f192521aad4ea0500d265614e"
+    "content": "15417f34cc72f5b8c8bbc1e59d6a997f48cc571ad943ac1eb1e7e807ade84b01",
+    "description": "fe9acf3acd36b89004f9b7feeb9847f38b7fc1bfc49d1e420f07ffd658b8449b",
+    "seed_hash": "fe9acf3acd36b89004f9b7feeb9847f38b7fc1bfc49d1e420f07ffd658b8449b"
   },
   "en/getting-started.md": {
     "content": "58c042246e495e0621b239563317043d5802c98a95dbc625dd515cc21194ddd8",

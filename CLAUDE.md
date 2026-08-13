@@ -28,6 +28,7 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 - **claudewheel.config** (`claudewheel/config.py`): The app-config store: the TUI's config/segments/options/state hub.
 - **claudewheel.constants** (`claudewheel/constants.py`): ANSI escape sequences and terminal color helpers.
 - **claudewheel.defaults** (`claudewheel/defaults.py`): Default values for config, segments, options, state, and themes; canonical permission rules and hook wiring are derived from the guardrail model.
+- **claudewheel.deletion_checklist** (`claudewheel/deletion_checklist.py`): Present everything holding a profile, and stop exactly what the user ticks.
 - **claudewheel.discovery** (`claudewheel/discovery.py`): Detect installed web browsers across native, flatpak, and snap sources.
 - **claudewheel.effects** (`claudewheel/effects.py`): The single authorized surface for effectful calls in claudewheel production code.
 - **claudewheel.fuzzy** (`claudewheel/fuzzy.py`): Score, rank, and highlight fuzzy matches between queries and option lists.
@@ -42,7 +43,9 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 - **claudewheel.mv** (`claudewheel/mv.py`): Move session data after a project directory rename.
 - **claudewheel.patch_profiles** (`claudewheel/patch_profiles.py`): Wizard hook-merge helper plus a thin delegate to the unified reconcile core.
 - **claudewheel.permission** (`claudewheel/permission.py`): Core logic for managing profile permission rules.
+- **claudewheel.plugins** (`claudewheel/plugins.py`): Claude Code's plugin tree inside a profile: inventory it, and remove it.
 - **claudewheel.preflight** (`claudewheel/preflight.py`): Pre-launch step framework: a deterministic sequence of gate steps.
+- **claudewheel.processes** (`claudewheel/processes.py`): Measure and stop the processes holding a profile.
 - **claudewheel.profile** (`claudewheel/profile.py`): Resolve a profile name to CLAUDE_CONFIG_DIR and OAuth token env vars.
 - **claudewheel.profile_data** (`claudewheel/profile_data.py`): claudewheel's own data, stored inside each profile directory.
 - **claudewheel.profile_info** (`claudewheel/profile_info.py`): Gather and format a detailed inspection report for a single profile.
@@ -55,6 +58,7 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 - **claudewheel.scratchpad** (`claudewheel/scratchpad.py`): Scan the per-user Claude Code scratchpad tree under /tmp for stale data.
 - **claudewheel.segment** (`claudewheel/segment.py`): Segment and SegmentBar dataclasses, option discovery, and cross-segment constraints.
 - **claudewheel.session** (`claudewheel/session.py`): Session lookup: locate session JSONL files and extract metadata.
+- **claudewheel.session_list** (`claudewheel/session_list.py`): The list component both session screens are drawn with.
 - **claudewheel.session_registry** (`claudewheel/session_registry.py`): Read Claude Code's per-session registry into typed, liveness-checked records.
 - **claudewheel.session_rows** (`claudewheel/session_rows.py`): Render one session registry record as a block of lines, collapsed or expanded.
 - **claudewheel.shared_store** (`claudewheel/shared_store.py`): Thin path owner for the ~/.claudewheel/shared store layout.
@@ -86,6 +90,7 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 | `deploy-hooks` | deploy built-in hook scripts to the ~/.claudewheel/scripts/ directory |
 | `patch-profiles` | reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask); prunes drift and user-added extras -- the old additive, extras-preserving behavior is gone. Deploys any missing guardrail hook scripts. The 'default' profile (~/.claude) is never touched. Preview with --dry-run; writing needs a terminal or --approve-consequential. |
 | `reconcile-permissions` | reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask made exact; allow keeps only its non-conflicting entries); prunes all drift and user-added extras. The 'default' profile (~/.claude) is never touched. Pass --dry-run to preview the per-target diff without writing; writing needs a terminal to confirm at, or --approve-consequential. |
+| `purge-plugins` | remove the Claude Code plugin tree from the selected profiles: the official-marketplace clone and every plugin installed from it, six to ten megabytes per profile. Opt-in and separate from the canonical reconciliation, which is exact and would otherwise delete plugin state on every run. Names the marketplaces and plugins it finds before removing them; --dry-run reports the inventory without touching anything. New launches do not collect a new tree -- the launch environment suppresses the auto-install, one-way per profile. The 'default' profile (~/.claude) is never touched. |
 | `launch` | start the interactive TUI launcher to select a profile, model, and directory |
 | **profile** | create, inspect, rename, delete, and manage Claude Code profiles and their stored tokens |
 | `profile create` | run the create-profile wizard in one continuous alt-screen session: prompt for the profile name, config directory and launch options, write the profile directory together with its symlinks into the shared store, then drive an interactive Claude Code OAuth login so the profile is authenticated before you leave. Requires a real terminal, and prints the summary and auth outcome afterwards |

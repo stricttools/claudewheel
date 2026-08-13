@@ -1,6 +1,6 @@
 ---
 title: API Reference
-description: "API reference index for claudewheel covering 50 modules"
+description: "API reference index for claudewheel covering 54 modules"
 generated: true
 seeded: true
 nav_group: "API Reference"
@@ -22,6 +22,7 @@ order: 90
 - [claudewheel.config](../claudewheel-config/)
 - [claudewheel.constants](../claudewheel-constants/)
 - [claudewheel.defaults](../claudewheel-defaults/)
+- [claudewheel.deletion_checklist](../claudewheel-deletion_checklist/)
 - [claudewheel.discovery](../claudewheel-discovery/)
 - [claudewheel.effects](../claudewheel-effects/)
 - [claudewheel.fuzzy](../claudewheel-fuzzy/)
@@ -36,7 +37,9 @@ order: 90
 - [claudewheel.mv](../claudewheel-mv/)
 - [claudewheel.patch_profiles](../claudewheel-patch_profiles/)
 - [claudewheel.permission](../claudewheel-permission/)
+- [claudewheel.plugins](../claudewheel-plugins/)
 - [claudewheel.preflight](../claudewheel-preflight/)
+- [claudewheel.processes](../claudewheel-processes/)
 - [claudewheel.profile](../claudewheel-profile/)
 - [claudewheel.profile_data](../claudewheel-profile_data/)
 - [claudewheel.profile_info](../claudewheel-profile_info/)
@@ -49,6 +52,7 @@ order: 90
 - [claudewheel.scratchpad](../claudewheel-scratchpad/)
 - [claudewheel.segment](../claudewheel-segment/)
 - [claudewheel.session](../claudewheel-session/)
+- [claudewheel.session_list](../claudewheel-session_list/)
 - [claudewheel.session_registry](../claudewheel-session_registry/)
 - [claudewheel.session_rows](../claudewheel-session_rows/)
 - [claudewheel.shared_store](../claudewheel-shared_store/)

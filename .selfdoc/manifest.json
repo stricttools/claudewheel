@@ -281,6 +281,11 @@
         },
         {
           "level": 4,
+          "text": "`_run_deletion_checklist`",
+          "anchor": "_run_deletion_checklist"
+        },
+        {
+          "level": 4,
           "text": "`_refresh_profile_segment`",
           "anchor": "_refresh_profile_segment"
         },
@@ -599,6 +604,11 @@
         },
         {
           "level": 3,
+          "text": "`_handle_purge_plugins`",
+          "anchor": "_handle_purge_plugins"
+        },
+        {
+          "level": 3,
           "text": "`_handle_permission_add`",
           "anchor": "_handle_permission_add"
         },
@@ -898,6 +908,63 @@
       ]
     },
     {
+      "path": "claudewheel-deletion_checklist.md",
+      "title": "claudewheel.deletion_checklist",
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.deletion_checklist",
+          "anchor": "claudewheeldeletion_checklist"
+        },
+        {
+          "level": 2,
+          "text": "`claudewheel.deletion_checklist`",
+          "anchor": "claudewheeldeletion_checklist"
+        },
+        {
+          "level": 3,
+          "text": "`Holder`",
+          "anchor": "holder"
+        },
+        {
+          "level": 4,
+          "text": "`row`",
+          "anchor": "row"
+        },
+        {
+          "level": 3,
+          "text": "`ChecklistOutcome`",
+          "anchor": "checklistoutcome"
+        },
+        {
+          "level": 3,
+          "text": "`gather_holders`",
+          "anchor": "gather_holders"
+        },
+        {
+          "level": 3,
+          "text": "`stop_order`",
+          "anchor": "stop_order"
+        },
+        {
+          "level": 3,
+          "text": "`Stopper`",
+          "anchor": "stopper"
+        },
+        {
+          "level": 4,
+          "text": "`stop`",
+          "anchor": "stop"
+        },
+        {
+          "level": 3,
+          "text": "`run_checklist`",
+          "anchor": "run_checklist"
+        }
+      ]
+    },
+    {
       "path": "claudewheel-discovery.md",
       "title": "claudewheel.discovery",
       "type": "doc",
@@ -973,6 +1040,11 @@
           "level": 3,
           "text": "`exec_replace`",
           "anchor": "exec_replace"
+        },
+        {
+          "level": 3,
+          "text": "`kill`",
+          "anchor": "kill"
         },
         {
           "level": 3,
@@ -1761,6 +1833,53 @@
       ]
     },
     {
+      "path": "claudewheel-plugins.md",
+      "title": "claudewheel.plugins",
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.plugins",
+          "anchor": "claudewheelplugins"
+        },
+        {
+          "level": 2,
+          "text": "`claudewheel.plugins`",
+          "anchor": "claudewheelplugins"
+        },
+        {
+          "level": 3,
+          "text": "`PluginInventory`",
+          "anchor": "plugininventory"
+        },
+        {
+          "level": 4,
+          "text": "`path`",
+          "anchor": "path"
+        },
+        {
+          "level": 3,
+          "text": "`_names`",
+          "anchor": "_names"
+        },
+        {
+          "level": 3,
+          "text": "`_tree_size`",
+          "anchor": "_tree_size"
+        },
+        {
+          "level": 3,
+          "text": "`inventory`",
+          "anchor": "inventory"
+        },
+        {
+          "level": 3,
+          "text": "`purge`",
+          "anchor": "purge"
+        }
+      ]
+    },
+    {
       "path": "claudewheel-preflight.md",
       "title": "claudewheel.preflight",
       "type": "doc",
@@ -1884,6 +2003,43 @@
           "level": 3,
           "text": "`run_preflight`",
           "anchor": "run_preflight"
+        }
+      ]
+    },
+    {
+      "path": "claudewheel-processes.md",
+      "title": "claudewheel.processes",
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.processes",
+          "anchor": "claudewheelprocesses"
+        },
+        {
+          "level": 2,
+          "text": "`claudewheel.processes`",
+          "anchor": "claudewheelprocesses"
+        },
+        {
+          "level": 3,
+          "text": "`resident_memory`",
+          "anchor": "resident_memory"
+        },
+        {
+          "level": 3,
+          "text": "`stop_daemon`",
+          "anchor": "stop_daemon"
+        },
+        {
+          "level": 3,
+          "text": "`terminate`",
+          "anchor": "terminate"
+        },
+        {
+          "level": 3,
+          "text": "`wait_for_exit`",
+          "anchor": "wait_for_exit"
         }
       ]
     },
@@ -2157,6 +2313,11 @@
         },
         {
           "level": 3,
+          "text": "`DirSurvey`",
+          "anchor": "dirsurvey"
+        },
+        {
+          "level": 3,
           "text": "`ProfileStore`",
           "anchor": "profilestore"
         },
@@ -2164,6 +2325,11 @@
           "level": 4,
           "text": "`path_for`",
           "anchor": "path_for"
+        },
+        {
+          "level": 4,
+          "text": "`reserved_reason`",
+          "anchor": "reserved_reason"
         },
         {
           "level": 4,
@@ -2229,6 +2395,11 @@
           "level": 4,
           "text": "`classify_shared_dirs`",
           "anchor": "classify_shared_dirs"
+        },
+        {
+          "level": 4,
+          "text": "`survey_profile_dir`",
+          "anchor": "survey_profile_dir"
         },
         {
           "level": 4,
@@ -2952,6 +3123,58 @@
       ]
     },
     {
+      "path": "claudewheel-session_list.md",
+      "title": "claudewheel.session_list",
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.session_list",
+          "anchor": "claudewheelsession_list"
+        },
+        {
+          "level": 2,
+          "text": "`claudewheel.session_list`",
+          "anchor": "claudewheelsession_list"
+        },
+        {
+          "level": 3,
+          "text": "`FrameLine`",
+          "anchor": "frameline"
+        },
+        {
+          "level": 3,
+          "text": "`ListRow`",
+          "anchor": "listrow"
+        },
+        {
+          "level": 4,
+          "text": "`selector`",
+          "anchor": "selector"
+        },
+        {
+          "level": 3,
+          "text": "`row_heights`",
+          "anchor": "row_heights"
+        },
+        {
+          "level": 3,
+          "text": "`move_focus`",
+          "anchor": "move_focus"
+        },
+        {
+          "level": 3,
+          "text": "`build_frame`",
+          "anchor": "build_frame"
+        },
+        {
+          "level": 3,
+          "text": "`render_frame`",
+          "anchor": "render_frame"
+        }
+      ]
+    },
+    {
       "path": "claudewheel-session_registry.md",
       "title": "claudewheel.session_registry",
       "type": "doc",
@@ -2983,8 +3206,8 @@
         },
         {
           "level": 3,
-          "text": "`_pid_exists`",
-          "anchor": "_pid_exists"
+          "text": "`pid_exists`",
+          "anchor": "pid_exists"
         },
         {
           "level": 3,
@@ -3529,8 +3752,8 @@
         },
         {
           "level": 3,
-          "text": "`_form_session`",
-          "anchor": "_form_session"
+          "text": "`screen_session`",
+          "anchor": "screen_session"
         },
         {
           "level": 3,
@@ -4193,6 +4416,23 @@
           "level": 2,
           "text": "profile check-tokens",
           "anchor": "profile-check-tokens"
+        }
+      ]
+    },
+    {
+      "path": "cli-purge-plugins.md",
+      "title": "c purge-plugins",
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "c purge-plugins",
+          "anchor": "c-purge-plugins"
+        },
+        {
+          "level": 2,
+          "text": "Flags",
+          "anchor": "flags"
         }
       ]
     },
@@ -4882,6 +5122,11 @@
         },
         {
           "level": 3,
+          "text": "Plugin marketplace suppression",
+          "anchor": "plugin-marketplace-suppression"
+        },
+        {
+          "level": 3,
           "text": "The declared plan",
           "anchor": "the-declared-plan"
         },
@@ -4986,5 +5231,5 @@
     }
   ],
   "posts": [],
-  "last_gen": "2026-08-13T04:59:54.714193+00:00"
+  "last_gen": "2026-08-13T06:37:14.285029+00:00"
 }
