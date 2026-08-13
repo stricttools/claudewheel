@@ -489,8 +489,8 @@
         },
         {
           "level": 3,
-          "text": "`_write_tier_stub`",
-          "anchor": "_write_tier_stub"
+          "text": "`_launch_is_interactive`",
+          "anchor": "_launch_is_interactive"
         },
         {
           "level": 3,
@@ -551,6 +551,11 @@
           "level": 3,
           "text": "`_handle_fix_auth`",
           "anchor": "_handle_fix_auth"
+        },
+        {
+          "level": 3,
+          "text": "`_handle_set_plan`",
+          "anchor": "_handle_set_plan"
         },
         {
           "level": 3,
@@ -636,6 +641,11 @@
           "level": 3,
           "text": "`_inject_launch`",
           "anchor": "_inject_launch"
+        },
+        {
+          "level": 3,
+          "text": "`_plan_choices`",
+          "anchor": "_plan_choices"
         },
         {
           "level": 3,
@@ -1837,6 +1847,16 @@
         },
         {
           "level": 3,
+          "text": "`_prompt_plan`",
+          "anchor": "_prompt_plan"
+        },
+        {
+          "level": 3,
+          "text": "`_plan_declaration_run`",
+          "anchor": "_plan_declaration_run"
+        },
+        {
+          "level": 3,
           "text": "`_make_terminal`",
           "anchor": "_make_terminal"
         },
@@ -1956,6 +1976,11 @@
         },
         {
           "level": 4,
+          "text": "`declares_plan`",
+          "anchor": "declares_plan"
+        },
+        {
+          "level": 4,
           "text": "`plan_env`",
           "anchor": "plan_env"
         },
@@ -1971,8 +1996,8 @@
         },
         {
           "level": 4,
-          "text": "`set_tier`",
-          "anchor": "set_tier"
+          "text": "`set_plan`",
+          "anchor": "set_plan"
         },
         {
           "level": 4,
@@ -3216,6 +3241,11 @@
         },
         {
           "level": 3,
+          "text": "`has_controlling_terminal`",
+          "anchor": "has_controlling_terminal"
+        },
+        {
+          "level": 3,
           "text": "`detect_terminal_background`",
           "anchor": "detect_terminal_background"
         },
@@ -3297,6 +3327,36 @@
           "level": 2,
           "text": "`claudewheel.tokens`",
           "anchor": "claudewheeltokens"
+        },
+        {
+          "level": 3,
+          "text": "`PlanTier`",
+          "anchor": "plantier"
+        },
+        {
+          "level": 4,
+          "text": "`fields`",
+          "anchor": "fields"
+        },
+        {
+          "level": 3,
+          "text": "`apply_plan`",
+          "anchor": "apply_plan"
+        },
+        {
+          "level": 3,
+          "text": "`plan_keys`",
+          "anchor": "plan_keys"
+        },
+        {
+          "level": 3,
+          "text": "`plan_by_key`",
+          "anchor": "plan_by_key"
+        },
+        {
+          "level": 3,
+          "text": "`entry_declares_plan`",
+          "anchor": "entry_declares_plan"
         },
         {
           "level": 3,
@@ -3519,8 +3579,8 @@
         },
         {
           "level": 3,
-          "text": "`_capture_tier_from_credentials`",
-          "anchor": "_capture_tier_from_credentials"
+          "text": "`pick_plan`",
+          "anchor": "pick_plan"
         },
         {
           "level": 3,
@@ -4012,6 +4072,16 @@
         },
         {
           "level": 2,
+          "text": "profile set-plan",
+          "anchor": "profile-set-plan"
+        },
+        {
+          "level": 3,
+          "text": "Arguments",
+          "anchor": "arguments-4"
+        },
+        {
+          "level": 2,
           "text": "profile check-tokens",
           "anchor": "profile-check-tokens"
         }
@@ -4494,13 +4564,18 @@
         },
         {
           "level": 4,
-          "text": "4. approved-hooks",
-          "anchor": "4-approved-hooks"
+          "text": "4. plan-declaration",
+          "anchor": "4-plan-declaration"
         },
         {
           "level": 4,
-          "text": "5. scratchpad-cleanup",
-          "anchor": "5-scratchpad-cleanup"
+          "text": "5. approved-hooks",
+          "anchor": "5-approved-hooks"
+        },
+        {
+          "level": 4,
+          "text": "6. scratchpad-cleanup",
+          "anchor": "6-scratchpad-cleanup"
         },
         {
           "level": 2,
@@ -4698,6 +4773,11 @@
         },
         {
           "level": 3,
+          "text": "The declared plan",
+          "anchor": "the-declared-plan"
+        },
+        {
+          "level": 3,
           "text": "Auth shadow detection",
           "anchor": "auth-shadow-detection"
         },
@@ -4797,5 +4877,5 @@
     }
   ],
   "posts": [],
-  "last_gen": "2026-08-12T23:17:39.009161+00:00"
+  "last_gen": "2026-08-13T00:32:43.418947+00:00"
 }

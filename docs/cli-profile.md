@@ -85,6 +85,19 @@ repair one profile's authentication: strip the session credentials that shadow i
 | --- | --- | --- |
 | `name` | yes | name of the profile to repair: its shadowing session credentials are removed |
 
+## profile set-plan
+
+declare which plan a profile's Claude account is on, without a prompt. Claude Code resolves its subscription tier from the launch environment and only from there when auth is a stored setup token, so an undeclared profile launches with the tier null and tier-dependent features failing closed. Writes both plan fields into the profile's token entry, leaving the token itself alone; the interactive picker in the create flow and the pre-launch prompt write exactly the same thing
+
+**Effect:** mutating
+
+### Arguments
+
+| Name | Required | Description |
+| --- | --- | --- |
+| `name` | yes | name of the profile to declare a plan for (e.g. work, personal) |
+| `plan` | yes | the plan this profile's Claude account is on; each one stores a subscription type and, where Claude Code has one, a rate-limit tier |
+
 ## profile check-tokens
 
 read every discovered profile's own stored OAuth token and validate each one against the Anthropic API, then print a table of profile name, status and a truncated token preview. The status distinguishes a valid token from an invalid one, an unreachable API and an indeterminate answer, and profiles holding no token are listed too
