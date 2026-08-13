@@ -34,6 +34,11 @@ _OPTIONS_DEFAULT: dict[str, Any] = {_PROFILE_SEGMENT: {"values": [], "pinned": [
 # profile_ops.RENAME_PENDING_FILE so both engines recognize the same crumbs.
 _RENAME_PENDING_FILE = ".rename_pending"
 
+# Names that are not claudewheel profiles and can never be created, renamed or
+# deleted through it. One home for the rule: every caller asks
+# ProfileStore.reserved_reason() rather than testing the string itself.
+RESERVED_PROFILE_NAMES: tuple[str, ...] = ("default",)
+
 # Every environment variable ProfileStore.env() can yield -- the profile's
 # identity as Claude Code sees it. The launch path injects these for a named
 # profile and removes them for the vanilla default, so both directions stay in
@@ -108,6 +113,25 @@ class ProfileStore:
         if name == "default":
             return self.claude_dir
         return self.profiles_dir / name
+
+    def reserved_reason(self, name: str) -> str | None:
+        """Why *name* cannot be destroyed here, or None when it can.
+
+        The query every deletion path asks BEFORE it renders anything. It
+        exists because the answer has to arrive earlier than the confirmation:
+        the vanilla ``default`` profile used to reach a data-destruction page
+        advertising a command the store would then refuse, which is a
+        destructive-looking dialogue about an operation that could never
+        happen. The message deliberately names no command -- there is no
+        invocation, forced or otherwise, that deletes ``~/.claude``.
+        """
+        if name in RESERVED_PROFILE_NAMES:
+            return (
+                f"'{name}' is Claude Code's built-in ~/.claude, not a "
+                "claudewheel profile. Claude Code manages it; claudewheel "
+                "neither creates, renames nor deletes it."
+            )
+        return None
 
     def data_for(self, name: str) -> ProfileDataStore:
         """The claudewheel data store inside *name*'s profile directory.
@@ -354,7 +378,7 @@ class ProfileStore:
         """
         self._require_write_stores()
         assert self.shared is not None and self.options is not None  # for type-checkers
-        if name == "default":
+        if name in RESERVED_PROFILE_NAMES:
             raise ValueError(f"'{name}' is a reserved name")
         target = self.path_for(name)
         if target.exists():
@@ -485,14 +509,17 @@ class ProfileStore:
           profiles listed), mirroring the old "not-found" refusal
         - real data at a shared-dir name without *allow_data_destruction* ->
           ``ValueError`` naming the offending entries (old "data-destruction")
+
+        The reserved-name refusal is checked first, ahead of the write-store
+        requirement: callers consult :meth:`reserved_reason` before they render
+        anything, and this backstop must give the same answer whatever else is
+        or is not wired up.
         """
+        reserved = self.reserved_reason(name)
+        if reserved is not None:
+            raise ValueError(reserved)
         self._require_write_stores()
         assert self.options is not None
-        if name == "default":
-            raise ValueError(
-                f"'{name}' is Claude Code's built-in ~/.claude, not a "
-                "claudewheel profile; refusing to delete it."
-            )
 
         options = self.options.load(_OPTIONS_DEFAULT)
         profile_sec = options.get(_PROFILE_SEGMENT, {})
@@ -554,8 +581,9 @@ class ProfileStore:
         """
         self._require_write_stores()
         assert self.options is not None
-        if old == "default" or new == "default":
-            raise ValueError("'default' cannot be renamed to or from")
+        for candidate in (old, new):
+            if candidate in RESERVED_PROFILE_NAMES:
+                raise ValueError(f"'{candidate}' cannot be renamed to or from")
         old_dir = self.path_for(old)
         new_dir = self.path_for(new)
         if not old_dir.is_dir():

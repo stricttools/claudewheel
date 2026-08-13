@@ -1934,6 +1934,7 @@ class DeleteProfileHandlerTests(unittest.TestCase):
         """--force-delete skips the running check; --force-delete-data maps to
         allow_data_destruction on ProfileStore.delete."""
         mock_store = mock.MagicMock()
+        mock_store.reserved_reason.return_value = None
         mock_store.delete.return_value = self._ok_result()
         ws = mock.MagicMock()
         ws.profiles = mock_store
@@ -1954,6 +1955,7 @@ class DeleteProfileHandlerTests(unittest.TestCase):
     def test_default_flags_off(self) -> None:
         """No force flags: running check runs, allow_data_destruction is False."""
         mock_store = mock.MagicMock()
+        mock_store.reserved_reason.return_value = None
         mock_store.delete.return_value = self._ok_result()
         ws = mock.MagicMock()
         ws.profiles = mock_store
@@ -1975,6 +1977,7 @@ class DeleteProfileHandlerTests(unittest.TestCase):
     def test_running_profile_blocked_without_force(self) -> None:
         """A running profile is refused (CLI policy) unless --force-delete."""
         mock_store = mock.MagicMock()
+        mock_store.reserved_reason.return_value = None
         err = io.StringIO()
         ws = mock.MagicMock()
         ws.profiles = mock_store
@@ -1997,6 +2000,7 @@ class DeleteProfileHandlerTests(unittest.TestCase):
     def test_store_refusal_exits_1(self) -> None:
         """A ValueError refusal from the store prints and exits 1."""
         mock_store = mock.MagicMock()
+        mock_store.reserved_reason.return_value = None
         mock_store.delete.side_effect = ValueError("Profile 'work' not found")
         err = io.StringIO()
         ws = mock.MagicMock()
@@ -2016,10 +2020,40 @@ class DeleteProfileHandlerTests(unittest.TestCase):
         self.assertEqual(ctx.exception.code, 1)
         self.assertIn("not found", err.getvalue())
 
+    def test_a_reserved_name_is_refused_before_anything_is_read(self) -> None:
+        """The query answers first: no registry read, no store call, no
+        destructive command suggested."""
+        mock_store = mock.MagicMock()
+        mock_store.reserved_reason.return_value = (
+            "'default' is Claude Code's built-in ~/.claude, not a claudewheel "
+            "profile. Claude Code manages it; claudewheel neither creates, "
+            "renames nor deletes it."
+        )
+        ws = mock.MagicMock()
+        ws.profiles = mock_store
+        err = io.StringIO()
+        with (
+            mock.patch(
+                "claudewheel.session_registry.live_records", autospec=True
+            ) as mock_records,
+            redirect_stderr(err),
+        ):
+            with self.assertRaises(SystemExit) as ctx:
+                cli._handle_delete_profile(
+                    ws, "default", force_delete=False, force_delete_data=False
+                )
+        self.assertEqual(ctx.exception.code, 1)
+        mock_records.assert_not_called()
+        mock_store.delete.assert_not_called()
+        message = err.getvalue()
+        self.assertIn("~/.claude", message)
+        self.assertNotIn("--force", message)
+
     def test_surviving_holders_are_named_rather_than_ignored(self) -> None:
         """The headless path stops nothing, so it says what still holds the
         profile instead of claiming the directory is gone."""
         mock_store = mock.MagicMock()
+        mock_store.reserved_reason.return_value = None
         mock_store.delete.return_value = self._ok_result()
         ws = mock.MagicMock()
         ws.profiles = mock_store
@@ -2044,6 +2078,7 @@ class DeleteProfileHandlerTests(unittest.TestCase):
 
     def test_no_holders_reports_a_plain_deletion(self) -> None:
         mock_store = mock.MagicMock()
+        mock_store.reserved_reason.return_value = None
         mock_store.delete.return_value = self._ok_result()
         ws = mock.MagicMock()
         ws.profiles = mock_store
@@ -2076,6 +2111,7 @@ class DeleteProfileHandlerTests(unittest.TestCase):
             return []
 
         mock_store = mock.MagicMock()
+        mock_store.reserved_reason.return_value = None
         mock_store.delete.side_effect = record_delete
         ws = mock.MagicMock()
         ws.profiles = mock_store

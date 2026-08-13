@@ -433,6 +433,45 @@ class ProfileStoreContractTests(SandboxHomeTestCase):
         self.assertEqual(env["CLAUDE_CODE_OAUTH_TOKEN"], "tok-alpha")
 
 
+class ReservedNameTests(SandboxHomeTestCase):
+    """The one query every caller asks before offering to destroy a profile."""
+
+    def _store(self) -> ProfileStore:
+        return ProfileStore(
+            profiles_dir=self.sandbox_paths["PROFILES_DIR"],
+            claude_dir=self.home / ".claude",
+        )
+
+    def test_the_vanilla_profile_is_reserved(self) -> None:
+        reason = self._store().reserved_reason("default")
+        self.assertIsNotNone(reason)
+        assert reason is not None
+        self.assertIn("default", reason)
+        self.assertIn("~/.claude", reason)
+
+    def test_the_reason_suggests_no_destructive_command(self) -> None:
+        """A command that can never succeed must not be advertised."""
+        reason = self._store().reserved_reason("default")
+        assert reason is not None
+        self.assertNotIn("--force", reason)
+        self.assertNotIn("profile delete", reason)
+
+    def test_an_ordinary_name_is_not_reserved(self) -> None:
+        self.assertIsNone(self._store().reserved_reason("work"))
+
+    def test_the_reserved_set_is_stated_once(self) -> None:
+        from claudewheel.profile_store import RESERVED_PROFILE_NAMES
+
+        self.assertEqual(RESERVED_PROFILE_NAMES, ("default",))
+
+    def test_delete_refuses_with_the_same_reason(self) -> None:
+        """The store's own backstop reads the query rather than a second copy."""
+        store = self._store()
+        with self.assertRaises(ValueError) as ctx:
+            store.delete("default")
+        self.assertEqual(str(ctx.exception), store.reserved_reason("default"))
+
+
 if __name__ == "__main__":
     import unittest
 

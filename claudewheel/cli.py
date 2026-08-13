@@ -399,6 +399,14 @@ def _handle_delete_profile(
     """
     from . import session_registry
 
+    # The reserved-name query comes first, before anything is read or printed:
+    # a name claudewheel does not own has no holders worth listing and no
+    # deletion to describe.
+    reserved = ws.profiles.reserved_reason(name)
+    if reserved is not None:
+        print(reserved, file=sys.stderr)
+        sys.exit(1)
+
     # Read the holders while the registry still exists -- it lives inside the
     # directory this command is about to remove.
     holders = session_registry.live_records(ws.profiles.path_for(name))
@@ -493,6 +501,7 @@ def _handle_rename_profile(ws: "Workspace", old: str, new: str) -> int:
     import re
     from .appdata import OptionsFile
     from .profile_ops import _is_profile_running
+    from .profile_store import RESERVED_PROFILE_NAMES
 
     # Validate old exists
     old_dir = ws.profiles.path_for(old)
@@ -514,9 +523,9 @@ def _handle_rename_profile(ws: "Workspace", old: str, new: str) -> int:
         )
         sys.exit(1)
 
-    # Validate not reserved
-    if new == "default":
-        print("Cannot rename to 'default': reserved name.", file=sys.stderr)
+    # Validate not reserved -- the store owns the set of names it will not take.
+    if new in RESERVED_PROFILE_NAMES:
+        print(f"Cannot rename to '{new}': reserved name.", file=sys.stderr)
         sys.exit(1)
 
     # Validate not already taken

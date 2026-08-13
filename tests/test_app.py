@@ -1579,6 +1579,9 @@ class ProfileDeleteKeyTests(unittest.TestCase):
             report = self._report()
 
         self._store = mock.MagicMock()
+        # Not reserved unless a test says so: a MagicMock's default answer is
+        # truthy, which would make every profile look like ~/.claude.
+        self._store.reserved_reason.return_value = None
         if raises is not None:
             self._store.delete.side_effect = raises
         else:
@@ -1669,6 +1672,42 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         with gather as mock_gather, ws, sel, page:
             app._handle_key("DELETE")
         mock_gather.assert_called_once_with(app.workspace, "work")
+
+    # -- reserved names -------------------------------------------------------
+
+    def test_the_vanilla_profile_gets_its_own_page_before_anything_else(self) -> None:
+        """No inspection, no confirmation, and no command to run."""
+        seg = _make_profile_segment(discovered=["default"])
+        seg.select_value("default")
+        app = self._make_app(seg)
+        gather, ws, sel, page = self._flow_mocks(app, selection="delete")
+        self._store.reserved_reason.return_value = (
+            "'default' is Claude Code's built-in ~/.claude, not a claudewheel "
+            "profile. Claude Code manages it; claudewheel neither creates, "
+            "renames nor deletes it."
+        )
+        with gather as mock_gather, ws, sel as mock_sel, page as mock_page:
+            app._handle_key("CTRL_D")
+
+        mock_gather.assert_not_called()
+        mock_sel.assert_not_called()
+        self._store.delete.assert_not_called()
+        mock_page.assert_called_once()
+        title, lines = mock_page.call_args[0][0], mock_page.call_args[0][1]
+        self.assertIn("default", title)
+        joined = "\n".join(lines)
+        self.assertNotIn("--force", joined)
+        self.assertNotIn("profile delete", joined)
+
+    def test_an_ordinary_profile_passes_the_reserved_query(self) -> None:
+        seg = _make_profile_segment(discovered=["work"])
+        seg.select_value("work")
+        app = self._make_app(seg)
+        gather, ws, sel, page = self._flow_mocks(app, selection="delete")
+        self._store.reserved_reason.return_value = None
+        with gather, ws, sel, page:
+            app._handle_key("CTRL_D")
+        self._store.delete.assert_called_once_with("work")
 
     # -- danger hard-block ---------------------------------------------------
 

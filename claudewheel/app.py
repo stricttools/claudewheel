@@ -6,6 +6,7 @@ import copy
 import os
 import signal
 import sys
+import textwrap
 import threading
 import time
 from collections.abc import Callable
@@ -1125,8 +1126,10 @@ class App:
     def _delete_profile_flow(self, seg: Segment) -> None:
         """Confirm and delete the focused profile from the TUI.
 
-        Profiles holding REAL data at shared-dir names are hard-blocked
-        with a fullscreen page pointing at the CLI escape hatch -- the TUI
+        A reserved name is answered first, with its own page and no command to
+        run -- before any inspection, any confirmation and any page about
+        destroying data. Profiles holding REAL data at shared-dir names are
+        hard-blocked with a fullscreen page pointing at the CLI escape hatch -- the TUI
         offers no override. Otherwise an informed two-option confirm runs
         (Cancel default-focused). The running check stays CLI/TUI policy;
         the actual deletion goes through ProfileStore.delete (no force
@@ -1138,6 +1141,20 @@ class App:
         # The delete path only runs for a selected profile, so value is non-None.
         name = seg.value
         assert name is not None
+
+        # The reserved-name query runs before anything is gathered or drawn.
+        # Without it the vanilla profile reached the data-destruction page
+        # below and was told to run a command the store would then refuse.
+        reserved = self.workspace.profiles.reserved_reason(name)
+        if reserved is not None:
+            show_page(
+                f"Cannot delete '{name}'",
+                textwrap.wrap(reserved, width=56),
+                self.theme,
+                self.terminal,
+            )
+            return
+
         report = gather_profile_info(self.workspace, name)
 
         if report.danger:

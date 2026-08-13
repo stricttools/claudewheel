@@ -17,6 +17,7 @@ from .discovery import detect_browsers
 from . import effects
 from .effects import write_json_atomic
 from .patch_profiles import merge_hooks
+from .profile_store import RESERVED_PROFILE_NAMES
 from .state import AUTH_BROWSER_KEY
 from .terminal import Terminal
 from .tokens import PLAN_TIERS, PlanTier, TokenExpiryDisposition, plan_by_key
@@ -92,7 +93,7 @@ def _validate_name(
         return "Name cannot be empty"
     if not re.match(r"^[a-z0-9][a-z0-9-]*$", name):
         return "Use lowercase letters, digits, hyphens only"
-    if name == "default":
+    if name in RESERVED_PROFILE_NAMES:
         return f"'{name}' is a reserved name"
     config_dir = ws.profiles.path_for(name)
     if config_dir.exists():
