@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import copy
+import os
 import signal
 import sys
 import threading
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from types import FrameType
@@ -15,6 +17,7 @@ from .config import AppConfigStore, resolve_theme_name
 
 if TYPE_CHECKING:
     from .binaries import BinaryLocator
+    from .deletion_checklist import ChecklistOutcome
 from .segment import (
     DiscoveryResult,
     Segment,
@@ -25,6 +28,7 @@ from .segment import (
     _discover_profiles,
     _update_auth_from_metadata,
 )
+from .session_registry import SessionRecord
 from .terminal import Terminal, detect_mode2031_support
 from .theme import parse_theme
 from .renderer import Renderer
@@ -1179,10 +1183,27 @@ class App:
         if choice != "delete":
             return
 
+        # STOP FIRST, REMOVE SECOND -- never the reverse. Every surviving
+        # Claude Code process still holds CLAUDE_CONFIG_DIR pointing at this
+        # directory, and any invocation of the client recreates its config
+        # directory before doing anything else (a read-only status query does
+        # it; so does the daemon-stop command itself). Stopping after the
+        # removal would therefore resurrect the profile as a husk. The
+        # checklist stops only what the user ticks, so what it leaves running
+        # is reported below rather than pretended away.
+        still_holding: tuple[SessionRecord, ...] = ()
+        if report.active_sessions > 0:
+            outcome = self._run_deletion_checklist(name)
+            if not outcome.confirmed:
+                return
+            still_holding = outcome.still_holding
+
         # Running check is TUI policy (ProfileStore.delete does not enforce it).
         # Only a live interactive session blocks: background jobs and daemons
-        # hold the profile too, but they are not a person at a terminal.
-        if report.interactive_sessions > 0:
+        # hold the profile too, but they are not a person at a terminal. It is
+        # asked of what is STILL holding the profile, so an interactive session
+        # the user ticked and stopped no longer vetoes.
+        if any(record.interactive for record in still_holding):
             self._flash = f"Not deleted: '{name}' has a live interactive session"
             return
 
@@ -1202,7 +1223,43 @@ class App:
         seg.state.metadata.pop(name, None)
         seg.selected_value = None
         self._refresh_profile_segment(seg)
-        self._flash = f"Deleted profile '{name}'"
+        if still_holding:
+            # Not "deleted and gone": these processes still carry the config
+            # dir and will recreate it on their next write.
+            self._flash = (
+                f"Deleted profile '{name}'; {len(still_holding)} process(es) "
+                "still hold it and may recreate the directory"
+            )
+        else:
+            self._flash = f"Deleted profile '{name}'"
+
+    def _run_deletion_checklist(self, name: str) -> "ChecklistOutcome":
+        """Show what holds *name* and stop whatever the user ticks.
+
+        The daemon and its workers arrive pre-ticked; everything else is listed
+        untouched. Returns the screen's outcome -- whether the deletion was
+        confirmed, and what is still holding the profile afterwards.
+        """
+        from .deletion_checklist import ChecklistOutcome, gather_holders, run_checklist
+        from .session_rows import current_identity
+
+        config_dir = self.workspace.profiles.path_for(name)
+        holders = gather_holders(config_dir)
+        if not holders:
+            # The registry emptied between the report and here: nothing to ask
+            # about, and an empty screen would be a question with no options.
+            return ChecklistOutcome(confirmed=True)
+        return run_checklist(
+            holders,
+            profile_name=name,
+            config_dir=config_dir,
+            binary=self._locator.fallback,
+            env=os.environ,
+            theme=self.theme,
+            terminal=self.terminal,
+            now_ms=int(time.time() * 1000),
+            identity=current_identity(os.environ),
+        )
 
     def _refresh_profile_segment(self, seg: Segment) -> None:
         """Re-run profile discovery and update the segment's auth status."""

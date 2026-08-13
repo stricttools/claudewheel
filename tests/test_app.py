@@ -37,6 +37,15 @@ def _make_profile_segment(
     return seg
 
 
+def _session_record(pid: int, kind: str) -> Any:
+    """A live registry record, for the holder lists a checklist outcome carries."""
+    from claudewheel.session_registry import SessionRecord
+
+    return SessionRecord(
+        path=Path(f"/tmp/sessions/{pid}.json"), pid=pid, kind=kind, live=True
+    )
+
+
 def _wizard_mocks(
     wizard_result: mock.MagicMock, fresh_result: DiscoveryResult | None = None
 ) -> list[Any]:
@@ -1787,9 +1796,29 @@ class ProfileDeleteKeyTests(unittest.TestCase):
 
     # -- refusals -------------------------------------------------------------
 
+    def _checklist(
+        self,
+        app: Any,
+        *,
+        confirmed: bool = True,
+        stopped: tuple[Any, ...] = (),
+        still_holding: tuple[Any, ...] = (),
+    ) -> Any:
+        """Patch the checklist screen with a decided outcome."""
+        from claudewheel.deletion_checklist import ChecklistOutcome
+
+        return mock.patch.object(
+            app,
+            "_run_deletion_checklist",
+            autospec=True,
+            return_value=ChecklistOutcome(
+                confirmed=confirmed, stopped=stopped, still_holding=still_holding
+            ),
+        )
+
     def test_running_profile_blocked_and_skips_cleanup(self) -> None:
-        """A profile holding a live interactive session is refused (TUI policy)
-        before the store is touched; no cleanup happens."""
+        """A profile still holding a live interactive session after the
+        checklist is refused (TUI policy); no cleanup happens."""
         seg = _make_profile_segment(discovered=["work"])
         seg.select_value("work")
         state = {"last_config": {"profile": "work"}}
@@ -1798,7 +1827,13 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         report.active_sessions = 1
         report.interactive_sessions = 1
         gather, ws, sel, page = self._flow_mocks(app, report=report, selection="delete")
-        with gather, ws, sel, page:
+        with (
+            gather,
+            ws,
+            sel,
+            page,
+            self._checklist(app, still_holding=(_session_record(1, "interactive"),)),
+        ):
             app._handle_key("CTRL_D")
         self.assertIn("live interactive session", app._flash)
         self._store.delete.assert_not_called()
@@ -1817,8 +1852,119 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         report.active_sessions = 2
         report.interactive_sessions = 0
         gather, ws, sel, page = self._flow_mocks(app, report=report, selection="delete")
-        with gather, ws, sel, page:
+        with (
+            gather,
+            ws,
+            sel,
+            page,
+            self._checklist(app, still_holding=(_session_record(7, "bg"),)),
+        ):
             app._handle_key("CTRL_D")
+        self._store.delete.assert_called_once_with("work")
+
+    # -- the deletion checklist (decision 10) ---------------------------------
+
+    def test_the_checklist_runs_before_the_removal(self) -> None:
+        """Stop-then-remove: the screen is shown while the directory still
+        exists, because any client invocation would recreate it afterwards."""
+        seg = _make_profile_segment(discovered=["work"])
+        seg.select_value("work")
+        app = self._make_app(seg)
+        report = self._report()
+        report.active_sessions = 1
+        order: list[str] = []
+        gather, ws, sel, page = self._flow_mocks(app, report=report, selection="delete")
+        self._store.delete.side_effect = lambda *a, **k: order.append("delete")
+
+        from claudewheel.deletion_checklist import ChecklistOutcome
+
+        def checklist(name: str) -> ChecklistOutcome:
+            order.append("checklist")
+            return ChecklistOutcome(confirmed=True)
+
+        with (
+            gather,
+            ws,
+            sel,
+            page,
+            mock.patch.object(app, "_run_deletion_checklist", side_effect=checklist),
+        ):
+            app._handle_key("CTRL_D")
+        self.assertEqual(order, ["checklist", "delete"])
+
+    def test_no_live_session_shows_no_checklist(self) -> None:
+        """Nothing holds the profile, so there is nothing to ask about."""
+        seg = _make_profile_segment(discovered=["work"])
+        seg.select_value("work")
+        app = self._make_app(seg)
+        report = self._report()
+        report.active_sessions = 0
+        gather, ws, sel, page = self._flow_mocks(app, report=report, selection="delete")
+        with (
+            gather,
+            ws,
+            sel,
+            page,
+            mock.patch.object(
+                app, "_run_deletion_checklist", autospec=True
+            ) as checklist,
+        ):
+            app._handle_key("CTRL_D")
+        checklist.assert_not_called()
+        self._store.delete.assert_called_once_with("work")
+
+    def test_cancelling_the_checklist_cancels_the_deletion(self) -> None:
+        seg = _make_profile_segment(discovered=["work"])
+        seg.select_value("work")
+        app = self._make_app(seg)
+        report = self._report()
+        report.active_sessions = 1
+        gather, ws, sel, page = self._flow_mocks(app, report=report, selection="delete")
+        with gather, ws, sel, page, self._checklist(app, confirmed=False):
+            app._handle_key("CTRL_D")
+        self._store.delete.assert_not_called()
+        self.assertEqual(seg.value, "work")
+
+    def test_every_holder_stopped_reports_a_plain_deletion(self) -> None:
+        seg = _make_profile_segment(discovered=["work"])
+        seg.select_value("work")
+        app = self._make_app(seg)
+        report = self._report()
+        report.active_sessions = 2
+        gather, ws, sel, page = self._flow_mocks(app, report=report, selection="delete")
+        with (
+            gather,
+            ws,
+            sel,
+            page,
+            self._checklist(
+                app,
+                stopped=(_session_record(1, "daemon"), _session_record(2, "bg")),
+                still_holding=(),
+            ),
+        ):
+            app._handle_key("CTRL_D")
+        self.assertEqual(app._flash, "Deleted profile 'work'")
+
+    def test_a_holder_left_running_is_named_rather_than_ignored(self) -> None:
+        """The flow says the directory may come back instead of claiming it is
+        gone."""
+        seg = _make_profile_segment(discovered=["work"])
+        seg.select_value("work")
+        app = self._make_app(seg)
+        report = self._report()
+        report.active_sessions = 1
+        gather, ws, sel, page = self._flow_mocks(app, report=report, selection="delete")
+        with (
+            gather,
+            ws,
+            sel,
+            page,
+            self._checklist(app, still_holding=(_session_record(9, "bg"),)),
+        ):
+            app._handle_key("CTRL_D")
+        self.assertIn("still hold it", app._flash)
+        self.assertIn("recreate", app._flash)
         self._store.delete.assert_called_once_with("work")
 
     def test_store_refusal_flashes_message(self) -> None:

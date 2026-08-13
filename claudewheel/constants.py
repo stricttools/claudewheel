@@ -34,6 +34,11 @@ def bg_rgb(r: int, g: int, b: int) -> str:
 
 RESET = csi("0m")
 BOLD = csi("1m")
+# The terminal's own green and red, used for state indicators whose meaning is
+# fixed ("still running" / "stopped") rather than themed: every other colour in
+# claudewheel comes from the theme's hex values.
+GREEN = csi("32m")
+RED = csi("31m")
 DIM = csi("2m")
 INVERSE = csi("7m")
 HIDE_CURSOR = csi("?25l")

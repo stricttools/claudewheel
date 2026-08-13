@@ -1904,6 +1904,19 @@ class ShowProfileCommandTests(unittest.TestCase):
         self.assertNotIn("Traceback", msg)
 
 
+def _live_record(pid: int, kind: str, name: str | None = None) -> Any:
+    """A live registry record, as the delete handler reads them."""
+    from claudewheel.session_registry import SessionRecord
+
+    return SessionRecord(
+        path=Path(f"/tmp/sessions/{pid}.json"),
+        pid=pid,
+        kind=kind,
+        live=True,
+        name=name,
+    )
+
+
 class DeleteProfileHandlerTests(unittest.TestCase):
     """_handle_delete_profile: running check (CLI policy) + ProfileStore.delete."""
 
@@ -1926,15 +1939,16 @@ class DeleteProfileHandlerTests(unittest.TestCase):
         ws.profiles = mock_store
         with (
             mock.patch(
-                "claudewheel.profile_ops._is_profile_running", autospec=True
-            ) as mock_run,
+                "claudewheel.session_registry.live_records",
+                autospec=True,
+                return_value=[_live_record(1, "interactive")],
+            ),
             redirect_stdout(io.StringIO()),
         ):
             rc = cli._handle_delete_profile(
                 ws, "work", force_delete=True, force_delete_data=True
             )
-        self.assertEqual(rc, 0)
-        mock_run.assert_not_called()  # force-delete skips the running check
+        self.assertEqual(rc, 0)  # force-delete skips the running check
         mock_store.delete.assert_called_once_with("work", allow_data_destruction=True)
 
     def test_default_flags_off(self) -> None:
@@ -1945,17 +1959,17 @@ class DeleteProfileHandlerTests(unittest.TestCase):
         ws.profiles = mock_store
         with (
             mock.patch(
-                "claudewheel.profile_ops._is_profile_running",
+                "claudewheel.session_registry.live_records",
                 autospec=True,
-                return_value=False,
-            ) as mock_run,
+                return_value=[],
+            ) as mock_records,
             redirect_stdout(io.StringIO()),
         ):
             rc = cli._handle_delete_profile(
                 ws, "work", force_delete=False, force_delete_data=False
             )
         self.assertEqual(rc, 0)
-        mock_run.assert_called_once_with(ws, "work")
+        mock_records.assert_called_once()
         mock_store.delete.assert_called_once_with("work", allow_data_destruction=False)
 
     def test_running_profile_blocked_without_force(self) -> None:
@@ -1966,9 +1980,9 @@ class DeleteProfileHandlerTests(unittest.TestCase):
         ws.profiles = mock_store
         with (
             mock.patch(
-                "claudewheel.profile_ops._is_profile_running",
+                "claudewheel.session_registry.live_records",
                 autospec=True,
-                return_value=True,
+                return_value=[_live_record(1, "interactive")],
             ),
             redirect_stderr(err),
         ):
@@ -1989,9 +2003,9 @@ class DeleteProfileHandlerTests(unittest.TestCase):
         ws.profiles = mock_store
         with (
             mock.patch(
-                "claudewheel.profile_ops._is_profile_running",
+                "claudewheel.session_registry.live_records",
                 autospec=True,
-                return_value=False,
+                return_value=[],
             ),
             redirect_stderr(err),
         ):
@@ -2001,6 +2015,82 @@ class DeleteProfileHandlerTests(unittest.TestCase):
                 )
         self.assertEqual(ctx.exception.code, 1)
         self.assertIn("not found", err.getvalue())
+
+    def test_surviving_holders_are_named_rather_than_ignored(self) -> None:
+        """The headless path stops nothing, so it says what still holds the
+        profile instead of claiming the directory is gone."""
+        mock_store = mock.MagicMock()
+        mock_store.delete.return_value = self._ok_result()
+        ws = mock.MagicMock()
+        ws.profiles = mock_store
+        out = io.StringIO()
+        with (
+            mock.patch(
+                "claudewheel.session_registry.live_records",
+                autospec=True,
+                return_value=[_live_record(4242, "bg", "nightly-run")],
+            ),
+            redirect_stdout(out),
+        ):
+            rc = cli._handle_delete_profile(
+                ws, "work", force_delete=False, force_delete_data=False
+            )
+        self.assertEqual(rc, 0)
+        printed = out.getvalue()
+        self.assertIn("4242", printed)
+        self.assertIn("nightly-run", printed)
+        self.assertIn("recreate the directory", printed)
+        self.assertNotIn("Profile 'work' deleted.", printed)
+
+    def test_no_holders_reports_a_plain_deletion(self) -> None:
+        mock_store = mock.MagicMock()
+        mock_store.delete.return_value = self._ok_result()
+        ws = mock.MagicMock()
+        ws.profiles = mock_store
+        out = io.StringIO()
+        with (
+            mock.patch(
+                "claudewheel.session_registry.live_records",
+                autospec=True,
+                return_value=[],
+            ),
+            redirect_stdout(out),
+        ):
+            cli._handle_delete_profile(
+                ws, "work", force_delete=False, force_delete_data=False
+            )
+        self.assertIn("Profile 'work' deleted.", out.getvalue())
+
+    def test_the_registry_is_read_before_the_removal(self) -> None:
+        """The registry lives inside the directory being removed, so reading it
+        afterwards would always answer 'nothing holds this'."""
+        order: list[str] = []
+        result = self._ok_result()
+
+        def record_delete(*args: Any, **kwargs: Any) -> Any:
+            order.append("delete")
+            return result
+
+        def record_read(config_dir: Any) -> list[Any]:
+            order.append("read")
+            return []
+
+        mock_store = mock.MagicMock()
+        mock_store.delete.side_effect = record_delete
+        ws = mock.MagicMock()
+        ws.profiles = mock_store
+        with (
+            mock.patch(
+                "claudewheel.session_registry.live_records",
+                autospec=True,
+                side_effect=record_read,
+            ),
+            redirect_stdout(io.StringIO()),
+        ):
+            cli._handle_delete_profile(
+                ws, "work", force_delete=False, force_delete_data=False
+            )
+        self.assertEqual(order, ["read", "delete"])
 
 
 class ProfileGroupDispatchTests(unittest.TestCase):

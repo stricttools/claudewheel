@@ -387,11 +387,24 @@ def _handle_new_profile(ws: "Workspace", locator: "BinaryLocator") -> int:
 def _handle_delete_profile(
     ws: "Workspace", name: str, force_delete: bool, force_delete_data: bool
 ) -> int:
-    """Delete a profile via ProfileStore. The running check is CLI policy."""
-    from .profile_ops import _is_profile_running
+    """Delete a profile via ProfileStore. The running check is CLI policy.
+
+    This is the scripted door, so it stops nothing: the interactive checklist
+    that offers to stop the processes holding a profile belongs to the TUI,
+    where there is a person to tick the boxes. What this path does instead is
+    refuse to be silent about them -- every live holder is read BEFORE the
+    removal (afterwards the registry is gone with the directory) and named in
+    the summary, because a surviving process still carries CLAUDE_CONFIG_DIR
+    and recreates the directory on its next write.
+    """
+    from . import session_registry
+
+    # Read the holders while the registry still exists -- it lives inside the
+    # directory this command is about to remove.
+    holders = session_registry.live_records(ws.profiles.path_for(name))
 
     # Running check is CLI policy (ProfileStore.delete does not enforce it).
-    if not force_delete and _is_profile_running(ws, name):
+    if not force_delete and any(record.interactive for record in holders):
         print(
             f"Profile '{name}' has a live interactive session. "
             "Use --force-delete to delete anyway.",
@@ -424,8 +437,20 @@ def _handle_delete_profile(
             f"  {'Would clear' if previewing else 'Cleared'} last_config "
             "profile reference in state.json"
         )
+    if holders:
+        pids = ", ".join(f"{r.name or r.kind} (pid {r.pid})" for r in holders)
+        print(
+            f"  {len(holders)} process(es) still hold this profile: {pids}. "
+            "They carry CLAUDE_CONFIG_DIR and will recreate the directory on "
+            "their next write -- stop them, or delete the profile from the TUI, "
+            "which offers to stop them for you."
+        )
     if previewing:
         print(f"Would delete profile '{name}'.")
+    elif holders:
+        print(
+            f"Profile '{name}' deleted, but {len(holders)} process(es) still hold it."
+        )
     else:
         print(f"Profile '{name}' deleted.")
     return 0

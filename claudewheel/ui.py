@@ -282,10 +282,13 @@ def _render_form_inline(
 
 
 @contextlib.contextmanager
-def _form_session(
+def screen_session(
     terminal: Terminal, use_alt_screen: bool, render: Callable[[], None]
 ) -> Iterator[None]:
-    """Signal swap and raw-mode ownership around a form or page.
+    """Signal swap and raw-mode ownership around a form, page or screen.
+
+    Public because every fullscreen surface in the package borrows it: the form
+    runner, :func:`show_page`, and the session screens' own key loops.
 
     Borrowed mode (terminal already raw): render only -- never enter or exit
     raw mode, and never close. Owned mode (cooked terminal): enter_raw at
@@ -374,7 +377,7 @@ def run_form(
             return None
         return {f.key: f.value for f in fields}
 
-    with _form_session(terminal, use_alt_screen, render):
+    with screen_session(terminal, use_alt_screen, render):
         try:
             render()
             while True:
@@ -480,7 +483,7 @@ def show_page(
         buf.append(move_to(rows, 2) + theme.forms_hint_fg + hint + RESET)
         terminal.write("".join(buf))
 
-    with _form_session(terminal, True, render):
+    with screen_session(terminal, True, render):
         render()
         try:
             return terminal.read_key()

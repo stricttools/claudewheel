@@ -717,7 +717,7 @@ class ShowPageTests(FormRunnerTestBase):
 
 
 class FormSessionSignalTests(unittest.TestCase):
-    """_form_session must save/restore SIGTERM and SIGHUP alongside SIGWINCH."""
+    """screen_session must save/restore SIGTERM and SIGHUP alongside SIGWINCH."""
 
     def setUp(self) -> None:
         self._signal_patch = mock.patch(
