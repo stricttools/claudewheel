@@ -195,6 +195,11 @@
     "description": "84b5187de75fe8d35210b59a3c177a3fb5f4459624535162684289d8df5c9762",
     "source_docstring": "33579ac6e7eb5a8cedc9b2faf16bbf0710ef8af0974277ac00a44452d9d8b781"
   },
+  "en/claudewheel-session_rows.md": {
+    "content": "1b917e134ac5857362cf88a10461efcd9b462fdf3dc1c6e91e44191b51f3aa86",
+    "description": "e9bcd138adf3e6541232974850bd78608ef28ad3b8784058e2fd225518ecb84f",
+    "seed_hash": "e9bcd138adf3e6541232974850bd78608ef28ad3b8784058e2fd225518ecb84f"
+  },
   "en/claudewheel-shared_store.md": {
     "content": "76677400b8845fa21b2ac4884c8c1a332769516052bfb202754898c50b9feb62",
     "description": "ef53b0563a748e0608084f919d1d6db14bd4a4250b84dc7c8a65d7b7d541589c",
@@ -344,9 +349,9 @@
     "description": "7727d0de02a5c1263a26048e71526efc8aeed087fe3a3db982d471969c2a4a35"
   },
   "en/gen-index.md": {
-    "content": "b4ed11a93378801dd331871cd1279ee851633904a0279de0b5f48e3433c69399",
-    "description": "c7ac7efd0e36de16f4ad5e61296475b2bd88dec47575e971ddca9947377a6c0f",
-    "seed_hash": "c7ac7efd0e36de16f4ad5e61296475b2bd88dec47575e971ddca9947377a6c0f"
+    "content": "75d145fbb6ecae6e59cd610304fa6ad898654dcf838be494a857a7c88bdd8ee2",
+    "description": "68d2e0d43d15e23a874eba2c802768e324848d8f192521aad4ea0500d265614e",
+    "seed_hash": "68d2e0d43d15e23a874eba2c802768e324848d8f192521aad4ea0500d265614e"
   },
   "en/getting-started.md": {
     "content": "58c042246e495e0621b239563317043d5802c98a95dbc625dd515cc21194ddd8",

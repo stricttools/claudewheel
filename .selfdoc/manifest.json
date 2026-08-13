@@ -3024,6 +3024,58 @@
       ]
     },
     {
+      "path": "claudewheel-session_rows.md",
+      "title": "claudewheel.session_rows",
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.session_rows",
+          "anchor": "claudewheelsession_rows"
+        },
+        {
+          "level": 2,
+          "text": "`claudewheel.session_rows`",
+          "anchor": "claudewheelsession_rows"
+        },
+        {
+          "level": 3,
+          "text": "`SessionIdentity`",
+          "anchor": "sessionidentity"
+        },
+        {
+          "level": 3,
+          "text": "`current_identity`",
+          "anchor": "current_identity"
+        },
+        {
+          "level": 3,
+          "text": "`is_current`",
+          "anchor": "is_current"
+        },
+        {
+          "level": 3,
+          "text": "`format_uptime`",
+          "anchor": "format_uptime"
+        },
+        {
+          "level": 3,
+          "text": "`format_memory`",
+          "anchor": "format_memory"
+        },
+        {
+          "level": 3,
+          "text": "`_header`",
+          "anchor": "_header"
+        },
+        {
+          "level": 3,
+          "text": "`format_row`",
+          "anchor": "format_row"
+        }
+      ]
+    },
+    {
       "path": "claudewheel-shared_store.md",
       "title": "claudewheel.shared_store",
       "type": "doc",
@@ -4934,5 +4986,5 @@
     }
   ],
   "posts": [],
-  "last_gen": "2026-08-13T04:56:26.837591+00:00"
+  "last_gen": "2026-08-13T04:59:54.714193+00:00"
 }
