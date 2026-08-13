@@ -2250,6 +2250,183 @@ class FixAuthTests(unittest.TestCase):
         self.assertIn("No profile 'absent'", err)
 
 
+class SetPlanCommandTests(unittest.TestCase):
+    """`profile set-plan`: the scripted writer of the declared plan."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.home = Path(self._tmp.name)
+        self.profiles_dir = self.home / ".claudewheel" / "profiles"
+        self.profiles_dir.mkdir(parents=True)
+        from claudewheel.workspace import Workspace
+
+        self.ws = Workspace.open(
+            self.home / ".claudewheel", claude_dir=self.home / ".claude"
+        )
+        build_profile_dir(
+            self.profiles_dir,
+            "work",
+            parents=True,
+            exist_ok=True,
+            credentials=False,
+            settings={},
+        )
+
+    def _run(self, name: str, plan: str) -> tuple[int | str | None, str, str]:
+        out, err = io.StringIO(), io.StringIO()
+        rc: int | str | None = None
+        with redirect_stdout(out), redirect_stderr(err):
+            try:
+                rc = cli._handle_set_plan(self.ws, name, plan)
+            except SystemExit as e:
+                rc = e.code
+        return rc, out.getvalue(), err.getvalue()
+
+    def _entry(self, name: str = "work") -> dict[str, Any]:
+        return self.ws.profiles.data_for(name).load()
+
+    def test_declares_both_fields(self) -> None:
+        rc, out, err = self._run("work", "team")
+        self.assertEqual(rc, 0)
+        entry = self._entry()
+        self.assertEqual(entry["subscriptionType"], "team")
+        self.assertEqual(entry["rateLimitTier"], "default_claude_max_5x")
+        self.assertIn("Team", out)
+
+    def test_keeps_the_stored_token(self) -> None:
+        write_token_entry(self.profiles_dir / "work", {"token": "tok-keep"})
+        rc, _out, _err = self._run("work", "pro")
+        self.assertEqual(rc, 0)
+        self.assertEqual(self._entry()["token"], "tok-keep")
+        self.assertEqual(self._entry()["subscriptionType"], "pro")
+
+    def test_an_unknown_plan_is_a_hard_error_naming_the_valid_ones(self) -> None:
+        from claudewheel.tokens import plan_keys
+
+        rc, _out, err = self._run("work", "platinum")
+        self.assertEqual(rc, 1)
+        for key in plan_keys():
+            self.assertIn(key, err)
+        self.assertFalse(self.ws.profiles.data_for("work").declares_plan())
+
+    def test_an_unknown_profile_is_a_hard_error(self) -> None:
+        rc, _out, err = self._run("absent", "pro")
+        self.assertEqual(rc, 1)
+        self.assertIn("No profile 'absent'", err)
+
+
+class PlanDeclarationSurfacesTests(unittest.TestCase):
+    """The three writers store byte-identical plan fields.
+
+    One picker, one closed list, one door into the store -- so a plan declared
+    in the creation flow, at the pre-launch prompt or from the scripted command
+    cannot come out differently on disk.
+    """
+
+    PLAN_KEY = "max-5x"
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.home = Path(self._tmp.name)
+        self.profiles_dir = self.home / ".claudewheel" / "profiles"
+        self.profiles_dir.mkdir(parents=True)
+        from claudewheel.workspace import Workspace
+
+        self.ws = Workspace.open(
+            self.home / ".claudewheel", claude_dir=self.home / ".claude"
+        )
+        for name in ("wizard", "prelaunch", "scripted"):
+            build_profile_dir(
+                self.profiles_dir,
+                name,
+                parents=True,
+                exist_ok=True,
+                credentials=False,
+                settings={},
+            )
+
+    def _plan_fields(self, name: str) -> dict[str, Any]:
+        entry = self.ws.profiles.data_for(name).load()
+        return {
+            k: v for k, v in entry.items() if k in ("subscriptionType", "rateLimitTier")
+        }
+
+    def _via_creation_flow(self) -> None:
+        from claudewheel.tokens import TokenExpiryDisposition, plan_by_key
+        from claudewheel.wizard import _save_token
+
+        _save_token(
+            self.ws,
+            "wizard",
+            "tok",
+            TokenExpiryDisposition.TTL,
+            plan_by_key(self.PLAN_KEY),
+        )
+
+    def _via_pre_launch_prompt(self) -> None:
+        from claudewheel.preflight import PreflightContext, _plan_declaration_run
+        from claudewheel.tokens import plan_by_key
+        from tests.wheelhelpers import FakeAppConfigStore, inert_locator
+
+        write_token_entry(self.profiles_dir / "prelaunch", {"token": "tok"})
+        ctx = PreflightContext(
+            selections={"profile": "prelaunch"},
+            workspace=self.ws,
+            locator=inert_locator(self.home),
+            cfg=FakeAppConfigStore(),
+            interactive=True,
+        )
+        with (
+            mock.patch("claudewheel.preflight._make_terminal", autospec=True),
+            mock.patch(
+                "claudewheel.wizard.pick_plan",
+                autospec=True,
+                return_value=plan_by_key(self.PLAN_KEY),
+            ),
+        ):
+            result = _plan_declaration_run(ctx)
+        self.assertFalse(result.is_abort)
+
+    def _via_scripted_command(self) -> None:
+        with redirect_stdout(io.StringIO()):
+            rc = cli._handle_set_plan(self.ws, "scripted", self.PLAN_KEY)
+        self.assertEqual(rc, 0)
+
+    def test_all_three_surfaces_store_the_same_fields(self) -> None:
+        self._via_creation_flow()
+        self._via_pre_launch_prompt()
+        self._via_scripted_command()
+
+        wizard = self._plan_fields("wizard")
+        self.assertEqual(
+            wizard,
+            {"subscriptionType": "max", "rateLimitTier": "default_claude_max_5x"},
+        )
+        self.assertEqual(self._plan_fields("prelaunch"), wizard)
+        self.assertEqual(self._plan_fields("scripted"), wizard)
+
+    def test_all_three_surfaces_resolve_to_the_same_launch_env(self) -> None:
+        self._via_creation_flow()
+        self._via_pre_launch_prompt()
+        self._via_scripted_command()
+
+        envs = [
+            self.ws.profiles.data_for(n).plan_env()
+            for n in ("wizard", "prelaunch", "scripted")
+        ]
+        self.assertEqual(
+            envs[0],
+            {
+                "CLAUDE_CODE_SUBSCRIPTION_TYPE": "max",
+                "CLAUDE_CODE_RATE_LIMIT_TIER": "default_claude_max_5x",
+            },
+        )
+        self.assertEqual(envs[1], envs[0])
+        self.assertEqual(envs[2], envs[0])
+
+
 class LaunchLeavesCredentialFileAloneTests(unittest.TestCase):
     """A launch never writes Claude Code's ``.credentials.json``.
 

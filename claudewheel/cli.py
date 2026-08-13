@@ -589,6 +589,32 @@ def _handle_fix_auth(ws: "Workspace", name: str) -> int:
     return 0
 
 
+def _handle_set_plan(ws: "Workspace", name: str, plan: str) -> int:
+    """Declare which plan a profile's account is on, without prompting.
+
+    The scripted writer of the three: the same closed list the interactive
+    picker offers, resolved by key, stored through the same door. It is what a
+    headless launch is told to run when the profile declares no plan.
+    """
+    from .tokens import plan_by_key
+
+    if not ws.profiles.path_for(name).is_dir():
+        print(f"No profile '{name}'.", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        selected = plan_by_key(plan)
+    except ValueError as e:
+        print(str(e), file=sys.stderr)
+        sys.exit(1)
+
+    ws.profiles.data_for(name).set_plan(selected)
+    verb = "Would declare" if effects.previewing() else "Declared"
+    fields = ", ".join(f"{k}={v}" for k, v in selected.fields().items())
+    print(f"{verb} plan {selected.label} for '{name}' ({fields}).")
+    return 0
+
+
 def _handle_show(ws: "Workspace") -> int:
     """Print a summary of current selections, theme, and recent directories."""
     cfg = ws.appconfig()
@@ -1549,6 +1575,18 @@ def _inject_launch(argv: list[str]) -> list[str]:
     return list(argv)
 
 
+def _plan_choices() -> list[str]:
+    """The declarable plan keys, for the `profile set-plan` argument.
+
+    Constrained at parse time from the same closed list the interactive picker
+    renders, so the scripted surface cannot accept a plan the picker has no
+    entry for.
+    """
+    from .tokens import plan_keys
+
+    return plan_keys()
+
+
 def _bind(handler: Callable[..., int], *pre: Any) -> Callable[..., int]:
     """Pre-bind leading positional dependencies (workspace/locator) to a handler.
 
@@ -1747,6 +1785,32 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
             )
         ],
     )(_bind(_handle_fix_auth, ws))
+
+    profile_grp.command(
+        "set-plan",
+        effect="mutating",
+        help=(
+            "declare which plan a profile's Claude account is on, without a "
+            "prompt. Claude Code resolves its subscription tier from the launch "
+            "environment and only from there when auth is a stored setup token, "
+            "so an undeclared profile launches with the tier null and "
+            "tier-dependent features failing closed. Writes both plan fields "
+            "into the profile's token entry, leaving the token itself alone; "
+            "the interactive picker in the create flow and the pre-launch "
+            "prompt write exactly the same thing"
+        ),
+        args=[
+            Arg(
+                name="name",
+                help="name of the profile to declare a plan for (e.g. work, personal)",
+            ),
+            Arg(
+                name="plan",
+                help="the plan this profile's account is on",
+                choices=_plan_choices(),
+            ),
+        ],
+    )(_bind(_handle_set_plan, ws))
 
     profile_grp.command(
         "check-tokens",

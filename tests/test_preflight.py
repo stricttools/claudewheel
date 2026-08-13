@@ -17,12 +17,17 @@ from claudewheel.preflight import (
     PreflightStep,
     StepResult,
     _model_version_guard_run,
+    _plan_declaration_run,
     run_preflight,
 )
+from claudewheel.profile_data import ProfileDataStore
+from claudewheel.tokens import plan_by_key, plan_keys
+from claudewheel.workspace import Workspace
 from tests.wheelhelpers import (
     FakeAppConfigStore,
     inert_locator,
     inert_workspace,
+    write_token_entry,
 )
 
 # Never created on disk. Workspace and BinaryLocator construction is pure value
@@ -314,6 +319,125 @@ class ModelVersionGuardTests(unittest.TestCase):
         result = _model_version_guard_run(ctx)
         self.assertTrue(result.is_abort)
         self.assertIn("claude-opus-5", result.message)
+
+
+class PlanDeclarationStepTests(unittest.TestCase):
+    """The plan-declaration preflight step.
+
+    A profile launching on claudewheel's stored token is exactly the case where
+    Claude Code cannot work its own tier out: the setup token carries no
+    profile scope, so the tier resolves to null and tier-dependent checks fail
+    closed. The step is the pre-launch writer of the three: it asks, through the
+    same composite picker every other surface uses, and stores the answer.
+    """
+
+    def setUp(self) -> None:
+        self._tmp_obj = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp_obj.cleanup)
+        self.tmp = Path(self._tmp_obj.name)
+        self.ws = Workspace.open(root=self.tmp, claude_dir=self.tmp / ".claude")
+        (self.tmp / "profiles" / "work").mkdir(parents=True)
+
+    def _ctx(
+        self, interactive: bool = True, profile: str | None = "work"
+    ) -> PreflightContext:
+        return PreflightContext(
+            selections={"profile": profile},
+            workspace=self.ws,
+            locator=inert_locator(self.tmp),
+            cfg=FakeAppConfigStore(),
+            interactive=interactive,
+        )
+
+    def _data(self, name: str = "work") -> ProfileDataStore:
+        return self.ws.profiles.data_for(name)
+
+    def _give_token(self, name: str = "work") -> None:
+        write_token_entry(self.tmp / "profiles" / name, {"token": "tok"})
+
+    def test_registered_before_approved_hooks(self) -> None:
+        from claudewheel.preflight import PREFLIGHT_STEPS
+
+        names = [s.name for s in PREFLIGHT_STEPS]
+        self.assertIn("plan-declaration", names)
+        self.assertLess(names.index("plan-declaration"), names.index("approved-hooks"))
+
+    def test_registered_to_run_non_interactively(self) -> None:
+        """It has to reach the headless path -- that is where it hard-errors."""
+        from claudewheel.preflight import PREFLIGHT_STEPS
+
+        step = next(s for s in PREFLIGHT_STEPS if s.name == "plan-declaration")
+        self.assertTrue(step.runs_in_non_interactive)
+
+    def test_a_declared_plan_passes_without_prompting(self) -> None:
+        write_token_entry(
+            self.tmp / "profiles" / "work",
+            {"token": "tok", "subscriptionType": "max"},
+        )
+        with mock.patch("claudewheel.wizard.pick_plan", autospec=True) as picker:
+            result = _plan_declaration_run(self._ctx())
+        self.assertEqual(result.decision, Decision.CONTINUE)
+        picker.assert_not_called()
+
+    def test_a_profile_without_a_stored_token_passes(self) -> None:
+        """Session-authed profiles read their tier from Claude Code's own file."""
+        with mock.patch("claudewheel.wizard.pick_plan", autospec=True) as picker:
+            result = _plan_declaration_run(self._ctx())
+        self.assertEqual(result.decision, Decision.CONTINUE)
+        picker.assert_not_called()
+
+    def test_the_vanilla_default_passes(self) -> None:
+        with mock.patch("claudewheel.wizard.pick_plan", autospec=True) as picker:
+            result = _plan_declaration_run(self._ctx(profile="default"))
+        self.assertEqual(result.decision, Decision.CONTINUE)
+        picker.assert_not_called()
+
+    def test_interactive_prompt_stores_the_answer(self) -> None:
+        self._give_token()
+        with (
+            mock.patch("claudewheel.preflight._make_terminal", autospec=True),
+            mock.patch(
+                "claudewheel.wizard.pick_plan",
+                autospec=True,
+                return_value=plan_by_key("max-5x"),
+            ),
+        ):
+            result = _plan_declaration_run(self._ctx())
+        self.assertEqual(result.decision, Decision.CONTINUE)
+        self.assertEqual(self._data().tier(), ("default_claude_max_5x", "max"))
+        self.assertEqual(self._data().token(), "tok")
+
+    def test_a_cancelled_prompt_aborts_naming_the_command(self) -> None:
+        self._give_token()
+        with (
+            mock.patch("claudewheel.preflight._make_terminal", autospec=True),
+            mock.patch(
+                "claudewheel.wizard.pick_plan", autospec=True, return_value=None
+            ),
+        ):
+            result = _plan_declaration_run(self._ctx())
+        self.assertTrue(result.is_abort)
+        self.assertIn("profile set-plan work", result.message)
+        self.assertFalse(self._data().declares_plan())
+
+    def test_headless_launch_aborts_naming_the_command_and_the_plans(self) -> None:
+        self._give_token()
+        with mock.patch("claudewheel.wizard.pick_plan", autospec=True) as picker:
+            result = _plan_declaration_run(self._ctx(interactive=False))
+        picker.assert_not_called()
+        self.assertTrue(result.is_abort)
+        self.assertIn("profile set-plan work", result.message)
+        for key in plan_keys():
+            self.assertIn(key, result.message)
+
+    def test_a_rate_limit_tier_alone_is_not_a_declaration(self) -> None:
+        write_token_entry(
+            self.tmp / "profiles" / "work",
+            {"token": "tok", "rateLimitTier": "default_claude_max_20x"},
+        )
+        with mock.patch("claudewheel.wizard.pick_plan", autospec=True):
+            result = _plan_declaration_run(self._ctx(interactive=False))
+        self.assertTrue(result.is_abort)
 
 
 if __name__ == "__main__":

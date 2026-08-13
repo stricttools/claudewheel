@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from .binaries import BinaryLocator
     from .scratchpad import ScratchpadDir
     from .terminal import Terminal
+    from .tokens import PlanTier
     from .config import AppConfigStore
     from .workspace import Workspace
 
@@ -372,6 +373,82 @@ def _model_version_guard_run(ctx: PreflightContext) -> StepResult:
     )
 
 
+def _prompt_plan(ctx: PreflightContext, profile: str) -> "PlanTier | None":
+    """Render the composite plan picker and return the chosen plan.
+
+    Builds a themed Terminal the way the other prompting steps do and defers to
+    :func:`claudewheel.wizard.pick_plan` -- the one picker the creation flow
+    uses too, so the two surfaces cannot offer different plans or store
+    different fields. Returns None when the user cancels.
+    """
+    from .config import resolve_theme_name
+    from .theme import parse_theme
+    from .wizard import pick_plan
+
+    theme_name = resolve_theme_name(ctx.cfg.config.get("theme", "auto"))
+    theme = parse_theme(ctx.cfg.load_theme(theme_name))
+
+    terminal = _make_terminal()
+    try:
+        return pick_plan(f"Plan for profile '{profile}'", theme, terminal)
+    finally:
+        terminal.close()
+
+
+def _plan_declaration_run(ctx: PreflightContext) -> StepResult:
+    """Require a declared plan for a profile launching on a stored token.
+
+    Claude Code resolves its subscription tier from the environment and ONLY
+    from the environment when auth arrives as a setup token: its own fallback
+    (fetching the OAuth profile) is refused for lack of the ``user:profile``
+    scope. With no declared plan the tier is null and tier-dependent checks fail
+    closed, so this is the last place to ask before that happens.
+
+    - no profile, or the vanilla ``default`` (Claude Code's own ``~/.claude``,
+      which cw injects nothing into) -> CONTINUE;
+    - no stored token -> CONTINUE: the profile authenticates from Claude Code's
+      own credential file, which carries the tier already;
+    - a declared plan -> CONTINUE, nothing to ask;
+    - interactive -> render the picker and store the answer; a cancelled picker
+      ABORTs naming the scripted command;
+    - non-interactive -> ABORT naming the scripted command and the valid plans.
+      A headless launch has nobody to ask, and proceeding would silently be the
+      broken-tier launch this step exists to prevent.
+
+    A corrupt token entry raises :class:`TokenStoreError`, which the launch
+    handler reports as the actionable message it is.
+    """
+    from .tokens import plan_keys
+
+    profile = ctx.selections.get("profile")
+    if not profile or profile == "default":
+        return StepResult.cont()
+
+    data = ctx.workspace.profiles.data_for(profile)
+    if not data.has_token() or data.declares_plan():
+        return StepResult.cont()
+
+    remedy = (
+        f"Declare it with `claudewheel profile set-plan {profile} <plan>` "
+        f"(one of: {', '.join(plan_keys())})."
+    )
+    unset = (
+        f"Profile '{profile}' launches on its stored token but declares no "
+        "plan, so Claude Code resolves the subscription tier to null and "
+        "tier-dependent features fail closed."
+    )
+
+    if not ctx.interactive:
+        return StepResult.abort(f"{unset} {remedy}")
+
+    plan = _prompt_plan(ctx, profile)
+    if plan is None:
+        return StepResult.abort(f"{unset} {remedy}")
+
+    data.set_plan(plan)
+    return StepResult.cont()
+
+
 def _make_terminal() -> "Terminal":
     """Construct the raw-capable Terminal for an approval page.
 
@@ -607,6 +684,14 @@ PREFLIGHT_STEPS: list[PreflightStep] = [
         runs_in_non_interactive=True,
         renders_ui=False,
         run=_model_version_guard_run,
+    ),
+    PreflightStep(
+        name="plan-declaration",
+        # Runs on the non-interactive path so a headless launch hard-errors
+        # instead of silently launching with the tier resolved to null.
+        runs_in_non_interactive=True,
+        renders_ui=True,
+        run=_plan_declaration_run,
     ),
     PreflightStep(
         name="approved-hooks",

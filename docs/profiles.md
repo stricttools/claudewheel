@@ -269,9 +269,53 @@ environment variables:
 - `CLAUDE_CONFIG_DIR` is set to the profile's directory path
 - `CLAUDE_CODE_OAUTH_TOKEN` is set to the token string when the profile
   stores one
+- `CLAUDE_CODE_SUBSCRIPTION_TYPE` and `CLAUDE_CODE_RATE_LIMIT_TIER` carry the
+  declared plan (see below)
 
 The `default` profile is the exception: it resolves to an empty environment
 (no config dir override, no token injection).
+
+### The declared plan
+
+Claude Code reads a subscription tier from `CLAUDE_CODE_SUBSCRIPTION_TYPE` /
+`CLAUDE_CODE_RATE_LIMIT_TIER` and *only* from there when auth arrives as a
+setup token: its own fallback, fetching the OAuth profile, is refused because
+setup tokens lack the `user:profile` scope. With no declared plan the tier is
+null and tier-dependent features fail closed.
+
+So a profile that launches on a stored token declares which plan its account
+is on. The two fields are stored as one pair in the profile's token entry and
+map one-to-one onto the two variables:
+
+| Plan | `subscriptionType` | `rateLimitTier` |
+| --- | --- | --- |
+| `max-20x` | `max` | `default_claude_max_20x` |
+| `max-5x` | `max` | `default_claude_max_5x` |
+| `pro` | `pro` | (none) |
+| `team` | `team` | `default_claude_max_5x` |
+| `enterprise` | `enterprise` | (none) |
+
+Both fields are closed enums measured from the Claude Code binary. A value it
+does not recognize is inert there -- the tier resolves to null exactly as an
+absent value would -- so an unrecognized value is a hard error naming the
+accepted ones rather than a stored string that quietly does nothing.
+
+Three surfaces declare a plan, all fed by the same composite picker and the
+same closed list:
+
+1. **The create flow** asks before it captures a token. A session login is not
+   asked: it stores no token, and Claude Code reads its own credential file.
+2. **The pre-launch prompt** asks when a profile with a stored token has no
+   declaration. Cancelling it stops the launch.
+3. **`claudewheel profile set-plan <name> <plan>`** declares one without
+   prompting -- the remedy a headless launch names when it refuses.
+
+Replacing a profile's token clears the declaration: the entry is rebuilt, so
+the plan stated for a retired token can never carry over to its replacement.
+
+A launch with no controlling terminal has nobody to ask, so an undeclared
+profile is a hard error naming `profile set-plan` rather than a silent
+launch with a null tier.
 
 ### Auth shadow detection
 

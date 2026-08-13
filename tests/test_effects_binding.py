@@ -86,6 +86,8 @@ EFFECTS = {
     "profile.rename": "mutating",
     # removes shadowing session credentials or a stale token entry
     "profile.fix-auth": "mutating",
+    # writes the declared plan fields into the profile's token entry
+    "profile.set-plan": "mutating",
     # probes each stored token against the Anthropic API and prints the verdict
     "profile.check-tokens": "read_only",
     # writes a rule into a profile's settings.json
