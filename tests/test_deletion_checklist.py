@@ -496,6 +496,29 @@ class ScreenTests(unittest.TestCase):
         self.assertEqual([r.pid for r in outcome.still_holding], [2])
         self.assertEqual(outcome.stopped, ())
 
+    def test_an_unticked_holder_that_exited_on_its_own_is_not_still_holding(
+        self,
+    ) -> None:
+        """still_holding is what the profile is really held by when the screen
+        closes, not the gather snapshot minus the successful stops."""
+        holders = _holders((1, "daemon"), (2, "bg"))
+        with (
+            _identity_holds({2: "999"}),
+            mock.patch(
+                "claudewheel.deletion_checklist.processes.stop_daemon",
+                autospec=True,
+                return_value=True,
+            ),
+            mock.patch(
+                "claudewheel.deletion_checklist.processes.wait_for_exit",
+                autospec=True,
+                return_value=True,
+            ),
+        ):
+            outcome = self._run(["ENTER", "ESC"], holders)
+        self.assertEqual([r.pid for r in outcome.stopped], [1])
+        self.assertEqual(outcome.still_holding, ())
+
     def test_a_holder_that_died_before_confirmation_is_reported_stopped(self) -> None:
         """No signal is sent for it, and the row still goes red: the process the
         screen listed is gone, which is exactly what the tick asked for."""

@@ -99,10 +99,12 @@ class Holder:
 class ChecklistOutcome:
     """What the screen decided and what it managed to stop.
 
-    *still_holding* is every holder whose process is still up when the screen
-    closes -- the ones left unticked plus any whose stop did not take.  It is
-    what lets the deletion say the directory may come back instead of claiming
-    it is gone.
+    *still_holding* is every holder whose process is really still up when the
+    screen closes -- typically the ones left unticked plus any whose stop did
+    not take, but it is re-probed rather than subtracted from the snapshot, so
+    a holder that exited on its own while the screen was open is not in it.  It
+    is what lets the deletion say the directory may come back instead of
+    claiming it is gone.
     """
 
     confirmed: bool
@@ -268,7 +270,16 @@ def run_checklist(
             render()
 
         stopped_pids = {r.pid for r in stopped}
-        still = tuple(h.record for h in holders if h.record.pid not in stopped_pids)
+        # Re-probed rather than derived from the snapshot: a holder nobody
+        # ticked may have exited on its own while the screen was open, and
+        # reporting it as still holding would have an interactive one veto the
+        # deletion over a process that is no longer there.
+        still = tuple(
+            h.record
+            for h in holders
+            if h.record.pid not in stopped_pids
+            and still_the_registered_process(h.record)
+        )
         hint = _HINT_DONE
         render()
         try:
