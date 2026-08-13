@@ -261,6 +261,7 @@ DEFAULT_OPTIONS: dict[str, Any] = {
             "claude-opus-4-8",
             "claude-opus-4-8[1m]",
             "claude-fable-5",
+            "claude-sonnet-5",
             "claude-opus-4-7",
             "claude-opus-4-7[1m]",
             "claude-opus-4-6",

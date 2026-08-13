@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 from unittest import mock
 
-from claudewheel.config import AppConfigStore
+from claudewheel.config import HISTORICAL_DEFAULTS, AppConfigStore
 from claudewheel.workspace import Workspace
 from claudewheel.defaults import (
     DEFAULT_CONFIG,
@@ -733,6 +733,28 @@ class ConstructionContractTests(unittest.TestCase):
         with contextlib.redirect_stderr(captured):
             Workspace.open(paths["CONFIG_DIR"]).appconfig()
         self.assertEqual(captured.getvalue(), "")
+
+    def test_every_shipped_default_is_recorded_as_historical(self) -> None:
+        """Every value in DEFAULT_OPTIONS is also in HISTORICAL_DEFAULTS.
+
+        HISTORICAL_DEFAULTS records what EVER shipped, so what ships now is a
+        subset of it by construction. Migration 3 reads the difference to tell
+        a shipped default apart from a user-added value: a value added to
+        DEFAULT_OPTIONS alone would be classified as the user's and pinned
+        forever, which is exactly the asymmetry this asserts away.
+        """
+        for key, historical in HISTORICAL_DEFAULTS.items():
+            current = set(DEFAULT_OPTIONS.get(key, {}).get("values", []))
+            self.assertEqual(
+                current - historical,
+                set(),
+                f"{key}: shipped values missing from HISTORICAL_DEFAULTS",
+            )
+
+    def test_sonnet_5_ships_in_both_lists(self) -> None:
+        """claude-sonnet-5 is a shipped model default and a historical one."""
+        self.assertIn("claude-sonnet-5", DEFAULT_OPTIONS["model"]["values"])
+        self.assertIn("claude-sonnet-5", HISTORICAL_DEFAULTS["model"])
 
     def test_readonly_root_raises(self) -> None:
         """appconfig() on a read-only (0o555) root fails loudly (no silent skip)."""
