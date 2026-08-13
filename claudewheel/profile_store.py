@@ -50,7 +50,16 @@ PROFILE_ENV_KEYS: tuple[str, ...] = (
     "CLAUDE_CODE_OAUTH_TOKEN",
     "CLAUDE_CODE_SUBSCRIPTION_TYPE",
     "CLAUDE_CODE_RATE_LIMIT_TIER",
+    "CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL",
 )
+
+# The variable that stops Claude Code installing the official plugin
+# marketplace into a profile on first launch. There is no settings key for it:
+# the marketplace settings keys are managed-policy-only, so the environment is
+# the only lever, and it is undocumented client surface that could change in
+# any release. Claude Code parses it as a boolean accepting 1/true/yes/on,
+# case-insensitively; "1" is the plainest of those.
+MARKETPLACE_AUTOINSTALL_OFF = "1"
 
 
 @dataclass(frozen=True)
@@ -313,6 +322,17 @@ class ProfileStore:
         ``user:profile`` scope. Without them the tier resolves to null and
         tier-dependent checks fail closed. Declared values are validated here:
         an unrecognized one is a hard error, never a silently ignored field.
+
+        Every named profile also carries
+        ``CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL``, which stops
+        Claude Code cloning the official plugin marketplace into the profile on
+        first launch. Two things to know about it. There is no settings key for
+        the same effect -- the marketplace settings keys are managed-policy-only
+        -- so the environment is the only lever, and it is undocumented client
+        surface. And the suppression is effectively ONE-WAY per profile: once
+        the client has recorded the install as ``policy_blocked`` it treats that
+        as final, so removing the variable later does not make it try again.
+        Un-suppressing a profile means installing the marketplace yourself.
         """
         if self._record_for(name) is None:
             available = sorted(n for n, _, _ in self._records())
@@ -325,7 +345,12 @@ class ProfileStore:
             # neither a config dir nor a token.
             return {}
 
-        env: dict[str, str] = {"CLAUDE_CONFIG_DIR": str(self.path_for(name))}
+        env: dict[str, str] = {
+            "CLAUDE_CONFIG_DIR": str(self.path_for(name)),
+            "CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL": (
+                MARKETPLACE_AUTOINSTALL_OFF
+            ),
+        }
         data = self.data_for(name)
         token = data.token()
         if token:

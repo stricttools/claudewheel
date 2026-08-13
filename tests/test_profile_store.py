@@ -433,6 +433,55 @@ class ProfileStoreContractTests(SandboxHomeTestCase):
         self.assertEqual(env["CLAUDE_CODE_OAUTH_TOKEN"], "tok-alpha")
 
 
+class LaunchEnvKeyTests(SandboxHomeTestCase):
+    """The launch environment's key list, checked as a list rather than
+    variable by variable.
+
+    Per-variable tests can only ever cover the variables somebody remembered to
+    write a test for; this one fails when the two sides of the list disagree,
+    whichever side gained the entry.
+    """
+
+    def _store(self) -> ProfileStore:
+        return ProfileStore(
+            profiles_dir=self.sandbox_paths["PROFILES_DIR"],
+            claude_dir=self.home / ".claude",
+        )
+
+    def test_a_fully_declared_profile_yields_exactly_the_declared_keys(self) -> None:
+        from claudewheel.profile_store import PROFILE_ENV_KEYS
+
+        p = self.make_profile("alpha", credentials=True)
+        write_token_entry(
+            p,
+            {
+                "token": "tok",
+                "subscriptionType": "max",
+                "rateLimitTier": "default_claude_max_20x",
+            },
+        )
+        env = self._store().env("alpha")
+        self.assertEqual(set(env), set(PROFILE_ENV_KEYS))
+
+    def test_marketplace_autoinstall_is_suppressed_for_a_named_profile(self) -> None:
+        p = self.make_profile("alpha", credentials=True)
+        write_token_entry(p, {"token": "tok"})
+        env = self._store().env("alpha")
+        self.assertEqual(
+            env["CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL"], "1"
+        )
+
+    def test_suppression_does_not_depend_on_a_token(self) -> None:
+        """Every named profile gets it, tokenless ones included."""
+        self.make_profile("alpha", credentials=True)
+        env = self._store().env("alpha")
+        self.assertIn("CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL", env)
+
+    def test_the_vanilla_profile_declares_nothing(self) -> None:
+        (self.home / ".claude").mkdir(parents=True, exist_ok=True)
+        self.assertEqual(self._store().env("default"), {})
+
+
 class ReservedNameTests(SandboxHomeTestCase):
     """The one query every caller asks before offering to destroy a profile."""
 

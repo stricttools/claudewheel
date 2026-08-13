@@ -273,6 +273,29 @@ class ResolveTokenTests(ResolveLaunchConfigTestBase):
         _, _, env = self._resolve(selections={"profile": "work"})
         self.assertEqual(env["CLAUDE_CODE_SUBSCRIPTION_TYPE"], "max")
 
+    def test_marketplace_suppression_reaches_the_launch_environment(self) -> None:
+        """The variable is assembled into the environment a launch really execs
+        with -- the whole point of it being profile-owned."""
+        pdir = self._make_profile("work")
+        write_token_entry(pdir, {"token": "tok-abc"})
+
+        _, _, env = self._resolve(selections={"profile": "work"})
+        self.assertEqual(
+            env["CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL"], "1"
+        )
+
+    def test_vanilla_default_strips_marketplace_suppression(self) -> None:
+        """The vanilla path strips it like every other profile-owned variable,
+        ambient value included."""
+        self.claude_dir.mkdir(parents=True, exist_ok=True)
+        os.environ["CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL"] = "1"
+        self.addCleanup(
+            os.environ.pop, "CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL", None
+        )
+
+        _, _, env = self._resolve(selections={"profile": "default"})
+        self.assertNotIn("CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL", env)
+
     def test_vanilla_default_strips_ambient_plan_tier(self) -> None:
         """The vanilla default injects nothing, so ambient tier vars are removed."""
         self.claude_dir.mkdir(parents=True, exist_ok=True)

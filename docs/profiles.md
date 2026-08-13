@@ -271,9 +271,29 @@ environment variables:
   stores one
 - `CLAUDE_CODE_SUBSCRIPTION_TYPE` and `CLAUDE_CODE_RATE_LIMIT_TIER` carry the
   declared plan (see below)
+- `CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL` suppresses the plugin
+  marketplace auto-install (see below)
 
 The `default` profile is the exception: it resolves to an empty environment
 (no config dir override, no token injection).
+
+### Plugin marketplace suppression
+
+Left alone, Claude Code clones the official plugin marketplace into a profile
+on first launch and installs three language-server plugins from it, costing
+six to ten megabytes per profile for something no claudewheel profile asked
+for. Every named profile therefore launches with
+`CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL=1`.
+
+Two things to know about that variable:
+
+- **There is no settings key for it.** The marketplace settings keys are
+  managed-policy-only, so the launch environment is the only lever. It is also
+  undocumented client surface and could change in any Claude Code release.
+- **The suppression is one-way per profile.** Once the client has recorded the
+  install as `policy_blocked` it treats that as final, so removing the variable
+  later does *not* make it try the install again. A profile that should have
+  the marketplace needs it installed by hand.
 
 ### The declared plan
 
