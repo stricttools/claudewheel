@@ -295,6 +295,23 @@ Two things to know about that variable:
   later does *not* make it try the install again. A profile that should have
   the marketplace needs it installed by hand.
 
+A tree a profile picked up before the suppression stays where it is.
+Removing it is the separate, opt-in `purge-plugins` command:
+
+```bash
+claudewheel purge-plugins --all-profiles          # every managed profile
+claudewheel purge-plugins --profile work          # just this one
+claudewheel purge-plugins --all-profiles --dry-run  # inventory only
+```
+
+It names the marketplaces and plugins it finds before removing them, and
+reports the bytes freed. It is deliberately *not* part of the canonical
+reconciliation: that one is exact and runs over every managed target, so
+folding a plugin purge into it would delete plugin state on every run,
+including state somebody installed on purpose. The `default` profile is never
+touched, and a `plugins` entry that is a symlink is left alone -- it points at
+data the profile does not own.
+
 ### The declared plan
 
 Claude Code reads a subscription tier from `CLAUDE_CODE_SUBSCRIPTION_TYPE` /

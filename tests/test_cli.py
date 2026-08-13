@@ -2129,6 +2129,116 @@ class DeleteProfileHandlerTests(unittest.TestCase):
         self.assertEqual(order, ["read", "delete"])
 
 
+class PurgePluginsHandlerTests(unittest.TestCase):
+    """_handle_purge_plugins: inventory, then remove, per selected profile."""
+
+    def setUp(self) -> None:
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+
+    def _profile(self, name: str, *, with_tree: bool = True) -> Any:
+        from claudewheel.profile_store import Profile
+
+        path = self.root / name
+        path.mkdir(parents=True)
+        if with_tree:
+            tree = path / "plugins"
+            (tree / "marketplaces" / "claude-plugins-official").mkdir(parents=True)
+            (tree / "cache" / "claude-plugins-official" / "swift-lsp").mkdir(
+                parents=True
+            )
+            (tree / "installed_plugins.json").write_text("{}" * 50)
+        return Profile(name=name, path=path, has_credentials=False, has_token=False)
+
+    def _ws(self, *profiles: Any) -> Any:
+        ws = mock.MagicMock()
+        ws.profiles.enumerate.return_value = list(profiles)
+        ws.profiles.reserved_reason.side_effect = lambda n: (
+            "reserved" if n == "default" else None
+        )
+        return ws
+
+    def test_every_profile_loses_its_tree(self) -> None:
+        a, b = self._profile("work"), self._profile("hn")
+        out = io.StringIO()
+        with redirect_stdout(out):
+            rc = cli._handle_purge_plugins(
+                self._ws(a, b), profile="", all_profiles=True
+            )
+        self.assertEqual(rc, 0)
+        self.assertFalse((a.path / "plugins").exists())
+        self.assertFalse((b.path / "plugins").exists())
+        printed = out.getvalue()
+        self.assertIn("claude-plugins-official", printed)
+        self.assertIn("swift-lsp", printed)
+        self.assertIn("across 2 profile(s)", printed)
+
+    def test_one_named_profile_leaves_the_others_alone(self) -> None:
+        a, b = self._profile("work"), self._profile("hn")
+        with redirect_stdout(io.StringIO()):
+            cli._handle_purge_plugins(
+                self._ws(a, b), profile="work", all_profiles=False
+            )
+        self.assertFalse((a.path / "plugins").exists())
+        self.assertTrue((b.path / "plugins").is_dir())
+
+    def test_the_vanilla_profile_is_never_touched(self) -> None:
+        """~/.claude is Claude Code's own directory; claudewheel is read-only
+        to it."""
+        default = self._profile("default")
+        work = self._profile("work")
+        with redirect_stdout(io.StringIO()):
+            cli._handle_purge_plugins(
+                self._ws(default, work), profile="", all_profiles=True
+            )
+        self.assertTrue((default.path / "plugins").is_dir())
+        self.assertFalse((work.path / "plugins").exists())
+
+    def test_naming_the_vanilla_profile_is_refused(self) -> None:
+        default = self._profile("default")
+        err = io.StringIO()
+        with redirect_stderr(err), self.assertRaises(SystemExit) as ctx:
+            cli._handle_purge_plugins(
+                self._ws(default), profile="default", all_profiles=False
+            )
+        self.assertEqual(ctx.exception.code, 1)
+        self.assertTrue((default.path / "plugins").is_dir())
+
+    def test_an_unknown_profile_exits_1(self) -> None:
+        err = io.StringIO()
+        with redirect_stderr(err), self.assertRaises(SystemExit) as ctx:
+            cli._handle_purge_plugins(
+                self._ws(self._profile("work")), profile="ghost", all_profiles=False
+            )
+        self.assertEqual(ctx.exception.code, 1)
+
+    def test_a_profile_with_no_tree_says_so(self) -> None:
+        clean = self._profile("clean", with_tree=False)
+        out = io.StringIO()
+        with redirect_stdout(out):
+            cli._handle_purge_plugins(self._ws(clean), profile="", all_profiles=True)
+        self.assertIn("no plugin tree", out.getvalue())
+        self.assertIn("Nothing to purge", out.getvalue())
+
+    def test_a_preview_reports_the_inventory_and_removes_nothing(self) -> None:
+        work = self._profile("work")
+        out = io.StringIO()
+        with (
+            mock.patch("claudewheel.cli.effects.previewing", return_value=True),
+            mock.patch("claudewheel.plugins.effects.rmtree", autospec=True) as rmtree,
+            redirect_stdout(out),
+        ):
+            cli._handle_purge_plugins(self._ws(work), profile="", all_profiles=True)
+        printed = out.getvalue()
+        self.assertIn("would remove", printed)
+        self.assertIn("Would free", printed)
+        # The purge still goes through the effects seam, which is what records
+        # it; nothing is removed because the seam does the recording.
+        rmtree.assert_called_once()
+        self.assertTrue((work.path / "plugins").is_dir())
+
+
 class ProfileGroupDispatchTests(unittest.TestCase):
     """Verify 'profile create/delete/show' dispatch to the correct handlers."""
 

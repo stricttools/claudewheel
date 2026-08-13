@@ -73,6 +73,11 @@ EFFECTS = {
     "patch-profiles": "mutating",
     # the same reconciliation, plus shared-settings.json
     "reconcile-permissions": "mutating",
+    # removes each selected profile's plugins/ tree -- the marketplace clone and
+    # the plugins installed from it. Not consequential: what it deletes is a
+    # cache Claude Code cloned on its own, reinstallable from the marketplace,
+    # and the command names every tree before removing it
+    "purge-plugins": "mutating",
     # persists the selections and replaces this process with the client binary
     "launch": "mutating",
     # creates the profile directory, symlinks the shared store, drives an

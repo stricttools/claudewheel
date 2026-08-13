@@ -247,6 +247,34 @@
         }
       ]
     },
+    "purge-plugins": {
+      "name": "purge-plugins",
+      "help": "remove the Claude Code plugin tree from the selected profiles: the official-marketplace clone and every plugin installed from it, six to ten megabytes per profile. Opt-in and separate from the canonical reconciliation, which is exact and would otherwise delete plugin state on every run. Names the marketplaces and plugins it finds before removing them; --dry-run reports the inventory without touching anything. New launches do not collect a new tree -- the launch environment suppresses the auto-install, one-way per profile. The 'default' profile (~/.claude) is never touched.",
+      "effect": "mutating",
+      "flags": [
+        {
+          "name": "profile",
+          "type": "str",
+          "help": "target a specific profile by name (mutually exclusive with --all-profiles)"
+        },
+        {
+          "name": "all-profiles",
+          "type": "bool",
+          "help": "apply the operation to every registered profile at once",
+          "default": false,
+          "negatable": true
+        }
+      ],
+      "constraints": [
+        {
+          "type": "mutex",
+          "flags": [
+            "profile",
+            "all-profiles"
+          ]
+        }
+      ]
+    },
     "launch": {
       "name": "launch",
       "help": "start the interactive TUI launcher to select a profile, model, and directory",

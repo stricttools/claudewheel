@@ -875,6 +875,71 @@ def _handle_reconcile_permissions(ws: "Workspace", profile: str) -> int:
     return run_reconcile(ws, dry_run=effects.previewing(), profile=profile or None)
 
 
+def _handle_purge_plugins(ws: "Workspace", profile: str, all_profiles: bool) -> int:
+    """Remove the Claude Code plugin trees from the selected profiles.
+
+    Opt-in and separate from the canonical reconciliation on purpose: that one
+    is exact and runs over every managed target, so folding a plugin purge into
+    it would delete plugin state on every reconcile, including state somebody
+    installed deliberately.
+
+    The vanilla ``default`` profile is never touched -- ``~/.claude`` is Claude
+    Code's own directory and claudewheel is read-only to it.
+    """
+    from .plugins import inventory, purge
+    from .profile_info import _format_size
+
+    if profile:
+        reserved = ws.profiles.reserved_reason(profile)
+        if reserved is not None:
+            print(reserved, file=sys.stderr)
+            sys.exit(1)
+        targets = [p for p in ws.profiles.enumerate() if p.name == profile]
+        if not targets:
+            print(f"Error: profile {profile!r} not found", file=sys.stderr)
+            sys.exit(1)
+    else:
+        targets = [
+            p
+            for p in ws.profiles.enumerate()
+            if ws.profiles.reserved_reason(p.name) is None
+        ]
+        if not targets:
+            print("Error: no profiles found", file=sys.stderr)
+            sys.exit(1)
+
+    previewing = effects.previewing()
+    purged = 0
+    freed = 0
+    for target in targets:
+        found = inventory(target.path)
+        if not found.exists:
+            print(f"{target.name}: no plugin tree")
+            continue
+        detail = []
+        if found.marketplaces:
+            detail.append(f"marketplaces: {', '.join(found.marketplaces)}")
+        if found.plugins:
+            detail.append(f"plugins: {', '.join(found.plugins)}")
+        verb = "would remove" if previewing else "removed"
+        print(f"{target.name}: {verb} {_format_size(found.size_bytes)}")
+        for line in detail:
+            print(f"  {line}")
+        purge(target.path)
+        purged += 1
+        freed += found.size_bytes
+
+    if purged:
+        total = _format_size(freed)
+        print(
+            f"{'Would free' if previewing else 'Freed'} {total} "
+            f"across {purged} profile(s)."
+        )
+    else:
+        print("Nothing to purge.")
+    return 0
+
+
 def _handle_permission_add(
     ws: "Workspace", category: str, rule: str, profile: str, all_profiles: bool
 ) -> int:
@@ -1582,6 +1647,7 @@ _SUBCOMMANDS = frozenset(
         "deploy-hooks",
         "patch-profiles",
         "reconcile-permissions",
+        "purge-plugins",
         "launch",
         "permission",
         "profile",
@@ -2027,6 +2093,24 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
             ),
         ]
     )
+
+    app.command(
+        "purge-plugins",
+        effect="mutating",
+        help=(
+            "remove the Claude Code plugin tree from the selected profiles: the"
+            " official-marketplace clone and every plugin installed from it, six"
+            " to ten megabytes per profile. Opt-in and separate from the"
+            " canonical reconciliation, which is exact and would otherwise"
+            " delete plugin state on every run. Names the marketplaces and"
+            " plugins it finds before removing them; --dry-run reports the"
+            " inventory without touching anything. New launches do not collect"
+            " a new tree -- the launch environment suppresses the auto-install,"
+            " one-way per profile. The 'default' profile (~/.claude) is never"
+            " touched."
+        ),
+        mutex=[_profile_mutex],
+    )(_bind(_handle_purge_plugins, ws))
 
     perm_grp = app.group(
         "permission",
