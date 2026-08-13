@@ -1,8 +1,7 @@
 ---
 title: claudewheel.session_rows
-description: "Render one session registry record as a block of lines, collapsed or expanded."
+description: "Turns a session registry record into a fixed-height block of lines, and marks the row belonging to the session the reader is sitting in."
 generated: true
-seeded: true
 nav_group: "API Reference"
 nav_order: 40
 ---
