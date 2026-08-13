@@ -78,7 +78,9 @@ class SessionRecord:
     ``live`` is the phantom-filtered answer: the PID exists and, where the
     kernel start token is available on both sides, still names the process that
     wrote the file.  ``proc_start`` is kept so a caller can tell "no token was
-    recorded" from "the token matched".
+    recorded" from "the token matched"; it is normalized by
+    :func:`recorded_token`, so a blank field arrives here as None -- absent,
+    which is the reading that cannot make a live process look dead.
     """
 
     path: Path
@@ -143,6 +145,21 @@ def pid_exists(pid: int) -> bool:
     return True
 
 
+def recorded_token(value: str | None) -> str | None:
+    """*value* as a start token, or None when the record carries none.
+
+    An empty or blank string is read as ABSENT, never as a token that fails to
+    match.  Read as a mismatch it would be the worst possible answer: a running
+    process would come out "provably dead", so a prune would delete its file
+    and the delete and rename guards would stop seeing it.  Absent is the
+    conservative reading -- liveness degrades to plain PID existence, which is
+    the same answer a platform without ``/proc`` gets.
+    """
+    if value is None:
+        return None
+    return value.strip() or None
+
+
 def is_live(pid: int, proc_start: str | None) -> bool:
     """Apply the phantom filter to one claim.
 
@@ -150,9 +167,14 @@ def is_live(pid: int, proc_start: str | None) -> bool:
     a snapshot taken when a screen opened says nothing about the moment the
     user acts on it, and the pid may by then name a different process.  This is
     the package's one implementation of that question.
+
+    *proc_start* is normalized by :func:`recorded_token` first, so a caller
+    holding a raw field value gets the same answer as one holding a parsed
+    record's.
     """
     if not pid_exists(pid):
         return False
+    proc_start = recorded_token(proc_start)
     if proc_start is None:
         return True
     actual = process_start_token(pid)
@@ -187,7 +209,7 @@ def _parse(path: Path) -> SessionRecord | None:
         pid = int(path.stem)
     else:
         return None
-    proc_start = _text(data.get("procStart"))
+    proc_start = recorded_token(_text(data.get("procStart")))
     started_at = data.get("startedAt")
     return SessionRecord(
         path=path,

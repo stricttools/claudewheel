@@ -104,6 +104,22 @@ class ReadRecordsTests(unittest.TestCase):
         self.assertTrue(record.live)
         self.assertIsNone(record.proc_start)
 
+    def test_record_with_an_empty_proc_start_falls_back_to_pid_existence(self) -> None:
+        """An empty token is an ABSENT token, not a mismatching one.
+
+        Read as a mismatch it would make a running process read 'provably
+        dead' -- prunable, and invisible to the delete and rename guards.
+        """
+        for token in ("", "   "):
+            with self.subTest(token=token):
+                config_dir = self.config_dir / f"token-{len(token)}"
+                write_session_record(
+                    config_dir / "sessions", os.getpid(), proc_start=token
+                )
+                (record,) = session_registry.read_records(config_dir)
+                self.assertTrue(record.live)
+                self.assertIsNone(record.proc_start)
+
     def test_unparseable_and_foreign_files_are_skipped(self) -> None:
         self.sessions.mkdir(parents=True)
         (self.sessions / "1.json").write_text("{not json")
@@ -147,6 +163,29 @@ class ReadRecordsTests(unittest.TestCase):
                 self.assertTrue(record.interactive)
 
 
+class IsLiveTests(unittest.TestCase):
+    """The phantom filter itself, over the token values a record can carry."""
+
+    def test_matching_token_is_live(self) -> None:
+        token = session_registry.process_start_token(os.getpid())
+        self.assertTrue(session_registry.is_live(os.getpid(), token))
+
+    def test_mismatching_token_is_not_live(self) -> None:
+        self.assertFalse(session_registry.is_live(os.getpid(), "1"))
+
+    def test_absent_token_degrades_to_pid_existence(self) -> None:
+        self.assertTrue(session_registry.is_live(os.getpid(), None))
+        self.assertFalse(session_registry.is_live(dead_pid(), None))
+
+    def test_empty_token_is_read_as_absent_not_as_a_mismatch(self) -> None:
+        """A live process must not read dead because its record carries an
+        empty string where a token belongs."""
+        for token in ("", " ", "\t\n"):
+            with self.subTest(token=token):
+                self.assertTrue(session_registry.is_live(os.getpid(), token))
+                self.assertFalse(session_registry.is_live(dead_pid(), token))
+
+
 class LiveHelperTests(unittest.TestCase):
     """live_records() / has_live_interactive() over the same fixtures."""
 
@@ -170,6 +209,12 @@ class LiveHelperTests(unittest.TestCase):
         live_record(self.sessions, kind="daemon")
         self.assertTrue(session_registry.live_records(self.config_dir))
         self.assertFalse(session_registry.has_live_interactive(self.config_dir))
+
+    def test_has_live_interactive_true_for_an_empty_token_record(self) -> None:
+        """The guards must see a running session whose record carries an empty
+        token, exactly as they see one carrying no token field at all."""
+        write_session_record(self.sessions, os.getpid(), proc_start="")
+        self.assertTrue(session_registry.has_live_interactive(self.config_dir))
 
     def test_has_live_interactive_false_for_stale_interactive(self) -> None:
         stale_record(self.sessions)
@@ -301,6 +346,14 @@ class PruneTests(unittest.TestCase):
         records = self._records()
         self.assertEqual([r.path for r in session_registry.prune(records)], [path])
         self.assertFalse(path.exists())
+
+    def test_an_empty_token_record_is_kept_while_its_pid_exists(self) -> None:
+        """An empty ``procStart`` is no token at all, not a token that fails to
+        match: the phantom filter cannot run, so the record is not provably
+        dead and its file stays."""
+        path = write_session_record(self.sessions, os.getpid(), proc_start="")
+        self.assertEqual(session_registry.prune(self._records()), [])
+        self.assertTrue(path.exists())
 
     def test_an_undeletable_file_is_not_reported_pruned(self) -> None:
         stale_record(self.sessions)
