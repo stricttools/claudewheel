@@ -38,6 +38,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from . import effects
 from . import processes
 from . import session_registry
 from .session_list import (
@@ -180,6 +181,11 @@ class Stopper:
         already gone.  That counts as stopped -- the profile is not held by it
         -- and nothing at all is signalled, because the signal would land on a
         stranger.
+
+        A preview issues the stop, so the would-do log gets it, but does not
+        wait on it: the chokepoint recorded the signal instead of sending it,
+        so the process is still there and the poll could only burn its whole
+        timeout per ticked row before reporting a failure that never happened.
         """
         if not still_the_registered_process(holder.record):
             return True
@@ -192,6 +198,8 @@ class Stopper:
                 return False
         elif not processes.terminate(holder.record.pid):
             return False
+        if effects.previewing():
+            return True
         proc_start = holder.record.proc_start
         return processes.wait_for_exit(
             holder.record.pid,

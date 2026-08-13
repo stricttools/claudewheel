@@ -337,6 +337,32 @@ class StopperTests(unittest.TestCase):
         with _identity_holds({3: "999"}):
             self.assertFalse(probe(3))
 
+    def test_a_preview_issues_the_stop_and_waits_on_nothing(self) -> None:
+        """The chokepoint recorded the signal instead of sending it, so the
+        process is still there; polling it could only burn the timeout."""
+        holder = dc.Holder(record=_record(3, "bg"), ticked=True)
+        with (
+            _identity_holds(),
+            mock.patch(
+                "claudewheel.deletion_checklist.effects.previewing",
+                autospec=True,
+                return_value=True,
+            ),
+            mock.patch(
+                "claudewheel.deletion_checklist.processes.terminate",
+                autospec=True,
+                return_value=True,
+            ) as terminate,
+            mock.patch(
+                "claudewheel.deletion_checklist.processes.wait_for_exit",
+                autospec=True,
+                return_value=False,
+            ) as wait,
+        ):
+            self.assertTrue(self.stopper.stop(holder))
+        terminate.assert_called_once_with(3)
+        wait.assert_not_called()
+
     def test_a_process_that_will_not_die_is_a_failed_stop(self) -> None:
         holder = dc.Holder(record=_record(3, "bg"), ticked=True)
         with (
