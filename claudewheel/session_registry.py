@@ -204,6 +204,24 @@ def _parse(path: Path) -> SessionRecord | None:
     )
 
 
+def _still_the_same_file(record: SessionRecord) -> bool:
+    """True when *record*'s path still holds the very record *record* was read from.
+
+    Identity is the pair that names a process for good: the PID and the kernel
+    start token recorded alongside it.  Everything else in the document -- the
+    status, the name, the two clocks -- is rewritten by a running session as it
+    works, so comparing it would refuse to prune files that are genuinely
+    stale.
+
+    Anything that is not that exact pair is a no: a document rewritten by
+    another process, a rewrite caught half-written, a file already gone.
+    """
+    current = _parse(record.path)
+    if current is None:
+        return False
+    return current.pid == record.pid and current.proc_start == record.proc_start
+
+
 def read_records(config_dir: Path) -> list[SessionRecord]:
     """Every parseable registry record under *config_dir*, live or not.
 
@@ -241,7 +259,7 @@ def live_interactive_records(config_dir: Path) -> list[SessionRecord]:
 def prune(records: Iterable[SessionRecord]) -> list[SessionRecord]:
     """Delete the registry files of *records* that are provably dead, and return them.
 
-    Two rules, and the second is why the first is safe:
+    Three rules, and the last two are why the first is safe:
 
     * **Only a provably dead record is pruned.** Liveness is re-probed here
       rather than read off the record's own ``live`` field: the field is as old
@@ -252,19 +270,32 @@ def prune(records: Iterable[SessionRecord]) -> list[SessionRecord]:
       whatever now wears its number.  Where no token is available on either
       side the filter cannot run, :func:`is_live` says yes, and the file stays:
       not proven dead is not pruned.
-    * **An unparseable file is never pruned**, structurally: this works from
+    * **Only the file the record was read from is unlinked.** Re-probing the
+      *process* is not enough, because the file is a second thing that can
+      change underneath the snapshot: the kernel may hand the PID to a new
+      Claude Code session, which writes its own record over the same
+      ``<pid>.json``.  The stale record's token then mismatches, the record
+      reads provably dead, and the unlink would take the *live* session's file
+      -- blinding the delete and rename guards to a session running right now.
+      So the path is re-read immediately before the unlink and removed only
+      when it still holds that record's own PID and start token
+      (:func:`_still_the_same_file`).
+    * **An unparseable file is never pruned**, at both ends: this works from
       records, and a record only exists for a file :func:`read_records` could
-      parse.  That is also what protects a file *being written right now* by a
-      session starting up -- a half-written JSON document parses as nothing, so
-      it is not a record, so it is not a candidate.  Pruning must never be
-      rewritten to walk the directory itself.
+      parse; and a file that has since become unparseable fails the identity
+      re-read.  That is what protects a file *being written right now* by a
+      session starting up, whether the write began before the snapshot or after
+      it.  Pruning must never be rewritten to walk the directory itself.
 
-    A file another screen already removed still counts as pruned; one that
-    cannot be removed does not, and does not stop the rest.
+    Only the caller that actually removed a file reports it pruned: a file
+    another screen already removed has no identity left to match, so it is
+    skipped, as is one that cannot be removed.  Neither stops the rest.
     """
     pruned: list[SessionRecord] = []
     for record in records:
         if is_live(record.pid, record.proc_start):
+            continue
+        if not _still_the_same_file(record):
             continue
         try:
             effects.remove(record.path, missing_ok=True)

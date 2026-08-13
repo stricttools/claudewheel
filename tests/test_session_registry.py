@@ -246,12 +246,61 @@ class PruneTests(unittest.TestCase):
         self.assertEqual(session_registry.prune([aged]), [])
         self.assertTrue(record.path.exists())
 
-    def test_a_file_already_gone_is_still_reported_pruned(self) -> None:
-        """Two screens pruning the same dead record is not an error."""
+    def test_a_file_already_gone_is_not_reported_pruned(self) -> None:
+        """Two screens pruning the same dead record is not an error, but only
+        the one that actually removed the file reports it removed.
+
+        The file is re-read for its identity immediately before the unlink, and
+        a file that is not there has no identity to match, so it is skipped
+        rather than claimed.
+        """
         path = stale_record(self.sessions)
         (record,) = self._records()
         path.unlink()
-        self.assertEqual([r.path for r in session_registry.prune([record])], [path])
+        self.assertEqual(session_registry.prune([record]), [])
+
+    def test_a_rewritten_file_survives_its_stale_records_prune(self) -> None:
+        """PID recycling between the snapshot and the prune must not cost the
+        NEW session its registry file.
+
+        The snapshot holds a record for a PID whose token no longer matches --
+        provably dead, and so a prune candidate.  Before the unlink the kernel
+        hands that PID to a new Claude Code session, which rewrites the same
+        ``<pid>.json`` with its own token.  Deleting it there would blind the
+        delete and rename guards to a session that is running right now, so the
+        file's identity is re-read at the moment of the unlink and anything but
+        the snapshot's own record is left alone.
+        """
+        path = phantom_record(self.sessions)
+        (record,) = self._records()
+        self.assertFalse(record.live)
+
+        # The PID is recycled: a new session rewrites the file with its token.
+        live_record(self.sessions)
+
+        self.assertEqual(session_registry.prune([record]), [])
+        self.assertTrue(path.exists())
+        (current,) = self._records()
+        self.assertTrue(current.live)
+
+    def test_a_file_rewritten_torn_is_not_pruned(self) -> None:
+        """A rewrite caught mid-flight has no identity to match either, and the
+        never-prune-an-unparseable-file rule holds at the unlink too."""
+        path = stale_record(self.sessions)
+        (record,) = self._records()
+        path.write_text('{"pid": 424242, "kin')
+
+        self.assertEqual(session_registry.prune([record]), [])
+        self.assertTrue(path.exists())
+
+    def test_a_plainly_stale_file_is_still_pruned_after_the_identity_check(
+        self,
+    ) -> None:
+        """The ordinary case: nothing rewrote the file, so it matches and goes."""
+        path = stale_record(self.sessions)
+        records = self._records()
+        self.assertEqual([r.path for r in session_registry.prune(records)], [path])
+        self.assertFalse(path.exists())
 
     def test_an_undeletable_file_is_not_reported_pruned(self) -> None:
         stale_record(self.sessions)
