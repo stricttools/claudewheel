@@ -39,7 +39,8 @@ from tests.wheelhelpers import SandboxHomeTestCase
 # Contract §12.6. Pinned verbatim: a consumer that stops matching this string
 # has stopped being refused for the reason it thinks it is.
 NON_INTERACTIVE = (
-    "error: stdin is not interactive; pass --approve-consequential to confirm"
+    "error: stdin is not interactive; a consequential command must be "
+    "confirmed at a terminal"
 )
 
 

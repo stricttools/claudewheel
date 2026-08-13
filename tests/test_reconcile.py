@@ -407,7 +407,10 @@ class ReconcileCliTests(_ReconcileTestCase):
         out, err, code = self._run_cli(["c", "reconcile-permissions"])
         self.assertNotEqual(code, 0)
         self.assertIn("stdin is not interactive", err)
-        self.assertIn("--approve-consequential", err)
+        # The refusal names what is required, never the token that lifts it
+        # (strictcli contract §12.6, amended at the protocol round).
+        self.assertIn("must be confirmed at a terminal", err)
+        self.assertNotIn("--approve-consequential", err)
         # Refused BEFORE dispatch: the drift is untouched.
         s = self.read_settings("work")
         self.assertIn("Bash(bogus:*)", s["permissions"]["deny"])
