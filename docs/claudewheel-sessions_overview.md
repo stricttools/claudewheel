@@ -1,8 +1,7 @@
 ---
 title: claudewheel.sessions_overview
-description: "Every Claude Code session registered under a profile, on one scrolling screen."
+description: "Lists every session registered under a profile as a snapshot the user refreshes by hand, and prunes the registry files whose processes are provably gone."
 generated: true
-seeded: true
 nav_group: "API Reference"
 nav_order: 45
 ---
