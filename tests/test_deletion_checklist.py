@@ -9,7 +9,10 @@ from __future__ import annotations
 
 import json
 import unittest
+from collections.abc import Iterator
+from contextlib import ExitStack, contextmanager
 from pathlib import Path
+from typing import Any
 from unittest import mock
 
 from claudewheel import deletion_checklist as dc
@@ -42,6 +45,37 @@ def _record(pid: int, kind: str = "interactive", live: bool = True) -> SessionRe
         started_at=STARTED_AT,
         proc_start="1",
     )
+
+
+#: The kernel start token every fixture record carries.
+TOKEN = "1"
+
+
+@contextmanager
+def _identity_holds(tokens: dict[int, str] | None = None) -> Iterator[None]:
+    """Every fixture pid exists and still carries the token its record recorded.
+
+    *tokens* overrides the answer for specific pids, which is how a test says
+    "this pid was recycled": a different token means the process the record
+    describes is gone, whatever the pid number now names.
+    """
+    answers = tokens or {}
+    with ExitStack() as stack:
+        stack.enter_context(
+            mock.patch(
+                "claudewheel.deletion_checklist.session_registry.pid_exists",
+                autospec=True,
+                return_value=True,
+            )
+        )
+        stack.enter_context(
+            mock.patch(
+                "claudewheel.deletion_checklist.session_registry.process_start_token",
+                autospec=True,
+                side_effect=lambda pid: answers.get(pid, TOKEN),
+            )
+        )
+        yield
 
 
 def _holders(*specs: tuple[int, str]) -> list[dc.Holder]:
@@ -177,6 +211,7 @@ class StopperTests(unittest.TestCase):
     def test_the_daemon_is_stopped_by_its_own_command(self) -> None:
         holder = dc.Holder(record=_record(1, "daemon"), ticked=True)
         with (
+            _identity_holds(),
             mock.patch(
                 "claudewheel.deletion_checklist.processes.stop_daemon",
                 autospec=True,
@@ -200,6 +235,7 @@ class StopperTests(unittest.TestCase):
 
     def test_the_daemon_command_runs_once_however_many_rows_name_it(self) -> None:
         with (
+            _identity_holds(),
             mock.patch(
                 "claudewheel.deletion_checklist.processes.stop_daemon",
                 autospec=True,
@@ -220,6 +256,7 @@ class StopperTests(unittest.TestCase):
             with self.subTest(kind=kind):
                 holder = dc.Holder(record=_record(3, kind), ticked=True)
                 with (
+                    _identity_holds(),
                     mock.patch(
                         "claudewheel.deletion_checklist.processes.stop_daemon",
                         autospec=True,
@@ -239,9 +276,71 @@ class StopperTests(unittest.TestCase):
                 terminate.assert_called_once_with(3)
                 stop_daemon.assert_not_called()
 
+    def test_a_recycled_pid_is_never_signalled(self) -> None:
+        """The gather snapshot is arbitrarily old by the time the user confirms;
+        a pid the kernel has since handed to someone else must not get SIGTERM."""
+        for kind in ("daemon-worker", "bg", "interactive"):
+            with self.subTest(kind=kind):
+                holder = dc.Holder(record=_record(3, kind), ticked=True)
+                with (
+                    _identity_holds({3: "999"}),
+                    mock.patch(
+                        "claudewheel.deletion_checklist.processes.terminate",
+                        autospec=True,
+                    ) as terminate,
+                    mock.patch(
+                        "claudewheel.deletion_checklist.processes.wait_for_exit",
+                        autospec=True,
+                    ) as wait,
+                ):
+                    # Already gone counts as stopped: the profile is not held.
+                    self.assertTrue(self.stopper.stop(holder))
+                terminate.assert_not_called()
+                wait.assert_not_called()
+
+    def test_a_recycled_daemon_pid_does_not_run_the_stop_command(self) -> None:
+        holder = dc.Holder(record=_record(1, "daemon"), ticked=True)
+        with (
+            _identity_holds({1: "999"}),
+            mock.patch(
+                "claudewheel.deletion_checklist.processes.stop_daemon", autospec=True
+            ) as stop_daemon,
+        ):
+            self.assertTrue(self.stopper.stop(holder))
+        stop_daemon.assert_not_called()
+
+    def test_the_wait_probe_counts_a_recycled_pid_as_exited(self) -> None:
+        """A pid that dies and is reused mid-wait is an exit, not a survivor."""
+        holder = dc.Holder(record=_record(3, "bg"), ticked=True)
+        captured: dict[str, Any] = {}
+
+        def fake_wait(pid: int, **kwargs: Any) -> bool:
+            captured.update(kwargs)
+            return True
+
+        with (
+            _identity_holds(),
+            mock.patch(
+                "claudewheel.deletion_checklist.processes.terminate",
+                autospec=True,
+                return_value=True,
+            ),
+            mock.patch(
+                "claudewheel.deletion_checklist.processes.wait_for_exit",
+                autospec=True,
+                side_effect=fake_wait,
+            ),
+        ):
+            self.stopper.stop(holder)
+            probe = captured["alive"]
+            self.assertTrue(probe(3))
+        with _identity_holds({3: "999"}):
+            self.assertFalse(probe(3))
+
     def test_a_process_that_will_not_die_is_a_failed_stop(self) -> None:
         holder = dc.Holder(record=_record(3, "bg"), ticked=True)
         with (
+            _identity_holds(),
             mock.patch(
                 "claudewheel.deletion_checklist.processes.terminate",
                 autospec=True,
@@ -295,6 +394,7 @@ class ScreenTests(unittest.TestCase):
     def test_space_toggles_the_focused_row(self) -> None:
         holders = _holders((1, "interactive"), (2, "interactive"))
         with (
+            _identity_holds(),
             mock.patch(
                 "claudewheel.deletion_checklist.processes.terminate",
                 autospec=True,
@@ -316,6 +416,7 @@ class ScreenTests(unittest.TestCase):
     def test_moving_the_focus_before_toggling(self) -> None:
         holders = _holders((1, "interactive"), (2, "interactive"))
         with (
+            _identity_holds(),
             mock.patch(
                 "claudewheel.deletion_checklist.processes.terminate",
                 autospec=True,
@@ -334,6 +435,7 @@ class ScreenTests(unittest.TestCase):
         holders = _holders((1, "daemon"), (2, "bg"))
         holders[1].ticked = True
         with (
+            _identity_holds(),
             mock.patch(
                 "claudewheel.deletion_checklist.processes.stop_daemon",
                 autospec=True,
@@ -359,6 +461,7 @@ class ScreenTests(unittest.TestCase):
     def test_an_untouched_holder_is_reported_as_still_holding(self) -> None:
         holders = _holders((1, "daemon"), (2, "bg"))
         with (
+            _identity_holds(),
             mock.patch(
                 "claudewheel.deletion_checklist.processes.stop_daemon",
                 autospec=True,
@@ -377,6 +480,7 @@ class ScreenTests(unittest.TestCase):
         holders = _holders((2, "bg"))
         holders[0].ticked = True
         with (
+            _identity_holds(),
             mock.patch(
                 "claudewheel.deletion_checklist.processes.terminate",
                 autospec=True,
@@ -392,11 +496,30 @@ class ScreenTests(unittest.TestCase):
         self.assertEqual([r.pid for r in outcome.still_holding], [2])
         self.assertEqual(outcome.stopped, ())
 
+    def test_a_holder_that_died_before_confirmation_is_reported_stopped(self) -> None:
+        """No signal is sent for it, and the row still goes red: the process the
+        screen listed is gone, which is exactly what the tick asked for."""
+        holders = _holders((2, "bg"))
+        holders[0].ticked = True
+        with (
+            _identity_holds({2: "999"}),
+            mock.patch(
+                "claudewheel.deletion_checklist.processes.terminate", autospec=True
+            ) as terminate,
+        ):
+            outcome = self._run(["ENTER", "ESC"], holders)
+
+        terminate.assert_not_called()
+        self.assertEqual([r.pid for r in outcome.stopped], [2])
+        self.assertEqual(outcome.still_holding, ())
+        self.assertIn(dc.STATE_STOPPED, "".join(self.terminal.output))
+
     def test_the_screen_stays_open_and_replays_the_stops(self) -> None:
         """Confirmation does not close the screen: the rows go red in place."""
         holders = _holders((1, "interactive"))
         holders[0].ticked = True
         with (
+            _identity_holds(),
             mock.patch(
                 "claudewheel.deletion_checklist.processes.terminate",
                 autospec=True,

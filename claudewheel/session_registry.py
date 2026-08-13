@@ -140,8 +140,14 @@ def pid_exists(pid: int) -> bool:
     return True
 
 
-def _is_live(pid: int, proc_start: str | None) -> bool:
-    """Apply the phantom filter to one claim."""
+def is_live(pid: int, proc_start: str | None) -> bool:
+    """Apply the phantom filter to one claim.
+
+    Public because the answer is needed after the registry has been read, too:
+    a snapshot taken when a screen opened says nothing about the moment the
+    user acts on it, and the pid may by then name a different process.  This is
+    the package's one implementation of that question.
+    """
     if not pid_exists(pid):
         return False
     if proc_start is None:
@@ -184,7 +190,7 @@ def _parse(path: Path) -> SessionRecord | None:
         path=path,
         pid=pid,
         kind=_text(data.get("kind")) or KIND_INTERACTIVE,
-        live=_is_live(pid, proc_start),
+        live=is_live(pid, proc_start),
         session_id=_text(data.get("sessionId")),
         cwd=_text(data.get("cwd")),
         status=_text(data.get("status")),

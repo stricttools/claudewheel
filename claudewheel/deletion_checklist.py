@@ -140,6 +140,19 @@ def stop_order(holders: Sequence[Holder]) -> list[Holder]:
     ]
 
 
+def still_the_registered_process(record: SessionRecord) -> bool:
+    """True when *record*'s pid still names the process that registered it.
+
+    The checklist gathers its holders once and then waits on a human, so every
+    pid it holds is a snapshot of unbounded age by the time anything acts on
+    it.  The kernel recycles pid numbers freely, so "the pid exists" answers
+    the wrong question -- this asks the phantom filter's question, comparing
+    the kernel start token the record recorded against the token the pid
+    carries now.
+    """
+    return session_registry.is_live(record.pid, record.proc_start)
+
+
 @dataclass
 class Stopper:
     """Stops one holder by whichever mechanism its kind calls for.
@@ -155,7 +168,17 @@ class Stopper:
     _daemon_stopped: bool | None = field(default=None, init=False)
 
     def stop(self, holder: Holder) -> bool:
-        """Stop *holder* and wait for it to go.  True when it really went."""
+        """Stop *holder* and wait for it to go.  True when it really went.
+
+        Identity is re-checked immediately before anything is signalled, and
+        again on every poll of the wait: a pid whose start token no longer
+        matches belongs to a different process now, so the one the row names is
+        already gone.  That counts as stopped -- the profile is not held by it
+        -- and nothing at all is signalled, because the signal would land on a
+        stranger.
+        """
+        if not still_the_registered_process(holder.record):
+            return True
         if holder.record.kind == KIND_DAEMON:
             if self._daemon_stopped is None:
                 self._daemon_stopped = processes.stop_daemon(
@@ -165,7 +188,11 @@ class Stopper:
                 return False
         elif not processes.terminate(holder.record.pid):
             return False
-        return processes.wait_for_exit(holder.record.pid)
+        proc_start = holder.record.proc_start
+        return processes.wait_for_exit(
+            holder.record.pid,
+            alive=lambda pid: session_registry.is_live(pid, proc_start),
+        )
 
 
 def run_checklist(
