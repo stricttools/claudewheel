@@ -3493,6 +3493,63 @@
       ]
     },
     {
+      "path": "claudewheel-vertical_viewport.md",
+      "title": "claudewheel.vertical_viewport",
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.vertical_viewport",
+          "anchor": "claudewheelvertical_viewport"
+        },
+        {
+          "level": 2,
+          "text": "`claudewheel.vertical_viewport`",
+          "anchor": "claudewheelvertical_viewport"
+        },
+        {
+          "level": 3,
+          "text": "`RowSlice`",
+          "anchor": "rowslice"
+        },
+        {
+          "level": 4,
+          "text": "`skip_bottom`",
+          "anchor": "skip_bottom"
+        },
+        {
+          "level": 4,
+          "text": "`clipped`",
+          "anchor": "clipped"
+        },
+        {
+          "level": 3,
+          "text": "`Viewport`",
+          "anchor": "viewport"
+        },
+        {
+          "level": 4,
+          "text": "`scrolling`",
+          "anchor": "scrolling"
+        },
+        {
+          "level": 3,
+          "text": "`row_tops`",
+          "anchor": "row_tops"
+        },
+        {
+          "level": 3,
+          "text": "`_start_line`",
+          "anchor": "_start_line"
+        },
+        {
+          "level": 3,
+          "text": "`compute_viewport`",
+          "anchor": "compute_viewport"
+        }
+      ]
+    },
+    {
       "path": "claudewheel-wizard.md",
       "title": "claudewheel.wizard",
       "type": "doc",
@@ -4877,5 +4934,5 @@
     }
   ],
   "posts": [],
-  "last_gen": "2026-08-13T00:32:43.418947+00:00"
+  "last_gen": "2026-08-13T04:56:26.837591+00:00"
 }

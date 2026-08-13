@@ -63,6 +63,7 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 - **claudewheel.theme** (`claudewheel/theme.py`): Parse hex color themes into pre-computed ANSI escape sequences.
 - **claudewheel.tokens** (`claudewheel/tokens.py`): The OAuth token entry format: build one, date it, and read its tier fields.
 - **claudewheel.ui** (`claudewheel/ui.py`): Themed widget layer: form fields, a form runner, and fullscreen pages.
+- **claudewheel.vertical_viewport** (`claudewheel/vertical_viewport.py`): Scroll a column of variable-height row blocks, as arithmetic over dimensions.
 - **claudewheel.wizard** (`claudewheel/wizard.py`): Interactive form wizard for creating and configuring new profiles.
 - **claudewheel.workspace** (`claudewheel/workspace.py`): Workspace: the single root object owning all claudewheel filesystem paths.
 
