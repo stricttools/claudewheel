@@ -223,7 +223,8 @@
   "en/claudewheel-sessions_overview.md": {
     "content": "80c5f61cf0fc2702ecea5d34e9d4654dc8cb69c71bf727034eb1bc90923c47ac",
     "description": "18c890e3ea4ba14851488649c3968d4ec86f5f3ed2ef1906f2fc333a3993fa03",
-    "seed_hash": "18c890e3ea4ba14851488649c3968d4ec86f5f3ed2ef1906f2fc333a3993fa03"
+    "seed_hash": "18c890e3ea4ba14851488649c3968d4ec86f5f3ed2ef1906f2fc333a3993fa03",
+    "source_docstring": "efe581b445e810a7c7d8f622a8fbde81b138b9322f508590ce350b9baf59d372"
   },
   "en/claudewheel-shared_store.md": {
     "content": "76677400b8845fa21b2ac4884c8c1a332769516052bfb202754898c50b9feb62",
