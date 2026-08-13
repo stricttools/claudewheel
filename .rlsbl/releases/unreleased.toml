@@ -2,11 +2,21 @@
 format_version = 1
 # Version bump type: patch, minor, major, infra, or prerelease
 #   prerelease: advance an existing pre-release (0.6.0-beta.0 -> -beta.1)
-bump = ""
+bump = "minor"
 # Short description of this release (required)
-description = ""
+description = "Profile ownership overhaul: per-profile token stores with declared plan tiers, session-aware delete/rename guards, an interactive deletion checklist, a sessions overview screen, and marketplace/plugin suppression."
 # Optional context explaining why these changes were made
-context = ""
+context = """
+This is the first release cut from the profile-ownership program: a run of
+work that moved every piece of a profile's identity into the profile
+directory itself, and taught claudewheel to see the Claude Code sessions
+holding a profile before it deletes or renames one.
+
+Migrating the CLI's machine-readable output to the framework's newer shape is
+deliberately left out. It depends on behaviour that only exists in the
+framework's next release, so it waits for that release rather than being
+developed against an unpublished dependency.
+"""
 # Pre-release channel: alpha, beta, rc, or stable (ordered;
 # demotion is an error). With patch/minor/major it ENTERS the
 # channel (0.5.2 + minor + alpha -> 0.6.0-alpha.0); with
