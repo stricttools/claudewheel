@@ -1926,7 +1926,9 @@ class ProfileDeleteKeyTests(unittest.TestCase):
             ws,
             sel,
             page,
-            mock.patch.object(app, "_run_deletion_checklist", side_effect=checklist),
+            mock.patch.object(
+                app, "_run_deletion_checklist", autospec=True, side_effect=checklist
+            ),
         ):
             app._handle_key("CTRL_D")
         self.assertEqual(order, ["checklist", "delete"])

@@ -2225,7 +2225,11 @@ class PurgePluginsHandlerTests(unittest.TestCase):
         work = self._profile("work")
         out = io.StringIO()
         with (
-            mock.patch("claudewheel.cli.effects.previewing", return_value=True),
+            mock.patch(
+                "claudewheel.cli.effects.previewing",
+                autospec=True,
+                return_value=True,
+            ),
             mock.patch("claudewheel.plugins.effects.rmtree", autospec=True) as rmtree,
             redirect_stdout(out),
         ):

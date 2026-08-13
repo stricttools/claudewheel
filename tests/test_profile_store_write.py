@@ -472,17 +472,22 @@ class DeletionSurveyTests(_WriteBase):
             order.append("survey")
             return real_survey(store, name)
 
+        def record_removal(*args: Any, **kwargs: Any) -> None:
+            order.append("remove")
+
         with (
-            patch.object(ProfileStore, "survey_profile_dir", spy),
+            patch.object(ProfileStore, "survey_profile_dir", new=spy),
             patch(
                 "claudewheel.profile_store.effects.remove",
-                side_effect=lambda *a, **k: order.append("remove"),
+                autospec=True,
+                side_effect=record_removal,
             ),
             patch(
                 "claudewheel.profile_store.effects.rmtree",
-                side_effect=lambda *a, **k: order.append("remove"),
+                autospec=True,
+                side_effect=record_removal,
             ),
-            patch("claudewheel.profile_store.effects.rmdir"),
+            patch("claudewheel.profile_store.effects.rmdir", autospec=True),
         ):
             with self.assertRaises(RuntimeError):
                 self.store.delete("ordered")
@@ -494,9 +499,9 @@ class DeletionSurveyTests(_WriteBase):
         that happens to implement it today."""
         self.store.create("stubborn", self._SETTINGS)
         with (
-            patch("claudewheel.profile_store.effects.remove"),
-            patch("claudewheel.profile_store.effects.rmtree"),
-            patch("claudewheel.profile_store.effects.rmdir") as rmdir,
+            patch("claudewheel.profile_store.effects.remove", autospec=True),
+            patch("claudewheel.profile_store.effects.rmtree", autospec=True),
+            patch("claudewheel.profile_store.effects.rmdir", autospec=True) as rmdir,
         ):
             with self.assertRaises(RuntimeError) as ctx:
                 self.store.delete("stubborn")
