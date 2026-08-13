@@ -409,7 +409,12 @@ class FormatReportTests(ProfileInfoFixture):
         self.assertIn("Tier: unknown", text)
 
     def test_tier_display_with_subscription(self) -> None:
-        """When tier and subscription are present, both appear."""
+        """When tier and subscription are present, both appear.
+
+        The subscription type leads and the rate-limit tier is the
+        parenthetical: the subscription type is the field every plan carries,
+        so it is what the line is keyed on.
+        """
         self._write_token(
             {
                 "token": "tok",
@@ -420,7 +425,7 @@ class FormatReportTests(ProfileInfoFixture):
         report = profile_info.gather_profile_info(self.ws, "work")
         lines = profile_info.format_report(report)
         text = "\n".join(lines)
-        self.assertIn("Tier: default_claude_pro (claude_pro)", text)
+        self.assertIn("Tier: claude_pro (default_claude_pro)", text)
 
     def test_tier_display_without_subscription(self) -> None:
         """When only tier is present, no parenthetical."""
@@ -436,6 +441,62 @@ class FormatReportTests(ProfileInfoFixture):
         self.assertIn("Tier: default_claude_max_20x", text)
         # Should not have empty parentheses
         self.assertNotIn("()", text)
+
+
+class DeclaredPlanDisplayTests(ProfileInfoFixture):
+    """Every declarable plan renders as itself, never as "unknown".
+
+    The report reads a stored entry, and the entry is written by the one door
+    every writer goes through (``ProfileData.set_plan``, what ``profile
+    set-plan`` calls). Two of the five plans in ``PLAN_TIERS`` -- Pro and
+    Enterprise -- carry NO rate-limit tier, because Claude Code has no
+    rate-limit string for them. A report keyed on the rate-limit tier alone
+    therefore called a fully declared profile's plan "unknown".
+    """
+
+    def _declare(self, key: str) -> str:
+        """Declare plan *key* on the 'work' profile and return the report text."""
+        from claudewheel.tokens import plan_by_key
+
+        self._write_token({"token": "tok"})
+        self.ws.profiles.data_for("work").set_plan(plan_by_key(key))
+        report = profile_info.gather_profile_info(self.ws, "work")
+        return "\n".join(profile_info.format_report(report))
+
+    def test_pro_names_its_plan(self) -> None:
+        text = self._declare("pro")
+        self.assertIn("Tier: pro", text)
+        self.assertNotIn("Tier: unknown", text)
+
+    def test_enterprise_names_its_plan(self) -> None:
+        text = self._declare("enterprise")
+        self.assertIn("Tier: enterprise", text)
+        self.assertNotIn("Tier: unknown", text)
+
+    def test_max_20x_names_plan_and_rate_limit_tier(self) -> None:
+        text = self._declare("max-20x")
+        self.assertIn("Tier: max (default_claude_max_20x)", text)
+        self.assertNotIn("Tier: unknown", text)
+
+    def test_max_5x_names_plan_and_rate_limit_tier(self) -> None:
+        text = self._declare("max-5x")
+        self.assertIn("Tier: max (default_claude_max_5x)", text)
+        self.assertNotIn("Tier: unknown", text)
+
+    def test_team_names_plan_and_rate_limit_tier(self) -> None:
+        text = self._declare("team")
+        self.assertIn("Tier: team (default_claude_max_5x)", text)
+        self.assertNotIn("Tier: unknown", text)
+
+    def test_every_declarable_plan_is_named(self) -> None:
+        """The sweep: no plan in the closed list may render as "unknown"."""
+        from claudewheel.tokens import PLAN_TIERS
+
+        for plan in PLAN_TIERS:
+            with self.subTest(plan=plan.key):
+                text = self._declare(plan.key)
+                self.assertIn(f"Tier: {plan.subscription_type}", text)
+                self.assertNotIn("Tier: unknown", text)
 
     def test_format_size_units(self) -> None:
         self.assertEqual(profile_info._format_size(0), "0 B")

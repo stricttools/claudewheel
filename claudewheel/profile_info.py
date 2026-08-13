@@ -265,9 +265,21 @@ def format_report(report: ProfileReport) -> list[str]:
     if report.has_auth_shadow:
         lines.append("Auth shadow: yes (session credentials override token)")
 
-    if report.rate_limit_tier:
-        sub = f" ({report.subscription_type})" if report.subscription_type else ""
-        lines.append(f"Tier: {report.rate_limit_tier}{sub}")
+    # Keyed on the subscription type, the field every plan in PLAN_TIERS
+    # carries and the one Claude Code's entitlement checks read -- the same
+    # field entry_declares_plan() keys on. Pro and Enterprise have no
+    # rate-limit tier at all (Claude Code carries no rate-limit string for
+    # them), so a line keyed on the rate-limit tier reported two of the five
+    # declarable plans as "unknown" on a profile that had declared one. The
+    # rate-limit tier is shown alongside whenever the entry carries one.
+    if report.subscription_type:
+        tier = f" ({report.rate_limit_tier})" if report.rate_limit_tier else ""
+        lines.append(f"Tier: {report.subscription_type}{tier}")
+    elif report.rate_limit_tier:
+        # A rate-limit tier with no subscription type: no plan declares this
+        # pair, but a hand-edit or an older claudewheel can leave it behind.
+        # Report what is on disk rather than calling it unknown.
+        lines.append(f"Tier: {report.rate_limit_tier}")
     else:
         lines.append("Tier: unknown")
 
