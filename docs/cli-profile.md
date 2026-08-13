@@ -1,6 +1,6 @@
 ---
 title: c profile
-description: "Create, inspect, delete, rename, and repair Claude Code profiles and their stored tokens; includes force-delete options and API token validation."
+description: "Create, inspect, delete, rename, and repair Claude Code profiles, declare which plan an account is on, and manage their stored tokens; includes force-delete options and API token validation."
 generated: true
 nav_group: "CLI Reference"
 nav_order: 11

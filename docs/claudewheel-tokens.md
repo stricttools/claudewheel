@@ -1,6 +1,6 @@
 ---
 title: claudewheel.tokens
-description: "The OAuth token entry format: assemble an entry, compute its expiry from the dates it carries, and resolve its plan-tier fields into the environment variables Claude Code reads."
+description: "The OAuth token entry format and the plan tier: assemble an entry, compute its expiry from the dates it carries, resolve a declared plan from the closed list of them, and map its two fields onto the environment variables Claude Code reads."
 generated: true
 nav_group: "API Reference"
 nav_order: 45
