@@ -120,12 +120,16 @@ def process_start_token(pid: int) -> str | None:
     return tail[19]
 
 
-def _pid_exists(pid: int) -> bool:
-    """True when *pid* names a process this machine currently has."""
+def pid_exists(pid: int) -> bool:
+    """True when *pid* names a process this machine currently has.
+
+    The package's one liveness probe: :mod:`claudewheel.processes` binds its
+    ``alive`` name to this function rather than growing a second one.
+    """
     if pid <= 0:
         return False
     try:
-        os.kill(pid, 0)
+        os.kill(pid, 0)  # effects: exempt -- signal 0 probes, it does not signal
     except ProcessLookupError:
         return False
     except PermissionError:
@@ -138,7 +142,7 @@ def _pid_exists(pid: int) -> bool:
 
 def _is_live(pid: int, proc_start: str | None) -> bool:
     """Apply the phantom filter to one claim."""
-    if not _pid_exists(pid):
+    if not pid_exists(pid):
         return False
     if proc_start is None:
         return True

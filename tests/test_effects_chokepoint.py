@@ -65,6 +65,7 @@ _BANNED_CALLS = {
     "os.execve",
     "os.execvp",
     "os.execvpe",
+    "os.kill",
     "shutil.rmtree",
     "shutil.copy",
     "shutil.copy2",

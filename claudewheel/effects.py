@@ -283,6 +283,24 @@ def exec_replace(
     os.execvpe(argv[0], argv, env)
 
 
+def kill(pid: int, sig: int) -> None:
+    """Send signal *sig* to *pid*.
+
+    The contract's closed method set has no signal, so a preview records the
+    ``kill`` that performs it -- the same treatment :func:`symlink` gets, and
+    for the same reason: a reader of the would-do log can act on the rendered
+    command, where an invented verb would tell them nothing.  ``os.kill``
+    raises exactly as it always does (``ProcessLookupError`` for a process that
+    is already gone, ``PermissionError`` for one that is not ours), so callers
+    keep their existing handling.
+    """
+    h = _handle()
+    if h is not None:
+        h.run(["kill", f"-{sig}", str(pid)])
+        return
+    os.kill(pid, sig)  # effects: exempt -- the live primitive
+
+
 def run_under_pty(
     argv: list[str],
     env: dict[str, str],
