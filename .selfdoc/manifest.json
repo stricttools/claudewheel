@@ -166,6 +166,11 @@
         },
         {
           "level": 4,
+          "text": "`_h_main_sessions`",
+          "anchor": "_h_main_sessions"
+        },
+        {
+          "level": 4,
           "text": "`_h_main_freeform_seed`",
           "anchor": "_h_main_freeform_seed"
         },
@@ -278,6 +283,11 @@
           "level": 4,
           "text": "`_delete_profile_flow`",
           "anchor": "_delete_profile_flow"
+        },
+        {
+          "level": 4,
+          "text": "`_show_sessions_overview`",
+          "anchor": "_show_sessions_overview"
         },
         {
           "level": 4,
@@ -946,6 +956,11 @@
           "level": 3,
           "text": "`stop_order`",
           "anchor": "stop_order"
+        },
+        {
+          "level": 3,
+          "text": "`still_the_registered_process`",
+          "anchor": "still_the_registered_process"
         },
         {
           "level": 3,
@@ -3211,8 +3226,8 @@
         },
         {
           "level": 3,
-          "text": "`_is_live`",
-          "anchor": "_is_live"
+          "text": "`is_live`",
+          "anchor": "is_live"
         },
         {
           "level": 3,
@@ -3238,6 +3253,11 @@
           "level": 3,
           "text": "`live_interactive_records`",
           "anchor": "live_interactive_records"
+        },
+        {
+          "level": 3,
+          "text": "`prune`",
+          "anchor": "prune"
         },
         {
           "level": 3,
@@ -3295,6 +3315,48 @@
           "level": 3,
           "text": "`format_row`",
           "anchor": "format_row"
+        }
+      ]
+    },
+    {
+      "path": "claudewheel-sessions_overview.md",
+      "title": "claudewheel.sessions_overview",
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.sessions_overview",
+          "anchor": "claudewheelsessions_overview"
+        },
+        {
+          "level": 2,
+          "text": "`claudewheel.sessions_overview`",
+          "anchor": "claudewheelsessions_overview"
+        },
+        {
+          "level": 3,
+          "text": "`Snapshot`",
+          "anchor": "snapshot"
+        },
+        {
+          "level": 3,
+          "text": "`OverviewOutcome`",
+          "anchor": "overviewoutcome"
+        },
+        {
+          "level": 3,
+          "text": "`take_snapshot`",
+          "anchor": "take_snapshot"
+        },
+        {
+          "level": 3,
+          "text": "`refocus`",
+          "anchor": "refocus"
+        },
+        {
+          "level": 3,
+          "text": "`run_overview`",
+          "anchor": "run_overview"
         }
       ]
     },
@@ -5231,5 +5293,6 @@
     }
   ],
   "posts": [],
-  "last_gen": "2026-08-13T06:37:14.285029+00:00"
+  "last_gen": "2026-08-13T18:36:31.620795+00:00",
+  "theme": "minimal"
 }

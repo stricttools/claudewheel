@@ -61,6 +61,7 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 - **claudewheel.session_list** (`claudewheel/session_list.py`): The list component both session screens are drawn with.
 - **claudewheel.session_registry** (`claudewheel/session_registry.py`): Read Claude Code's per-session registry into typed, liveness-checked records.
 - **claudewheel.session_rows** (`claudewheel/session_rows.py`): Render one session registry record as a block of lines, collapsed or expanded.
+- **claudewheel.sessions_overview** (`claudewheel/sessions_overview.py`): Every Claude Code session registered under a profile, on one scrolling screen.
 - **claudewheel.shared_store** (`claudewheel/shared_store.py`): Thin path owner for the ~/.claudewheel/shared store layout.
 - **claudewheel.state** (`claudewheel/state.py`): Persist launch state (selections, counts, recent dirs) and project inodes.
 - **claudewheel.stats** (`claudewheel/stats.py`): Report shared-store statistics and clean up legacy data.

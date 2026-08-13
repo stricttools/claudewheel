@@ -1,6 +1,6 @@
 ---
 title: API Reference
-description: "API reference index for claudewheel covering 54 modules"
+description: "API reference index for claudewheel covering 55 modules"
 generated: true
 seeded: true
 nav_group: "API Reference"
@@ -55,6 +55,7 @@ order: 90
 - [claudewheel.session_list](../claudewheel-session_list/)
 - [claudewheel.session_registry](../claudewheel-session_registry/)
 - [claudewheel.session_rows](../claudewheel-session_rows/)
+- [claudewheel.sessions_overview](../claudewheel-sessions_overview/)
 - [claudewheel.shared_store](../claudewheel-shared_store/)
 - [claudewheel.state](../claudewheel-state/)
 - [claudewheel.stats](../claudewheel-stats/)
