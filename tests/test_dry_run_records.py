@@ -248,6 +248,21 @@ class DryRunNarrationIsConditionalTests(SandboxHomeTestCase):
         self.assertNotIn("Removed session credentials", out)
         self.assertIn("Would remove session credentials", out)
 
+    def test_profile_set_plan(self) -> None:
+        self.seed_profile("work")
+        out, err, code = self.run_cli(
+            ["c", "profile", "set-plan", "work", "pro", "--dry-run"]
+        )
+        self.assertEqual(code, 0, err)
+        self.assertNotIn("Declared plan", out)
+        self.assertIn("Would declare plan Pro for 'work'", out)
+        # The preview recorded the entry write instead of performing it: the
+        # profile still declares the plan it was seeded with.
+        self.assertEqual(
+            self.ws.profiles.data_for("work").tier(),
+            ("default_claude_max_20x", "max"),
+        )
+
     def test_profile_create_summary(self) -> None:
         """One site the report did not list, found by sweeping the siblings.
 
