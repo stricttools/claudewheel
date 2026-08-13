@@ -560,6 +560,29 @@ class ScreenTests(unittest.TestCase):
         self.assertIn(dc.STATE_RUNNING, drawn)
         self.assertIn(dc.STATE_STOPPED, drawn)
 
+    def test_the_finished_screen_promises_what_it_does(self) -> None:
+        """It waits for any key, so it must not offer escape specifically."""
+        holders = _holders((2, "bg"))
+        holders[0].ticked = True
+        with (
+            _identity_holds(),
+            mock.patch(
+                "claudewheel.deletion_checklist.processes.terminate",
+                autospec=True,
+                return_value=True,
+            ),
+            mock.patch(
+                "claudewheel.deletion_checklist.processes.wait_for_exit",
+                autospec=True,
+                return_value=True,
+            ),
+        ):
+            outcome = self._run(["ENTER", "DOWN"], holders)
+
+        self.assertTrue(outcome.confirmed)
+        self.assertNotIn("esc", dc._HINT_DONE)
+        self.assertIn(dc._HINT_DONE, "".join(self.terminal.output))
+
     def test_the_selectors_are_drawn(self) -> None:
         holders = _holders((1, "daemon"), (2, "interactive"))
         self._run(["ESC"], holders)

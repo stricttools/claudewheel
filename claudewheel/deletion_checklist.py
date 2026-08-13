@@ -70,7 +70,9 @@ STATE_STOPPED = "stopped"
 _HINT_SELECT = (
     "up/down: move   space: toggle   enter: stop the ticked ones   esc: cancel"
 )
-_HINT_DONE = "esc: continue"
+#: The finished screen waits for a keystroke, any keystroke -- so it says so
+#: rather than naming escape, which was never the only key that left.
+_HINT_DONE = "any key: continue"
 
 
 @dataclass
