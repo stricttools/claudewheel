@@ -1825,7 +1825,11 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
             ),
             Arg(
                 name="plan",
-                help="the plan this profile's account is on",
+                help=(
+                    "the plan this profile's Claude account is on; each one "
+                    "stores a subscription type and, where Claude Code has one, "
+                    "a rate-limit tier"
+                ),
                 choices=_plan_choices(),
             ),
         ],

@@ -1,6 +1,6 @@
 ---
 title: Profiles
-description: "How claudewheel profiles work: the ~/.claudewheel/ layout, profile discovery, the creation wizard, shared store symlinks, per-profile token storage inside each profile directory, and the isolation model."
+description: "How claudewheel profiles work: the ~/.claudewheel/ layout, profile discovery, the creation wizard, shared store symlinks, per-profile token storage inside each profile directory, declaring the account plan Claude Code needs, and the isolation model."
 nav_group: "Concepts"
 order: 4
 ---

@@ -1,6 +1,6 @@
 ---
 title: Health Checks and Preflight
-description: "How claudewheel's diagnostic health checks and pre-launch preflight steps work: what each check detects, how per-profile token data is read, how to interpret the output, common problems and their fixes, and the reconciliation model."
+description: "How claudewheel's diagnostic health checks and pre-launch preflight steps work: what each check detects, how per-profile token data is read, the plan-declaration step, how to interpret the output, common problems and their fixes, and the reconciliation model."
 nav_group: "Concepts"
 order: 6
 ---
@@ -252,7 +252,8 @@ and only from there when auth is a setup token, so an undeclared profile
 launches with the tier null and tier-dependent features failing closed.
 
 - No profile, the vanilla `default`, or no stored token: continue (a
-  session-authed profile reads its tier from Claude Code's own credentials).
+  profile authenticated by session login reads its tier from Claude
+  Code's own credentials).
 - Already declared: continue silently.
 - Undeclared, interactive: render the composite plan picker and store the
   answer. Cancelling aborts.
