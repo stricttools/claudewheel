@@ -2221,6 +2221,31 @@ class PurgePluginsHandlerTests(unittest.TestCase):
         self.assertIn("no plugin tree", out.getvalue())
         self.assertIn("Nothing to purge", out.getvalue())
 
+    def test_no_target_chosen_purges_nothing(self) -> None:
+        """An unset --profile arrives as None and --all-profiles as False; that
+        pair is 'no target', never 'every profile'."""
+        work = self._profile("work")
+        err = io.StringIO()
+        with redirect_stderr(err), self.assertRaises(SystemExit) as ctx:
+            cli._handle_purge_plugins(
+                self._ws(work),
+                profile=None,  # type: ignore[arg-type]
+                all_profiles=False,
+            )
+        self.assertEqual(ctx.exception.code, 1)
+        self.assertIn("--profile", err.getvalue())
+        self.assertTrue((work.path / "plugins").is_dir())
+
+    def test_an_empty_profile_name_purges_nothing(self) -> None:
+        """--profile '' is the same 'no target' as omitting it."""
+        work = self._profile("work")
+        err = io.StringIO()
+        with redirect_stderr(err), self.assertRaises(SystemExit) as ctx:
+            cli._handle_purge_plugins(self._ws(work), profile="", all_profiles=False)
+        self.assertEqual(ctx.exception.code, 1)
+        self.assertIn("--profile", err.getvalue())
+        self.assertTrue((work.path / "plugins").is_dir())
+
     def test_a_preview_reports_the_inventory_and_removes_nothing(self) -> None:
         work = self._profile("work")
         out = io.StringIO()
@@ -2241,6 +2266,89 @@ class PurgePluginsHandlerTests(unittest.TestCase):
         # it; nothing is removed because the seam does the recording.
         rmtree.assert_called_once()
         self.assertTrue((work.path / "plugins").is_dir())
+
+
+class ProfileMutexNoTargetTests(unittest.TestCase):
+    """Every handler on the --profile/--all-profiles mutex refuses 'no target'.
+
+    strictcli's MutexGroup counts a present-but-false negatable boolean as
+    satisfying the group, and an unset string flag arrives as None, so
+    ``--no-all-profiles`` and ``--profile ''`` both reach a handler with neither
+    side chosen.  No handler may read that as 'every profile'.
+    """
+
+    def _ws(self) -> Any:
+        from claudewheel.profile_store import Profile
+
+        ws = mock.MagicMock()
+        ws.profiles.enumerate.return_value = [
+            Profile(
+                name="work",
+                path=Path("/p/work"),
+                has_credentials=False,
+                has_token=False,
+            )
+        ]
+        ws.profiles.reserved_reason.side_effect = lambda n: (
+            "reserved" if n == "default" else None
+        )
+        return ws
+
+    def _calls(self, profile: Any) -> list[tuple[str, Callable[[Any], int]]]:
+        return [
+            (
+                "purge-plugins",
+                lambda ws: cli._handle_purge_plugins(
+                    ws, profile=profile, all_profiles=False
+                ),
+            ),
+            (
+                "permission add",
+                lambda ws: cli._handle_permission_add(
+                    ws, "allow", "Bash", profile=profile, all_profiles=False
+                ),
+            ),
+            (
+                "permission remove",
+                lambda ws: cli._handle_permission_remove(
+                    ws, "allow", "Bash", profile=profile, all_profiles=False
+                ),
+            ),
+            (
+                "permission list",
+                lambda ws: cli._handle_permission_list(
+                    ws,
+                    profile=profile,
+                    all_profiles=False,
+                    format="grouped",
+                    category="",
+                ),
+            ),
+        ]
+
+    def test_every_handler_refuses_an_unset_profile(self) -> None:
+        for name, call in self._calls(None):
+            with self.subTest(handler=name):
+                ws = self._ws()
+                with (
+                    redirect_stderr(io.StringIO()),
+                    redirect_stdout(io.StringIO()),
+                    self.assertRaises(SystemExit) as ctx,
+                ):
+                    call(ws)
+                self.assertEqual(ctx.exception.code, 1)
+
+    def test_every_handler_refuses_an_empty_profile(self) -> None:
+        for name, call in self._calls(""):
+            with self.subTest(handler=name):
+                ws = self._ws()
+                with (
+                    redirect_stderr(io.StringIO()),
+                    redirect_stdout(io.StringIO()),
+                    self.assertRaises(SystemExit) as ctx,
+                ):
+                    call(ws)
+                self.assertEqual(ctx.exception.code, 1)
 
 
 class ProfileGroupDispatchTests(unittest.TestCase):

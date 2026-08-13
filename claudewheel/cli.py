@@ -885,6 +885,14 @@ def _handle_purge_plugins(ws: "Workspace", profile: str, all_profiles: bool) -> 
 
     The vanilla ``default`` profile is never touched -- ``~/.claude`` is Claude
     Code's own directory and claudewheel is read-only to it.
+
+    "No target chosen" is refused rather than read as "every profile", the same
+    way :func:`claudewheel.permission.resolve_profiles` refuses it. The mutex
+    group does not guarantee a choice arrives: a present-but-false negatable
+    boolean (``--no-all-profiles``) satisfies the group, and an unset
+    ``--profile`` arrives as None, so both spellings reach here with neither
+    side selected. Selecting every profile there would purge the whole fleet
+    off a flag that asked for the opposite.
     """
     from .plugins import inventory, purge
     from .profile_info import _format_size
@@ -898,6 +906,9 @@ def _handle_purge_plugins(ws: "Workspace", profile: str, all_profiles: bool) -> 
         if not targets:
             print(f"Error: profile {profile!r} not found", file=sys.stderr)
             sys.exit(1)
+    elif not all_profiles:
+        print("Error: one of --profile or --all-profiles is required", file=sys.stderr)
+        sys.exit(1)
     else:
         targets = [
             p
