@@ -1,8 +1,7 @@
 ---
 title: claudewheel.plugins
-description: "Claude Code's plugin tree inside a profile: inventory it, and remove it."
+description: "Reads what a profile's plugin tree holds -- the marketplace clone and the plugins installed from it -- and removes the whole tree when asked."
 generated: true
-seeded: true
 nav_group: "API Reference"
 nav_order: 27
 ---

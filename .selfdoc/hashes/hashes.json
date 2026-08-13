@@ -52,8 +52,7 @@
   },
   "en/claudewheel-deletion_checklist.md": {
     "content": "7797f7c5c3114158f98592ae2ce1b0bda47cd5a22fed80e40ccf28d5a1dec6e0",
-    "description": "46f833c26aca6a3338232be30c37a2e5db942db8fa1e0a64e26b9d7481ab8e83",
-    "seed_hash": "46f833c26aca6a3338232be30c37a2e5db942db8fa1e0a64e26b9d7481ab8e83",
+    "description": "bb1ec46e84fa91a7fb04b8e5cbfe32eb750136dade3742a13657d7c2aeced0c6",
     "source_docstring": "ef30d15a2389559a6b1a60e1017603062bef3cc07a6e4c954ebfeee89a254481"
   },
   "en/claudewheel-discovery.md": {
@@ -133,8 +132,7 @@
   },
   "en/claudewheel-plugins.md": {
     "content": "0e54ada9a404efc7462151a0b53a8c3f0210cbf91f34e33702565373d323cdac",
-    "description": "d4d75fdf929aae67859dcb2ce0c33842323439cfeaa2bd256949fb06257fdf79",
-    "seed_hash": "d4d75fdf929aae67859dcb2ce0c33842323439cfeaa2bd256949fb06257fdf79",
+    "description": "6d671bf0dc63b454a3f2e4067070bc0f64889b8ae2b753af273aa5a91b1b592a",
     "source_docstring": "540927f73f3b533999ea4da3259964203a0db42523247b603d519aac3b04f967"
   },
   "en/claudewheel-preflight.md": {
@@ -144,8 +142,7 @@
   },
   "en/claudewheel-processes.md": {
     "content": "4d63367764f8b822798894bd46a60223e8871274b7709f4cd4b5a38b5fcd5e05",
-    "description": "87b1d6b87645539a7603c8061705b97e21f393dace99016d9875d2818aac95b4",
-    "seed_hash": "87b1d6b87645539a7603c8061705b97e21f393dace99016d9875d2818aac95b4",
+    "description": "ada1f6428261490f0d4f961408e885fd836d2795ffd3af47bc049f474b36c992",
     "source_docstring": "031218f2e15b7838ef5f853482eb007d30c9f884748d4ba166297971cbb4245c"
   },
   "en/claudewheel-profile.md": {
@@ -210,8 +207,7 @@
   },
   "en/claudewheel-session_list.md": {
     "content": "fa57fbf5360da708544d26829a5fb46bb3ee817eda033a7cb5c170cff008866b",
-    "description": "645692978f1658f871c6a0bc7c424f6b05f15782d014f02e29497f46f1273bf2",
-    "seed_hash": "645692978f1658f871c6a0bc7c424f6b05f15782d014f02e29497f46f1273bf2",
+    "description": "c0045d95b1b3c32f7904f1416bea2253a290a473b2acb0632483f988c9148a42",
     "source_docstring": "71f32f85e42c100b6dffc0bc0016ad001b49fb16981ca4d1866cf4a45d680641"
   },
   "en/claudewheel-session_registry.md": {
@@ -340,9 +336,8 @@
   },
   "en/cli-purge-plugins.md": {
     "content": "80d142798cb69c8d09507cd126fc65ece300dddfa36e27ddf113e145d32efef4",
-    "description": "8bff7d668792997f1a8cc4180f40cd4378183f0d1a396fc4e6cb17e945217f85",
-    "schema_hash": "5aac54f7dedac1cdc71288782524c8cdb5a1d0c7397df7df2a652ad8dfb482b5",
-    "seed_hash": "8bff7d668792997f1a8cc4180f40cd4378183f0d1a396fc4e6cb17e945217f85"
+    "description": "9454877fc7f7b8d2d1b892ab1d4129751860f86583c20776e8107feca574a894",
+    "schema_hash": "5aac54f7dedac1cdc71288782524c8cdb5a1d0c7397df7df2a652ad8dfb482b5"
   },
   "en/cli-reconcile-permissions.md": {
     "content": "c13952baed63eee180ff24438f8b60b1df768a86df8b81615c34416ff73258d3",

@@ -1,8 +1,7 @@
 ---
 title: claudewheel.processes
-description: "Measure and stop the processes holding a profile."
+description: "Measures the resident memory of every process holding a profile in one batched ps call, and stops a holder by the mechanism its kind calls for."
 generated: true
-seeded: true
 nav_group: "API Reference"
 nav_order: 29
 ---

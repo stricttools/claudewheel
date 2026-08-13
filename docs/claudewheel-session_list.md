@@ -1,8 +1,7 @@
 ---
 title: claudewheel.session_list
-description: "The list component both session screens are drawn with."
+description: "Lays a column of session blocks into a window that may be too short, as styled lines a screen can draw without the builder ever touching a terminal."
 generated: true
-seeded: true
 nav_group: "API Reference"
 nav_order: 42
 ---

@@ -1,8 +1,7 @@
 ---
 title: c purge-plugins
-description: "remove the Claude Code plugin tree from the selected profiles: the official-marketplace clone and every plugin installed from it, six to ten megabytes per profile."
+description: "Remove the marketplace clone and installed plugins a profile collected before the auto-install was suppressed, naming each tree before it goes."
 generated: true
-seeded: true
 nav_group: "CLI Reference"
 nav_order: 12
 ---

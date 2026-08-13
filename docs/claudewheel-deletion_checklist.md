@@ -1,8 +1,7 @@
 ---
 title: claudewheel.deletion_checklist
-description: "Present everything holding a profile, and stop exactly what the user ticks."
+description: "The screen deletion shows before it removes anything: every live process holding the profile, with the daemon pre-ticked, stopped in place as the user confirms."
 generated: true
-seeded: true
 nav_group: "API Reference"
 nav_order: 12
 ---
