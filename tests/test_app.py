@@ -1400,6 +1400,88 @@ class ProfileInspectKeyTests(unittest.TestCase):
         self.assertEqual(seg.search_buffer, "i")
 
 
+class SessionsOverviewKeyTests(unittest.TestCase):
+    """The 'S' key opens the sessions overview for the selected profile."""
+
+    def _make_app(self, *segments: Segment, focus_idx: int = 0) -> app_mod.App:
+        app = object.__new__(app_mod.App)
+        app._locator = BinaryLocator.default()
+        app.workspace = mock.MagicMock()
+        app.workspace.profiles.path_for.return_value = Path("/profiles/work")
+        app.terminal = mock.MagicMock()
+        app.theme = mock.MagicMock()
+        app.cfg = mock.MagicMock()
+        app.bar = SegmentBar(segments=list(segments), focus_idx=focus_idx)
+        app._flash = ""
+        app._show_provenance = False
+        app._pending_discovery = {}
+        app._bindings = app._build_bindings()
+        return app
+
+    def _overview(self, **outcome_kwargs: Any) -> Any:
+        from claudewheel.sessions_overview import OverviewOutcome
+
+        return mock.patch(
+            "claudewheel.sessions_overview.run_overview",
+            autospec=True,
+            return_value=OverviewOutcome(**outcome_kwargs),
+        )
+
+    def test_s_opens_the_overview_for_the_selected_profile(self) -> None:
+        seg = _make_profile_segment(discovered=["work"])
+        seg.select_value("work")
+        app = self._make_app(seg)
+        with self._overview() as run:
+            result = app._handle_key("S")
+        self.assertIsNone(result)
+        run.assert_called_once()
+        self.assertEqual(run.call_args.args[0], Path("/profiles/work"))
+        self.assertEqual(run.call_args.kwargs["profile_name"], "work")
+        app.workspace.profiles.path_for.assert_called_once_with("work")
+
+    def test_s_opens_from_a_segment_that_is_not_the_profile_one(self) -> None:
+        """The overview is about the SELECTED profile, not the focused segment."""
+        profile = _make_profile_segment(discovered=["work"])
+        profile.select_value("work")
+        model = Segment(key="model", label="Model", _init_options=["opus"])
+        model.searchable = True
+        app = self._make_app(model, profile, focus_idx=0)
+        with self._overview() as run:
+            app._handle_key("S")
+        run.assert_called_once()
+        self.assertEqual(model.search_buffer, "")
+
+    def test_no_profile_selected_flashes_instead_of_opening(self) -> None:
+        seg = _make_profile_segment(discovered=["work"])
+        seg.selected_value = None
+        app = self._make_app(seg)
+        with self._overview() as run:
+            app._handle_key("S")
+        run.assert_not_called()
+        self.assertIn("No profile", app._flash)
+
+    def test_a_prune_is_reported_on_the_bar(self) -> None:
+        from claudewheel.session_registry import SessionRecord
+
+        record = SessionRecord(
+            path=Path("/profiles/work/sessions/9.json"), pid=9, kind="bg", live=False
+        )
+        seg = _make_profile_segment(discovered=["work"])
+        seg.select_value("work")
+        app = self._make_app(seg)
+        with self._overview(pruned=(record,)):
+            app._handle_key("S")
+        self.assertIn("1 stale session record", app._flash)
+
+    def test_an_untouched_overview_says_nothing(self) -> None:
+        seg = _make_profile_segment(discovered=["work"])
+        seg.select_value("work")
+        app = self._make_app(seg)
+        with self._overview():
+            app._handle_key("S")
+        self.assertEqual(app._flash, "")
+
+
 class InspectAuthShadowFixTests(unittest.TestCase):
     """Pressing 'f' on the inspect page fixes auth shadow when detected."""
 

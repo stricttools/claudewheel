@@ -535,6 +535,11 @@ class App:
         self._show_profile_inspect(self.bar.focused)
         return None
 
+    def _h_main_sessions(self, key: str) -> str | None:
+        """Handle 'S': open the sessions overview for the selected profile."""
+        self._show_sessions_overview()
+        return None
+
     def _h_main_freeform_seed(self, key: str) -> str | None:
         """Handle first printable key on freeform segment: seed editing from current value."""
         focused = self.bar.focused
@@ -974,6 +979,23 @@ class App:
                 priority=50,
                 mode="main",
             ),
+            # Sessions overview: uppercase S whenever nothing is being typed.
+            # Dispatch is list-order, so this MUST stay textually ahead of the
+            # two match-any-printable bindings below (the freeform seed and the
+            # search-or-quit fallback) -- either of them would otherwise take
+            # the S first, exactly as the delete and inspect bindings above are
+            # placed ahead of them for the same reason. The condition is only
+            # "nothing typed": lowercase s still searches, and the overview is
+            # about the selected profile, not the focused segment, so it opens
+            # from anywhere on the bar.
+            Binding(
+                keys=frozenset({"S"}),
+                label="S: sessions",
+                condition=lambda ctx: not ctx.search_buffer,
+                handler=App._h_main_sessions,
+                priority=50,
+                mode="main",
+            ),
             # Freeform seed: first printable on a freeform segment with a value
             Binding(
                 keys=None,  # match-any-printable
@@ -1249,6 +1271,38 @@ class App:
             )
         else:
             self._flash = f"Deleted profile '{name}'"
+
+    def _show_sessions_overview(self) -> None:
+        """Show the sessions registered under the SELECTED profile.
+
+        The selected profile, not the focused segment: the key opens from
+        anywhere on the bar, and the profile segment is where the answer lives
+        either way. With no profile selected there is no registry to read, so
+        the screen is not opened at all and the bar says why.
+
+        The app's terminal stays raw -- the overview renders borrowed in the
+        existing alt screen, like every other fullscreen surface here -- and the
+        main TUI repaints on return.
+        """
+        from .session_rows import current_identity
+        from .sessions_overview import run_overview
+
+        profile = next((s for s in self.bar.segments if s.key == "profile"), None)
+        name = profile.value if profile is not None else None
+        if not name:
+            self._flash = "No profile selected"
+            return
+
+        outcome = run_overview(
+            self.workspace.profiles.path_for(name),
+            profile_name=name,
+            theme=self.theme,
+            terminal=self.terminal,
+            clock=lambda: int(time.time() * 1000),
+            identity=current_identity(os.environ),
+        )
+        if outcome.pruned:
+            self._flash = f"Pruned {len(outcome.pruned)} stale session record(s)"
 
     def _run_deletion_checklist(self, name: str) -> "ChecklistOutcome":
         """Show what holds *name* and stop whatever the user ticks.

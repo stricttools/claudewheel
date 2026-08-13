@@ -457,6 +457,54 @@ class MainModePrintableTests(unittest.TestCase):
         # Should enter search on searchable segment
         self.assertEqual(seg.search_buffer, "i")
 
+    def test_uppercase_s_opens_the_sessions_overview(self) -> None:
+        """S with nothing typed opens the overview, from any segment."""
+        seg = _make_segment(searchable=True)
+        app = _make_app(seg)
+        with mock.patch.object(app, "_show_sessions_overview", autospec=True) as m:
+            result = app._handle_key("S")
+        m.assert_called_once_with()
+        self.assertIsNone(result)
+        self.assertEqual(seg.search_buffer, "")
+
+    def test_uppercase_s_while_searching_is_typed_into_the_buffer(self) -> None:
+        """The empty-buffer condition: an active search keeps the key."""
+        seg = _make_segment(searchable=True)
+        seg.search_buffer = "op"
+        app = _make_app(seg)
+        with mock.patch.object(app, "_show_sessions_overview", autospec=True) as m:
+            app._handle_key("S")
+        m.assert_not_called()
+        self.assertEqual(seg.search_buffer, "opS")
+
+    def test_lowercase_s_still_searches(self) -> None:
+        seg = _make_segment(searchable=True)
+        app = _make_app(seg)
+        with mock.patch.object(app, "_show_sessions_overview", autospec=True) as m:
+            app._handle_key("s")
+        m.assert_not_called()
+        self.assertEqual(seg.search_buffer, "s")
+
+    def test_uppercase_s_beats_the_freeform_seed(self) -> None:
+        """On a freeform segment S must open the overview, not start editing."""
+        seg = _make_segment(freeform=True, options=["~/Projects"])
+        seg.select_value("~/Projects")
+        app = _make_app(seg)
+        with mock.patch.object(app, "_show_sessions_overview", autospec=True) as m:
+            app._handle_key("S")
+        m.assert_called_once_with()
+        self.assertEqual(seg.search_buffer, "")
+        self.assertFalse(seg._freeform_editing)
+
+    def test_uppercase_s_binding_precedes_every_printable_catch_all(self) -> None:
+        """Dispatch is list-order, so 'ahead' is a property of the list."""
+        bindings = _make_app(_make_segment(searchable=True))._bindings
+        main = [b for b in bindings if b.mode == "main"]
+        sessions = next(i for i, b in enumerate(main) if b.keys == frozenset({"S"}))
+        catch_alls = [i for i, b in enumerate(main) if b.keys is None]
+        self.assertTrue(catch_alls)
+        self.assertTrue(all(sessions < i for i in catch_alls))
+
     def test_printable_starts_search_on_searchable(self) -> None:
         """Any printable char starts search on a searchable segment."""
         seg = _make_segment(searchable=True)
