@@ -197,7 +197,8 @@
   },
   "en/claudewheel-session_rows.md": {
     "content": "1b917e134ac5857362cf88a10461efcd9b462fdf3dc1c6e91e44191b51f3aa86",
-    "description": "8bd2e245b64ff35d6d64c299e2d13272cb94846b44e2d55fc16edef4c221a5b3"
+    "description": "8bd2e245b64ff35d6d64c299e2d13272cb94846b44e2d55fc16edef4c221a5b3",
+    "source_docstring": "2b3efd9afadca7d77ef10633d168f555dbe84520b91405bbccc34e30bdc08509"
   },
   "en/claudewheel-shared_store.md": {
     "content": "76677400b8845fa21b2ac4884c8c1a332769516052bfb202754898c50b9feb62",
