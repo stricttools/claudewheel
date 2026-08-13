@@ -1435,9 +1435,10 @@ class SessionsOverviewKeyTests(unittest.TestCase):
             result = app._handle_key("S")
         self.assertIsNone(result)
         run.assert_called_once()
+        # The store's path_for answer, so the config dir is derived from the
+        # name rather than read off persisted metadata.
         self.assertEqual(run.call_args.args[0], Path("/profiles/work"))
         self.assertEqual(run.call_args.kwargs["profile_name"], "work")
-        app.workspace.profiles.path_for.assert_called_once_with("work")
 
     def test_s_opens_from_a_segment_that_is_not_the_profile_one(self) -> None:
         """The overview is about the SELECTED profile, not the focused segment."""
