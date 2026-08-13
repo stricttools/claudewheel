@@ -223,7 +223,7 @@
   "en/claudewheel-tokens.md": {
     "content": "a019880d68a5d2a9e134aef3dc639d3d14808ba410ea5278630b8605367a2de1",
     "description": "8e627da0fe7ca91cd2fc6f27744c8d490cef5059082ae8b3c161f752591b0cda",
-    "source_docstring": "7476351cdbd6f67a2f3f53cab055b3b9dd554d5e4e6ea2f6dd441729286720a3"
+    "source_docstring": "08fce578ea232a28c34f3c1f8a55701048d2559c19e2ada6878541e9a4833b6c"
   },
   "en/claudewheel-ui.md": {
     "content": "1d4ebde63065fefc3f1dfb7f8a3fa52ed77f09770dc06a3e38d0636d7aa2c208",
@@ -302,7 +302,7 @@
   "en/cli-profile.md": {
     "content": "8ecb7ab4049ac92cc6634e269ad2fc93ee38ce8424203df49c9d775203b3f426",
     "description": "95c7ba00eceabedb9094cf03d4bec427ac66090c83714386355a02236d0408f0",
-    "schema_hash": "9ffbd45dee71bf957044c837f9a4bbd2cb02b6ea10c7be708a3e696ab4561659"
+    "schema_hash": "a5857dbc01f32c0a3ecd911a5ffa47d12c35ea11c53b23cce1ba741594b40814"
   },
   "en/cli-reconcile-permissions.md": {
     "content": "c13952baed63eee180ff24438f8b60b1df768a86df8b81615c34416ff73258d3",
@@ -352,7 +352,7 @@
     "description": "54b25f66599890ea069ab5859f2f4c910381c80cf5eb41b4580235a582248a7a"
   },
   "en/health.md": {
-    "content": "dbae06bad76829bb081a80194283224b970fa673f30f4b217ccfe8163d745c78",
+    "content": "00f5536406e71c097ccce4ad90dd1c0323d1624ed8f97a73ea588b85379413ee",
     "description": "dcf545e56fe73238ff04b5a1c0aca7306a59071a9483ffa2486eb0bee2bfbba8"
   },
   "en/index.md": {
