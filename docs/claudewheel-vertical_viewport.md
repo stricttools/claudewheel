@@ -1,8 +1,7 @@
 ---
 title: claudewheel.vertical_viewport
-description: "Scroll a column of variable-height row blocks, as arithmetic over dimensions."
+description: "Places a window over a column of variable-height blocks: centred on the focused row, clamped at both ends, reporting what each edge cuts off."
 generated: true
-seeded: true
 nav_group: "API Reference"
 nav_order: 47
 ---
