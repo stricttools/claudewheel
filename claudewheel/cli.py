@@ -113,57 +113,6 @@ def _do_show(cfg: "AppConfigStore") -> int:
     return 0
 
 
-def _write_tier_stub(
-    ws: "Workspace", profile: str | None, config_dir: str | None
-) -> None:
-    """Write a rateLimitTier stub into .credentials.json from the profile's store.
-
-    This lets downstream tools (e.g. howmuchleft) read the tier from
-    .credentials.json even when auth is via CLAUDE_CODE_OAUTH_TOKEN.
-    Short-circuits if .credentials.json already has the same tier value.
-    A corrupt token entry raises TokenStoreError (surfaced cleanly by the
-    launch handler); the .credentials.json write remains best-effort.
-    """
-    import json
-    from pathlib import Path
-    from .effects import write_json_atomic_secret
-
-    # The vanilla "default" is Claude Code's own ~/.claude -- strictly read-only
-    # to cw. It resolves to no CLAUDE_CONFIG_DIR (config_dir is None), so the
-    # guard below already skips it; the explicit name check documents the intent
-    # and keeps the skip robust regardless of how config_dir is derived.
-    if not profile or profile == "default" or not config_dir:
-        return
-    tier, subscription = ws.profiles.data_for(profile).tier()
-    if not tier:
-        return
-
-    creds_path = Path(config_dir) / ".credentials.json"
-    # Short-circuit: skip write if existing file already has matching tier
-    try:
-        existing = json.loads(creds_path.read_text())
-        existing_oauth = existing.get("claudeAiOauth")
-        if isinstance(existing_oauth, dict):
-            if existing_oauth.get("rateLimitTier") == tier:
-                return
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
-        existing = {}
-
-    # Merge tier fields into existing credentials (preserve other keys)
-    oauth = existing.get("claudeAiOauth", {})
-    if not isinstance(oauth, dict):
-        oauth = {}
-    oauth["rateLimitTier"] = tier
-    if subscription:
-        oauth["subscriptionType"] = subscription
-    existing["claudeAiOauth"] = oauth
-    try:
-        effects.mkdir(Path(config_dir), parents=True, exist_ok=True)
-        write_json_atomic_secret(creds_path, existing)
-    except OSError:
-        pass
-
-
 def _do_launch_sequence(
     ws: "Workspace",
     locator: "BinaryLocator",
@@ -238,7 +187,9 @@ def _do_launch_sequence(
             clients_config=cfg.config.get("clients", {}),
             passthrough=passthrough,
         )
-        _write_tier_stub(ws, selections.get("profile"), env.get("CLAUDE_CONFIG_DIR"))
+        # Nothing is written into the profile's config dir here. The plan-tier
+        # fields reach Claude Code through the launch environment (see
+        # ProfileStore.env); a launch never touches its .credentials.json.
         do_launch(cwd, argv, env)
     except ValueError as e:
         print(f"Launch failed: {e}", file=sys.stderr)
@@ -635,9 +586,6 @@ def _handle_fix_auth(ws: "Workspace", name: str) -> int:
         f"{'Would remove' if previewing else 'Removed'} session credentials "
         f"from {name}. Long-lived token will now be used."
     )
-    if result.tier_saved:
-        verb = "Would save" if previewing else "Saved"
-        print(f"{verb} rate-limit tier: {result.tier_saved}")
     return 0
 
 

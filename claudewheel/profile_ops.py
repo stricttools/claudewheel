@@ -13,6 +13,7 @@ import json
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from . import effects
 from . import session_registry
 from .effects import write_json_atomic_secret
 from .tokens import parse_entry
@@ -27,23 +28,25 @@ class FixAuthResult:
 
     ok: True when the shadow was removed, False otherwise.
     reason: None on success; "no-token" / "no-shadow" / "unreadable-creds" on failure.
-    tier_saved: rateLimitTier value preserved into the token entry, or None.
-    subscription_saved: subscriptionType value preserved into the entry, or None.
     """
 
     ok: bool
     reason: str | None = None
-    tier_saved: str | None = None
-    subscription_saved: str | None = None
 
 
 def fix_auth_shadow(ws: "Workspace", name: str) -> FixAuthResult:
     """Remove session credentials (claudeAiOauth) that shadow a long-lived token.
 
-    Reads the profile's .credentials.json, strips the claudeAiOauth key, and
-    preserves any tier/subscription metadata into the profile's own token
-    entry. Zero printing, zero sys.exit -- returns a FixAuthResult describing
-    what happened.
+    Reads the profile's .credentials.json and strips the claudeAiOauth key.
+    Whatever plan-tier fields that block carried are discarded with it: the
+    declared plan lives in the profile's own token entry and is written there by
+    claudewheel's plan picker, never harvested back out of Claude Code's
+    credential file. A file left holding nothing is removed rather than kept as
+    an empty object, which would go on answering "this profile has credentials"
+    to discovery, the inspection report and the permission check.
+
+    Zero printing, zero sys.exit -- returns a FixAuthResult describing what
+    happened.
 
     A corrupt token entry raises :class:`TokenStoreError` (the hard-error
     contract) -- token resolution cannot proceed and the operator must fix it.
@@ -68,27 +71,15 @@ def fix_auth_shadow(ws: "Workspace", name: str) -> FixAuthResult:
     if "claudeAiOauth" not in creds:
         return FixAuthResult(ok=False, reason="no-shadow")
 
-    # 3. Extract tier fields before stripping
-    oauth_block = creds["claudeAiOauth"]
-    tier = oauth_block.get("rateLimitTier") if isinstance(oauth_block, dict) else None
-    sub_type = (
-        oauth_block.get("subscriptionType") if isinstance(oauth_block, dict) else None
-    )
-
-    if tier or sub_type:
-        # Merge tier data into the profile's own token entry; `or None`
-        # preserves the old truthy guard so empty strings are never written.
-        data.set_tier(tier=tier or None, subscription=sub_type or None)
-
-    # 4. Strip claudeAiOauth and write back
+    # 3. Strip claudeAiOauth and write back -- or remove the file when the
+    #    shadow was all it held.
     creds.pop("claudeAiOauth", None)
-    write_json_atomic_secret(creds_path, creds)
+    if creds:
+        write_json_atomic_secret(creds_path, creds)
+    else:
+        effects.remove(creds_path, missing_ok=True)
 
-    return FixAuthResult(
-        ok=True,
-        tier_saved=tier,
-        subscription_saved=sub_type,
-    )
+    return FixAuthResult(ok=True)
 
 
 def _is_profile_running(ws: "Workspace", name: str) -> bool:

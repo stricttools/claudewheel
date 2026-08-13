@@ -151,16 +151,21 @@ class FixAuthShadowTests(_ProfileOpsTestCase):
         self.assertFalse(result.ok)
         self.assertEqual(result.reason, "unreadable-creds")
 
-    def test_strips_shadow_and_saves_tier(self) -> None:
-        """Shadow is stripped, tier data saved into the profile's token entry."""
+    def test_strips_shadow_and_discards_its_tier_fields(self) -> None:
+        """Shadow is stripped; its tier fields never reach the token entry.
+
+        The declared plan is claudewheel's own, written through the plan picker.
+        Harvesting it back out of Claude Code's credential file is the
+        back-channel that kept the launch-time tier stub alive.
+        """
         pdir = self._make_profile_dir("work")
         self._write_credentials(
             pdir,
             {
                 "claudeAiOauth": {
                     "accessToken": "short-lived",
-                    "rateLimitTier": "default_claude_pro",
-                    "subscriptionType": "claude_pro",
+                    "rateLimitTier": "default_claude_max_5x",
+                    "subscriptionType": "pro",
                 },
                 "mcpOAuth": {"keep": "this"},
             },
@@ -171,25 +176,24 @@ class FixAuthShadowTests(_ProfileOpsTestCase):
 
         self.assertTrue(result.ok)
         self.assertIsNone(result.reason)
-        self.assertEqual(result.tier_saved, "default_claude_pro")
-        self.assertEqual(result.subscription_saved, "claude_pro")
 
         creds = json.loads((pdir / ".credentials.json").read_text())
         self.assertNotIn("claudeAiOauth", creds)
         self.assertIn("mcpOAuth", creds)
 
         entry = self._read_token("work")
-        self.assertEqual(entry["rateLimitTier"], "default_claude_pro")
-        self.assertEqual(entry["subscriptionType"], "claude_pro")
+        self.assertNotIn("rateLimitTier", entry)
+        self.assertNotIn("subscriptionType", entry)
         self.assertEqual(entry["token"], "tok-work")
 
     def test_strips_shadow_no_tier_data(self) -> None:
-        """Shadow stripped even without tier fields; no tier saved."""
+        """Shadow stripped even without tier fields; the token entry is untouched."""
         pdir = self._make_profile_dir("notier")
         self._write_credentials(
             pdir,
             {
                 "claudeAiOauth": {"accessToken": "short"},
+                "mcpOAuth": {"keep": "this"},
             },
         )
         self._write_token("notier", {"token": "tok-nt"})
@@ -197,13 +201,26 @@ class FixAuthShadowTests(_ProfileOpsTestCase):
         result = profile_ops.fix_auth_shadow(self.ws, "notier")
 
         self.assertTrue(result.ok)
-        self.assertIsNone(result.tier_saved)
-        self.assertIsNone(result.subscription_saved)
 
         creds = json.loads((pdir / ".credentials.json").read_text())
         self.assertNotIn("claudeAiOauth", creds)
 
         self.assertNotIn("rateLimitTier", self._read_token("notier"))
+
+    def test_removes_a_credentials_file_left_holding_nothing(self) -> None:
+        """A file whose only content was the shadow is removed, not left as ``{}``.
+
+        An empty file goes on answering "this profile has credentials" to
+        discovery, the inspection report and the file-permission check.
+        """
+        pdir = self._make_profile_dir("only-shadow")
+        self._write_credentials(pdir, {"claudeAiOauth": {"accessToken": "short"}})
+        self._write_token("only-shadow", {"token": "tok-os"})
+
+        result = profile_ops.fix_auth_shadow(self.ws, "only-shadow")
+
+        self.assertTrue(result.ok)
+        self.assertFalse((pdir / ".credentials.json").exists())
 
     def test_atomic_write_preserves_credentials_permissions(self) -> None:
         """The atomic write to .credentials.json preserves 0600 permissions."""

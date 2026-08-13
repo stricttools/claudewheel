@@ -160,7 +160,6 @@ class LaunchSequenceWiringTests(unittest.TestCase):
                 return_value=("/cwd", ["/bin/claude"], {}),
             ),
             mock.patch("claudewheel.launch.do_launch", do_launch_mock),
-            mock.patch("claudewheel.cli._write_tier_stub", autospec=True),
         ):
             cli._do_launch_sequence(
                 inert_workspace(_INERT_ROOT),

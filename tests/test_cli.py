@@ -2126,8 +2126,8 @@ class FixAuthTests(unittest.TestCase):
                 rc = e.code
         return rc, out.getvalue(), err.getvalue()
 
-    def test_fix_auth_strips_shadow_and_saves_tier(self) -> None:
-        """With shadow present and tier data, key is stripped and tier saved."""
+    def test_fix_auth_strips_shadow_and_keeps_other_keys(self) -> None:
+        """With a shadow present the key is stripped; unrelated keys survive."""
         import json
 
         pdir = self._make_profile("work")
@@ -2138,9 +2138,35 @@ class FixAuthTests(unittest.TestCase):
         self._write_credentials(
             pdir,
             {
+                "claudeAiOauth": {"accessToken": "short"},
+                "mcpOAuth": {"keep": "this"},
+            },
+        )
+
+        rc, out, err = self._run_fix_auth("work")
+        self.assertEqual(rc, 0)
+        self.assertIn("Removed session credentials from work", out)
+
+        # Verify .credentials.json no longer has claudeAiOauth
+        creds = json.loads((pdir / ".credentials.json").read_text())
+        self.assertNotIn("claudeAiOauth", creds)
+        self.assertIn("mcpOAuth", creds)
+
+    def test_fix_auth_never_harvests_tier_fields_from_the_credential_file(self) -> None:
+        """Tier fields found in the stripped block are discarded, not stored.
+
+        The plan tier is declared through claudewheel's own picker and lives in
+        the token entry; reading it back out of Claude Code's credential file is
+        the back-channel that kept the stub alive.
+        """
+        pdir = self._make_profile("work")
+        self._write_token("work", {"token": "tok-abc", "created": "2025-01-01"})
+        self._write_credentials(
+            pdir,
+            {
                 "claudeAiOauth": {
                     "accessToken": "short",
-                    "rateLimitTier": "tier4",
+                    "rateLimitTier": "default_claude_max_5x",
                     "subscriptionType": "pro",
                 },
                 "mcpOAuth": {"keep": "this"},
@@ -2149,18 +2175,25 @@ class FixAuthTests(unittest.TestCase):
 
         rc, out, err = self._run_fix_auth("work")
         self.assertEqual(rc, 0)
-        self.assertIn("Removed session credentials from work", out)
-        self.assertIn("Saved rate-limit tier: tier4", out)
+        self.assertNotIn("tier", out.lower())
 
-        # Verify .credentials.json no longer has claudeAiOauth
-        creds = json.loads((pdir / ".credentials.json").read_text())
-        self.assertNotIn("claudeAiOauth", creds)
-        self.assertIn("mcpOAuth", creds)
-
-        # Verify the profile's token entry carries the tier fields
         entry = self._read_token("work")
-        self.assertEqual(entry["rateLimitTier"], "tier4")
-        self.assertEqual(entry["subscriptionType"], "pro")
+        self.assertNotIn("rateLimitTier", entry)
+        self.assertNotIn("subscriptionType", entry)
+
+    def test_fix_auth_removes_a_credentials_file_left_empty(self) -> None:
+        """A credential file holding nothing but the shadow is removed outright.
+
+        Left behind as ``{}`` it would keep answering "this profile has
+        credentials" to discovery, the report and the permission check.
+        """
+        pdir = self._make_profile("work")
+        self._write_token("work", {"token": "tok-abc", "created": "2025-01-01"})
+        self._write_credentials(pdir, {"claudeAiOauth": {"accessToken": "short"}})
+
+        rc, out, err = self._run_fix_auth("work")
+        self.assertEqual(rc, 0)
+        self.assertFalse((pdir / ".credentials.json").exists())
 
     def test_fix_auth_no_shadow_exits_0(self) -> None:
         """When no claudeAiOauth key exists, prints 'no auth shadow' and exits 0."""
@@ -2193,6 +2226,7 @@ class FixAuthTests(unittest.TestCase):
             pdir,
             {
                 "claudeAiOauth": {"accessToken": "short-lived"},
+                "mcpOAuth": {"keep": "this"},
             },
         )
 
@@ -2216,150 +2250,115 @@ class FixAuthTests(unittest.TestCase):
         self.assertIn("No profile 'absent'", err)
 
 
-class WriteTierStubTests(unittest.TestCase):
-    """Tests for _write_tier_stub: writing rateLimitTier into .credentials.json at launch."""
+class LaunchLeavesCredentialFileAloneTests(unittest.TestCase):
+    """A launch never writes Claude Code's ``.credentials.json``.
+
+    The plan-tier fields live in the profile's own token entry and reach Claude
+    Code as launch environment variables. Writing them back into the credential
+    file as a stub made the auth-shadow health check fail on every launched
+    profile and made the inspection report claim credentials that do not exist,
+    and the repair command could only strip a stub the next launch rewrote.
+    """
 
     def setUp(self) -> None:
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
-        self.root = Path(self._tmp.name)
-        self.config_dir = self.root / "profiles" / "work"
-        self.config_dir.mkdir(parents=True)
+        self.home = Path(self._tmp.name)
+        self.profiles_dir = self.home / ".claudewheel" / "profiles"
+        self.profiles_dir.mkdir(parents=True)
 
         from claudewheel.workspace import Workspace
 
-        self.ws = Workspace.open(self.root, claude_dir=self.root / ".claude")
-
-    def _write_token(self, entry: dict[str, Any]) -> None:
-        write_token_entry(self.config_dir, entry)
-
-    def _read_creds(self) -> dict[str, Any]:
-        import json
-
-        data: dict[str, Any] = json.loads(
-            (self.config_dir / ".credentials.json").read_text()
+        self.ws = Workspace.open(
+            self.home / ".claudewheel", claude_dir=self.home / ".claude"
         )
-        return data
-
-    def test_writes_tier_stub(self) -> None:
-        """When the token entry has tier data, .credentials.json gets a stub."""
-        self._write_token(
+        self.config_dir = build_profile_dir(
+            self.profiles_dir,
+            "work",
+            parents=True,
+            exist_ok=True,
+            credentials=False,
+            settings={},
+        )
+        write_token_entry(
+            self.config_dir,
             {
                 "token": "tok-1",
-                "rateLimitTier": "default_claude_pro",
-                "subscriptionType": "claude_pro",
-            }
+                "created": "2026-01-01",
+                "expires_at": "2027-01-01",
+                "rateLimitTier": "default_claude_max_20x",
+                "subscriptionType": "max",
+            },
         )
 
-        cli._write_tier_stub(self.ws, "work", str(self.config_dir))
+    def _launch(self) -> None:
+        """Drive the real _do_launch_sequence with the exec boundary stubbed."""
+        from tests.wheelhelpers import FakeAppConfigStore
 
-        creds = self._read_creds()
-        self.assertEqual(creds["claudeAiOauth"]["rateLimitTier"], "default_claude_pro")
-        self.assertEqual(creds["claudeAiOauth"]["subscriptionType"], "claude_pro")
+        with (
+            mock.patch("claudewheel.preflight.PREFLIGHT_STEPS", []),
+            mock.patch("claudewheel.hooks.run_hooks", autospec=True, return_value=True),
+            mock.patch("claudewheel.state.save_launch_state", autospec=True),
+            mock.patch("claudewheel.state.record_inode", autospec=True),
+            mock.patch(
+                "claudewheel.launch.resolve_launch_config",
+                autospec=True,
+                return_value=(
+                    "/cwd",
+                    ["/bin/claude"],
+                    {
+                        "CLAUDE_CONFIG_DIR": str(self.config_dir),
+                        "CLAUDE_CODE_OAUTH_TOKEN": "tok-1",
+                        "CLAUDE_CODE_RATE_LIMIT_TIER": "default_claude_max_20x",
+                        "CLAUDE_CODE_SUBSCRIPTION_TYPE": "max",
+                    },
+                ),
+            ),
+            mock.patch("claudewheel.launch.do_launch", mock.MagicMock()),
+            redirect_stdout(io.StringIO()),
+            redirect_stderr(io.StringIO()),
+        ):
+            cli._do_launch_sequence(
+                self.ws,
+                mock.MagicMock(),
+                FakeAppConfigStore(),
+                {"profile": "work"},
+                interactive=False,
+            )
 
-    def test_no_tier_no_write(self) -> None:
-        """When the token entry has no tier field, .credentials.json is not created."""
-        self._write_token({"token": "tok-2"})
-
-        cli._write_tier_stub(self.ws, "work", str(self.config_dir))
-
+    def test_launch_creates_no_credentials_file(self) -> None:
+        """A token-only profile has no .credentials.json after a launch."""
+        self._launch()
         self.assertFalse((self.config_dir / ".credentials.json").exists())
 
-    def test_short_circuits_when_matching(self) -> None:
-        """When .credentials.json already has the matching tier, no write occurs."""
-        import json
+    def test_launch_leaves_an_existing_credentials_file_byte_identical(self) -> None:
+        """An unrelated credential file (e.g. MCP OAuth) is not rewritten."""
+        creds = self.config_dir / ".credentials.json"
+        creds.write_text(json.dumps({"mcpOAuth": {"keep": "this"}}))
+        before = creds.read_bytes()
 
-        self._write_token(
-            {
-                "token": "tok-3",
-                "rateLimitTier": "default_claude_pro",
-            }
-        )
-        # Pre-populate matching credentials
-        creds_path = self.config_dir / ".credentials.json"
-        creds_path.write_text(
-            json.dumps({"claudeAiOauth": {"rateLimitTier": "default_claude_pro"}})
-        )
-        original_mtime = creds_path.stat().st_mtime
+        self._launch()
 
-        import time
+        self.assertEqual(creds.read_bytes(), before)
 
-        time.sleep(0.01)  # ensure timestamp differs if rewritten
+    def test_shadow_check_passes_after_a_launch(self) -> None:
+        """The auth-shadow health check stays clean across a launch."""
+        from claudewheel.health import check_auth_shadow
 
-        cli._write_tier_stub(self.ws, "work", str(self.config_dir))
+        self._launch()
 
-        # File should not have been rewritten
-        self.assertEqual(creds_path.stat().st_mtime, original_mtime)
+        result = check_auth_shadow(self.ws)
+        self.assertTrue(result.ok, result.detail)
 
-    def test_overwrites_when_tier_differs(self) -> None:
-        """When .credentials.json has a different tier, it is updated."""
-        import json
+    def test_report_claims_no_credentials_after_a_launch(self) -> None:
+        """The inspection report does not claim credentials for a token-only profile."""
+        from claudewheel.profile_info import gather_profile_info
 
-        self._write_token(
-            {
-                "token": "tok-4",
-                "rateLimitTier": "default_claude_max_5x",
-            }
-        )
-        creds_path = self.config_dir / ".credentials.json"
-        creds_path.write_text(
-            json.dumps({"claudeAiOauth": {"rateLimitTier": "default_claude_pro"}})
-        )
+        self._launch()
 
-        cli._write_tier_stub(self.ws, "work", str(self.config_dir))
-
-        creds = self._read_creds()
-        self.assertEqual(
-            creds["claudeAiOauth"]["rateLimitTier"], "default_claude_max_5x"
-        )
-
-    def test_no_profile_no_write(self) -> None:
-        """When profile is None, nothing happens."""
-        self._write_token(
-            {
-                "token": "tok-5",
-                "rateLimitTier": "default_claude_pro",
-            }
-        )
-
-        cli._write_tier_stub(self.ws, None, str(self.config_dir))
-
-        self.assertFalse((self.config_dir / ".credentials.json").exists())
-
-    def test_no_config_dir_no_write(self) -> None:
-        """When config_dir is None, nothing happens."""
-        self._write_token(
-            {
-                "token": "tok-6",
-                "rateLimitTier": "default_claude_pro",
-            }
-        )
-
-        cli._write_tier_stub(self.ws, "work", None)
-
-    def test_merges_into_existing_credentials(self) -> None:
-        """Existing keys in .credentials.json are preserved."""
-        import json
-
-        self._write_token(
-            {
-                "token": "tok-7",
-                "rateLimitTier": "default_claude_pro",
-            }
-        )
-        creds_path = self.config_dir / ".credentials.json"
-        creds_path.write_text(json.dumps({"otherKey": "preserved"}))
-
-        cli._write_tier_stub(self.ws, "work", str(self.config_dir))
-
-        creds = self._read_creds()
-        self.assertEqual(creds["otherKey"], "preserved")
-        self.assertEqual(creds["claudeAiOauth"]["rateLimitTier"], "default_claude_pro")
-
-    def test_missing_token_entry_no_crash(self) -> None:
-        """When the profile stores no entry, the function silently returns."""
-        cli._write_tier_stub(self.ws, "work", str(self.config_dir))
-        self.assertFalse((self.config_dir / ".credentials.json").exists())
+        report = gather_profile_info(self.ws, "work")
+        self.assertFalse(report.has_credentials)
+        self.assertFalse(report.has_auth_shadow)
 
 
 class CheckTokensTests(unittest.TestCase):

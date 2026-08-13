@@ -280,8 +280,14 @@ AND session credentials (`claudeAiOauth` key) in `.credentials.json`. The sessio
 effectively shadowing the long-lived token.
 
 The `profile fix-auth` command repairs this by stripping the `claudeAiOauth`
-key from `.credentials.json` and preserving any tier metadata into the
-profile's own token entry.
+key from `.credentials.json`. Any plan-tier fields that block carried are
+discarded with it -- the declared plan is claudewheel's own and lives in the
+profile's token entry. A credential file left holding nothing else is removed
+rather than kept as an empty object.
+
+A launch never writes `.credentials.json`. The declared plan reaches Claude
+Code as `CLAUDE_CODE_SUBSCRIPTION_TYPE` / `CLAUDE_CODE_RATE_LIMIT_TIER` in the
+launch environment, so nothing has to be stashed in the credential file.
 
 ### Token validation
 

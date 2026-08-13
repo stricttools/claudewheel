@@ -132,7 +132,6 @@ class PreflightReconcileTests(unittest.TestCase):
                 return_value=("/cwd", ["/bin/claude"], {}),
             ),
             mock.patch("claudewheel.launch.do_launch", mock.MagicMock()),
-            mock.patch("claudewheel.cli._write_tier_stub", autospec=True),
             redirect_stdout(out),
             redirect_stderr(io.StringIO()),
         ):
