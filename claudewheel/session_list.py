@@ -53,6 +53,12 @@ STYLE_STOPPED = "stopped"
 #: it, a blank line above the hint, and the hint.
 _CHROME_LINES = 4
 
+#: The two things a screen can do with a row only partly inside the window.
+#: ``PARTIAL_CLIP`` draws the lines that fit; ``PARTIAL_HIDE`` leaves the whole
+#: block out and blanks the lines it would have used.
+PARTIAL_CLIP = "clip"
+PARTIAL_HIDE = "hide"
+
 
 @dataclass(frozen=True)
 class FrameLine:
@@ -139,17 +145,38 @@ def build_frame(
     hint: str,
     height: int,
     width: int,
+    partial_rows: str = PARTIAL_CLIP,
     identity: SessionIdentity | None = None,
     empty_text: str = "No sessions.",
 ) -> list[FrameLine]:
     """Lay the list out into at most *height* lines of at most *width* columns.
 
     The window is centered on the focused row and clamped to the content (the
-    viewport's rule), and a row only partly inside the window contributes only
-    the lines that fit -- the screen never draws past its last row.  A *height*
+    viewport's rule), and the screen never draws past its last row.  A *height*
     too small even for the chrome yields whatever prefix of it fits, so a tiny
     terminal renders something rather than raising.
+
+    *partial_rows* decides what happens to a row only partly inside the window
+    -- the viewport reports both the lines that fit and the ones cut, and says
+    nothing about which to prefer:
+
+    ``PARTIAL_CLIP``
+        Draw the lines that fit.  The window is always full; the block at an
+        edge is cut mid-way.
+    ``PARTIAL_HIDE``
+        Draw whole blocks only, leaving the cut ones out and the freed lines
+        blank.  The focused row is the one exception: it is clipped rather than
+        hidden, because a window too short for it would otherwise show nothing
+        at all.
+
+    Both behaviours exist so they can be compared on a real screen before one
+    of them is kept and the other deleted; the default names the incumbent for
+    the length of that comparison, and every screen passes the value it wants
+    explicitly.
     """
+    if partial_rows not in (PARTIAL_CLIP, PARTIAL_HIDE):
+        raise ValueError(f"unknown partial_rows behaviour: {partial_rows!r}")
+
     frame: list[FrameLine] = [
         FrameLine(title[:width], STYLE_TITLE),
         FrameLine("", STYLE_BLANK),
@@ -164,6 +191,9 @@ def build_frame(
         for slice_ in viewport.rows:
             row = rows[slice_.index]
             highlighted = slice_.index == focus
+            if partial_rows == PARTIAL_HIDE and slice_.clipped and not highlighted:
+                frame.extend(FrameLine("", STYLE_BLANK) for _ in range(slice_.lines))
+                continue
             lines = _lines_for(
                 row, highlighted=highlighted, now_ms=now_ms, identity=identity
             )

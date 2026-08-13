@@ -42,7 +42,13 @@ from pathlib import Path
 
 from . import processes
 from . import session_registry
-from .session_list import ListRow, build_frame, move_focus, render_frame
+from .session_list import (
+    PARTIAL_CLIP,
+    ListRow,
+    build_frame,
+    move_focus,
+    render_frame,
+)
 from .session_registry import SessionRecord
 from .session_rows import SessionIdentity
 from .terminal import Terminal
@@ -161,6 +167,7 @@ def run_overview(
             hint=_HINT,
             height=rows,
             width=max(1, cols - 2),
+            partial_rows=PARTIAL_CLIP,
             identity=identity,
             empty_text=_EMPTY,
         )

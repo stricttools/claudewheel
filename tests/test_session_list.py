@@ -10,6 +10,8 @@ import unittest
 from pathlib import Path
 
 from claudewheel.session_list import (
+    PARTIAL_CLIP,
+    PARTIAL_HIDE,
     SELECTOR_OFF,
     SELECTOR_ON,
     STYLE_HINT,
@@ -274,6 +276,68 @@ class FrameTests(unittest.TestCase):
         )
         text = "\n".join(line.text for line in frame)
         self.assertIn(CURRENT_MARK, text)
+
+
+class PartialRowTests(unittest.TestCase):
+    """The two things a screen can do with a row only partly in the window.
+
+    Both are built so they can be compared on a real 24-row terminal; these
+    tests pin what each one actually does to the same content.
+    """
+
+    def _frame(self, behaviour: str, *, focus: int, height: int = 24) -> list[str]:
+        return [
+            line.text
+            for line in build_frame(
+                _rows(10),
+                focus=focus,
+                now_ms=NOW_MS,
+                title="Sessions under 'work'",
+                hint="up/down: move   q/esc: close",
+                height=height,
+                width=78,
+                partial_rows=behaviour,
+            )
+        ]
+
+    def test_both_fill_the_same_number_of_lines(self) -> None:
+        """Hiding a partial row blanks its lines rather than shifting the hint."""
+        for focus in (0, 4, 9):
+            with self.subTest(focus=focus):
+                self.assertEqual(
+                    len(self._frame(PARTIAL_CLIP, focus=focus)),
+                    len(self._frame(PARTIAL_HIDE, focus=focus)),
+                )
+
+    def test_clip_draws_the_lines_that_fit(self) -> None:
+        """At the bottom edge that is a header with no detail line under it."""
+        frame = self._frame(PARTIAL_CLIP, focus=0)
+        self.assertIn("row-1008", "\n".join(frame))
+        self.assertNotIn("row-1009", "\n".join(frame))
+
+    def test_hide_leaves_a_partly_visible_row_out(self) -> None:
+        frame = self._frame(PARTIAL_HIDE, focus=0)
+        self.assertNotIn("row-1008", "\n".join(frame))
+        self.assertNotIn("row-1009", "\n".join(frame))
+
+    def test_clip_can_orphan_a_detail_line_at_the_top_edge(self) -> None:
+        """The line whose header is above the window, drawn with no owner."""
+        frame = self._frame(PARTIAL_CLIP, focus=9)
+        first_row_line = frame[2]
+        self.assertTrue(first_row_line.strip().startswith("/home"))
+
+    def test_hide_never_draws_a_line_whose_header_is_off_screen(self) -> None:
+        frame = self._frame(PARTIAL_HIDE, focus=9)
+        self.assertEqual(frame[2], "")
+
+    def test_hide_still_draws_the_focused_row_when_it_cannot_fit(self) -> None:
+        """Hiding it would leave a window with nothing in it at all."""
+        frame = self._frame(PARTIAL_HIDE, focus=0, height=7)
+        self.assertIn("row-1000", "\n".join(frame))
+
+    def test_an_unknown_behaviour_is_a_hard_error(self) -> None:
+        with self.assertRaises(ValueError):
+            self._frame("shrink", focus=0)
 
 
 class FocusMovementTests(unittest.TestCase):
