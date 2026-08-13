@@ -55,8 +55,11 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
+
+from . import effects
 
 #: The registry directory inside a Claude Code config dir.
 SESSIONS_DIRNAME = "sessions"
@@ -233,6 +236,42 @@ def live_records(config_dir: Path) -> list[SessionRecord]:
 def live_interactive_records(config_dir: Path) -> list[SessionRecord]:
     """The live records that are a human's session rather than background work."""
     return [r for r in live_records(config_dir) if r.interactive]
+
+
+def prune(records: Iterable[SessionRecord]) -> list[SessionRecord]:
+    """Delete the registry files of *records* that are provably dead, and return them.
+
+    Two rules, and the second is why the first is safe:
+
+    * **Only a provably dead record is pruned.** Liveness is re-probed here
+      rather than read off the record's own ``live`` field: the field is as old
+      as the snapshot the caller is holding, and a screen the user sat in front
+      of for a minute has an answer from a minute ago.  "Provably dead" is
+      :func:`is_live` saying no -- the PID is gone, or it exists and carries a
+      different kernel start token, so the process the file describes is gone
+      whatever now wears its number.  Where no token is available on either
+      side the filter cannot run, :func:`is_live` says yes, and the file stays:
+      not proven dead is not pruned.
+    * **An unparseable file is never pruned**, structurally: this works from
+      records, and a record only exists for a file :func:`read_records` could
+      parse.  That is also what protects a file *being written right now* by a
+      session starting up -- a half-written JSON document parses as nothing, so
+      it is not a record, so it is not a candidate.  Pruning must never be
+      rewritten to walk the directory itself.
+
+    A file another screen already removed still counts as pruned; one that
+    cannot be removed does not, and does not stop the rest.
+    """
+    pruned: list[SessionRecord] = []
+    for record in records:
+        if is_live(record.pid, record.proc_start):
+            continue
+        try:
+            effects.remove(record.path, missing_ok=True)
+        except OSError:
+            continue
+        pruned.append(record)
+    return pruned
 
 
 def has_live_interactive(config_dir: Path) -> bool:

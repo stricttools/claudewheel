@@ -9,6 +9,7 @@ shared FakeTerminal's recorded keystrokes.
 from __future__ import annotations
 
 import re
+import tempfile
 import unittest
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
@@ -22,7 +23,7 @@ from claudewheel.session_registry import SessionRecord
 from claudewheel.session_rows import CURRENT_MARK, SessionIdentity
 from claudewheel.theme import ThemeColors, parse_theme
 
-from .wheelhelpers import FakeTerminal
+from .wheelhelpers import FakeTerminal, live_record, stale_record
 
 STARTED_AT = 1_786_536_700_326
 NOW_MS = STARTED_AT + 3_600_000
@@ -312,6 +313,86 @@ class KeyLoopTests(unittest.TestCase):
         ]
         self.assertEqual(len(marked), 1)
         self.assertIn("row-2", marked[0])
+
+
+class PruneKeyTests(unittest.TestCase):
+    """The prune key, over the snapshot the screen is showing."""
+
+    def test_the_key_prunes_the_listed_records_and_re_reads_the_registry(
+        self,
+    ) -> None:
+        dead = _record(2, live=False)
+        terminal = FakeTerminal(["p", "ESC"])
+        with (
+            _registry([_record(1), dead], [_record(1)]) as seams,
+            mock.patch(
+                "claudewheel.sessions_overview.session_registry.prune",
+                autospec=True,
+                return_value=[dead],
+            ) as prune,
+        ):
+            outcome = so.run_overview(
+                CONFIG_DIR,
+                profile_name="work",
+                theme=_theme(),
+                terminal=terminal,
+                clock=_Clock(),
+            )
+
+        (asked,) = prune.call_args.args
+        self.assertEqual([r.pid for r in asked], [1, 2])
+        self.assertEqual([r.pid for r in outcome.pruned], [2])
+        # The screen re-reads rather than deleting rows it believes are gone.
+        self.assertEqual(seams["read_records"].call_count, 2)
+        self.assertEqual(outcome.refreshes, 0)
+
+    def test_pruning_nothing_leaves_the_outcome_empty(self) -> None:
+        terminal = FakeTerminal(["p", "ESC"])
+        with (
+            _registry([_record(1)]),
+            mock.patch(
+                "claudewheel.sessions_overview.session_registry.prune",
+                autospec=True,
+                return_value=[],
+            ),
+        ):
+            outcome = so.run_overview(
+                CONFIG_DIR,
+                profile_name="work",
+                theme=_theme(),
+                terminal=terminal,
+                clock=_Clock(),
+            )
+        self.assertEqual(outcome.pruned, ())
+
+    def test_over_a_real_registry_only_the_dead_file_goes(self) -> None:
+        """End to end: real files, the real reader, the real liveness probe."""
+        with tempfile.TemporaryDirectory() as tmp:
+            config_dir = Path(tmp)
+            sessions = config_dir / "sessions"
+            alive = live_record(sessions)
+            dead = stale_record(sessions)
+            torn = sessions / "424242.json"
+            torn.write_text('{"pid": 424242, "kin')
+
+            terminal = FakeTerminal(["p", "ESC"])
+            with mock.patch(
+                "claudewheel.sessions_overview.processes.resident_memory",
+                autospec=True,
+                return_value={},
+            ):
+                outcome = so.run_overview(
+                    config_dir,
+                    profile_name="work",
+                    theme=_theme(),
+                    terminal=terminal,
+                    clock=_Clock(),
+                )
+
+            self.assertEqual([r.path for r in outcome.pruned], [dead])
+            self.assertFalse(dead.exists())
+            self.assertTrue(alive.exists())
+            self.assertTrue(torn.exists())
 
 
 class ShortTerminalTests(unittest.TestCase):

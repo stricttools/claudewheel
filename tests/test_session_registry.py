@@ -10,6 +10,7 @@ the wrong token, and the *stale* records name a PID that does not exist.
 
 from __future__ import annotations
 
+import dataclasses
 import io
 import json
 import os
@@ -183,6 +184,83 @@ class LiveHelperTests(unittest.TestCase):
             [os.getpid()],
         )
         self.assertTrue(session_registry.has_live_interactive(self.config_dir))
+
+
+class PruneTests(unittest.TestCase):
+    """prune() deletes the files of records that are provably dead, and no others."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.config_dir = Path(self._tmp.name)
+        self.sessions = self.config_dir / "sessions"
+
+    def _records(self) -> list[session_registry.SessionRecord]:
+        return session_registry.read_records(self.config_dir)
+
+    def test_a_dead_pid_is_pruned(self) -> None:
+        path = stale_record(self.sessions)
+        pruned = session_registry.prune(self._records())
+        self.assertEqual([r.path for r in pruned], [path])
+        self.assertFalse(path.exists())
+
+    def test_a_recycled_pid_is_pruned(self) -> None:
+        """The PID exists but carries a different start token, so the process
+        the record describes is gone whatever now wears its number."""
+        path = phantom_record(self.sessions)
+        pruned = session_registry.prune(self._records())
+        self.assertEqual([r.path for r in pruned], [path])
+        self.assertFalse(path.exists())
+
+    def test_a_live_record_is_left_alone(self) -> None:
+        path = live_record(self.sessions)
+        self.assertEqual(session_registry.prune(self._records()), [])
+        self.assertTrue(path.exists())
+
+    def test_a_record_with_no_token_is_kept_while_its_pid_exists(self) -> None:
+        """No token means the phantom filter cannot run, so the record is not
+        PROVABLY dead -- and only provably dead records are pruned."""
+        path = write_session_record(self.sessions, os.getpid(), proc_start=None)
+        self.assertEqual(session_registry.prune(self._records()), [])
+        self.assertTrue(path.exists())
+
+    def test_an_unparseable_file_is_never_pruned(self) -> None:
+        """It cannot be: prune works from parsed records, and the reader skips
+        what it cannot parse -- which is also what protects a file being
+        written by a session starting up right now."""
+        self.sessions.mkdir(parents=True, exist_ok=True)
+        torn = self.sessions / "424242.json"
+        torn.write_text('{"pid": 424242, "kin')
+        dead = stale_record(self.sessions)
+
+        pruned = session_registry.prune(self._records())
+
+        self.assertEqual([r.path for r in pruned], [dead])
+        self.assertTrue(torn.exists())
+
+    def test_liveness_is_re_probed_rather_than_read_off_the_snapshot(self) -> None:
+        """A snapshot record saying 'dead' whose PID is live now is kept."""
+        live_record(self.sessions)
+        (record,) = self._records()
+        aged = dataclasses.replace(record, live=False)
+        self.assertEqual(session_registry.prune([aged]), [])
+        self.assertTrue(record.path.exists())
+
+    def test_a_file_already_gone_is_still_reported_pruned(self) -> None:
+        """Two screens pruning the same dead record is not an error."""
+        path = stale_record(self.sessions)
+        (record,) = self._records()
+        path.unlink()
+        self.assertEqual([r.path for r in session_registry.prune([record])], [path])
+
+    def test_an_undeletable_file_is_not_reported_pruned(self) -> None:
+        stale_record(self.sessions)
+        records = self._records()
+        os.chmod(self.sessions, 0o555)
+        try:
+            self.assertEqual(session_registry.prune(records), [])
+        finally:
+            os.chmod(self.sessions, 0o755)
 
 
 class ProcessStartTokenTests(unittest.TestCase):

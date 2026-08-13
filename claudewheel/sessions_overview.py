@@ -52,10 +52,13 @@ from .ui import screen_session
 #: Re-read the registry.  The only thing that does -- there is no auto-refresh.
 REFRESH_KEYS = frozenset({"r", "R"})
 
+#: Delete the registry files of every listed record that is provably dead.
+PRUNE_KEYS = frozenset({"p", "P"})
+
 #: Leave the screen.
 CLOSE_KEYS = frozenset({"ESC", "CTRL_C", "q", "Q"})
 
-_HINT = "up/down: move   r: refresh   q/esc: close"
+_HINT = "up/down: move   r: refresh   p: prune dead   q/esc: close"
 
 _EMPTY = "No sessions registered under this profile."
 
@@ -75,14 +78,16 @@ class Snapshot:
 
 @dataclass(frozen=True)
 class OverviewOutcome:
-    """What the screen was showing when it closed.
+    """What the screen was showing when it closed, and what it removed.
 
     *focused* is the record under the cursor at that moment (None when the list
-    was empty), and *refreshes* how many times the user re-read the registry.
+    was empty), *refreshes* how many times the user re-read the registry, and
+    *pruned* every record whose registry file the screen deleted.
     """
 
     focused: SessionRecord | None = None
     refreshes: int = 0
+    pruned: tuple[SessionRecord, ...] = ()
 
 
 def take_snapshot(config_dir: Path, *, clock: Callable[[], int]) -> Snapshot:
@@ -130,8 +135,11 @@ def run_overview(
     """Show the sessions registered under *config_dir* until the user leaves.
 
     Up and down move the focus (clamped, never wrapping), the refresh key takes
-    a new snapshot, and escape, ``q`` or Ctrl-C close the screen.  Every other
-    key is ignored rather than doing something adjacent.
+    a new snapshot, the prune key deletes the registry files of the listed
+    records that are provably dead *at that moment* (see
+    :func:`claudewheel.session_registry.prune`) and re-reads the registry
+    afterwards, and escape, ``q`` or Ctrl-C close the screen.  Every other key
+    is ignored rather than doing something adjacent.
 
     The frame is rebuilt at the terminal's current size on every draw, so a
     window too short for the list -- or for the chrome around it -- draws the
@@ -140,6 +148,7 @@ def run_overview(
     snapshot = take_snapshot(config_dir, clock=clock)
     focus = 0 if snapshot.rows else -1
     refreshes = 0
+    pruned: list[SessionRecord] = []
     title = f"Sessions under '{profile_name}'"
 
     def render() -> None:
@@ -175,7 +184,14 @@ def run_overview(
                 focus = refocus(snapshot.rows, focus, fresh.rows)
                 snapshot = fresh
                 refreshes += 1
+            elif key in PRUNE_KEYS:
+                pruned.extend(
+                    session_registry.prune(row.record for row in snapshot.rows)
+                )
+                fresh = take_snapshot(config_dir, clock=clock)
+                focus = refocus(snapshot.rows, focus, fresh.rows)
+                snapshot = fresh
             render()
 
     focused = snapshot.rows[focus].record if 0 <= focus < len(snapshot.rows) else None
-    return OverviewOutcome(focused=focused, refreshes=refreshes)
+    return OverviewOutcome(focused=focused, refreshes=refreshes, pruned=tuple(pruned))
