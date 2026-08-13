@@ -42,7 +42,6 @@ from . import effects
 from . import processes
 from . import session_registry
 from .session_list import (
-    PARTIAL_CLIP,
     STYLE_RUNNING,
     STYLE_STOPPED,
     ListRow,
@@ -242,7 +241,6 @@ def run_checklist(
             hint=hint,
             height=rows,
             width=max(1, cols - 2),
-            partial_rows=PARTIAL_CLIP,
             identity=identity,
             empty_text="Nothing holds this profile.",
         )
