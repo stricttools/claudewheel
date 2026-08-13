@@ -54,10 +54,24 @@ Keys:
 - Tab -- accept the current fuzzy match and advance to the next segment
 - Backspace -- delete a search/edit character (on a non-empty selected value, starts edit mode)
 - Esc -- cancel the in-progress search or edit
+- `S` (uppercase) -- open the sessions overview for the selected profile (see below)
 - Enter -- launch
 - q or Ctrl-C -- quit without launching
 
 Search shows the matched characters in the search-match colour. The search buffer turns red when no option matches.
+
+An uppercase `S` typed with nothing in the search buffer no longer seeds a fuzzy search -- it opens the sessions overview. Lowercase `s` still searches, and once a search is in progress `S` is an ordinary character again.
+
+## The sessions overview
+
+Press uppercase `S` from anywhere on the bar to list every Claude Code session registered under the *selected profile* -- name, working directory, uptime, resident memory, and the session you are sitting in marked. The focused row expands to show its pid, session id and Claude Code version.
+
+It is a snapshot, not a live monitor: the registry is read when the screen opens and nothing refreshes under the cursor.
+
+- Up / Down -- move the focus (clamped, never wrapping)
+- `r` -- re-read the registry into a new snapshot
+- `p` -- prune: delete the registry files of the sessions whose processes are provably gone. Liveness and file identity are both re-checked at that moment, so a session that started while the screen was open keeps its file
+- `q` or Esc -- close and return to the segment bar
 
 ## Client selection
 

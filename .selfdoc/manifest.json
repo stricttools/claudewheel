@@ -3226,6 +3226,11 @@
         },
         {
           "level": 3,
+          "text": "`recorded_token`",
+          "anchor": "recorded_token"
+        },
+        {
+          "level": 3,
           "text": "`is_live`",
           "anchor": "is_live"
         },
@@ -3238,6 +3243,11 @@
           "level": 3,
           "text": "`_parse`",
           "anchor": "_parse"
+        },
+        {
+          "level": 3,
+          "text": "`_still_the_same_file`",
+          "anchor": "_still_the_same_file"
         },
         {
           "level": 3,
@@ -4751,6 +4761,11 @@
         },
         {
           "level": 3,
+          "text": "The sessions overview",
+          "anchor": "the-sessions-overview"
+        },
+        {
+          "level": 3,
           "text": "Fan-out display",
           "anchor": "fan-out-display"
         },
@@ -5293,6 +5308,6 @@
     }
   ],
   "posts": [],
-  "last_gen": "2026-08-13T18:36:31.620795+00:00",
+  "last_gen": "2026-08-13T21:13:13.147867+00:00",
   "theme": "minimal"
 }
