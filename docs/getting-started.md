@@ -1,6 +1,6 @@
 ---
 title: Getting Started
-description: "Install claudewheel, create your first profile, understand the segment bar, and launch a Claude Code session with the right model, context window, and permissions."
+description: "Install claudewheel, create your first profile, understand the segment bar and its sessions overview, and launch a Claude Code session with the right model, context window, and permissions."
 nav_group: "Guides"
 order: 2
 ---
@@ -98,8 +98,22 @@ The segment bar is the core of the claudewheel interface -- a horizontal row of 
 - **Tab** -- accept the current fuzzy match and advance to the next segment.
 - **Backspace** -- delete a search or edit character. On a non-empty selected value, enters edit mode.
 - **Esc** -- cancel the in-progress search or edit.
+- **S** (uppercase) -- open the sessions overview for the selected profile.
 - **Enter** -- launch Claude Code with the current selections.
 - **q / Ctrl-C** -- quit without launching.
+
+An uppercase `S` typed with nothing in the search buffer no longer starts a fuzzy search -- it opens the sessions overview described below. Lowercase `s` still searches, and inside an in-progress search `S` is an ordinary character again.
+
+### The sessions overview
+
+Uppercase `S` opens a scrolling list of every Claude Code session registered under the profile currently selected in the bar -- its name, working directory, uptime, resident memory, and a marker on the session you are sitting in. The focused row expands to its pid, session id and Claude Code version.
+
+The screen is a snapshot taken when it opens: nothing re-reads the registry under the cursor, so rows never renumber while you move through them.
+
+- **Up / Down** -- move the focus.
+- **r** -- re-read the registry into a fresh snapshot.
+- **p** -- prune: delete the registry files left behind by sessions whose processes are provably gone (a crash, a `kill -9`, a reboot). Both the process and the file are re-checked at that moment, so a session that started while the screen was open is never pruned.
+- **q / Esc** -- close the overview and return to the segment bar.
 
 ### Fan-out display
 

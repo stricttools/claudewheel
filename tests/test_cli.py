@@ -2271,10 +2271,17 @@ class PurgePluginsHandlerTests(unittest.TestCase):
 class ProfileMutexNoTargetTests(unittest.TestCase):
     """Every handler on the --profile/--all-profiles mutex refuses 'no target'.
 
-    strictcli's MutexGroup counts a present-but-false negatable boolean as
-    satisfying the group, and an unset string flag arrives as None, so
-    ``--no-all-profiles`` and ``--profile ''`` both reach a handler with neither
-    side chosen.  No handler may read that as 'every profile'.
+    strictcli's MutexGroup no longer lets a present-but-false negatable boolean
+    satisfy the group: ``--no-all-profiles`` DECLINES the option rather than
+    electing it, and the parser refuses the command with "one of --profile,
+    --all-profiles is required".  A string member still elects on presence with
+    any value, including the empty one, so ``--profile ''`` reaches a handler
+    with neither side really chosen.
+
+    These tests call the handlers directly, below the parser, so they cover
+    both spellings of 'no target' whatever the framework does at the edge: the
+    one the framework now refuses and the one it still passes through.  No
+    handler may read either as 'every profile'.
     """
 
     def _ws(self) -> Any:
