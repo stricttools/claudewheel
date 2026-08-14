@@ -415,6 +415,11 @@
         },
         {
           "level": 3,
+          "text": "`ArchiveUnreadable`",
+          "anchor": "archiveunreadable"
+        },
+        {
+          "level": 3,
           "text": "`InstallError`",
           "anchor": "installerror"
         },
@@ -475,8 +480,8 @@
         },
         {
           "level": 4,
-          "text": "`headless_error`",
-          "anchor": "headless_error"
+          "text": "`refusal_error`",
+          "anchor": "refusal_error"
         },
         {
           "level": 4,
@@ -527,6 +532,11 @@
           "level": 3,
           "text": "`_payload`",
           "anchor": "_payload"
+        },
+        {
+          "level": 3,
+          "text": "`_unreadable`",
+          "anchor": "_unreadable"
         },
         {
           "level": 3,
@@ -1202,6 +1212,16 @@
           "level": 3,
           "text": "`_p`",
           "anchor": "_p"
+        },
+        {
+          "level": 3,
+          "text": "`payload`",
+          "anchor": "payload"
+        },
+        {
+          "level": 3,
+          "text": "`info`",
+          "anchor": "info"
         },
         {
           "level": 3,
@@ -2470,6 +2490,11 @@
         },
         {
           "level": 3,
+          "text": "`DeletionBookkeepingError`",
+          "anchor": "deletionbookkeepingerror"
+        },
+        {
+          "level": 3,
           "text": "`Profile`",
           "anchor": "profile"
         },
@@ -2582,6 +2607,11 @@
           "level": 4,
           "text": "`_archive_profile_dir`",
           "anchor": "_archive_profile_dir"
+        },
+        {
+          "level": 4,
+          "text": "`_bookkeeping_failure`",
+          "anchor": "_bookkeeping_failure"
         },
         {
           "level": 4,
@@ -5475,6 +5505,6 @@
     }
   ],
   "posts": [],
-  "last_gen": "2026-08-14T00:51:10.090652+00:00",
+  "last_gen": "2026-08-14T04:22:27.699724+00:00",
   "theme": "minimal"
 }

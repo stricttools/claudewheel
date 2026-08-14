@@ -53,7 +53,7 @@ Remove a permission rule from a profile's settings.json. Takes a category (allow
 
 ## permission list
 
-List permission rules from a profile's settings.json. Displays rules in grouped, flat, or JSON format controlled by --format. Use --category to filter output to a single category (allow, deny, or ask). Use --profile to inspect a single profile or --all-profiles to show rules from every registered profile, with each profile's rules displayed under a header.
+List permission rules from a profile's settings.json. Displays rules in grouped or flat format controlled by --format. Use --category to filter output to a single category (allow, deny, or ask). Use --profile to inspect a single profile or --all-profiles to show rules from every registered profile, with each profile's rules displayed under a header. The framework-owned --json answers a machine instead: one envelope carrying every listed profile, whatever --format the human form would have used.
 
 **Effect:** read_only
 
@@ -61,7 +61,7 @@ List permission rules from a profile's settings.json. Displays rules in grouped,
 
 | Name | Short | Type | Default | Env | Description |
 | --- | --- | --- | --- | --- | --- |
-| `--format` |  | str |  |  | output format: grouped (indented tree), flat (tsv), or json |
+| `--format` |  | str |  |  | output format: grouped (indented tree) or flat (tsv) |
 | `--category` |  | str |  |  | restrict output to a single permission category (allow, deny, or ask) |
 | `--profile` |  | str |  |  | target a specific profile by name (mutually exclusive with --all-profiles) |
 | `--all-profiles` |  | bool |  |  | apply the operation to every registered profile at once |
