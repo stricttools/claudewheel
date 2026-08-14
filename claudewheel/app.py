@@ -1348,31 +1348,83 @@ class App:
         Deletion delegates to saferm so it can be undone, so "is saferm here,
         and does it ship what the delegation uses" is a precondition of the
         operation. When the answer is no, the screen says which of the three it
-        is, states what deleting without it would cost, and offers the install
-        -- there is a person here to ask. Declining aborts the deletion; there
-        is no option that deletes anyway.
+        is, states what deleting without it would cost, and offers to install
+        it -- there is a person here to ask. Declining aborts the deletion, a
+        failed install aborts it, and a freshly installed binary that still
+        does not answer the probe aborts it. None of those is an option that
+        deletes the profile anyway.
         """
-        from .archiver import Unavailable, detect
-        from .ui import show_page
+        from .archiver import InstallError, Unavailable, detect, install
+        from .ui import run_selection, show_page
 
         found = detect(self.workspace.root)
         if not isinstance(found, Unavailable):
             return found
 
-        show_page(
-            f"Cannot delete '{name}' yet",
+        verb = "Upgrade" if found.upgrade else "Install"
+        choice = run_selection(
+            f"Cannot delete '{name}' without saferm",
             [
-                *textwrap.wrap(found.diagnosis(), width=56),
-                "",
-                *textwrap.wrap(found.stakes(name), width=56),
-                "",
-                "Install it with one of:",
-                *(f"  {cmd}" for cmd in INSTALL_COMMANDS),
+                ("cancel", "Cancel the deletion"),
+                ("install", f"{verb} saferm from its published release"),
             ],
             self.theme,
             self.terminal,
+            initial_key="cancel",
         )
-        return None
+        if choice != "install":
+            show_page(
+                f"'{name}' was not deleted",
+                [
+                    *textwrap.wrap(found.diagnosis(), width=56),
+                    "",
+                    *textwrap.wrap(found.stakes(name), width=56),
+                    "",
+                    "Install it yourself with one of:",
+                    *(f"  {cmd}" for cmd in INSTALL_COMMANDS),
+                ],
+                self.theme,
+                self.terminal,
+            )
+            return None
+
+        try:
+            binary = install(self.workspace.root)
+        except InstallError as e:
+            show_page(
+                f"'{name}' was not deleted",
+                [
+                    *textwrap.wrap(f"The install failed: {e}", width=56),
+                    "",
+                    "Install it yourself with one of:",
+                    *(f"  {cmd}" for cmd in INSTALL_COMMANDS),
+                ],
+                self.theme,
+                self.terminal,
+            )
+            return None
+
+        # Re-run detection over what was just installed rather than assuming
+        # it: the offer's promise is that the deletion proceeds only against a
+        # tool that has answered the probe.
+        fresh = detect(self.workspace.root)
+        if isinstance(fresh, Unavailable):
+            show_page(
+                f"'{name}' was not deleted",
+                [
+                    *textwrap.wrap(
+                        f"saferm was installed at {binary}, but it still does "
+                        "not ship what claudewheel needs.",
+                        width=56,
+                    ),
+                    "",
+                    *textwrap.wrap(fresh.diagnosis(), width=56),
+                ],
+                self.theme,
+                self.terminal,
+            )
+            return None
+        return fresh
 
     def _run_deletion_checklist(self, name: str) -> "ChecklistOutcome":
         """Show what holds *name* and stop whatever the user ticks.

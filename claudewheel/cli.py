@@ -388,10 +388,76 @@ def _resolve_archiver(ws: "Workspace", name: str) -> "Saferm | Unavailable":
     ``--approve-consequential`` -- so it does not get an install offer either.
     The caller turns the answer into a hard error, which is the input a machine
     caller can act on: nothing happened, and the profile is still there.
-    """
-    from .archiver import detect
 
-    return detect(ws.root)
+    At a terminal there IS someone to ask, so the missing tool becomes an offer
+    to install it. Declining aborts the deletion; a failed install aborts it
+    too. Neither ever falls through to removing the directory some other way.
+    """
+    from .archiver import Unavailable, detect
+
+    found = detect(ws.root)
+    if not isinstance(found, Unavailable):
+        return found
+    if effects.previewing() or not sys.stdin.isatty():
+        # A preview is the one case where a terminal is not enough: installing
+        # a program for real is exactly what a run promising to change nothing
+        # must not do.
+        return found
+    return _offer_saferm_install(ws, name, found)
+
+
+def _offer_saferm_install(
+    ws: "Workspace", name: str, unavailable: "Unavailable"
+) -> "Saferm | Unavailable":
+    """Ask whether to install saferm, and install it if the answer is yes.
+
+    Shaped on the Claude Code install: the release's published checksum
+    manifest is fetched first, this platform's asset is downloaded, and its
+    SHA-256 is checked against the manifest before anything is unpacked or put
+    on disk. A mismatch installs nothing.
+
+    The answer to a declined offer, a failed download and a fresh binary that
+    STILL does not answer the probe is the same one: hand the caller back an
+    unavailable tool and let the deletion be refused. There is deliberately no
+    branch here that gives up on the archive and deletes the profile anyway.
+    """
+    from .archiver import INSTALL_COMMANDS, InstallError, Unavailable, detect, install
+
+    verb = "Upgrade" if unavailable.upgrade else "Install"
+    print(unavailable.diagnosis())
+    print(unavailable.stakes(name))
+    print(f"{verb} it now from its published release? [y/N] ", end="", flush=True)
+    try:
+        answer = input()
+    except (EOFError, KeyboardInterrupt):
+        print()
+        return unavailable
+    if not answer.strip().lower().startswith("y"):
+        print(f"Declined. Profile '{name}' was not deleted.")
+        print("Install it yourself with one of:")
+        for command in INSTALL_COMMANDS:
+            print(f"  {command}")
+        return unavailable
+
+    try:
+        binary = install(ws.root)
+    except InstallError as e:
+        # A hard error, never a quiet fall back to destroying the directory.
+        print(f"error: {e}", file=sys.stderr)
+        return unavailable
+    print(f"Installed saferm at {binary}.")
+
+    # Re-run detection over what was just installed rather than assuming it:
+    # the offer's own promise is that the deletion proceeds only against a tool
+    # that has answered the probe.
+    found = detect(ws.root)
+    if isinstance(found, Unavailable):
+        print(
+            "error: the saferm just installed still does not ship what "
+            "claudewheel needs.",
+            file=sys.stderr,
+        )
+    return found
 
 
 @strictcli.flag(
