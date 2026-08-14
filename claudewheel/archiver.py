@@ -349,20 +349,31 @@ class Unavailable:
         """The install or upgrade lines, indented for a message body."""
         return "\n".join(f"  {cmd}" for cmd in INSTALL_COMMANDS)
 
-    def headless_error(self, name: str) -> str:
-        """The hard-abort message for a run with no terminal to ask at.
+    def refusal_error(self, name: str, *, previewing: bool) -> str:
+        """The hard-abort message for a deletion that got no install offer.
 
-        A non-interactive caller is a machine -- an agent, or a monitored job --
-        and a hard error is the input to its next action: nothing happened, the
-        profile is still there, and the remedy is named.  There is deliberately
-        no flag that proceeds anyway, so this message has no override to teach.
+        Two different runs reach it, and the reason has to be the true one for
+        each.  A run with no terminal is a machine -- an agent, or a monitored
+        job -- and there is nobody to ask.  A preview has somebody to ask and
+        may still not install a program, because it promised to change nothing;
+        that one happens at a real terminal, where "there is no terminal" would
+        be plainly false and would send the reader looking for the wrong fix.
+
+        Both say the same three things otherwise: nothing happened, the profile
+        is still there, and the remedy.  There is deliberately no flag that
+        proceeds anyway, so neither has an override to teach.
         """
         verb = "Upgrade" if self.upgrade else "Install"
+        reason = (
+            "This is a preview (--dry-run), which installs nothing"
+            if previewing
+            else "There is no terminal to offer the install at"
+        )
         return (
             f"error: {self.diagnosis()}\n"
             f"{self.stakes(name)}\n"
-            f"There is no terminal to offer the install at, so nothing was "
-            f"deleted -- profile '{name}' is untouched.\n"
+            f"{reason}, so nothing was deleted -- profile '{name}' is "
+            f"untouched.\n"
             f"{verb} {SAFERM} and run this again:\n"
             f"{self.remedy()}"
         )

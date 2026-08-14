@@ -517,7 +517,10 @@ def _handle_delete_profile(
 
     archiver = _resolve_archiver(ws, name)
     if isinstance(archiver, Unavailable):
-        print(archiver.headless_error(name), file=sys.stderr)
+        print(
+            archiver.refusal_error(name, previewing=effects.previewing()),
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     store = ws.profiles

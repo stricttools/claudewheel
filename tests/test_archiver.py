@@ -237,18 +237,37 @@ class DetectTests(unittest.TestCase):
 class UnavailableMessageTests(unittest.TestCase):
     """Decision 25: name the remedy, never an override."""
 
-    def _messages(self) -> list[str]:
+    def _messages(self, *, previewing: bool = False) -> list[str]:
         return [
-            Unavailable(kind="absent").headless_error("work"),
-            Unavailable(kind="no-verb", binary=Path("/usr/bin/saferm")).headless_error(
-                "work"
+            Unavailable(kind="absent").refusal_error("work", previewing=previewing),
+            Unavailable(kind="no-verb", binary=Path("/usr/bin/saferm")).refusal_error(
+                "work", previewing=previewing
             ),
             Unavailable(
                 kind="missing-features",
                 binary=Path("/usr/bin/saferm"),
                 missing=("uuid-handles",),
-            ).headless_error("work"),
+            ).refusal_error("work", previewing=previewing),
         ]
+
+    def test_the_no_terminal_message_says_there_is_no_terminal(self) -> None:
+        for message in self._messages():
+            self.assertIn("no terminal", message)
+            self.assertNotIn("--dry-run", message)
+
+    def test_a_preview_is_told_why_it_got_no_offer(self) -> None:
+        """The same refusal is reached at a real terminal under --dry-run,
+        where 'there is no terminal to offer the install at' is simply false:
+        the reason is that a preview installs nothing."""
+        for message in self._messages(previewing=True):
+            self.assertIn("--dry-run", message)
+            self.assertNotIn("no terminal", message)
+            self.assertIn("nothing was deleted", message.lower())
+
+    def test_both_wordings_name_saferm_and_the_install(self) -> None:
+        for message in self._messages() + self._messages(previewing=True):
+            self.assertIn("saferm", message)
+            self.assertIn("go install github.com/smm-h/saferm@v0", message)
 
     def test_the_headless_message_names_saferm_and_the_install(self) -> None:
         for message in self._messages():
