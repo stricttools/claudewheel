@@ -544,6 +544,7 @@ class BookkeepingFailureTests(_WriteBase):
         return patch.object(
             self.store.options,
             "remove_value",
+            autospec=True,
             side_effect=OSError("No space left on device"),
         )
 
@@ -552,6 +553,7 @@ class BookkeepingFailureTests(_WriteBase):
         return patch.object(
             self.store.state,
             "set_value",
+            autospec=True,
             side_effect=OSError("No space left on device"),
         )
 
