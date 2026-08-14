@@ -28,7 +28,11 @@ from typing import Any
 from unittest import mock
 
 from claudewheel import archiver, cli
-from claudewheel.profile_data import TOKEN_FILE_MODE, TOKEN_FILE_NAME
+from claudewheel.profile_data import (
+    PROFILE_DATA_DIR_MODE,
+    TOKEN_FILE_MODE,
+    TOKEN_FILE_NAME,
+)
 from claudewheel.tokens import TokenExpiryDisposition, plan_by_key
 from claudewheel.workspace import Workspace
 from tests.wheelhelpers import SandboxHomeTestCase
@@ -176,6 +180,36 @@ class RoundTripTests(SandboxHomeTestCase):
 
         self.assertEqual(token_file.stat().st_mode & 0o777, TOKEN_FILE_MODE)
         self.assertEqual(self.store.data_for("work").token(), "TOKEN-VALUE")
+        # The directory the token lives in is a nested entry too, so its
+        # owner-only mode survives with it.
+        self.assertEqual(
+            token_file.parent.stat().st_mode & 0o777, PROFILE_DATA_DIR_MODE
+        )
+
+    def test_the_top_level_directorys_own_mode_is_not_restored(self) -> None:
+        """A stated restore expectation, not an aspiration.
+
+        Nested entries come back with the modes they had -- the token file at
+        0600 and its directory at 0700 are asserted above. The archived
+        directory's OWN mode is not among them: it comes back at the default
+        instead. That is acceptable here because a profile directory carries no
+        secret at its top level (everything sensitive is a nested entry with
+        its own mode), but it is pinned so a future reader does not assume a
+        guarantee that is not there.
+        """
+        target = self.seed("work")
+        target.chmod(0o701)
+
+        out, err, code = self.delete("work")
+        self.assertEqual(code, 0, err)
+        self.saferm("undelete", "--no-update-git-index", self.handle_from(out))
+
+        self.assertTrue(target.is_dir())
+        self.assertNotEqual(target.stat().st_mode & 0o777, 0o701)
+        self.assertEqual(
+            self.store.data_for("work").token_file.stat().st_mode & 0o777,
+            TOKEN_FILE_MODE,
+        )
 
     def test_one_operation_puts_it_back(self) -> None:
         """The restore command the deletion printed is the whole recipe: no
