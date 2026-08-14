@@ -2,11 +2,25 @@
 format_version = 1
 # Version bump type: patch, minor, major, infra, or prerelease
 #   prerelease: advance an existing pre-release (0.6.0-beta.0 -> -beta.1)
-bump = ""
+bump = "minor"
 # Short description of this release (required)
-description = ""
+description = "Profile deletion is recoverable: `profile delete` hands the profile directory to saferm, which archives it before removing it, and prints the handle that restores it. claudewheel negotiates on saferm's declared features before deleting anything and offers to install saferm when there is none, so deletion now requires it. `permission list` answers a machine through the framework's `--json` envelope instead of its own `--format json` arm."
 # Optional context explaining why these changes were made
-context = ""
+context = """
+Deleting a profile used to be irreversible: the directory went, and the stored
+OAuth token inside it went with it. It now goes to saferm's archive first, and
+the deletion prints the `saferm undelete <uuid>` that puts all of it back. That
+makes saferm a precondition rather than an optimisation -- claudewheel asks
+`saferm capabilities` what the installed binary ships and refuses the deletion
+when a feature the delegation uses is missing, because there is deliberately no
+flag that deletes without the archive. Deletion therefore requires saferm
+0.9.0 or newer.
+
+This release also closes claudewheel's window onto an unreleased framework: the
+strictcli floor moves to the released 0.40.0, whose value-aware mutex election
+refuses `--no-all-profiles` at parse time, and whose machine-mode envelope is
+where `permission list` now puts its machine output.
+"""
 # Pre-release channel: alpha, beta, rc, or stable (ordered;
 # demotion is an error). With patch/minor/major it ENTERS the
 # channel (0.5.2 + minor + alpha -> 0.6.0-alpha.0); with
