@@ -82,11 +82,11 @@ class LocateTests(unittest.TestCase):
         self.root = Path(self.enterContext(_tempdir()))
 
     def test_absent_everywhere_is_none(self) -> None:
-        with mock.patch("shutil.which", return_value=None):
+        with mock.patch("shutil.which", autospec=True, return_value=None):
             self.assertIsNone(archiver.locate(self.root))
 
     def test_path_is_used_when_claudewheel_installed_none(self) -> None:
-        with mock.patch("shutil.which", return_value="/usr/bin/saferm"):
+        with mock.patch("shutil.which", autospec=True, return_value="/usr/bin/saferm"):
             self.assertEqual(archiver.locate(self.root), Path("/usr/bin/saferm"))
 
     def test_claudewheels_own_copy_wins_over_path(self) -> None:
@@ -95,7 +95,7 @@ class LocateTests(unittest.TestCase):
         binary = own / "saferm"
         binary.write_text("#!/bin/sh\n")
         binary.chmod(0o755)
-        with mock.patch("shutil.which", return_value="/usr/bin/saferm"):
+        with mock.patch("shutil.which", autospec=True, return_value="/usr/bin/saferm"):
             self.assertEqual(archiver.locate(self.root), binary)
 
     def test_a_non_executable_own_copy_is_not_used(self) -> None:
@@ -103,7 +103,7 @@ class LocateTests(unittest.TestCase):
         own.mkdir(parents=True)
         (own / "saferm").write_text("not a program")
         (own / "saferm").chmod(0o644)
-        with mock.patch("shutil.which", return_value=None):
+        with mock.patch("shutil.which", autospec=True, return_value=None):
             self.assertIsNone(archiver.locate(self.root))
 
 
@@ -166,7 +166,7 @@ class DetectTests(unittest.TestCase):
         else:
             run.return_value = completed(envelope({"features": features}))
         with (
-            mock.patch("shutil.which", return_value=which),
+            mock.patch("shutil.which", autospec=True, return_value=which),
             mock.patch("claudewheel.archiver.effects.run", run),
         ):
             return archiver.detect(self.root)
@@ -223,7 +223,7 @@ class DetectTests(unittest.TestCase):
             )
         )
         with (
-            mock.patch("shutil.which", return_value="/usr/bin/saferm"),
+            mock.patch("shutil.which", autospec=True, return_value="/usr/bin/saferm"),
             mock.patch("claudewheel.archiver.effects.run", run),
         ):
             self.assertIsInstance(archiver.detect(self.root), Saferm)
@@ -400,7 +400,7 @@ class ArchiveTests(unittest.TestCase):
 class AssetNameTests(unittest.TestCase):
     def test_linux_amd64(self) -> None:
         with (
-            mock.patch("platform.machine", return_value="x86_64"),
+            mock.patch("platform.machine", autospec=True, return_value="x86_64"),
             mock.patch("sys.platform", "linux"),
         ):
             self.assertEqual(
@@ -409,7 +409,7 @@ class AssetNameTests(unittest.TestCase):
 
     def test_darwin_arm64(self) -> None:
         with (
-            mock.patch("platform.machine", return_value="arm64"),
+            mock.patch("platform.machine", autospec=True, return_value="arm64"),
             mock.patch("sys.platform", "darwin"),
         ):
             self.assertEqual(

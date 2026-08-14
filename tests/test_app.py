@@ -1690,7 +1690,11 @@ class ProfileDeleteKeyTests(unittest.TestCase):
                 autospec=True,
                 return_value=report,
             ),
-            mock.patch("claudewheel.archiver.detect", return_value=self._archiver),
+            mock.patch(
+                "claudewheel.archiver.detect",
+                autospec=True,
+                return_value=self._archiver,
+            ),
             mock.patch(
                 "claudewheel.ui.run_selection", autospec=True, return_value=selection
             ),
@@ -2031,7 +2035,9 @@ class ProfileDeleteKeyTests(unittest.TestCase):
 
         with (
             gather,
-            mock.patch("claudewheel.archiver.detect", side_effect=detected),
+            mock.patch(
+                "claudewheel.archiver.detect", autospec=True, side_effect=detected
+            ),
             sel,
             page,
             mock.patch.object(
@@ -2149,7 +2155,11 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         gather, _detect, sel, page = self._flow_mocks(app, selection="delete")
         with (
             gather,
-            mock.patch("claudewheel.archiver.detect", return_value=self._unavailable()),
+            mock.patch(
+                "claudewheel.archiver.detect",
+                autospec=True,
+                return_value=self._unavailable(),
+            ),
             sel,
             page as show_page,
         ):
@@ -2167,7 +2177,11 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         gather, _detect, sel, page = self._flow_mocks(app, selection="delete")
         with (
             gather,
-            mock.patch("claudewheel.archiver.detect", return_value=self._unavailable()),
+            mock.patch(
+                "claudewheel.archiver.detect",
+                autospec=True,
+                return_value=self._unavailable(),
+            ),
             sel,
             page as show_page,
         ):
@@ -2183,7 +2197,11 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         gather, _detect, sel, page = self._flow_mocks(app, selection="delete")
         with (
             gather,
-            mock.patch("claudewheel.archiver.detect", return_value=self._unavailable()),
+            mock.patch(
+                "claudewheel.archiver.detect",
+                autospec=True,
+                return_value=self._unavailable(),
+            ),
             sel,
             page as show_page,
         ):

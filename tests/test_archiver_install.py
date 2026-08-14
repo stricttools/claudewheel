@@ -69,7 +69,9 @@ class InstallTests(SandboxHomeTestCase):
     def _install(self, stub: _DownloadStub) -> Path:
         with (
             mock.patch("claudewheel.archiver.effects.http_read", stub),
-            mock.patch("claudewheel.archiver.asset_name", return_value=ASSET),
+            mock.patch(
+                "claudewheel.archiver.asset_name", autospec=True, return_value=ASSET
+            ),
         ):
             return archiver.install(self.root)
 
@@ -100,6 +102,7 @@ class InstallTests(SandboxHomeTestCase):
             mock.patch("claudewheel.archiver.effects.http_read", stub),
             mock.patch(
                 "claudewheel.archiver.asset_name",
+                autospec=True,
                 return_value="saferm_0.9.0_plan9_mips.tar.gz",
             ),
         ):
@@ -120,7 +123,7 @@ class InstallTests(SandboxHomeTestCase):
         stub = _DownloadStub()
         with (
             mock.patch("claudewheel.archiver.effects.http_read", stub),
-            mock.patch("claudewheel.archiver.asset_name") as asset_name,
+            mock.patch("claudewheel.archiver.asset_name", autospec=True) as asset_name,
         ):
             asset_name.return_value = ASSET
             archiver.install(self.root)
@@ -143,12 +146,16 @@ class CliOfferTests(SandboxHomeTestCase):
         download = stub or _DownloadStub()
         with (
             mock.patch(
-                "claudewheel.archiver.detect", return_value=Unavailable(kind="absent")
+                "claudewheel.archiver.detect",
+                autospec=True,
+                return_value=Unavailable(kind="absent"),
             ),
-            mock.patch("sys.stdin.isatty", return_value=tty),
-            mock.patch("builtins.input", return_value=answer),
+            mock.patch("sys.stdin.isatty", autospec=True, return_value=tty),
+            mock.patch("builtins.input", autospec=True, return_value=answer),
             mock.patch("claudewheel.archiver.effects.http_read", download),
-            mock.patch("claudewheel.archiver.asset_name", return_value=ASSET),
+            mock.patch(
+                "claudewheel.archiver.asset_name", autospec=True, return_value=ASSET
+            ),
             redirect_stdout(out),
             redirect_stderr(err),
         ):
@@ -161,7 +168,9 @@ class CliOfferTests(SandboxHomeTestCase):
         self.assertEqual(out, "")
 
     def test_a_preview_never_installs_even_at_a_terminal(self) -> None:
-        with mock.patch("claudewheel.cli.effects.previewing", return_value=True):
+        with mock.patch(
+            "claudewheel.cli.effects.previewing", autospec=True, return_value=True
+        ):
             found, out, _err = self._resolve(tty=True, answer="y")
         self.assertIsInstance(found, Unavailable)
         self.assertEqual(out, "")
@@ -194,11 +203,15 @@ class CliOfferTests(SandboxHomeTestCase):
 
         out, err = io.StringIO(), io.StringIO()
         with (
-            mock.patch("claudewheel.archiver.detect", side_effect=detect),
-            mock.patch("sys.stdin.isatty", return_value=True),
-            mock.patch("builtins.input", return_value="y"),
+            mock.patch(
+                "claudewheel.archiver.detect", autospec=True, side_effect=detect
+            ),
+            mock.patch("sys.stdin.isatty", autospec=True, return_value=True),
+            mock.patch("builtins.input", autospec=True, return_value="y"),
             mock.patch("claudewheel.archiver.effects.http_read", stub),
-            mock.patch("claudewheel.archiver.asset_name", return_value=ASSET),
+            mock.patch(
+                "claudewheel.archiver.asset_name", autospec=True, return_value=ASSET
+            ),
             redirect_stdout(out),
             redirect_stderr(err),
         ):
@@ -230,11 +243,15 @@ class CliOfferTests(SandboxHomeTestCase):
 
         out, err = io.StringIO(), io.StringIO()
         with (
-            mock.patch("claudewheel.archiver.detect", side_effect=detect),
-            mock.patch("sys.stdin.isatty", return_value=True),
-            mock.patch("builtins.input", return_value="y"),
+            mock.patch(
+                "claudewheel.archiver.detect", autospec=True, side_effect=detect
+            ),
+            mock.patch("sys.stdin.isatty", autospec=True, return_value=True),
+            mock.patch("builtins.input", autospec=True, return_value="y"),
             mock.patch("claudewheel.archiver.effects.http_read", stub),
-            mock.patch("claudewheel.archiver.asset_name", return_value=ASSET),
+            mock.patch(
+                "claudewheel.archiver.asset_name", autospec=True, return_value=ASSET
+            ),
             redirect_stdout(out),
             redirect_stderr(err),
         ):
@@ -263,7 +280,9 @@ class TuiOfferTests(SandboxHomeTestCase):
         app = self._app()
         with (
             mock.patch(
-                "claudewheel.archiver.detect", return_value=Unavailable(kind="absent")
+                "claudewheel.archiver.detect",
+                autospec=True,
+                return_value=Unavailable(kind="absent"),
             ),
             mock.patch(
                 "claudewheel.ui.run_selection", autospec=True, return_value="cancel"
@@ -280,7 +299,9 @@ class TuiOfferTests(SandboxHomeTestCase):
         app = self._app()
         with (
             mock.patch(
-                "claudewheel.archiver.detect", return_value=Unavailable(kind="absent")
+                "claudewheel.archiver.detect",
+                autospec=True,
+                return_value=Unavailable(kind="absent"),
             ),
             mock.patch(
                 "claudewheel.ui.run_selection", autospec=True, return_value="cancel"
@@ -297,7 +318,9 @@ class TuiOfferTests(SandboxHomeTestCase):
         answers = [Unavailable(kind="absent"), tool]
         with (
             mock.patch(
-                "claudewheel.archiver.detect", side_effect=lambda root: answers.pop(0)
+                "claudewheel.archiver.detect",
+                autospec=True,
+                side_effect=lambda root: answers.pop(0),
             ),
             mock.patch(
                 "claudewheel.ui.run_selection", autospec=True, return_value="install"
@@ -318,7 +341,9 @@ class TuiOfferTests(SandboxHomeTestCase):
         app = self._app()
         with (
             mock.patch(
-                "claudewheel.archiver.detect", return_value=Unavailable(kind="absent")
+                "claudewheel.archiver.detect",
+                autospec=True,
+                return_value=Unavailable(kind="absent"),
             ),
             mock.patch(
                 "claudewheel.ui.run_selection", autospec=True, return_value="install"
@@ -338,7 +363,9 @@ class TuiOfferTests(SandboxHomeTestCase):
         app = self._app()
         with (
             mock.patch(
-                "claudewheel.archiver.detect", return_value=Unavailable(kind="absent")
+                "claudewheel.archiver.detect",
+                autospec=True,
+                return_value=Unavailable(kind="absent"),
             ),
             mock.patch(
                 "claudewheel.ui.run_selection", autospec=True, return_value="install"

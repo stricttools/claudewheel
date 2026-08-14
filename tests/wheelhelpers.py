@@ -311,7 +311,7 @@ def fake_saferm(**kwargs: Any) -> Iterator[FakeArchiver]:
     without either of them knowing.
     """
     fake = FakeArchiver(**kwargs)
-    with patch("claudewheel.archiver.detect", return_value=fake):
+    with patch("claudewheel.archiver.detect", autospec=True, return_value=fake):
         yield fake
 
 
@@ -322,7 +322,7 @@ def no_saferm(
     """Make every detection site find no usable saferm."""
     binary = None if kind == "absent" else Path("/usr/bin/saferm")
     answer = Unavailable(kind=kind, binary=binary, missing=missing)  # type: ignore[arg-type]
-    with patch("claudewheel.archiver.detect", return_value=answer):
+    with patch("claudewheel.archiver.detect", autospec=True, return_value=answer):
         yield answer
 
 
