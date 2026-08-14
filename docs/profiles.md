@@ -418,8 +418,9 @@ variable injection:
   following them, so the shared store behind a profile's links is neither
   copied out nor disturbed, and the stored token goes into the archive with the
   rest of the directory. Refuses to delete the `default` profile. Refuses to
-  delete profiles with real data at shared-dir names unless `--force-delete` is
-  passed.
+  delete profiles with real data at shared-dir names unless
+  `--force-delete-data` is passed (`--force-delete` is the separate flag for a
+  profile holding a live interactive session).
 
   The deletion prints the handle that undoes it:
 
@@ -440,6 +441,21 @@ variable injection:
   Nothing about the archive is recorded on claudewheel's side: saferm's own
   archive is the authority and keeps the audit trail, so the record stays
   reachable through `saferm list` and `saferm info <uuid>` afterwards.
+
+  Two limits of the round trip, stated so nobody assumes otherwise:
+
+  - **The archived directory's own mode is not restored.** Nested entries come
+    back with the modes they had -- the token file at `600`, the
+    `.claudewheel/` directory holding it at `700` -- but the profile directory
+    itself comes back at the default instead of whatever it was. That is
+    acceptable because nothing sensitive lives at a profile's top level; it is
+    not a guarantee that it will be preserved.
+  - **A profile holding a socket cannot be deleted at all.** saferm currently
+    refuses the whole directory when it finds one (`archive/tar: sockets not
+    supported`) rather than skipping it, and claudewheel surfaces that as a
+    hard error with the profile untouched -- nothing is archived and nothing is
+    removed. Delete the socket first. When saferm ships the skip, the archival
+    will proceed and record the socket as skipped.
 
 ### saferm is a precondition of deletion
 
