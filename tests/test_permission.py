@@ -500,9 +500,7 @@ class PermissionListMachineModeTests(_PermissionCLIBase):
         )
         return [
             *self._fake_profiles(),
-            Profile(
-                name="other", path=second, has_credentials=True, has_token=False
-            ),
+            Profile(name="other", path=second, has_credentials=True, has_token=False),
         ]
 
     def test_json_emits_one_envelope_carrying_the_permissions(self) -> None:
@@ -543,7 +541,9 @@ class PermissionListMachineModeTests(_PermissionCLIBase):
         self.assertEqual(res.data, envelope["payload"])
 
     def test_json_carries_every_profile_in_one_document(self) -> None:
-        self._write_settings({"permissions": {"allow": ["Bash"], "deny": [], "ask": []}})
+        self._write_settings(
+            {"permissions": {"allow": ["Bash"], "deny": [], "ask": []}}
+        )
         self.ws.profiles.enumerate.return_value = self._both_profiles()
         res = self._app().test(
             ["permission", "list", "--all-profiles", "--format", "flat", "--json"]
@@ -575,9 +575,7 @@ class PermissionListMachineModeTests(_PermissionCLIBase):
         )
         self.assertEqual(res.exit_code, 0, res.stderr)
         payload = json.loads(res.stdout)["payload"]
-        self.assertEqual(
-            payload["profiles"][0]["permissions"], {"deny": ["WebSearch"]}
-        )
+        self.assertEqual(payload["profiles"][0]["permissions"], {"deny": ["WebSearch"]})
 
     def test_format_json_is_no_longer_a_choice(self) -> None:
         self.ws.profiles.enumerate.return_value = self._fake_profiles()
