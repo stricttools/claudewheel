@@ -25,7 +25,7 @@ run the create-profile wizard in one continuous alt-screen session: prompt for t
 
 ## profile delete
 
-remove a registered profile for good: unlink its shared-store symlinks, delete the real entries in its directory (its stored token among them), drop its options.json registration, and clear any last_config reference in state.json. Refuses a profile holding a live interactive Claude Code session unless --force-delete (background jobs and daemons do not block it), and takes conversation history only with --force-delete-data
+remove a registered profile: hand its directory to saferm, which archives it (the stored token among it) and then removes it, unlink its shared-store symlinks, drop its options.json registration, and clear any last_config reference in state.json. Prints the archive handle that restores it. Refuses a profile holding a live interactive Claude Code session unless --force-delete (background jobs and daemons do not block it), and takes conversation history only with --force-delete-data. saferm must be installed: without it the deletion would be irreversible, so it is refused rather than performed
 
 **Effect:** mutating · **consequential** (prompts before running; `--approve-consequential` skips)
 
@@ -46,7 +46,7 @@ remove a registered profile for good: unlink its shared-store symlinks, delete t
 
 | Kind | Name | Reason |
 | --- | --- | --- |
-| file_write | `irreversible-delete` | removes a profile directory, its stored OAuth token and its session data for good |
+| proc_mutate | `archive-delegation` | hands the whole profile directory, its stored OAuth token included, to saferm, which archives it and then removes it |
 
 ## profile show
 

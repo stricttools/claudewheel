@@ -2,7 +2,7 @@
   "schema_version": 1,
   "name": "claudewheel",
   "slug": "claudewheel",
-  "version": "0.24.2",
+  "version": "0.25.0",
   "description": "TUI launcher for Claude Code: pick a profile, model, directory, and permissions from a segment bar, then launch.",
   "language": "python",
   "base_url": "https://claudewheel.smmh.dev",
@@ -291,6 +291,11 @@
         },
         {
           "level": 4,
+          "text": "`_resolve_archiver`",
+          "anchor": "_resolve_archiver"
+        },
+        {
+          "level": 4,
           "text": "`_run_deletion_checklist`",
           "anchor": "_run_deletion_checklist"
         },
@@ -385,6 +390,148 @@
           "level": 4,
           "text": "`set_value`",
           "anchor": "set_value"
+        }
+      ]
+    },
+    {
+      "path": "claudewheel-archiver.md",
+      "title": "claudewheel.archiver",
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.archiver",
+          "anchor": "claudewheelarchiver"
+        },
+        {
+          "level": 2,
+          "text": "`claudewheel.archiver`",
+          "anchor": "claudewheelarchiver"
+        },
+        {
+          "level": 3,
+          "text": "`ArchiveError`",
+          "anchor": "archiveerror"
+        },
+        {
+          "level": 3,
+          "text": "`InstallError`",
+          "anchor": "installerror"
+        },
+        {
+          "level": 3,
+          "text": "`ArchiveHandle`",
+          "anchor": "archivehandle"
+        },
+        {
+          "level": 4,
+          "text": "`restore_command`",
+          "anchor": "restore_command"
+        },
+        {
+          "level": 3,
+          "text": "`ProfileArchiver`",
+          "anchor": "profilearchiver"
+        },
+        {
+          "level": 4,
+          "text": "`archive`",
+          "anchor": "archive"
+        },
+        {
+          "level": 3,
+          "text": "`Saferm`",
+          "anchor": "saferm"
+        },
+        {
+          "level": 4,
+          "text": "`archive`",
+          "anchor": "archive-1"
+        },
+        {
+          "level": 3,
+          "text": "`Unavailable`",
+          "anchor": "unavailable"
+        },
+        {
+          "level": 4,
+          "text": "`upgrade`",
+          "anchor": "upgrade"
+        },
+        {
+          "level": 4,
+          "text": "`diagnosis`",
+          "anchor": "diagnosis"
+        },
+        {
+          "level": 4,
+          "text": "`stakes`",
+          "anchor": "stakes"
+        },
+        {
+          "level": 4,
+          "text": "`remedy`",
+          "anchor": "remedy"
+        },
+        {
+          "level": 4,
+          "text": "`headless_error`",
+          "anchor": "headless_error"
+        },
+        {
+          "level": 4,
+          "text": "`offer_lines`",
+          "anchor": "offer_lines"
+        },
+        {
+          "level": 3,
+          "text": "`bin_dir`",
+          "anchor": "bin_dir"
+        },
+        {
+          "level": 3,
+          "text": "`locate`",
+          "anchor": "locate"
+        },
+        {
+          "level": 3,
+          "text": "`probe`",
+          "anchor": "probe"
+        },
+        {
+          "level": 3,
+          "text": "`detect`",
+          "anchor": "detect"
+        },
+        {
+          "level": 3,
+          "text": "`asset_name`",
+          "anchor": "asset_name"
+        },
+        {
+          "level": 3,
+          "text": "`fetch_checksums`",
+          "anchor": "fetch_checksums"
+        },
+        {
+          "level": 3,
+          "text": "`_version_from`",
+          "anchor": "_version_from"
+        },
+        {
+          "level": 3,
+          "text": "`install`",
+          "anchor": "install"
+        },
+        {
+          "level": 3,
+          "text": "`_payload`",
+          "anchor": "_payload"
+        },
+        {
+          "level": 3,
+          "text": "`_detail`",
+          "anchor": "_detail"
         }
       ]
     },
@@ -546,6 +693,16 @@
           "level": 3,
           "text": "`_handle_new_profile`",
           "anchor": "_handle_new_profile"
+        },
+        {
+          "level": 3,
+          "text": "`_resolve_archiver`",
+          "anchor": "_resolve_archiver"
+        },
+        {
+          "level": 3,
+          "text": "`_offer_saferm_install`",
+          "anchor": "_offer_saferm_install"
         },
         {
           "level": 3,
@@ -2418,8 +2575,13 @@
         },
         {
           "level": 4,
-          "text": "`_remove_profile_dir`",
-          "anchor": "_remove_profile_dir"
+          "text": "`_discard_partial_profile_dir`",
+          "anchor": "_discard_partial_profile_dir"
+        },
+        {
+          "level": 4,
+          "text": "`_archive_profile_dir`",
+          "anchor": "_archive_profile_dir"
         },
         {
           "level": 4,
@@ -5308,6 +5470,6 @@
     }
   ],
   "posts": [],
-  "last_gen": "2026-08-13T21:13:13.147867+00:00",
+  "last_gen": "2026-08-14T00:50:28.535001+00:00",
   "theme": "minimal"
 }
