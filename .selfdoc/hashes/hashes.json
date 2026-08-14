@@ -18,7 +18,8 @@
   "en/claudewheel-archiver.md": {
     "content": "3232f0023907d61aca2011ad4895d455d73b5ad9e771e9fcc4a473f854aeb599",
     "description": "691070f6efdb8480d432049709bfcdc309513d87bda736c1e7c7af80e2fe40bd",
-    "seed_hash": "691070f6efdb8480d432049709bfcdc309513d87bda736c1e7c7af80e2fe40bd"
+    "seed_hash": "691070f6efdb8480d432049709bfcdc309513d87bda736c1e7c7af80e2fe40bd",
+    "source_docstring": "cf648bf60c8a3ebda823173e3c20c536d7446fa0705dd82eee54fd6b4f101ca5"
   },
   "en/claudewheel-auth.md": {
     "content": "23bfef7a3817f6c4a44dddb5210338b27d79f9fa510c37367a72ec50621b1773",
