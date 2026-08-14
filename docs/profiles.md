@@ -1,6 +1,6 @@
 ---
 title: Profiles
-description: "How claudewheel profiles work: the ~/.claudewheel/ layout, profile discovery, the creation wizard, shared store symlinks, per-profile token storage inside each profile directory, declaring the account plan Claude Code needs, suppressing and purging the plugin marketplace, and the isolation model."
+description: "How claudewheel profiles work: the ~/.claudewheel/ layout, profile discovery, the creation wizard, shared store symlinks, per-profile token storage inside each profile directory, declaring the account plan Claude Code needs, suppressing and purging the plugin marketplace, recoverable deletion through saferm, and the isolation model."
 nav_group: "Concepts"
 order: 4
 ---
@@ -411,12 +411,64 @@ variable injection:
   breadcrumb file (`.rename_pending`) ensures incomplete renames can be
   recovered on next startup.
 
-- **Delete** (`profile delete`): removes the profile directory (unlinking
-  symlinks without following them into shared data, and taking the stored
-  token with it), unregisters from `options.json`, and clears any `last_config`
-  reference in `state.json`. Refuses to delete the `default` profile.
-  Refuses to delete profiles with real data at shared-dir names unless
-  `--force-delete` is passed.
+- **Delete** (`profile delete`): hands the whole profile directory to
+  [saferm](https://github.com/smm-h/saferm), which archives it and then removes
+  it, unregisters from `options.json`, and clears any `last_config` reference
+  in `state.json`. The archive walk records symlinks as links rather than
+  following them, so the shared store behind a profile's links is neither
+  copied out nor disturbed, and the stored token goes into the archive with the
+  rest of the directory. Refuses to delete the `default` profile. Refuses to
+  delete profiles with real data at shared-dir names unless `--force-delete` is
+  passed.
+
+  The deletion prints the handle that undoes it:
+
+  ```
+  Profile 'work' deleted.
+    Archived as 4129d284-7510-4281-937d-286b42bb8d6c
+    Restore it with: saferm undelete 4129d284-7510-4281-937d-286b42bb8d6c
+  ```
+
+  That one command puts the profile back in a working state, its token file at
+  mode `600` and its launch environment resolving again. Nothing about the
+  archive is recorded on claudewheel's side: saferm's own archive is the
+  authority and keeps the audit trail, so the record stays reachable through
+  `saferm list` and `saferm info <uuid>` afterwards.
+
+### saferm is a precondition of deletion
+
+`profile delete` will not run without a usable saferm, and there is no flag
+that makes it. claudewheel asks `saferm capabilities` what the installed binary
+ships and compares the answer against the four features the delegation uses --
+`machine-payloads`, `on-error-modes`, `git-index-switches` and `uuid-handles`.
+No version string is ever compared: a locally built saferm reports a Go
+pseudo-version no semver parser accepts, and a release number says nothing
+about what a build carries.
+
+A missing binary, a binary too old to answer the probe, and one missing a
+single feature are one situation with one remedy:
+
+- **At a terminal**, claudewheel says which of the three it is, states that
+  deleting without saferm would be irreversible, and offers to install it. The
+  install fetches the release's published `checksums.txt`, downloads this
+  platform's asset, verifies its SHA-256 against the manifest line, and only
+  then unpacks the binary into `~/.claudewheel/bin/saferm` -- where detection
+  looks before it consults `PATH`. Declining aborts the deletion; so does a
+  checksum mismatch, and so does a freshly installed binary that still cannot
+  answer the probe.
+- **Without a terminal** -- a script, an agent, a monitored job -- there is no
+  second question to ask, so the refusal is a hard error naming the install and
+  nothing else. Nothing was deleted and the profile is still there, which is
+  what a caller reading the exit code needs to know.
+
+Installing it yourself works just as well:
+
+```bash
+go install github.com/smm-h/saferm@v0
+npm install -g saferemove
+uv tool install saferm
+brew install smm-h/tap/saferm
+```
 
 - **Inspect** (`profile show`): gathers a detailed report including
   registration status, credential and token presence, token expiry, auth
