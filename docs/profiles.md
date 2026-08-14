@@ -1,6 +1,6 @@
 ---
 title: Profiles
-description: "How claudewheel profiles work: the ~/.claudewheel/ layout, profile discovery, the creation wizard, shared store symlinks, per-profile token storage inside each profile directory, declaring the account plan Claude Code needs, suppressing and purging the plugin marketplace, recoverable deletion through saferm, and the isolation model."
+description: "How claudewheel profiles work: the ~/.claudewheel/ layout, profile discovery, the creation wizard, shared store symlinks, per-profile token storage inside each profile directory, declaring the account plan Claude Code needs, suppressing and purging the plugin marketplace, recoverable deletion through saferm with the limits of what a restore puts back, and the isolation model."
 nav_group: "Concepts"
 order: 4
 ---
