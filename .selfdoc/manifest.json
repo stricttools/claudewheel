@@ -5391,6 +5391,11 @@
         },
         {
           "level": 3,
+          "text": "saferm is a precondition of deletion",
+          "anchor": "saferm-is-a-precondition-of-deletion"
+        },
+        {
+          "level": 3,
           "text": "The `default` profile",
           "anchor": "the-default-profile"
         }
@@ -5470,6 +5475,6 @@
     }
   ],
   "posts": [],
-  "last_gen": "2026-08-14T00:50:28.535001+00:00",
+  "last_gen": "2026-08-14T00:51:10.090652+00:00",
   "theme": "minimal"
 }
