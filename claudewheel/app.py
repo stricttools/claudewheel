@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from types import FrameType
 from typing import TYPE_CHECKING, Any
 
+from . import effects
 from .archiver import INSTALL_COMMANDS, ArchiveError, ArchiveUnreadable
 from .config import AppConfigStore, resolve_theme_name
 
@@ -1405,6 +1406,13 @@ class App:
         failed install aborts it, and a freshly installed binary that still
         does not answer the probe aborts it. None of those is an option that
         deletes the profile anyway.
+
+        A preview is the one case where having somebody to ask is not enough,
+        and it is the trap: under ``--dry-run`` there is still a person at the
+        keyboard who can accept an offer, and accepting it would make a run
+        that promised to change nothing download and install a program. So the
+        offer is not made at all -- the same refusal the scripted door in
+        :func:`claudewheel.cli._resolve_archiver` makes, for the same reason.
         """
         from .archiver import InstallError, Unavailable, detect, install
         from .ui import run_selection, show_page
@@ -1412,6 +1420,23 @@ class App:
         found = detect(self.workspace.root)
         if not isinstance(found, Unavailable):
             return found
+
+        if effects.previewing():
+            show_page(
+                f"'{name}' was not deleted",
+                [
+                    *textwrap.wrap(found.diagnosis(), width=56),
+                    "",
+                    *textwrap.wrap(found.stakes(name), width=56),
+                    "",
+                    "This is a preview (--dry-run), which installs nothing.",
+                    "Install it yourself with one of:",
+                    *(f"  {cmd}" for cmd in INSTALL_COMMANDS),
+                ],
+                self.theme,
+                self.terminal,
+            )
+            return None
 
         verb = "Upgrade" if found.upgrade else "Install"
         choice = run_selection(

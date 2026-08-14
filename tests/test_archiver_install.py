@@ -276,6 +276,34 @@ class TuiOfferTests(SandboxHomeTestCase):
         app.theme = mock.MagicMock()
         return app
 
+    def test_a_preview_never_installs_even_at_a_terminal(self) -> None:
+        """The same refusal the scripted door has: a run that promises to
+        change nothing must not download and install a program. There is a
+        person here to ask, which is exactly the trap -- an accepted offer
+        under --dry-run would be a real install performed by a preview."""
+        app = self._app()
+        with (
+            mock.patch(
+                "claudewheel.archiver.detect",
+                autospec=True,
+                return_value=Unavailable(kind="absent"),
+            ),
+            mock.patch(
+                "claudewheel.app.effects.previewing", autospec=True, return_value=True
+            ),
+            mock.patch(
+                "claudewheel.ui.run_selection", autospec=True, return_value="install"
+            ) as run_selection,
+            mock.patch("claudewheel.ui.show_page", autospec=True) as show_page,
+            mock.patch("claudewheel.archiver.install", autospec=True) as install,
+        ):
+            self.assertIsNone(app._resolve_archiver("work"))
+        install.assert_not_called()
+        run_selection.assert_not_called()
+        lines = "\n".join(show_page.call_args.args[1])
+        self.assertIn("--dry-run", lines)
+        self.assertIn("go install github.com/smm-h/saferm@v0", lines)
+
     def test_a_declined_offer_aborts_and_names_the_install(self) -> None:
         app = self._app()
         with (
