@@ -16,6 +16,7 @@ from claudewheel.segment import DiscoveryResult, Segment, SegmentBar
 from claudewheel.appdata import StateFile
 from claudewheel.state import AUTH_BROWSER_KEY
 from claudewheel import app as app_mod
+from tests.wheelhelpers import FakeArchiver
 
 
 def _make_profile_segment(
@@ -1598,6 +1599,7 @@ class ProfileDeleteKeyTests(unittest.TestCase):
 
     _refresh_mock: mock.MagicMock
     _store: mock.MagicMock
+    _archiver: FakeArchiver
 
     def _make_app(
         self, seg: Segment, state: dict[str, Any] | None = None
@@ -1651,11 +1653,10 @@ class ProfileDeleteKeyTests(unittest.TestCase):
 
         The delete goes through the injected ``app.workspace.profiles`` store, so
         we wire that directly to ``self._store`` (exposed for assertions on
-        ``self._store.delete``). Returns (gather, nullcontext, run_selection,
-        show_page) -- the second slot preserves the 4-tuple shape used by every
-        call site.
+        ``self._store.delete``). Returns (gather, detect, run_selection,
+        show_page); the second slot stands a fake archiver in for saferm, which
+        the flow resolves before it calls the store.
         """
-        import contextlib
         from claudewheel.profile_store import DeletionResult
 
         if report is None:
@@ -1679,6 +1680,9 @@ class ProfileDeleteKeyTests(unittest.TestCase):
 
         # The flow now deletes via the injected workspace, not Workspace.default().
         app.workspace.profiles = self._store
+        # The store is a mock here, so the fake never really archives anything;
+        # what it stands in for is the detection the flow does first.
+        self._archiver = FakeArchiver(remove=False)
 
         return (
             mock.patch(
@@ -1686,7 +1690,7 @@ class ProfileDeleteKeyTests(unittest.TestCase):
                 autospec=True,
                 return_value=report,
             ),
-            contextlib.nullcontext(),
+            mock.patch("claudewheel.archiver.detect", return_value=self._archiver),
             mock.patch(
                 "claudewheel.ui.run_selection", autospec=True, return_value=selection
             ),
@@ -1790,7 +1794,7 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         self._store.reserved_reason.return_value = None
         with gather, ws, sel, page:
             app._handle_key("CTRL_D")
-        self._store.delete.assert_called_once_with("work")
+        self._store.delete.assert_called_once_with("work", archiver=self._archiver)
 
     # -- danger hard-block ---------------------------------------------------
 
@@ -1858,7 +1862,7 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         with gather, ws, sel, page:
             app._handle_key("CTRL_D")
         # TUI never forces: no allow_data_destruction, running is pre-checked.
-        self._store.delete.assert_called_once_with("work")
+        self._store.delete.assert_called_once_with("work", archiver=self._archiver)
 
     def test_success_runs_all_cleanup_steps(self) -> None:
         seg = _make_profile_segment(discovered=["work", "other"], pinned=["work"])
@@ -1982,21 +1986,42 @@ class ProfileDeleteKeyTests(unittest.TestCase):
             self._checklist(app, still_holding=(_session_record(7, "bg"),)),
         ):
             app._handle_key("CTRL_D")
-        self._store.delete.assert_called_once_with("work")
+        self._store.delete.assert_called_once_with("work", archiver=self._archiver)
 
     # -- the deletion checklist (decision 10) ---------------------------------
 
-    def test_the_checklist_runs_before_the_removal(self) -> None:
+    def test_the_checklist_runs_before_the_delegation(self) -> None:
         """Stop-then-remove: the screen is shown while the directory still
-        exists, because any client invocation would recreate it afterwards."""
+        exists, because any client invocation would recreate it afterwards. The
+        archiving tool is resolved between the two -- after the user has
+        confirmed by ticking through the checklist, before anything is handed
+        over."""
+        from claudewheel.profile_store import DeletionResult
+
         seg = _make_profile_segment(discovered=["work"])
         seg.select_value("work")
         app = self._make_app(seg)
         report = self._report()
         report.active_sessions = 1
         order: list[str] = []
-        gather, ws, sel, page = self._flow_mocks(app, report=report, selection="delete")
-        self._store.delete.side_effect = lambda *a, **k: order.append("delete")
+        gather, _detect, sel, page = self._flow_mocks(
+            app, report=report, selection="delete"
+        )
+
+        def deleted(*a: Any, **k: Any) -> DeletionResult:
+            order.append("delete")
+            return DeletionResult(
+                removed_symlinks=0,
+                removed_real=0,
+                removed_from_options=True,
+                last_config_purged=False,
+            )
+
+        def detected(root: Any) -> Any:
+            order.append("detect")
+            return self._archiver
+
+        self._store.delete.side_effect = deleted
 
         from claudewheel.deletion_checklist import ChecklistOutcome
 
@@ -2006,7 +2031,7 @@ class ProfileDeleteKeyTests(unittest.TestCase):
 
         with (
             gather,
-            ws,
+            mock.patch("claudewheel.archiver.detect", side_effect=detected),
             sel,
             page,
             mock.patch.object(
@@ -2014,7 +2039,7 @@ class ProfileDeleteKeyTests(unittest.TestCase):
             ),
         ):
             app._handle_key("CTRL_D")
-        self.assertEqual(order, ["checklist", "delete"])
+        self.assertEqual(order, ["checklist", "detect", "delete"])
 
     def test_no_live_session_shows_no_checklist(self) -> None:
         """Nothing holds the profile, so there is nothing to ask about."""
@@ -2035,7 +2060,7 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         ):
             app._handle_key("CTRL_D")
         checklist.assert_not_called()
-        self._store.delete.assert_called_once_with("work")
+        self._store.delete.assert_called_once_with("work", archiver=self._archiver)
 
     def test_cancelling_the_checklist_cancels_the_deletion(self) -> None:
         seg = _make_profile_segment(discovered=["work"])
@@ -2089,7 +2114,7 @@ class ProfileDeleteKeyTests(unittest.TestCase):
             app._handle_key("CTRL_D")
         self.assertIn("still hold it", app._flash)
         self.assertIn("recreate", app._flash)
-        self._store.delete.assert_called_once_with("work")
+        self._store.delete.assert_called_once_with("work", archiver=self._archiver)
 
     def test_store_refusal_flashes_message(self) -> None:
         """A ValueError refusal from the store surfaces as a flash; no cleanup."""
@@ -2108,6 +2133,112 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         self.assertEqual(seg.value, "work")
         self.assertEqual(state["last_config"]["profile"], "work")
         self._refresh_mock.assert_not_called()
+
+    # -- the archiving tool ------------------------------------------------
+
+    def _unavailable(self, **kwargs: Any) -> Any:
+        from claudewheel.archiver import Unavailable
+
+        kwargs.setdefault("kind", "absent")
+        return Unavailable(**kwargs)
+
+    def test_an_absent_archiving_tool_aborts_the_deletion(self) -> None:
+        seg = _make_profile_segment(discovered=["work"])
+        seg.select_value("work")
+        app = self._make_app(seg)
+        gather, _detect, sel, page = self._flow_mocks(app, selection="delete")
+        with (
+            gather,
+            mock.patch("claudewheel.archiver.detect", return_value=self._unavailable()),
+            sel,
+            page as show_page,
+        ):
+            app._handle_key("CTRL_D")
+        self._store.delete.assert_not_called()
+        self.assertEqual(seg.value, "work")
+        lines = "\n".join(show_page.call_args.args[1])
+        self.assertIn("saferm", lines)
+        self.assertIn("go install github.com/smm-h/saferm@v0", lines)
+
+    def test_the_abort_page_states_what_deleting_without_it_would_cost(self) -> None:
+        seg = _make_profile_segment(discovered=["work"])
+        seg.select_value("work")
+        app = self._make_app(seg)
+        gather, _detect, sel, page = self._flow_mocks(app, selection="delete")
+        with (
+            gather,
+            mock.patch("claudewheel.archiver.detect", return_value=self._unavailable()),
+            sel,
+            page as show_page,
+        ):
+            app._handle_key("CTRL_D")
+        lines = " ".join(show_page.call_args.args[1])
+        self.assertIn("irreversible", lines)
+        self.assertIn("OAuth token", lines)
+
+    def test_the_abort_page_offers_no_option_that_deletes_anyway(self) -> None:
+        seg = _make_profile_segment(discovered=["work"])
+        seg.select_value("work")
+        app = self._make_app(seg)
+        gather, _detect, sel, page = self._flow_mocks(app, selection="delete")
+        with (
+            gather,
+            mock.patch("claudewheel.archiver.detect", return_value=self._unavailable()),
+            sel,
+            page as show_page,
+        ):
+            app._handle_key("CTRL_D")
+        lines = " ".join(show_page.call_args.args[1]).lower()
+        for token in ("--force", "anyway", "override", "bypass"):
+            self.assertNotIn(token, lines)
+
+    def test_a_failed_archival_flashes_and_deletes_nothing(self) -> None:
+        from claudewheel.archiver import ArchiveError
+
+        seg = _make_profile_segment(discovered=["work"])
+        seg.select_value("work")
+        state = {"last_config": {"profile": "work"}}
+        app = self._make_app(seg, state=state)
+        gather, ws, sel, page = self._flow_mocks(
+            app,
+            selection="delete",
+            raises=ArchiveError("saferm exited 6. Nothing was deleted."),
+        )
+        with gather, ws, sel, page:
+            app._handle_key("CTRL_D")
+        self.assertIn("Nothing was deleted", app._flash)
+        self.assertEqual(seg.value, "work")
+        self.assertEqual(state["last_config"]["profile"], "work")
+        self._refresh_mock.assert_not_called()
+
+    def test_the_handle_is_reported_on_a_page_after_a_deletion(self) -> None:
+        from claudewheel.archiver import ArchiveHandle
+        from claudewheel.profile_store import DeletionResult
+
+        seg = _make_profile_segment(discovered=["work"])
+        seg.select_value("work")
+        app = self._make_app(seg)
+        gather, ws, sel, page = self._flow_mocks(
+            app,
+            selection="delete",
+            result=DeletionResult(
+                removed_symlinks=7,
+                removed_real=2,
+                removed_from_options=True,
+                last_config_purged=False,
+                archive=ArchiveHandle(
+                    uuid="4129d284-7510-4281-937d-286b42bb8d6c",
+                    group_id="g",
+                    path="/cw/profiles/work",
+                    size=4096,
+                ),
+            ),
+        )
+        with gather, ws, sel, page as show_page:
+            app._handle_key("CTRL_D")
+        lines = "\n".join(show_page.call_args.args[1])
+        self.assertIn("4129d284-7510-4281-937d-286b42bb8d6c", lines)
+        self.assertIn("saferm undelete 4129d284-7510-4281-937d-286b42bb8d6c", lines)
 
 
 class SelectClientStepTests(unittest.TestCase):

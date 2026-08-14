@@ -85,6 +85,7 @@ from claudewheel.workspace import Workspace
 from tests.wheelhelpers import (
     MISSING,
     REAL_HOME,
+    FakeArchiver,
     SandboxHomeTestCase,
     _Missing,
     hash_snapshot,
@@ -281,7 +282,7 @@ class SandboxEscapeGuardTest(SandboxHomeTestCase):
 
         # 14. ProfileStore.rename then delete (sandbox profile lifecycle).
         ws.profiles.rename("gp-store", "gp-store2")
-        ws.profiles.delete("gp-store2")
+        ws.profiles.delete("gp-store2", archiver=FakeArchiver())
 
     def test_real_home_config_surface_is_immutable(self) -> None:
         """Drive every write path against the sandbox; the real home stays byte-identical."""

@@ -34,6 +34,7 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 import claudewheel.wizard as wiz
+from claudewheel.archiver import ArchiveError
 from claudewheel.profile_store import (
     DeletionResult,
     Profile,
@@ -46,6 +47,7 @@ from claudewheel.tokens import TokenExpiryDisposition, plan_by_key
 from claudewheel.wizard import WizardResult
 from claudewheel.workspace import Workspace
 from tests.wheelhelpers import (
+    FakeArchiver,
     SandboxHomeTestCase,
     write_json,
     write_token_entry,
@@ -98,7 +100,7 @@ class WriteGuardTests(_WriteBase):
         with self.assertRaises(RuntimeError):
             store.create("x", {})
         with self.assertRaises(RuntimeError):
-            store.delete("x")
+            store.delete("x", archiver=FakeArchiver())
         with self.assertRaises(RuntimeError):
             store.rename("a", "b")
         with self.assertRaises(RuntimeError):
@@ -360,13 +362,17 @@ class ClassifySharedDirsTests(_WriteBase):
 class DeleteTests(_WriteBase):
     _SETTINGS = {"model": "claude-opus-4-8"}
 
+    def setUp(self) -> None:
+        super().setUp()
+        self.archiver = FakeArchiver()
+
     def test_delete_default_refused(self) -> None:
         with self.assertRaises(ValueError):
-            self.store.delete("default")
+            self.store.delete("default", archiver=self.archiver)
 
     def test_delete_not_found(self) -> None:
         with self.assertRaises(ValueError) as ctx:
-            self.store.delete("ghost")
+            self.store.delete("ghost", archiver=self.archiver)
         self.assertIn("ghost", str(ctx.exception))
 
     def test_delete_real_data_refused_lists_offenders(self) -> None:
@@ -378,11 +384,13 @@ class DeleteTests(_WriteBase):
         (target / "projects" / "sess.jsonl").write_text("x")
 
         with self.assertRaises(ValueError) as ctx:
-            self.store.delete("data")
+            self.store.delete("data", archiver=self.archiver)
         self.assertIn("projects", str(ctx.exception))
-        # Nothing was removed.
+        # Nothing was removed, and nothing was handed over: the real-data guard
+        # runs BEFORE the delegation, so the archive never sees the directory.
         self.assertTrue(target.is_dir())
         self.assertTrue((target / "projects" / "sess.jsonl").exists())
+        self.assertEqual(self.archiver.calls, [])
 
     def test_delete_allow_data_destruction(self) -> None:
         self.store.create("data2", self._SETTINGS)
@@ -391,7 +399,9 @@ class DeleteTests(_WriteBase):
         (target / "projects").mkdir()
         (target / "projects" / "sess.jsonl").write_text("x")
 
-        result = self.store.delete("data2", allow_data_destruction=True)
+        result = self.store.delete(
+            "data2", archiver=self.archiver, allow_data_destruction=True
+        )
         self.assertIsInstance(result, DeletionResult)
         self.assertFalse(target.exists())
         self.assertGreaterEqual(result.removed_real, 1)
@@ -402,7 +412,7 @@ class DeleteTests(_WriteBase):
         # Write real session data into the SHARED store (the symlink target).
         (self.shared_dir / "projects" / "sess.jsonl").write_text("payload")
 
-        result = self.store.delete("keep")
+        result = self.store.delete("keep", archiver=self.archiver)
         self.assertFalse(target.exists())
         # The symlinks were unlinked without following: shared data survives.
         self.assertTrue((self.shared_dir / "projects" / "sess.jsonl").exists())
@@ -418,7 +428,7 @@ class DeleteTests(_WriteBase):
         assert self.store.state is not None
         self.store.state.set_value("last_config", {"profile": "full", "model": "m"})
 
-        result = self.store.delete("full")
+        result = self.store.delete("full", archiver=self.archiver)
 
         self.assertTrue(result.removed_from_options)
         self.assertTrue(result.last_config_purged)
@@ -429,6 +439,91 @@ class DeleteTests(_WriteBase):
         self.assertNotIn("profile", self._read_state()["last_config"])
         # Other last_config keys are preserved.
         self.assertEqual(self._read_state()["last_config"].get("model"), "m")
+
+
+class DelegatedArchivingTests(_WriteBase):
+    """13.2: the removal is a delegation, and it happens before any store write."""
+
+    _SETTINGS = {"model": "claude-opus-4-8"}
+
+    def test_the_whole_directory_is_handed_over_with_a_description(self) -> None:
+        self.store.create("handed", self._SETTINGS)
+        archiver = FakeArchiver()
+
+        self.store.delete("handed", archiver=archiver)
+
+        self.assertEqual(len(archiver.calls), 1)
+        path, description = archiver.calls[0]
+        self.assertEqual(path, self.profiles_dir / "handed")
+        self.assertIn("handed", description)
+        self.assertIn("OAuth token", description)
+
+    def test_a_failed_archival_leaves_every_store_untouched(self) -> None:
+        """The delegation is the first destructive step, so its failure is a
+        total no-op: the directory is there, the registration is there, and
+        last_config still names the profile."""
+        self.store.create("kept", self._SETTINGS)
+        assert self.store.state is not None
+        self.store.state.set_value("last_config", {"profile": "kept", "model": "m"})
+        options_before = json.dumps(self._read_options(), sort_keys=True)
+        archiver = FakeArchiver(fail_with=ArchiveError("saferm exited 6"))
+
+        with self.assertRaises(ArchiveError):
+            self.store.delete("kept", archiver=archiver)
+
+        self.assertTrue((self.profiles_dir / "kept").is_dir())
+        self.assertTrue((self.profiles_dir / "kept" / "settings.json").exists())
+        self.assertEqual(
+            json.dumps(self._read_options(), sort_keys=True), options_before
+        )
+        self.assertEqual(self._read_state()["last_config"]["profile"], "kept")
+
+    def test_the_handle_is_carried_out_to_the_caller(self) -> None:
+        self.store.create("handled", self._SETTINGS)
+        result = self.store.delete("handled", archiver=FakeArchiver())
+        assert result.archive is not None
+        self.assertEqual(str(self.profiles_dir / "handled"), result.archive.path)
+        self.assertTrue(result.archive.restore_command.startswith("saferm undelete "))
+
+    def test_a_recorded_invocation_yields_no_handle(self) -> None:
+        """A preview archives nothing, so there is no handle to report."""
+        self.store.create("previewed", self._SETTINGS)
+        result = self.store.delete(
+            "previewed", archiver=FakeArchiver(handle=None, remove=True)
+        )
+        self.assertIsNone(result.archive)
+
+    def test_a_directory_still_standing_afterwards_is_a_hard_error(self) -> None:
+        """The must-be-empty safety property, in the shape the delegation can
+        express it: an archival that reports success and leaves the directory
+        behind is a bug, not something to clean up some other way."""
+        self.store.create("stubborn", self._SETTINGS)
+        archiver = FakeArchiver(remove=False)
+
+        with self.assertRaises(RuntimeError) as ctx:
+            self.store.delete("stubborn", archiver=archiver)
+
+        self.assertIn("still exists", str(ctx.exception))
+        self.assertTrue((self.profiles_dir / "stubborn").is_dir())
+
+    def test_the_shared_store_is_never_reached_through_a_symlink(self) -> None:
+        """The directory is handed over whole, which is safe because the walk
+        does not follow links. Asserted from claudewheel's side: what is handed
+        over is the profile directory itself, and the store behind its links is
+        still there afterwards."""
+        self.store.create("linked", self._SETTINGS)
+        (self.shared_dir / "projects" / "sess.jsonl").write_text("payload")
+        archiver = FakeArchiver()
+
+        self.store.delete("linked", archiver=archiver)
+
+        self.assertEqual(
+            [p for p, _d in archiver.calls], [self.profiles_dir / "linked"]
+        )
+        self.assertTrue((self.shared_dir / "projects" / "sess.jsonl").exists())
+        self.assertEqual(
+            (self.shared_dir / "projects" / "sess.jsonl").read_text(), "payload"
+        )
 
 
 class DeletionSurveyTests(_WriteBase):
@@ -457,12 +552,12 @@ class DeletionSurveyTests(_WriteBase):
         target = self.profiles_dir / "counted"
         survey = self.store.survey_profile_dir("counted")
 
-        result = self.store.delete("counted")
+        result = self.store.delete("counted", archiver=FakeArchiver())
         self.assertFalse(target.exists())
         self.assertEqual(result.removed_symlinks, survey.symlinks)
         self.assertEqual(result.removed_real, survey.real_children)
 
-    def test_the_survey_runs_before_the_first_removal(self) -> None:
+    def test_the_survey_runs_before_the_delegation(self) -> None:
         """The counts must not be a by-product of removing anything."""
         self.store.create("ordered", self._SETTINGS)
         order: list[str] = []
@@ -472,42 +567,12 @@ class DeletionSurveyTests(_WriteBase):
             order.append("survey")
             return real_survey(store, name)
 
-        def record_removal(*args: Any, **kwargs: Any) -> None:
-            order.append("remove")
-
-        with (
-            patch.object(ProfileStore, "survey_profile_dir", new=spy),
-            patch(
-                "claudewheel.profile_store.effects.remove",
-                autospec=True,
-                side_effect=record_removal,
-            ),
-            patch(
-                "claudewheel.profile_store.effects.rmtree",
-                autospec=True,
-                side_effect=record_removal,
-            ),
-            patch("claudewheel.profile_store.effects.rmdir", autospec=True),
-        ):
-            with self.assertRaises(RuntimeError):
-                self.store.delete("ordered")
-        self.assertEqual(order[0], "survey")
-        self.assertIn("remove", order)
-
-    def test_a_directory_not_emptied_is_a_hard_error(self) -> None:
-        """The must-be-empty property belongs to the deletion, not to the loop
-        that happens to implement it today."""
-        self.store.create("stubborn", self._SETTINGS)
-        with (
-            patch("claudewheel.profile_store.effects.remove", autospec=True),
-            patch("claudewheel.profile_store.effects.rmtree", autospec=True),
-            patch("claudewheel.profile_store.effects.rmdir", autospec=True) as rmdir,
-        ):
-            with self.assertRaises(RuntimeError) as ctx:
-                self.store.delete("stubborn")
-        self.assertIn("not empty", str(ctx.exception))
-        rmdir.assert_not_called()
-        self.assertTrue((self.profiles_dir / "stubborn").is_dir())
+        archiver = FakeArchiver(fail_with=ArchiveError("stop here"))
+        with patch.object(ProfileStore, "survey_profile_dir", new=spy):
+            with self.assertRaises(ArchiveError):
+                self.store.delete("ordered", archiver=archiver)
+        self.assertEqual(order, ["survey"])
+        self.assertEqual(len(archiver.calls), 1)
 
     def test_a_symlink_is_counted_not_followed(self) -> None:
         target = self.profiles_dir / "linked"

@@ -34,7 +34,7 @@ from unittest import mock
 from claudewheel import cli
 from claudewheel.tokens import TokenExpiryDisposition, plan_by_key
 from claudewheel.workspace import Workspace
-from tests.wheelhelpers import SandboxHomeTestCase
+from tests.wheelhelpers import SandboxHomeTestCase, write_stub_saferm
 
 # Contract §12.6. Pinned verbatim: a consumer that stops matching this string
 # has stopped being refused for the reason it thinks it is.
@@ -51,8 +51,14 @@ class _CliCase(SandboxHomeTestCase):
 
     def setUp(self) -> None:
         super().setUp()
-        self.store = Workspace.default().profiles
+        workspace = Workspace.default()
+        self.store = workspace.profiles
         self.profiles_dir = self.sandbox_paths["PROFILES_DIR"]
+        # Deletion delegates to saferm, which the handler finds under the
+        # workspace's own bin/ before it consults PATH. Seeding a stand-in
+        # there leaves the whole path under test -- detection, the capabilities
+        # probe, the composed argv and the envelope read all really happen.
+        write_stub_saferm(workspace.root / "bin")
 
     def run_cli(self, argv: list[str]) -> tuple[str, str, int]:
         """Run cli.main() with argv and return (stdout, stderr, exit code)."""

@@ -21,7 +21,12 @@ from unittest.mock import MagicMock
 
 from claudewheel import cli
 from claudewheel.config import AppConfigStore
-from tests.wheelhelpers import build_profile_dir, write_token_entry
+from tests.wheelhelpers import (
+    build_profile_dir,
+    fake_saferm,
+    no_saferm,
+    write_token_entry,
+)
 
 if TYPE_CHECKING:
     from claudewheel.profile_info import ProfileReport
@@ -1939,6 +1944,7 @@ class DeleteProfileHandlerTests(unittest.TestCase):
         ws = mock.MagicMock()
         ws.profiles = mock_store
         with (
+            fake_saferm() as fake,
             mock.patch(
                 "claudewheel.session_registry.live_records",
                 autospec=True,
@@ -1950,7 +1956,9 @@ class DeleteProfileHandlerTests(unittest.TestCase):
                 ws, "work", force_delete=True, force_delete_data=True
             )
         self.assertEqual(rc, 0)  # force-delete skips the running check
-        mock_store.delete.assert_called_once_with("work", allow_data_destruction=True)
+        mock_store.delete.assert_called_once_with(
+            "work", archiver=fake, allow_data_destruction=True
+        )
 
     def test_default_flags_off(self) -> None:
         """No force flags: running check runs, allow_data_destruction is False."""
@@ -1960,6 +1968,7 @@ class DeleteProfileHandlerTests(unittest.TestCase):
         ws = mock.MagicMock()
         ws.profiles = mock_store
         with (
+            fake_saferm() as fake,
             mock.patch(
                 "claudewheel.session_registry.live_records",
                 autospec=True,
@@ -1972,7 +1981,9 @@ class DeleteProfileHandlerTests(unittest.TestCase):
             )
         self.assertEqual(rc, 0)
         mock_records.assert_called_once()
-        mock_store.delete.assert_called_once_with("work", allow_data_destruction=False)
+        mock_store.delete.assert_called_once_with(
+            "work", archiver=fake, allow_data_destruction=False
+        )
 
     def test_running_profile_blocked_without_force(self) -> None:
         """A running profile is refused (CLI policy) unless --force-delete."""
@@ -2006,6 +2017,7 @@ class DeleteProfileHandlerTests(unittest.TestCase):
         ws = mock.MagicMock()
         ws.profiles = mock_store
         with (
+            fake_saferm(),
             mock.patch(
                 "claudewheel.session_registry.live_records",
                 autospec=True,
@@ -2059,6 +2071,7 @@ class DeleteProfileHandlerTests(unittest.TestCase):
         ws.profiles = mock_store
         out = io.StringIO()
         with (
+            fake_saferm(),
             mock.patch(
                 "claudewheel.session_registry.live_records",
                 autospec=True,
@@ -2084,6 +2097,7 @@ class DeleteProfileHandlerTests(unittest.TestCase):
         ws.profiles = mock_store
         out = io.StringIO()
         with (
+            fake_saferm(),
             mock.patch(
                 "claudewheel.session_registry.live_records",
                 autospec=True,
@@ -2116,6 +2130,7 @@ class DeleteProfileHandlerTests(unittest.TestCase):
         ws = mock.MagicMock()
         ws.profiles = mock_store
         with (
+            fake_saferm(),
             mock.patch(
                 "claudewheel.session_registry.live_records",
                 autospec=True,
@@ -2127,6 +2142,156 @@ class DeleteProfileHandlerTests(unittest.TestCase):
                 ws, "work", force_delete=False, force_delete_data=False
             )
         self.assertEqual(order, ["read", "delete"])
+
+
+class DeleteWithoutSafermTests(unittest.TestCase):
+    """13.1: with the archiving tool absent, the handler refuses and says why.
+
+    The framework's own confirmation prompt fires before dispatch with a string
+    pinned verbatim by ``tests/test_confirm_protocol.py``, so nothing about
+    saferm can be said there. The handler is the first place that can, and
+    since a non-interactive run has no terminal to ask a second question at,
+    what it says there is a hard error (decision 25).
+    """
+
+    def _refuse(self, **kwargs: Any) -> tuple[int | None, str, Any]:
+        mock_store = mock.MagicMock()
+        mock_store.reserved_reason.return_value = None
+        ws = mock.MagicMock()
+        ws.profiles = mock_store
+        err = io.StringIO()
+        with (
+            no_saferm(**kwargs),
+            mock.patch(
+                "claudewheel.session_registry.live_records",
+                autospec=True,
+                return_value=[],
+            ),
+            redirect_stdout(io.StringIO()),
+            redirect_stderr(err),
+        ):
+            try:
+                cli._handle_delete_profile(
+                    ws, "work", force_delete=False, force_delete_data=False
+                )
+            except SystemExit as exc:
+                code = exc.code
+                return (
+                    (code if isinstance(code, int) else 1),
+                    err.getvalue(),
+                    mock_store,
+                )
+        return None, err.getvalue(), mock_store
+
+    def test_an_absent_tool_aborts_before_the_store_is_touched(self) -> None:
+        code, err, store = self._refuse()
+        self.assertEqual(code, 1)
+        store.delete.assert_not_called()
+        self.assertIn("saferm is not installed", err)
+
+    def test_the_message_states_what_deleting_without_it_would_cost(self) -> None:
+        _code, err, _store = self._refuse()
+        self.assertIn("irreversible", err)
+        self.assertIn("OAuth token", err)
+        self.assertIn("nothing was deleted", err.lower())
+
+    def test_the_message_names_the_install_remedy(self) -> None:
+        _code, err, _store = self._refuse()
+        self.assertIn("go install github.com/smm-h/saferm@v0", err)
+
+    def test_the_message_never_teaches_an_override(self) -> None:
+        """There is deliberately no flag that deletes without the archive."""
+        _code, err, _store = self._refuse()
+        for token in ("--force", "anyway", "override", "bypass", "--skip"):
+            self.assertNotIn(token, err.lower())
+
+    def test_a_tool_too_old_to_answer_the_probe_is_the_same_refusal(self) -> None:
+        code, err, store = self._refuse(kind="no-verb")
+        self.assertEqual(code, 1)
+        store.delete.assert_not_called()
+        self.assertIn("too old", err)
+
+    def test_a_tool_missing_one_feature_is_the_same_refusal(self) -> None:
+        code, err, store = self._refuse(
+            kind="missing-features", missing=("uuid-handles",)
+        )
+        self.assertEqual(code, 1)
+        store.delete.assert_not_called()
+        self.assertIn("uuid-handles", err)
+
+
+class DeleteArchiveFailureTests(unittest.TestCase):
+    """13.2: a failed archival is a hard error, never a plain removal."""
+
+    def test_an_archive_error_exits_1_and_deletes_nothing(self) -> None:
+        from claudewheel.archiver import ArchiveError
+
+        mock_store = mock.MagicMock()
+        mock_store.reserved_reason.return_value = None
+        mock_store.delete.side_effect = ArchiveError(
+            "saferm exited 6 archiving /cw/profiles/work. Nothing was deleted."
+        )
+        ws = mock.MagicMock()
+        ws.profiles = mock_store
+        err = io.StringIO()
+        with (
+            fake_saferm(),
+            mock.patch(
+                "claudewheel.session_registry.live_records",
+                autospec=True,
+                return_value=[],
+            ),
+            redirect_stdout(io.StringIO()),
+            redirect_stderr(err),
+        ):
+            with self.assertRaises(SystemExit) as ctx:
+                cli._handle_delete_profile(
+                    ws, "work", force_delete=False, force_delete_data=False
+                )
+        self.assertEqual(ctx.exception.code, 1)
+        self.assertIn("Nothing was deleted", err.getvalue())
+
+
+class DeleteReportsTheHandleTests(unittest.TestCase):
+    """13.4: the handle is reported to the user, and stored nowhere."""
+
+    def test_the_summary_names_the_uuid_and_the_restore_command(self) -> None:
+        from claudewheel.archiver import ArchiveHandle
+        from claudewheel.profile_store import DeletionResult
+
+        handle = ArchiveHandle(
+            uuid="4129d284-7510-4281-937d-286b42bb8d6c",
+            group_id="33e8059a-19c3-40bb-a4a7-b61e2088173d",
+            path="/cw/profiles/work",
+            size=4096,
+        )
+        mock_store = mock.MagicMock()
+        mock_store.reserved_reason.return_value = None
+        mock_store.delete.return_value = DeletionResult(
+            removed_symlinks=7,
+            removed_real=2,
+            removed_from_options=True,
+            last_config_purged=False,
+            archive=handle,
+        )
+        ws = mock.MagicMock()
+        ws.profiles = mock_store
+        out = io.StringIO()
+        with (
+            fake_saferm(),
+            mock.patch(
+                "claudewheel.session_registry.live_records",
+                autospec=True,
+                return_value=[],
+            ),
+            redirect_stdout(out),
+        ):
+            cli._handle_delete_profile(
+                ws, "work", force_delete=False, force_delete_data=False
+            )
+        printed = out.getvalue()
+        self.assertIn("4129d284-7510-4281-937d-286b42bb8d6c", printed)
+        self.assertIn("saferm undelete 4129d284-7510-4281-937d-286b42bb8d6c", printed)
 
 
 class PurgePluginsHandlerTests(unittest.TestCase):

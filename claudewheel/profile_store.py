@@ -9,6 +9,7 @@ from typing import Any, Literal
 
 from .appdata import OptionsFile, StateFile
 from . import effects
+from .archiver import ArchiveHandle, ProfileArchiver
 from .effects import write_json_atomic
 from .profile_data import PROFILE_DATA_DIRNAME, ProfileDataStore
 from .shared_store import SharedStore
@@ -87,12 +88,21 @@ class DeletionResult:
     claudewheel data (its token entry) needs no field of its own: it lives
     inside the profile directory, so removing that directory removes it and it
     is counted among ``removed_real``.
+
+    ``archive`` is the handle the archiving tool handed back -- the one thing
+    that turns this record into something reversible.  It is carried out to the
+    caller to be *reported*, never written anywhere: the archive is the
+    authority on what was deleted and holds its own audit trail, so a
+    launcher-side copy of the handle would be duplicate state with nobody
+    owning its lifetime.  It is None under a preview, where the archival was
+    recorded rather than performed.
     """
 
     removed_symlinks: int
     removed_real: int
     removed_from_options: bool
     last_config_purged: bool
+    archive: "ArchiveHandle | None" = None
 
 
 @dataclass(frozen=True)
@@ -431,8 +441,11 @@ class ProfileStore:
         # Everything below was created by THIS call (the pre-mkdir FileExistsError
         # guard above guarantees the dir did not pre-exist), so any failure lets
         # us safely remove the whole target dir and re-raise, leaving no debris to
-        # block a retry. Removal is symlink-safe (shared session data survives) --
-        # it reuses the same helper delete() uses.
+        # block a retry. Removal is symlink-safe (shared session data survives).
+        # It is a plain removal, deliberately NOT the archiving delegation
+        # delete() performs: nothing here is the user's data yet, and archiving
+        # the debris of a half-built profile would put a record in the archive
+        # that nobody would ever want to restore.
         try:
             # settings.json -- ATOMIC (the fix for the wizard's truncating write_text)
             write_json_atomic(target / "settings.json", settings)
@@ -471,7 +484,7 @@ class ProfileStore:
                 has_token=has_token,
             )
         except BaseException:
-            self._remove_profile_dir(name)
+            self._discard_partial_profile_dir(name)
             raise
 
     def classify_shared_dirs(self, name: str) -> dict[str, str]:
@@ -528,19 +541,17 @@ class ProfileStore:
             symlinks=symlinks, real_children=real_children, names=tuple(names)
         )
 
-    def _remove_profile_dir(self, name: str) -> None:
-        """Remove *name*'s dir, unlinking symlinks WITHOUT following real data.
+    def _discard_partial_profile_dir(self, name: str) -> None:
+        """Remove the debris of a FAILED :meth:`create`, symlink-safe.
 
-        Removal only: what was there is :meth:`survey_profile_dir`'s answer,
-        taken before this runs.
+        Only :meth:`create`'s rollback calls this, and only over a directory
+        this same call made moments ago. It is not a deletion: nothing in it is
+        the user's data, so there is nothing to archive and no handle anyone
+        would ever restore. Deleting a real profile goes through
+        :meth:`_archive_profile_dir`.
 
-        The directory is removed with ``rmdir``, which fails on a directory
-        that still holds anything -- the must-be-empty safety property. It is
-        checked explicitly first, from a fresh read of the directory, so the
-        property belongs to the deletion rather than to this particular removal
-        loop: a delegated removal that quietly left a child behind must be just
-        as loud about it. Under a preview nothing was really removed, so the
-        check would fire on every profile and is skipped there.
+        Symlinks are unlinked without being followed, exactly as before, so a
+        shared-store link created a moment ago cannot take the store with it.
         """
         profile_dir = self.path_for(name)
         if not profile_dir.is_dir():
@@ -552,14 +563,50 @@ class ProfileStore:
                 effects.rmtree(child)
             else:
                 effects.remove(child)
-        if not effects.previewing():
-            leftovers = sorted(p.name for p in profile_dir.iterdir())
-            if leftovers:
-                raise RuntimeError(
-                    f"Profile directory {profile_dir} is not empty after "
-                    f"removal: {', '.join(leftovers)}"
-                )
         effects.rmdir(profile_dir)
+
+    def _archive_profile_dir(
+        self, name: str, archiver: ProfileArchiver
+    ) -> ArchiveHandle | None:
+        """Hand *name*'s directory to the archiving tool, which then removes it.
+
+        Removal only: what was there is :meth:`survey_profile_dir`'s answer,
+        taken before this runs.
+
+        This used to be a per-child removal loop ending in ``rmdir``, whose
+        must-be-empty failure was the safety property: a child left behind was
+        a hard error rather than something quietly taken with the tree. That
+        property belongs to the deletion, not to the loop that implemented it,
+        so it survives the delegation in the shape the delegation can express:
+        the directory itself must be gone afterwards, and a directory still
+        standing after a reportedly successful archival raises instead of being
+        removed some other way.
+
+        The whole directory is handed over in one piece, which is safe for the
+        shared store precisely because the walk does not follow symlinks: the
+        shared-store links are recorded as links and recreated on restore, so
+        the store behind them is never read, never copied and never touched.
+
+        Under a preview the invocation is recorded and nothing ran, so there is
+        no handle and no directory to check.
+        """
+        profile_dir = self.path_for(name)
+        if not profile_dir.is_dir():
+            return None
+        handle = archiver.archive(
+            profile_dir,
+            description=(
+                f"claudewheel profile delete '{name}': the profile directory "
+                "with its settings, credentials and stored OAuth token"
+            ),
+        )
+        if not effects.previewing() and profile_dir.exists():
+            leftovers = sorted(p.name for p in profile_dir.iterdir())
+            raise RuntimeError(
+                f"Profile directory {profile_dir} still exists after it was "
+                f"archived: {', '.join(leftovers) or '<empty>'}"
+            )
+        return handle
 
     def _purge_last_config(self, name: str) -> bool:
         """Drop ``last_config['profile']`` from state.json when it names *name*.
@@ -575,7 +622,11 @@ class ProfileStore:
         return True
 
     def delete(
-        self, name: str, *, allow_data_destruction: bool = False
+        self,
+        name: str,
+        *,
+        archiver: ProfileArchiver,
+        allow_data_destruction: bool = False,
     ) -> DeletionResult:
         """Delete a profile and clean up its stores. Refusals raise; success returns.
 
@@ -593,6 +644,19 @@ class ProfileStore:
         requirement: callers consult :meth:`reserved_reason` before they render
         anything, and this backstop must give the same answer whatever else is
         or is not wired up.
+
+        *archiver* is required rather than defaulted, and the store neither
+        finds one nor decides what to do without one: whether the archiving
+        tool is present, whether it ships what the delegation uses, and whether
+        to offer to install it are decisions with a user to ask, so they belong
+        to the handler. A store that silently removed the directory when no
+        archiver was handed in would be exactly the kind of quiet degradation
+        this delegation exists to remove.
+
+        Order is the contract's, and the refusals come first: the archival is
+        the first destructive step, so an ``ArchiveError`` out of it leaves the
+        profile on disk AND leaves every store still naming it -- options.json
+        and state.json are touched only after the directory is really gone.
         """
         reserved = self.reserved_reason(name)
         if reserved is not None:
@@ -630,7 +694,7 @@ class ProfileStore:
         # Counted before anything goes: the report describes the directory
         # that was there, not the loop that emptied it.
         survey = self.survey_profile_dir(name)
-        self._remove_profile_dir(name)
+        handle = self._archive_profile_dir(name, archiver)
         self.options.remove_value(_PROFILE_SEGMENT, name, _OPTIONS_DEFAULT)
         purged = self._purge_last_config(name)
 
@@ -639,6 +703,7 @@ class ProfileStore:
             removed_real=survey.real_children,
             removed_from_options=removed_from_options,
             last_config_purged=purged,
+            archive=handle,
         )
 
     def _update_state_rename(self, old: str, new: str) -> None:

@@ -25,6 +25,7 @@ from claudewheel.workspace import Workspace
 from tests.wheelhelpers import (
     build_profile_dir,
     dead_pid,
+    fake_saferm,
     live_record,
     phantom_record,
     stale_record,
@@ -456,7 +457,11 @@ class DeleteGuardTests(_ProfileFixture):
     def _delete(self) -> tuple[int | None, str]:
         err = io.StringIO()
         try:
-            with redirect_stdout(io.StringIO()), redirect_stderr(err):
+            with (
+                fake_saferm(),
+                redirect_stdout(io.StringIO()),
+                redirect_stderr(err),
+            ):
                 cli._handle_delete_profile(
                     self.ws, "work", force_delete=False, force_delete_data=False
                 )

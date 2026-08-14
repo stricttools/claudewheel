@@ -22,12 +22,15 @@ import contextlib
 import hashlib
 import json
 import os
+import shutil
 import tempfile
 import unittest
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, Iterable, Iterator
 from unittest.mock import patch
 
+from claudewheel.archiver import ArchiveHandle, Unavailable
 from claudewheel.binaries import BinaryLocator
 from claudewheel.config import AppConfigStore
 from claudewheel.profile_data import (
@@ -52,6 +55,11 @@ from claudewheel.defaults import (
 # Real home captured at import time, BEFORE any test patches Path.home. Used by
 # the meta-test to prove that sandbox writes never touch the real home.
 REAL_HOME: Path = Path(os.path.expanduser("~"))
+
+# Sentinel distinguishing "the caller passed handle=None" (stand in for a
+# recorded, previewed invocation) from "the caller said nothing" (hand back the
+# default handle).
+_MISSING_HANDLE: Any = object()
 
 
 class FakeTerminal(Terminal):
@@ -165,6 +173,157 @@ def inert_locator(root: Path) -> BinaryLocator:
         versions_dir=root / "versions",
         claude_symlink=root / "bin" / "claude",
     )
+
+
+class FakeArchiver:
+    """A stand-in for saferm at the seam :meth:`ProfileStore.delete` requires.
+
+    It really removes the directory -- the store's own post-conditions (the
+    directory is gone, the shared store is untouched) are what most callers are
+    testing, and a no-op stand-in would make those assertions vacuous. What it
+    stands in for is the subprocess: the argv composition and the envelope
+    reading are pinned in ``tests/test_archiver.py``, and the round trip against
+    a real saferm in ``tests/test_archiver_integration.py``.
+
+    ``fail_with`` makes the delegation raise instead, which is how the tests
+    prove a failed archival leaves every store untouched. ``handle=None`` stands
+    in for a recorded (previewed) invocation.
+    """
+
+    def __init__(
+        self,
+        *,
+        fail_with: Exception | None = None,
+        handle: "ArchiveHandle | None" = _MISSING_HANDLE,
+        remove: bool = True,
+    ) -> None:
+        self.fail_with = fail_with
+        self.handle = (
+            ArchiveHandle(
+                uuid="00000000-0000-4000-8000-000000000000",
+                group_id="11111111-1111-4111-8111-111111111111",
+                path="",
+                size=0,
+            )
+            if handle is _MISSING_HANDLE
+            else handle
+        )
+        self.remove = remove
+        self.calls: list[tuple[Path, str]] = []
+
+    def archive(self, path: Path, *, description: str) -> "ArchiveHandle | None":
+        self.calls.append((path, description))
+        if self.fail_with is not None:
+            raise self.fail_with
+        if self.remove:
+            shutil.rmtree(path, ignore_errors=True)
+        if self.handle is None:
+            return None
+        return replace(self.handle, path=str(path))
+
+
+#: A stand-in saferm executable: answers the capabilities probe and really
+#: performs a delete, in the machine-mode envelope shape the real one emits.
+#:
+#: It exists for the end-to-end tests, where patching detection would hide the
+#: very thing under test -- that the handler composes a real argv, runs it
+#: through the effects chokepoint, and reads the envelope back. What it does
+#: NOT stand in for is saferm's archival: the round trip against the real
+#: binary lives in ``tests/test_archiver_integration.py``.
+STUB_SAFERM_SOURCE = """#!/usr/bin/env python3
+import json
+import shutil
+import sys
+
+FEATURES = [
+    "git-index-switches",
+    "group-id",
+    "machine-payloads",
+    "on-conflict-modes",
+    "on-error-modes",
+    "restore-destination",
+    "trace-origin",
+    "uuid-handles",
+]
+
+
+def envelope(command, payload, exit_code=0):
+    return json.dumps(
+        {
+            "interface_version": 1,
+            "app": "saferm",
+            "app_version": "0.0.0-stub",
+            "command": command,
+            "exit_code": exit_code,
+            "payload": payload,
+            "dry_run": False,
+            "preview": [],
+            "preview_error": None,
+            "diagnostics": [],
+        }
+    )
+
+
+args = sys.argv[1:]
+if args[:1] == ["capabilities"]:
+    print(envelope("capabilities", {"features": FEATURES}))
+    sys.exit(0)
+if args[:1] == ["delete"]:
+    target = args[-1]
+    shutil.rmtree(target)
+    print(
+        envelope(
+            "delete",
+            {
+                "group_id": "11111111-1111-4111-8111-111111111111",
+                "archived": [
+                    {
+                        "id": 1,
+                        "uuid": "00000000-0000-4000-8000-000000000000",
+                        "path": target,
+                        "size": 4096,
+                    }
+                ],
+                "failed": [],
+            },
+        )
+    )
+    sys.exit(0)
+sys.exit(2)
+"""
+
+
+def write_stub_saferm(directory: Path) -> Path:
+    """Write :data:`STUB_SAFERM_SOURCE` into *directory* and make it runnable."""
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / "saferm"
+    path.write_text(STUB_SAFERM_SOURCE)
+    path.chmod(0o755)
+    return path
+
+
+@contextlib.contextmanager
+def fake_saferm(**kwargs: Any) -> Iterator[FakeArchiver]:
+    """Stand a :class:`FakeArchiver` in for saferm at every detection site.
+
+    ``claudewheel.archiver.detect`` is the one door both delete paths go
+    through, so patching it covers the CLI handler and the TUI flow alike
+    without either of them knowing.
+    """
+    fake = FakeArchiver(**kwargs)
+    with patch("claudewheel.archiver.detect", return_value=fake):
+        yield fake
+
+
+@contextlib.contextmanager
+def no_saferm(
+    kind: str = "absent", missing: tuple[str, ...] = ()
+) -> Iterator[Unavailable]:
+    """Make every detection site find no usable saferm."""
+    binary = None if kind == "absent" else Path("/usr/bin/saferm")
+    answer = Unavailable(kind=kind, binary=binary, missing=missing)  # type: ignore[arg-type]
+    with patch("claudewheel.archiver.detect", return_value=answer):
+        yield answer
 
 
 def write_json(path: Path, data: dict[str, Any] | list[Any]) -> None:

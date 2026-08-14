@@ -23,7 +23,7 @@ from unittest import mock
 
 from claudewheel import cli
 from claudewheel.profile_data import PROFILE_DATA_DIRNAME, TOKEN_FILE_NAME
-from tests.wheelhelpers import SandboxHomeTestCase
+from tests.wheelhelpers import SandboxHomeTestCase, write_stub_saferm
 
 
 def _tree(root: Path) -> dict[str, bytes]:
@@ -129,6 +129,9 @@ class DryRunNarrationIsConditionalTests(SandboxHomeTestCase):
 
         store = self.ws.profiles
         store.create(name, {"permissions": {"allow": [], "deny": [], "ask": []}})
+        # Deletion delegates to saferm; the stand-in goes where the handler
+        # looks first, so the preview records a real composed invocation.
+        write_stub_saferm(self.ws.root / "bin")
         store.data_for(name).write_token(
             "TOKEN", expiry=TokenExpiryDisposition.TTL, plan=plan_by_key("max-20x")
         )
@@ -151,6 +154,36 @@ class DryRunNarrationIsConditionalTests(SandboxHomeTestCase):
         self.assertEqual(code, 0, err)
         self.assertNotIn("Profile 'work' deleted.", out)
         self.assertIn("Would delete profile 'work'", out)
+
+    def test_profile_delete_records_the_delegation_and_removes_nothing(self) -> None:
+        """The chokepoint's whole claim, for the one command that hands a
+        directory to another program: the invocation is written to the would-do
+        log and the directory is still there afterwards, token included."""
+        self.seed_profile("work")
+        target = self.ws.profiles.path_for("work")
+        out, err, code = self.run_cli(
+            [
+                "c",
+                "profile",
+                "delete",
+                "work",
+                "--no-force-delete",
+                "--no-force-delete-data",
+                "--dry-run",
+            ]
+        )
+        self.assertEqual(code, 0, err)
+        # The composed invocation is named in full, flags and all.
+        self.assertIn("run: ", out)
+        self.assertIn("saferm delete --on-error abort", out)
+        self.assertIn("--no-update-git-index", out)
+        self.assertIn(str(target), out)
+        # And nothing ran: the profile, its settings and its token survive.
+        self.assertTrue(target.is_dir())
+        self.assertTrue((target / "settings.json").is_file())
+        self.assertEqual(self.ws.profiles.data_for("work").token(), "TOKEN")
+        # No handle is invented for an archival that did not happen.
+        self.assertNotIn("Restore it with", out)
 
     def test_profile_rename(self) -> None:
         self.seed_profile("alpha")

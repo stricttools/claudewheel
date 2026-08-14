@@ -17,6 +17,7 @@ from . import effects
 from .clients import CLIENT_NAMES, DEFAULT_CLIENT, resolve_default_client
 
 if TYPE_CHECKING:
+    from .archiver import Saferm, Unavailable
     from .binaries import BinaryLocator
     from .config import AppConfigStore
     from .workspace import Workspace
@@ -374,6 +375,25 @@ def _handle_new_profile(ws: "Workspace", locator: "BinaryLocator") -> int:
     return 0
 
 
+def _resolve_archiver(ws: "Workspace", name: str) -> "Saferm | Unavailable":
+    """The archiving tool this deletion will use, or why there is none.
+
+    Deletion delegates to saferm so it can be undone, which makes "is saferm
+    here, and does it ship what the delegation uses" a precondition of the
+    operation rather than a detail of it. This is where that is decided, for
+    the scripted door.
+
+    A run with no terminal gets no second consent to ask for -- the framework's
+    confirmation already happened, or was answered in advance with
+    ``--approve-consequential`` -- so it does not get an install offer either.
+    The caller turns the answer into a hard error, which is the input a machine
+    caller can act on: nothing happened, and the profile is still there.
+    """
+    from .archiver import detect
+
+    return detect(ws.root)
+
+
 @strictcli.flag(
     "force-delete",
     type=bool,
@@ -396,8 +416,16 @@ def _handle_delete_profile(
     removal (afterwards the registry is gone with the directory) and named in
     the summary, because a surviving process still carries CLAUDE_CONFIG_DIR
     and recreates the directory on its next write.
+
+    The archiving tool is resolved HERE, not in the store, and not by the
+    framework's confirmation prompt: that prompt fires before dispatch with a
+    string pinned verbatim by tests, so the handler is the first place that can
+    say anything about saferm at all. What it says depends on whether there is
+    anyone to say it to -- an offer where there is a terminal, a hard error
+    where there is not.
     """
     from . import session_registry
+    from .archiver import ArchiveError, Unavailable
 
     # The reserved-name query comes first, before anything is read or printed:
     # a name claudewheel does not own has no holders worth listing and no
@@ -420,12 +448,25 @@ def _handle_delete_profile(
         )
         sys.exit(1)
 
+    archiver = _resolve_archiver(ws, name)
+    if isinstance(archiver, Unavailable):
+        print(archiver.headless_error(name), file=sys.stderr)
+        sys.exit(1)
+
     store = ws.profiles
     try:
-        result = store.delete(name, allow_data_destruction=force_delete_data)
+        result = store.delete(
+            name, archiver=archiver, allow_data_destruction=force_delete_data
+        )
     except ValueError as e:
         # Covers default / not-found / data-destruction refusals.
         print(str(e), file=sys.stderr)
+        sys.exit(1)
+    except ArchiveError as e:
+        # The archival is the first destructive step, so a failure here means
+        # nothing happened at all: the profile is on disk and every store still
+        # names it. There is deliberately no branch that removes it anyway.
+        print(f"error: {e}", file=sys.stderr)
         sys.exit(1)
 
     previewing = effects.previewing()
@@ -461,6 +502,13 @@ def _handle_delete_profile(
         )
     else:
         print(f"Profile '{name}' deleted.")
+    if result.archive is not None:
+        # Reported, never recorded: saferm's archive is the authority on what
+        # was deleted and keeps its own audit trail, so the handle is printed
+        # where the person who just deleted a profile can act on it, and after
+        # that it lives in `saferm list` like every other deletion.
+        print(f"  Archived as {result.archive.uuid}")
+        print(f"  Restore it with: {result.archive.restore_command}")
     return 0
 
 
@@ -1851,23 +1899,23 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
         "delete",
         effect="mutating",
         # One of claudewheel's three consequential commands (contract §8.1),
-        # alongside reconcile-permissions and patch-profiles -- and the only
-        # one that destroys user data rather than pruning it to canonical. Even
-        # the bare form is irreversible: the profile directory goes, taking
-        # .credentials.json, settings.json and the stored token entry with it.
-        # --force-delete-data only widens that from
-        # "credentials and settings" to "credentials, settings and
-        # conversation history", so there is no harmless invocation to keep
-        # quiet and the command -- not the flag -- is the right granularity.
+        # alongside reconcile-permissions and patch-profiles. The archival
+        # makes it recoverable, not harmless: the profile stops existing, every
+        # process holding it loses its configuration directory, and putting it
+        # back is a second deliberate operation somebody has to know to run.
+        # --force-delete-data widens what goes into the archive from
+        # "credentials and settings" to "credentials, settings and conversation
+        # history", so there is no quiet invocation to keep quiet about and the
+        # command -- not the flag -- is the right granularity.
         consequential=True,
         grants=[
             Grant(
-                "irreversible-delete",
-                "removes a profile directory, its stored OAuth token and its session data for good",
-                strictcli.FILE_WRITE,
+                "archive-delegation",
+                "hands the whole profile directory, its stored OAuth token included, to saferm, which archives it and then removes it",
+                strictcli.PROC_MUTATE,
             )
         ],
-        help="remove a registered profile for good: unlink its shared-store symlinks, delete the real entries in its directory (its stored token among them), drop its options.json registration, and clear any last_config reference in state.json. Refuses a profile holding a live interactive Claude Code session unless --force-delete (background jobs and daemons do not block it), and takes conversation history only with --force-delete-data",
+        help="remove a registered profile: hand its directory to saferm, which archives it (the stored token among it) and then removes it, unlink its shared-store symlinks, drop its options.json registration, and clear any last_config reference in state.json. Prints the archive handle that restores it. Refuses a profile holding a live interactive Claude Code session unless --force-delete (background jobs and daemons do not block it), and takes conversation history only with --force-delete-data. saferm must be installed: without it the deletion would be irreversible, so it is refused rather than performed",
         args=[
             Arg(
                 name="name",

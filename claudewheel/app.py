@@ -14,9 +14,11 @@ from dataclasses import dataclass
 from types import FrameType
 from typing import TYPE_CHECKING, Any
 
+from .archiver import INSTALL_COMMANDS, ArchiveError
 from .config import AppConfigStore, resolve_theme_name
 
 if TYPE_CHECKING:
+    from .archiver import Saferm
     from .binaries import BinaryLocator
     from .deletion_checklist import ChecklistOutcome
 from .segment import (
@@ -1237,6 +1239,14 @@ class App:
                 return
             still_holding = outcome.still_holding
 
+        # The archiving tool is resolved AFTER the checklist and before the
+        # removal: the checklist's stop phase is what makes the removal stick,
+        # and resolving earlier would put an install offer in front of a
+        # deletion the user may still cancel.
+        archiver = self._resolve_archiver(name)
+        if archiver is None:
+            return
+
         # Running check is TUI policy (ProfileStore.delete does not enforce it).
         # Only a live interactive session blocks: background jobs and daemons
         # hold the profile too, but they are not a person at a terminal. It is
@@ -1247,8 +1257,13 @@ class App:
             return
 
         try:
-            self.workspace.profiles.delete(name)
+            result = self.workspace.profiles.delete(name, archiver=archiver)
         except ValueError as e:
+            self._flash = f"Not deleted: {e}"
+            return
+        except ArchiveError as e:
+            # The archival is the first destructive step, so nothing happened:
+            # the profile is still on disk and every store still names it.
             self._flash = f"Not deleted: {e}"
             return
 
@@ -1271,6 +1286,29 @@ class App:
             )
         else:
             self._flash = f"Deleted profile '{name}'"
+
+        if result.archive is not None:
+            # A page rather than a flash: the handle is the only thing standing
+            # between the user and an unrecoverable deletion, and a status line
+            # that scrolls away in a second is not where it belongs. Reported,
+            # never stored -- the archive keeps its own record of every
+            # deletion, so it stays reachable through `saferm list` afterwards.
+            show_page(
+                f"Deleted '{name}' -- recoverable",
+                [
+                    "The profile directory was archived before it was removed,",
+                    "its stored OAuth token included.",
+                    "",
+                    f"Archive handle: {result.archive.uuid}",
+                    "",
+                    "Restore all of it with:",
+                    f"  {result.archive.restore_command}",
+                    "",
+                    "It is listed by `saferm list` for as long as it is kept.",
+                ],
+                self.theme,
+                self.terminal,
+            )
 
     def _show_sessions_overview(self) -> None:
         """Show the sessions registered under the SELECTED profile.
@@ -1303,6 +1341,38 @@ class App:
         )
         if outcome.pruned:
             self._flash = f"Pruned {len(outcome.pruned)} stale session record(s)"
+
+    def _resolve_archiver(self, name: str) -> "Saferm | None":
+        """The archiving tool this deletion will use, or None to abort.
+
+        Deletion delegates to saferm so it can be undone, so "is saferm here,
+        and does it ship what the delegation uses" is a precondition of the
+        operation. When the answer is no, the screen says which of the three it
+        is, states what deleting without it would cost, and offers the install
+        -- there is a person here to ask. Declining aborts the deletion; there
+        is no option that deletes anyway.
+        """
+        from .archiver import Unavailable, detect
+        from .ui import show_page
+
+        found = detect(self.workspace.root)
+        if not isinstance(found, Unavailable):
+            return found
+
+        show_page(
+            f"Cannot delete '{name}' yet",
+            [
+                *textwrap.wrap(found.diagnosis(), width=56),
+                "",
+                *textwrap.wrap(found.stakes(name), width=56),
+                "",
+                "Install it with one of:",
+                *(f"  {cmd}" for cmd in INSTALL_COMMANDS),
+            ],
+            self.theme,
+            self.terminal,
+        )
+        return None
 
     def _run_deletion_checklist(self, name: str) -> "ChecklistOutcome":
         """Show what holds *name* and stop whatever the user ticks.

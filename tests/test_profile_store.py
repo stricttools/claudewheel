@@ -14,7 +14,11 @@ from claudewheel.profile_data import (
 from claudewheel.profile_store import Profile, ProfileStore
 from claudewheel.tokens import TokenStoreError
 from claudewheel.workspace import Workspace
-from tests.wheelhelpers import SandboxHomeTestCase, write_token_entry
+from tests.wheelhelpers import (
+    FakeArchiver,
+    SandboxHomeTestCase,
+    write_token_entry,
+)
 
 
 def _tree_mode(root: Path, dir_mode: int, file_mode: int) -> None:
@@ -517,7 +521,7 @@ class ReservedNameTests(SandboxHomeTestCase):
         """The store's own backstop reads the query rather than a second copy."""
         store = self._store()
         with self.assertRaises(ValueError) as ctx:
-            store.delete("default")
+            store.delete("default", archiver=FakeArchiver())
         self.assertEqual(str(ctx.exception), store.reserved_reason("default"))
 
 
