@@ -171,6 +171,51 @@ def _p(path: Any) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Answering a machine
+# ---------------------------------------------------------------------------
+
+
+def payload(value: Any) -> None:
+    """Supply this dispatch's machine payload.
+
+    Forwards to ``ctx.payload``, which is mode-independent by contract: a
+    handler calls it on every run and the framework decides whether the value
+    becomes a document.  Under ``--json`` it is emitted inside the envelope,
+    validated against the command's declared ``payload_schema``; without it the
+    value is built and dropped.  A handler therefore never branches on
+    ``ctx.json``, and there is no second code path to keep in step with the
+    human rendering.
+
+    Unbound -- the TUI, a library caller, a unit test calling a handler
+    directly -- there is no envelope to write into and nothing is recorded,
+    the same rule the rest of this module follows outside a dispatch.
+    """
+    ctx = _CTX.get()
+    if ctx is None:
+        return
+    ctx.payload(value)
+
+
+def info(msg: str) -> None:
+    """Write one informational line through the dispatch context.
+
+    Every line a command means for a human goes through here rather than
+    ``print``.  Under ``--json`` the context records it as an envelope
+    diagnostic and writes nothing, which is what keeps the envelope the sole
+    document on stdout; without it the line is printed exactly as ``print``
+    would have (and suppressed by ``--quiet``, the framework's own rule for
+    informational output).
+
+    Unbound, it prints -- the library path, as everywhere else here.
+    """
+    ctx = _CTX.get()
+    if ctx is None:
+        print(msg)
+        return
+    ctx.info(msg)
+
+
+# ---------------------------------------------------------------------------
 # Process effects
 # ---------------------------------------------------------------------------
 

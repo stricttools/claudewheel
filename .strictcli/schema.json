@@ -567,17 +567,65 @@
         },
         "list": {
           "name": "list",
-          "help": "List permission rules from a profile's settings.json. Displays rules in grouped, flat, or JSON format controlled by --format. Use --category to filter output to a single category (allow, deny, or ask). Use --profile to inspect a single profile or --all-profiles to show rules from every registered profile, with each profile's rules displayed under a header.",
+          "help": "List permission rules from a profile's settings.json. Displays rules in grouped or flat format controlled by --format. Use --category to filter output to a single category (allow, deny, or ask). Use --profile to inspect a single profile or --all-profiles to show rules from every registered profile, with each profile's rules displayed under a header. The framework-owned --json answers a machine instead: one envelope carrying every listed profile, whatever --format the human form would have used.",
           "effect": "read_only",
+          "payload_schema": {
+            "type": "object",
+            "properties": {
+              "profiles": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string"
+                    },
+                    "permissions": {
+                      "type": "object",
+                      "properties": {
+                        "allow": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "deny": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "ask": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "permissions"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "profiles"
+            ],
+            "additionalProperties": false
+          },
           "flags": [
             {
               "name": "format",
               "type": "str",
-              "help": "output format: grouped (indented tree), flat (tsv), or json",
+              "help": "output format: grouped (indented tree) or flat (tsv)",
               "choices": [
                 "grouped",
-                "flat",
-                "json"
+                "flat"
               ]
             },
             {

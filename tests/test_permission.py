@@ -431,24 +431,6 @@ class PermissionCLIListTests(_PermissionCLIBase):
         self.assertIn("allow\tBash", out)
         self.assertIn("deny\tWebSearch", out)
 
-    def test_list_json_format(self) -> None:
-        self._write_settings(
-            {
-                "permissions": {"allow": ["Bash"], "deny": [], "ask": []},
-            }
-        )
-        self.ws.profiles.enumerate.return_value = self._fake_profiles()
-        with contextlib.nullcontext():
-            buf = io.StringIO()
-            with redirect_stdout(buf):
-                rc = cli._handle_permission_list(
-                    self.ws, "testprofile", False, format="json", category=""
-                )
-        self.assertEqual(rc, 0)
-        parsed = json.loads(buf.getvalue())
-        self.assertIn("allow", parsed)
-        self.assertEqual(parsed["allow"], ["Bash"])
-
     def test_list_with_category_filter(self) -> None:
         self._write_settings(
             {
@@ -494,6 +476,138 @@ class PermissionCLIListTests(_PermissionCLIBase):
                 )
             self.assertEqual(ctx.exception.code, 1)
             self.assertIn("nonexistent", err.getvalue())
+
+
+class PermissionListMachineModeTests(_PermissionCLIBase):
+    """``permission list`` answers a machine through the framework envelope.
+
+    The command used to carry its own ``--format json`` arm, which hand-printed
+    ``json.dumps`` next to the human rendering -- and printed one document per
+    profile, so ``--all-profiles`` produced concatenated objects no JSON reader
+    accepts.  The machine form is now the framework-owned ``--json``: one
+    envelope, one payload slot, validated against the command's declared
+    ``payload_schema``.  ``--format`` keeps the two human renderings.
+    """
+
+    def _app(self) -> Any:
+        return cli._build_app(self.ws, mock.MagicMock())
+
+    def _both_profiles(self) -> list[Profile]:
+        second = self.profile_dir.parent / "other"
+        second.mkdir(parents=True, exist_ok=True)
+        (second / "settings.json").write_text(
+            json.dumps({"permissions": {"allow": ["Read"], "deny": [], "ask": []}})
+        )
+        return [
+            *self._fake_profiles(),
+            Profile(
+                name="other", path=second, has_credentials=True, has_token=False
+            ),
+        ]
+
+    def test_json_emits_one_envelope_carrying_the_permissions(self) -> None:
+        self._write_settings(
+            {"permissions": {"allow": ["Bash"], "deny": ["WebSearch"], "ask": []}}
+        )
+        self.ws.profiles.enumerate.return_value = self._fake_profiles()
+        res = self._app().test(
+            [
+                "permission",
+                "list",
+                "--profile",
+                "testprofile",
+                "--format",
+                "grouped",
+                "--json",
+            ]
+        )
+        self.assertEqual(res.exit_code, 0, res.stderr)
+        # The envelope is the SOLE document on stdout: a leaked human line
+        # would make this fail to parse.
+        envelope = json.loads(res.stdout)
+        self.assertEqual(
+            envelope["payload"],
+            {
+                "profiles": [
+                    {
+                        "name": "testprofile",
+                        "permissions": {
+                            "allow": ["Bash"],
+                            "deny": ["WebSearch"],
+                            "ask": [],
+                        },
+                    }
+                ]
+            },
+        )
+        self.assertEqual(res.data, envelope["payload"])
+
+    def test_json_carries_every_profile_in_one_document(self) -> None:
+        self._write_settings({"permissions": {"allow": ["Bash"], "deny": [], "ask": []}})
+        self.ws.profiles.enumerate.return_value = self._both_profiles()
+        res = self._app().test(
+            ["permission", "list", "--all-profiles", "--format", "flat", "--json"]
+        )
+        self.assertEqual(res.exit_code, 0, res.stderr)
+        payload = json.loads(res.stdout)["payload"]
+        self.assertEqual(
+            [p["name"] for p in payload["profiles"]], ["testprofile", "other"]
+        )
+        self.assertEqual(payload["profiles"][1]["permissions"]["allow"], ["Read"])
+
+    def test_json_honours_the_category_filter(self) -> None:
+        self._write_settings(
+            {"permissions": {"allow": ["Bash"], "deny": ["WebSearch"], "ask": []}}
+        )
+        self.ws.profiles.enumerate.return_value = self._fake_profiles()
+        res = self._app().test(
+            [
+                "permission",
+                "list",
+                "--profile",
+                "testprofile",
+                "--format",
+                "grouped",
+                "--category",
+                "deny",
+                "--json",
+            ]
+        )
+        self.assertEqual(res.exit_code, 0, res.stderr)
+        payload = json.loads(res.stdout)["payload"]
+        self.assertEqual(
+            payload["profiles"][0]["permissions"], {"deny": ["WebSearch"]}
+        )
+
+    def test_format_json_is_no_longer_a_choice(self) -> None:
+        self.ws.profiles.enumerate.return_value = self._fake_profiles()
+        res = self._app().test(
+            ["permission", "list", "--profile", "testprofile", "--format", "json"]
+        )
+        self.assertNotEqual(res.exit_code, 0)
+        self.assertIn("grouped", res.stderr)
+        self.assertIn("flat", res.stderr)
+
+    def test_human_output_is_unchanged_without_the_machine_flag(self) -> None:
+        self._write_settings(
+            {"permissions": {"allow": ["Bash"], "deny": ["WebSearch"], "ask": []}}
+        )
+        self.ws.profiles.enumerate.return_value = self._fake_profiles()
+        res = self._app().test(
+            [
+                "permission",
+                "list",
+                "--profile",
+                "testprofile",
+                "--format",
+                "grouped",
+            ]
+        )
+        self.assertEqual(res.exit_code, 0, res.stderr)
+        self.assertEqual(
+            res.stdout,
+            "  allow:\n    Bash\n  deny:\n    WebSearch\n  ask:\n    (none)\n",
+        )
 
 
 if __name__ == "__main__":

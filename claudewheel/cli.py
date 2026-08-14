@@ -1026,11 +1026,12 @@ def _handle_purge_plugins(ws: "Workspace", profile: str, all_profiles: bool) -> 
 
     "No target chosen" is refused rather than read as "every profile", the same
     way :func:`claudewheel.permission.resolve_profiles` refuses it. The mutex
-    group does not guarantee a choice arrives: a present-but-false negatable
-    boolean (``--no-all-profiles``) satisfies the group, and an unset
-    ``--profile`` arrives as None, so both spellings reach here with neither
-    side selected. Selecting every profile there would purge the whole fleet
-    off a flag that asked for the opposite.
+    group does not guarantee a choice arrives: strictcli elects a string member
+    on PRESENCE with any value, so ``--profile ''`` satisfies the group and
+    reaches here with neither side selected. Selecting every profile there
+    would purge the whole fleet off a flag that named none of it. (The other
+    spelling is gone: since strictcli 0.40.0 a present-but-false negatable
+    boolean no longer elects, so ``--no-all-profiles`` is refused at parse.)
     """
     from .plugins import inventory, purge
     from .profile_info import _format_size
@@ -1161,11 +1162,47 @@ def _handle_permission_remove(
     return 0
 
 
+#: The shape ``permission list`` answers a machine with.  Closed at every
+#: level: an object of profiles, each a name and its permission categories.
+#: ``permissions`` names no required member because ``--category`` narrows it
+#: to the single category asked for -- the closure is what says an unexpected
+#: key never appears, not that all three always do.
+_PERMISSION_LIST_PAYLOAD_SCHEMA = strictcli.schema_object(
+    properties={
+        "profiles": strictcli.schema_array(
+            strictcli.schema_object(
+                properties={
+                    "name": strictcli.schema_type("string"),
+                    "permissions": strictcli.schema_object(
+                        properties={
+                            "allow": strictcli.schema_array(
+                                strictcli.schema_type("string")
+                            ),
+                            "deny": strictcli.schema_array(
+                                strictcli.schema_type("string")
+                            ),
+                            "ask": strictcli.schema_array(
+                                strictcli.schema_type("string")
+                            ),
+                        },
+                        additional_properties=False,
+                    ),
+                },
+                required=["name", "permissions"],
+                additional_properties=False,
+            )
+        ),
+    },
+    required=["profiles"],
+    additional_properties=False,
+)
+
+
 @strictcli.flag(
     "format",
     type=str,
-    help="output format: grouped (indented tree), flat (tsv), or json",
-    choices=["grouped", "flat", "json"],
+    help="output format: grouped (indented tree) or flat (tsv)",
+    choices=["grouped", "flat"],
 )
 @strictcli.flag(
     "category",
@@ -1176,8 +1213,19 @@ def _handle_permission_remove(
 def _handle_permission_list(
     ws: "Workspace", profile: str, all_profiles: bool, format: str, category: str
 ) -> int:
-    """List permission rules for one or all profiles in the chosen format."""
-    import json as json_mod
+    """List permission rules for one or all profiles in the chosen format.
+
+    ``--format`` chooses between the two HUMAN renderings and nothing else.
+    The machine form is the framework-owned ``--json``: the whole answer --
+    every target, not one document per target -- goes into the single payload
+    slot, validated against :data:`_PERMISSION_LIST_PAYLOAD_SCHEMA`.  The
+    payload is built on every run and the framework decides whether it becomes
+    a document, so there is no mode branch here.
+
+    The human lines go through :func:`claudewheel.effects.info` rather than
+    ``print``, which is what keeps the envelope the sole document on stdout
+    when a machine is reading.
+    """
     from .permission import resolve_profiles, load_settings
 
     valid_categories = ("allow", "deny", "ask")
@@ -1190,6 +1238,7 @@ def _handle_permission_list(
 
     targets = resolve_profiles(ws, profile if profile else None, all_profiles)
     multi = len(targets) > 1
+    answer: list[dict[str, Any]] = []
 
     for i, (name, settings_path) in enumerate(targets):
         data = load_settings(settings_path)
@@ -1199,27 +1248,27 @@ def _handle_permission_list(
             subset = {category: perms.get(category, [])}
         else:
             subset = {c: perms.get(c, []) for c in ("allow", "deny", "ask")}
+        answer.append({"name": name, "permissions": subset})
 
         if multi:
             if i > 0:
-                print()
-            print(f"[{name}]")
+                effects.info("")
+            effects.info(f"[{name}]")
 
         if format == "grouped":
             for cat, rules in subset.items():
-                print(f"  {cat}:")
+                effects.info(f"  {cat}:")
                 if rules:
                     for r in rules:
-                        print(f"    {r}")
+                        effects.info(f"    {r}")
                 else:
-                    print("    (none)")
+                    effects.info("    (none)")
         elif format == "flat":
             for cat, rules in subset.items():
                 for r in rules:
-                    print(f"{cat}\t{r}")
-        elif format == "json":
-            print(json_mod.dumps(subset, indent=2))
+                    effects.info(f"{cat}\t{r}")
 
+    effects.payload({"profiles": answer})
     return 0
 
 
@@ -2317,12 +2366,16 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
         effect="read_only",
         help=(
             "List permission rules from a profile's settings.json. Displays rules in"
-            " grouped, flat, or JSON format controlled by --format. Use --category to"
+            " grouped or flat format controlled by --format. Use --category to"
             " filter output to a single category (allow, deny, or ask). Use --profile"
             " to inspect a single profile or --all-profiles to show rules from every"
             " registered profile, with each profile's rules displayed under a header."
+            " The framework-owned --json answers a machine instead: one envelope"
+            " carrying every listed profile, whatever --format the human form would"
+            " have used."
         ),
         mutex=[_profile_mutex],
+        payload_schema=_PERMISSION_LIST_PAYLOAD_SCHEMA,
     )(_bind(_handle_permission_list, ws))
 
     # -- Launch command (default when no subcommand given) --
