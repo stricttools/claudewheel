@@ -2251,6 +2251,56 @@ class DeleteArchiveFailureTests(unittest.TestCase):
         self.assertEqual(ctx.exception.code, 1)
         self.assertIn("Nothing was deleted", err.getvalue())
 
+    def test_a_failed_registration_write_still_prints_the_handle(self) -> None:
+        """The archive succeeded and the directory is gone; only the store
+        writes after it failed. The uuid is the one thing standing between the
+        user and an unrecoverable deletion, so it reaches them anyway."""
+        from claudewheel.archiver import ArchiveHandle
+        from claudewheel.profile_store import DeletionBookkeepingError
+
+        handle = ArchiveHandle(
+            uuid="4129d284-7510-4281-937d-286b42bb8d6c",
+            group_id="g",
+            path="/cw/profiles/work",
+            size=4096,
+        )
+        mock_store = mock.MagicMock()
+        mock_store.reserved_reason.return_value = None
+        mock_store.delete.side_effect = DeletionBookkeepingError(
+            "Profile 'work' was archived as 4129d284-7510-4281-937d-286b42bb8d6c "
+            "and removed, but claudewheel could not update its own registration: "
+            "No space left on device. Restore it with: "
+            "saferm undelete --no-update-git-index "
+            "4129d284-7510-4281-937d-286b42bb8d6c",
+            archive=handle,
+        )
+        ws = mock.MagicMock()
+        ws.profiles = mock_store
+        err = io.StringIO()
+        with (
+            fake_saferm(),
+            mock.patch(
+                "claudewheel.session_registry.live_records",
+                autospec=True,
+                return_value=[],
+            ),
+            redirect_stdout(io.StringIO()),
+            redirect_stderr(err),
+        ):
+            with self.assertRaises(SystemExit) as ctx:
+                cli._handle_delete_profile(
+                    ws, "work", force_delete=False, force_delete_data=False
+                )
+        self.assertEqual(ctx.exception.code, 1)
+        printed = err.getvalue()
+        self.assertIn("4129d284-7510-4281-937d-286b42bb8d6c", printed)
+        self.assertIn(
+            "saferm undelete --no-update-git-index "
+            "4129d284-7510-4281-937d-286b42bb8d6c",
+            printed,
+        )
+        self.assertIn("No space left on device", printed)
+
 
 class DeleteReportsTheHandleTests(unittest.TestCase):
     """13.4: the handle is reported to the user, and stored nowhere."""

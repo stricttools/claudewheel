@@ -492,6 +492,7 @@ def _handle_delete_profile(
     """
     from . import session_registry
     from .archiver import ArchiveError, Unavailable
+    from .profile_store import DeletionBookkeepingError
 
     # The reserved-name query comes first, before anything is read or printed:
     # a name claudewheel does not own has no holders worth listing and no
@@ -529,9 +530,18 @@ def _handle_delete_profile(
         print(str(e), file=sys.stderr)
         sys.exit(1)
     except ArchiveError as e:
-        # The archival is the first destructive step, so a failure here means
+        # The archival is the first destructive step, so a refusal here means
         # nothing happened at all: the profile is on disk and every store still
         # names it. There is deliberately no branch that removes it anyway.
+        # ArchiveUnreadable is the one member of this family where the archival
+        # DID happen; it says so in its own message rather than being caught
+        # separately, because the caller's next move is the same either way.
+        print(f"error: {e}", file=sys.stderr)
+        sys.exit(1)
+    except DeletionBookkeepingError as e:
+        # Past the archival: the profile is archived and gone, and only
+        # claudewheel's own registration is stale. The message carries the
+        # handle, which is why this is not allowed to surface as a bare OSError.
         print(f"error: {e}", file=sys.stderr)
         sys.exit(1)
 

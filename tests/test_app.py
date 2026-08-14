@@ -2229,6 +2229,44 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         self.assertEqual(state["last_config"]["profile"], "work")
         self._refresh_mock.assert_not_called()
 
+    def test_a_failed_registration_write_still_shows_the_handle(self) -> None:
+        """The archive succeeded and the directory is gone; only the store
+        writes after it failed. The page still carries the uuid and the command
+        that restores the profile."""
+        from claudewheel.archiver import ArchiveHandle
+        from claudewheel.profile_store import DeletionBookkeepingError
+
+        seg = _make_profile_segment(discovered=["work"])
+        seg.select_value("work")
+        app = self._make_app(seg)
+        gather, ws, sel, page = self._flow_mocks(
+            app,
+            selection="delete",
+            raises=DeletionBookkeepingError(
+                "Profile 'work' was archived as "
+                "4129d284-7510-4281-937d-286b42bb8d6c and removed, but "
+                "claudewheel could not update its own registration: "
+                "No space left on device.",
+                archive=ArchiveHandle(
+                    uuid="4129d284-7510-4281-937d-286b42bb8d6c",
+                    group_id="g",
+                    path="/cw/profiles/work",
+                    size=4096,
+                ),
+                reason="No space left on device",
+            ),
+        )
+        with gather, ws, sel, page as show_page:
+            app._handle_key("CTRL_D")
+        lines = "\n".join(show_page.call_args.args[1])
+        self.assertIn("4129d284-7510-4281-937d-286b42bb8d6c", lines)
+        self.assertIn(
+            "saferm undelete --no-update-git-index "
+            "4129d284-7510-4281-937d-286b42bb8d6c",
+            lines,
+        )
+        self.assertIn("No space left on device", lines)
+
     def test_the_handle_is_reported_on_a_page_after_a_deletion(self) -> None:
         from claudewheel.archiver import ArchiveHandle
         from claudewheel.profile_store import DeletionResult

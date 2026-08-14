@@ -526,6 +526,94 @@ class DelegatedArchivingTests(_WriteBase):
         )
 
 
+class BookkeepingFailureTests(_WriteBase):
+    """A successful archive ALWAYS tells the caller the handle.
+
+    The archival is the first destructive step and the store writes come after
+    it, so there is a window where the directory is already archived and gone
+    and options.json or state.json cannot be written. Before this, an OSError
+    from either write propagated as itself: the profile was archived, removed,
+    and the uuid that restores it was never handed to anybody. The handle
+    outliving the failure is the whole point of making deletion recoverable.
+    """
+
+    _SETTINGS = {"model": "claude-opus-4-8"}
+
+    def _fail_options(self) -> AbstractContextManager[Any]:
+        assert self.store.options is not None
+        return patch.object(
+            self.store.options,
+            "remove_value",
+            side_effect=OSError("No space left on device"),
+        )
+
+    def _fail_state(self) -> AbstractContextManager[Any]:
+        assert self.store.state is not None
+        return patch.object(
+            self.store.state,
+            "set_value",
+            side_effect=OSError("No space left on device"),
+        )
+
+    def test_a_failed_options_write_still_reports_the_handle(self) -> None:
+        from claudewheel.profile_store import DeletionBookkeepingError
+
+        self.store.create("orphaned", self._SETTINGS)
+        archiver = FakeArchiver()
+
+        with self._fail_options():
+            with self.assertRaises(DeletionBookkeepingError) as ctx:
+                self.store.delete("orphaned", archiver=archiver)
+
+        error = ctx.exception
+        assert error.archive is not None
+        assert archiver.handle is not None
+        self.assertEqual(error.archive.uuid, archiver.handle.uuid)
+        self.assertEqual(error.archive.path, str(self.profiles_dir / "orphaned"))
+        message = str(error)
+        self.assertIn(error.archive.uuid, message)
+        self.assertIn(error.archive.restore_command, message)
+        self.assertIn("No space left on device", message)
+        # It says the archival happened -- the opposite of the refusals, which
+        # all promise that nothing was deleted.
+        self.assertNotIn("Nothing was deleted", message)
+        self.assertFalse((self.profiles_dir / "orphaned").exists())
+
+    def test_a_failed_state_write_still_reports_the_handle(self) -> None:
+        from claudewheel.profile_store import DeletionBookkeepingError
+
+        self.store.create("orphaned", self._SETTINGS)
+        assert self.store.state is not None
+        self.store.state.set_value("last_config", {"profile": "orphaned"})
+        archiver = FakeArchiver()
+
+        with self._fail_state():
+            with self.assertRaises(DeletionBookkeepingError) as ctx:
+                self.store.delete("orphaned", archiver=archiver)
+
+        assert ctx.exception.archive is not None
+        self.assertIn(ctx.exception.archive.uuid, str(ctx.exception))
+
+    def test_the_message_names_the_deletion_that_finishes_the_cleanup(self) -> None:
+        """The registration is stale, and re-running the deletion clears it:
+        the directory is already gone, so the second run archives nothing and
+        only updates the stores."""
+        from claudewheel.profile_store import DeletionBookkeepingError
+
+        self.store.create("orphaned", self._SETTINGS)
+        archiver = FakeArchiver()
+        with self._fail_options():
+            with self.assertRaises(DeletionBookkeepingError) as ctx:
+                self.store.delete("orphaned", archiver=archiver)
+        self.assertIn("profile delete orphaned", str(ctx.exception))
+
+        # And it really does finish: nothing left to archive, stores clean.
+        result = self.store.delete("orphaned", archiver=archiver)
+        self.assertIsNone(result.archive)
+        self.assertTrue(result.removed_from_options)
+        self.assertNotIn("orphaned", self._read_options()["profile"]["pinned"])
+
+
 class DeletionSurveyTests(_WriteBase):
     """The safety properties survive the removal loop being replaced."""
 

@@ -1160,6 +1160,7 @@ class App:
         flags). Store refusals raise ValueError, surfaced as a flash.
         """
         from .profile_info import _format_size, gather_profile_info
+        from .profile_store import DeletionBookkeepingError
         from .ui import run_selection, show_page
 
         # The delete path only runs for a selected profile, so value is non-None.
@@ -1265,6 +1266,39 @@ class App:
             # The archival is the first destructive step, so nothing happened:
             # the profile is still on disk and every store still names it.
             self._flash = f"Not deleted: {e}"
+            return
+        except DeletionBookkeepingError as e:
+            # The other side of that step: the profile IS archived and gone,
+            # and only claudewheel's own registration is stale. A page rather
+            # than a flash, for the same reason the success path uses one --
+            # the handle is what stands between the user and an unrecoverable
+            # deletion, and this is the path where it was nearly lost.
+            show_page(
+                f"Deleted '{name}' -- registration not updated",
+                [
+                    "The profile directory was archived and removed, but",
+                    "claudewheel could not update its own records:",
+                    "",
+                    *textwrap.wrap(e.reason, width=56),
+                    "",
+                    *(
+                        [
+                            f"Archive handle: {e.archive.uuid}",
+                            "",
+                            "Restore all of it with:",
+                            f"  {e.archive.restore_command}",
+                        ]
+                        if e.archive is not None
+                        else ["Find the archive record with `saferm list`."]
+                    ),
+                    "",
+                    f"Then run: claudewheel profile delete {name}",
+                    "to finish removing it from options.json and state.json.",
+                ],
+                self.theme,
+                self.terminal,
+            )
+            self._flash = f"'{name}' archived, but its registration is stale"
             return
 
         # In-memory cleanup. The store already purged last_config["profile"]

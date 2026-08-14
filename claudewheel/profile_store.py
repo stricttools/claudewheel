@@ -18,9 +18,41 @@ from .tokens import TokenStoreError
 __all__ = [
     "Profile",
     "ProfileStore",
+    "DeletionBookkeepingError",
     "DeletionResult",
     "DirSurvey",
 ]
+
+
+class DeletionBookkeepingError(RuntimeError):
+    """The archival succeeded; updating claudewheel's own stores did not.
+
+    The window this names is small and real: :meth:`ProfileStore.delete`
+    archives the directory first and writes options.json and state.json
+    afterwards, so a full disk, a read-only home or a vanished store between
+    the two leaves a profile that is archived, removed, and still registered.
+
+    It exists so the handle survives that failure.  A deletion is recoverable
+    only for as long as somebody knows the uuid, and an ``OSError`` raised out
+    of a store write carries none -- the profile would be gone with its restore
+    handle never printed.  Raising this instead keeps one invariant: **a
+    successful archival always tells the caller the uuid**, whatever happens
+    after it.
+
+    ``archive`` is that handle (None only when there was nothing to archive),
+    and the message names it, the command that restores it, the write that
+    failed, and the deletion to re-run to finish the de-registration.
+    ``reason`` is the underlying failure on its own, for a caller that composes
+    its own report around the handle rather than printing the message whole.
+    """
+
+    def __init__(
+        self, message: str, *, archive: "ArchiveHandle | None", reason: str = ""
+    ) -> None:
+        super().__init__(message)
+        self.archive = archive
+        self.reason = reason or message
+
 
 # Segment key under which profiles are registered in options.json.
 _PROFILE_SEGMENT = "profile"
@@ -608,6 +640,34 @@ class ProfileStore:
             )
         return handle
 
+    @staticmethod
+    def _bookkeeping_failure(
+        name: str, handle: "ArchiveHandle | None", error: OSError
+    ) -> str:
+        """What to say when the archival worked and the store writes did not.
+
+        Four things, in the order they are useful: what really happened, the
+        handle (first, and spelled out, because it is the only thing that
+        undoes the deletion), the write that failed, and how to finish the
+        cleanup -- re-running the same deletion, which now finds no directory
+        to archive and only updates the stores.
+        """
+        archived = (
+            f"archived as {handle.uuid} and removed"
+            if handle is not None
+            else "removed"
+        )
+        restore = (
+            f" Restore it with: {handle.restore_command}." if handle is not None else ""
+        )
+        return (
+            f"Profile '{name}' was {archived}, but claudewheel could not "
+            f"update its own registration: {error}. options.json and "
+            f"state.json may still name it -- run `claudewheel profile delete "
+            f"{name}` again to finish the cleanup, which archives nothing "
+            f"because the directory is already gone.{restore}"
+        )
+
     def _purge_last_config(self, name: str) -> bool:
         """Drop ``last_config['profile']`` from state.json when it names *name*.
 
@@ -695,8 +755,18 @@ class ProfileStore:
         # that was there, not the loop that emptied it.
         survey = self.survey_profile_dir(name)
         handle = self._archive_profile_dir(name, archiver)
-        self.options.remove_value(_PROFILE_SEGMENT, name, _OPTIONS_DEFAULT)
-        purged = self._purge_last_config(name)
+        try:
+            self.options.remove_value(_PROFILE_SEGMENT, name, _OPTIONS_DEFAULT)
+            purged = self._purge_last_config(name)
+        except OSError as e:
+            # Past the point of no return: the directory is archived and gone.
+            # An OSError raised as itself would take the handle with it, so it
+            # is re-raised as the one error that carries it.
+            raise DeletionBookkeepingError(
+                self._bookkeeping_failure(name, handle, e),
+                archive=handle,
+                reason=str(e),
+            ) from e
 
         return DeletionResult(
             removed_symlinks=survey.symlinks,
