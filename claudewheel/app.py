@@ -14,7 +14,7 @@ from dataclasses import dataclass
 from types import FrameType
 from typing import TYPE_CHECKING, Any
 
-from .archiver import INSTALL_COMMANDS, ArchiveError
+from .archiver import INSTALL_COMMANDS, ArchiveError, ArchiveUnreadable
 from .config import AppConfigStore, resolve_theme_name
 
 if TYPE_CHECKING:
@@ -1261,6 +1261,24 @@ class App:
             result = self.workspace.profiles.delete(name, archiver=archiver)
         except ValueError as e:
             self._flash = f"Not deleted: {e}"
+            return
+        except ArchiveUnreadable as e:
+            # Ahead of ArchiveError, and a page instead of a flash, because
+            # this is the one archival failure where the profile really is
+            # gone: saferm exited 0 and claudewheel could not read the answer.
+            # "Not deleted" would be the one wrong thing to say.
+            show_page(
+                f"Deleted '{name}' -- handle unreadable",
+                [
+                    *textwrap.wrap(str(e), width=56),
+                    "",
+                    f"Then run: claudewheel profile delete {name}",
+                    "to finish removing it from options.json and state.json.",
+                ],
+                self.theme,
+                self.terminal,
+            )
+            self._flash = f"'{name}' was archived, but its handle is unknown"
             return
         except ArchiveError as e:
             # The archival is the first destructive step, so nothing happened:

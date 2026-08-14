@@ -2251,6 +2251,45 @@ class DeleteArchiveFailureTests(unittest.TestCase):
         self.assertEqual(ctx.exception.code, 1)
         self.assertIn("Nothing was deleted", err.getvalue())
 
+    def test_an_unreadable_success_is_not_reported_as_a_refusal(self) -> None:
+        """saferm exited 0 and its answer was malformed: the directory is gone.
+        The summary must not tell the user the profile is still there, and it
+        must point at where the record can be found."""
+        from claudewheel.archiver import ArchiveUnreadable
+
+        mock_store = mock.MagicMock()
+        mock_store.reserved_reason.return_value = None
+        mock_store.delete.side_effect = ArchiveUnreadable(
+            "saferm exited 0 archiving /cw/profiles/work, so the profile "
+            "directory was archived and removed, but its --json answer named "
+            "an archived record with no uuid, so claudewheel has no handle to "
+            "report. Find the record with `saferm list`."
+        )
+        ws = mock.MagicMock()
+        ws.profiles = mock_store
+        err = io.StringIO()
+        with (
+            fake_saferm(),
+            mock.patch(
+                "claudewheel.session_registry.live_records",
+                autospec=True,
+                return_value=[],
+            ),
+            redirect_stdout(io.StringIO()),
+            redirect_stderr(err),
+        ):
+            with self.assertRaises(SystemExit) as ctx:
+                cli._handle_delete_profile(
+                    ws, "work", force_delete=False, force_delete_data=False
+                )
+        self.assertEqual(ctx.exception.code, 1)
+        printed = err.getvalue()
+        self.assertNotIn("Nothing was deleted", printed)
+        self.assertIn("saferm list", printed)
+        # The registration was never updated either, and the same deletion
+        # finishes that cleanup.
+        self.assertIn("profile delete work", printed)
+
     def test_a_failed_registration_write_still_prints_the_handle(self) -> None:
         """The archive succeeded and the directory is gone; only the store
         writes after it failed. The uuid is the one thing standing between the

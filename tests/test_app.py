@@ -2229,6 +2229,32 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         self.assertEqual(state["last_config"]["profile"], "work")
         self._refresh_mock.assert_not_called()
 
+    def test_an_unreadable_success_is_not_flashed_as_not_deleted(self) -> None:
+        """saferm exited 0 with an answer claudewheel could not use: the
+        profile IS gone, so the one thing the TUI may not say is that it is
+        not. It gets a page, like every other outcome that leaves the user
+        something to do."""
+        from claudewheel.archiver import ArchiveUnreadable
+
+        seg = _make_profile_segment(discovered=["work"])
+        seg.select_value("work")
+        app = self._make_app(seg)
+        gather, ws, sel, page = self._flow_mocks(
+            app,
+            selection="delete",
+            raises=ArchiveUnreadable(
+                "saferm exited 0 archiving /cw/profiles/work, so the profile "
+                "directory was archived and removed, but its --json answer "
+                "named an archived record with no uuid, so claudewheel has no "
+                "handle to report. Find the record with `saferm list`."
+            ),
+        )
+        with gather, ws, sel, page as show_page:
+            app._handle_key("CTRL_D")
+        self.assertNotIn("Not deleted", app._flash)
+        lines = "\n".join(show_page.call_args.args[1])
+        self.assertIn("saferm list", lines)
+
     def test_a_failed_registration_write_still_shows_the_handle(self) -> None:
         """The archive succeeded and the directory is gone; only the store
         writes after it failed. The page still carries the uuid and the command

@@ -13,7 +13,7 @@ import json
 import subprocess
 import unittest
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from unittest import mock
 
 from claudewheel import archiver
@@ -57,6 +57,11 @@ def envelope(payload: Any, *, command: str = "capabilities") -> str:
 
 def completed(stdout: str = "", *, code: int = 0, stderr: str = "") -> Any:
     return subprocess.CompletedProcess(["saferm"], code, stdout, stderr)
+
+
+#: Sentinel for "drop this key from the record entirely", which is a different
+#: malformation from "the key is there and holds something unusable".
+_DROP = object()
 
 
 class FeatureSetTests(unittest.TestCase):
@@ -402,6 +407,96 @@ class ArchiveTests(unittest.TestCase):
                     )
                 )
             )
+
+    # -- a success whose payload cannot be read -----------------------------
+    #
+    # Every branch above this one happens BEFORE anything is destroyed, and
+    # says so. These do not: saferm exited 0, so the directory is archived and
+    # gone, and what failed is claudewheel's reading of the answer. Reporting
+    # one of these as a refusal would tell the user the profile is still there
+    # when it is not, and would leave the handle unsaid.
+
+    def _record(self, **overrides: Any) -> Any:
+        archived = cast("list[dict[str, Any]]", self.payload["archived"])
+        record: dict[str, Any] = dict(archived[0])
+        for key, value in overrides.items():
+            if value is _DROP:
+                record.pop(key, None)
+            else:
+                record[key] = value
+        payload = dict(self.payload, archived=[record])
+        return completed(envelope(payload, command="delete"))
+
+    def test_a_record_with_no_uuid_is_an_unreadable_success(self) -> None:
+        from claudewheel.archiver import ArchiveUnreadable
+
+        with self.assertRaises(ArchiveUnreadable) as ctx:
+            self._archive(self._record(uuid=""))
+        message = str(ctx.exception)
+        self.assertNotIn("Nothing was deleted", message)
+        self.assertIn("saferm list", message)
+
+    def test_a_missing_uuid_key_is_an_unreadable_success(self) -> None:
+        from claudewheel.archiver import ArchiveUnreadable
+
+        with self.assertRaises(ArchiveUnreadable) as ctx:
+            self._archive(self._record(uuid=_DROP))
+        self.assertNotIn("Nothing was deleted", str(ctx.exception))
+
+    def test_a_non_numeric_size_is_an_unreadable_success_not_a_refusal(self) -> None:
+        """It used to be a ValueError out of int(), which the CLI caught as a
+        refusal and reported with 'Nothing was deleted' -- after the directory
+        had been archived and removed."""
+        from claudewheel.archiver import ArchiveUnreadable
+
+        with self.assertRaises(ArchiveUnreadable) as ctx:
+            self._archive(self._record(size="four thousand"))
+        self.assertNotIn("Nothing was deleted", str(ctx.exception))
+
+    def test_a_broken_size_still_reports_the_handle_it_did_get(self) -> None:
+        """Whatever handle information survived is in the message: with a uuid
+        in hand the deletion is still recoverable, and the user is told how."""
+        with self.assertRaises(ArchiveError) as ctx:
+            self._archive(self._record(size=[1, 2]))
+        message = str(ctx.exception)
+        self.assertIn("4129d284-7510-4281-937d-286b42bb8d6c", message)
+        self.assertIn(
+            "saferm undelete --no-update-git-index "
+            "4129d284-7510-4281-937d-286b42bb8d6c",
+            message,
+        )
+
+    def test_a_record_that_is_not_an_object_is_an_unreadable_success(self) -> None:
+        """It used to be an uncaught AttributeError from record.get()."""
+        from claudewheel.archiver import ArchiveUnreadable
+
+        payload = dict(self.payload, archived=["/cw/profiles/work"])
+        with self.assertRaises(ArchiveUnreadable) as ctx:
+            self._archive(completed(envelope(payload, command="delete")))
+        self.assertIn("saferm list", str(ctx.exception))
+
+    def test_an_unreadable_success_is_never_reported_as_a_refusal(self) -> None:
+        """One rule over all of them: none of these may claim the profile is
+        still there, and each names where the record can be found."""
+        from claudewheel.archiver import ArchiveUnreadable
+
+        cases = [
+            completed("not json at all"),
+            completed(
+                envelope(
+                    {"group_id": "g", "archived": [], "failed": []}, command="delete"
+                )
+            ),
+            self._record(uuid=""),
+            self._record(size="nope"),
+        ]
+        for case in cases:
+            with self.subTest(case=case):
+                with self.assertRaises(ArchiveUnreadable) as ctx:
+                    self._archive(case)
+                message = str(ctx.exception)
+                self.assertNotIn("Nothing was deleted", message)
+                self.assertIn("saferm list", message)
 
     def test_a_timeout_raises_with_the_profile_intact(self) -> None:
         with mock.patch(

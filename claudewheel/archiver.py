@@ -105,12 +105,31 @@ INSTALL_COMMANDS = (
 
 
 class ArchiveError(RuntimeError):
-    """saferm refused, failed, or answered something unreadable.
+    """saferm refused or failed, and nothing was destroyed.
 
-    Raised only from :meth:`Saferm.archive`, and only before claudewheel has
-    mutated anything of its own: the delegation is the first destructive step
-    of a deletion, so a failure here means the profile is still on disk and
-    every store still names it.
+    Raised from :meth:`Saferm.archive` for every answer that stops the deletion
+    before claudewheel has mutated anything of its own: the delegation is the
+    first destructive step, so the profile is still on disk and every store
+    still names it.  Each of these messages says exactly that.
+
+    :class:`ArchiveUnreadable` is the deliberate exception to the sentence
+    above and subclasses this one, because a caller's next move -- stop, report,
+    change nothing else -- is the same either way.
+    """
+
+
+class ArchiveUnreadable(ArchiveError):
+    """saferm reported success, and its answer could not be read.
+
+    The distinction from a plain :class:`ArchiveError` is the only thing that
+    is true here and false there: saferm exited 0, so the archival ran and the
+    profile directory is gone.  What is missing is claudewheel's handle for it.
+
+    Nothing about that is quietly recoverable, so it is a hard error like any
+    other -- but its message never claims the profile is still there, always
+    carries whatever handle information the answer did contain (a uuid alone is
+    enough to restore with), and always names ``saferm list``, where the record
+    is regardless of what claudewheel could parse.
     """
 
 
@@ -242,23 +261,46 @@ class Saferm:
                 f"{_detail(result)}. Nothing was deleted."
             )
 
+        # Past this point saferm has exited 0, which means the archival ran and
+        # the directory is gone. Every refusal above says "nothing was
+        # deleted"; nothing below it may, however badly the answer reads. The
+        # parse is strict for the same reason: a handle assembled out of a
+        # malformed record -- an empty uuid, a size that is not a number -- is
+        # a handle that restores nothing, reported as if it did.
         payload = _payload(result.stdout)
         if payload is None:
-            raise ArchiveError(
-                f"{SAFERM} archived {path} but its --json answer could not be "
-                "read. Nothing was deleted by claudewheel; check `saferm list`."
-            )
+            raise _unreadable(path, "could not be parsed")
+        group_id = str(payload.get("group_id", "") or "")
         archived = payload.get("archived")
         if not isinstance(archived, list) or not archived:
-            raise ArchiveError(
-                f"{SAFERM} reported no archived record for {path}. Nothing was deleted."
-            )
+            raise _unreadable(path, "named no archived record", group_id=group_id)
         record = archived[0]
+        if not isinstance(record, dict):
+            raise _unreadable(
+                path,
+                f"named an archived record that is not an object ({record!r})",
+                group_id=group_id,
+            )
+        uuid = str(record.get("uuid", "") or "").strip()
+        if not uuid:
+            raise _unreadable(
+                path, "named an archived record with no uuid", group_id=group_id
+            )
+        raw_size = record.get("size", 0) or 0
+        try:
+            size = int(raw_size)
+        except (TypeError, ValueError):
+            raise _unreadable(
+                path,
+                f"named a size that is not a number ({raw_size!r})",
+                uuid=uuid,
+                group_id=group_id,
+            ) from None
         return ArchiveHandle(
-            uuid=str(record.get("uuid", "")),
-            group_id=str(payload.get("group_id", "")),
+            uuid=uuid,
+            group_id=group_id,
             path=str(record.get("path", path)),
-            size=int(record.get("size", 0) or 0),
+            size=size,
         )
 
 
@@ -553,6 +595,33 @@ def _payload(stdout: Any) -> dict[str, Any] | None:
     if not isinstance(payload, dict):
         return None
     return payload
+
+
+def _unreadable(
+    path: Path, detail: str, *, uuid: str = "", group_id: str = ""
+) -> ArchiveUnreadable:
+    """The error for a success whose payload claudewheel could not use.
+
+    Three things every one of these says, in this order: the archival happened
+    (so the profile is not where the reader might assume), whatever handle
+    information did survive, and where the record is regardless -- ``saferm
+    list``.  A uuid alone is a complete restore, so when there is one it is
+    spelled out as the command rather than mentioned as a fact.
+    """
+    if uuid:
+        known = (
+            f" The handle it did report is {uuid}, so the profile can still be "
+            f"restored: {SAFERM} undelete --no-update-git-index {uuid}."
+        )
+    elif group_id:
+        known = f" The invocation's group id is {group_id}."
+    else:
+        known = ""
+    return ArchiveUnreadable(
+        f"{SAFERM} exited 0 archiving {path}, so the profile directory was "
+        f"archived and removed, but its --json answer {detail}, so claudewheel "
+        f"has no handle to report.{known} Find the record with `{SAFERM} list`."
+    )
 
 
 def _detail(result: Any) -> str:
