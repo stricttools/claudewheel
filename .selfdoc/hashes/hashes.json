@@ -17,8 +17,7 @@
   },
   "en/claudewheel-archiver.md": {
     "content": "3232f0023907d61aca2011ad4895d455d73b5ad9e771e9fcc4a473f854aeb599",
-    "description": "691070f6efdb8480d432049709bfcdc309513d87bda736c1e7c7af80e2fe40bd",
-    "seed_hash": "691070f6efdb8480d432049709bfcdc309513d87bda736c1e7c7af80e2fe40bd",
+    "description": "4544de3fb56e7c65da3fa323952d206a4650f4260f6cc9296b3e75d71e0811cb",
     "source_docstring": "cf648bf60c8a3ebda823173e3c20c536d7446fa0705dd82eee54fd6b4f101ca5"
   },
   "en/claudewheel-auth.md": {
@@ -341,8 +340,8 @@
     "schema_hash": "c9335f56584c104cf8cc8109982450d5a5a19a88fabde90f2777d19dd0416d60"
   },
   "en/cli-profile.md": {
-    "content": "8ecb7ab4049ac92cc6634e269ad2fc93ee38ce8424203df49c9d775203b3f426",
-    "description": "95c7ba00eceabedb9094cf03d4bec427ac66090c83714386355a02236d0408f0",
+    "content": "cc55222a78404364659f061e6f37f04ec2a24719e215d17d820eed693d4deb7e",
+    "description": "433f493782f4dce9217087cfaa19a8e51abd35a17cfbd6abe7dea8decb7434c7",
     "schema_hash": "a5857dbc01f32c0a3ecd911a5ffa47d12c35ea11c53b23cce1ba741594b40814"
   },
   "en/cli-purge-plugins.md": {
@@ -407,8 +406,8 @@
     "source_docstring": "fe18bab92438b4b951c568eb30ffbf901e9f67cc2194d536a753c5dbd0934455"
   },
   "en/profiles.md": {
-    "content": "e169088aac759447f7c69bb338d07f00c804d021c40f1d5b2b396d7a1cbb6503",
-    "description": "49f9b983a552f7d78f87b0502ef4597fece7fabf3810b0b3bdbea19e78c72dfe"
+    "content": "8d4891fe9af07b1c671bfc8e2400f76393b9542798b28db94e0cf6b728109268",
+    "description": "7729b4fef0d8a0bec03b07104ed100947c35d0b76902735270d66476356b3454"
   },
   "en/theming.md": {
     "content": "e679187a093ae5be254e7ab7276507fa17b380f28108f85b67c16d3bdea8fc47",

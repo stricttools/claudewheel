@@ -1,8 +1,7 @@
 ---
 title: claudewheel.archiver
-description: "Delegate profile deletion to saferm, so a deleted profile can be restored."
+description: "How claudewheel makes profile deletion recoverable: finding saferm, negotiating on its declared features rather than on a version number, handing the whole profile directory over through the effects chokepoint, and installing it from a checksum-verified release when it is missing."
 generated: true
-seeded: true
 nav_group: "API Reference"
 nav_order: 5
 ---
