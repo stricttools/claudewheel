@@ -2582,11 +2582,39 @@ class ProfileMutexNoTargetTests(unittest.TestCase):
     any value, including the empty one, so ``--profile ''`` reaches a handler
     with neither side really chosen.
 
-    These tests call the handlers directly, below the parser, so they cover
-    both spellings of 'no target' whatever the framework does at the edge: the
-    one the framework now refuses and the one it still passes through.  No
-    handler may read either as 'every profile'.
+    Both edges are covered here.  The parser tests pin the refusal the released
+    framework performs; the handler tests call below the parser and pin the
+    refusal claudewheel still owns, because the empty-string election really
+    does arrive there -- the handlers normalize ``''`` to None, so the guard is
+    the only thing standing between ``--profile ''`` and the whole fleet.
     """
+
+    def _mutex_app(self) -> Any:
+        return cli._build_app(mock.MagicMock(), mock.MagicMock())
+
+    def test_parser_refuses_the_declining_boolean(self) -> None:
+        """``--no-all-profiles`` declines the option; it does not choose one."""
+        res = self._mutex_app().test(
+            ["permission", "add", "allow", "Bash", "--no-all-profiles"]
+        )
+        self.assertNotEqual(res.exit_code, 0)
+        self.assertIn("one of --profile, --all-profiles is required", res.stderr)
+        self.assertIn("declines an option", res.stderr)
+
+    def test_parser_refuses_an_omitted_mutex(self) -> None:
+        res = self._mutex_app().test(["permission", "add", "allow", "Bash"])
+        self.assertNotEqual(res.exit_code, 0)
+        self.assertIn("one of --profile, --all-profiles is required", res.stderr)
+
+    def test_the_empty_profile_still_elects_and_the_handler_refuses(self) -> None:
+        """``--profile ''`` satisfies the mutex, so the guard below it is live."""
+        res = self._mutex_app().test(
+            ["permission", "add", "allow", "Bash", "--profile", ""]
+        )
+        self.assertEqual(res.exit_code, 1)
+        self.assertIn(
+            "one of --profile or --all-profiles is required", res.stdout + res.stderr
+        )
 
     def _ws(self) -> Any:
         from claudewheel.profile_store import Profile

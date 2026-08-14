@@ -109,12 +109,20 @@ def resolve_profiles(
 ) -> list[tuple[str, Path]]:
     """Map the mutex flag values to a list of ``(name, settings_path)`` pairs.
 
-    Exactly one of *profile* or *all_profiles* must be truthy (enforced
-    by the caller's MutexGroup).  Prints to stderr and exits on error.
-    Enumeration uses the workspace's ProfileStore, so a corrupt token entry
-    raises ``TokenStoreError`` -- the uniform hard-error contract; permission
-    commands are settings.json operations, but an unreadable token entry is a
-    workspace-integrity problem the operator must fix.
+    "No target chosen" is refused rather than read as "every profile".  The
+    mutex group does not guarantee a choice arrives here: strictcli elects a
+    string member on PRESENCE with any value, so ``--profile ''`` satisfies the
+    group, and the CLI handlers normalize that empty string to None before
+    calling.  Both sides then arrive false with the parser satisfied.  (The
+    other spelling is gone: since strictcli 0.40.0 a present-but-false
+    negatable boolean no longer elects, so ``--no-all-profiles`` is refused at
+    parse time.)
+
+    Prints to stderr and exits on error.  Enumeration uses the workspace's
+    ProfileStore, so a corrupt token entry raises ``TokenStoreError`` -- the
+    uniform hard-error contract; permission commands are settings.json
+    operations, but an unreadable token entry is a workspace-integrity problem
+    the operator must fix.
     """
     if profile is not None:
         discovered = ws.profiles.enumerate()
@@ -131,6 +139,8 @@ def resolve_profiles(
             sys.exit(1)
         return [(p.name, p.path / "settings.json") for p in discovered]
 
-    # Defensive: MutexGroup should prevent reaching here
+    # Reached by `--profile ''`: it elects the mutex on presence and the
+    # handlers normalize the empty string to None. Selecting every profile
+    # here would act on the whole fleet off a flag that named none of it.
     print("Error: one of --profile or --all-profiles is required", file=sys.stderr)
     sys.exit(1)
