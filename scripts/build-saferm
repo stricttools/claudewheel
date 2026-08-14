@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Build the archiving tool claudewheel delegates deletion to, for the
+# integration round trip in tests/test_archiver_integration.py.
+#
+# Why a build rather than whatever is on PATH: the round trip needs the
+# capabilities verb, the machine payloads and the uuid handles, and an older
+# installed binary answers none of them. The suite skips those tests when this
+# has not been run, so the build is a deliberate step and never a silent one.
+#
+# The output lives in build/, which is gitignored. Usage:
+#
+#     scripts/build-saferm [path-to-saferm-checkout]
+#
+# The checkout defaults to a sibling of this repository.
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source_dir="${1:-$(cd "$repo_root/.." && pwd)/saferm}"
+dest="$repo_root/build/saferm"
+
+if [ ! -f "$source_dir/go.mod" ]; then
+    echo "no saferm checkout at $source_dir (pass one as an argument)" >&2
+    exit 1
+fi
+
+mkdir -p "$repo_root/build"
+# Built from the checkout's own module context, so a go.work there (binding an
+# unreleased framework) is honoured exactly as a developer build would be.
+(cd "$source_dir" && go build -o "$dest" .)
+echo "$dest"
+"$dest" capabilities
