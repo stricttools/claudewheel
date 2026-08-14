@@ -2256,7 +2256,16 @@ class ProfileDeleteKeyTests(unittest.TestCase):
             app._handle_key("CTRL_D")
         lines = "\n".join(show_page.call_args.args[1])
         self.assertIn("4129d284-7510-4281-937d-286b42bb8d6c", lines)
-        self.assertIn("saferm undelete 4129d284-7510-4281-937d-286b42bb8d6c", lines)
+        self.assertIn(
+            "saferm undelete --no-update-git-index "
+            "4129d284-7510-4281-937d-286b42bb8d6c",
+            lines,
+        )
+        # The shown command is the whole recipe, and it stages nothing in a
+        # git worktree the profile may be sitting inside.
+        restore = [line for line in show_page.call_args.args[1] if "undelete" in line]
+        self.assertEqual(len(restore), 1)
+        self.assertIn("--no-update-git-index", restore[0])
 
 
 class SelectClientStepTests(unittest.TestCase):

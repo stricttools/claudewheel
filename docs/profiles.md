@@ -426,14 +426,20 @@ variable injection:
   ```
   Profile 'work' deleted.
     Archived as 4129d284-7510-4281-937d-286b42bb8d6c
-    Restore it with: saferm undelete 4129d284-7510-4281-937d-286b42bb8d6c
+    Restore it with: saferm undelete --no-update-git-index 4129d284-7510-4281-937d-286b42bb8d6c
   ```
 
   That one command puts the profile back in a working state, its token file at
-  mode `600` and its launch environment resolving again. Nothing about the
-  archive is recorded on claudewheel's side: saferm's own archive is the
-  authority and keeps the audit trail, so the record stays reachable through
-  `saferm list` and `saferm info <uuid>` afterwards.
+  mode `600` and its launch environment resolving again.
+  `--no-update-git-index` is on both halves of the round trip for the same
+  reason: a profile can sit inside a git worktree (a version-controlled
+  `~/dotfiles` is the ordinary case), and neither the archival nor the restore
+  may stage that directory -- its `.credentials.json` and its stored OAuth
+  token among it -- in an index claudewheel does not own.
+
+  Nothing about the archive is recorded on claudewheel's side: saferm's own
+  archive is the authority and keeps the audit trail, so the record stays
+  reachable through `saferm list` and `saferm info <uuid>` afterwards.
 
 ### saferm is a precondition of deletion
 

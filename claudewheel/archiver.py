@@ -136,8 +136,19 @@ class ArchiveHandle:
 
     @property
     def restore_command(self) -> str:
-        """The one command that puts the profile back."""
-        return f"{SAFERM} undelete {self.uuid}"
+        """The one command that puts the profile back.
+
+        ``--no-update-git-index`` is on both sides of the round trip, for one
+        reason.  A profile directory can sit inside a git worktree -- a
+        version-controlled ``~/dotfiles`` is the ordinary case -- and
+        ``undelete`` stages the restored path by default, which would put the
+        profile's ``.credentials.json`` and its stored OAuth token into an
+        index claudewheel does not own.  The archival refuses to touch that
+        index (see :meth:`Saferm.archive`); the restore claudewheel prints
+        refuses too, so following the printed instruction cannot stage a secret
+        somebody is about to commit.
+        """
+        return f"{SAFERM} undelete --no-update-git-index {self.uuid}"
 
 
 class ProfileArchiver(Protocol):

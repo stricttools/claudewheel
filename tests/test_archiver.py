@@ -348,8 +348,25 @@ class ArchiveTests(unittest.TestCase):
         )
         self.assertEqual(
             handle.restore_command,
-            "saferm undelete 4129d284-7510-4281-937d-286b42bb8d6c",
+            "saferm undelete --no-update-git-index "
+            "4129d284-7510-4281-937d-286b42bb8d6c",
         )
+
+    def test_the_restore_command_never_stages_anything_in_a_git_index(self) -> None:
+        """Both sides of the round trip keep out of somebody else's index.
+
+        The delete side passes ``--no-update-git-index`` deliberately: a
+        profile can sit inside a git worktree (a version-controlled dotfiles
+        repo is the ordinary case), and claudewheel is archiving a directory it
+        does not own. The restore has exactly the same problem in reverse --
+        ``saferm undelete`` stages the restored path by default, which would
+        put ``.credentials.json`` and the stored OAuth token into that
+        worktree's index -- so the command claudewheel prints carries the flag
+        too.
+        """
+        handle = self._archive(completed(envelope(self.payload, command="delete")))
+        assert handle is not None
+        self.assertIn("--no-update-git-index", handle.restore_command)
 
     def test_a_recorded_invocation_yields_no_handle(self) -> None:
         """A preview: the run was recorded, so there is nothing to hand back."""

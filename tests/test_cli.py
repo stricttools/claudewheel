@@ -2291,7 +2291,57 @@ class DeleteReportsTheHandleTests(unittest.TestCase):
             )
         printed = out.getvalue()
         self.assertIn("4129d284-7510-4281-937d-286b42bb8d6c", printed)
-        self.assertIn("saferm undelete 4129d284-7510-4281-937d-286b42bb8d6c", printed)
+        self.assertIn(
+            "saferm undelete --no-update-git-index "
+            "4129d284-7510-4281-937d-286b42bb8d6c",
+            printed,
+        )
+
+    def test_the_printed_restore_command_stages_nothing_in_a_git_index(self) -> None:
+        """A profile inside a git worktree must not be staged by its restore.
+
+        The delete side already refuses to touch a foreign index; the restore
+        printed here is the other half of the same round trip, and without the
+        flag it would `git add` the restored profile -- ``.credentials.json``
+        and the stored OAuth token with it.
+        """
+        from claudewheel.archiver import ArchiveHandle
+        from claudewheel.profile_store import DeletionResult
+
+        mock_store = mock.MagicMock()
+        mock_store.reserved_reason.return_value = None
+        mock_store.delete.return_value = DeletionResult(
+            removed_symlinks=0,
+            removed_real=0,
+            removed_from_options=True,
+            last_config_purged=False,
+            archive=ArchiveHandle(
+                uuid="4129d284-7510-4281-937d-286b42bb8d6c",
+                group_id="g",
+                path="/cw/profiles/work",
+                size=4096,
+            ),
+        )
+        ws = mock.MagicMock()
+        ws.profiles = mock_store
+        out = io.StringIO()
+        with (
+            fake_saferm(),
+            mock.patch(
+                "claudewheel.session_registry.live_records",
+                autospec=True,
+                return_value=[],
+            ),
+            redirect_stdout(out),
+        ):
+            cli._handle_delete_profile(
+                ws, "work", force_delete=False, force_delete_data=False
+            )
+        restore = [
+            line for line in out.getvalue().splitlines() if "Restore it with" in line
+        ]
+        self.assertEqual(len(restore), 1)
+        self.assertIn("--no-update-git-index", restore[0])
 
 
 class PurgePluginsHandlerTests(unittest.TestCase):
