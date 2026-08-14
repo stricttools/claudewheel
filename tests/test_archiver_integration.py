@@ -305,9 +305,19 @@ class RoundTripTests(SandboxHomeTestCase):
         the tool does today is refuse the whole directory ("archive/tar:
         sockets not supported"), which claudewheel surfaces as a hard error
         with the profile intact. That failure mode is safe, so this is recorded
-        as an expected failure rather than worked around: it turns green by
-        itself when the rule ships, and it fails loudly here if this test is
-        ever made to pass by weakening claudewheel's side.
+        as an expected failure rather than worked around.
+
+        It does NOT turn green by itself. pytest reports an unexpected pass as
+        a FAILURE, so the day a built saferm ships socket-skipping this test
+        XPASSes and the suite goes red. That is the intended alarm, and the
+        response to it is: remove the decorator, and extend the test to assert
+        the skip is *recorded* (the archival proceeds, the profile is gone, and
+        the skipped socket is named in saferm's own answer) rather than merely
+        tolerated. The companion test below, which pins today's refusal, goes
+        at the same time.
+
+        It also fails loudly if this test is ever made to pass by weakening
+        claudewheel's side instead.
         """
         import socket
 
