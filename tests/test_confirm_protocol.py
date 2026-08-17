@@ -192,7 +192,7 @@ class RoutineMutatingCommandsNeverPromptTests(_CliCase):
         """
         launch_mock = mock.MagicMock(return_value=0)
         with mock.patch.object(cli, "_do_launch_sequence", launch_mock):
-            _, err, code = self.run_cli(["c", "-p", "hello"])
+            _, err, code = self.run_cli(["c", "--print-prompt", "hello"])
 
         self.assertEqual(code, 0, err)
         self.assertNotIn(NON_INTERACTIVE, err)

@@ -111,11 +111,14 @@ class DeployHooksTests(unittest.TestCase):
             )
 
     def test_no_args_no_all_errors(self) -> None:
-        """deploy-hooks with neither a name nor --all prints an error."""
+        """Neither a name nor --all violates the declared at-least-one rule."""
         _, stderr, exited = self._run_deploy(["c", "deploy-hooks"])
 
         self.assertTrue(exited, "should exit with error")
-        self.assertIn("provide a script name or --all", stderr)
+        self.assertIn(
+            'constraint "deploy-target": at least one of name, --all is required',
+            stderr,
+        )
 
     def test_name_and_all_mutually_exclusive(self) -> None:
         """deploy-hooks <name> --all is rejected."""

@@ -10,7 +10,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 import strictcli
-from strictcli import App, Arg, CoRequired, Flag, FlagSet, Grant, MutexGroup
+from strictcli import AllOrNone, App, Arg, Choice, Flag, FlagSet, Grant, Member
 
 from . import __version__
 from . import effects
@@ -24,6 +24,20 @@ if TYPE_CHECKING:
 
 # Passthrough args after "--" are stashed here by main() before strictcli sees argv.
 _passthrough: list[str] = []
+
+
+def _absent(value: Any, fallback: Any) -> Any:
+    """Resolve an optional flag's absence to the fallback its own help declares.
+
+    strictcli forbids ``default=`` on any flag or arg of a ``mutating``
+    command: a value the framework picks is a value the framework writes. The
+    opt-in switches of claudewheel's mutating commands (``--all``,
+    ``--force-overwrite``, ``--reid``, ``--post-hoc``) therefore declare
+    ``presence="optional"`` and name their fallback in their help text, and
+    this is the single place where absence becomes that fallback -- so no
+    downstream branch ever sees a ``None`` it would read as a value.
+    """
+    return fallback if value is None else value
 
 
 def _do_uninstall(locator: "BinaryLocator", version: str) -> int:
@@ -463,11 +477,13 @@ def _offer_saferm_install(
 @strictcli.flag(
     "force-delete",
     type=bool,
+    presence="required",
     help="delete anyway when the profile holds a live interactive Claude Code session (background jobs and daemons never block deletion)",
 )
 @strictcli.flag(
     "force-delete-data",
     type=bool,
+    presence="required",
     help="delete even when shared-dir names hold REAL data instead of symlinks; this DESTROYS that data (e.g. conversation history)",
 )
 def _handle_delete_profile(
@@ -841,15 +857,21 @@ def _handle_stats(ws: "Workspace") -> int:
 @strictcli.flag(
     "post-hoc",
     type=bool,
-    default=False,
-    help="skip filesystem rename, migrate sessions only (directory already renamed)",
+    presence="optional",
+    help="skip filesystem rename, migrate sessions only (directory already renamed); when omitted, the directory is renamed too",
 )
-def _handle_mv(ws: "Workspace", old: str, new: str, post_hoc: bool) -> int:
+def _handle_mv(ws: "Workspace", old: str, new: str, post_hoc: bool | None) -> int:
     """Rename a project directory and migrate its session data."""
     from .mv import run_mv
 
     try:
-        run_mv(ws, old, new, dry_run=effects.previewing(), post_hoc=post_hoc)
+        run_mv(
+            ws,
+            old,
+            new,
+            dry_run=effects.previewing(),
+            post_hoc=_absent(post_hoc, False),
+        )
     except (ValueError, FileNotFoundError, FileExistsError, OSError) as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
@@ -859,19 +881,21 @@ def _handle_mv(ws: "Workspace", old: str, new: str, post_hoc: bool) -> int:
 @strictcli.flag(
     "reid",
     type=bool,
-    default=False,
-    help="assign new UUIDs to sessions that collide with existing local sessions",
+    presence="optional",
+    help="assign new UUIDs to sessions that collide with existing local sessions; when omitted, a collision is reported instead",
 )
 def _handle_import(
     ws: "Workspace",
     source: str,
     from_: list[str],
     to: list[str],
-    reid: bool,
+    reid: bool | None,
 ) -> int:
     """Import session data from an external Claude Code directory."""
     from pathlib import Path
     from .import_ import run_import
+
+    reid = _absent(reid, False)
 
     if len(from_) != len(to):
         print(
@@ -917,24 +941,33 @@ _WOULD_DEPLOY = {"created": "would create", "overwritten": "would overwrite"}
 @strictcli.flag(
     "all",
     type=bool,
-    default=False,
-    help="deploy every known hook script from the built-in registry at once",
+    presence="optional",
+    help="deploy every known hook script from the built-in registry at once; when omitted, the positional name selects one script",
 )
 @strictcli.flag(
     "force-overwrite",
     type=bool,
-    default=False,
-    help="overwrite existing hook scripts on disk instead of skipping them",
+    presence="optional",
+    help="overwrite existing hook scripts on disk instead of skipping them; when omitted, an existing script is left alone",
 )
 def _handle_deploy_hooks(
-    ws: "Workspace", name: str, all: bool, force_overwrite: bool
+    ws: "Workspace", name: str | None, all: bool | None, force_overwrite: bool | None
 ) -> int:
-    """Deploy built-in hook scripts to the scripts directory."""
+    """Deploy built-in hook scripts to the scripts directory.
+
+    "Name one script or pass --all" is half a declaration and half a handler
+    rule, and the split is the framework's own boundary: the at-least-one half
+    is the ``deploy-target`` constraint on the command, while the exclusivity
+    half stays here because exactly-one selection is a choice flag and a
+    positional arg cannot be a member of one (nor be declared inside a
+    choice's scope). Moving it would mean spelling the script name as
+    ``--script <name>``, which is not the argv this command has.
+    """
     from .hook_scripts import HOOK_SCRIPTS, deploy_scripts
 
-    if not name and not all:
-        print("Error: provide a script name or --all", file=sys.stderr)
-        sys.exit(1)
+    all = _absent(all, False)
+    force_overwrite = _absent(force_overwrite, False)
+
     if name and all:
         print(
             "Error: --all and a positional name are mutually exclusive", file=sys.stderr
@@ -947,7 +980,7 @@ def _handle_deploy_hooks(
         sys.exit(1)
 
     scripts_dir = ws.scripts_dir
-    targets = sorted(HOOK_SCRIPTS) if all else [name]
+    targets = sorted(HOOK_SCRIPTS) if all else [name or ""]
     previewing = effects.previewing()
     for script_name, action in deploy_scripts(targets, scripts_dir, force_overwrite):
         dest = scripts_dir / script_name
@@ -986,10 +1019,10 @@ def _handle_patch_profiles(ws: "Workspace") -> int:
 @strictcli.flag(
     "profile",
     type=str,
-    default="",
+    presence="optional",
     help="reconcile only this single profile; when given, shared-settings.json is left untouched (omit to reconcile every profile AND shared-settings.json)",
 )
-def _handle_reconcile_permissions(ws: "Workspace", profile: str) -> int:
+def _handle_reconcile_permissions(ws: "Workspace", profile: str | None) -> int:
     """Reconcile every managed target to EXACTLY the canonical guardrail model.
 
     Delegates to the unified reconcile core. Makes each target's hooks, the
@@ -1013,7 +1046,77 @@ def _handle_reconcile_permissions(ws: "Workspace", profile: str) -> int:
     return run_reconcile(ws, dry_run=effects.previewing(), profile=profile or None)
 
 
-def _handle_purge_plugins(ws: "Workspace", profile: str, all_profiles: bool) -> int:
+# ---------------------------------------------------------------------------
+# The profile-target selector
+# ---------------------------------------------------------------------------
+#
+# "One named profile, or every registered profile" is an EXACTLY-ONE selection,
+# so it is a member-spelled choice flag rather than the mutex group it used to
+# be. The argv the operator types is unchanged (``--profile work`` /
+# ``--all-profiles``), and what changes is who owns the rule: the framework
+# elects, refuses a double election, refuses a decline that chooses nothing,
+# and refuses an invocation that names neither -- the last of which used to be
+# a handler check every one of these four commands had to remember to run.
+#
+# The member flag's own presence is `required`, read as "required once this
+# member is elected", and in Python a frozen dataclass field says that by
+# construction.
+
+
+@strictcli.choice("profile", help="target one profile, by name")
+class OneProfile:
+    """The ``--profile <name>`` member: a single named profile."""
+
+    value: str = strictcli.member_value(
+        help="name of the profile to target (e.g. work, personal, research)"
+    )
+
+
+@strictcli.choice("all-profiles", help="target every registered profile at once")
+class AllProfiles:
+    """The ``--all-profiles`` member: the whole registered fleet."""
+
+
+#: The selector shared by the four commands that act on profiles. Declared once
+#: and applied as a decorator, so the four cannot drift apart.
+_profile_target = strictcli.choice_flag(
+    "target",
+    help="which profiles the operation applies to",
+    presence="required",
+    elect_by="member-flags",
+    choices=[OneProfile, AllProfiles],
+)
+
+
+def one_profile(name: str) -> OneProfile:
+    """Construct the named-profile member.
+
+    ``@strictcli.choice`` builds the frozen dataclass at runtime; the decorator
+    is not spelled as a ``dataclass_transform``, so a type checker cannot see
+    the generated ``__init__``. One typed door here beats an ignore comment at
+    every construction site.
+    """
+    return OneProfile(value=name)  # type: ignore[call-arg]
+
+
+def _target_selection(target: "OneProfile | AllProfiles") -> tuple[str | None, bool]:
+    """Read an elected profile target as the ``(profile, all_profiles)`` pair.
+
+    ``--profile ''`` elects the named-profile member with an empty name --
+    electing says WHICH member was named and never that its value is usable --
+    so the empty name arrives here as "no profile named", and the callers
+    refuse it rather than reading it as "every profile".
+    """
+    match target:
+        case OneProfile(value=name):
+            return (name or None, False)
+        case AllProfiles():
+            return (None, True)
+    raise AssertionError(f"unreachable target member: {target!r}")
+
+
+@_profile_target
+def _handle_purge_plugins(ws: "Workspace", target: OneProfile | AllProfiles) -> int:
     """Remove the Claude Code plugin trees from the selected profiles.
 
     Opt-in and separate from the canonical reconciliation on purpose: that one
@@ -1024,17 +1127,17 @@ def _handle_purge_plugins(ws: "Workspace", profile: str, all_profiles: bool) -> 
     The vanilla ``default`` profile is never touched -- ``~/.claude`` is Claude
     Code's own directory and claudewheel is read-only to it.
 
-    "No target chosen" is refused rather than read as "every profile", the same
-    way :func:`claudewheel.permission.resolve_profiles` refuses it. The mutex
-    group does not guarantee a choice arrives: strictcli elects a string member
-    on PRESENCE with any value, so ``--profile ''`` satisfies the group and
-    reaches here with neither side selected. Selecting every profile there
-    would purge the whole fleet off a flag that named none of it. (The other
-    spelling is gone: since strictcli 0.40.0 a present-but-false negatable
-    boolean no longer elects, so ``--no-all-profiles`` is refused at parse.)
+    Naming NEITHER target is now the framework's refusal -- the selector
+    declares ``required``, so ``one of --profile, --all-profiles is required``
+    comes from the parser. What still belongs here is the empty NAME:
+    ``--profile ''`` elects the named-profile member with a name that names no
+    profile, and purging every profile off a flag that named none of them is
+    exactly the outcome this refusal exists to prevent.
     """
     from .plugins import inventory, purge
     from .profile_info import _format_size
+
+    profile, all_profiles = _target_selection(target)
 
     if profile:
         reserved = ws.profiles.reserved_reason(profile)
@@ -1061,10 +1164,10 @@ def _handle_purge_plugins(ws: "Workspace", profile: str, all_profiles: bool) -> 
     previewing = effects.previewing()
     purged = 0
     freed = 0
-    for target in targets:
-        found = inventory(target.path)
+    for entry in targets:
+        found = inventory(entry.path)
         if not found.exists:
-            print(f"{target.name}: no plugin tree")
+            print(f"{entry.name}: no plugin tree")
             continue
         detail = []
         if found.marketplaces:
@@ -1072,10 +1175,10 @@ def _handle_purge_plugins(ws: "Workspace", profile: str, all_profiles: bool) -> 
         if found.plugins:
             detail.append(f"plugins: {', '.join(found.plugins)}")
         verb = "would remove" if previewing else "removed"
-        print(f"{target.name}: {verb} {_format_size(found.size_bytes)}")
+        print(f"{entry.name}: {verb} {_format_size(found.size_bytes)}")
         for line in detail:
             print(f"  {line}")
-        purge(target.path)
+        purge(entry.path)
         purged += 1
         freed += found.size_bytes
 
@@ -1090,8 +1193,9 @@ def _handle_purge_plugins(ws: "Workspace", profile: str, all_profiles: bool) -> 
     return 0
 
 
+@_profile_target
 def _handle_permission_add(
-    ws: "Workspace", category: str, rule: str, profile: str, all_profiles: bool
+    ws: "Workspace", category: str, rule: str, target: OneProfile | AllProfiles
 ) -> int:
     """Add a permission rule to the specified category for one or all profiles."""
     from .permission import (
@@ -1117,7 +1221,7 @@ def _handle_permission_add(
         sys.exit(1)
 
     previewing = effects.previewing()
-    targets = resolve_profiles(ws, profile if profile else None, all_profiles)
+    targets = resolve_profiles(ws, *_target_selection(target))
     for name, settings_path in targets:
         data = load_settings(settings_path)
         result = add_rule(data, category, rule)
@@ -1130,8 +1234,9 @@ def _handle_permission_add(
     return 0
 
 
+@_profile_target
 def _handle_permission_remove(
-    ws: "Workspace", category: str, rule: str, profile: str, all_profiles: bool
+    ws: "Workspace", category: str, rule: str, target: OneProfile | AllProfiles
 ) -> int:
     """Remove a permission rule from the specified category for one or all profiles."""
     from .permission import resolve_profiles, load_settings, remove_rule, save_settings
@@ -1149,7 +1254,7 @@ def _handle_permission_remove(
         sys.exit(1)
 
     previewing = effects.previewing()
-    targets = resolve_profiles(ws, profile if profile else None, all_profiles)
+    targets = resolve_profiles(ws, *_target_selection(target))
     for name, settings_path in targets:
         data = load_settings(settings_path)
         result = remove_rule(data, category, rule)
@@ -1201,17 +1306,25 @@ _PERMISSION_LIST_PAYLOAD_SCHEMA = strictcli.schema_object(
 @strictcli.flag(
     "format",
     type=str,
+    presence="required",
     help="output format: grouped (indented tree) or flat (tsv)",
-    choices=["grouped", "flat"],
+    choices=[
+        Choice("grouped", help="one indented block per category, one rule per line"),
+        Choice("flat", help="one tab-separated category-and-rule pair per line"),
+    ],
 )
 @strictcli.flag(
     "category",
     type=str,
+    presence="optional",
     help="restrict output to a single permission category (allow, deny, or ask)",
-    default="",
 )
+@_profile_target
 def _handle_permission_list(
-    ws: "Workspace", profile: str, all_profiles: bool, format: str, category: str
+    ws: "Workspace",
+    target: OneProfile | AllProfiles,
+    format: str,
+    category: str | None,
 ) -> int:
     """List permission rules for one or all profiles in the chosen format.
 
@@ -1236,7 +1349,7 @@ def _handle_permission_list(
         )
         sys.exit(1)
 
-    targets = resolve_profiles(ws, profile if profile else None, all_profiles)
+    targets = resolve_profiles(ws, *_target_selection(target))
     multi = len(targets) > 1
     answer: list[dict[str, Any]] = []
 
@@ -1579,21 +1692,90 @@ def _reject_claude_only_overrides(
             sys.exit(1)
 
 
+# ---------------------------------------------------------------------------
+# The session selector
+# ---------------------------------------------------------------------------
+#
+# A launch either continues, resumes, prints, picks, or starts a new session --
+# exactly one of five, so it is a member-spelled choice flag. The five used to
+# be four independent flags plus a counted "mutually exclusive" refusal in the
+# handler, with two of them carrying a private "\x00__unset__" string so an
+# absent flag could be told from an explicitly empty one.
+#
+# The fifth member is the one the old shape could not express. An at-most-one
+# rule over four flags is an exactly-one rule whose fifth alternative -- plain
+# launch, the thing that happens when nothing is typed -- has no name. Naming
+# it makes `--new-session` a real spelling and makes the default an election
+# like any other.
+
+
+@strictcli.choice(
+    "cont", help="continue the most recent conversation in the current directory"
+)
+class ContinueSession:
+    """The ``--cont`` member: Claude Code's ``--continue``."""
+
+
+@strictcli.choice("resume", help="resume one specific session")
+class ResumeSession:
+    """The ``--resume <session>`` member: Claude Code's ``--resume <id>``."""
+
+    value: str = strictcli.member_value(
+        help=(
+            "session to resume, by UUID or by title; an empty string opens "
+            "Claude Code's own picker"
+        )
+    )
+
+
+@strictcli.choice(
+    "print-prompt", help="run one prompt in non-interactive print mode and exit"
+)
+class PrintPrompt:
+    """The ``--print-prompt <prompt>`` member: Claude Code's ``--print``."""
+
+    value: str = strictcli.member_value(help="the prompt to run non-interactively")
+
+
+@strictcli.choice(
+    "picker", help="browse this profile's sessions and pick one to resume"
+)
+class SessionPicker:
+    """The ``--picker`` member: claudewheel's own session picker screen."""
+
+
+@strictcli.choice("new-session", help="start a new session (what a bare launch does)")
+class NewSession:
+    """The default member: no session is continued, resumed or printed."""
+
+
+#: The launch command's session selection. Declaring a default makes plain
+#: launch a named member rather than the absence of four flags.
+_launch_session = strictcli.choice_flag(
+    "session",
+    help="which session this launch starts in",
+    default=NewSession(),
+    elect_by="member-flags",
+    choices=[ContinueSession, ResumeSession, PrintPrompt, SessionPicker, NewSession],
+)
+
+
+@_launch_session
 def _handle_launch(
     ws: "Workspace",
     locator: "BinaryLocator",
-    # Session flags (via tag); mutually exclusive, all optional
-    cont: bool,
-    resume: str,
-    print_prompt: str,
-    picker: bool,
-    # Segment flags (via tag); empty string means "not provided"
-    profile: str,
-    github: str,
-    model: str,
-    directory: str,
-    mcp: str,
-    permissions: str,
+    # The session selection: exactly one of the five members, elected by its
+    # own flag. Nothing elected is `NewSession`, the selector's declared
+    # default -- the launch this command has always performed when no session
+    # flag was typed, now named instead of inferred from four absences.
+    session: ContinueSession | ResumeSession | PrintPrompt | SessionPicker | NewSession,
+    # Segment flags (via tag); absent means "not provided"
+    profile: str | None,
+    github: str | None,
+    model: str | None,
+    directory: str | None,
+    mcp: str | None,
+    permissions: str | None,
     # Repeatable set flag (via tag)
     set: list[str],
     # Launch target adapter (via tag). None means "--client not passed": the
@@ -1602,26 +1784,26 @@ def _handle_launch(
     client: str | None,
 ) -> int:
     """Handle the launch subcommand: run the TUI or skip it when args suffice."""
-    # Normalize sentinel defaults to None for cleaner downstream logic
-    _UNSET = "\x00__unset__"
-    resume_val: str | None = None if resume == _UNSET else resume
-    print_prompt_val: str | None = None if print_prompt == _UNSET else print_prompt
+    # The elected member IS the session decision; these four locals are the
+    # shape the rest of the handler reads it in. The exclusivity that used to
+    # be counted here is the selector's, and unreachable states (a resume and
+    # a print prompt at once) no longer exist to check for.
+    cont = isinstance(session, ContinueSession)
+    picker = isinstance(session, SessionPicker)
+    resume_val: str | None = (
+        session.value if isinstance(session, ResumeSession) else None
+    )
+    print_prompt_val: str | None = (
+        session.value if isinstance(session, PrintPrompt) else None
+    )
 
-    # --client: empty string means "not passed". Validate an explicit value
-    # against the registry (choices are enforced in the handler, not strictcli,
-    # so the flag can stay optional with a distinguishable "absent" sentinel).
-    client = client or None
+    # --client: absent means "not passed". Validate an explicit value against
+    # the registry (the registry is built from the client adapters, so the
+    # check lives here rather than in a `choices=` list that would have to
+    # restate it).
     if client is not None and client not in CLIENT_NAMES:
         print(
             f"Error: unknown client {client!r}; known: {', '.join(CLIENT_NAMES)}",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-    provided = sum([cont, resume_val is not None, print_prompt_val is not None, picker])
-    if provided > 1:
-        print(
-            "Error: --cont, --resume, --print-prompt, and --picker are mutually exclusive",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -1892,16 +2074,31 @@ def _inject_launch(argv: list[str]) -> list[str]:
     return list(argv)
 
 
-def _plan_choices() -> list[str]:
-    """The declarable plan keys, for the `profile set-plan` argument.
+def _plan_choices() -> list[Choice]:
+    """The declarable plans, as `profile set-plan`'s argument choices.
 
     Constrained at parse time from the same closed list the interactive picker
     renders, so the scripted surface cannot accept a plan the picker has no
-    entry for.
+    entry for. Each entry carries the help strictcli requires a choice record
+    to be able to carry, and that help is derived from the same ``PlanTier``
+    the value comes from -- so a plan's label and the fields it stores cannot
+    drift from the value that writes them.
     """
-    from .tokens import plan_keys
+    from .tokens import RATE_LIMIT_FIELD, SUBSCRIPTION_FIELD, PLAN_TIERS
 
-    return plan_keys()
+    entries: list[Choice] = []
+    for plan in PLAN_TIERS:
+        if plan.rate_limit_tier is None:
+            stores = (
+                f"{SUBSCRIPTION_FIELD}={plan.subscription_type}, no rate-limit tier"
+            )
+        else:
+            stores = (
+                f"{SUBSCRIPTION_FIELD}={plan.subscription_type}, "
+                f"{RATE_LIMIT_FIELD}={plan.rate_limit_tier}"
+            )
+        entries.append(Choice(plan.key, help=f"{plan.label} ({stores})"))
+    return entries
 
 
 def _bind(handler: Callable[..., int], *pre: Any) -> Callable[..., int]:
@@ -1942,6 +2139,18 @@ def _bind(handler: Callable[..., int], *pre: Any) -> Callable[..., int]:
     wrapper.__signature__ = inspect.Signature(  # type: ignore[attr-defined]
         [inspect.Parameter("ctx", inspect.Parameter.POSITIONAL_OR_KEYWORD)] + params
     )
+    # The annotations of the same parameters, for the same reason. A choice
+    # flag's handler parameter must be annotated with the union of its choice
+    # classes, and strictcli reads that off `__annotations__` (resolving the
+    # strings this module's `from __future__ import annotations` produces).
+    # The pre-bound parameters are dropped here as well: `ws: "Workspace"` is
+    # a TYPE_CHECKING-only name, and one unresolvable entry would make the
+    # whole resolution fail.
+    wrapper.__annotations__ = {
+        p.name: p.annotation
+        for p in params
+        if p.annotation is not inspect.Parameter.empty
+    }
     # strictcli reads these attributes off the callable to build the schema.
     setattr(wrapper, "_strictcli_flags", getattr(handler, "_strictcli_flags", []))
     setattr(wrapper, "_strictcli_args", getattr(handler, "_strictcli_args", []))
@@ -1992,6 +2201,7 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
         args=[
             Arg(
                 name="version",
+                presence="required",
                 help="semver version string to download and install (e.g. 2.1.119)",
             )
         ],
@@ -2004,6 +2214,7 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
         args=[
             Arg(
                 name="version",
+                presence="required",
                 help="semver version string to remove (refuses if it is the current symlink target)",
             )
         ],
@@ -2058,6 +2269,7 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
         args=[
             Arg(
                 name="name",
+                presence="required",
                 help="name of the profile to delete (e.g. work, personal, research)",
             )
         ],
@@ -2070,6 +2282,7 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
         args=[
             Arg(
                 name="name",
+                presence="required",
                 help="name of the profile to inspect (e.g. work, personal, default)",
             )
         ],
@@ -2082,10 +2295,12 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
         args=[
             Arg(
                 name="old",
+                presence="required",
                 help="current name of the profile to rename (must be an existing, non-running profile)",
             ),
             Arg(
                 name="new",
+                presence="required",
                 help="new name for the profile (lowercase letters, digits, and hyphens; must be unused)",
             ),
         ],
@@ -2098,6 +2313,7 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
         args=[
             Arg(
                 name="name",
+                presence="required",
                 help="name of the profile to repair: its shadowing session credentials are removed",
             )
         ],
@@ -2119,10 +2335,12 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
         args=[
             Arg(
                 name="name",
+                presence="required",
                 help="name of the profile to declare a plan for (e.g. work, personal)",
             ),
             Arg(
                 name="plan",
+                presence="required",
                 help=(
                     "the plan this profile's Claude account is on; each one "
                     "stores a subscription type and, where Claude Code has one, "
@@ -2165,17 +2383,18 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
         args=[
             Arg(
                 name="src",
+                presence="required",
                 help="source profile name whose sessions will be moved (e.g. work)",
             ),
             Arg(
                 name="dst",
+                presence="required",
                 help="destination profile name to receive the migrated sessions (e.g. personal)",
             ),
             Arg(
                 name="uuid",
-                help="optional UUID substring to migrate only matching sessions",
-                required=False,
-                default="",
+                presence="optional",
+                help="UUID substring to migrate only matching sessions; when omitted, every session moves",
             ),
         ],
     )(_bind(_handle_migrate, ws))
@@ -2193,10 +2412,12 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
         args=[
             Arg(
                 name="old",
+                presence="required",
                 help="current path of the project directory to rename (absolute or relative)",
             ),
             Arg(
                 name="new",
+                presence="required",
                 help="target path for the renamed project directory (absolute or relative)",
             ),
         ],
@@ -2209,6 +2430,7 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
         args=[
             Arg(
                 name="source",
+                presence="required",
                 help="path to the source directory (e.g., /path/to/backup/.claude)",
             ),
         ],
@@ -2216,11 +2438,16 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
             FlagSet(
                 name="mapping",
                 flags=[
+                    # A declared empty default, which the mutating-default ban
+                    # leaves legal: an empty collection declares NO elements,
+                    # so nothing the invocation did not state can reach a write
+                    # through it. The handler zips the two lists positionally.
                     Flag(
                         name="from",
                         type=str,
                         repeatable=True,
                         unique=False,
+                        default=[],
                         help="original project path as recorded in the source session data (repeatable)",
                     ),
                     Flag(
@@ -2228,13 +2455,18 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
                         type=str,
                         repeatable=True,
                         unique=False,
+                        default=[],
                         help="local directory path that corresponds to the --from path on this machine (repeatable)",
                     ),
                 ],
             ),
         ],
-        dependencies=[
-            CoRequired(flags=["from", "to"]),
+        # A path mapping is a pair: neither half means anything alone.
+        constraints=[
+            AllOrNone(
+                "path-mapping",
+                (Member("from"), Member("to")),
+            ),
         ],
     )(_bind(_handle_import, ws))
 
@@ -2245,10 +2477,21 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
         args=[
             Arg(
                 name="name",
+                presence="optional",
                 help="name of the specific hook script to deploy (omit to use --all)",
-                required=False,
-                default="",
             )
+        ],
+        # The at-least-one half of "name one script or pass --all". The
+        # exclusivity half stays in the handler: exactly-one selection is a
+        # choice flag, and a positional arg cannot be a member of one.
+        constraints=[
+            strictcli.AtLeastOne(
+                "deploy-target",
+                (
+                    Member("name", when="non_empty"),
+                    Member("all", when="true"),
+                ),
+            ),
         ],
     )(_bind(_handle_deploy_hooks, ws))
 
@@ -2276,21 +2519,6 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
     )(_bind(_handle_reconcile_permissions, ws))
 
     # -- Permission group --
-    _profile_mutex = MutexGroup(
-        flags=[
-            Flag(
-                name="profile",
-                type=str,
-                help="target a specific profile by name (mutually exclusive with --all-profiles)",
-            ),
-            Flag(
-                name="all-profiles",
-                type=bool,
-                default=False,
-                help="apply the operation to every registered profile at once",
-            ),
-        ]
-    )
 
     app.command(
         "purge-plugins",
@@ -2307,7 +2535,6 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
             " one-way per profile. The 'default' profile (~/.claude) is never"
             " touched."
         ),
-        mutex=[_profile_mutex],
     )(_bind(_handle_purge_plugins, ws))
 
     perm_grp = app.group(
@@ -2328,14 +2555,15 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
         args=[
             Arg(
                 name="category",
+                presence="required",
                 help="permission category to add the rule to: allow, deny, or ask",
             ),
             Arg(
                 name="rule",
+                presence="required",
                 help="permission rule string to add (e.g. Bash, Read(//home/**), Edit)",
             ),
         ],
-        mutex=[_profile_mutex],
     )(_bind(_handle_permission_add, ws))
 
     perm_grp.command(
@@ -2351,14 +2579,15 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
         args=[
             Arg(
                 name="category",
+                presence="required",
                 help="permission category to remove the rule from: allow, deny, or ask",
             ),
             Arg(
                 name="rule",
+                presence="required",
                 help="exact permission rule string to remove (must match an existing entry)",
             ),
         ],
-        mutex=[_profile_mutex],
     )(_bind(_handle_permission_remove, ws))
 
     perm_grp.command(
@@ -2374,44 +2603,12 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
             " carrying every listed profile, whatever --format the human form would"
             " have used."
         ),
-        mutex=[_profile_mutex],
         payload_schema=_PERMISSION_LIST_PAYLOAD_SCHEMA,
     )(_bind(_handle_permission_list, ws))
 
     # -- Launch command (default when no subcommand given) --
-    _UNSET = "\x00__unset__"  # sentinel to distinguish "not passed" from ""
-    _session_flag_set = FlagSet(
-        name="session",
-        flags=[
-            Flag(
-                name="cont",
-                short="c",
-                type=bool,
-                default=False,
-                help="continue the most recent conversation in the current directory",
-            ),
-            Flag(
-                name="resume",
-                short="r",
-                type=str,
-                default=_UNSET,
-                help="resume a specific session by its UUID or title, or pass empty string to open the picker",
-            ),
-            Flag(
-                name="print-prompt",
-                short="p",
-                type=str,
-                default=_UNSET,
-                help="run in non-interactive print mode with the given prompt",
-            ),
-            Flag(
-                name="picker",
-                type=bool,
-                default=False,
-                help="open the interactive session resume picker to browse and select a session",
-            ),
-        ],
-    )
+    # The session selection is the `_launch_session` selector, declared on the
+    # handler; what is left in a flag set here is everything that is not it.
 
     _segment_flag_set = FlagSet(
         name="segments",
@@ -2419,45 +2616,49 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
             Flag(
                 name="profile",
                 type=str,
-                default="",
+                presence="optional",
                 help="preset the Profile segment to this value, skipping TUI selection for it",
             ),
             Flag(
                 name="github",
                 type=str,
-                default="",
+                presence="optional",
                 help="preset the GitHub account segment to this value, skipping TUI selection for it",
             ),
             Flag(
                 name="model",
                 type=str,
-                default="",
+                presence="optional",
                 help="preset the Model segment to this value (e.g. opus, sonnet), skipping TUI selection",
             ),
             Flag(
                 name="directory",
                 type=str,
-                default="",
+                presence="optional",
                 help="preset the Directory segment to this path, skipping TUI selection for it",
             ),
             Flag(
                 name="mcp",
                 type=str,
-                default="",
+                presence="optional",
                 help="preset the MCP mode segment to this value, skipping TUI selection for it",
             ),
             Flag(
                 name="permissions",
                 type=str,
-                default="",
+                presence="optional",
                 help="preset the Permissions segment to this value, skipping TUI selection for it",
             ),
+            # A declared empty default: the mutating-default ban leaves an
+            # empty collection legal, because no framework-chosen value can
+            # reach a write through "no elements".
             Flag(
                 name="set",
                 short="s",
                 type=str,
                 repeatable=True,
                 unique=False,
+                default=[],
                 help="set any segment value as KEY=VALUE (e.g. -s version=2.1.119); repeatable",
             ),
         ],
@@ -2466,13 +2667,14 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
     _client_flag_set = FlagSet(
         name="client",
         flags=[
-            # Empty string means "not passed" (same convention as the segment
-            # flags), so the launcher can tell an explicit choice from the absence
-            # of one. Choices are validated in the handler against CLIENT_NAMES.
+            # Absence is delivered as absence, so the launcher can tell an
+            # explicit choice from the lack of one. The value is validated in
+            # the handler against CLIENT_NAMES, the registry the client
+            # adapters build.
             Flag(
                 name="client",
                 type=str,
-                default="",
+                presence="optional",
                 help=(
                     "launch target client (one of: " + ", ".join(CLIENT_NAMES) + "). "
                     "When omitted, the interactive launcher prompts with a Client "
@@ -2498,7 +2700,7 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
             )
         ],
         help="start the interactive TUI launcher to select a profile, model, and directory",
-        flag_sets=[_session_flag_set, _segment_flag_set, _client_flag_set],
+        flag_sets=[_segment_flag_set, _client_flag_set],
     )(_bind(_handle_launch, ws, locator))
 
     return app

@@ -1,42 +1,64 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "defaults": {
-    "schema_version": 1,
+    "schema_version": 2,
     "app": {
       "env_prefix": null,
       "config": false,
+      "config_format": "json",
+      "config_path": null,
+      "config_conflict_mode": "cli-wins",
+      "proc_observe_allowlist": [],
       "global_flags": [],
       "commands": {},
       "groups": {},
       "deprecated": {},
-      "tag_contracts": {}
+      "tag_contracts": {},
+      "checks": {},
+      "config_fields": {},
+      "infra": {}
     },
     "flag": {
       "short": null,
-      "default": null,
       "env": null,
-      "choices": null,
-      "repeatable": false,
-      "unique": false,
       "env_separator": null,
+      "prefixed": true,
+      "choices": null,
+      "elect_by": null,
+      "unique": false,
+      "conflict_mode": null,
       "negatable": null,
-      "hidden": false
+      "nullable": false
     },
     "arg": {
-      "type": "str",
-      "required": true,
-      "default": null,
       "variadic": false,
       "choices": null
     },
+    "choice": {
+      "flags": []
+    },
+    "choice_record": {
+      "help": null
+    },
     "command": {
+      "consequential": false,
+      "dry_run_supported": true,
+      "dry_run_unsupported_reason": null,
+      "update_of": null,
+      "write_mode": null,
+      "payload_schema": null,
+      "owns_stdout": false,
       "passthrough": false,
       "flags": [],
+      "flag_sets": [],
       "args": [],
       "tags": [],
       "constraints": [],
       "hidden": false,
-      "interactive": false
+      "interactive": false,
+      "config_fields": [],
+      "grants": [],
+      "forwarding": null
     },
     "group": {
       "commands": {},
@@ -44,6 +66,18 @@
       "deprecated": {},
       "tags": [],
       "hidden": false
+    },
+    "config_field": {
+      "default": null,
+      "bound_commands": []
+    },
+    "check": {
+      "scope": null
+    },
+    "infra": {
+      "roots": [],
+      "handshakes": [],
+      "connections": []
     }
   },
   "project_id": "claudewheel",
@@ -73,7 +107,11 @@
       "args": [
         {
           "name": "version",
-          "help": "semver version string to download and install (e.g. 2.1.119)"
+          "help": "semver version string to download and install (e.g. 2.1.119)",
+          "value_schema": {
+            "type": "string"
+          },
+          "presence": "required"
         }
       ],
       "grants": [
@@ -91,7 +129,11 @@
       "args": [
         {
           "name": "version",
-          "help": "semver version string to remove (refuses if it is the current symlink target)"
+          "help": "semver version string to remove (refuses if it is the current symlink target)",
+          "value_schema": {
+            "type": "string"
+          },
+          "presence": "required"
         }
       ]
     },
@@ -112,17 +154,27 @@
       "args": [
         {
           "name": "src",
-          "help": "source profile name whose sessions will be moved (e.g. work)"
+          "help": "source profile name whose sessions will be moved (e.g. work)",
+          "value_schema": {
+            "type": "string"
+          },
+          "presence": "required"
         },
         {
           "name": "dst",
-          "help": "destination profile name to receive the migrated sessions (e.g. personal)"
+          "help": "destination profile name to receive the migrated sessions (e.g. personal)",
+          "value_schema": {
+            "type": "string"
+          },
+          "presence": "required"
         },
         {
           "name": "uuid",
-          "help": "optional UUID substring to migrate only matching sessions",
-          "required": false,
-          "default": ""
+          "help": "UUID substring to migrate only matching sessions; when omitted, every session moves",
+          "value_schema": {
+            "type": "string"
+          },
+          "presence": "optional"
         }
       ]
     },
@@ -138,20 +190,30 @@
       "flags": [
         {
           "name": "post-hoc",
-          "type": "bool",
-          "help": "skip filesystem rename, migrate sessions only (directory already renamed)",
-          "default": false,
+          "help": "skip filesystem rename, migrate sessions only (directory already renamed); when omitted, the directory is renamed too",
+          "value_schema": {
+            "type": "boolean"
+          },
+          "presence": "optional",
           "negatable": true
         }
       ],
       "args": [
         {
           "name": "old",
-          "help": "current path of the project directory to rename (absolute or relative)"
+          "help": "current path of the project directory to rename (absolute or relative)",
+          "value_schema": {
+            "type": "string"
+          },
+          "presence": "required"
         },
         {
           "name": "new",
-          "help": "target path for the renamed project directory (absolute or relative)"
+          "help": "target path for the renamed project directory (absolute or relative)",
+          "value_schema": {
+            "type": "string"
+          },
+          "presence": "required"
         }
       ]
     },
@@ -162,38 +224,72 @@
       "flags": [
         {
           "name": "reid",
-          "type": "bool",
-          "help": "assign new UUIDs to sessions that collide with existing local sessions",
-          "default": false,
+          "help": "assign new UUIDs to sessions that collide with existing local sessions; when omitted, a collision is reported instead",
+          "value_schema": {
+            "type": "boolean"
+          },
+          "presence": "optional",
           "negatable": true
         },
         {
           "name": "from",
-          "type": "str",
           "help": "original project path as recorded in the source session data (repeatable)",
-          "default": [],
-          "repeatable": true
+          "value_schema": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "presence": "default",
+          "default": []
         },
         {
           "name": "to",
-          "type": "str",
           "help": "local directory path that corresponds to the --from path on this machine (repeatable)",
-          "default": [],
-          "repeatable": true
+          "value_schema": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "presence": "default",
+          "default": []
+        }
+      ],
+      "flag_sets": [
+        {
+          "name": "mapping",
+          "flags": [
+            "from",
+            "to"
+          ]
         }
       ],
       "args": [
         {
           "name": "source",
-          "help": "path to the source directory (e.g., /path/to/backup/.claude)"
+          "help": "path to the source directory (e.g., /path/to/backup/.claude)",
+          "value_schema": {
+            "type": "string"
+          },
+          "presence": "required"
         }
       ],
       "constraints": [
         {
-          "type": "co_required",
-          "flags": [
-            "from",
-            "to"
+          "type": "all_or_none",
+          "name": "path-mapping",
+          "members": [
+            {
+              "kind": "flag",
+              "name": "from",
+              "when": "present"
+            },
+            {
+              "kind": "flag",
+              "name": "to",
+              "when": "present"
+            }
           ]
         }
       ]
@@ -205,16 +301,20 @@
       "flags": [
         {
           "name": "all",
-          "type": "bool",
-          "help": "deploy every known hook script from the built-in registry at once",
-          "default": false,
+          "help": "deploy every known hook script from the built-in registry at once; when omitted, the positional name selects one script",
+          "value_schema": {
+            "type": "boolean"
+          },
+          "presence": "optional",
           "negatable": true
         },
         {
           "name": "force-overwrite",
-          "type": "bool",
-          "help": "overwrite existing hook scripts on disk instead of skipping them",
-          "default": false,
+          "help": "overwrite existing hook scripts on disk instead of skipping them; when omitted, an existing script is left alone",
+          "value_schema": {
+            "type": "boolean"
+          },
+          "presence": "optional",
           "negatable": true
         }
       ],
@@ -222,8 +322,28 @@
         {
           "name": "name",
           "help": "name of the specific hook script to deploy (omit to use --all)",
-          "required": false,
-          "default": ""
+          "value_schema": {
+            "type": "string"
+          },
+          "presence": "optional"
+        }
+      ],
+      "constraints": [
+        {
+          "type": "at_least_one",
+          "name": "deploy-target",
+          "members": [
+            {
+              "kind": "arg",
+              "name": "name",
+              "when": "non_empty"
+            },
+            {
+              "kind": "flag",
+              "name": "all",
+              "when": "true"
+            }
+          ]
         }
       ]
     },
@@ -241,9 +361,11 @@
       "flags": [
         {
           "name": "profile",
-          "type": "str",
           "help": "reconcile only this single profile; when given, shared-settings.json is left untouched (omit to reconcile every profile AND shared-settings.json)",
-          "default": ""
+          "value_schema": {
+            "type": "string"
+          },
+          "presence": "optional"
         }
       ]
     },
@@ -253,25 +375,30 @@
       "effect": "mutating",
       "flags": [
         {
-          "name": "profile",
-          "type": "str",
-          "help": "target a specific profile by name (mutually exclusive with --all-profiles)"
-        },
-        {
-          "name": "all-profiles",
-          "type": "bool",
-          "help": "apply the operation to every registered profile at once",
-          "default": false,
-          "negatable": true
-        }
-      ],
-      "constraints": [
-        {
-          "type": "mutex",
-          "flags": [
-            "profile",
-            "all-profiles"
-          ]
+          "name": "target",
+          "help": "which profiles the operation applies to",
+          "presence": "required",
+          "choices": [
+            {
+              "name": "profile",
+              "help": "target one profile, by name",
+              "flags": [
+                {
+                  "name": "value",
+                  "help": "name of the profile to target (e.g. work, personal, research)",
+                  "value_schema": {
+                    "type": "string"
+                  },
+                  "presence": "required"
+                }
+              ]
+            },
+            {
+              "name": "all-profiles",
+              "help": "target every registered profile at once"
+            }
+          ],
+          "elect_by": "member-flags"
         }
       ]
     },
@@ -281,83 +408,144 @@
       "effect": "mutating",
       "flags": [
         {
-          "name": "cont",
-          "type": "bool",
-          "help": "continue the most recent conversation in the current directory",
-          "short": "c",
-          "default": false,
-          "negatable": true
-        },
-        {
-          "name": "resume",
-          "type": "str",
-          "help": "resume a specific session by its UUID or title, or pass empty string to open the picker",
-          "short": "r",
-          "default": "\u0000__unset__"
-        },
-        {
-          "name": "print-prompt",
-          "type": "str",
-          "help": "run in non-interactive print mode with the given prompt",
-          "short": "p",
-          "default": "\u0000__unset__"
-        },
-        {
-          "name": "picker",
-          "type": "bool",
-          "help": "open the interactive session resume picker to browse and select a session",
-          "default": false,
-          "negatable": true
+          "name": "session",
+          "help": "which session this launch starts in",
+          "presence": "default",
+          "default": {
+            "choice": "new-session"
+          },
+          "choices": [
+            {
+              "name": "cont",
+              "help": "continue the most recent conversation in the current directory"
+            },
+            {
+              "name": "resume",
+              "help": "resume one specific session",
+              "flags": [
+                {
+                  "name": "value",
+                  "help": "session to resume, by UUID or by title; an empty string opens Claude Code's own picker",
+                  "value_schema": {
+                    "type": "string"
+                  },
+                  "presence": "required"
+                }
+              ]
+            },
+            {
+              "name": "print-prompt",
+              "help": "run one prompt in non-interactive print mode and exit",
+              "flags": [
+                {
+                  "name": "value",
+                  "help": "the prompt to run non-interactively",
+                  "value_schema": {
+                    "type": "string"
+                  },
+                  "presence": "required"
+                }
+              ]
+            },
+            {
+              "name": "picker",
+              "help": "browse this profile's sessions and pick one to resume"
+            },
+            {
+              "name": "new-session",
+              "help": "start a new session (what a bare launch does)"
+            }
+          ],
+          "elect_by": "member-flags"
         },
         {
           "name": "profile",
-          "type": "str",
           "help": "preset the Profile segment to this value, skipping TUI selection for it",
-          "default": ""
+          "value_schema": {
+            "type": "string"
+          },
+          "presence": "optional"
         },
         {
           "name": "github",
-          "type": "str",
           "help": "preset the GitHub account segment to this value, skipping TUI selection for it",
-          "default": ""
+          "value_schema": {
+            "type": "string"
+          },
+          "presence": "optional"
         },
         {
           "name": "model",
-          "type": "str",
           "help": "preset the Model segment to this value (e.g. opus, sonnet), skipping TUI selection",
-          "default": ""
+          "value_schema": {
+            "type": "string"
+          },
+          "presence": "optional"
         },
         {
           "name": "directory",
-          "type": "str",
           "help": "preset the Directory segment to this path, skipping TUI selection for it",
-          "default": ""
+          "value_schema": {
+            "type": "string"
+          },
+          "presence": "optional"
         },
         {
           "name": "mcp",
-          "type": "str",
           "help": "preset the MCP mode segment to this value, skipping TUI selection for it",
-          "default": ""
+          "value_schema": {
+            "type": "string"
+          },
+          "presence": "optional"
         },
         {
           "name": "permissions",
-          "type": "str",
           "help": "preset the Permissions segment to this value, skipping TUI selection for it",
-          "default": ""
+          "value_schema": {
+            "type": "string"
+          },
+          "presence": "optional"
         },
         {
           "name": "set",
-          "type": "str",
           "help": "set any segment value as KEY=VALUE (e.g. -s version=2.1.119); repeatable",
+          "value_schema": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "short": "s",
-          "default": [],
-          "repeatable": true
+          "presence": "default",
+          "default": []
         },
         {
           "name": "client",
-          "type": "str",
           "help": "launch target client (one of: claude, miniclaude). When omitted, the interactive launcher prompts with a Client step (cursor on config default_client, else claude) and non-interactive launches use default_client. Passing it explicitly skips that step. 'miniclaude' launches the miniclaude REPL instead; version and strict-MCP selections, config default_flags, and the disallowedTools list are claude-client-only",
-          "default": ""
+          "value_schema": {
+            "type": "string"
+          },
+          "presence": "optional"
+        }
+      ],
+      "flag_sets": [
+        {
+          "name": "segments",
+          "flags": [
+            "profile",
+            "github",
+            "model",
+            "directory",
+            "mcp",
+            "permissions",
+            "set"
+          ]
+        },
+        {
+          "name": "client",
+          "flags": [
+            "client"
+          ]
         }
       ],
       "grants": [
@@ -394,21 +582,31 @@
           "flags": [
             {
               "name": "force-delete",
-              "type": "bool",
               "help": "delete anyway when the profile holds a live interactive Claude Code session (background jobs and daemons never block deletion)",
+              "value_schema": {
+                "type": "boolean"
+              },
+              "presence": "required",
               "negatable": true
             },
             {
               "name": "force-delete-data",
-              "type": "bool",
               "help": "delete even when shared-dir names hold REAL data instead of symlinks; this DESTROYS that data (e.g. conversation history)",
+              "value_schema": {
+                "type": "boolean"
+              },
+              "presence": "required",
               "negatable": true
             }
           ],
           "args": [
             {
               "name": "name",
-              "help": "name of the profile to delete (e.g. work, personal, research)"
+              "help": "name of the profile to delete (e.g. work, personal, research)",
+              "value_schema": {
+                "type": "string"
+              },
+              "presence": "required"
             }
           ],
           "grants": [
@@ -426,7 +624,11 @@
           "args": [
             {
               "name": "name",
-              "help": "name of the profile to inspect (e.g. work, personal, default)"
+              "help": "name of the profile to inspect (e.g. work, personal, default)",
+              "value_schema": {
+                "type": "string"
+              },
+              "presence": "required"
             }
           ]
         },
@@ -437,11 +639,19 @@
           "args": [
             {
               "name": "old",
-              "help": "current name of the profile to rename (must be an existing, non-running profile)"
+              "help": "current name of the profile to rename (must be an existing, non-running profile)",
+              "value_schema": {
+                "type": "string"
+              },
+              "presence": "required"
             },
             {
               "name": "new",
-              "help": "new name for the profile (lowercase letters, digits, and hyphens; must be unused)"
+              "help": "new name for the profile (lowercase letters, digits, and hyphens; must be unused)",
+              "value_schema": {
+                "type": "string"
+              },
+              "presence": "required"
             }
           ]
         },
@@ -452,7 +662,11 @@
           "args": [
             {
               "name": "name",
-              "help": "name of the profile to repair: its shadowing session credentials are removed"
+              "help": "name of the profile to repair: its shadowing session credentials are removed",
+              "value_schema": {
+                "type": "string"
+              },
+              "presence": "required"
             }
           ]
         },
@@ -463,17 +677,47 @@
           "args": [
             {
               "name": "name",
-              "help": "name of the profile to declare a plan for (e.g. work, personal)"
+              "help": "name of the profile to declare a plan for (e.g. work, personal)",
+              "value_schema": {
+                "type": "string"
+              },
+              "presence": "required"
             },
             {
               "name": "plan",
               "help": "the plan this profile's Claude account is on; each one stores a subscription type and, where Claude Code has one, a rate-limit tier",
+              "value_schema": {
+                "type": "string",
+                "enum": [
+                  "max-20x",
+                  "max-5x",
+                  "pro",
+                  "team",
+                  "enterprise"
+                ]
+              },
+              "presence": "required",
               "choices": [
-                "max-20x",
-                "max-5x",
-                "pro",
-                "team",
-                "enterprise"
+                {
+                  "value": "max-20x",
+                  "help": "Max 20x (subscriptionType=max, rateLimitTier=default_claude_max_20x)"
+                },
+                {
+                  "value": "max-5x",
+                  "help": "Max 5x (subscriptionType=max, rateLimitTier=default_claude_max_5x)"
+                },
+                {
+                  "value": "pro",
+                  "help": "Pro (subscriptionType=pro, no rate-limit tier)"
+                },
+                {
+                  "value": "team",
+                  "help": "Team (subscriptionType=team, rateLimitTier=default_claude_max_5x)"
+                },
+                {
+                  "value": "enterprise",
+                  "help": "Enterprise (subscriptionType=enterprise, no rate-limit tier)"
+                }
               ]
             }
           ]
@@ -495,35 +739,48 @@
           "effect": "mutating",
           "flags": [
             {
-              "name": "profile",
-              "type": "str",
-              "help": "target a specific profile by name (mutually exclusive with --all-profiles)"
-            },
-            {
-              "name": "all-profiles",
-              "type": "bool",
-              "help": "apply the operation to every registered profile at once",
-              "default": false,
-              "negatable": true
+              "name": "target",
+              "help": "which profiles the operation applies to",
+              "presence": "required",
+              "choices": [
+                {
+                  "name": "profile",
+                  "help": "target one profile, by name",
+                  "flags": [
+                    {
+                      "name": "value",
+                      "help": "name of the profile to target (e.g. work, personal, research)",
+                      "value_schema": {
+                        "type": "string"
+                      },
+                      "presence": "required"
+                    }
+                  ]
+                },
+                {
+                  "name": "all-profiles",
+                  "help": "target every registered profile at once"
+                }
+              ],
+              "elect_by": "member-flags"
             }
           ],
           "args": [
             {
               "name": "category",
-              "help": "permission category to add the rule to: allow, deny, or ask"
+              "help": "permission category to add the rule to: allow, deny, or ask",
+              "value_schema": {
+                "type": "string"
+              },
+              "presence": "required"
             },
             {
               "name": "rule",
-              "help": "permission rule string to add (e.g. Bash, Read(//home/**), Edit)"
-            }
-          ],
-          "constraints": [
-            {
-              "type": "mutex",
-              "flags": [
-                "profile",
-                "all-profiles"
-              ]
+              "help": "permission rule string to add (e.g. Bash, Read(//home/**), Edit)",
+              "value_schema": {
+                "type": "string"
+              },
+              "presence": "required"
             }
           ]
         },
@@ -533,35 +790,48 @@
           "effect": "mutating",
           "flags": [
             {
-              "name": "profile",
-              "type": "str",
-              "help": "target a specific profile by name (mutually exclusive with --all-profiles)"
-            },
-            {
-              "name": "all-profiles",
-              "type": "bool",
-              "help": "apply the operation to every registered profile at once",
-              "default": false,
-              "negatable": true
+              "name": "target",
+              "help": "which profiles the operation applies to",
+              "presence": "required",
+              "choices": [
+                {
+                  "name": "profile",
+                  "help": "target one profile, by name",
+                  "flags": [
+                    {
+                      "name": "value",
+                      "help": "name of the profile to target (e.g. work, personal, research)",
+                      "value_schema": {
+                        "type": "string"
+                      },
+                      "presence": "required"
+                    }
+                  ]
+                },
+                {
+                  "name": "all-profiles",
+                  "help": "target every registered profile at once"
+                }
+              ],
+              "elect_by": "member-flags"
             }
           ],
           "args": [
             {
               "name": "category",
-              "help": "permission category to remove the rule from: allow, deny, or ask"
+              "help": "permission category to remove the rule from: allow, deny, or ask",
+              "value_schema": {
+                "type": "string"
+              },
+              "presence": "required"
             },
             {
               "name": "rule",
-              "help": "exact permission rule string to remove (must match an existing entry)"
-            }
-          ],
-          "constraints": [
-            {
-              "type": "mutex",
-              "flags": [
-                "profile",
-                "all-profiles"
-              ]
+              "help": "exact permission rule string to remove (must match an existing entry)",
+              "value_schema": {
+                "type": "string"
+              },
+              "presence": "required"
             }
           ]
         },
@@ -621,39 +891,59 @@
           "flags": [
             {
               "name": "format",
-              "type": "str",
               "help": "output format: grouped (indented tree) or flat (tsv)",
+              "value_schema": {
+                "type": "string",
+                "enum": [
+                  "grouped",
+                  "flat"
+                ]
+              },
+              "presence": "required",
               "choices": [
-                "grouped",
-                "flat"
+                {
+                  "value": "grouped",
+                  "help": "one indented block per category, one rule per line"
+                },
+                {
+                  "value": "flat",
+                  "help": "one tab-separated category-and-rule pair per line"
+                }
               ]
             },
             {
               "name": "category",
-              "type": "str",
               "help": "restrict output to a single permission category (allow, deny, or ask)",
-              "default": ""
+              "value_schema": {
+                "type": "string"
+              },
+              "presence": "optional"
             },
             {
-              "name": "profile",
-              "type": "str",
-              "help": "target a specific profile by name (mutually exclusive with --all-profiles)"
-            },
-            {
-              "name": "all-profiles",
-              "type": "bool",
-              "help": "apply the operation to every registered profile at once",
-              "default": false,
-              "negatable": true
-            }
-          ],
-          "constraints": [
-            {
-              "type": "mutex",
-              "flags": [
-                "profile",
-                "all-profiles"
-              ]
+              "name": "target",
+              "help": "which profiles the operation applies to",
+              "presence": "required",
+              "choices": [
+                {
+                  "name": "profile",
+                  "help": "target one profile, by name",
+                  "flags": [
+                    {
+                      "name": "value",
+                      "help": "name of the profile to target (e.g. work, personal, research)",
+                      "value_schema": {
+                        "type": "string"
+                      },
+                      "presence": "required"
+                    }
+                  ]
+                },
+                {
+                  "name": "all-profiles",
+                  "help": "target every registered profile at once"
+                }
+              ],
+              "elect_by": "member-flags"
             }
           ]
         }
@@ -661,8 +951,8 @@
     }
   },
   "deprecated": {
-    "new-profile": "Renamed: use 'claudewheel profile create' instead.",
     "delete-profile": "Renamed: use 'claudewheel profile delete <name>' instead.",
+    "new-profile": "Renamed: use 'claudewheel profile create' instead.",
     "show-profile": "Renamed: use 'claudewheel profile show <name>' instead."
   }
 }

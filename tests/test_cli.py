@@ -336,7 +336,7 @@ class PrintModeTests(unittest.TestCase):
 
     def test_print_mode_filters_non_print_segments(self) -> None:
         launch_mock = self._run_main(
-            ["c", "-p", "test"],
+            ["c", "--print-prompt", "test"],
             last_config=self.FULL_LAST_CONFIG,
         )
         launch_mock.assert_called_once()
@@ -358,7 +358,7 @@ class PrintModeTests(unittest.TestCase):
 
     def test_print_mode_sets_interactive_false(self) -> None:
         launch_mock = self._run_main(
-            ["c", "-p", "test"],
+            ["c", "--print-prompt", "test"],
             last_config=self.FULL_LAST_CONFIG,
         )
         launch_mock.assert_called_once()
@@ -433,7 +433,7 @@ class PrintModeTests(unittest.TestCase):
         fake_cfg = self._make_cfg(self.FULL_LAST_CONFIG)
         launch_mock = mock.MagicMock()
         with (
-            mock.patch("sys.argv", ["c", "-p", "test"]),
+            mock.patch("sys.argv", ["c", "--print-prompt", "test"]),
             mock.patch(
                 "claudewheel.config.AppConfigStore",
                 autospec=True,
@@ -459,7 +459,7 @@ class PrintModeTests(unittest.TestCase):
 
     def test_print_mode_adds_print_flag(self) -> None:
         launch_mock = self._run_main(
-            ["c", "-p", "test prompt"],
+            ["c", "--print-prompt", "test prompt"],
             last_config=self.FULL_LAST_CONFIG,
         )
         launch_mock.assert_called_once()
@@ -480,7 +480,7 @@ class PrintModeTests(unittest.TestCase):
         launch_mock = mock.MagicMock()
 
         with (
-            mock.patch("sys.argv", ["c", "-p", "test"]),
+            mock.patch("sys.argv", ["c", "--print-prompt", "test"]),
             mock.patch(
                 "claudewheel.config.AppConfigStore",
                 autospec=True,
@@ -509,7 +509,7 @@ class PrintModeTests(unittest.TestCase):
         launch_mock = mock.MagicMock()
 
         with (
-            mock.patch("sys.argv", ["c", "-p", "test"]),
+            mock.patch("sys.argv", ["c", "--print-prompt", "test"]),
             mock.patch(
                 "claudewheel.config.AppConfigStore",
                 autospec=True,
@@ -532,7 +532,7 @@ class PrintModeTests(unittest.TestCase):
 
     def test_passthrough_args_after_double_dash(self) -> None:
         launch_mock = self._run_main(
-            ["c", "-p", "test", "--", "--output-format", "json"],
+            ["c", "--print-prompt", "test", "--", "--output-format", "json"],
             last_config=self.FULL_LAST_CONFIG,
         )
         launch_mock.assert_called_once()
@@ -616,7 +616,7 @@ class ClientSelectionCliTests(unittest.TestCase):
         cfg = self._make_cfg(
             default_client="miniclaude", last_config={"version": "2.1.202"}
         )
-        launch_mock, _ = self._run(["c", "-p", "hi"], cfg)
+        launch_mock, _ = self._run(["c", "--print-prompt", "hi"], cfg)
         launch_mock.assert_called_once()
         _, kwargs = launch_mock.call_args
         self.assertEqual(kwargs["client"], "miniclaude")
@@ -625,13 +625,15 @@ class ClientSelectionCliTests(unittest.TestCase):
         cfg = self._make_cfg(
             default_client="miniclaude", last_config={"version": "2.1.202"}
         )
-        launch_mock, _ = self._run(["c", "-p", "hi"], cfg)
+        launch_mock, _ = self._run(["c", "--print-prompt", "hi"], cfg)
         merged = launch_mock.call_args[0][3]
         self.assertNotIn("version", merged)
 
     def test_explicit_client_wins_over_default(self) -> None:
         cfg = self._make_cfg(default_client="claude")
-        launch_mock, _ = self._run(["c", "--client", "miniclaude", "-p", "hi"], cfg)
+        launch_mock, _ = self._run(
+            ["c", "--client", "miniclaude", "--print-prompt", "hi"], cfg
+        )
         launch_mock.assert_called_once()
         self.assertEqual(launch_mock.call_args[1]["client"], "miniclaude")
 
@@ -661,7 +663,7 @@ class ClientSelectionCliTests(unittest.TestCase):
 
     def test_unknown_default_client_hard_errors(self) -> None:
         cfg = self._make_cfg(default_client="bogus")
-        launch_mock, err = self._run(["c", "-p", "hi"], cfg)
+        launch_mock, err = self._run(["c", "--print-prompt", "hi"], cfg)
         launch_mock.assert_not_called()
         self.assertIn("bogus", err)
         self.assertIn("unknown client", err)
@@ -744,7 +746,7 @@ class LaunchCorruptTokensTests(unittest.TestCase):
         fake_cfg = self._make_cfg()
         err = io.StringIO()
         with (
-            mock.patch("sys.argv", ["c", "--profile", "work", "-p", "hi"]),
+            mock.patch("sys.argv", ["c", "--profile", "work", "--print-prompt", "hi"]),
             mock.patch(
                 "claudewheel.config.AppConfigStore",
                 autospec=True,
@@ -804,7 +806,7 @@ class LaunchStaleProfileTests(unittest.TestCase):
         fake_cfg = self._make_cfg()
         err = io.StringIO()
         with (
-            mock.patch("sys.argv", ["c", "--profile", "work", "-p", "hi"]),
+            mock.patch("sys.argv", ["c", "--profile", "work", "--print-prompt", "hi"]),
             mock.patch(
                 "claudewheel.config.AppConfigStore",
                 autospec=True,
@@ -983,8 +985,9 @@ class PickerFlagTests(unittest.TestCase):
     """Tests for the --picker flag in the launch subcommand.
 
     --picker passes bare ``--resume`` (no session ID) to Claude Code,
-    opening the session resume picker.  It is mutually exclusive with
-    --cont, --resume, and --print-prompt.
+    opening the session resume picker.  It is one member of the session
+    selector, so electing it alongside --cont, --resume or --print-prompt is
+    the framework's own double-election refusal.
     """
 
     SEGMENTS_DEF = PrintModeTests.SEGMENTS_DEF
@@ -1056,7 +1059,7 @@ class PickerFlagTests(unittest.TestCase):
     # -- 2. Mutual exclusivity with --resume --
 
     def test_picker_and_resume_mutually_exclusive(self) -> None:
-        """Passing both --picker and --resume must error, naming all four flags."""
+        """--picker and --resume are two elections, refused by the framework."""
         err = io.StringIO()
         with redirect_stderr(err):
             launch_mock = self._run_main(
@@ -1064,17 +1067,13 @@ class PickerFlagTests(unittest.TestCase):
                 last_config=self.FULL_LAST_CONFIG,
             )
         msg = err.getvalue()
-        self.assertIn("--cont", msg)
-        self.assertIn("--resume", msg)
-        self.assertIn("--print-prompt", msg)
-        self.assertIn("--picker", msg)
-        self.assertIn("mutually exclusive", msg)
+        self.assertIn("--resume and --picker are mutually exclusive", msg)
         launch_mock.assert_not_called()
 
     # -- 3. Mutual exclusivity with --cont --
 
     def test_picker_and_cont_mutually_exclusive(self) -> None:
-        """Passing both --picker and --cont must error, naming all four flags."""
+        """--picker and --cont are two elections, refused by the framework."""
         err = io.StringIO()
         with redirect_stderr(err):
             launch_mock = self._run_main(
@@ -1082,17 +1081,13 @@ class PickerFlagTests(unittest.TestCase):
                 last_config=self.FULL_LAST_CONFIG,
             )
         msg = err.getvalue()
-        self.assertIn("--cont", msg)
-        self.assertIn("--resume", msg)
-        self.assertIn("--print-prompt", msg)
-        self.assertIn("--picker", msg)
-        self.assertIn("mutually exclusive", msg)
+        self.assertIn("--cont and --picker are mutually exclusive", msg)
         launch_mock.assert_not_called()
 
     # -- 4. Mutual exclusivity with --print-prompt --
 
     def test_picker_and_print_prompt_mutually_exclusive(self) -> None:
-        """Passing both --picker and --print-prompt must error, naming all four flags."""
+        """--picker and --print-prompt are two elections, refused by the framework."""
         err = io.StringIO()
         with redirect_stderr(err):
             launch_mock = self._run_main(
@@ -1100,11 +1095,7 @@ class PickerFlagTests(unittest.TestCase):
                 last_config=self.FULL_LAST_CONFIG,
             )
         msg = err.getvalue()
-        self.assertIn("--cont", msg)
-        self.assertIn("--resume", msg)
-        self.assertIn("--print-prompt", msg)
-        self.assertIn("--picker", msg)
-        self.assertIn("mutually exclusive", msg)
+        self.assertIn("--print-prompt and --picker are mutually exclusive", msg)
         launch_mock.assert_not_called()
 
     # -- 5. Picker not set: no --resume from picker path --
@@ -1129,6 +1120,106 @@ class PickerFlagTests(unittest.TestCase):
         _, kwargs = launch_mock.call_args
         extra_flags = kwargs["extra_flags"]
         self.assertEqual(extra_flags, [])
+
+
+class SessionSelectorTests(unittest.TestCase):
+    """The five session members, and what each one hands Claude Code.
+
+    The session decision used to be four independent flags plus a counted
+    "mutually exclusive" refusal in the handler; it is one member-spelled
+    selector now, with the plain launch that used to be "none of the four"
+    named as its fifth member and declared as its default.  What each member
+    produces downstream is unchanged, and that is what is pinned here.
+    """
+
+    SEGMENTS_DEF = PrintModeTests.SEGMENTS_DEF
+    ALL_ENABLED = PrintModeTests.ALL_ENABLED
+    FULL_LAST_CONFIG = PrintModeTests.FULL_LAST_CONFIG
+
+    #: Enough segment flags to skip the TUI, so the launch reaches the
+    #: sequence with nothing to prompt for.
+    SEGMENT_ARGS = [
+        "--profile",
+        "personal",
+        "--github",
+        "ghuser",
+        "-s",
+        "version=2.1.116",
+        "--directory",
+        "/some/dir",
+    ]
+
+    def _run(self, session_args: list[str]) -> mock.MagicMock:
+        fake_cfg = _FakeCfg(
+            config={
+                "theme": "dark",
+                "enabled_segments": list(self.ALL_ENABLED),
+                "default_flags": [],
+                "health_check_on_launch": False,
+            },
+            segments_def=list(self.SEGMENTS_DEF),
+            state={
+                "last_config": dict(self.FULL_LAST_CONFIG),
+                "recent_dirs": [],
+                "launch_count": 0,
+            },
+            options_def={},
+        )
+        launch_mock = mock.MagicMock()
+        with (
+            mock.patch("sys.argv", ["c", *session_args, *self.SEGMENT_ARGS]),
+            mock.patch(
+                "claudewheel.config.AppConfigStore",
+                autospec=True,
+                return_value=fake_cfg,
+            ),
+            mock.patch("claudewheel.cli._do_launch_sequence", launch_mock),
+            mock.patch("claudewheel.cli._check_cont_session", autospec=True),
+            mock.patch("claudewheel.cli._check_resume_session", autospec=True),
+            mock.patch("os.getcwd", autospec=True, return_value="/test/dir"),
+        ):
+            try:
+                cli.main()
+            except SystemExit:
+                pass
+        return launch_mock
+
+    def _extra_flags(self, session_args: list[str]) -> list[str]:
+        launch_mock = self._run(session_args)
+        launch_mock.assert_called_once()
+        _, kwargs = launch_mock.call_args
+        return list(kwargs["extra_flags"])
+
+    def test_an_unnamed_selection_is_a_plain_launch(self) -> None:
+        """The declared default: nothing elected starts a new session."""
+        self.assertEqual(self._extra_flags([]), [])
+
+    def test_the_new_session_member_is_the_same_plain_launch(self) -> None:
+        """--new-session names, in the invocation, what the default elects."""
+        self.assertEqual(self._extra_flags(["--new-session"]), [])
+
+    def test_the_cont_member_continues(self) -> None:
+        self.assertEqual(self._extra_flags(["--cont"]), ["--continue"])
+
+    def test_the_resume_member_carries_its_session_id(self) -> None:
+        uuid = "0123abcd-0123-4567-89ab-0123456789ab"
+        self.assertEqual(self._extra_flags(["--resume", uuid]), ["--resume", uuid])
+
+    def test_an_empty_resume_value_opens_claude_codes_own_picker(self) -> None:
+        """--resume '' elects the member with no session named."""
+        self.assertEqual(self._extra_flags(["--resume", ""]), ["--resume"])
+
+    def test_the_picker_member_passes_a_bare_resume(self) -> None:
+        self.assertEqual(self._extra_flags(["--picker"]), ["--resume"])
+
+    def test_the_print_prompt_member_prints(self) -> None:
+        self.assertEqual(
+            self._extra_flags(["--print-prompt", "hello"]), ["--print", "hello"]
+        )
+
+    def test_declining_a_member_elects_nothing_and_launches_plainly(self) -> None:
+        """--no-cont declines; it does not choose, and it does not refuse."""
+        self.assertEqual(self._extra_flags(["--no-cont"]), [])
 
 
 class CheckResumeSessionTests(unittest.TestCase):
@@ -2467,9 +2558,7 @@ class PurgePluginsHandlerTests(unittest.TestCase):
         a, b = self._profile("work"), self._profile("hn")
         out = io.StringIO()
         with redirect_stdout(out):
-            rc = cli._handle_purge_plugins(
-                self._ws(a, b), profile="", all_profiles=True
-            )
+            rc = cli._handle_purge_plugins(self._ws(a, b), target=cli.AllProfiles())
         self.assertEqual(rc, 0)
         self.assertFalse((a.path / "plugins").exists())
         self.assertFalse((b.path / "plugins").exists())
@@ -2481,9 +2570,7 @@ class PurgePluginsHandlerTests(unittest.TestCase):
     def test_one_named_profile_leaves_the_others_alone(self) -> None:
         a, b = self._profile("work"), self._profile("hn")
         with redirect_stdout(io.StringIO()):
-            cli._handle_purge_plugins(
-                self._ws(a, b), profile="work", all_profiles=False
-            )
+            cli._handle_purge_plugins(self._ws(a, b), target=cli.one_profile("work"))
         self.assertFalse((a.path / "plugins").exists())
         self.assertTrue((b.path / "plugins").is_dir())
 
@@ -2493,9 +2580,7 @@ class PurgePluginsHandlerTests(unittest.TestCase):
         default = self._profile("default")
         work = self._profile("work")
         with redirect_stdout(io.StringIO()):
-            cli._handle_purge_plugins(
-                self._ws(default, work), profile="", all_profiles=True
-            )
+            cli._handle_purge_plugins(self._ws(default, work), target=cli.AllProfiles())
         self.assertTrue((default.path / "plugins").is_dir())
         self.assertFalse((work.path / "plugins").exists())
 
@@ -2504,7 +2589,7 @@ class PurgePluginsHandlerTests(unittest.TestCase):
         err = io.StringIO()
         with redirect_stderr(err), self.assertRaises(SystemExit) as ctx:
             cli._handle_purge_plugins(
-                self._ws(default), profile="default", all_profiles=False
+                self._ws(default), target=cli.one_profile("default")
             )
         self.assertEqual(ctx.exception.code, 1)
         self.assertTrue((default.path / "plugins").is_dir())
@@ -2513,7 +2598,8 @@ class PurgePluginsHandlerTests(unittest.TestCase):
         err = io.StringIO()
         with redirect_stderr(err), self.assertRaises(SystemExit) as ctx:
             cli._handle_purge_plugins(
-                self._ws(self._profile("work")), profile="ghost", all_profiles=False
+                self._ws(self._profile("work")),
+                target=cli.one_profile("ghost"),
             )
         self.assertEqual(ctx.exception.code, 1)
 
@@ -2521,31 +2607,27 @@ class PurgePluginsHandlerTests(unittest.TestCase):
         clean = self._profile("clean", with_tree=False)
         out = io.StringIO()
         with redirect_stdout(out):
-            cli._handle_purge_plugins(self._ws(clean), profile="", all_profiles=True)
+            cli._handle_purge_plugins(self._ws(clean), target=cli.AllProfiles())
         self.assertIn("no plugin tree", out.getvalue())
         self.assertIn("Nothing to purge", out.getvalue())
 
     def test_no_target_chosen_purges_nothing(self) -> None:
-        """An unset --profile arrives as None and --all-profiles as False; that
-        pair is 'no target', never 'every profile'."""
-        work = self._profile("work")
-        err = io.StringIO()
-        with redirect_stderr(err), self.assertRaises(SystemExit) as ctx:
-            cli._handle_purge_plugins(
-                self._ws(work),
-                profile=None,  # type: ignore[arg-type]
-                all_profiles=False,
-            )
-        self.assertEqual(ctx.exception.code, 1)
-        self.assertIn("--profile", err.getvalue())
-        self.assertTrue((work.path / "plugins").is_dir())
+        """Naming no target is the selector's refusal, above this handler.
+
+        The pair the handler used to be handed -- an unset --profile and a
+        false --all-profiles -- is no longer constructible: the selection is
+        one elected member, and electing nothing never reaches a handler.
+        """
+        res = cli._build_app(mock.MagicMock(), mock.MagicMock()).test(["purge-plugins"])
+        self.assertEqual(res.exit_code, 1)
+        self.assertIn("one of --profile, --all-profiles is required", res.stderr)
 
     def test_an_empty_profile_name_purges_nothing(self) -> None:
-        """--profile '' is the same 'no target' as omitting it."""
+        """--profile '' elects the member with a name that names no profile."""
         work = self._profile("work")
         err = io.StringIO()
         with redirect_stderr(err), self.assertRaises(SystemExit) as ctx:
-            cli._handle_purge_plugins(self._ws(work), profile="", all_profiles=False)
+            cli._handle_purge_plugins(self._ws(work), target=cli.one_profile(""))
         self.assertEqual(ctx.exception.code, 1)
         self.assertIn("--profile", err.getvalue())
         self.assertTrue((work.path / "plugins").is_dir())
@@ -2562,7 +2644,7 @@ class PurgePluginsHandlerTests(unittest.TestCase):
             mock.patch("claudewheel.plugins.effects.rmtree", autospec=True) as rmtree,
             redirect_stdout(out),
         ):
-            cli._handle_purge_plugins(self._ws(work), profile="", all_profiles=True)
+            cli._handle_purge_plugins(self._ws(work), target=cli.AllProfiles())
         printed = out.getvalue()
         self.assertIn("would remove", printed)
         self.assertIn("Would free", printed)
@@ -2573,21 +2655,30 @@ class PurgePluginsHandlerTests(unittest.TestCase):
 
 
 class ProfileMutexNoTargetTests(unittest.TestCase):
-    """Every handler on the --profile/--all-profiles mutex refuses 'no target'.
+    """The profile-target selector refuses 'no target', at both layers.
 
-    strictcli's MutexGroup no longer lets a present-but-false negatable boolean
-    satisfy the group: ``--no-all-profiles`` DECLINES the option rather than
-    electing it, and the parser refuses the command with "one of --profile,
-    --all-profiles is required".  A string member still elects on presence with
-    any value, including the empty one, so ``--profile ''`` reaches a handler
-    with neither side really chosen.
+    ``--no-all-profiles`` DECLINES the option rather than electing it, and
+    naming no member at all is the selector's own refusal -- "one of
+    --profile, --all-profiles is required" now comes from the parser on every
+    command that carries the selector.  A payload-carrying member still elects
+    on presence with any value, including the empty one, so ``--profile ''``
+    reaches a handler having elected a member that names no profile.
 
-    Both edges are covered here.  The parser tests pin the refusal the released
-    framework performs; the handler tests call below the parser and pin the
-    refusal claudewheel still owns, because the empty-string election really
-    does arrive there -- the handlers normalize ``''`` to None, so the guard is
-    the only thing standing between ``--profile ''`` and the whole fleet.
+    Both edges are covered here.  The parser tests pin the framework's
+    refusals; the handler tests call below the parser and pin the refusal
+    claudewheel still owns, because the empty-name election really does arrive
+    there and is the only thing standing between ``--profile ''`` and the
+    whole fleet.
     """
+
+    #: Every command carrying the profile-target selector, with the argv that
+    #: satisfies everything about it except the selection.
+    SELECTOR_COMMANDS = (
+        ["purge-plugins"],
+        ["permission", "add", "allow", "Bash"],
+        ["permission", "remove", "allow", "Bash"],
+        ["permission", "list", "--format", "grouped"],
+    )
 
     def _mutex_app(self) -> Any:
         return cli._build_app(mock.MagicMock(), mock.MagicMock())
@@ -2633,49 +2724,45 @@ class ProfileMutexNoTargetTests(unittest.TestCase):
         )
         return ws
 
-    def _calls(self, profile: Any) -> list[tuple[str, Callable[[Any], int]]]:
+    def _calls(self, profile: str) -> list[tuple[str, Callable[[Any], int]]]:
+        target = cli.one_profile(profile)
         return [
             (
                 "purge-plugins",
-                lambda ws: cli._handle_purge_plugins(
-                    ws, profile=profile, all_profiles=False
-                ),
+                lambda ws: cli._handle_purge_plugins(ws, target=target),
             ),
             (
                 "permission add",
                 lambda ws: cli._handle_permission_add(
-                    ws, "allow", "Bash", profile=profile, all_profiles=False
+                    ws, "allow", "Bash", target=target
                 ),
             ),
             (
                 "permission remove",
                 lambda ws: cli._handle_permission_remove(
-                    ws, "allow", "Bash", profile=profile, all_profiles=False
+                    ws, "allow", "Bash", target=target
                 ),
             ),
             (
                 "permission list",
                 lambda ws: cli._handle_permission_list(
                     ws,
-                    profile=profile,
-                    all_profiles=False,
+                    target=target,
                     format="grouped",
-                    category="",
+                    category=None,
                 ),
             ),
         ]
 
-    def test_every_handler_refuses_an_unset_profile(self) -> None:
-        for name, call in self._calls(None):
-            with self.subTest(handler=name):
-                ws = self._ws()
-                with (
-                    redirect_stderr(io.StringIO()),
-                    redirect_stdout(io.StringIO()),
-                    self.assertRaises(SystemExit) as ctx,
-                ):
-                    call(ws)
-                self.assertEqual(ctx.exception.code, 1)
+    def test_every_command_refuses_an_omitted_selection(self) -> None:
+        """Electing nothing is refused above every handler that carries it."""
+        for argv in self.SELECTOR_COMMANDS:
+            with self.subTest(command=" ".join(argv)):
+                res = self._mutex_app().test(argv)
+                self.assertEqual(res.exit_code, 1)
+                self.assertIn(
+                    "one of --profile, --all-profiles is required", res.stderr
+                )
 
     def test_every_handler_refuses_an_empty_profile(self) -> None:
         for name, call in self._calls(""):

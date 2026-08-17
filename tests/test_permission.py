@@ -306,7 +306,7 @@ class PermissionCLIAddTests(_PermissionCLIBase):
             buf = io.StringIO()
             with redirect_stdout(buf):
                 rc = cli._handle_permission_add(
-                    self.ws, "allow", "Bash", "testprofile", False
+                    self.ws, "allow", "Bash", cli.one_profile("testprofile")
                 )
         self.assertEqual(rc, 0)
         self.assertIn("added", buf.getvalue())
@@ -332,7 +332,9 @@ class PermissionCLIAddTests(_PermissionCLIBase):
         with contextlib.nullcontext():
             buf = io.StringIO()
             with redirect_stdout(buf):
-                rc = cli._handle_permission_add(self.ws, "allow", "Read", "", True)
+                rc = cli._handle_permission_add(
+                    self.ws, "allow", "Read", cli.AllProfiles()
+                )
 
         self.assertEqual(rc, 0)
         out = buf.getvalue()
@@ -351,7 +353,7 @@ class PermissionCLIAddTests(_PermissionCLIBase):
             buf = io.StringIO()
             with redirect_stdout(buf):
                 rc = cli._handle_permission_add(
-                    self.ws, "allow", "Bash", "testprofile", False
+                    self.ws, "allow", "Bash", cli.one_profile("testprofile")
                 )
         self.assertEqual(rc, 0)
         self.assertIn("already", buf.getvalue())
@@ -365,7 +367,7 @@ class PermissionCLIRemoveTests(_PermissionCLIBase):
             buf = io.StringIO()
             with redirect_stdout(buf):
                 rc = cli._handle_permission_remove(
-                    self.ws, "allow", "Bash", "testprofile", False
+                    self.ws, "allow", "Bash", cli.one_profile("testprofile")
                 )
         self.assertEqual(rc, 0)
         self.assertIn("removed", buf.getvalue())
@@ -380,7 +382,7 @@ class PermissionCLIRemoveTests(_PermissionCLIBase):
             buf = io.StringIO()
             with redirect_stdout(buf):
                 rc = cli._handle_permission_remove(
-                    self.ws, "allow", "Bash", "testprofile", False
+                    self.ws, "allow", "Bash", cli.one_profile("testprofile")
                 )
         self.assertEqual(rc, 0)
         self.assertIn("not found", buf.getvalue())
@@ -402,7 +404,10 @@ class PermissionCLIListTests(_PermissionCLIBase):
             buf = io.StringIO()
             with redirect_stdout(buf):
                 rc = cli._handle_permission_list(
-                    self.ws, "testprofile", False, format="grouped", category=""
+                    self.ws,
+                    cli.one_profile("testprofile"),
+                    format="grouped",
+                    category=None,
                 )
         self.assertEqual(rc, 0)
         out = buf.getvalue()
@@ -423,7 +428,10 @@ class PermissionCLIListTests(_PermissionCLIBase):
             buf = io.StringIO()
             with redirect_stdout(buf):
                 rc = cli._handle_permission_list(
-                    self.ws, "testprofile", False, format="flat", category=""
+                    self.ws,
+                    cli.one_profile("testprofile"),
+                    format="flat",
+                    category=None,
                 )
         self.assertEqual(rc, 0)
         out = buf.getvalue()
@@ -446,7 +454,10 @@ class PermissionCLIListTests(_PermissionCLIBase):
             buf = io.StringIO()
             with redirect_stdout(buf):
                 rc = cli._handle_permission_list(
-                    self.ws, "testprofile", False, format="grouped", category="deny"
+                    self.ws,
+                    cli.one_profile("testprofile"),
+                    format="grouped",
+                    category="deny",
                 )
         self.assertEqual(rc, 0)
         out = buf.getvalue()
@@ -462,7 +473,10 @@ class PermissionCLIListTests(_PermissionCLIBase):
         with contextlib.nullcontext():
             with self.assertRaises(json.JSONDecodeError):
                 cli._handle_permission_list(
-                    self.ws, "testprofile", False, format="grouped", category=""
+                    self.ws,
+                    cli.one_profile("testprofile"),
+                    format="grouped",
+                    category=None,
                 )
 
     def test_unknown_profile_errors(self) -> None:
@@ -472,7 +486,7 @@ class PermissionCLIListTests(_PermissionCLIBase):
             err = io.StringIO()
             with redirect_stderr(err), self.assertRaises(SystemExit) as ctx:
                 cli._handle_permission_add(
-                    self.ws, "allow", "Bash", "nonexistent", False
+                    self.ws, "allow", "Bash", cli.one_profile("nonexistent")
                 )
             self.assertEqual(ctx.exception.code, 1)
             self.assertIn("nonexistent", err.getvalue())
