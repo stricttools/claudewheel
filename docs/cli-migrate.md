@@ -15,8 +15,8 @@ move session data files from one profile to another, optionally filtered by UUID
 
 ## Arguments
 
-| Name | Required | Description |
-| --- | --- | --- |
-| `src` | yes | source profile name whose sessions will be moved (e.g. work) |
-| `dst` | yes | destination profile name to receive the migrated sessions (e.g. personal) |
-| `uuid` | no | optional UUID substring to migrate only matching sessions |
+| Name | Type | Presence | Description |
+| --- | --- | --- | --- |
+| `src` | str | required | source profile name whose sessions will be moved (e.g. work) |
+| `dst` | str | required | destination profile name to receive the migrated sessions (e.g. personal) |
+| `uuid` | str | optional | UUID substring to migrate only matching sessions; when omitted, every session moves |

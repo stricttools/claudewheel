@@ -15,6 +15,6 @@ delete an installed Claude Code version binary from the versions directory
 
 ## Arguments
 
-| Name | Required | Description |
-| --- | --- | --- |
-| `version` | yes | semver version string to remove (refuses if it is the current symlink target) |
+| Name | Type | Presence | Description |
+| --- | --- | --- | --- |
+| `version` | str | required | semver version string to remove (refuses if it is the current symlink target) |

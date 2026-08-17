@@ -15,7 +15,8 @@ remove the Claude Code plugin tree from the selected profiles: the official-mark
 
 ## Flags
 
-| Name | Short | Type | Default | Env | Description |
+| Name | Short | Type | Presence | Env | Description |
 | --- | --- | --- | --- | --- | --- |
-| `--profile` |  | str |  |  | target a specific profile by name (mutually exclusive with --all-profiles) |
-| `--all-profiles` |  | bool |  |  | apply the operation to every registered profile at once |
+| `target` |  | choice | required |  | Selection (not typed as a flag). Elect exactly one of `--profile`, `--all-profiles`. which profiles the operation applies to |
+| &nbsp;&nbsp;&nbsp;&nbsp;`--profile` |  | str | required |  | Elects `target` = `profile`. target one profile, by name Its value: name of the profile to target (e.g. work, personal, research) |
+| &nbsp;&nbsp;&nbsp;&nbsp;`--all-profiles` |  |  | required |  | Elects `target` = `all-profiles`. target every registered profile at once |

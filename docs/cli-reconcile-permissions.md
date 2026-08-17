@@ -15,6 +15,6 @@ reconcile every managed profile and shared-settings.json to EXACTLY the canonica
 
 ## Flags
 
-| Name | Short | Type | Default | Env | Description |
+| Name | Short | Type | Presence | Env | Description |
 | --- | --- | --- | --- | --- | --- |
-| `--profile` |  | str |  |  | reconcile only this single profile; when given, shared-settings.json is left untouched (omit to reconcile every profile AND shared-settings.json) |
+| `--profile` |  | str | optional |  | reconcile only this single profile; when given, shared-settings.json is left untouched (omit to reconcile every profile AND shared-settings.json) |

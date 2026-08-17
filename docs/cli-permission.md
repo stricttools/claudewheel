@@ -19,17 +19,18 @@ Add a permission rule to a profile's settings.json. Takes a category (allow, den
 
 ### Flags
 
-| Name | Short | Type | Default | Env | Description |
+| Name | Short | Type | Presence | Env | Description |
 | --- | --- | --- | --- | --- | --- |
-| `--profile` |  | str |  |  | target a specific profile by name (mutually exclusive with --all-profiles) |
-| `--all-profiles` |  | bool |  |  | apply the operation to every registered profile at once |
+| `target` |  | choice | required |  | Selection (not typed as a flag). Elect exactly one of `--profile`, `--all-profiles`. which profiles the operation applies to |
+| &nbsp;&nbsp;&nbsp;&nbsp;`--profile` |  | str | required |  | Elects `target` = `profile`. target one profile, by name Its value: name of the profile to target (e.g. work, personal, research) |
+| &nbsp;&nbsp;&nbsp;&nbsp;`--all-profiles` |  |  | required |  | Elects `target` = `all-profiles`. target every registered profile at once |
 
 ### Arguments
 
-| Name | Required | Description |
-| --- | --- | --- |
-| `category` | yes | permission category to add the rule to: allow, deny, or ask |
-| `rule` | yes | permission rule string to add (e.g. Bash, Read(//home/**), Edit) |
+| Name | Type | Presence | Description |
+| --- | --- | --- | --- |
+| `category` | str | required | permission category to add the rule to: allow, deny, or ask |
+| `rule` | str | required | permission rule string to add (e.g. Bash, Read(//home/**), Edit) |
 
 ## permission remove
 
@@ -39,17 +40,18 @@ Remove a permission rule from a profile's settings.json. Takes a category (allow
 
 ### Flags
 
-| Name | Short | Type | Default | Env | Description |
+| Name | Short | Type | Presence | Env | Description |
 | --- | --- | --- | --- | --- | --- |
-| `--profile` |  | str |  |  | target a specific profile by name (mutually exclusive with --all-profiles) |
-| `--all-profiles` |  | bool |  |  | apply the operation to every registered profile at once |
+| `target` |  | choice | required |  | Selection (not typed as a flag). Elect exactly one of `--profile`, `--all-profiles`. which profiles the operation applies to |
+| &nbsp;&nbsp;&nbsp;&nbsp;`--profile` |  | str | required |  | Elects `target` = `profile`. target one profile, by name Its value: name of the profile to target (e.g. work, personal, research) |
+| &nbsp;&nbsp;&nbsp;&nbsp;`--all-profiles` |  |  | required |  | Elects `target` = `all-profiles`. target every registered profile at once |
 
 ### Arguments
 
-| Name | Required | Description |
-| --- | --- | --- |
-| `category` | yes | permission category to remove the rule from: allow, deny, or ask |
-| `rule` | yes | exact permission rule string to remove (must match an existing entry) |
+| Name | Type | Presence | Description |
+| --- | --- | --- | --- |
+| `category` | str | required | permission category to remove the rule from: allow, deny, or ask |
+| `rule` | str | required | exact permission rule string to remove (must match an existing entry) |
 
 ## permission list
 
@@ -59,9 +61,10 @@ List permission rules from a profile's settings.json. Displays rules in grouped 
 
 ### Flags
 
-| Name | Short | Type | Default | Env | Description |
+| Name | Short | Type | Presence | Env | Description |
 | --- | --- | --- | --- | --- | --- |
-| `--format` |  | str |  |  | output format: grouped (indented tree) or flat (tsv) |
-| `--category` |  | str |  |  | restrict output to a single permission category (allow, deny, or ask) |
-| `--profile` |  | str |  |  | target a specific profile by name (mutually exclusive with --all-profiles) |
-| `--all-profiles` |  | bool |  |  | apply the operation to every registered profile at once |
+| `--format` |  | str | required |  | output format: grouped (indented tree) or flat (tsv) Values: `grouped` (one indented block per category, one rule per line), `flat` (one tab-separated category-and-rule pair per line). |
+| `--category` |  | str | optional |  | restrict output to a single permission category (allow, deny, or ask) |
+| `target` |  | choice | required |  | Selection (not typed as a flag). Elect exactly one of `--profile`, `--all-profiles`. which profiles the operation applies to |
+| &nbsp;&nbsp;&nbsp;&nbsp;`--profile` |  | str | required |  | Elects `target` = `profile`. target one profile, by name Its value: name of the profile to target (e.g. work, personal, research) |
+| &nbsp;&nbsp;&nbsp;&nbsp;`--all-profiles` |  |  | required |  | Elects `target` = `all-profiles`. target every registered profile at once |

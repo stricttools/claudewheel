@@ -15,14 +15,26 @@ import session data from an external Claude Code directory
 
 ## Flags
 
-| Name | Short | Type | Default | Env | Description |
+| Name | Short | Type | Presence | Env | Description |
 | --- | --- | --- | --- | --- | --- |
-| `--reid` |  | bool |  |  | assign new UUIDs to sessions that collide with existing local sessions |
-| `--from` |  | str |  |  | original project path as recorded in the source session data (repeatable) |
-| `--to` |  | str |  |  | local directory path that corresponds to the --from path on this machine (repeatable) |
+| `--reid`, `--no-reid` |  | bool | optional |  | assign new UUIDs to sessions that collide with existing local sessions; when omitted, a collision is reported instead |
+| `--from` |  | list[str] | default: `[]` |  | original project path as recorded in the source session data (repeatable) |
+| `--to` |  | list[str] | default: `[]` |  | local directory path that corresponds to the --from path on this machine (repeatable) |
+
+Flag sets:
+
+- `mapping` -- `--from`, `--to`
 
 ## Arguments
 
-| Name | Required | Description |
-| --- | --- | --- |
-| `source` | yes | path to the source directory (e.g., /path/to/backup/.claude) |
+| Name | Type | Presence | Description |
+| --- | --- | --- | --- |
+| `source` | str | required | path to the source directory (e.g., /path/to/backup/.claude) |
+
+## Constraints
+
+The framework enforces these before the command runs.
+
+| Rule | What it requires |
+| --- | --- |
+| `path-mapping` | All or none of `--from` (when supplied), `--to` (when supplied). |

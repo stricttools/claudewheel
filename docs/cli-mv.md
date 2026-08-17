@@ -15,13 +15,13 @@ rename a project directory and migrate session data
 
 ## Flags
 
-| Name | Short | Type | Default | Env | Description |
+| Name | Short | Type | Presence | Env | Description |
 | --- | --- | --- | --- | --- | --- |
-| `--post-hoc` |  | bool |  |  | skip filesystem rename, migrate sessions only (directory already renamed) |
+| `--post-hoc`, `--no-post-hoc` |  | bool | optional |  | skip filesystem rename, migrate sessions only (directory already renamed); when omitted, the directory is renamed too |
 
 ## Arguments
 
-| Name | Required | Description |
-| --- | --- | --- |
-| `old` | yes | current path of the project directory to rename (absolute or relative) |
-| `new` | yes | target path for the renamed project directory (absolute or relative) |
+| Name | Type | Presence | Description |
+| --- | --- | --- | --- |
+| `old` | str | required | current path of the project directory to rename (absolute or relative) |
+| `new` | str | required | target path for the renamed project directory (absolute or relative) |

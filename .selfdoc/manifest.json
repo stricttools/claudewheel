@@ -2,7 +2,7 @@
   "schema_version": 1,
   "name": "claudewheel",
   "slug": "claudewheel",
-  "version": "0.25.0",
+  "version": "0.26.0",
   "description": "TUI launcher for Claude Code: pick a profile, model, directory, and permissions from a segment bar, then launch.",
   "language": "python",
   "base_url": "https://claudewheel.smmh.dev",
@@ -646,6 +646,11 @@
         },
         {
           "level": 3,
+          "text": "`_absent`",
+          "anchor": "_absent"
+        },
+        {
+          "level": 3,
           "text": "`_do_uninstall`",
           "anchor": "_do_uninstall"
         },
@@ -781,6 +786,26 @@
         },
         {
           "level": 3,
+          "text": "`OneProfile`",
+          "anchor": "oneprofile"
+        },
+        {
+          "level": 3,
+          "text": "`AllProfiles`",
+          "anchor": "allprofiles"
+        },
+        {
+          "level": 3,
+          "text": "`one_profile`",
+          "anchor": "one_profile"
+        },
+        {
+          "level": 3,
+          "text": "`_target_selection`",
+          "anchor": "_target_selection"
+        },
+        {
+          "level": 3,
           "text": "`_handle_purge_plugins`",
           "anchor": "_handle_purge_plugins"
         },
@@ -818,6 +843,31 @@
           "level": 3,
           "text": "`_reject_claude_only_overrides`",
           "anchor": "_reject_claude_only_overrides"
+        },
+        {
+          "level": 3,
+          "text": "`ContinueSession`",
+          "anchor": "continuesession"
+        },
+        {
+          "level": 3,
+          "text": "`ResumeSession`",
+          "anchor": "resumesession"
+        },
+        {
+          "level": 3,
+          "text": "`PrintPrompt`",
+          "anchor": "printprompt"
+        },
+        {
+          "level": 3,
+          "text": "`SessionPicker`",
+          "anchor": "sessionpicker"
+        },
+        {
+          "level": 3,
+          "text": "`NewSession`",
+          "anchor": "newsession"
         },
         {
           "level": 3,
@@ -4380,6 +4430,11 @@
           "level": 2,
           "text": "Arguments",
           "anchor": "arguments"
+        },
+        {
+          "level": 2,
+          "text": "Constraints",
+          "anchor": "constraints"
         }
       ]
     },
@@ -4414,6 +4469,11 @@
           "level": 2,
           "text": "Arguments",
           "anchor": "arguments"
+        },
+        {
+          "level": 2,
+          "text": "Constraints",
+          "anchor": "constraints"
         }
       ]
     },
@@ -5505,6 +5565,6 @@
     }
   ],
   "posts": [],
-  "last_gen": "2026-08-14T04:22:27.699724+00:00",
+  "last_gen": "2026-08-17T13:17:45.502619+00:00",
   "theme": "minimal"
 }

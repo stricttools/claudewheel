@@ -15,9 +15,9 @@ download and install a specific Claude Code version
 
 ## Arguments
 
-| Name | Required | Description |
-| --- | --- | --- |
-| `version` | yes | semver version string to download and install (e.g. 2.1.119) |
+| Name | Type | Presence | Description |
+| --- | --- | --- | --- |
+| `version` | str | required | semver version string to download and install (e.g. 2.1.119) |
 
 ## Grants
 

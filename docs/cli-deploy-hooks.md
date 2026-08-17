@@ -15,13 +15,21 @@ deploy built-in hook scripts to the ~/.claudewheel/scripts/ directory
 
 ## Flags
 
-| Name | Short | Type | Default | Env | Description |
+| Name | Short | Type | Presence | Env | Description |
 | --- | --- | --- | --- | --- | --- |
-| `--all` |  | bool |  |  | deploy every known hook script from the built-in registry at once |
-| `--force-overwrite` |  | bool |  |  | overwrite existing hook scripts on disk instead of skipping them |
+| `--all`, `--no-all` |  | bool | optional |  | deploy every known hook script from the built-in registry at once; when omitted, the positional name selects one script |
+| `--force-overwrite`, `--no-force-overwrite` |  | bool | optional |  | overwrite existing hook scripts on disk instead of skipping them; when omitted, an existing script is left alone |
 
 ## Arguments
 
-| Name | Required | Description |
-| --- | --- | --- |
-| `name` | no | name of the specific hook script to deploy (omit to use --all) |
+| Name | Type | Presence | Description |
+| --- | --- | --- | --- |
+| `name` | str | optional | name of the specific hook script to deploy (omit to use --all) |
+
+## Constraints
+
+The framework enforces these before the command runs.
+
+| Rule | What it requires |
+| --- | --- |
+| `deploy-target` | At least one of `name` (when non-empty), `--all` (when true). |

@@ -31,16 +31,16 @@ remove a registered profile: hand its directory to saferm, which archives it (th
 
 ### Flags
 
-| Name | Short | Type | Default | Env | Description |
+| Name | Short | Type | Presence | Env | Description |
 | --- | --- | --- | --- | --- | --- |
-| `--force-delete` |  | bool |  |  | delete anyway when the profile holds a live interactive Claude Code session (background jobs and daemons never block deletion) |
-| `--force-delete-data` |  | bool |  |  | delete even when shared-dir names hold REAL data instead of symlinks; this DESTROYS that data (e.g. conversation history) |
+| `--force-delete`, `--no-force-delete` |  | bool | required |  | delete anyway when the profile holds a live interactive Claude Code session (background jobs and daemons never block deletion) |
+| `--force-delete-data`, `--no-force-delete-data` |  | bool | required |  | delete even when shared-dir names hold REAL data instead of symlinks; this DESTROYS that data (e.g. conversation history) |
 
 ### Arguments
 
-| Name | Required | Description |
-| --- | --- | --- |
-| `name` | yes | name of the profile to delete (e.g. work, personal, research) |
+| Name | Type | Presence | Description |
+| --- | --- | --- | --- |
+| `name` | str | required | name of the profile to delete (e.g. work, personal, research) |
 
 ### Grants
 
@@ -56,9 +56,9 @@ print a detailed report for one profile: whether its directory exists on disk, w
 
 ### Arguments
 
-| Name | Required | Description |
-| --- | --- | --- |
-| `name` | yes | name of the profile to inspect (e.g. work, personal, default) |
+| Name | Type | Presence | Description |
+| --- | --- | --- | --- |
+| `name` | str | required | name of the profile to inspect (e.g. work, personal, default) |
 
 ## profile rename
 
@@ -68,10 +68,10 @@ move a profile to a new name, taking its directory (with the token stored inside
 
 ### Arguments
 
-| Name | Required | Description |
-| --- | --- | --- |
-| `old` | yes | current name of the profile to rename (must be an existing, non-running profile) |
-| `new` | yes | new name for the profile (lowercase letters, digits, and hyphens; must be unused) |
+| Name | Type | Presence | Description |
+| --- | --- | --- | --- |
+| `old` | str | required | current name of the profile to rename (must be an existing, non-running profile) |
+| `new` | str | required | new name for the profile (lowercase letters, digits, and hyphens; must be unused) |
 
 ## profile fix-auth
 
@@ -81,9 +81,9 @@ repair one profile's authentication: strip the session credentials that shadow i
 
 ### Arguments
 
-| Name | Required | Description |
-| --- | --- | --- |
-| `name` | yes | name of the profile to repair: its shadowing session credentials are removed |
+| Name | Type | Presence | Description |
+| --- | --- | --- | --- |
+| `name` | str | required | name of the profile to repair: its shadowing session credentials are removed |
 
 ## profile set-plan
 
@@ -93,10 +93,10 @@ declare which plan a profile's Claude account is on, without a prompt. Claude Co
 
 ### Arguments
 
-| Name | Required | Description |
-| --- | --- | --- |
-| `name` | yes | name of the profile to declare a plan for (e.g. work, personal) |
-| `plan` | yes | the plan this profile's Claude account is on; each one stores a subscription type and, where Claude Code has one, a rate-limit tier |
+| Name | Type | Presence | Description |
+| --- | --- | --- | --- |
+| `name` | str | required | name of the profile to declare a plan for (e.g. work, personal) |
+| `plan` | str | required | the plan this profile's Claude account is on; each one stores a subscription type and, where Claude Code has one, a rate-limit tier Values: `max-20x` (Max 20x (subscriptionType=max, rateLimitTier=default_claude_max_20x)), `max-5x` (Max 5x (subscriptionType=max, rateLimitTier=default_claude_max_5x)), `pro` (Pro (subscriptionType=pro, no rate-limit tier)), `team` (Team (subscriptionType=team, rateLimitTier=default_claude_max_5x)), `enterprise` (Enterprise (subscriptionType=enterprise, no rate-limit tier)). |
 
 ## profile check-tokens
 
