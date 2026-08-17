@@ -18,10 +18,15 @@ alternatives named -- including the launch that names none of them, which used
 to exist only as the absence of four flags and is now the --new-session
 member the selector defaults to.
 
-The one spelling that could not survive the conversion is the short form. A
-member of a selection cannot carry one in this framework's Python surface, so
--c, -r and -p are gone; their long forms are unchanged, and every other flag,
--s included, keeps what it had.
+The conversion changes no argv. Every spelling an operator, a script or a hook
+types survives it, the short forms included: -c elects --cont, -r <session>
+elects --resume, -p <prompt> elects --print-prompt, and -s is the ordinary flag
+it always was. The one addition is --new-session, a name for the launch that
+used to exist only as the absence of four flags. A sweep of 33 argv forms is
+pinned in tests/test_argv_contract.py against claudewheel 0.26.0 probed from
+PyPI: for every form the two releases both accept, the flags handed to Claude
+Code are identical byte for byte, and every form 0.26.0 refused is still
+refused.
 """
 # Pre-release channel: alpha, beta, rc, or stable (ordered;
 # demotion is an error). With patch/minor/major it ENTERS the
