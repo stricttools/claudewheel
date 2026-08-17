@@ -118,7 +118,7 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 ### Selections, and what absence means
 
 - **Two selections are declared, and each elects exactly one member per invocation.** `--profile <name>` / `--all-profiles` chooses what `purge-plugins` and the three `permission` commands act on, and naming neither is refused with `one of --profile, --all-profiles is required`. `--cont` / `--resume <session>` / `--print-prompt <prompt>` / `--picker` / `--new-session` chooses which session a launch starts in, and naming none of them elects `--new-session`, the plain launch a bare `claudewheel` performs. Naming two is a parse error naming both.
-- **These members have no short forms.** `-c`, `-r` and `-p` are gone -- a member of a selection is not a flag the framework lets carry a short. `-s` (`--set`) is an ordinary flag and keeps its short.
+- **The session members keep their short forms.** `-c` elects `--cont`, `-r <session>` elects `--resume`, `-p <prompt>` elects `--print-prompt`, and `-s` (`--set`) is an ordinary flag with its own short. A short takes its value as the next argument, so `-r <id>` is the spelling and `-r=<id>` is not one -- the `=` form belongs to the long flag.
 - **`--no-<member>` declines rather than chooses.** `--no-all-profiles` selects nothing and is refused; `--no-cont` leaves the launch on its default member.
 - **Every flag and positional argument declares whether it is required, optional, or defaulted.** No mutating command carries a value default -- a value the framework picks is a value the framework writes -- so an opt-in switch (`--all`, `--force-overwrite`, `--reid`, `--post-hoc`) is optional and names in its own help what its absence means.
 
