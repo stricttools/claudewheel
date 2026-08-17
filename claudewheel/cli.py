@@ -2319,6 +2319,16 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
         ],
     )(_bind(_handle_fix_auth, ws))
 
+    # Judged against strictcli's update-command construct and deliberately not
+    # declared as one. `set-plan` does write one property of one instance --
+    # the plan fields of a profile's token entry -- but an update command's
+    # properties must be FLAGS declaring `optional`, where absence means
+    # untouched. This command's plan is a required POSITIONAL, and the whole of
+    # what it does is write it: converting it would respell `c profile set-plan
+    # work pro` as `--plan pro`, and would turn a mandatory value into an
+    # optional one that the framework's at-least-one-property rule then refuses
+    # at parse time. The declaration would publish a write set nothing here
+    # reads, at the cost of the argv and of a value that cannot be omitted.
     profile_grp.command(
         "set-plan",
         effect="mutating",
