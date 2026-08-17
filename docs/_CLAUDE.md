@@ -32,6 +32,13 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 - `--quiet`, `--verbose`, `--dry-run` and `--approve-consequential` are framework-owned: no short forms, recognized anywhere in the command line, and never valid as claudewheel's own flag names.
 - `--dry-run` previews instead of writing: every subprocess launch, filesystem mutation and network call is recorded in a would-do log and nothing under `~/.claudewheel/` is touched. It also suppresses the confirmation, so a preview never has to be consented to.
 
+### Selections, and what absence means
+
+- **Two selections are declared, and each elects exactly one member per invocation.** `--profile <name>` / `--all-profiles` chooses what `purge-plugins` and the three `permission` commands act on, and naming neither is refused with `one of --profile, --all-profiles is required`. `--cont` / `--resume <session>` / `--print-prompt <prompt>` / `--picker` / `--new-session` chooses which session a launch starts in, and naming none of them elects `--new-session`, the plain launch a bare `claudewheel` performs. Naming two is a parse error naming both.
+- **These members have no short forms.** `-c`, `-r` and `-p` are gone -- a member of a selection is not a flag the framework lets carry a short. `-s` (`--set`) is an ordinary flag and keeps its short.
+- **`--no-<member>` declines rather than chooses.** `--no-all-profiles` selects nothing and is refused; `--no-cont` leaves the launch on its default member.
+- **Every flag and positional argument declares whether it is required, optional, or defaulted.** No mutating command carries a value default -- a value the framework picks is a value the framework writes -- so an opt-in switch (`--all`, `--force-overwrite`, `--reid`, `--post-hoc`) is optional and names in its own help what its absence means.
+
 ## Config system
 
 - Config files live in `~/.claudewheel/` (config.json, segments.json, options.json, state.json, themes/)

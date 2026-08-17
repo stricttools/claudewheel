@@ -293,7 +293,8 @@ flags at all after the first interactive session.
 
 ### Interaction with `--print-prompt`
 
-The `--print-prompt` / `-p` flag activates non-interactive print mode. In this
+The `--print-prompt` member of the session selection activates non-interactive
+print mode. In this
 mode, only segments marked `print_mode: true` in segments.json are used.
 Missing required print-mode segments trigger a warning but do not block the
 launch.

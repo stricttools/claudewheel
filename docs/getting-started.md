@@ -141,19 +141,25 @@ When every required segment is covered by flags, the TUI is skipped and Claude C
 
 ### Session passthrough
 
-claudewheel forwards session management flags to Claude Code:
+Which session a launch starts in is one selection over five alternatives, and
+exactly one of them is elected per launch:
 
 ```bash
-claudewheel -c                          # resume the most recent session
-claudewheel -r                          # open the session picker
-claudewheel -r 0123abcd                 # resume a specific session by ID
-claudewheel -p "summarize this repo"    # non-interactive print mode
+claudewheel --cont                              # resume the most recent session
+claudewheel --resume 0123abcd                   # resume a specific session by ID or title
+claudewheel --resume ""                         # open Claude Code's own session picker
+claudewheel --picker                            # browse this profile's sessions and pick one
+claudewheel --print-prompt "summarize this repo" # non-interactive print mode
+claudewheel --new-session                       # start a new session, as a bare launch does
 ```
+
+Naming two of them is a parse error naming both, and naming none of them is the
+plain launch `--new-session` spells out.
 
 These compose with segment overrides:
 
 ```bash
-claudewheel --profile personal -r      # session picker against the personal profile
+claudewheel --profile personal --picker      # session picker against the personal profile
 ```
 
 ## Common workflows

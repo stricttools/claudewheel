@@ -78,7 +78,7 @@ It is a snapshot, not a live monitor: the registry is read when the screen opens
 
 Before the segment bar, the interactive launcher shows a **Client** step: choose which client to launch --- `claude` (the official Claude Code CLI) or `miniclaude` (the miniclaude REPL). The cursor starts on the `default_client` configured in `config.json` (default: `claude`). A client whose binary is not installed is shown with a `(not installed)` suffix rather than hidden; selecting it still launches and fails with a clear message.
 
-Pass `--client <name>` to skip the step and choose explicitly; non-interactive launches (e.g. `-p`) use `default_client` without prompting. When the selected client is not `claude`, the version step is skipped --- the version selects a claudewheel-managed *claude* binary, which does not apply to other clients.
+Pass `--client <name>` to skip the step and choose explicitly; non-interactive launches (e.g. `--print-prompt`) use `default_client` without prompting. When the selected client is not `claude`, the version step is skipped --- the version selects a claudewheel-managed *claude* binary, which does not apply to other clients.
 
 ## Narrow terminals
 
@@ -122,21 +122,25 @@ If the override set covers every *required* segment, the TUI is skipped entirely
 
 ### Session passthrough
 
-Mutually exclusive flags forwarded to Claude Code:
+Which session a launch starts in is one selection with five alternatives, exactly one of which is elected per launch. Four of them forward to Claude Code; the fifth is the plain launch a bare `c` performs:
 
 ```bash
-c -c                       # --continue: resume the most recent session
-c -r                       # --resume: open Claude Code's session picker
-c -r 0123abcd              # --resume <id>: jump to a specific session
-c -p "summarize this repo" # --print: non-interactive print mode
+c --cont                              # --continue: resume the most recent session
+c --resume 0123abcd                   # --resume <id>: jump to a specific session
+c --resume ""                         # --resume: open Claude Code's own session picker
+c --picker                            # browse this profile's sessions and pick one
+c --print-prompt "summarize this repo" # --print: non-interactive print mode
+c --new-session                       # start a new session -- what a bare `c` does
 ```
 
-These compose with segment overrides: `c --profile personal -r` opens the picker against the personal profile.
+Naming two of them is refused: `--cont --picker` is `--cont and --picker are mutually exclusive`, from the parser rather than from claudewheel.
 
-Print mode (`-p`) skips the TUI and launches Claude Code non-interactively. Extra flags after `--` are passed through:
+These compose with segment overrides: `c --profile personal --picker` opens the picker against the personal profile.
+
+Print mode (`--print-prompt`) skips the TUI and launches Claude Code non-interactively. Extra flags after `--` are passed through:
 
 ```bash
-c -p "explain auth.py" -- --output-format json --allowedTools "Read,Bash"
+c --print-prompt "explain auth.py" -- --output-format json --allowedTools "Read,Bash"
 ```
 
 ## Config directory
