@@ -2,11 +2,27 @@
 format_version = 1
 # Version bump type: patch, minor, major, infra, or prerelease
 #   prerelease: advance an existing pre-release (0.6.0-beta.0 -> -beta.1)
-bump = ""
+bump = "minor"
 # Short description of this release (required)
-description = ""
+description = "The declaration-regime release: the session flags and the profile target become declared selections, and every flag and argument states what its absence means."
 # Optional context explaining why these changes were made
-context = ""
+context = """
+strictcli 0.41.0 makes presence a declaration rather than an inference,
+removes the mutex group in favour of member-spelled selections, and forbids a
+mutating command from defaulting a value. claudewheel's two hand-rolled
+exclusions were exactly what the new construct is for: the four session flags
+plus their counted "mutually exclusive" refusal, and the --profile /
+--all-profiles pair whose "no target chosen" case every one of four handlers
+had to remember to refuse. Both are one declared selection now, each with its
+alternatives named -- including the launch that names none of them, which used
+to exist only as the absence of four flags and is now the --new-session
+member the selector defaults to.
+
+The one spelling that could not survive the conversion is the short form. A
+member of a selection cannot carry one in this framework's Python surface, so
+-c, -r and -p are gone; their long forms are unchanged, and every other flag,
+-s included, keeps what it had.
+"""
 # Pre-release channel: alpha, beta, rc, or stable (ordered;
 # demotion is an error). With patch/minor/major it ENTERS the
 # channel (0.5.2 + minor + alpha -> 0.6.0-alpha.0); with
