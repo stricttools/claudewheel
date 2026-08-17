@@ -222,6 +222,47 @@ class FakeArchiver:
         return replace(self.handle, path=str(path))
 
 
+#: The machine-envelope interface version saferm's framework speaks. A real
+#: answer carries 2, and `writes` -- the update-command write set, always null
+#: here because saferm's delete declares no update. claudewheel's parser reads
+#: `payload` and nothing else, deliberately; the version and the write set are
+#: in these doubles so they keep describing the document the real binary emits.
+SAFERM_INTERFACE_VERSION = 2
+
+#: What saferm's stub answers as its own version. The real binary's is its
+#: release; nothing claudewheel does reads it.
+STUB_SAFERM_VERSION = "0.0.0-stub"
+
+
+def saferm_envelope_document(
+    command: str,
+    payload: Any,
+    *,
+    app_version: str,
+    exit_code: int = 0,
+) -> dict[str, Any]:
+    """One machine-mode envelope, as the document saferm writes to stdout.
+
+    The single description of that shape in this suite: the in-process helper
+    in ``tests/test_archiver.py`` and the out-of-process stub below are both
+    built from it, so neither can drift from the other or from the real
+    envelope on its own.
+    """
+    return {
+        "interface_version": SAFERM_INTERFACE_VERSION,
+        "app": "saferm",
+        "app_version": app_version,
+        "command": command,
+        "exit_code": exit_code,
+        "payload": payload,
+        "dry_run": False,
+        "writes": None,
+        "preview": [],
+        "preview_error": None,
+        "diagnostics": [],
+    }
+
+
 #: A stand-in saferm executable: answers the capabilities probe and really
 #: performs a delete, in the machine-mode envelope shape the real one emits.
 #:
@@ -230,6 +271,10 @@ class FakeArchiver:
 #: through the effects chokepoint, and reads the envelope back. What it does
 #: NOT stand in for is saferm's archival: the round trip against the real
 #: binary lives in ``tests/test_archiver_integration.py``.
+#:
+#: The envelope shape is injected rather than restated: the template below is
+#: :func:`saferm_envelope_document`'s own output, and the stub fills in the
+#: three members that vary per answer.
 STUB_SAFERM_SOURCE = """#!/usr/bin/env python3
 import json
 import shutil
@@ -246,22 +291,15 @@ FEATURES = [
     "uuid-handles",
 ]
 
+ENVELOPE_TEMPLATE = __ENVELOPE_TEMPLATE__
+
 
 def envelope(command, payload, exit_code=0):
-    return json.dumps(
-        {
-            "interface_version": 1,
-            "app": "saferm",
-            "app_version": "0.0.0-stub",
-            "command": command,
-            "exit_code": exit_code,
-            "payload": payload,
-            "dry_run": False,
-            "preview": [],
-            "preview_error": None,
-            "diagnostics": [],
-        }
-    )
+    document = dict(ENVELOPE_TEMPLATE)
+    document["command"] = command
+    document["payload"] = payload
+    document["exit_code"] = exit_code
+    return json.dumps(document)
 
 
 args = sys.argv[1:]
@@ -290,7 +328,10 @@ if args[:1] == ["delete"]:
     )
     sys.exit(0)
 sys.exit(2)
-"""
+""".replace(
+    "__ENVELOPE_TEMPLATE__",
+    repr(saferm_envelope_document("", None, app_version=STUB_SAFERM_VERSION)),
+)
 
 
 def write_stub_saferm(directory: Path) -> Path:

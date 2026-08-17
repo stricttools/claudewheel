@@ -17,6 +17,8 @@ from typing import Any, cast
 from unittest import mock
 
 from claudewheel import archiver
+from tests.wheelhelpers import saferm_envelope_document
+
 from claudewheel.archiver import (
     REQUIRED_FEATURES,
     ArchiveError,
@@ -38,21 +40,12 @@ ALL_FEATURES = [
 
 
 def envelope(payload: Any, *, command: str = "capabilities") -> str:
-    """A strictcli machine-mode envelope carrying *payload*."""
-    return json.dumps(
-        {
-            "interface_version": 1,
-            "app": "saferm",
-            "app_version": "0.8.1",
-            "command": command,
-            "exit_code": 0,
-            "payload": payload,
-            "dry_run": False,
-            "preview": [],
-            "preview_error": None,
-            "diagnostics": [],
-        }
-    )
+    """A strictcli machine-mode envelope carrying *payload*.
+
+    Built from the suite's one description of that shape, so this double and
+    the out-of-process stub in ``tests/wheelhelpers.py`` cannot drift apart.
+    """
+    return json.dumps(saferm_envelope_document(command, payload, app_version="0.8.1"))
 
 
 def completed(stdout: str = "", *, code: int = 0, stderr: str = "") -> Any:
