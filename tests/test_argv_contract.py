@@ -130,7 +130,9 @@ class ArgvContractTests(unittest.TestCase):
         self.assertEqual(
             self._launch_argv({"argv": ["-r", sweep.UUID]}), ["--resume", sweep.UUID]
         )
-        self.assertEqual(self._launch_argv({"argv": ["-p", "hello"]}), ["--print", "hello"])
+        self.assertEqual(
+            self._launch_argv({"argv": ["-p", "hello"]}), ["--print", "hello"]
+        )
 
     def test_the_added_members_launch_as_this_release_declares(self) -> None:
         """--new-session names, in the invocation, what the default elects."""
