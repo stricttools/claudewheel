@@ -2,6 +2,45 @@
 
 # Changelog
 
+## 0.27.0
+
+The declaration-regime release: the session flags and the profile target become declared selections, and every flag and argument states what its absence means.
+
+<details>
+<summary>Context</summary>
+
+strictcli 0.41.0 makes presence a declaration rather than an inference,
+removes the mutex group in favour of member-spelled selections, and forbids a
+mutating command from defaulting a value. claudewheel's two hand-rolled
+exclusions were exactly what the new construct is for: the four session flags
+plus their counted "mutually exclusive" refusal, and the --profile /
+--all-profiles pair whose "no target chosen" case every one of four handlers
+had to remember to refuse. Both are one declared selection now, each with its
+alternatives named -- including the launch that names none of them, which used
+to exist only as the absence of four flags and is now the --new-session
+member the selector defaults to.
+
+The conversion changes no argv. Every spelling an operator, a script or a hook
+types survives it, the short forms included: -c elects --cont, -r <session>
+elects --resume, -p <prompt> elects --print-prompt, and -s is the ordinary flag
+it always was. The one addition is --new-session, a name for the launch that
+used to exist only as the absence of four flags. A sweep of 33 argv forms is
+pinned in tests/test_argv_contract.py against claudewheel 0.26.0 probed from
+PyPI: for every form the two releases both accept, the flags handed to Claude
+Code are identical byte for byte, and every form 0.26.0 refused is still
+refused.
+
+</details>
+
+### Features
+
+- **Session and profile selections are declared, not hand-rolled.** The launch command's `--cont`, `--resume <session>`, `--print-prompt <prompt>` and `--picker` became the members of one selection, joined by `--new-session` for the plain launch a bare `claudewheel` performs: naming two is a parse error naming both, and naming none elects the new session it always did. `--profile <name>` / `--all-profiles` became the same kind of selection on `purge-plugins` and the three `permission` commands, where `one of --profile, --all-profiles is required` is now the parser's refusal. Every spelling is unchanged, the short forms `-c`, `-r`, `-p` and `-s` included.
+- **The docs teach the session selection's spellings.** The README and the getting-started guide list the five session members and what each one does, instead of four "mutually exclusive" flags and the short forms that no longer exist; `CLAUDE.md` gains a summary of both selections and of what a declared absence means.
+
+### Fixes
+
+- **Incomplete invocations are refused by declaration, and absence says what it means.** `deploy-hooks` with neither a script name nor `--all` and `import` with one half of a path mapping are now named refusals (`at least one of name, --all is required`; `--from, --to must be used together`). An omitted `--reid`, `--all`, `--force-overwrite` or `--post-hoc` resolves to the fallback its own help states, an omitted `migrate` UUID means every session, and `profile set-plan` lists each plan with the fields it stores.
+
 ## 0.26.0
 
 Profile deletion is recoverable: `profile delete` hands the profile directory to saferm, which archives it before removing it, and prints the handle that restores it. claudewheel negotiates on saferm's declared features before deleting anything and offers to install saferm when there is none, so deletion now requires it. `permission list` answers a machine through the framework's `--json` envelope instead of its own `--format json` arm.
