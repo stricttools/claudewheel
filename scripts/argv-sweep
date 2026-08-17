@@ -1,0 +1,227 @@
+#!/usr/bin/env python3
+"""Probe what a launch invocation hands Claude Code, one argv form at a time.
+
+The launch command's session decision moved from four independent flags plus a
+hand-counted "mutually exclusive" refusal to one member-spelled selection.  That
+conversion must not change a single accepted spelling or a single byte of the
+argv the accepted spelling produces, so this script sweeps every session spelling
+against whatever ``claudewheel`` is importable and prints the outcome as JSON.
+
+It is deliberately self-contained: it imports nothing from the repository, so it
+can be pointed at an *installed* claudewheel (a released version in a throwaway
+virtualenv) and at the working tree, and the two JSON documents compared.
+
+    python3 scripts/argv-sweep > current.json
+    /tmp/v0260/bin/python /path/to/argv-sweep > released.json
+    diff released.json current.json
+
+Every case reports one of two outcomes:
+
+``launch``
+    the invocation was accepted; ``extra_flags`` is the exact list handed to the
+    launch sequence, which is what reaches Claude Code's own argv.
+``refused``
+    the parser or the handler rejected it and the process exited non-zero.  The
+    refusal *wording* is version-specific by design (the framework names both
+    elected members now, where the handler used to name all four), so only the
+    fact of the refusal and the exit code are reported.
+
+Cases marked ``"since": "0.27.0"`` name members that did not exist before the
+selection was declared (``--new-session``, and the ``--no-<member>`` decline);
+a released-version probe reports them as ``refused`` and the comparison skips
+them.
+"""
+
+from __future__ import annotations
+
+import io
+import json
+import os
+import sys
+from contextlib import redirect_stderr, redirect_stdout
+from typing import Any
+from unittest import mock
+
+#: A UUID-shaped session id: ``_resolve_resume_title`` returns it unchanged, so
+#: no case in this sweep touches the session store.
+UUID = "0123abcd-0123-4567-89ab-0123456789ab"
+
+#: Segment flags that cover every required segment, so the launch skips the TUI
+#: and reaches the launch sequence with nothing to prompt for.  ``-s`` is an
+#: ordinary flag, not a member, and is here to pin that its short survives too.
+SEGMENT_ARGS = [
+    "--profile",
+    "personal",
+    "--github",
+    "ghuser",
+    "-s",
+    "version=2.1.116",
+    "--directory",
+    "/some/dir",
+]
+
+#: id -> argv (before SEGMENT_ARGS), with the version that first accepted it.
+CASES: list[dict[str, Any]] = [
+    # -- the members, in every spelling their declaration allows --
+    {"id": "bare", "argv": []},
+    {"id": "cont-long", "argv": ["--cont"]},
+    {"id": "cont-short", "argv": ["-c"]},
+    {"id": "resume-long-space", "argv": ["--resume", UUID]},
+    {"id": "resume-long-equals", "argv": [f"--resume={UUID}"]},
+    {"id": "resume-short-space", "argv": ["-r", UUID]},
+    {"id": "resume-short-equals", "argv": [f"-r={UUID}"]},
+    {"id": "resume-bare-long", "argv": ["--resume"]},
+    {"id": "resume-bare-short", "argv": ["-r"]},
+    {"id": "resume-empty-space", "argv": ["--resume", ""]},
+    {"id": "resume-empty-equals", "argv": ["--resume="]},
+    {"id": "picker", "argv": ["--picker"]},
+    {"id": "print-long-space", "argv": ["--print-prompt", "hello"]},
+    {"id": "print-long-equals", "argv": ["--print-prompt=hello"]},
+    {"id": "print-short-space", "argv": ["-p", "hello"]},
+    {"id": "print-short-equals", "argv": ["-p=hello"]},
+    {"id": "print-empty", "argv": ["--print-prompt", ""]},
+    # -- the passthrough tail rides behind each member's own flags --
+    {"id": "bare-passthrough", "argv": [], "passthrough": ["--verbose"]},
+    {
+        "id": "cont-passthrough",
+        "argv": ["--cont"],
+        "passthrough": ["--output-format", "json"],
+    },
+    {
+        "id": "resume-passthrough",
+        "argv": ["--resume", UUID],
+        "passthrough": ["--verbose"],
+    },
+    {"id": "picker-passthrough", "argv": ["--picker"], "passthrough": ["--verbose"]},
+    {
+        "id": "print-passthrough",
+        "argv": ["--print-prompt", "hi"],
+        "passthrough": ["--output-format", "json"],
+    },
+    {
+        "id": "cont-short-passthrough",
+        "argv": ["-c"],
+        "passthrough": ["--output-format", "json"],
+    },
+    # -- two members at once: refused, however they are spelled --
+    {"id": "refuse-cont-resume", "argv": ["--cont", "--resume", UUID]},
+    {"id": "refuse-cont-picker", "argv": ["--cont", "--picker"]},
+    {"id": "refuse-cont-print", "argv": ["--cont", "--print-prompt", "hi"]},
+    {"id": "refuse-resume-picker", "argv": ["--resume", UUID, "--picker"]},
+    {"id": "refuse-resume-print", "argv": ["--resume", UUID, "--print-prompt", "hi"]},
+    {"id": "refuse-print-picker", "argv": ["--print-prompt", "hi", "--picker"]},
+    {"id": "refuse-shorts", "argv": ["-c", "-p", "hi"]},
+    {
+        "id": "refuse-all-four",
+        "argv": ["--cont", "--resume", UUID, "--print-prompt", "hi", "--picker"],
+    },
+    # -- spellings the declared selection added --
+    {"id": "new-session", "argv": ["--new-session"], "since": "0.27.0"},
+    {"id": "decline-cont", "argv": ["--no-cont"], "since": "0.27.0"},
+]
+
+SEGMENTS_DEF = [
+    {"key": "profile", "label": "Profile", "required": True, "print_mode": True},
+    {"key": "github", "label": "GH", "required": True, "print_mode": False},
+    {"key": "version", "label": "Ver", "required": True, "print_mode": True},
+    {"key": "model", "label": "Model", "required": False, "print_mode": True},
+    {"key": "directory", "label": "Dir", "required": True, "print_mode": True},
+    {"key": "mcp", "label": "MCP", "required": False, "print_mode": False},
+    {"key": "permissions", "label": "Perms", "required": False, "print_mode": False},
+]
+
+LAST_CONFIG = {
+    "profile": "personal",
+    "github": "ghuser",
+    "version": "2.1.116",
+    "model": "claude-opus-4-6",
+    "directory": "/home/user/project",
+    "mcp": "default",
+    "permissions": "bypass",
+}
+
+
+def _fake_cfg() -> Any:
+    from claudewheel.config import AppConfigStore
+
+    class _FakeCfg(AppConfigStore):
+        def __init__(self) -> None:
+            self.config = {
+                "theme": "dark",
+                "enabled_segments": [s["key"] for s in SEGMENTS_DEF],
+                "default_flags": [],
+                "health_check_on_launch": False,
+            }
+            self.segments_def = [dict(s) for s in SEGMENTS_DEF]
+            self.state = {
+                "last_config": dict(LAST_CONFIG),
+                "recent_dirs": [],
+                "launch_count": 0,
+            }
+            self.options_def = {}
+
+    return _FakeCfg()
+
+
+def probe(argv: list[str], passthrough: list[str] | None = None) -> dict[str, Any]:
+    """Run one invocation and report what it handed the launch sequence.
+
+    *argv* holds the session spelling under probe; *passthrough* is the tail
+    behind ``--``, which has to follow the segment flags to be a tail at all.
+    """
+    from claudewheel import cli
+
+    tail = ["--", *passthrough] if passthrough else []
+    launch_mock = mock.MagicMock()
+    code = 0
+    with (
+        mock.patch("sys.argv", ["c", *argv, *SEGMENT_ARGS, *tail]),
+        mock.patch(
+            "claudewheel.config.AppConfigStore",
+            autospec=True,
+            return_value=_fake_cfg(),
+        ),
+        mock.patch("claudewheel.cli._do_launch_sequence", launch_mock),
+        mock.patch("claudewheel.cli._check_cont_session", autospec=True),
+        mock.patch("claudewheel.cli._check_resume_session", autospec=True),
+        mock.patch("os.getcwd", autospec=True, return_value="/test/dir"),
+        redirect_stdout(io.StringIO()),
+        redirect_stderr(io.StringIO()),
+    ):
+        try:
+            cli.main()
+        except SystemExit as exc:
+            code = int(exc.code or 0)
+
+    if launch_mock.call_count == 1:
+        _, kwargs = launch_mock.call_args
+        return {
+            "outcome": "launch",
+            "extra_flags": list(kwargs["extra_flags"]),
+            "exit": code,
+        }
+    return {"outcome": "refused", "exit": code}
+
+
+def main() -> int:
+    from claudewheel import __version__
+
+    results: dict[str, Any] = {"version": __version__, "cases": {}}
+    for case in CASES:
+        results["cases"][case["id"]] = probe(
+            list(case["argv"]), list(case.get("passthrough", []))
+        )
+    json.dump(results, sys.stdout, indent=2, sort_keys=True)
+    sys.stdout.write("\n")
+    return 0
+
+
+if __name__ == "__main__":
+    import tempfile
+
+    # A throwaway HOME: no probe may read or write the developer's real
+    # ~/.claudewheel, however a version under probe resolves its workspace.
+    with tempfile.TemporaryDirectory(prefix="argv-sweep-home-") as home:
+        os.environ["HOME"] = home
+        os.environ["XDG_CONFIG_HOME"] = os.path.join(home, ".config")
+        raise SystemExit(main())

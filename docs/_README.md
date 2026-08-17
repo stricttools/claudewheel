@@ -133,6 +133,8 @@ c --print-prompt "summarize this repo" # --print: non-interactive print mode
 c --new-session                       # start a new session -- what a bare `c` does
 ```
 
+Three of them carry a short form: `-c`, `-r <session>` and `-p <prompt>` are `--cont`, `--resume` and `--print-prompt`. A short takes its value as the next argument, so `-r 0123abcd` is the spelling and `-r=0123abcd` is not one.
+
 Naming two of them is refused: `--cont --picker` is `--cont and --picker are mutually exclusive`, from the parser rather than from claudewheel.
 
 These compose with segment overrides: `c --profile personal --picker` opens the picker against the personal profile.

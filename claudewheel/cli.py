@@ -1707,10 +1707,17 @@ def _reject_claude_only_overrides(
 # launch, the thing that happens when nothing is typed -- has no name. Naming
 # it makes `--new-session` a real spelling and makes the default an election
 # like any other.
+#
+# The shorts -c, -r and -p are the argv operators have always typed, so they
+# ride the members. Where the short is declared depends on the member: a
+# payload-less member carries it on `choice(...)`, a payload-carrying one on
+# its `member_value(...)`, because there the short is what takes the value.
 
 
 @strictcli.choice(
-    "cont", help="continue the most recent conversation in the current directory"
+    "cont",
+    help="continue the most recent conversation in the current directory",
+    short="c",
 )
 class ContinueSession:
     """The ``--cont`` member: Claude Code's ``--continue``."""
@@ -1724,7 +1731,8 @@ class ResumeSession:
         help=(
             "session to resume, by UUID or by title; an empty string opens "
             "Claude Code's own picker"
-        )
+        ),
+        short="r",
     )
 
 
@@ -1734,7 +1742,9 @@ class ResumeSession:
 class PrintPrompt:
     """The ``--print-prompt <prompt>`` member: Claude Code's ``--print``."""
 
-    value: str = strictcli.member_value(help="the prompt to run non-interactively")
+    value: str = strictcli.member_value(
+        help="the prompt to run non-interactively", short="p"
+    )
 
 
 @strictcli.choice(
