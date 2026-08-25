@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import sys
 import uuid as uuid_mod
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -34,6 +35,24 @@ class ImportResult:
 
 def _log(msg: str) -> None:
     print(f"{PREFIX} {msg}")
+
+
+def _warn(msg: str) -> None:
+    print(f"{PREFIX} WARNING: {msg}", file=sys.stderr)
+
+
+def _skip_dangling(path: Path) -> bool:
+    """Report and skip *path* when it is a symlink whose target does not exist.
+
+    A store archived from another machine carries that machine's absolute
+    symlinks; on any other machine they resolve to nothing.  Reading one raises
+    ``FileNotFoundError``, which would otherwise abort the whole import before
+    a single valid session is copied.
+    """
+    if path.is_symlink() and not path.exists():
+        _warn(f"skipping {path}: dangling symlink (its target does not exist)")
+        return True
+    return False
 
 
 def _is_uuid(name: str) -> bool:
@@ -205,7 +224,16 @@ def _scan_source(source: Path) -> list[_SessionBundle]:
             stem = name[:-6]
             if not _is_uuid(stem):
                 continue
-            if entry.stat().st_size == 0:
+            if _skip_dangling(entry):
+                continue
+            try:
+                size = entry.stat().st_size
+            except FileNotFoundError:
+                # Lost the race against a vanishing entry (or a symlink that
+                # broke between the check above and here).
+                _warn(f"skipping {entry}: it disappeared during the scan")
+                continue
+            if size == 0:
                 continue
             cwd = get_session_cwd(entry)
             if cwd is None:
@@ -214,11 +242,12 @@ def _scan_source(source: Path) -> list[_SessionBundle]:
                     f"file has no cwd field in the first lines"
                 )
             companion = encoded_dir / stem
+            has_companion = not _skip_dangling(companion) and companion.is_dir()
             bundles.append(
                 _SessionBundle(
                     uuid=stem,
                     jsonl_path=entry,
-                    companion_dir=companion if companion.is_dir() else None,
+                    companion_dir=companion if has_companion else None,
                     cwd=cwd,
                     source_encoded_dir=encoded_dir.name,
                 )
@@ -369,6 +398,8 @@ def run_import(
                 effects.mkdir(target_companion, parents=True, exist_ok=True)
 
             for item in sorted(b.companion_dir.rglob("*")):
+                if _skip_dangling(item):
+                    continue
                 if not item.is_file():
                     continue
                 rel = item.relative_to(b.companion_dir)
@@ -419,6 +450,8 @@ def run_import(
         if effects.issue(dry_run):
             effects.mkdir(paste_dst, parents=True, exist_ok=True)
         for item in sorted(paste_src.iterdir()):
+            if _skip_dangling(item):
+                continue
             if not item.is_file():
                 continue
             dst = paste_dst / item.name
@@ -462,10 +495,14 @@ def _copy_simple_artifacts(
     if dirname == "todos":
         # Todos files: <uuid>-agent-<uuid>.json
         for item in sorted(src_dir.iterdir()):
-            if not item.is_file():
-                continue
             name = item.name
+            # Name first: this directory is walked once per session, so an
+            # unrelated broken entry must not be reported once per session.
             if not (name.startswith(f"{old_uuid}-agent-") and name.endswith(".json")):
+                continue
+            if _skip_dangling(item):
+                continue
+            if not item.is_file():
                 continue
             if is_reided:
                 new_name = name.replace(old_uuid, effective_uuid)
@@ -482,6 +519,8 @@ def _copy_simple_artifacts(
     else:
         # session-env/, file-history/, tasks/: direct child dirs named as UUIDs
         artifact = src_dir / old_uuid
+        if _skip_dangling(artifact):
+            return
         if not artifact.exists():
             return
         dst = dst_base / effective_uuid

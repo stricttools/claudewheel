@@ -1507,5 +1507,192 @@ class ReidNonJsonlPathTests(unittest.TestCase):
         self.assertEqual(expected.read_text(), "some tool output")
 
 
+# ---------------------------------------------------------------------------
+# Dangling symlinks in the source store
+# ---------------------------------------------------------------------------
+
+
+class DanglingSymlinkTests(unittest.TestCase):
+    """A source store carrying broken symlinks is scanned and imported anyway.
+
+    An archived store copied off another machine can hold absolute symlinks
+    pointing at paths that only ever existed there.  Every such entry is
+    reported and skipped; symlinks that still resolve keep working.
+    """
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        self.source = self.root / "source"
+        self.proj = self.source / "projects" / "proj"
+        self.proj.mkdir(parents=True)
+        self.missing = self.root / "gone" / "nowhere"
+
+        self.shared = self.root / "shared"
+        self.store = SharedStore(self.shared, self.shared / "skills")
+        (self.shared / "projects").mkdir(parents=True)
+
+        self._stdout_trap = contextlib.redirect_stdout(io.StringIO())
+        self._stdout_trap.__enter__()
+        self._stderr = io.StringIO()
+        self._stderr_trap = contextlib.redirect_stderr(self._stderr)
+        self._stderr_trap.__enter__()
+
+    def tearDown(self) -> None:
+        self._stderr_trap.__exit__(None, None, None)
+        self._stdout_trap.__exit__(None, None, None)
+        self._tmp.cleanup()
+
+    def _write_session(self, uuid: str, cwd: str = "/test") -> Path:
+        path = self.proj / f"{uuid}.jsonl"
+        path.write_text(_make_session_jsonl(cwd, uuid))
+        return path
+
+    def test_scan_skips_dangling_jsonl_symlink(self) -> None:
+        """A broken <uuid>.jsonl symlink does not abort the scan."""
+        self._write_session(UUID_A)
+        (self.proj / f"{UUID_B}.jsonl").symlink_to(self.missing / f"{UUID_B}.jsonl")
+
+        with patch(
+            "claudewheel.import_.get_session_cwd", autospec=True, return_value="/test"
+        ):
+            bundles = _scan_source(self.source)
+
+        self.assertEqual([b.uuid for b in bundles], [UUID_A])
+
+    def test_scan_warns_about_dangling_jsonl_symlink(self) -> None:
+        """The skipped path and the reason are named on stderr."""
+        self._write_session(UUID_A)
+        broken = self.proj / f"{UUID_B}.jsonl"
+        broken.symlink_to(self.missing / f"{UUID_B}.jsonl")
+
+        with patch(
+            "claudewheel.import_.get_session_cwd", autospec=True, return_value="/test"
+        ):
+            _scan_source(self.source)
+
+        err = self._stderr.getvalue()
+        self.assertIn(str(broken), err)
+        self.assertIn("dangling symlink", err)
+
+    def test_dangling_companion_dir_symlink_skipped(self) -> None:
+        """A broken companion-dir symlink is reported and treated as absent."""
+        self._write_session(UUID_A)
+        companion = self.proj / UUID_A
+        companion.symlink_to(self.missing / UUID_A)
+
+        with patch(
+            "claudewheel.import_.get_session_cwd", autospec=True, return_value="/test"
+        ):
+            bundles = _scan_source(self.source)
+
+        self.assertEqual(len(bundles), 1)
+        self.assertIsNone(bundles[0].companion_dir)
+        err = self._stderr.getvalue()
+        self.assertIn(str(companion), err)
+        self.assertIn("dangling symlink", err)
+
+    def test_resolving_jsonl_symlink_still_imported(self) -> None:
+        """A symlink whose target exists is scanned exactly as before."""
+        real = self.root / "elsewhere" / f"{UUID_B}.jsonl"
+        real.parent.mkdir(parents=True)
+        real.write_text(_make_session_jsonl("/test", UUID_B))
+        (self.proj / f"{UUID_B}.jsonl").symlink_to(real)
+
+        with patch(
+            "claudewheel.import_.get_session_cwd", autospec=True, return_value="/test"
+        ):
+            bundles = _scan_source(self.source)
+
+        self.assertEqual([b.uuid for b in bundles], [UUID_B])
+
+    def test_import_completes_past_dangling_entries(self) -> None:
+        """run_import imports the valid session and skips the broken symlinks."""
+        self._write_session(UUID_A)
+        (self.proj / f"{UUID_B}.jsonl").symlink_to(self.missing / f"{UUID_B}.jsonl")
+        (self.proj / UUID_A).symlink_to(self.missing / UUID_A)
+
+        with patch(
+            "claudewheel.import_.get_session_cwd", autospec=True, return_value="/test"
+        ):
+            result = run_import(
+                self.store,
+                str(self.source),
+                mappings=[("/test", "/local/test")],
+            )
+
+        self.assertEqual(result.sessions_imported, 1)
+        target_dir = self.shared / "projects" / SharedStore.encode_path("/local/test")
+        self.assertTrue((target_dir / f"{UUID_A}.jsonl").exists())
+        self.assertFalse((target_dir / f"{UUID_B}.jsonl").exists())
+
+    def test_dangling_symlink_inside_companion_dir_skipped(self) -> None:
+        """A broken symlink under a companion dir is reported, not copied."""
+        self._write_session(UUID_A)
+        companion = self.proj / UUID_A
+        companion.mkdir()
+        (companion / "real.json").write_text('{"ok": true}')
+        broken = companion / "broken.jsonl"
+        broken.symlink_to(self.missing / "broken.jsonl")
+
+        with patch(
+            "claudewheel.import_.get_session_cwd", autospec=True, return_value="/test"
+        ):
+            result = run_import(
+                self.store,
+                str(self.source),
+                mappings=[("/test", "/local/test")],
+            )
+
+        self.assertEqual(result.sessions_imported, 1)
+        target_dir = self.shared / "projects" / SharedStore.encode_path("/local/test")
+        self.assertTrue((target_dir / UUID_A / "real.json").exists())
+        self.assertFalse((target_dir / UUID_A / "broken.jsonl").exists())
+        self.assertIn(str(broken), self._stderr.getvalue())
+
+    def test_dangling_paste_cache_symlink_skipped(self) -> None:
+        """A broken paste-cache symlink is reported and not counted."""
+        self._write_session(UUID_A)
+        paste = self.source / "paste-cache"
+        paste.mkdir()
+        (paste / "good.txt").write_text("pasted")
+        broken = paste / "bad.txt"
+        broken.symlink_to(self.missing / "bad.txt")
+
+        with patch(
+            "claudewheel.import_.get_session_cwd", autospec=True, return_value="/test"
+        ):
+            result = run_import(
+                self.store,
+                str(self.source),
+                mappings=[("/test", "/local/test")],
+            )
+
+        self.assertEqual(result.paste_files_copied, 1)
+        self.assertTrue((self.shared / "paste-cache" / "good.txt").exists())
+        self.assertIn(str(broken), self._stderr.getvalue())
+
+    def test_dangling_simple_artifact_symlink_skipped(self) -> None:
+        """A broken session-env symlink is reported instead of crashing."""
+        self._write_session(UUID_A)
+        env_dir = self.source / "session-env"
+        env_dir.mkdir()
+        broken = env_dir / UUID_A
+        broken.symlink_to(self.missing / UUID_A)
+
+        with patch(
+            "claudewheel.import_.get_session_cwd", autospec=True, return_value="/test"
+        ):
+            result = run_import(
+                self.store,
+                str(self.source),
+                mappings=[("/test", "/local/test")],
+            )
+
+        self.assertEqual(result.sessions_imported, 1)
+        self.assertFalse((self.shared / "session-env" / UUID_A).exists())
+        self.assertIn(str(broken), self._stderr.getvalue())
+
+
 if __name__ == "__main__":
     unittest.main()
