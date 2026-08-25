@@ -1,0 +1,1 @@
+{"format_version":1,"id":"18cf1ce61ee98e727d60433bc659429cb8d57b7c916b218d","commits":["844a9fb1d282ca0b04367603a668cb3dcd2db0ae"],"user_facing":true,"description":"`import` no longer aborts when the source store contains a broken symlink -- the dangling entry is named on stderr and skipped, and the remaining sessions import normally.","type":"fix"}
