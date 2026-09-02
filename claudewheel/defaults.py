@@ -1,4 +1,4 @@
-"""Default values for config, segments, options, state, and themes; canonical permission rules and hook wiring are derived from the guardrail model."""
+"""Default values for config, segments, options, state, and themes; canonical permission rules, hook wiring, and the disallowed-tools list are derived from the guardrail model."""
 
 from __future__ import annotations
 
@@ -8,26 +8,7 @@ from typing import Any
 from . import guardrail
 
 
-DISALLOWED_TOOLS = [
-    "Artifact",
-    "DesignSync",
-    "EnterPlanMode",
-    "EnterWorktree",
-    "ExitPlanMode",
-    "ExitWorktree",
-    "LSP",
-    "NotebookEdit",
-    "PushNotification",
-    "RemoteTrigger",
-    "ReportFindings",
-    "Skill",
-    "TaskCreate",
-    "TaskGet",
-    "TaskList",
-    "TaskOutput",
-    "TaskStop",
-    "TaskUpdate",
-]
+DISALLOWED_TOOLS = guardrail.disallowed_tool_names()
 
 
 def canonical_hook_command(scripts_dir: Path, script: str) -> str:
@@ -67,7 +48,8 @@ def build_canonical_shared_settings(scripts_dir: Path) -> dict[str, Any]:
     """Build the canonical shared-settings dict from current defaults.
 
     The hooks section is derived from guardrail.EXPECTED_HOOK_WIRINGS.
-    The disallowedTools section comes from DISALLOWED_TOOLS above.
+    The disallowedTools section comes from DISALLOWED_TOOLS above, which is
+    itself derived from the guardrail model (DISALLOWED_TOOL_ENTRIES).
     The profileDefaults permissions deny/ask arrays are derived from the
     guardrail model (canonical_deny_rules() / canonical_ask_rules()).
     The profileDefaults section contains default settings applied to new profiles

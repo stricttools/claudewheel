@@ -457,6 +457,133 @@ EXPECTED_HOOK_WIRINGS: tuple[tuple[str, str, str], ...] = (
 )
 
 
+# ---------------------------------------------------------------------------
+# Stripped tools
+#
+# The tools claudewheel removes from every session it launches, via the
+# ``--disallowedTools`` launch argv. The operating principle is that less is
+# more: every exposed tool is one more thing an unattended agent can stray into
+# unnoticed, and the fewer tools the harness exposes, the more intelligently the
+# model calls the ones that remain.
+#
+# This tuple is the single authority for the strip list. ``defaults.py`` derives
+# its flat ``DISALLOWED_TOOLS`` from it, and the docs table is generated from it.
+# A name stays banned even while the installed Claude Code version happens not
+# to offer that tool -- such an entry is dormant insurance, not an error.
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class DisallowedTool:
+    """A Claude Code tool stripped from every launched session, and why."""
+
+    name: str
+    why: str
+
+
+DISALLOWED_TOOL_ENTRIES: tuple[DisallowedTool, ...] = (
+    DisallowedTool(
+        "Artifact",
+        "Artifacts are unwanted; when an HTML report is wanted, it will be "
+        "asked for explicitly.",
+    ),
+    DisallowedTool(
+        "DesignSync",
+        "Serves Claude Design, which is unwanted -- and it only works with "
+        "short-term logins, never the long-lived OAuth tokens claudewheel "
+        "prefers.",
+    ),
+    DisallowedTool(
+        "EnterPlanMode",
+        "Plan mode hijacks the session lifecycle: accepting a plan clears the "
+        "session and makes the previous messages unreachable in the TUI. Fresh "
+        "context for implementation is better achieved deliberately -- a new "
+        "session or a subagent orchestrator.",
+    ),
+    DisallowedTool(
+        "EnterWorktree",
+        "Exposing worktrees as tools invites silent, unauthorized use: work "
+        "strays into a temp worktree, later sessions cannot find it, tokens are "
+        "wasted rebuilding it, and stale files linger. Bash covers the rare "
+        "legitimate case, explicitly.",
+    ),
+    DisallowedTool(
+        "ExitPlanMode",
+        "Counterpart of EnterPlanMode; banned with it.",
+    ),
+    DisallowedTool(
+        "ExitWorktree",
+        "Counterpart of EnterWorktree; banned with it.",
+    ),
+    DisallowedTool(
+        "LSP",
+        "Injects compile-time diagnostics mid-work that are stale by the time "
+        "the agent finishes; real errors surface at build time anyway. A net "
+        "distraction left over from the era of slow human typing.",
+    ),
+    DisallowedTool(
+        "NotebookEdit",
+        "No Jupyter notebooks here -- and their non-plaintext format is a "
+        "reason to avoid them entirely. Plain file writes cover everything.",
+    ),
+    DisallowedTool(
+        "PushNotification",
+        "Belongs to Remote Control, which is rejected wholesale. When a Remote "
+        "Control pairing exists it also pushes model-authored text to phone and "
+        "email with no permission prompt.",
+    ),
+    DisallowedTool(
+        "RemoteTrigger",
+        "Client for claude.ai routines: autonomous cloud agents acting as the "
+        "user with no in-run approvals, self-approving locally. Stays banned "
+        "even while dormant behind a server-side feature flag, as insurance "
+        "against the flag flipping.",
+    ),
+    DisallowedTool(
+        "ReportFindings",
+        "Exists solely to serve /code-review, which is unwanted; inert in "
+        "terminal sessions regardless.",
+    ),
+    DisallowedTool(
+        "Skill",
+        "Bloatware: injected prompt payloads. Instructions worth having live "
+        "in the repository.",
+    ),
+    DisallowedTool(
+        "TaskCreate",
+        "The task-tracking system is dead weight: a months-long usage survey "
+        "found this was the only family member ever used (thousands of calls) "
+        "while the conversation itself served as the real task history -- so "
+        "even the one used tool goes.",
+    ),
+    DisallowedTool(
+        "TaskGet",
+        "Task-tracking family: never used once over months of active work; the "
+        "conversation is the task history.",
+    ),
+    DisallowedTool(
+        "TaskList",
+        "Task-tracking family: never used once over months of active work; the "
+        "conversation is the task history.",
+    ),
+    DisallowedTool(
+        "TaskOutput",
+        "Task-tracking family: never used once over months of active work; the "
+        "conversation is the task history.",
+    ),
+    DisallowedTool(
+        "TaskStop",
+        "Task-tracking family: never used once over months of active work; the "
+        "conversation is the task history.",
+    ),
+    DisallowedTool(
+        "TaskUpdate",
+        "Task-tracking family: never used once over months of active work; the "
+        "conversation is the task history.",
+    ),
+)
+
+
 def rules() -> tuple[GuardrailRule, ...]:
     """Return every guardrail rule in canonical order."""
     return RULES
@@ -494,6 +621,11 @@ def canonical_ask_rules() -> list[str]:
 def all_settings_rules() -> list[str]:
     """Return every settings rule (deny then ask), in canonical order."""
     return canonical_deny_rules() + canonical_ask_rules()
+
+
+def disallowed_tool_names() -> list[str]:
+    """Return the tool names stripped from every launched session, in order."""
+    return [entry.name for entry in DISALLOWED_TOOL_ENTRIES]
 
 
 # ---------------------------------------------------------------------------
