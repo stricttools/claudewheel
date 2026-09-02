@@ -2,3 +2,4 @@
 {"format_version":1,"id":"18d178d060b84bb7dc3848375d524a42a43e1f738e35465c","commits":["30c627cd4af6ef91652ee71b2ae52e99eb688c59"],"user_facing":false}
 {"format_version":1,"id":"18d184ef41cb060cb91b15aa3db94913a9f1fb420e32dee8","commits":["d682cb786ea3ce63ed06f1e4b3f340b7783c8286","32ec72106fde4706049b83bbddb9103114cbda83"],"user_facing":false}
 {"format_version":1,"id":"18d1865edafae8e3a8538aa955804dcf8543490d7cf98cea","commits":["3891167bf6a87614dce6c97249bbe0ffa6a5e52a","006ebf97b7d7b7a8d110593d160d61b04a607d4b","66cacf46869a8db2aad0464a46ea11fe390935d2"],"user_facing":false}
+{"format_version":1,"id":"18d1865fe8504d4a78c4f9bea81e48dab5721332f76324b1","commits":["7dd1cb2cad6a836d6348e21ceb770ca4a7ae41a6"],"user_facing":true,"description":"The guardrails page now documents every stripped tool with the reason it is banned, in a table generated from the canonical model","type":"feature"}
