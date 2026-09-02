@@ -4,3 +4,7 @@
 [[known_non_entry]]
 path = "docs/_directives/guardrail_table.py"
 reason = "selfdoc custom directive. Loaded by selfdoc via the 'directives' map in selfdoc.json (table-guardrails -> docs/_directives/guardrail_table.py), not by any Python import. It is invoked as a documentation directive at doc-generation time, so no module imports it -- it is an entry point for selfdoc, not dead code."
+
+[[known_non_entry]]
+path = "docs/_directives/disallowed_tools_table.py"
+reason = "selfdoc custom directive. Loaded by selfdoc via the 'directives' map in selfdoc.json (table-disallowed-tools -> docs/_directives/disallowed_tools_table.py), not by any Python import. It is invoked as a documentation directive at doc-build time, so no production module imports it -- it is an entry point for selfdoc, not dead code."
