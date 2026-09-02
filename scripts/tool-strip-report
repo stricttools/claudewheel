@@ -1,0 +1,268 @@
+#!/usr/bin/env python3
+"""Measure how many tools claudewheel's --disallowedTools strip removes.
+
+Answers "claudewheel reduces Claude Code's tool count from what to what?" with
+fresh numbers from the actually-installed ``claude`` binary, by launching two
+real interactive TUI sessions under a pty and capturing the first API request
+each one sends:
+
+- a baseline launch (no strip), exactly what a bare ``claude`` gets
+- a stripped launch with ``--disallowedTools`` built from the live
+  ``claudewheel.defaults.DISALLOWED_TOOLS`` list, exactly what a
+  claudewheel-launched session gets
+
+No real API call is ever made and nothing is billed: ``ANTHROPIC_BASE_URL``
+points both sessions at a throwaway local HTTP server that records the request
+body and answers 401. The request body's ``tools`` array is the authoritative
+tool set the model would have seen, so the report compares those two arrays:
+counts, the removed names, strip-list names that no longer exist in this
+Claude Code version (inert), and the request-size difference the strip saves.
+
+The sessions probe whatever profile ``CLAUDE_CONFIG_DIR`` names (or ~/.claude
+when unset) and must run from a directory that profile already trusts,
+otherwise the trust dialog eats a keystroke round. Known, accepted residue per
+run: the probed profile's .claude.json remembers the fake API key as approved
+(a hash entry, first run only), and each launch leaves a tiny session JSONL in
+the profile's project history.
+
+    scripts/tool-strip-report            # human-readable report
+    scripts/tool-strip-report --json     # machine-readable
+"""
+
+import argparse
+import json
+import os
+import pty
+import re
+import select
+import signal
+import socket
+import subprocess
+import sys
+import threading
+import time
+
+# Fixed so the API-key approval dialog appears once per profile ever; the
+# stored approval (a key hash in .claude.json) silences it on later runs.
+PROBE_KEY = "sk-ant-api03-claudewheel-tool-strip-probe"
+
+STARTUP_WAIT = 12.0  # seconds for the TUI to reach the input box or a dialog
+CAPTURE_WAIT = 60.0  # seconds to wait for the API request after typing
+
+
+def load_disallowed_tools() -> list[str]:
+    try:
+        from claudewheel.defaults import DISALLOWED_TOOLS
+    except ImportError:
+        sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        from claudewheel.defaults import DISALLOWED_TOOLS
+    return list(DISALLOWED_TOOLS)
+
+
+class CaptureServer:
+    """Local stand-in for the Anthropic API: record bodies, answer 401."""
+
+    def __init__(self) -> None:
+        self.bodies: list[bytes] = []
+        self._srv = socket.socket()
+        self._srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self._srv.bind(("127.0.0.1", 0))
+        self._srv.listen(16)
+        self.port = self._srv.getsockname()[1]
+        threading.Thread(target=self._serve, daemon=True).start()
+
+    def close(self) -> None:
+        self._srv.close()
+
+    def _serve(self) -> None:
+        while True:
+            try:
+                conn, _ = self._srv.accept()
+            except OSError:
+                return
+            threading.Thread(target=self._handle, args=(conn,), daemon=True).start()
+
+    def _handle(self, conn: socket.socket) -> None:
+        conn.settimeout(5)
+        data = b""
+        try:
+            while b"\r\n\r\n" not in data:
+                chunk = conn.recv(65536)
+                if not chunk:
+                    break
+                data += chunk
+            head, _, body = data.partition(b"\r\n\r\n")
+            m = re.search(rb"content-length:\s*(\d+)", head, re.I)
+            if m:
+                need = int(m.group(1))
+                while len(body) < need:
+                    chunk = conn.recv(65536)
+                    if not chunk:
+                        break
+                    body += chunk
+            resp = (
+                b'{"type":"error","error":'
+                b'{"type":"authentication_error","message":"tool-strip-report probe"}}'
+            )
+            conn.sendall(
+                b"HTTP/1.1 401 Unauthorized\r\n"
+                b"Content-Type: application/json\r\n"
+                b"Content-Length: " + str(len(resp)).encode() + b"\r\n"
+                b"Connection: close\r\n\r\n" + resp
+            )
+        except OSError:
+            pass
+        finally:
+            conn.close()
+        if b'"tools"' in body:
+            self.bodies.append(body)
+
+
+def probe_launch(
+    claude_bin: str, model: str, extra_argv: list[str], api_key: str
+) -> tuple[bytes, list[str]] | None:
+    """Launch one TUI session, return (request_body, tool_names) or None."""
+    server = CaptureServer()
+    env = dict(os.environ)
+    env["ANTHROPIC_BASE_URL"] = f"http://127.0.0.1:{server.port}"
+    env["ANTHROPIC_API_KEY"] = api_key
+    # A probe is not a child of the session it happens to run inside.
+    env.pop("CLAUDECODE", None)
+    env.pop("CLAUDE_CODE_CHILD_SESSION", None)
+
+    pid, fd = pty.fork()
+    if pid == 0:
+        os.execvpe(claude_bin, [claude_bin, "--model", model] + extra_argv, env)
+
+    def drain(seconds: float) -> None:
+        end = time.time() + seconds
+        while time.time() < end:
+            readable, _, _ = select.select([fd], [], [], 0.2)
+            if readable:
+                try:
+                    if not os.read(fd, 65536):
+                        return
+                except OSError:
+                    return
+
+    try:
+        drain(STARTUP_WAIT)
+        # Blind keystrokes that work with or without startup dialogs: "1\r"
+        # approves an option dialog (API-key approval) when one is up; with no
+        # dialog it submits "1" as the prompt, which triggers the request just
+        # as well. The final "hi\r" covers the every-dialog-consumed case.
+        for _ in range(2):
+            os.write(fd, b"1")
+            time.sleep(1.0)
+            os.write(fd, b"\r")
+            drain(3.0)
+        os.write(fd, b"hi")
+        time.sleep(1.0)
+        os.write(fd, b"\r")
+        end = time.time() + CAPTURE_WAIT
+        while time.time() < end and not server.bodies:
+            drain(1.0)
+    finally:
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except OSError:
+            pass
+        try:
+            os.waitpid(pid, 0)
+        except OSError:
+            pass
+        os.close(fd)
+        server.close()
+
+    if not server.bodies:
+        return None
+    body = server.bodies[0]
+    doc = json.loads(body.decode("utf-8", "replace"))
+    names = sorted(t["name"] for t in doc.get("tools", []))
+    return body, names
+
+
+def probe_with_retry(
+    claude_bin: str, model: str, extra_argv: list[str]
+) -> tuple[bytes, list[str]]:
+    result = probe_launch(claude_bin, model, extra_argv, PROBE_KEY)
+    if result is None:
+        # A stored rejection of PROBE_KEY silences the approval dialog and
+        # blocks the request; a nonce key makes the dialog reappear.
+        nonce_key = f"{PROBE_KEY}-{os.getpid()}-{int(time.time())}"
+        result = probe_launch(claude_bin, model, extra_argv, nonce_key)
+    if result is None:
+        sys.exit(
+            "error: no API request captured. Run from a directory the probed "
+            "profile trusts, and check that the claude binary launches at all."
+        )
+    return result
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Report Claude Code's tool count with and without "
+        "claudewheel's --disallowedTools strip."
+    )
+    parser.add_argument("--claude", default="claude", help="claude binary to probe")
+    parser.add_argument("--model", default="haiku", help="model flag for the probe sessions")
+    parser.add_argument("--json", action="store_true", help="machine-readable output")
+    args = parser.parse_args()
+
+    disallowed = load_disallowed_tools()
+    version = subprocess.run(
+        [args.claude, "--version"], capture_output=True, text=True, check=True
+    ).stdout.strip()
+
+    base_body, base_tools = probe_with_retry(args.claude, args.model, [])
+    strip_body, strip_tools = probe_with_retry(
+        args.claude, args.model, ["--disallowedTools"] + disallowed
+    )
+
+    removed = sorted(set(base_tools) - set(strip_tools))
+    inert = sorted(set(disallowed) - set(base_tools))
+    unexpected = sorted(set(removed) - set(disallowed))
+
+    if args.json:
+        print(
+            json.dumps(
+                {
+                    "claude_version": version,
+                    "config_dir": os.environ.get("CLAUDE_CONFIG_DIR", ""),
+                    "baseline_count": len(base_tools),
+                    "stripped_count": len(strip_tools),
+                    "baseline_tools": base_tools,
+                    "stripped_tools": strip_tools,
+                    "removed": removed,
+                    "inert_disallowed": inert,
+                    "unexpected_removed": unexpected,
+                    "baseline_request_bytes": len(base_body),
+                    "stripped_request_bytes": len(strip_body),
+                },
+                indent=2,
+            )
+        )
+        return
+
+    saved = len(base_body) - len(strip_body)
+    print(f"claude: {version}")
+    print(f"profile: {os.environ.get('CLAUDE_CONFIG_DIR', '~/.claude (default)')}")
+    print()
+    print(f"baseline (bare claude):        {len(base_tools)} tools")
+    print(f"stripped (claudewheel launch): {len(strip_tools)} tools")
+    print()
+    print(f"removed: {', '.join(removed)}")
+    print(f"kept:    {', '.join(strip_tools)}")
+    if inert:
+        print(f"inert (on strip list, not offered by this version): {', '.join(inert)}")
+    if unexpected:
+        print(f"WARNING removed but not on the strip list: {', '.join(unexpected)}")
+    print()
+    print(
+        f"first-request size: {len(base_body):,} -> {len(strip_body):,} bytes "
+        f"({saved:,} saved)"
+    )
+
+
+if __name__ == "__main__":
+    main()
