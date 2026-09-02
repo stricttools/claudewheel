@@ -1,6 +1,6 @@
 ---
 title: Guardrails
-description: "How claudewheel guardrails work: the 4 enforcement tiers, subagent-versus-main-agent handling, command-string caveats, and upgrading existing profiles."
+description: "How claudewheel guardrails work: the 4 enforcement tiers, subagent-versus-main-agent handling, command-string caveats, upgrading existing profiles, and the tools stripped from every session."
 nav_group: "Concepts"
 order: 5
 ---
@@ -92,3 +92,23 @@ completely a rule's `deny`/`ask` glob(s) track its hook surface as 1 of 3
 levels (FULL, PARTIAL, or NONE), or `n/a` for tiers with no settings backstop.
 
 :-: table-guardrails
+
+## Stripped tools
+
+Beyond hooks and permission rules, claudewheel removes a set of Claude Code's
+tools from every session it launches, via the `--disallowedTools` launch argv.
+The operating principle is that less is more: every exposed tool is an
+invitation for the agent to stray into it unnoticed during a long unattended
+run, and the fewer tools the harness exposes, the more intelligently the model
+calls the ones that remain.
+
+The table below is generated directly from the canonical model, so it always
+reflects the strip list shipped in this version.
+
+:-: table-disallowed-tools
+
+The list is a declaration, not a measurement: a name stays banned even while
+the installed Claude Code version happens not to offer that tool (such an
+entry is dormant insurance, not an error). For live numbers against the
+installed binary -- baseline versus stripped tool counts, and which entries
+are currently inert -- run `scripts/tool-strip-report`.
