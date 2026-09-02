@@ -3,7 +3,9 @@
 This module is the single source of truth for the fleet-wide command
 guardrails: which commands are hard-denied, which escalate to the user when a
 subagent tries them, which merely advise, and which prompt via settings. It
-carries everything later phases need:
+also owns ``DISALLOWED_TOOL_ENTRIES``, the stripped-tools list: every Claude
+Code tool removed from launched sessions, each with the reason it is banned.
+It carries everything later phases need:
 
   - Phase 2 (bash generation) reads ``hook_patterns`` plus the tier semantics
     and advice text to emit the PreToolUse/PostToolUse hook scripts.
