@@ -28,7 +28,7 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 - **claudewheel.clients** (`claudewheel/clients.py`): Client adapters: map resolved launch inputs to a client-specific argv.
 - **claudewheel.config** (`claudewheel/config.py`): The app-config store: the TUI's config/segments/options/state hub.
 - **claudewheel.constants** (`claudewheel/constants.py`): ANSI escape sequences and terminal color helpers.
-- **claudewheel.defaults** (`claudewheel/defaults.py`): Default values for config, segments, options, state, and themes; canonical permission rules and hook wiring are derived from the guardrail model.
+- **claudewheel.defaults** (`claudewheel/defaults.py`): Default values for config, segments, options, state, and themes; canonical permission rules, hook wiring, and the disallowed-tools list are derived from the guardrail model.
 - **claudewheel.deletion_checklist** (`claudewheel/deletion_checklist.py`): Present everything holding a profile, and stop exactly what the user ticks.
 - **claudewheel.discovery** (`claudewheel/discovery.py`): Detect installed web browsers across native, flatpak, and snap sources.
 - **claudewheel.effects** (`claudewheel/effects.py`): The single authorized surface for effectful calls in claudewheel production code.

@@ -2,7 +2,7 @@
   "schema_version": 1,
   "name": "claudewheel",
   "slug": "claudewheel",
-  "version": "0.26.0",
+  "version": "0.27.0",
   "description": "TUI launcher for Claude Code: pick a profile, model, directory, and permissions from a segment bar, then launch.",
   "language": "python",
   "base_url": "https://claudewheel.smmh.dev",
@@ -1499,6 +1499,11 @@
         },
         {
           "level": 3,
+          "text": "`DisallowedTool`",
+          "anchor": "disallowedtool"
+        },
+        {
+          "level": 3,
           "text": "`rules`",
           "anchor": "rules"
         },
@@ -1521,6 +1526,11 @@
           "level": 3,
           "text": "`all_settings_rules`",
           "anchor": "all_settings_rules"
+        },
+        {
+          "level": 3,
+          "text": "`disallowed_tool_names`",
+          "anchor": "disallowed_tool_names"
         },
         {
           "level": 3,
@@ -1759,6 +1769,11 @@
           "level": 3,
           "text": "`ImportResult`",
           "anchor": "importresult"
+        },
+        {
+          "level": 3,
+          "text": "`_skip_dangling`",
+          "anchor": "_skip_dangling"
         },
         {
           "level": 3,
@@ -5112,6 +5127,11 @@
           "level": 2,
           "text": "Rule reference",
           "anchor": "rule-reference"
+        },
+        {
+          "level": 2,
+          "text": "Stripped tools",
+          "anchor": "stripped-tools"
         }
       ]
     },
@@ -5565,6 +5585,6 @@
     }
   ],
   "posts": [],
-  "last_gen": "2026-08-17T13:17:45.502619+00:00",
+  "last_gen": "2026-09-02T14:08:45.677713+00:00",
   "theme": "minimal"
 }
