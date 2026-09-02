@@ -81,7 +81,7 @@ class DirectiveTests(unittest.TestCase):
 
     def test_resolve_renders_every_tool(self) -> None:
         module = _load_directive()
-        rendered = module.resolve({}, {}, None)
+        rendered = module.resolve({}, {}, [])
 
         self.assertFalse(
             rendered.startswith(_FAILURE_SENTINEL_PREFIX),
