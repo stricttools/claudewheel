@@ -1,3 +1,5 @@
+# strictspec document version gate (do not remove)
+format_version = 1
 # Version bump type: patch, minor, major, hotfix, or prerelease
 bump = "patch"
 # Short description of this release (required)
@@ -19,3 +21,7 @@ real workspace's config surface is immutable under every write path.
 # blog = false
 include = ["npm", "pypi"]
 exclude = []
+candidate_sha = "5568adb0026805a3afb98ede4ebde233658ebb95"
+
+[tree_hashes]
+"." = "bc7034506f85648f7355d749272b0dd4cfe961dc"

@@ -34,3 +34,7 @@ value.
 # blog = false
 include = ["npm", "pypi"]
 exclude = []
+candidate_sha = "de4b804d86a922c3a2c7ea4682a86fcb40201411"
+
+[tree_hashes]
+"." = "023eb2e3154dbb11071a299537c471eee00d3ecb"

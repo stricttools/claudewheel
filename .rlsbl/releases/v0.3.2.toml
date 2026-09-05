@@ -1,0 +1,21 @@
+# Materialized by `rlsbl release backfill`: this version shipped before
+# rlsbl archived a release file per version, so no archive existed.
+# Every reconstructed value names its source on the field below it. A
+# description is recovered from the first source that yields one: an
+# operator-reviewed --overrides file, then the version's GitHub Release
+# body, then its CHANGELOG.md section, then the commit subjects in its tag
+# range, and otherwise a placeholder naming the recovery obligation. bump
+# is derived by version arithmetic against the predecessor, and include
+# reflects the targets detected at backfill time (the historical target set
+# is not recoverable).
+# This archive's description came from: github-release:v0.3.2.
+# strictspec document version gate (do not remove)
+format_version = 1
+bump = "patch"
+include = ["npm", "pypi"]
+exclude = []
+description = "Auto-generated API docs deployed to Cloudflare Pages on each release"
+candidate_sha = "bef92c53e2e8a06d33f497eebb14619810fab9bd"
+
+[tree_hashes]
+"." = "55f59e44376b2df98abf52a8f6224d3547a2bcd5"

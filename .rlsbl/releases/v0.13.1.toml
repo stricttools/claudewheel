@@ -1,3 +1,5 @@
+# strictspec document version gate (do not remove)
+format_version = 1
 # Version bump type: patch, minor, or major
 bump = "patch"
 # Short description of this release (required)
@@ -6,3 +8,7 @@ description = "Instant TUI startup via async discovery, KeyboardInterrupt fix, S
 context = ""
 include = ["npm", "pypi"]
 exclude = []
+candidate_sha = "d91ebf84d9d47739984bba743637947706a6edbb"
+
+[tree_hashes]
+"." = "b5c5076ffa53b28f67c0610f8962e504ec7ebbd8"

@@ -1,0 +1,21 @@
+# Materialized by `rlsbl release backfill`: this version shipped before
+# rlsbl archived a release file per version, so no archive existed.
+# Every reconstructed value names its source on the field below it. A
+# description is recovered from the first source that yields one: an
+# operator-reviewed --overrides file, then the version's GitHub Release
+# body, then its CHANGELOG.md section, then the commit subjects in its tag
+# range, and otherwise a placeholder naming the recovery obligation. bump
+# is derived by version arithmetic against the predecessor, and include
+# reflects the targets detected at backfill time (the historical target set
+# is not recoverable).
+# This archive's description came from: github-release:v0.3.0.
+# strictspec document version gate (do not remove)
+format_version = 1
+bump = "minor"
+include = ["npm", "pypi"]
+exclude = []
+description = "Publish to PyPI: `pip install claudewheel` or `uv pip install claudewheel` now works alongside the existing npm distribution"
+candidate_sha = "b0621b4ff915f4a9eb8b834a4f616e93de40645e"
+
+[tree_hashes]
+"." = "bcfa386af6c62f1d3f04eebd453aae416acaa78c"

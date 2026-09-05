@@ -1,3 +1,5 @@
+# strictspec document version gate (do not remove)
+format_version = 1
 # Version bump type: patch, minor, or major
 bump = "minor"
 # Short description of this release (required)
@@ -6,3 +8,7 @@ description = "Proactive directory rename detection via inode tracking"
 context = ""
 include = ["npm", "pypi"]
 exclude = []
+candidate_sha = "6f024abd43f38edb6af2613891efe9435701d17a"
+
+[tree_hashes]
+"." = "0dad2f8136b7e5bd6e676a89cc49797adef5f892"

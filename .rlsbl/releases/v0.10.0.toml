@@ -1,3 +1,5 @@
+# strictspec document version gate (do not remove)
+format_version = 1
 # Version bump type: patch, minor, or major
 bump = "minor"
 # Short description of this release (required)
@@ -6,3 +8,7 @@ description = "New permission command group for managing profile permission rule
 context = ""
 include = ["npm", "pypi"]
 exclude = []
+candidate_sha = "99483695007392c2e3bdf37e633d98ce79fed7ba"
+
+[tree_hashes]
+"." = "38ee4a2958283e428049185c6eb9c1d536c05063"

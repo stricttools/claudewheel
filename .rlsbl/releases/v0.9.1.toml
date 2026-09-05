@@ -1,3 +1,5 @@
+# strictspec document version gate (do not remove)
+format_version = 1
 # Version bump type: patch, minor, or major
 bump = "patch"
 # Short description of this release (required)
@@ -6,3 +8,7 @@ description = "--cont interception, mv merge fix, cleaner dry-run UX"
 context = ""
 include = ["npm", "pypi"]
 exclude = []
+candidate_sha = "234df590e9e2ff4414ed91adadb2109e293869c5"
+
+[tree_hashes]
+"." = "d49f1ec5df59257d0f96d555cc22af49f92d5134"

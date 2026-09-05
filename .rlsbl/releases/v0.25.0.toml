@@ -27,3 +27,7 @@ developed against an unpublished dependency.
 # blog = false
 include = ["npm", "pypi"]
 exclude = []
+candidate_sha = "149d41ed45f8725b7a0d7716bda8e5bae2d16242"
+
+[tree_hashes]
+"." = "4b5ebcd9b6706a623d9289224f21ffb5f2fe4940"

@@ -31,3 +31,7 @@ where `permission list` now puts its machine output.
 # blog = false
 include = ["npm", "pypi"]
 exclude = []
+candidate_sha = "851719cc98e94243b2e067e4d5c5b4208135f73b"
+
+[tree_hashes]
+"." = "35314c18f73561e8bf37db9b4558140a0ad8d82f"

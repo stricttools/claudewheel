@@ -34,3 +34,7 @@ identical to declaring nothing at all.
 # blog = false
 include = ["npm", "pypi"]
 exclude = []
+candidate_sha = "e74ce7c6e23da2e557acd3908d2fec3890c235ad"
+
+[tree_hashes]
+"." = "5ccb29b1e4207fa2b87a2afa3668b3d3a1a5f445"

@@ -1,3 +1,5 @@
+# strictspec document version gate (do not remove)
+format_version = 1
 # Version bump type: patch, minor, major, hotfix, or prerelease
 bump = "minor"
 # Short description of this release (required)
@@ -16,3 +18,7 @@ Breaking: delete-profile now requires --force-delete-data (in addition to --forc
 # blog = false
 include = ["npm", "pypi"]
 exclude = []
+candidate_sha = "56582f20dc2faafebb3c1134a288707f2eca5750"
+
+[tree_hashes]
+"." = "49cbe8426ba91823fbd32ecb41afe24f7846029f"

@@ -1,3 +1,5 @@
+# strictspec document version gate (do not remove)
+format_version = 1
 # Version bump type: patch, minor, major, or hotfix
 bump = "patch"
 # Short description of this release (required)
@@ -18,3 +20,7 @@ and the text input has visible brackets. The Cancel button was removed (ESC suff
 # blog = false
 include = ["npm", "pypi"]
 exclude = []
+candidate_sha = "f1b02ff0c64955fbd536c27f5bbe51ab23e00103"
+
+[tree_hashes]
+"." = "d79e64e9ee7e84c94c0e8285d233c9ae250b0618"

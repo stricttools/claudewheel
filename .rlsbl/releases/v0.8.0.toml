@@ -1,3 +1,5 @@
+# strictspec document version gate (do not remove)
+format_version = 1
 # Version bump type: patch, minor, or major
 bump = "minor"
 # Short description of this release (required)
@@ -6,3 +8,7 @@ description = "Rename gc command to stats"
 context = "The gc command only reports shared-store statistics now (sentinel cleanup and origins compaction were removed in v0.7.0). Renamed to reflect its actual purpose."
 include = ["npm", "pypi"]
 exclude = []
+candidate_sha = "d791ad2f7a3bb62b0710483992b197bd03dc8518"
+
+[tree_hashes]
+"." = "11b4c552a77bbaab8446605d814fae0239879115"

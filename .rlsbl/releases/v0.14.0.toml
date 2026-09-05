@@ -1,3 +1,5 @@
+# strictspec document version gate (do not remove)
+format_version = 1
 # Version bump type: patch, minor, or major
 bump = "minor"
 # Short description of this release (required)
@@ -8,3 +10,7 @@ context = "The new `claudewheel import` command enables importing Claude Code se
 # blog = false
 include = ["npm", "pypi"]
 exclude = []
+candidate_sha = "6baa8abc67aa1ca80f8c4a842d9888ec81960211"
+
+[tree_hashes]
+"." = "0ca5d7f1220bbf83cb04a93f8b9002a38b35fa52"

@@ -38,3 +38,7 @@ refused.
 # blog = false
 include = ["npm", "pypi"]
 exclude = []
+candidate_sha = "637129fa136e5c3158abde500a5f14b6b176dda5"
+
+[tree_hashes]
+"." = "c94f1db979304ff28a0950b59b02f0b4b5272b6a"

@@ -1,3 +1,5 @@
+# strictspec document version gate (do not remove)
+format_version = 1
 # Version bump type: patch, minor, or major
 bump = "minor"
 # Short description of this release (required)
@@ -6,3 +8,7 @@ description = "Fable 5 model support, model auto-sync, full orphan scan for --co
 context = ""
 include = ["npm", "pypi"]
 exclude = []
+candidate_sha = "e60374c20d5b8ab85086d7a3f4532cd880b66d4b"
+
+[tree_hashes]
+"." = "f22085e71aade45b9bbb0ebaa17c89fcb19fa5eb"

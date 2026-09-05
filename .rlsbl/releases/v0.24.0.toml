@@ -21,3 +21,7 @@ Breaking: patch-profiles and reconcile-permissions prune to exactly the canonica
 # blog = false
 include = ["npm", "pypi"]
 exclude = []
+candidate_sha = "3a10b32d69e30d102bf819937d02f1bf14747aa2"
+
+[tree_hashes]
+"." = "25c0ace7dd8bd555c04c721dd1a572752fc3319c"

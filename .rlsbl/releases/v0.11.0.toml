@@ -1,3 +1,5 @@
+# strictspec document version gate (do not remove)
+format_version = 1
 # Version bump type: patch, minor, or major
 bump = "minor"
 # Short description of this release (required)
@@ -6,3 +8,7 @@ description = "mv now renames directories by default, --post-hoc for session-onl
 context = ""
 include = ["npm", "pypi"]
 exclude = []
+candidate_sha = "8c26d6f9b48cd1c7e872e51430b3959a3ab29b05"
+
+[tree_hashes]
+"." = "20e1697fd1844479e5c8361cf87e517edef71857"

@@ -1,3 +1,5 @@
+# strictspec document version gate (do not remove)
+format_version = 1
 # Version bump type: patch, minor, or major
 bump = "minor"
 # Short description of this release (required)
@@ -12,3 +14,7 @@ Claude Code's internal encoding -- this fixes mv operations on dotfile paths.
 """
 include = ["npm", "pypi"]
 exclude = []
+candidate_sha = "ea4ba8539445367da915c1e2a68efb5081f357c6"
+
+[tree_hashes]
+"." = "12c7d2ff7a4db64e3fe2e1141c6a14b720cf8617"

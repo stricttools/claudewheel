@@ -1,3 +1,5 @@
+# strictspec document version gate (do not remove)
+format_version = 1
 # Version bump type: patch, minor, or major
 bump = "minor"
 # Short description of this release (required)
@@ -6,3 +8,7 @@ description = "Remove profile attribution system, add --picker flag, unify share
 context = "The profile attribution system (hook-stamp-origin, xattr stamping, sentinels, origins log) had unfixable race conditions and 30% of session files could never be attributed. Removed entirely rather than patching. Also adds --picker for argless session resume and unifies shared settings with drift detection."
 include = ["npm", "pypi"]
 exclude = []
+candidate_sha = "93e74f9628ac8d6897becce3b01199bc5ebad864"
+
+[tree_hashes]
+"." = "66082342457d27d084ae753f9b4167d4022c8ee6"

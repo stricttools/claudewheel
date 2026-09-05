@@ -1,3 +1,5 @@
+# strictspec document version gate (do not remove)
+format_version = 1
 # Version bump type: patch, minor, or major
 bump = "patch"
 # Short description of this release (required)
@@ -6,3 +8,7 @@ description = "CI workflow improvements: idempotent publish steps for npm and Py
 context = "Scaffold update added skip-if-already-published checks to both npm and PyPI publish workflows, making CI re-runs safe. Also added separate CI check workflows."
 include = ["npm", "pypi"]
 exclude = []
+candidate_sha = "fdaacc202087b2c69a8564fa74c2fe1f53a1f55f"
+
+[tree_hashes]
+"." = "f8779f44daad32bc972ff9818e0003d508a75ab6"

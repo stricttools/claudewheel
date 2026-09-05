@@ -1,3 +1,5 @@
+# strictspec document version gate (do not remove)
+format_version = 1
 # Version bump type: patch, minor, or major
 bump = "minor"
 # Short description of this release (required)
@@ -10,3 +12,7 @@ Strictcli v0.16.0 added a guardrail requiring `unique=True` or `unique=False` on
 """
 include = ["npm", "pypi"]
 exclude = []
+candidate_sha = "f9603e8f24004a113a7ba8369c14c53a03bdef77"
+
+[tree_hashes]
+"." = "fd6da8a4c5f3b6374c597832309299f70f46c4ca"

@@ -1,3 +1,5 @@
+# strictspec document version gate (do not remove)
+format_version = 1
 # Version bump type: patch, minor, or major
 bump = "minor"
 # Short description of this release (required)
@@ -29,3 +31,7 @@ A provenance overlay (toggle with ?) shows where each option came from.
 # blog = false
 include = ["npm", "pypi"]
 exclude = []
+candidate_sha = "9ea2d47e901e494dd99a8030c8f4a50d8f9a9d70"
+
+[tree_hashes]
+"." = "77729f1b415212655af4b507498ebd1c057d11ee"

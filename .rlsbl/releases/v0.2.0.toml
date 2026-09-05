@@ -1,0 +1,21 @@
+# Materialized by `rlsbl release backfill`: this version shipped before
+# rlsbl archived a release file per version, so no archive existed.
+# Every reconstructed value names its source on the field below it. A
+# description is recovered from the first source that yields one: an
+# operator-reviewed --overrides file, then the version's GitHub Release
+# body, then its CHANGELOG.md section, then the commit subjects in its tag
+# range, and otherwise a placeholder naming the recovery obligation. bump
+# is derived by version arithmetic against the predecessor, and include
+# reflects the targets detected at backfill time (the historical target set
+# is not recoverable).
+# This archive's description came from: github-release:v0.2.0.
+# strictspec document version gate (do not remove)
+format_version = 1
+bump = "minor"
+include = ["npm", "pypi"]
+exclude = []
+description = "Enforce disallowedTools across all profiles: 19 Claude Code tools disabled via settings.json (plan mode, worktree, task tracking, cron, notebook, push notifications, remote triggers, LSP, skill auto-invoke)"
+candidate_sha = "8326a350c6dcd3de2aab726b31dddb0b454a42e0"
+
+[tree_hashes]
+"." = "ba9d4f6d3177efa26b15bc52e183c0a9bcf744ff"

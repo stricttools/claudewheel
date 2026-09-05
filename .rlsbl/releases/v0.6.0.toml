@@ -1,3 +1,5 @@
+# strictspec document version gate (do not remove)
+format_version = 1
 # Version bump type: patch, minor, or major
 bump = "minor"
 # Short description of this release (required)
@@ -13,3 +15,7 @@ Documentation website at claudewheel.smmh.dev with auto-generated API/CLI refere
 """
 include = ["npm", "pypi"]
 exclude = []
+candidate_sha = "d82d22a435060a6813ddf5019505310a1772a152"
+
+[tree_hashes]
+"." = "be97d59c75b653562e718e649d5431e6cdffb94e"
