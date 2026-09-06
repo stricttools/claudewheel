@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from .archiver import Saferm, Unavailable
     from .binaries import BinaryLocator
     from .config import AppConfigStore
+    from .mv import MvResult
     from .workspace import Workspace
 
 # Passthrough args after "--" are stashed here by main() before strictcli sees argv.
@@ -1449,6 +1450,27 @@ def _resolve_resume_title(ws: "Workspace", resume_val: str, directory: str) -> s
     sys.exit(1)
 
 
+def _run_mv_for_launch(
+    ws: "Workspace", old_cwd: str, current_dir: str, dry_run: bool
+) -> "MvResult":
+    """Run the session migration from a launch interception, aborting on failure.
+
+    The interception mutates the shared store in the middle of a launch, so a
+    failure part way through must not escape as a traceback on top of a
+    partial mutation.  Failures are reported exactly the way ``_handle_mv``
+    reports the same errors: ``Error: <e>`` on stderr, exit 1.
+    """
+    from .mv import run_mv
+
+    try:
+        return run_mv(
+            ws, old_cwd, current_dir, dry_run=dry_run, quiet=True, post_hoc=True
+        )
+    except (ValueError, FileNotFoundError, FileExistsError, OSError) as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
 def _check_resume_session(ws: "Workspace", session_id: str, directory: str) -> None:
     """Intercept --resume to detect and offer to fix directory renames.
 
@@ -1524,9 +1546,7 @@ def _check_resume_session(ws: "Workspace", session_id: str, directory: str) -> N
         sys.exit(1)
 
     # Step 5: Dry-run first (quiet -- no per-file log spam)
-    from .mv import run_mv
-
-    result = run_mv(ws, old_cwd, current_dir, dry_run=True, quiet=True, post_hoc=True)
+    result = _run_mv_for_launch(ws, old_cwd, current_dir, dry_run=True)
     print(
         f"\nWill move {result.files_rewritten} session files, "
         f"rewrite {result.lines_replaced} path references, "
@@ -1546,7 +1566,7 @@ def _check_resume_session(ws: "Workspace", session_id: str, directory: str) -> N
         sys.exit(1)
 
     # Step 6: Execute for real
-    result = run_mv(ws, old_cwd, current_dir, dry_run=False, quiet=True, post_hoc=True)
+    result = _run_mv_for_launch(ws, old_cwd, current_dir, dry_run=False)
     print("Done. Resuming session...")
 
 
@@ -1630,9 +1650,7 @@ def _check_cont_session(ws: "Workspace", directory: str) -> None:
         old_cwd = candidates[idx].cwd
 
     # Two-prompt flow: dry run, then confirm and execute
-    from .mv import run_mv
-
-    result = run_mv(ws, old_cwd, current_dir, dry_run=True, quiet=True, post_hoc=True)
+    result = _run_mv_for_launch(ws, old_cwd, current_dir, dry_run=True)
     print(
         f"\nWill move {result.files_rewritten} session files, "
         f"rewrite {result.lines_replaced} path references, "
@@ -1650,7 +1668,7 @@ def _check_cont_session(ws: "Workspace", directory: str) -> None:
     if not answer.strip().lower().startswith("y"):
         return
 
-    result = run_mv(ws, old_cwd, current_dir, dry_run=False, quiet=True, post_hoc=True)
+    result = _run_mv_for_launch(ws, old_cwd, current_dir, dry_run=False)
     print("Done. Resuming session...")
 
 

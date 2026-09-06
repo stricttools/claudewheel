@@ -1311,6 +1311,49 @@ class CheckResumeSessionTests(unittest.TestCase):
         call2_args, call2_kwargs = mock_mv.call_args_list[1]
         self.assertFalse(call2_kwargs.get("dry_run", False))
 
+    # -- 5.1b2: Migration fails mid-flight -> reported, launch aborted --
+
+    def test_resume_migration_failure_aborts_instead_of_raising(self) -> None:
+        """An OSError from run_mv is reported as 'Error: ...' and exits 1."""
+        from claudewheel.session import SessionInfo
+
+        session_id = "abc-123-def"
+        current_dir = os.path.abspath("/home/user/new-project")
+        old_cwd = "/home/user/old-project"
+
+        info = SessionInfo(
+            session_id=session_id,
+            jsonl_path=Path("/fake/path/abc-123-def.jsonl"),
+            encoded_cwd="encoded-old",
+            cwd=old_cwd,
+        )
+
+        dry_result = mock.MagicMock()
+        dry_result.files_rewritten = 2
+        dry_result.lines_replaced = 5
+        dry_result.project_keys_updated = 1
+
+        err = io.StringIO()
+        with (
+            mock.patch(
+                "claudewheel.session.find_session", autospec=True, return_value=info
+            ),
+            mock.patch(
+                "claudewheel.mv.run_mv",
+                autospec=True,
+                side_effect=[dry_result, OSError("disk went away")],
+            ),
+            mock.patch("builtins.input", autospec=True, side_effect=["y", "y"]),
+            mock.patch("os.path.isdir", autospec=True, return_value=False),
+            redirect_stdout(io.StringIO()),
+            redirect_stderr(err),
+        ):
+            with self.assertRaises(SystemExit) as ctx:
+                cli._check_resume_session(self.ws, session_id, current_dir)
+            self.assertEqual(ctx.exception.code, 1)
+
+        self.assertIn("Error: disk went away", err.getvalue())
+
     # -- 5.1c: User declines first prompt --
 
     def test_resume_session_found_elsewhere_user_declines_first_prompt(self) -> None:
@@ -1612,6 +1655,48 @@ class CheckContSessionTests(unittest.TestCase):
         # Second call: dry_run=False
         _, kwargs2 = mock_mv.call_args_list[1]
         self.assertFalse(kwargs2.get("dry_run", False))
+
+    # -- No sessions, one candidate, migration fails mid-flight --
+
+    def test_cont_migration_failure_aborts_instead_of_raising(self) -> None:
+        """An OSError from run_mv is reported as 'Error: ...' and exits 1."""
+        from claudewheel.session import OrphanedProject
+
+        current_dir = os.path.abspath("/home/user/new-project")
+        orphan = OrphanedProject(
+            encoded_cwd="-home-user-old-project",
+            cwd="/home/user/old-project",
+            session_count=3,
+            total_size_bytes=1024,
+            projects_dir=self.shared_dir / "projects" / "-home-user-old-project",
+        )
+
+        dry_result = mock.MagicMock()
+        dry_result.files_rewritten = 3
+        dry_result.lines_replaced = 7
+        dry_result.project_keys_updated = 1
+
+        err = io.StringIO()
+        with (
+            mock.patch(
+                "claudewheel.session.find_orphaned_project_dirs",
+                autospec=True,
+                return_value=[orphan],
+            ),
+            mock.patch(
+                "claudewheel.mv.run_mv",
+                autospec=True,
+                side_effect=[dry_result, OSError("disk went away")],
+            ),
+            mock.patch("builtins.input", autospec=True, side_effect=["y", "y"]),
+            redirect_stdout(io.StringIO()),
+            redirect_stderr(err),
+        ):
+            with self.assertRaises(SystemExit) as ctx:
+                cli._check_cont_session(self.ws, current_dir)
+            self.assertEqual(ctx.exception.code, 1)
+
+        self.assertIn("Error: disk went away", err.getvalue())
 
     # -- No sessions, one candidate, user declines --
 
