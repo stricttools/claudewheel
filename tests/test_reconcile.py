@@ -426,7 +426,9 @@ class MalformedNestedContainerTests(_ReconcileTestCase):
         self.assertEqual(
             set(settings["permissions"]["deny"]), set(canonical_deny_rules())
         )
-        self.assertEqual(set(settings["permissions"]["ask"]), set(canonical_ask_rules()))
+        self.assertEqual(
+            set(settings["permissions"]["ask"]), set(canonical_ask_rules())
+        )
 
     # -- workspace level: the whole pass survives and repairs --------------
 
