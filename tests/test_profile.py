@@ -25,13 +25,17 @@ from __future__ import annotations
 
 import os
 import unittest
+from pathlib import Path
 from typing import Any
 
 from claudewheel.profile import resolve_profile
 from claudewheel.tokens import TokenStoreError
+from claudewheel.workspace import Workspace
 from tests.wheelhelpers import (
     SandboxHomeTestCase,
+    build_profile_dir,
     set_tree_mode as _set_tree_mode,
+    write_token_entry,
 )
 
 
@@ -106,6 +110,74 @@ class ResolveProfileTests(SandboxHomeTestCase):
 
         self.assertEqual(result["CLAUDE_CONFIG_DIR"], str(pdir))
         self.assertEqual(result["CLAUDE_CODE_OAUTH_TOKEN"], "tok_ro")
+
+    def test_explicit_none_workspace_uses_default(self) -> None:
+        """workspace=None is exactly the omitted argument: the default workspace."""
+        pdir = self.make_profile("work")
+        self._write_token("work", {"token": "tok_none"})
+
+        result = resolve_profile("work", workspace=None)
+
+        self.assertEqual(result, resolve_profile("work"))
+        self.assertEqual(result["CLAUDE_CONFIG_DIR"], str(pdir))
+        self.assertEqual(result["CLAUDE_CODE_OAUTH_TOKEN"], "tok_none")
+
+
+class ResolveProfileInjectedWorkspaceTests(SandboxHomeTestCase):
+    """Resolution against a workspace the caller injected.
+
+    CLAUDEWHEEL_CONFIG_DIR is deliberately UNSET in these tests: the injected
+    workspace is the only thing pointing resolution at the alternate root, so a
+    resolution that reached for the env var (or for Workspace.default()) would
+    look in the sandbox's own ~/.claudewheel instead and find nothing.
+    """
+
+    def setUp(self) -> None:
+        super().setUp()
+        self._orig_cw = os.environ.pop("CLAUDEWHEEL_CONFIG_DIR", None)
+        self.addCleanup(self._restore_cw)
+
+        self.alt_root = self.home / "alt-workspace"
+        (self.alt_root / "profiles").mkdir(parents=True)
+        self.alt_workspace = Workspace.open(self.alt_root)
+
+    def _restore_cw(self) -> None:
+        if self._orig_cw is not None:
+            os.environ["CLAUDEWHEEL_CONFIG_DIR"] = self._orig_cw
+
+    def _make_alt_profile(self, name: str) -> Path:
+        return build_profile_dir(
+            self.alt_root / "profiles",
+            name,
+            parents=True,
+            exist_ok=True,
+            credentials=True,
+        )
+
+    def test_injected_workspace_resolves_against_its_root(self) -> None:
+        """The env points into the injected root, with no env var consulted."""
+        pdir = self._make_alt_profile("work")
+        write_token_entry(pdir, {"token": "tok_injected"})
+        self.assertNotIn("CLAUDEWHEEL_CONFIG_DIR", os.environ)
+
+        result = resolve_profile("work", workspace=self.alt_workspace)
+
+        self.assertEqual(result["CLAUDE_CONFIG_DIR"], str(pdir))
+        self.assertEqual(result["CLAUDE_CODE_OAUTH_TOKEN"], "tok_injected")
+        # The default workspace (the sandbox's own ~/.claudewheel) does not
+        # carry this profile at all, so the injection is what answered.
+        with self.assertRaises(ValueError):
+            resolve_profile("work")
+
+    def test_injected_workspace_missing_profile_raises(self) -> None:
+        """An unknown name errors as on the default path: ValueError listing names."""
+        self._make_alt_profile("work")
+
+        with self.assertRaises(ValueError) as ctx:
+            resolve_profile("nonexistent", workspace=self.alt_workspace)
+
+        self.assertIn("nonexistent", str(ctx.exception))
+        self.assertIn("work", str(ctx.exception))
 
 
 if __name__ == "__main__":

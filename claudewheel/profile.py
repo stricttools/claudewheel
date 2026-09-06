@@ -7,7 +7,9 @@ Claude Code needs at launch.
 
 - **Workspace root**: the ``CLAUDEWHEEL_CONFIG_DIR`` environment variable when
   set (expanduser'd), otherwise ``~/.claudewheel``. The root is the only knob;
-  everything else is derived from it.
+  everything else is derived from it. A caller that owns its own workspace
+  passes it as the ``workspace`` keyword argument instead, and no environment
+  variable is consulted.
 - **Profile locations are derived from directories**, never persisted: the set
   of profiles is the ``profiles/`` directory scan plus the built-in ``~/.claude``
   default. No ``options.json`` metadata is consulted.
@@ -16,7 +18,7 @@ Claude Code needs at launch.
 
 All resolution work lives in
 :meth:`claudewheel.profile_store.ProfileStore.env`; this module only picks the
-default workspace and delegates.
+workspace -- the default one, or the one the caller injected -- and delegates.
 """
 
 from __future__ import annotations
@@ -24,7 +26,7 @@ from __future__ import annotations
 from .workspace import Workspace
 
 
-def resolve_profile(name: str) -> dict[str, str]:
+def resolve_profile(name: str, *, workspace: Workspace | None = None) -> dict[str, str]:
     """Resolve a profile *name* to its launch environment variables.
 
     For a named profile the result carries ``CLAUDE_CONFIG_DIR`` and
@@ -52,5 +54,12 @@ def resolve_profile(name: str) -> dict[str, str]:
       otherwise ``~/.claudewheel``.
     - Zero filesystem writes, zero terminal I/O -- safe for read-only mounts
       and headless servers.
+
+    *workspace* is the injection seam for library consumers and their test
+    isolation: pass a :class:`~claudewheel.workspace.Workspace` (built with
+    :meth:`Workspace.open`) and resolution happens against that root, reading
+    no environment variable at all. Passing ``None`` -- or omitting the
+    argument -- keeps the default behavior described above.
     """
-    return Workspace.default().profiles.env(name)
+    ws = Workspace.default() if workspace is None else workspace
+    return ws.profiles.env(name)
