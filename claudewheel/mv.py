@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 from . import effects
 from .effects import write_json_atomic, write_text_atomic
@@ -133,7 +133,7 @@ def _decode_rel(root: Path, enc: str) -> list[str]:
     return matches
 
 
-def _read_claude_json(path: Path) -> dict:
+def _read_claude_json(path: Path) -> dict[str, Any]:
     """Read one profile's .claude.json, hard-erroring when it cannot be read.
 
     Swallowing an unreadable registry is not an option here: during discovery
@@ -148,7 +148,7 @@ def _read_claude_json(path: Path) -> dict:
     except OSError as e:
         raise OSError(f"cannot read {path}: {e}") from e
     try:
-        return json.loads(text)
+        return cast("dict[str, Any]", json.loads(text))
     except json.JSONDecodeError as e:
         raise ValueError(f"cannot parse {path}: {e}") from e
 
