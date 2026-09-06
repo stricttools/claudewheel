@@ -450,7 +450,12 @@ ALLOW_CONFLICTS: tuple[str, ...] = (
     "Bash(sudo -S dnf install -y chromium)",
     "Bash(sudo adb start-server:*)",
     "Bash(sudo -n iptables -L INPUT -n)",
-    'Bash(sudo -n ufw status || echo "(need sudo for ufw)")',
+    # The stored entry carries a literal backslash before each paren; the
+    # constant must match it byte-for-byte or exact-membership pruning misses it.
+    r'Bash(sudo -n ufw status || echo "\(need sudo for ufw\)")',
+    # Skill is stripped unconditionally via --disallowedTools, so an allow entry
+    # for it can never fire.
+    "Skill(gsd:discuss-phase)",
 )
 
 

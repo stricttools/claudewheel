@@ -326,7 +326,10 @@ class DerivedDataTests(unittest.TestCase):
             "Bash(sudo -S dnf install -y chromium)",
             "Bash(sudo adb start-server:*)",
             "Bash(sudo -n iptables -L INPUT -n)",
-            'Bash(sudo -n ufw status || echo "(need sudo for ufw)")',
+            # Literal backslashes before the parens, exactly as stored in the
+            # live profiles' allow arrays.
+            r'Bash(sudo -n ufw status || echo "\(need sudo for ufw\)")',
+            "Skill(gsd:discuss-phase)",
         )
         self.assertEqual(ALLOW_CONFLICTS, expected)
 
