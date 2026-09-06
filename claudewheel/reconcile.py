@@ -108,18 +108,35 @@ def _reconcile_list(
     return to_add, to_remove
 
 
+def _dict_at(container: dict[str, Any], key: str) -> dict[str, Any]:
+    """Return ``container[key]`` as a dict, coercing anything else to ``{}``.
+
+    ``setdefault`` is unsafe on a hand-edited settings file: a key present with
+    a non-dict value (``"profileDefaults": null``, a list, a string) is handed
+    straight back, and the caller's ``.get``/``.setdefault`` on it raises
+    ``AttributeError``. This is the one rule for every nested guardrail
+    container: a missing key is created empty, a present-but-non-dict value is
+    REPLACED with an empty dict, and an existing dict is returned as is.
+    """
+    value = container.get(key)
+    if not isinstance(value, dict):
+        value = {}
+        container[key] = value
+    return value
+
+
 def compute_settings_diff(container: dict[str, Any]) -> PermissionDiff:
     """Compute the reconciliation diff for a dict holding a ``permissions`` block.
 
     *container* is either a profile ``settings.json`` dict or a
     ``profileDefaults`` dict -- both nest their arrays under ``permissions``.
-    A missing ``permissions`` block (or missing arrays) is treated as empty.
-    The ``allow`` array is only inspected when present; nothing is ever added to
-    allow.
+    A missing ``permissions`` block (or missing arrays) is treated as empty, and
+    a present-but-non-dict ``permissions`` value is replaced with an empty dict
+    (see :func:`_dict_at`) so the apply step has a well-formed block to write
+    into. The ``allow`` array is only inspected when present; nothing is ever
+    added to allow.
     """
-    perms = container.get("permissions")
-    if not isinstance(perms, dict):
-        perms = {}
+    perms = _dict_at(container, "permissions")
 
     deny_raw = perms.get("deny")
     deny_current: list[str] = deny_raw if isinstance(deny_raw, list) else []
@@ -207,7 +224,7 @@ def _reconcile_profile_disallowed(settings: dict[str, Any]) -> list[str]:
     it -- profiles carry the list under the ``claudewheel`` namespace).
     """
     changes: list[str] = []
-    cw = settings.setdefault("claudewheel", {})
+    cw = _dict_at(settings, "claudewheel")
     if cw.get("disallowedTools") != list(DISALLOWED_TOOLS):
         cw["disallowedTools"] = list(DISALLOWED_TOOLS)
         changes.append("disallowedTools -> canonical")
@@ -253,7 +270,7 @@ def reconcile_shared_dict(
     changes: list[str] = []
     changes += _reconcile_hooks(shared, canonical["hooks"])
     changes += _reconcile_shared_disallowed(shared)
-    pd = shared.setdefault("profileDefaults", {})
+    pd = _dict_at(shared, "profileDefaults")
     changes += [f"profileDefaults {c}" for c in _reconcile_permissions(pd)]
     return changes
 

@@ -21,6 +21,8 @@ from claudewheel.guardrail import (
 from claudewheel.reconcile import (
     apply_settings_diff,
     compute_settings_diff,
+    reconcile_profile_dict,
+    reconcile_shared_dict,
     run_reconcile,
 )
 from tests.wheelhelpers import build_profile_dir
@@ -364,6 +366,111 @@ class RunReconcileTests(_ReconcileTestCase):
         self.assertIn("shared-settings.json: no settings.json", out)
         # No profile targets were processed (no "<name>: reconciled" line).
         self.assertNotIn(": reconciled", out)
+
+
+# ---------------------------------------------------------------------------
+# Malformed nested containers (a JSON null / list where an object belongs)
+# ---------------------------------------------------------------------------
+
+
+class MalformedNestedContainerTests(_ReconcileTestCase):
+    """A non-dict value under a guardrail key must not abort reconciliation.
+
+    ``"profileDefaults": null``, ``"claudewheel": null`` and a non-dict
+    ``permissions`` are all writable by hand into a settings file. Reading them
+    back with ``setdefault`` returned the non-dict value and the following
+    ``.get`` raised ``AttributeError`` -- which the launch-time preflight
+    swallowed (silently skipping every remaining target) and which crashed
+    ``patch-profiles`` with a raw traceback. Each is now replaced with an empty
+    dict and reconciled normally.
+    """
+
+    def write_shared_raw(self, shared: dict[str, Any]) -> None:
+        self.shared_settings.write_text(json.dumps(shared, indent=2) + "\n")
+
+    # -- unit level: the reconcile functions on a bare dict ----------------
+
+    def test_null_profiledefaults_reconciles_instead_of_raising(self) -> None:
+        shared: dict[str, Any] = {"profileDefaults": None}
+        canonical = build_canonical_shared_settings(self.ws.scripts_dir)
+        changes = reconcile_shared_dict(shared, canonical)
+        self.assertTrue(changes)
+        self.assertIsInstance(shared["profileDefaults"], dict)
+        self.assertEqual(
+            set(shared["profileDefaults"]["permissions"]["deny"]),
+            set(canonical_deny_rules()),
+        )
+
+    def test_list_profiledefaults_reconciles_instead_of_raising(self) -> None:
+        shared: dict[str, Any] = {"profileDefaults": ["nonsense"]}
+        canonical = build_canonical_shared_settings(self.ws.scripts_dir)
+        reconcile_shared_dict(shared, canonical)
+        self.assertEqual(
+            set(shared["profileDefaults"]["permissions"]["ask"]),
+            set(canonical_ask_rules()),
+        )
+
+    def test_null_claudewheel_reconciles_instead_of_raising(self) -> None:
+        settings: dict[str, Any] = {"claudewheel": None}
+        canonical = build_canonical_shared_settings(self.ws.scripts_dir)
+        changes = reconcile_profile_dict(settings, canonical)
+        self.assertTrue(changes)
+        self.assertEqual(
+            settings["claudewheel"]["disallowedTools"], list(DISALLOWED_TOOLS)
+        )
+
+    def test_null_permissions_reconciles_instead_of_raising(self) -> None:
+        settings: dict[str, Any] = {"permissions": None}
+        canonical = build_canonical_shared_settings(self.ws.scripts_dir)
+        reconcile_profile_dict(settings, canonical)
+        self.assertEqual(
+            set(settings["permissions"]["deny"]), set(canonical_deny_rules())
+        )
+        self.assertEqual(set(settings["permissions"]["ask"]), set(canonical_ask_rules()))
+
+    # -- workspace level: the whole pass survives and repairs --------------
+
+    def test_workspace_pass_repairs_malformed_profile_and_shared(self) -> None:
+        self.make_profile("work", {"claudewheel": None, "permissions": None})
+        self.write_shared_raw({"profileDefaults": None})
+
+        out = self._run(dry_run=False)
+
+        self.assertIn("work: reconciled", out)
+        self.assertIn("shared-settings.json: reconciled", out)
+        s = self.read_settings("work")
+        self.assertEqual(s["claudewheel"]["disallowedTools"], list(DISALLOWED_TOOLS))
+        self.assertEqual(set(s["permissions"]["deny"]), set(canonical_deny_rules()))
+        pd = json.loads(self.shared_settings.read_text())["profileDefaults"]
+        self.assertEqual(set(pd["permissions"]["deny"]), set(canonical_deny_rules()))
+
+    def test_malformed_profile_does_not_skip_the_remaining_targets(self) -> None:
+        """The pass must not abort at the first malformed profile.
+
+        Profiles are processed in discovery order, so a raising ``aaa`` used to
+        take ``zzz`` and shared-settings down with it.
+        """
+        self.make_profile("aaa", {"claudewheel": None})
+        self.make_profile("zzz", self.drifted_settings())
+        self.write_shared_raw({"profileDefaults": {}})
+
+        out = self._run(dry_run=False)
+
+        self.assertIn("aaa: reconciled", out)
+        self.assertIn("zzz: reconciled", out)
+        self.assertIn("shared-settings.json: reconciled", out)
+        z = self.read_settings("zzz")
+        self.assertEqual(set(z["permissions"]["deny"]), set(canonical_deny_rules()))
+
+    def test_repaired_file_is_canonical_on_the_second_pass(self) -> None:
+        self.make_profile("work", {"claudewheel": None, "permissions": None})
+        self.write_shared_raw({"profileDefaults": None})
+        self._run(dry_run=False)
+
+        out = self._run(dry_run=False)
+
+        self.assertIn("work: already canonical, no changes", out)
+        self.assertIn("shared-settings.json: already canonical, no changes", out)
 
 
 # ---------------------------------------------------------------------------
