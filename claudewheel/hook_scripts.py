@@ -37,8 +37,12 @@ tool_name=$(printf '%s' "$input" | jq -r '.tool_name // empty' 2>/dev/null)
 isolation=$(printf '%s' "$input" | jq -r '.tool_input.isolation // empty' 2>/dev/null)
 [[ "$isolation" != "worktree" ]] && exit 0
 
-# Block the worktree-isolated Agent call
-printf '%s' '{"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny", "permissionDecisionReason": "Worktree isolation is blocked by policy."}}'
+# Block the worktree-isolated Agent call.
+# Build the JSON with jq so the reason string is escaped correctly.
+# Hand-interpolating the reason into JSON breaks when the message contains
+# quotes, producing unparseable output that Claude Code silently discards.
+reason="Worktree isolation is blocked by policy."
+jq -cn --arg reason "$reason" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: $reason}}'
 exit 0
 """,
     # Generated from the canonical guardrail model. See claudewheel/guardrail.py.
