@@ -26,6 +26,23 @@ class OptionsFileTests(SandboxHomeTestCase):
         default = {"x": 1}
         self.assertEqual(of.load(default), default)
 
+    def test_load_returns_a_copy_not_the_default_object(self) -> None:
+        """The fallback must be a deep copy: callers mutate what they get back."""
+        of = OptionsFile(self.launcher_dir / "nope2.json")
+        default = {"model": {"values": ["opus"], "pinned": []}}
+        loaded = of.load(default)
+        self.assertIsNot(loaded, default)
+        self.assertIsNot(loaded["model"], default["model"])
+        loaded["model"]["pinned"].append("mutated")
+        self.assertEqual(default["model"]["pinned"], [])
+
+    def test_add_pinned_missing_file_leaves_the_default_untouched(self) -> None:
+        """A module-level default passed in must not collect the pinned value."""
+        of = OptionsFile(self.launcher_dir / "fresh3.json")
+        default = {"model": {"values": ["opus"], "pinned": []}}
+        of.add_pinned("model", "custom", default)
+        self.assertEqual(default["model"]["pinned"], [])
+
     def test_add_pinned_new_segment(self) -> None:
         of = self._opts()
         of.path.write_text(json.dumps({}))
@@ -85,6 +102,16 @@ class StateFileTests(SandboxHomeTestCase):
 
     def _sf(self) -> StateFile:
         return StateFile(self.launcher_dir / "state.json")
+
+    def test_load_returns_a_copy_not_the_default_object(self) -> None:
+        """Same rule as OptionsFile.load: the fallback is the caller's to mutate."""
+        sf = StateFile(self.launcher_dir / "absent_state.json")
+        default = {"recent_dirs": [], "launch_count": 0}
+        loaded = sf.load(default)
+        self.assertIsNot(loaded, default)
+        loaded["recent_dirs"].append("/leaked/dir")
+        loaded["launch_count"] = 7
+        self.assertEqual(default, {"recent_dirs": [], "launch_count": 0})
 
     def test_save_out_of_band_key_from_disk_wins(self) -> None:
         sf = self._sf()

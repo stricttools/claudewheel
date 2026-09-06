@@ -361,11 +361,21 @@ class AppConfigStore:
                 write_json_atomic(path, default)
 
     def _load_json(self, path: Path, default: Any) -> Any:
+        """Read *path*, falling back to a DEEP COPY of *default*.
+
+        The callers pass the module-level ``DEFAULT_*`` dicts from
+        ``defaults.py``. Returning one of those by identity hands the store a
+        live reference to the process-wide default, which the store and the app
+        then mutate in place (schema versions, pinned values, launch counts,
+        recent dirs) -- so a second store built later in the same process starts
+        from the first one's leaked state and writes it to disk. The copy makes
+        every fallback its own object.
+        """
         try:
             with open(path) as f:
                 return json.load(f)
         except (FileNotFoundError, json.JSONDecodeError):
-            return default
+            return copy.deepcopy(default)
 
     def _migrate(self) -> None:
         """Add missing default keys to existing config files on startup.

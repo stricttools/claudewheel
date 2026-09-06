@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import copy
 import io
 import json
 import os
@@ -18,6 +19,7 @@ from claudewheel.defaults import (
     DEFAULT_CONFIG,
     DEFAULT_OPTIONS,
     DEFAULT_SEGMENTS,
+    DEFAULT_STATE,
     DEFAULT_THEME_DARK,
 )
 from tests.wheelhelpers import (
@@ -768,6 +770,105 @@ class ConstructionContractTests(unittest.TestCase):
                 Workspace.open(root).appconfig()
         finally:
             os.chmod(root, 0o755)
+
+
+# ---------------------------------------------------------------------------
+# 9. DefaultObjectIsolationTests
+# ---------------------------------------------------------------------------
+
+
+class DefaultObjectIsolationTests(unittest.TestCase):
+    """A missing/corrupt config file must not hand the store the module default.
+
+    ``_load_json`` used to return the ``DEFAULT_*`` dict from ``defaults.py``
+    BY IDENTITY, and the store mutates what it gets back: migrations write
+    ``_schema_version`` into it, migration 3 appends into the options' pinned
+    lists, and the app writes launch counts and recent dirs into the state. The
+    process-wide constant then carried one workspace's runtime state into every
+    later one built in the same process, which wrote the leaked values to its
+    own files.
+    """
+
+    def setUp(self) -> None:
+        self._tmp_obj = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._tmp_obj.name)
+        # Restore the module defaults afterwards (in place, so every module
+        # that imported them by reference sees the restoration): a regression
+        # here mutates process-wide state that later tests would inherit.
+        self._pristine = {
+            id(d): copy.deepcopy(d)
+            for d in (DEFAULT_CONFIG, DEFAULT_OPTIONS, DEFAULT_STATE)
+        }
+        self._pristine_segments = copy.deepcopy(DEFAULT_SEGMENTS)
+
+    def tearDown(self) -> None:
+        for d in (DEFAULT_CONFIG, DEFAULT_OPTIONS, DEFAULT_STATE):
+            d.clear()
+            d.update(self._pristine[id(d)])
+        DEFAULT_SEGMENTS[:] = self._pristine_segments
+        self._tmp_obj.cleanup()
+
+    def _corrupt_root(self, name: str, *files: str) -> dict[str, Path]:
+        """A sandbox config dir under *name* whose *files* are unparseable JSON."""
+        paths = _setup_temp_config_dir(self.tmp / name)
+        for f in files:
+            (paths["CONFIG_DIR"] / f).write_text("{not json")
+        return paths
+
+    def test_corrupt_config_does_not_receive_the_schema_version(self) -> None:
+        """Migrations must write ``_schema_version`` into the store, not the default."""
+        paths = self._corrupt_root("a", "config.json")
+        store = _appconfig(paths)
+        self.assertGreater(store.config["_schema_version"], 0)
+        self.assertEqual(DEFAULT_CONFIG["_schema_version"], 0)
+
+    def test_corrupt_options_does_not_receive_a_pinned_value(self) -> None:
+        paths = self._corrupt_root("b", "options.json")
+        store = _appconfig(paths)
+        store.add_option("model", "leaked-model")
+
+        self.assertIn("leaked-model", store.options_def["model"]["pinned"])
+        self.assertNotIn(
+            "leaked-model", DEFAULT_OPTIONS.get("model", {}).get("pinned", [])
+        )
+
+    def test_corrupt_state_does_not_receive_runtime_state(self) -> None:
+        paths = self._corrupt_root("c", "state.json")
+        store = _appconfig(paths)
+        store.state["launch_count"] = 41
+        store.state["recent_dirs"] = ["/leaked/dir"]
+        store.save_state()
+
+        self.assertEqual(DEFAULT_STATE["launch_count"], 0)
+        self.assertEqual(DEFAULT_STATE["recent_dirs"], [])
+
+    def test_a_second_store_starts_from_pristine_defaults(self) -> None:
+        """The leak's visible symptom: workspace 2 inheriting workspace 1's state."""
+        first = self._corrupt_root("first", "options.json", "state.json")
+        store1 = _appconfig(first)
+        store1.add_option("model", "leaked-model")
+        store1.state["launch_count"] = 41
+        store1.state["recent_dirs"] = ["/leaked/dir"]
+        store1.save_state()
+
+        second = self._corrupt_root("second", "options.json", "state.json")
+        store2 = _appconfig(second)
+
+        self.assertNotIn(
+            "leaked-model", store2.options_def.get("model", {}).get("pinned", [])
+        )
+        self.assertEqual(store2.state["launch_count"], 0)
+        self.assertEqual(store2.state["recent_dirs"], [])
+        # ...and the second workspace's own writes carry nothing leaked either.
+        store2.save_state()
+        store2.add_option("model", "second-model")
+        on_disk_state = _read_json(second["CONFIG_DIR"] / "state.json")
+        self.assertEqual(on_disk_state.get("recent_dirs"), [])
+        self.assertEqual(on_disk_state.get("launch_count"), 0)
+        on_disk_options = _read_json(second["CONFIG_DIR"] / "options.json")
+        pinned = on_disk_options.get("model", {}).get("pinned", [])
+        self.assertIn("second-model", pinned)
+        self.assertNotIn("leaked-model", pinned)
 
 
 if __name__ == "__main__":

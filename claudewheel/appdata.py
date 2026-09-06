@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -19,13 +20,19 @@ class OptionsFile:
     path: Path
 
     def load(self, default: dict[str, Any]) -> dict[str, Any]:
-        """Read options.json fresh from disk; return *default* if missing/corrupt."""
+        """Read options.json fresh from disk; return a copy of *default* if missing/corrupt.
+
+        The fallback is a DEEP COPY: callers pass module-level default dicts and
+        the read-modify-write methods below mutate what they get back, so
+        returning the default by identity would edit the caller's constant and
+        leak it into every later read.
+        """
         try:
             with open(self.path) as f:
                 data: dict[str, Any] = json.load(f)
                 return data
         except (FileNotFoundError, json.JSONDecodeError):
-            return default
+            return copy.deepcopy(default)
 
     def add_pinned(
         self, segment_key: str, value: str, default: dict[str, Any]
@@ -146,13 +153,18 @@ class StateFile:
     path: Path
 
     def load(self, default: dict[str, Any]) -> dict[str, Any]:
-        """Read state.json fresh from disk; return *default* if missing/corrupt."""
+        """Read state.json fresh from disk; return a copy of *default* if missing/corrupt.
+
+        The fallback is a DEEP COPY for the same reason as
+        :meth:`OptionsFile.load`: the returned dict is mutated by callers, and a
+        module-level default handed back by identity would be mutated with it.
+        """
         try:
             with open(self.path) as f:
                 data: dict[str, Any] = json.load(f)
                 return data
         except (FileNotFoundError, json.JSONDecodeError):
-            return default
+            return copy.deepcopy(default)
 
     def save(
         self,
