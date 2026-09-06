@@ -205,11 +205,12 @@ class CreateTests(_WriteBase):
 
     def test_create_settings_write_is_atomic(self) -> None:
         # GREEN counterpart to the wizard RED observation in the module
-        # docstring. Inject a failure at the atomic rename step; the target
-        # settings.json must be absent -- never a truncated partial file.
+        # docstring. Inject a failure at the atomic writer's commit step
+        # (os.replace); the target settings.json must be absent -- never a
+        # truncated partial file.
         target = self.profiles_dir / "atomic"
         with patch.object(
-            Path, "rename", autospec=True, side_effect=OSError("injected")
+            os, "replace", autospec=True, side_effect=OSError("injected")
         ):
             with self.assertRaises(OSError):
                 self.store.create("atomic", self._SETTINGS)
@@ -221,7 +222,7 @@ class CreateTests(_WriteBase):
         # not blocked by the pre-mkdir FileExistsError guard.
         target = self.profiles_dir / "retry"
         with patch.object(
-            Path, "rename", autospec=True, side_effect=OSError("injected")
+            os, "replace", autospec=True, side_effect=OSError("injected")
         ):
             with self.assertRaises(OSError):
                 self.store.create("retry", self._SETTINGS)
@@ -769,7 +770,7 @@ class RenameTests(_WriteBase):
 
     def _fail_dir_rename(self) -> AbstractContextManager[MagicMock]:
         """Patch os.rename to fail ONLY the directory rename, not the atomic
-        breadcrumb file write (which also renames a tmp file into place)."""
+        breadcrumb file write (which commits through os.replace)."""
         real = os.rename
 
         def side(

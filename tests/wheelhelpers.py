@@ -596,11 +596,12 @@ def hash_snapshot(paths: Iterable[Path]) -> dict[str, str | _Missing]:
 # Write canary: prove "cw never writes ~/.claude" at the write chokepoint.
 #
 # All production settings/state writes funnel through the atomic writers in
-# ``claudewheel.fsutil`` (``write_text_atomic``, ``write_json_atomic``,
+# ``claudewheel.effects`` (``write_text_atomic``, ``write_json_atomic``,
 # ``write_json_atomic_secret``). Each one commits its result with a single
-# ``tmp.rename(target)`` -- so ``pathlib.Path.rename`` is the one shared seam
-# every writer passes through, no matter how the calling module imported the
-# writer. Interposing there catches any commit whose destination lands under
+# ``os.replace(tmp, target)``, and ``effects.rename`` commits with
+# ``Path.rename`` -- so those two calls are the shared commit seams every
+# writer passes through, no matter how the calling module imported the writer.
+# Interposing there catches any commit whose destination lands under
 # ``claude_dir``, which is the invariant a vanilla-default launch must uphold.
 # ---------------------------------------------------------------------------
 
@@ -647,11 +648,12 @@ def _path_is_under(path: Path, root: Path) -> bool:
         return False
 
 
-# The staging-file suffix that ``claudewheel.fsutil`` atomic writers use before
-# their committing rename (``path.with_suffix(".tmp")``). The byte-level
+# The staging-file suffix that the ``claudewheel.effects`` atomic writers use
+# before their committing ``os.replace`` (a unique ``tempfile.mkstemp`` name of
+# the form ``<target name>.<random>.tmp``). The byte-level
 # ``write_text``/``write_bytes`` guard skips these so it does not double-fire on
 # a sanctioned atomic writer's own staging write -- that write is authoritative
-# only once it reaches the rename seam, which is guarded separately.
+# only once it reaches the commit seam, which is guarded separately.
 _FSUTIL_STAGING_SUFFIX = ".tmp"
 
 
@@ -675,21 +677,24 @@ def _scan_files_under(root: Path) -> set[str]:
 def claude_dir_write_canary(claude_dir: Path) -> Iterator[None]:
     """Trip loudly if any production write lands a file under *claude_dir*.
 
-    Interposes three ``pathlib.Path`` seams and raises
+    Interposes four write seams and raises
     :class:`ClaudeDirWriteViolation` naming the destination whenever a write
     targets a path inside *claude_dir*:
 
-    - ``Path.rename`` -- the shared commit seam of every ``claudewheel.fsutil``
-      atomic writer (``write_text_atomic``/``write_json_atomic``/
+    - ``os.replace`` -- the commit seam of every ``claudewheel.effects`` atomic
+      writer (``write_text_atomic``/``write_json_atomic``/
       ``write_json_atomic_secret``). This is the primary seam: every sanctioned
-      settings/state/token write funnels through a ``tmp.rename(target)``.
+      settings/state/token write funnels through one
+      ``os.replace(staging, target)``.
+    - ``Path.rename`` -- the commit seam of ``effects.rename`` (profile
+      directory moves, session-data migration), which commits without staging.
     - ``Path.write_text`` and ``Path.write_bytes`` -- byte-level writers that do
       NOT rename-commit and would otherwise bypass the rename seam entirely
       (e.g. ``hook_scripts.deploy_scripts`` uses ``dest.write_text(...)``
-      directly). These guards skip the fsutil ``*.tmp`` staging convention
+      directly). These guards skip the ``*.tmp`` staging convention
       (see ``_FSUTIL_STAGING_SUFFIX``) so an atomic writer's own staging write
-      passes through and is caught at its rename instead -- keeping the tripped
-      ``offending_path`` the real target, not the ``.tmp``.
+      passes through and is caught at its commit instead -- keeping the tripped
+      ``offending_path`` the real target, not the staging file.
 
     Writes whose destination is outside *claude_dir* delegate to the real
     ``Path`` method unchanged, so writes to the ``~/.claudewheel`` store
@@ -702,9 +707,11 @@ def claude_dir_write_canary(claude_dir: Path) -> Iterator[None]:
     without a rename commit would slip past. The interposed seams (rename +
     Path byte writers) cover every writer that exists in production today.
 
-    Exit cleanup: fsutil stages ``<target>.tmp`` under the target's directory
-    BEFORE the committing rename, so a rename that trips at *claude_dir* can
-    leave that ``.tmp`` stray behind. On context exit (in a ``finally``) the
+    Exit cleanup: the atomic writers stage a ``*.tmp`` file under the target's
+    directory BEFORE the committing ``os.replace``, so a commit that trips at
+    *claude_dir* can leave that staging file stray behind (the writers unlink
+    their own staging file when the commit raises, so in practice this is a
+    belt-and-braces sweep). On context exit (in a ``finally``) the
     canary rescans *claude_dir* and deletes -- via direct ``unlink`` -- every
     regular file that did NOT exist at entry, leaving the guarded tree byte-for-
     byte as it was found. This cleanup is deterministic and only ever touches
@@ -714,6 +721,7 @@ def claude_dir_write_canary(claude_dir: Path) -> Iterator[None]:
     """
     claude_dir = Path(claude_dir)
     orig_rename = Path.rename
+    orig_replace = os.replace
     orig_write_text = Path.write_text
     orig_write_bytes = Path.write_bytes
 
@@ -722,6 +730,12 @@ def claude_dir_write_canary(claude_dir: Path) -> Iterator[None]:
         if _path_is_under(dest, claude_dir):
             raise ClaudeDirWriteViolation(dest)
         return orig_rename(self, target)
+
+    def _guarded_replace(src: Any, dst: Any, **kwargs: Any) -> Any:
+        dest = Path(dst)
+        if _path_is_under(dest, claude_dir):
+            raise ClaudeDirWriteViolation(dest)
+        return orig_replace(src, dst, **kwargs)
 
     def _guarded_write_text(self: Path, *args: Any, **kwargs: Any) -> Any:
         if self.name.endswith(_FSUTIL_STAGING_SUFFIX):
@@ -742,6 +756,7 @@ def claude_dir_write_canary(claude_dir: Path) -> Iterator[None]:
     try:
         with (
             patch.object(Path, "rename", new=_guarded_rename),
+            patch.object(os, "replace", new=_guarded_replace),
             patch.object(Path, "write_text", new=_guarded_write_text),
             patch.object(Path, "write_bytes", new=_guarded_write_bytes),
         ):

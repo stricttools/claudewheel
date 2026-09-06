@@ -79,6 +79,8 @@ import json
 import os
 import shutil
 import subprocess
+import sys
+import tempfile
 import urllib.error
 import urllib.request
 from collections.abc import Iterator
@@ -165,8 +167,40 @@ def _handle() -> Any:
     return ctx.effects
 
 
+def _reject_mock(path: Any) -> None:
+    """Refuse a ``unittest.mock`` stand-in handed to a filesystem effect.
+
+    An unspecced ``MagicMock`` answers ``__fspath__`` with a repr like
+    ``<MagicMock id=...>/mock.scripts_dir``, so ``os.fspath`` succeeds and the
+    effect quietly creates a real file or directory tree named after the mock --
+    one such attribute access materialized a directory tree in the repository
+    root through :func:`mkdir`.  A mock is never a path, so this is a
+    ``TypeError`` at the boundary rather than a write nobody asked for.
+
+    ``unittest.mock`` is looked up in ``sys.modules`` instead of imported: when
+    the module was never imported no mock can exist, and production runs never
+    pay for the import.
+    """
+    mock_module = sys.modules.get("unittest.mock")
+    if mock_module is None:
+        return
+    if isinstance(path, mock_module.NonCallableMock):
+        raise TypeError(
+            f"path operand is a unittest.mock object, not a path: {path!r}. "
+            "Pass a real path (a str, an os.PathLike, or a spec'd mock's "
+            "return value)."
+        )
+
+
+def _path(path: Any) -> Path:
+    """Normalize a path operand for a live filesystem effect."""
+    _reject_mock(path)
+    return Path(path)
+
+
 def _p(path: Any) -> str:
     """Render a path operand as text for the handle."""
+    _reject_mock(path)
     return str(os.fspath(path))
 
 
@@ -419,7 +453,7 @@ def open_write(path: Any, mode: str = "w", *, encoding: str | None = None) -> An
         raise ValueError(f"open_write requires a write mode, got {mode!r}")
     h = _handle()
     if h is None:
-        return open(path, mode, encoding=encoding)
+        return open(_path(path), mode, encoding=encoding)
     return _RecordedWriter(h, _p(path), binary="b" in mode)
 
 
@@ -427,7 +461,7 @@ def write_text(path: Any, text: str, *, encoding: str | None = None) -> None:
     """Write *text* to *path*, truncating any existing file."""
     h = _handle()
     if h is None:
-        Path(path).write_text(text, encoding=encoding)
+        _path(path).write_text(text, encoding=encoding)
         return
     h.write(_p(path), text)
 
@@ -436,7 +470,7 @@ def write_bytes(path: Any, data: Any) -> None:
     """Write *data* to *path*, truncating any existing file."""
     h = _handle()
     if h is None:
-        Path(path).write_bytes(data)
+        _path(path).write_bytes(data)
         return
     h.write(_p(path), data)
 
@@ -452,33 +486,75 @@ def write(path: Any, content: Any) -> None:
     h = _handle()
     if h is None:
         if isinstance(content, bytes):
-            Path(path).write_bytes(content)
+            _path(path).write_bytes(content)
         else:
-            Path(path).write_text(content)
+            _path(path).write_text(content)
         return
     h.write(_p(path), content)
 
 
-def write_text_atomic(path: Any, text: str) -> None:
-    """Atomic tmp+rename text write that preserves the target's file mode.
+def _stage_and_replace(target: Path, text: str, *, secret: bool) -> None:
+    """Write *text* through a unique staging file and replace *target* with it.
 
-    The rename replaces the target inode, so without a chmod any pre-existing
-    restrictive mode on the target would be silently reset to the umask default
-    on every update.  Fresh targets (no existing file to stat) keep the umask
-    default.  Because the rename is a directory operation the write also
-    succeeds when *path* itself is read-only, which is why live mode keeps the
-    temp-file dance instead of routing through the contract's plain ``write``.
+    The staging file is created by ``tempfile.mkstemp`` in the target's own
+    directory (``os.replace`` must not cross a filesystem) with the target's
+    FULL name as the prefix.  Both properties are the fix for a measured
+    corruption: a staging path derived from the target (``with_suffix(".tmp")``)
+    is shared by every concurrent writer of that target -- the loser's commit
+    raised ``FileNotFoundError``, or worse, its bytes landed inside the file the
+    winner had already published, so a settings or token file could be a splice
+    of two writes while both writers reported success.  Keying on the stem also
+    made ``config.json`` and ``config.yaml`` collide.
+
+    The mode is set on the staging file before the commit, never on the target
+    afterwards: ``mkstemp`` creates 0600, and for a *secret* write that is the
+    final mode too, so token bytes are never observable above 0600.  A
+    non-secret write adopts the target's existing mode when there is one (the
+    replace installs a new inode, so a restrictive mode would otherwise be
+    reset on every update) and 0644 for a fresh target.
+
+    ``os.replace`` is atomic for readers -- they see the whole old file or the
+    whole new one -- and it is a directory operation, so the write also succeeds
+    when *target* itself is read-only.  No fsync: this is concurrency safety,
+    not a durability guarantee.
     """
-    target = Path(path)
+    fd, tmp = tempfile.mkstemp(
+        dir=target.parent, prefix=target.name + ".", suffix=".tmp"
+    )
+    try:
+        with os.fdopen(fd, "w") as f:
+            f.write(text)
+        if secret:
+            mode = 0o600
+        else:
+            try:
+                mode = target.stat().st_mode & 0o777
+            except FileNotFoundError:
+                mode = 0o644  # fresh file
+        os.chmod(tmp, mode)
+        os.replace(tmp, target)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except FileNotFoundError:
+            pass
+        raise
+
+
+def write_text_atomic(path: Any, text: str) -> None:
+    """Atomic staged text write that preserves the target's file mode.
+
+    The commit replaces the target inode, so without a chmod any pre-existing
+    restrictive mode on the target would be silently reset on every update;
+    fresh targets get 0644.  Because the commit is a directory operation the
+    write also succeeds when *path* itself is read-only, which is why live mode
+    keeps the staging file instead of routing through the contract's plain
+    ``write``.  See :func:`_stage_and_replace` for the staging rules.
+    """
+    target = _path(path)
     h = _handle()
     if h is None:
-        tmp = target.with_suffix(".tmp")
-        tmp.write_text(text)
-        try:
-            tmp.chmod(target.stat().st_mode & 0o777)
-        except FileNotFoundError:
-            pass  # fresh file: umask default is fine
-        tmp.rename(target)
+        _stage_and_replace(target, text, secret=False)
         return
     h.write(_p(target), text)
 
@@ -491,20 +567,18 @@ def write_json_atomic(path: Any, data: Any) -> None:
 def write_json_atomic_secret(path: Any, data: Any) -> None:
     """Atomic JSON write for secret-holding files: target is always 0600.
 
-    The tmp file is created 0600 from the start (never umask-readable, even
-    transiently) and chmod'd to exactly 0600 before the rename in case the
-    umask stripped owner bits at creation.
+    The staging file is created 0600 from the start (``tempfile.mkstemp``'s own
+    mode, never umask-readable even transiently) and chmod'd to exactly 0600
+    before the commit in case the umask stripped owner bits at creation.  The
+    target's existing mode is deliberately NOT adopted: a secrets file that was
+    somehow left world-readable is tightened by the next write, never
+    preserved.
     """
-    target = Path(path)
+    target = _path(path)
     text = json.dumps(data, indent=2) + "\n"
     h = _handle()
     if h is None:
-        tmp = target.with_suffix(".tmp")
-        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-        with os.fdopen(fd, "w") as f:
-            f.write(text)
-        tmp.chmod(0o600)
-        tmp.rename(target)
+        _stage_and_replace(target, text, secret=True)
         return
     h.write(_p(target), text)
     h.chmod(_p(target), 0o600)
@@ -520,7 +594,7 @@ def mkdir(path: Any, *, parents: bool = False, exist_ok: bool = False) -> None:
     """
     h = _handle()
     if h is None:
-        Path(path).mkdir(parents=parents, exist_ok=exist_ok)
+        _path(path).mkdir(parents=parents, exist_ok=exist_ok)
         return
     h.mkdir(_p(path))
 
@@ -529,7 +603,7 @@ def remove(path: Any, *, missing_ok: bool = False) -> None:
     """Delete the file or symlink at *path*."""
     h = _handle()
     if h is None:
-        Path(path).unlink(missing_ok=missing_ok)
+        _path(path).unlink(missing_ok=missing_ok)
         return
     h.remove(_p(path))
 
@@ -544,7 +618,7 @@ def rmdir(path: Any) -> None:
     """
     h = _handle()
     if h is None:
-        Path(path).rmdir()
+        _path(path).rmdir()
         return
     h.remove(_p(path))
 
@@ -553,6 +627,7 @@ def rmtree(path: Any, *, ignore_errors: bool = False) -> None:
     """Recursively delete the directory tree at *path*."""
     h = _handle()
     if h is None:
+        _reject_mock(path)
         shutil.rmtree(path, ignore_errors=ignore_errors)
         return
     h.remove(_p(path))
@@ -567,7 +642,7 @@ def rename(src: Any, dst: Any) -> None:
     """
     h = _handle()
     if h is None:
-        Path(src).rename(dst)
+        _path(src).rename(_path(dst))
         return
     h.rename(_p(src), _p(dst))
 
@@ -576,6 +651,8 @@ def move(src: Any, dst: Any) -> None:
     """Move *src* to *dst*, falling back to copy+delete across devices."""
     h = _handle()
     if h is None:
+        _reject_mock(src)
+        _reject_mock(dst)
         shutil.move(str(src), str(dst))
         return
     h.rename(_p(src), _p(dst))
@@ -585,7 +662,7 @@ def chmod(path: Any, mode: int) -> None:
     """Set the permission bits of *path*."""
     h = _handle()
     if h is None:
-        Path(path).chmod(mode)
+        _path(path).chmod(mode)
         return
     h.chmod(_p(path), mode)
 
@@ -599,7 +676,8 @@ def symlink(link: Any, target: Any) -> None:
     """
     h = _handle()
     if h is None:
-        Path(link).symlink_to(target)  # effects: exempt -- the live primitive
+        _reject_mock(target)
+        _path(link).symlink_to(target)  # effects: exempt -- the live primitive
         return
     h.run(["ln", "-s", _p(target), _p(link)])
 
@@ -608,6 +686,8 @@ def copy_file(src: Any, dst: Any) -> Any:
     """Copy *src* to *dst*, preserving metadata (``shutil.copy2``)."""
     h = _handle()
     if h is None:
+        _reject_mock(src)
+        _reject_mock(dst)
         return shutil.copy2(str(src), str(dst))
     # The contract has no copy: reading the source is not an effect, writing
     # the destination is the one that gets recorded.
@@ -619,6 +699,8 @@ def copytree(src: Any, dst: Any, *, dirs_exist_ok: bool = False) -> Any:
     """Recursively copy the directory tree *src* to *dst*."""
     h = _handle()
     if h is None:
+        _reject_mock(src)
+        _reject_mock(dst)
         return shutil.copytree(str(src), str(dst), dirs_exist_ok=dirs_exist_ok)
     # One mkdir plus one write per file, so the preview names every path the
     # copy would create rather than a single opaque "copy tree" line.

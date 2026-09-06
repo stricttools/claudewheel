@@ -9,6 +9,7 @@ every integration test regardless of what production code does.
 
 from __future__ import annotations
 
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -47,8 +48,29 @@ class WriteCanarySelfTests(unittest.TestCase):
         # The commit never happened: no file was published to claude_dir.
         self.assertFalse(dest.exists())
 
+    def test_direct_replace_under_claude_dir_trips(self) -> None:
+        """A raw ``os.replace`` whose destination is under claude_dir trips."""
+        src = self.home / "staging.tmp"
+        src.write_text("x")
+        dest = self.claude_dir / "settings.json"
+        with self.assertRaises(ClaudeDirWriteViolation) as cm:
+            with claude_dir_write_canary(self.claude_dir):
+                os.replace(src, dest)
+        self.assertEqual(cm.exception.offending_path, dest)
+        self.assertFalse(dest.exists())
+
+    def test_replace_restored_after_context(self) -> None:
+        """os.replace is restored to real behavior after the context exits."""
+        with claude_dir_write_canary(self.claude_dir):
+            pass
+        src = self.home / "after.tmp"
+        src.write_text("y")
+        dest = self.claude_dir / "after.txt"
+        os.replace(src, dest)  # would trip if the patch leaked; it must not
+        self.assertTrue(dest.exists())
+
     def test_fsutil_write_json_under_claude_dir_trips(self) -> None:
-        """The real ``write_json_atomic`` writer trips at its rename seam."""
+        """The real ``write_json_atomic`` writer trips at its commit seam."""
         target = self.claude_dir / "settings.json"
         with self.assertRaises(ClaudeDirWriteViolation) as cm:
             with claude_dir_write_canary(self.claude_dir):
@@ -143,12 +165,12 @@ class WriteCanarySelfTests(unittest.TestCase):
         self.assertEqual(dest.read_bytes(), b"\xff\xfe")
 
     def test_fsutil_staging_write_text_passes_through_to_rename(self) -> None:
-        """The fsutil ``.tmp`` staging write is not itself the trip point.
+        """The ``.tmp`` staging write is not itself the trip point.
 
-        ``write_text_atomic`` stages ``<target>.tmp`` via ``Path.write_text``
-        then renames. The byte-writer guard must ignore that staging write so
-        the violation reports the real target, not the ``.tmp`` -- otherwise
-        the rename seam's ``offending_path`` contract would silently change.
+        ``write_text_atomic`` stages a unique ``*.tmp`` file and commits it with
+        ``os.replace``. Neither the staging write nor the staging path may be
+        the trip point, so the violation reports the real target -- otherwise
+        the commit seam's ``offending_path`` contract would silently change.
         """
         target = self.claude_dir / "settings.json"
         with self.assertRaises(ClaudeDirWriteViolation) as cm:
@@ -161,10 +183,11 @@ class WriteCanarySelfTests(unittest.TestCase):
     def test_stray_tmp_after_trip_leaves_tree_identical(self) -> None:
         """After a tripped atomic write, claude_dir is byte-identical to entry.
 
-        ``write_json_atomic`` stages ``<target>.tmp`` under claude_dir BEFORE
-        the rename that trips, so the ``.tmp`` can outlive the aborted commit.
-        The canary's exit cleanup must remove that stray so no new file (target
-        OR ``.tmp``) survives the context.
+        ``write_json_atomic`` stages a unique ``*.tmp`` file under claude_dir
+        BEFORE the ``os.replace`` that trips.  The writer unlinks its own
+        staging file when the commit raises, and the canary's exit cleanup
+        sweeps anything a writer could still leave behind, so no new file
+        (target OR staging) survives the context either way.
         """
         # Pre-existing content proves cleanup deletes ONLY files that appeared
         # during the context, never files present at entry.
@@ -177,10 +200,9 @@ class WriteCanarySelfTests(unittest.TestCase):
             with claude_dir_write_canary(self.claude_dir):
                 write_json_atomic(target, {"hooks": {}})
 
-        # The staging .tmp existed transiently and is reported + removed.
-        stray = target.with_suffix(".tmp")
-        self.assertEqual(cm.exception.stray_tmp_files, [stray])
-        self.assertFalse(stray.exists())
+        # The staging file existed transiently and is gone: the writer cleaned
+        # up after its own failed commit, so the canary had no stray to report.
+        self.assertEqual(cm.exception.stray_tmp_files, [])
         self.assertFalse(target.exists())
         # The whole tree is exactly what it was before the context.
         self.assertEqual(snapshot_tree(self.claude_dir), before)
