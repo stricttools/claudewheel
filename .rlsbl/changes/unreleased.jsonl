@@ -5,3 +5,4 @@
 {"format_version":1,"id":"18d1865fe8504d4a78c4f9bea81e48dab5721332f76324b1","commits":["7dd1cb2cad6a836d6348e21ceb770ca4a7ae41a6"],"user_facing":true,"description":"The guardrails page now documents every stripped tool with the reason it is banned, in a table generated from the canonical model","type":"feature"}
 {"format_version":1,"id":"18d1982c80acbabb8d03f49495c645639dd57b6f715e83a2","commits":["7cba931e4ad697d108a6a851b7c7bcfa37e9e939","39950facb237dcc3008f8387d8804e029dc96c70"],"user_facing":false}
 {"format_version":1,"id":"18d2d74e684fb241c47935ecd9074b1b8cedfcf1c2e97da5","commits":["fd2c41999e9e3c6db80ff27628261475be687695"],"user_facing":false}
+{"format_version":1,"id":"18d2d784b0490d7fb6c9bf5c0cf8421cac0a79df59bc3b1b","commits":["31e0cb45a3451b3da80307ea52ddd3edb2cf1cde"],"user_facing":false,"description":"Build the worktree-block hook's deny JSON with jq instead of a hand-written literal, so the envelope stays parseable"}
