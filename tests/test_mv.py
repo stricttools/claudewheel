@@ -379,6 +379,20 @@ class RunMvValidationTests(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             run_mv(self.ws, str(old), str(new))
 
+    def test_default_old_missing_but_new_exists_names_post_hoc(self) -> None:
+        """The interrupted-move signature names the repair that completes it."""
+        old = self.tmp_path / "old"
+        new = self.tmp_path / "new"
+        new.mkdir()  # the rename already happened; the migration did not
+
+        with self.assertRaises(FileNotFoundError) as ctx:
+            run_mv(self.ws, str(old), str(new))
+
+        msg = str(ctx.exception)
+        self.assertIn("--post-hoc", msg)
+        self.assertIn(str(old.resolve()), msg)
+        self.assertIn(str(new.resolve()), msg)
+
     def test_corrupt_claude_json_aborts_discovery_naming_the_file(self) -> None:
         """An unreadable registry names itself, not a bogus undecodable orphan."""
         old = self.tmp_path / "OldName"

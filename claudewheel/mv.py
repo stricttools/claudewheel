@@ -439,6 +439,15 @@ def run_mv(
         # Rename mode: validate now, rename after descendant discovery so the
         # whole operation is check-then-act (nothing moves if discovery fails)
         if not Path(old_resolved).is_dir():
+            if Path(new_resolved).is_dir():
+                # The signature of an interrupted run: the rename happened,
+                # the session migration did not.  --post-hoc completes it.
+                raise FileNotFoundError(
+                    f"source does not exist as a directory: {old_resolved} "
+                    f"(the target {new_resolved} does exist -- the rename "
+                    f"already happened, so finish the session migration with: "
+                    f"claudewheel mv --post-hoc {old_resolved} {new_resolved})"
+                )
             raise FileNotFoundError(
                 f"source does not exist as a directory: {old_resolved}"
             )
