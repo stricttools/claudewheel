@@ -831,6 +831,11 @@
         },
         {
           "level": 3,
+          "text": "`_run_mv_for_launch`",
+          "anchor": "_run_mv_for_launch"
+        },
+        {
+          "level": 3,
           "text": "`_check_resume_session`",
           "anchor": "_check_resume_session"
         },
@@ -1037,6 +1042,11 @@
           "level": 4,
           "text": "`_ensure_dir`",
           "anchor": "_ensure_dir"
+        },
+        {
+          "level": 4,
+          "text": "`_load_json`",
+          "anchor": "_load_json"
         },
         {
           "level": 4,
@@ -1260,6 +1270,16 @@
         },
         {
           "level": 3,
+          "text": "`_reject_mock`",
+          "anchor": "_reject_mock"
+        },
+        {
+          "level": 3,
+          "text": "`_path`",
+          "anchor": "_path"
+        },
+        {
+          "level": 3,
           "text": "`_p`",
           "anchor": "_p"
         },
@@ -1322,6 +1342,11 @@
           "level": 3,
           "text": "`write`",
           "anchor": "write"
+        },
+        {
+          "level": 3,
+          "text": "`_stage_and_replace`",
+          "anchor": "_stage_and_replace"
         },
         {
           "level": 3,
@@ -1972,6 +1997,11 @@
           "level": 3,
           "text": "`_decode_rel`",
           "anchor": "_decode_rel"
+        },
+        {
+          "level": 3,
+          "text": "`_read_claude_json`",
+          "anchor": "_read_claude_json"
         },
         {
           "level": 3,
@@ -2828,6 +2858,11 @@
           "level": 3,
           "text": "`_reconcile_list`",
           "anchor": "_reconcile_list"
+        },
+        {
+          "level": 3,
+          "text": "`_dict_at`",
+          "anchor": "_dict_at"
         },
         {
           "level": 3,
@@ -5585,6 +5620,6 @@
     }
   ],
   "posts": [],
-  "last_gen": "2026-09-02T14:08:45.677713+00:00",
+  "last_gen": "2026-09-06T21:13:05.475820+00:00",
   "theme": "minimal"
 }
