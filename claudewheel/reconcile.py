@@ -35,6 +35,12 @@ profile discovery enumerates it.
 All writes go through the mode-preserving atomic ``save_settings`` path, and
 every target is compared before writing -- a file already canonical is left
 byte-identical (no write happens).
+
+Malformed data is refused, not repaired: a target whose settings file nests a
+non-object where a guardrail container belongs (``"profileDefaults": null``,
+``"claudewheel": []``) is skipped with a reason naming the file and the key,
+exactly as an unreadable file is, and the remaining targets are reconciled
+normally.
 """
 
 from __future__ import annotations
@@ -108,20 +114,60 @@ def _reconcile_list(
     return to_add, to_remove
 
 
+class MalformedSettingsError(ValueError):
+    """A guardrail key holds a value of the wrong JSON type.
+
+    Raised by :func:`_dict_at` when a settings file nests something other than
+    an object under a key the reconciliation must descend into
+    (``"profileDefaults": null``, ``"claudewheel": []``, a string
+    ``"permissions"``). Malformed data is reported and skipped, never quietly
+    normalized -- the per-target driver turns this into a ``skip_reason`` and
+    leaves the file untouched.
+    """
+
+
+def _json_type_name(value: Any) -> str:
+    """Name *value*'s JSON type the way a settings file spells it."""
+    if value is None:
+        return "null"
+    if isinstance(value, bool):
+        return "a boolean"
+    if isinstance(value, (int, float)):
+        return "a number"
+    if isinstance(value, str):
+        return "a string"
+    if isinstance(value, list):
+        return "an array"
+    return f"a {type(value).__name__}"
+
+
 def _dict_at(container: dict[str, Any], key: str) -> dict[str, Any]:
-    """Return ``container[key]`` as a dict, coercing anything else to ``{}``.
+    """Return ``container[key]`` as a dict; raise when it is not one.
 
     ``setdefault`` is unsafe on a hand-edited settings file: a key present with
     a non-dict value (``"profileDefaults": null``, a list, a string) is handed
     straight back, and the caller's ``.get``/``.setdefault`` on it raises
     ``AttributeError``. This is the one rule for every nested guardrail
-    container: a missing key is created empty, a present-but-non-dict value is
-    REPLACED with an empty dict, and an existing dict is returned as is.
+    container:
+
+      - a MISSING key is created empty and returned -- absence is ordinary
+        bootstrap, not malformation;
+      - an existing dict is returned as is;
+      - a present-but-non-dict value is malformed data, and raises
+        :class:`MalformedSettingsError` naming the key and the type found.
+        *container* is left exactly as it was: a value nobody can interpret is
+        never silently repaired, because repairing it would overwrite whatever
+        the author meant with no record that it existed.
     """
-    value = container.get(key)
+    if key not in container:
+        created: dict[str, Any] = {}
+        container[key] = created
+        return created
+    value = container[key]
     if not isinstance(value, dict):
-        value = {}
-        container[key] = value
+        raise MalformedSettingsError(
+            f'"{key}" is {_json_type_name(value)}, expected an object'
+        )
     return value
 
 
@@ -130,11 +176,10 @@ def compute_settings_diff(container: dict[str, Any]) -> PermissionDiff:
 
     *container* is either a profile ``settings.json`` dict or a
     ``profileDefaults`` dict -- both nest their arrays under ``permissions``.
-    A missing ``permissions`` block (or missing arrays) is treated as empty, and
-    a present-but-non-dict ``permissions`` value is replaced with an empty dict
-    (see :func:`_dict_at`) so the apply step has a well-formed block to write
-    into. The ``allow`` array is only inspected when present; nothing is ever
-    added to allow.
+    A missing ``permissions`` block (or missing arrays) is treated as empty; a
+    present-but-non-dict ``permissions`` value raises
+    :class:`MalformedSettingsError` (see :func:`_dict_at`). The ``allow`` array
+    is only inspected when present; nothing is ever added to allow.
     """
     perms = _dict_at(container, "permissions")
 
@@ -346,8 +391,11 @@ def _process_settings_file(
 
     Compare-then-write: the file is written only when its guardrail sections
     actually differed from canonical, so an already-canonical file is left
-    byte-identical. A missing/unreadable file is reported and skipped; a write
-    error is captured (never raised) so a launch-time reconcile never aborts.
+    byte-identical. A missing/unreadable file is reported and skipped, and so is
+    a file holding a malformed guardrail container (a JSON value of the wrong
+    type where an object belongs) -- both are per-target skips naming the file,
+    never a repair and never an abort of the remaining targets. A write error is
+    captured (never raised) so a launch-time reconcile never aborts.
     """
     if not path.exists():
         return TargetReport(
@@ -360,7 +408,12 @@ def _process_settings_file(
             label, changed=False, written=False, skip_reason=f"unreadable ({e})"
         )
     original = deepcopy(data)
-    changes = reconcile_fn(data, canonical)
+    try:
+        changes = reconcile_fn(data, canonical)
+    except MalformedSettingsError as e:
+        return TargetReport(
+            label, changed=False, written=False, skip_reason=f"malformed ({path}: {e})"
+        )
     changed = data != original
     report = TargetReport(label, changed=changed, written=False, changes=changes)
     if changed and effects.issue(dry_run):

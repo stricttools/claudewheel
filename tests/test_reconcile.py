@@ -19,6 +19,8 @@ from claudewheel.guardrail import (
     canonical_deny_rules,
 )
 from claudewheel.reconcile import (
+    MalformedSettingsError,
+    _dict_at,
     apply_settings_diff,
     compute_settings_diff,
     reconcile_profile_dict,
@@ -374,105 +376,198 @@ class RunReconcileTests(_ReconcileTestCase):
 
 
 class MalformedNestedContainerTests(_ReconcileTestCase):
-    """A non-dict value under a guardrail key must not abort reconciliation.
+    """A non-dict value under a guardrail key is refused, never repaired.
 
     ``"profileDefaults": null``, ``"claudewheel": null`` and a non-dict
-    ``permissions`` are all writable by hand into a settings file. Reading them
-    back with ``setdefault`` returned the non-dict value and the following
-    ``.get`` raised ``AttributeError`` -- which the launch-time preflight
-    swallowed (silently skipping every remaining target) and which crashed
-    ``patch-profiles`` with a raw traceback. Each is now replaced with an empty
-    dict and reconciled normally.
+    ``permissions`` are all writable by hand into a settings file, and each one
+    is malformed data rather than something to quietly normalize. ``_dict_at``
+    raises, the per-target driver records a skip reason naming the file and the
+    offending key, that file is left byte-identical, and every remaining target
+    is still reconciled -- the same per-target, loud handling an unreadable
+    file already gets.
     """
 
     def write_shared_raw(self, shared: dict[str, Any]) -> None:
         self.shared_settings.write_text(json.dumps(shared, indent=2) + "\n")
 
+    # -- unit level: _dict_at itself ---------------------------------------
+
+    def test_dict_at_missing_key_inserts_empty_dict(self) -> None:
+        container: dict[str, Any] = {}
+        value = _dict_at(container, "permissions")
+        self.assertEqual(value, {})
+        self.assertIs(container["permissions"], value)
+
+    def test_dict_at_existing_dict_is_returned_as_is(self) -> None:
+        inner: dict[str, Any] = {"deny": []}
+        container: dict[str, Any] = {"permissions": inner}
+        self.assertIs(_dict_at(container, "permissions"), inner)
+
+    def test_dict_at_raises_naming_key_and_type(self) -> None:
+        for value, wording in (
+            (None, "null"),
+            (["nonsense"], "an array"),
+            ("nonsense", "a string"),
+            (3, "a number"),
+            (True, "a boolean"),
+        ):
+            with self.subTest(value=value):
+                container: dict[str, Any] = {"profileDefaults": value}
+                with self.assertRaises(ValueError) as ctx:
+                    _dict_at(container, "profileDefaults")
+                msg = str(ctx.exception)
+                self.assertIn('"profileDefaults"', msg)
+                self.assertIn(wording, msg)
+                self.assertIn("expected an object", msg)
+                # The malformed value is left exactly as found.
+                self.assertEqual(container, {"profileDefaults": value})
+
+    def test_dict_at_raises_malformed_settings_error(self) -> None:
+        with self.assertRaises(MalformedSettingsError):
+            _dict_at({"claudewheel": None}, "claudewheel")
+
     # -- unit level: the reconcile functions on a bare dict ----------------
 
-    def test_null_profiledefaults_reconciles_instead_of_raising(self) -> None:
+    def test_null_profiledefaults_raises(self) -> None:
         shared: dict[str, Any] = {"profileDefaults": None}
         canonical = build_canonical_shared_settings(self.ws.scripts_dir)
-        changes = reconcile_shared_dict(shared, canonical)
-        self.assertTrue(changes)
-        self.assertIsInstance(shared["profileDefaults"], dict)
-        self.assertEqual(
-            set(shared["profileDefaults"]["permissions"]["deny"]),
-            set(canonical_deny_rules()),
-        )
+        with self.assertRaises(MalformedSettingsError) as ctx:
+            reconcile_shared_dict(shared, canonical)
+        self.assertIn('"profileDefaults"', str(ctx.exception))
+        self.assertIsNone(shared["profileDefaults"])
 
-    def test_list_profiledefaults_reconciles_instead_of_raising(self) -> None:
+    def test_list_profiledefaults_raises(self) -> None:
         shared: dict[str, Any] = {"profileDefaults": ["nonsense"]}
         canonical = build_canonical_shared_settings(self.ws.scripts_dir)
+        with self.assertRaises(MalformedSettingsError):
+            reconcile_shared_dict(shared, canonical)
+        self.assertEqual(shared["profileDefaults"], ["nonsense"])
+
+    def test_null_claudewheel_raises(self) -> None:
+        settings: dict[str, Any] = {"claudewheel": None}
+        canonical = build_canonical_shared_settings(self.ws.scripts_dir)
+        with self.assertRaises(MalformedSettingsError) as ctx:
+            reconcile_profile_dict(settings, canonical)
+        self.assertIn('"claudewheel"', str(ctx.exception))
+
+    def test_null_permissions_raises(self) -> None:
+        settings: dict[str, Any] = {"permissions": None}
+        canonical = build_canonical_shared_settings(self.ws.scripts_dir)
+        with self.assertRaises(MalformedSettingsError) as ctx:
+            reconcile_profile_dict(settings, canonical)
+        self.assertIn('"permissions"', str(ctx.exception))
+
+    def test_compute_settings_diff_raises_on_non_dict_permissions(self) -> None:
+        with self.assertRaises(MalformedSettingsError):
+            compute_settings_diff({"permissions": None})
+
+    def test_missing_keys_still_bootstrap(self) -> None:
+        """Absence is normal bootstrap, not malformation: no raise, no skip."""
+        settings: dict[str, Any] = {}
+        canonical = build_canonical_shared_settings(self.ws.scripts_dir)
+        reconcile_profile_dict(settings, canonical)
+        self.assertEqual(
+            settings["claudewheel"]["disallowedTools"], list(DISALLOWED_TOOLS)
+        )
+        self.assertEqual(
+            set(settings["permissions"]["deny"]), set(canonical_deny_rules())
+        )
+
+        shared: dict[str, Any] = {}
         reconcile_shared_dict(shared, canonical)
         self.assertEqual(
             set(shared["profileDefaults"]["permissions"]["ask"]),
             set(canonical_ask_rules()),
         )
 
-    def test_null_claudewheel_reconciles_instead_of_raising(self) -> None:
-        settings: dict[str, Any] = {"claudewheel": None}
-        canonical = build_canonical_shared_settings(self.ws.scripts_dir)
-        changes = reconcile_profile_dict(settings, canonical)
-        self.assertTrue(changes)
-        self.assertEqual(
-            settings["claudewheel"]["disallowedTools"], list(DISALLOWED_TOOLS)
-        )
+    # -- workspace level: skip the malformed target, reconcile the rest ----
 
-    def test_null_permissions_reconciles_instead_of_raising(self) -> None:
-        settings: dict[str, Any] = {"permissions": None}
-        canonical = build_canonical_shared_settings(self.ws.scripts_dir)
-        reconcile_profile_dict(settings, canonical)
-        self.assertEqual(
-            set(settings["permissions"]["deny"]), set(canonical_deny_rules())
-        )
-        self.assertEqual(
-            set(settings["permissions"]["ask"]), set(canonical_ask_rules())
-        )
-
-    # -- workspace level: the whole pass survives and repairs --------------
-
-    def test_workspace_pass_repairs_malformed_profile_and_shared(self) -> None:
-        self.make_profile("work", {"claudewheel": None, "permissions": None})
+    def test_malformed_shared_is_skipped_and_left_byte_identical(self) -> None:
+        self.make_profile("work", self.drifted_settings())
         self.write_shared_raw({"profileDefaults": None})
+        shared_before = self.shared_settings.read_text()
 
         out = self._run(dry_run=False)
 
+        self.assertIn("shared-settings.json: malformed", out)
+        self.assertIn('"profileDefaults"', out)
+        self.assertIn(str(self.shared_settings), out)
+        self.assertEqual(self.shared_settings.read_text(), shared_before)
+        # The other target is still reconciled.
         self.assertIn("work: reconciled", out)
-        self.assertIn("shared-settings.json: reconciled", out)
-        s = self.read_settings("work")
-        self.assertEqual(s["claudewheel"]["disallowedTools"], list(DISALLOWED_TOOLS))
-        self.assertEqual(set(s["permissions"]["deny"]), set(canonical_deny_rules()))
-        pd = json.loads(self.shared_settings.read_text())["profileDefaults"]
-        self.assertEqual(set(pd["permissions"]["deny"]), set(canonical_deny_rules()))
+        w = self.read_settings("work")
+        self.assertEqual(set(w["permissions"]["deny"]), set(canonical_deny_rules()))
 
-    def test_malformed_profile_does_not_skip_the_remaining_targets(self) -> None:
-        """The pass must not abort at the first malformed profile.
-
-        Profiles are processed in discovery order, so a raising ``aaa`` used to
-        take ``zzz`` and shared-settings down with it.
-        """
-        self.make_profile("aaa", {"claudewheel": None})
+    def test_malformed_claudewheel_profile_is_skipped(self) -> None:
+        aaa = self.make_profile("aaa", {"claudewheel": None})
         self.make_profile("zzz", self.drifted_settings())
         self.write_shared_raw({"profileDefaults": {}})
+        aaa_before = (aaa / "settings.json").read_text()
 
         out = self._run(dry_run=False)
 
-        self.assertIn("aaa: reconciled", out)
+        self.assertIn("aaa: malformed", out)
+        self.assertIn('"claudewheel"', out)
+        self.assertIn(str(self.settings_path("aaa")), out)
+        self.assertEqual((aaa / "settings.json").read_text(), aaa_before)
+        # Neither the later profile nor shared-settings is taken down with it.
         self.assertIn("zzz: reconciled", out)
         self.assertIn("shared-settings.json: reconciled", out)
         z = self.read_settings("zzz")
         self.assertEqual(set(z["permissions"]["deny"]), set(canonical_deny_rules()))
 
-    def test_repaired_file_is_canonical_on_the_second_pass(self) -> None:
-        self.make_profile("work", {"claudewheel": None, "permissions": None})
-        self.write_shared_raw({"profileDefaults": None})
+    def test_malformed_permissions_profile_is_skipped(self) -> None:
+        aaa = self.make_profile("aaa", {"permissions": None})
+        self.make_profile("zzz", self.drifted_settings())
+        aaa_before = (aaa / "settings.json").read_text()
+
+        out = self._run(dry_run=False)
+
+        self.assertIn("aaa: malformed", out)
+        self.assertIn('"permissions"', out)
+        self.assertEqual((aaa / "settings.json").read_text(), aaa_before)
+        self.assertIn("zzz: reconciled", out)
+
+    def test_malformed_target_is_skipped_under_dry_run_too(self) -> None:
+        self.make_profile("work", {"claudewheel": None})
+        before = self.settings_path("work").read_text()
+
+        out = self._run(dry_run=True)
+
+        self.assertIn("work: malformed", out)
+        self.assertEqual(self.settings_path("work").read_text(), before)
+
+    def test_missing_keys_bootstrap_end_to_end(self) -> None:
+        self.make_profile("work", {})
+        self.write_shared_raw({})
+
+        out = self._run(dry_run=False)
+
+        self.assertIn("work: reconciled", out)
+        self.assertIn("shared-settings.json: reconciled", out)
+        self.assertNotIn("malformed", out)
+        s = self.read_settings("work")
+        self.assertEqual(s["claudewheel"]["disallowedTools"], list(DISALLOWED_TOOLS))
+        pd = json.loads(self.shared_settings.read_text())["profileDefaults"]
+        self.assertEqual(set(pd["permissions"]["deny"]), set(canonical_deny_rules()))
+
+    def test_second_pass_is_idempotent_and_keeps_skipping_the_malformed(self) -> None:
+        self.make_profile("work", self.drifted_settings())
+        self.make_profile("bad", {"claudewheel": None})
+        self.write_shared_raw({"profileDefaults": {}})
         self._run(dry_run=False)
+        work_after_first = self.settings_path("work").read_text()
+        bad_after_first = self.settings_path("bad").read_text()
+        shared_after_first = self.shared_settings.read_text()
 
         out = self._run(dry_run=False)
 
         self.assertIn("work: already canonical, no changes", out)
         self.assertIn("shared-settings.json: already canonical, no changes", out)
+        self.assertIn("bad: malformed", out)
+        self.assertEqual(self.settings_path("work").read_text(), work_after_first)
+        self.assertEqual(self.settings_path("bad").read_text(), bad_after_first)
+        self.assertEqual(self.shared_settings.read_text(), shared_after_first)
 
 
 # ---------------------------------------------------------------------------
