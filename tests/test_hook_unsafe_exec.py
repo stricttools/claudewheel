@@ -134,7 +134,7 @@ _ESCALATE_SAMPLES: dict[str, str] = {
     "gh-workflow-run": "gh workflow run ci.yml",
     "saferm-purge": "saferm purge",
     "git-rebase": "git rebase main",
-    "safegit-rewrite-author": "safegit rewrite-author foo",
+    "safegit-author-rewrite": "safegit author rewrite --all",
 }
 
 
@@ -307,6 +307,10 @@ class HookAllowTests(unittest.TestCase):
         "git add file.txt",
         "rlsbl release run",
         "echo hello",
+        # The pre-0.19.0 spelling of the author rewrite. safegit turned it into
+        # a removal stub that always exits 1 without doing anything, so there is
+        # nothing to guard: the hook lets it through and safegit refuses it.
+        "safegit rewrite-author foo",
     ]
 
     def test_negatives_main(self) -> None:
@@ -318,6 +322,31 @@ class HookAllowTests(unittest.TestCase):
         for command in self.NEGATIVES:
             with self.subTest(command=command, caller="subagent"):
                 _assert_allows(self, command, agent_id="sub-1")
+
+
+class HookSafegitAuthorRewriteTests(unittest.TestCase):
+    """The live 'safegit author rewrite' spelling escalates, both invocations.
+
+    The rule's sample in _ESCALATE_SAMPLES covers the bare 'safegit' form; this
+    pins the './safegit' repo-local invocation the ask globs also list.
+    """
+
+    LOCAL = "./safegit author rewrite --all"
+
+    def test_local_invocation_escalates_subagent(self) -> None:
+        reason = _assert_denies(self, self.LOCAL, agent_id="sub-1")
+        self.assertIn("history rewriting", reason)
+        self.assertIn(ESCALATE_TAIL, reason)
+
+    def test_local_invocation_main_falls_through(self) -> None:
+        _assert_allows(self, self.LOCAL)
+
+    def test_dead_spelling_is_not_guarded(self) -> None:
+        # 'safegit rewrite-author' was renamed in safegit 0.19.0 and is now a
+        # removal stub that exits 1 without doing anything; guarding it would
+        # guard a command that cannot run.
+        _assert_allows(self, "safegit rewrite-author --all")
+        _assert_allows(self, "safegit rewrite-author --all", agent_id="sub-1")
 
 
 class HookNonBashTests(unittest.TestCase):

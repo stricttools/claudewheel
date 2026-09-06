@@ -406,9 +406,15 @@ RULES: tuple[GuardrailRule, ...] = (
         ),
     ),
     _escalate(
-        "safegit-rewrite-author",
-        [_cmd(r"safegit\s+rewrite-author(\s|$)")],
-        ["Bash(safegit rewrite-author:*)"],
+        "safegit-author-rewrite",
+        # 'safegit author rewrite' rewrites the author/committer across ALL
+        # history. The pre-0.19.0 spelling 'safegit rewrite-author' is a removal
+        # stub that always exits 1, so it is deliberately NOT guarded here.
+        [_cmd(r"(safegit|\./safegit)\s+author\s+rewrite(\s|$)")],
+        [
+            "Bash(safegit author rewrite:*)",
+            "Bash(./safegit author rewrite:*)",
+        ],
         "Author rewriting is history rewriting.",
         coverage=SettingsCoverage.FULL,
     ),

@@ -50,7 +50,8 @@ EXPECTED_ASK = [
     "Bash(gh workflow run*)",
     "Bash(saferm purge:*)",
     "Bash(git rebase *)",
-    "Bash(safegit rewrite-author:*)",
+    "Bash(safegit author rewrite:*)",
+    "Bash(./safegit author rewrite:*)",
     "Bash(sudo:*)",
 ]
 
