@@ -133,8 +133,32 @@ def _decode_rel(root: Path, enc: str) -> list[str]:
     return matches
 
 
+def _read_claude_json(path: Path) -> dict:
+    """Read one profile's .claude.json, hard-erroring when it cannot be read.
+
+    Swallowing an unreadable registry is not an option here: during discovery
+    it turns decodable descendants into spurious "undecodable orphan" errors
+    that name the wrong cause, and during the update pass it lets the
+    migration report success while leaving that profile's ``projects{}`` at
+    the old path.  Both readers refuse instead, per the module's uniform
+    hard-error contract.
+    """
+    try:
+        text = path.read_text()
+    except OSError as e:
+        raise OSError(f"cannot read {path}: {e}") from e
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"cannot parse {path}: {e}") from e
+
+
 def _collect_project_keys(profile_dirs: list[Path], shared_dir: Path) -> set[str]:
-    """All real-path keys under projects{} across every profile's .claude.json."""
+    """All real-path keys under projects{} across every profile's .claude.json.
+
+    An unreadable or malformed ``.claude.json`` is a hard error (see
+    ``_read_claude_json``), not a profile silently contributing zero keys.
+    """
     keys: set[str] = set()
     for pdir in profile_dirs:
         if pdir == shared_dir:
@@ -142,11 +166,7 @@ def _collect_project_keys(profile_dirs: list[Path], shared_dir: Path) -> set[str
         claude_json = pdir / ".claude.json"
         if not claude_json.is_file():
             continue
-        try:
-            data = json.loads(claude_json.read_text())
-        except (OSError, json.JSONDecodeError) as e:
-            _log(f"  cannot parse {claude_json}: {e}")
-            continue
+        data = _read_claude_json(claude_json)
         projects = data.get("projects")
         if isinstance(projects, dict):
             keys.update(k for k in projects if isinstance(k, str))
@@ -311,12 +331,12 @@ def _update_claude_json(
     migration source is renamed to its destination.  ``githubRepoPaths``
     values (repo -> list of local paths) equal to or under a migration source
     are rewritten too.  Returns ``(project_keys_updated, github_paths_updated)``.
+
+    An unreadable or malformed file is a hard error (see ``_read_claude_json``):
+    returning ``(0, 0)`` would let the migration report success while this
+    profile's registry still points at the old path.
     """
-    try:
-        data = json.loads(path.read_text())
-    except (OSError, json.JSONDecodeError) as e:
-        _log(f"  cannot parse {path}: {e}")
-        return 0, 0
+    data = _read_claude_json(path)
 
     keys_updated = 0
     projects = data.get("projects")

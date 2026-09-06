@@ -13,6 +13,7 @@ from unittest.mock import patch
 from claudewheel.shared_store import SharedStore
 from claudewheel.mv import (
     MvResult,
+    _collect_project_keys,
     _decode_rel,
     _plan_migrations,
     _rewrite_jsonl_file,
@@ -246,6 +247,25 @@ class UpdateClaudeJsonTests(unittest.TestCase):
         )
         self.assertEqual(data["projects"]["/new/proj/child"], {"b": 2})
 
+    def test_unparseable_file_raises_instead_of_returning_zero(self) -> None:
+        """A corrupt .claude.json must not be silently skipped mid-migration."""
+        f = self.tmp_path / ".claude.json"
+        f.write_text("{not json")
+
+        with self.assertRaises(ValueError) as ctx:
+            _update_claude_json(f, [("/old/proj", "/new/proj")], dry_run=False)
+
+        self.assertIn(str(f), str(ctx.exception))
+
+    def test_unreadable_file_raises_instead_of_returning_zero(self) -> None:
+        """An OSError reading .claude.json is reported, not swallowed."""
+        f = self.tmp_path / "missing-dir" / ".claude.json"
+
+        with self.assertRaises(OSError) as ctx:
+            _update_claude_json(f, [("/old/proj", "/new/proj")], dry_run=False)
+
+        self.assertIn(str(f), str(ctx.exception))
+
     def test_rewrites_github_repo_paths_exact_and_nested(self) -> None:
         f = self.tmp_path / ".claude.json"
         f.write_text(
@@ -270,6 +290,48 @@ class UpdateClaudeJsonTests(unittest.TestCase):
         self.assertEqual(repo_paths["o/exact"], ["/new/proj"])
         self.assertEqual(repo_paths["o/deep"], ["/new/proj/sub/dir", "/elsewhere"])
         self.assertEqual(repo_paths["o/unrelated"], ["/somewhere/else"])
+
+
+# ---------------------------------------------------------------------------
+# _collect_project_keys
+# ---------------------------------------------------------------------------
+
+
+class CollectProjectKeysTests(unittest.TestCase):
+    """Key collection across profiles, and its refusal on an unreadable registry."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp_path = Path(self._tmp.name)
+        self.profile = self.tmp_path / "profile"
+        self.profile.mkdir()
+        self.shared = self.tmp_path / "shared"
+        self.shared.mkdir()
+        self._stdout_trap = contextlib.redirect_stdout(io.StringIO())
+        self._stdout_trap.__enter__()
+
+    def tearDown(self) -> None:
+        self._stdout_trap.__exit__(None, None, None)
+        self._tmp.cleanup()
+
+    def test_collects_keys(self) -> None:
+        (self.profile / ".claude.json").write_text(
+            json.dumps({"projects": {"/a": {}, "/b": {}}})
+        )
+
+        keys = _collect_project_keys([self.profile, self.shared], self.shared)
+
+        self.assertEqual(keys, {"/a", "/b"})
+
+    def test_unparseable_claude_json_raises_naming_the_file(self) -> None:
+        """A corrupt registry is a hard error, not a profile with zero keys."""
+        claude_json = self.profile / ".claude.json"
+        claude_json.write_text("{oops")
+
+        with self.assertRaises(ValueError) as ctx:
+            _collect_project_keys([self.profile, self.shared], self.shared)
+
+        self.assertIn(str(claude_json), str(ctx.exception))
 
 
 # ---------------------------------------------------------------------------
@@ -316,6 +378,36 @@ class RunMvValidationTests(unittest.TestCase):
 
         with self.assertRaises(FileNotFoundError):
             run_mv(self.ws, str(old), str(new))
+
+    def test_corrupt_claude_json_aborts_discovery_naming_the_file(self) -> None:
+        """An unreadable registry names itself, not a bogus undecodable orphan."""
+        old = self.tmp_path / "OldName"
+        new = self.tmp_path / "NewName"
+        old.mkdir()
+
+        profile = self.tmp_path / "profile"
+        (profile / "projects").mkdir(parents=True)
+        # An encoded dir under the OLD prefix that only a projects{} key could
+        # explain -- with the registry unreadable, the old code blamed it.
+        old_encoded = SharedStore.encode_path(str(old.resolve()))
+        (profile / "projects" / f"{old_encoded}-child").mkdir()
+        claude_json = profile / ".claude.json"
+        claude_json.write_text("{not json")
+
+        with patch(
+            "claudewheel.mv._discover_profile_dirs",
+            autospec=True,
+            return_value=[profile],
+        ):
+            with self.assertRaises(ValueError) as ctx:
+                run_mv(self.ws, str(old), str(new))
+
+        msg = str(ctx.exception)
+        self.assertIn(str(claude_json), msg)
+        self.assertNotIn("no known project key", msg)
+        # Nothing was renamed: discovery precedes every mutation.
+        self.assertTrue(old.is_dir())
+        self.assertFalse(new.exists())
 
     def test_default_new_already_exists(self) -> None:
         """Default mode raises FileExistsError when new already exists."""
