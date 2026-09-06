@@ -26,15 +26,15 @@ _CODEC_CASES = [
 
 
 # Expected Claude-Code-style encodings, pinned inline (the codec replaces
-# every "/" and "." with "-"). Formerly asserted by parity against the
+# every "/", "." and "_" with "-"). Formerly asserted by parity against the
 # now-deleted constants.encode_path.
 _CODEC_EXPECTATIONS = {
     "/": "-",
     "/home/m": "-home-m",
     "/home/m/Projects/claudewheel": "-home-m-Projects-claudewheel",
     "/home/m/.config/some.app/v1.2.3": "-home-m--config-some-app-v1-2-3",
-    "/home/m/my-project_dir/sub.dir": "-home-m-my-project_dir-sub-dir",
-    "/a/b.c/d-e_f/.hidden": "-a-b-c-d-e_f--hidden",
+    "/home/m/my-project_dir/sub.dir": "-home-m-my-project-dir-sub-dir",
+    "/a/b.c/d-e_f/.hidden": "-a-b-c-d-e-f--hidden",
     "relative/path.here": "relative-path-here",
     "no-slash-just.dots": "no-slash-just-dots",
     "/trailing/slash/": "-trailing-slash-",
@@ -44,7 +44,7 @@ _CODEC_EXPECTATIONS = {
 
 
 class EncodePathTests(unittest.TestCase):
-    """SharedStore.encode_path replaces every / and . with - (pinned expectations)."""
+    """SharedStore.encode_path replaces every /, . and _ with - (pinned expectations)."""
 
     def test_encodes_representative_paths(self) -> None:
         for case in _CODEC_CASES:
@@ -53,6 +53,14 @@ class EncodePathTests(unittest.TestCase):
                 _CODEC_EXPECTATIONS[case],
                 msg=f"codec mismatch for {case!r}",
             )
+
+    def test_underscores_collapse_to_dashes(self) -> None:
+        # Claude Code encodes "_" as "-" too; a codec that kept the underscore
+        # produced names that never exist on disk.
+        self.assertEqual(
+            SharedStore.encode_path("/home/m/my_project"), "-home-m-my-project"
+        )
+        self.assertEqual(SharedStore.encode_path("a_b_c"), "a-b-c")
 
 
 class SharedSubdirsTests(unittest.TestCase):

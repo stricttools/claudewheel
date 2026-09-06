@@ -13,6 +13,7 @@ from unittest.mock import patch
 from claudewheel.shared_store import SharedStore
 from claudewheel.mv import (
     MvResult,
+    _decode_rel,
     _plan_migrations,
     _rewrite_jsonl_file,
     _update_claude_json,
@@ -26,7 +27,7 @@ from claudewheel.mv import (
 
 
 class EncodePathTests(unittest.TestCase):
-    """Slash-and-dot-to-dash encoding used by Claude Code for project directory names."""
+    """Slash/dot/underscore-to-dash encoding Claude Code uses for project dir names."""
 
     def test_replaces_slashes_with_dashes(self) -> None:
         self.assertEqual(
@@ -44,11 +45,51 @@ class EncodePathTests(unittest.TestCase):
             SharedStore.encode_path("/home/m/.config/app"), "-home-m--config-app"
         )
 
+    def test_replaces_underscores_with_dashes(self) -> None:
+        # Claude Code collapses "_" to "-" as well; encoding it as an
+        # underscore produced project dir names that never exist on disk, so
+        # mv skipped that project's session data.
+        self.assertEqual(
+            SharedStore.encode_path("/home/m/Projects/my_project"),
+            "-home-m-Projects-my-project",
+        )
+
     def test_empty_string(self) -> None:
         self.assertEqual(SharedStore.encode_path(""), "")
 
     def test_no_slashes_or_dots(self) -> None:
         self.assertEqual(SharedStore.encode_path("plain"), "plain")
+
+
+# ---------------------------------------------------------------------------
+# _decode_rel
+# ---------------------------------------------------------------------------
+
+
+class DecodeRelTests(unittest.TestCase):
+    """Encoded suffixes are resolved back to real directories under a root."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def test_round_trips_a_dir_whose_name_contains_underscores(self) -> None:
+        (self.root / "my_project" / "sub_dir").mkdir(parents=True)
+        rel = "my_project/sub_dir"
+        enc = SharedStore.encode_path(rel)
+
+        self.assertEqual(enc, "my-project-sub-dir")
+        self.assertEqual(_decode_rel(self.root, enc), [rel])
+
+    def test_reports_every_real_path_sharing_one_encoding(self) -> None:
+        # The encoding is lossy: "a_b" and "a.b" both encode to "a-b".
+        (self.root / "a_b").mkdir()
+        (self.root / "a.b").mkdir()
+
+        self.assertEqual(sorted(_decode_rel(self.root, "a-b")), ["a.b", "a_b"])
 
 
 # ---------------------------------------------------------------------------

@@ -45,5 +45,9 @@ class SharedStore:
 
     @staticmethod
     def encode_path(p: str) -> str:
-        """Encode an absolute path the way Claude Code does: replace / and . with -."""
-        return p.replace("/", "-").replace(".", "-")
+        """Encode a path the way Claude Code does: replace /, . and _ with -.
+
+        All three separators collapse to a single dash, so the encoding is
+        lossy and one encoded name can correspond to several real paths.
+        """
+        return p.replace("/", "-").replace(".", "-").replace("_", "-")
