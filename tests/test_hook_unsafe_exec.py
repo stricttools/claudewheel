@@ -307,6 +307,12 @@ class HookAllowTests(unittest.TestCase):
         "git add file.txt",
         "rlsbl release run",
         "echo hello",
+        # Trailing-anchor regressions: commands whose subcommand token merely
+        # starts with a guarded subcommand's name must not be denied.
+        "git stashed x",
+        "git stash-like",
+        "git restored x",
+        "git restore-all x",
         # The pre-0.19.0 spelling of the author rewrite. safegit turned it into
         # a removal stub that always exits 1 without doing anything, so there is
         # nothing to guard: the hook lets it through and safegit refuses it.
@@ -321,6 +327,29 @@ class HookAllowTests(unittest.TestCase):
     def test_negatives_subagent(self) -> None:
         for command in self.NEGATIVES:
             with self.subTest(command=command, caller="subagent"):
+                _assert_allows(self, command, agent_id="sub-1")
+
+
+class HookTrailingAnchorTests(unittest.TestCase):
+    """git-stash / git-restore match the subcommand, not a longer word.
+
+    The real subcommand forms stay denied for everyone; a command whose token
+    merely begins with 'stash'/'restore' is a different command and must run.
+    """
+
+    DENIED = ("git stash", "git stash pop", "git stash push -m x", "git restore f")
+    ALLOWED = ("git stashed x", "git stash-like", "git restored x")
+
+    def test_real_subcommands_still_denied(self) -> None:
+        for command in self.DENIED:
+            with self.subTest(command=command):
+                _assert_denies(self, command)
+                _assert_denies(self, command, agent_id="sub-1")
+
+    def test_longer_words_not_denied(self) -> None:
+        for command in self.ALLOWED:
+            with self.subTest(command=command):
+                _assert_allows(self, command)
                 _assert_allows(self, command, agent_id="sub-1")
 
 

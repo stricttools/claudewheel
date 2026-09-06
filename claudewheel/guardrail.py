@@ -293,14 +293,14 @@ RULES: tuple[GuardrailRule, ...] = (
     ),
     _hard_deny(
         "git-stash",
-        [_cmd(r"git\s+stash")],
+        [_cmd(r"git\s+stash(\s|$)")],
         ["Bash(git stash:*)"],
         "Use 'safegit commit' on a temporary branch instead of 'git stash'",
         coverage=SettingsCoverage.FULL,
     ),
     _hard_deny(
         "git-restore",
-        [_cmd(r"git\s+restore")],
+        [_cmd(r"git\s+restore(\s|$)")],
         ["Bash(git restore:*)"],
         "Use the Edit tool to revert specific lines instead of 'git restore'",
         coverage=SettingsCoverage.FULL,
