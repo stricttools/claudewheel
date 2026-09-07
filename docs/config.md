@@ -22,7 +22,7 @@ All configuration lives under `~/.claudewheel/` (overridable via the
 | `config.json` | Global settings: enabled segments, theme, default flags, default client, minimap mode, health check toggle, and the internal `_schema_version` counter |
 | `segments.json` | Segment definitions: one entry per segment with its key, label, layout constraints (min/max width, wrap, searchable, creatable, freeform), and behavior flags (required, tab_advances, show_options) |
 | `options.json` | Per-segment option data: static values, pinned values, discovery configuration, and segment metadata |
-| `state.json` | Runtime state: last-selected values (`last_config`), recent directories, launch count, auth browser preference, per-project hook approvals, and the npm version cache |
+| `state.json` | Runtime state: last-selected values (`last_config`), recent directories, launch count, auth browser preference, per-project hook approvals, and the npm version and model list caches |
 | `themes/dark.json` | Dark theme color definitions |
 | `themes/light.json` | Light theme color definitions |
 | `shared-settings.json` | Canonical shared settings applied to all profiles: hooks, disallowedTools, and profileDefaults (permissions deny/ask arrays) |
@@ -64,7 +64,10 @@ Each segment maintains four option collections:
 - **discovered** -- values found at runtime by the segment's discovery function
   (scanning directories, querying npm, enumerating profiles, etc.).
 - **defaults** -- static fallback values from the built-in `DEFAULT_OPTIONS` in
-  `defaults.py`. These are the baseline options that ship with claudewheel.
+  `defaults.py`. These are the baseline options that ship with claudewheel. The
+  `model` segment is the exception: its defaults collection comes from the
+  accumulated `values` list in `options.json` (see "Model discovery" below),
+  and the built-in list is only the seed that list starts from.
 - **ephemeral** -- values added during the current session only (e.g. a
   freeform-typed directory path). Not persisted.
 
@@ -76,7 +79,7 @@ optionally sorting. Different segments use different merge strategies:
 | --- | --- | --- |
 | `version` | pinned, discovered, defaults | semver descending |
 | `profile` | pinned, discovered | -- |
-| `model` | pinned, defaults | -- |
+| `model` | pinned, discovered, defaults | release date descending |
 | `mcp` | pinned, defaults | -- |
 | `permissions` | pinned, defaults | -- |
 | `github` | pinned, discovered | -- |
@@ -95,10 +98,34 @@ bar when ready.
 | `npm_and_local` | version | Fetches recent versions from npm, merges with locally installed binaries | yes |
 | `directory_scan` | directory | Scans parent directories (`~/Projects`, `~/repos`, etc.) and validates recent dirs from state | no |
 | `gh_auth` | github | Queries `gh auth status` for logged-in GitHub accounts | yes |
+| `anthropic_models` | model | Lists the models the account may use from the Anthropic API | yes |
 | `state_field` | -- | Merges state-tracked values with static defaults | no |
 
-Slow discovery results are cached. The npm version cache has a 1-hour TTL
-stored in `state.json` under `npm_versions_cache`.
+Slow discovery results are cached, each with a 1-hour TTL in `state.json`: the
+npm version list under `npm_versions_cache`, the model list under
+`model_list_cache`. While a cache is warm, startup reads it instead of the
+network; when a refresh fails, the cached answer is used however stale it is.
+
+### Model discovery
+
+`anthropic_models` reads `GET /v1/models` with the OAuth token stored in a
+profile, trying the last-used profile first and falling through to the others
+when one is rejected (a profile that stores no token is never tried, and an
+offline machine ends the refresh rather than working through every token). It
+is additive in both directions:
+
+- Every id it reports joins `options.json`'s model `values` list once, at the
+  end, and stays there -- so a model discovered while online is still offered
+  when offline, and a model the API stops listing is never taken away.
+- Each id's release date is recorded as `created_at` in the segment's
+  `metadata`, alongside whatever else that entry carries. The picker sorts on
+  it: newest release first, a `[1m]` entry immediately after the base model it
+  derives from, undated entries last in stored order, and pinned entries on top
+  regardless of date. The sort is display-only -- the stored list stays
+  append-only.
+
+Every failure is quiet: discovery runs in the background thread, and a refusal,
+a timeout or a missing token leaves the picker exactly as it was.
 
 ### Staleness verification
 
@@ -140,7 +167,11 @@ Each segment key maps to an object with:
   },
   "model": {
     "values": ["claude-opus-5", "claude-opus-4-8", "..."],
-    "pinned": []
+    "pinned": [],
+    "metadata": {"claude-opus-5": {"created_at": "2026-02-05T00:00:00Z"}},
+    "discovery": {
+      "type": "anthropic_models"
+    }
   },
   "directory": {
     "values": [],
@@ -154,13 +185,19 @@ Each segment key maps to an object with:
 }
 ```
 
-- `values` -- legacy list, now largely superseded by the pinned/discovered/defaults
-  split. Kept for backward compatibility; migration 3 classifies existing values
-  into the appropriate collection.
+- `values` -- for every segment but `model`, a legacy list superseded by the
+  pinned/discovered/defaults split and kept for backward compatibility;
+  migration 3 classifies existing values into the appropriate collection. For
+  `model` it is the accumulated option list the picker actually offers: the
+  models claudewheel shipped with, plus every model discovery has since
+  reported. It is append-only -- entries are added at the end and never
+  removed, and the built-in list in `defaults.py` is only the first-run seed
+  and the source new shipped defaults are appended from.
 - `pinned` -- user-added values that persist across restarts.
 - `discovery` -- configuration for the segment's discovery function (type plus
   type-specific parameters like `path`, `parents`, `count`, `state_field`).
-- `metadata` -- per-value metadata dict (e.g. auth status for profiles).
+- `metadata` -- per-value metadata dict (auth status for profiles, `model_id`
+  and the discovered `created_at` release date for models).
 
 ## segments.json
 
@@ -191,6 +228,7 @@ Runtime state persisted between sessions:
 | `recent_dirs` | List of recently used directories (capped at 20, most recent first). Used as hints by directory discovery. |
 | `launch_count` | Total number of successful launches. |
 | `npm_versions_cache` | Cached npm version list with a `fetched_at` timestamp for TTL. |
+| `model_list_cache` | Cached Anthropic model list (id plus `created_at`) with a `fetched_at` timestamp for TTL. |
 | `auth_browser` | Browser path chosen in the auth wizard (written out-of-band). |
 | `project_hook_approvals` | Per-project hook approval decisions, keyed by canonical project path. |
 | `vanilla_guardrails_opt_in` | Machine-global opt-in state for vanilla profile guardrails. |
@@ -216,7 +254,9 @@ user values. It runs every startup and is idempotent:
   are added from `DEFAULT_SEGMENTS`.
 - **Theme files** -- missing keys are deep-merged from the default theme dicts.
 - **options.json** -- new model values from `DEFAULT_OPTIONS` are appended to
-  the user's model list.
+  the user's model list, and the model segment is given its discovery config
+  when it has none (a file written before model discovery existed). The segment
+  entry and its `values` list are created when absent.
 
 Files are written only when something actually changed.
 

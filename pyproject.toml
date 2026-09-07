@@ -61,9 +61,9 @@ dev = [
 # developer's live profiles.
 #
 # sockets = "deny" with both allowlists empty: nothing in this suite
-# legitimately reaches the network. The Anthropic token probe and the Claude
-# Code release-bucket download are the only network calls in the package and
-# every test that exercises them stubs the transport.
+# legitimately reaches the network. Every network call the package makes goes
+# through the HTTP surface in claudewheel/effects.py, and every test that
+# exercises one of those call sites stubs the transport.
 #
 # loopback = "deny": there is no local server anywhere in the suite. The PTY
 # tests use pty.fork and socketpair-free pipes, not sockets.

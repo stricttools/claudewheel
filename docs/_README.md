@@ -105,6 +105,8 @@ The viewport activates automatically and deactivates when the terminal is resize
 
 Profile, GitHub, and Model are *creatable*: their option lists end with a `+` sentinel that prompts for a new value and persists it to `options.json`. Directory is *freeform*: you can type any path. Version pulls a live npm listing merged with the locally installed binaries.
 
+Model discovers itself: claudewheel asks the Anthropic API which models your account may use, appends any it has not seen to `options.json`, and orders the picker by release date, newest first. The list only ever grows -- a model that stops being served stays selectable, and an offline launch offers everything a previous one discovered.
+
 ## Commands
 
 :-: table-commands
