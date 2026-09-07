@@ -110,9 +110,10 @@ network; when a refresh fails, the cached answer is used however stale it is.
 
 `anthropic_models` reads `GET /v1/models` with the OAuth token stored in a
 profile, trying the last-used profile first and falling through to the others
-when one is rejected (a profile that stores no token is never tried, and an
-offline machine ends the refresh rather than working through every token). It
-is additive in both directions:
+when one is rejected (a 401) or rate limited (a 429, which is per-account, so
+another account may still answer). A profile that stores no token is never
+tried, and any other HTTP status, like an offline machine, ends the refresh
+rather than working through every token. It is additive in both directions:
 
 - Every id it reports joins `options.json`'s model `values` list once, at the
   end, and stays there -- so a model discovered while online is still offered
@@ -137,19 +138,25 @@ verification are kept; values that fail are dropped.
 
 ### Cross-segment constraints
 
-Options can declare `requires` constraints that reference other segments. For
-example, a model option might require a minimum Claude Code version:
-
-```json
-{
-  "value": "claude-opus-5",
-  "requires": {"version": ">=2.1.219"}
-}
-```
-
+An option can carry constraints that reference another segment's selection.
 The `evaluate_requires` function runs every render cycle, computing the
-`unavailable` set for each segment. Unavailable options are dimmed in the UI
+`unavailable` set for each segment; unavailable options are dimmed in the UI
 and cannot be selected.
+
+The model segment is the one that uses this, and its constraints are not
+declared in `options.json` at all -- they are derived from claudewheel's own
+table of model minimum CLI versions (`MODEL_MIN_CLI_VERSION` in
+`defaults.py`), which is the single place that fact is written down:
+
+- A model listed there is dimmed whenever the effective Claude Code version --
+  the version segment's selection -- is older than its minimum, and so is the
+  model's `[1m]` spelling, which inherits the base model's minimum.
+- A model absent from the table is unrestricted, and every model is dimmed
+  while the version segment carries no selection, because there is then
+  nothing to satisfy the minimum with.
+- The same table drives the pre-launch `model-version-guard` step, which
+  aborts a launch whose effective binary is too old for the selected model.
+  Picker and guard therefore cannot disagree.
 
 ### options.json structure
 
@@ -192,7 +199,10 @@ Each segment key maps to an object with:
   models claudewheel shipped with, plus every model discovery has since
   reported. It is append-only -- entries are added at the end and never
   removed, and the built-in list in `defaults.py` is only the first-run seed
-  and the source new shipped defaults are appended from.
+  and the source new shipped defaults are appended from. The picker reads this
+  list and nothing else: an empty one is an empty picker, never a silent
+  fallback to the built-in list -- the startup sync is what keeps it
+  populated.
 - `pinned` -- user-added values that persist across restarts.
 - `discovery` -- configuration for the segment's discovery function (type plus
   type-specific parameters like `path`, `parents`, `count`, `state_field`).
