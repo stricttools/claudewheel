@@ -498,6 +498,19 @@ class MalformedNestedContainerTests(_ReconcileTestCase):
         w = self.read_settings("work")
         self.assertEqual(set(w["permissions"]["deny"]), set(canonical_deny_rules()))
 
+    def test_unreadable_profile_skip_names_the_file(self) -> None:
+        """The unreadable skip reason names the path, like the malformed one."""
+        aaa = self.make_profile("aaa", {})
+        (aaa / "settings.json").write_text("{not valid json")
+        self.make_profile("zzz", self.drifted_settings())
+        self.write_shared_raw({"profileDefaults": {}})
+
+        out = self._run(dry_run=False)
+
+        self.assertIn("aaa: unreadable", out)
+        self.assertIn(str(aaa / "settings.json"), out)
+        self.assertIn("zzz: reconciled", out)
+
     def test_malformed_claudewheel_profile_is_skipped(self) -> None:
         aaa = self.make_profile("aaa", {"claudewheel": None})
         self.make_profile("zzz", self.drifted_settings())

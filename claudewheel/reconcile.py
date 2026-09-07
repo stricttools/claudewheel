@@ -405,7 +405,7 @@ def _process_settings_file(
         data = load_settings(path)
     except (json.JSONDecodeError, OSError) as e:
         return TargetReport(
-            label, changed=False, written=False, skip_reason=f"unreadable ({e})"
+            label, changed=False, written=False, skip_reason=f"unreadable ({path}: {e})"
         )
     original = deepcopy(data)
     try:
