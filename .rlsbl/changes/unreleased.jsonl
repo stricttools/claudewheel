@@ -31,3 +31,4 @@
 {"format_version":1,"id":"18d3040ab93d95dfa3a5aaf38868448d96abe3210a2edbb0","commits":["e6151783360ea7799486655fbda03c2af2992d8a","3f058ec4f9b8aa438e7a77f5c1c8cab2e9559517","ce5befd45aefb4eded91a56326e69fe9d74a2870","d4e1af29d343f4f1afc1bea6deb421da38c1b87d","272b4b78d3b370a8795aa4c436e01e961f8a345a"],"user_facing":false}
 {"format_version":1,"id":"18d30462c6251319c39844ea224449fd81b5ca010be5040d","commits":["dee5af1beaaf28b24bd2c46f591a0337ba5b1537"],"user_facing":true,"description":"`--dry-run` no longer silently accepts an invalid path operand in directory and file copies: it is refused the same way a real run refuses it.","type":"fix"}
 {"format_version":1,"id":"18d304695780a6b85f3444e999624b92a8fb79d7e4423342","commits":["03b5e867a5fb5021f6214cc29336b05e3e60814a"],"user_facing":false}
+{"format_version":1,"id":"18d304783233ed98c93292ea25a54c41b79f466a0e08e1a2","commits":["3f477c1b4a6fef2513959bcfe6c4b8cafd4ca72b"],"user_facing":false}
