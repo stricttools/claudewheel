@@ -1,6 +1,6 @@
 ---
 title: Configuration
-description: "How the claudewheel configuration system works: the root file layout, per-profile directories and their claudewheel data, segments and options, discovery with its caches -- including model discovery from the Anthropic API, the release-date ordering it feeds, and the built-in minimum-version table that dims models needing a newer Claude Code than the version you have selected or installed -- the migration framework, schema versioning, flag-driven launches, and how interactivity is derived from a controlling terminal."
+description: "How the claudewheel configuration system works: the root file layout, per-profile directories and their claudewheel data, segments and options, discovery with its caches -- including model discovery from the Anthropic API, the release-date ordering it feeds, and the built-in minimum-version table that dims models needing a newer Claude Code than the version you have selected or installed (a dimmed model refuses to launch) -- the migration framework, schema versioning, flag-driven launches, and how interactivity is derived from a controlling terminal."
 nav_group: "Concepts"
 order: 4
 ---
@@ -141,7 +141,8 @@ verification are kept; values that fail are dropped.
 An option can carry constraints that reference another segment's selection.
 The `evaluate_requires` function runs every render cycle, computing the
 `unavailable` set for each segment; unavailable options are dimmed in the UI
-and cannot be selected.
+and refuse to launch -- the cursor can still reach them, but confirming the
+launch with one selected is rejected with a flash.
 
 The model segment is the one that uses this, and its constraints are not
 declared in `options.json` at all -- they are derived from claudewheel's own
