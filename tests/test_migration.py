@@ -14,6 +14,7 @@ from typing import Any
 from unittest import mock
 
 from claudewheel.config import HISTORICAL_DEFAULTS, AppConfigStore
+from claudewheel.segment import build_segment_bar
 from claudewheel.workspace import Workspace
 from claudewheel.defaults import (
     DEFAULT_CONFIG,
@@ -495,6 +496,141 @@ class Migration4LaunchResolutionTests(SandboxHomeTestCase):
         env = ws.profiles.env("work")
         self.assertEqual(env["CLAUDE_CONFIG_DIR"], str(pdir))
         self.assertEqual(env["CLAUDE_CODE_OAUTH_TOKEN"], "tok-work")
+
+
+class Migration6Tests(unittest.TestCase):
+    """Test migration 6: dict entries in ``values`` lists become plain strings.
+
+    The dict form ``{"value": ..., "requires": {...}}`` was once accepted in a
+    segment's ``values`` list. Its parsing is gone, and such an entry now
+    reaches ``_deduplicate`` as an unhashable dict and crashes the segment
+    build, so an options.json still carrying one has to be migrated.
+    """
+
+    def setUp(self) -> None:
+        self._tmp_obj = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._tmp_obj.name)
+
+    def tearDown(self) -> None:
+        self._tmp_obj.cleanup()
+
+    def _make_cm(self, paths: dict[str, Path]) -> AppConfigStore:
+        return _appconfig(paths)
+
+    def test_dict_entry_is_unwrapped_in_memory_and_on_disk(self) -> None:
+        """The dict is replaced by its "value"; the dropped keys do not survive."""
+        options = {
+            **DEFAULT_OPTIONS,
+            "permissions": {
+                "values": [
+                    "bypass",
+                    {"value": "auto", "requires": {"version": ">=2.1.110"}},
+                    "plan",
+                ],
+                "pinned": [],
+            },
+        }
+        paths = _setup_temp_config_dir(self.tmp, options=options)
+        cm = self._make_cm(paths)
+
+        self.assertEqual(
+            cm.options_def["permissions"]["values"], ["bypass", "auto", "plan"]
+        )
+        on_disk = _read_json(paths["OPTIONS_FILE"])
+        self.assertEqual(on_disk["permissions"]["values"], ["bypass", "auto", "plan"])
+
+    def test_a_dict_without_a_usable_value_is_dropped(self) -> None:
+        """A dict naming no option is removed rather than kept in any form."""
+        options = {
+            **DEFAULT_OPTIONS,
+            "permissions": {
+                "values": [
+                    "bypass",
+                    {"requires": {"version": ">=2.1.110"}},
+                    {"value": ""},
+                    {"value": 7},
+                ],
+                "pinned": [],
+            },
+        }
+        paths = _setup_temp_config_dir(self.tmp, options=options)
+        cm = self._make_cm(paths)
+
+        self.assertEqual(cm.options_def["permissions"]["values"], ["bypass"])
+        self.assertEqual(
+            _read_json(paths["OPTIONS_FILE"])["permissions"]["values"], ["bypass"]
+        )
+
+    def test_a_dict_entry_in_any_segment_is_unwrapped(self) -> None:
+        """The walk covers every segment's values list, not just the model one."""
+        options = {
+            **DEFAULT_OPTIONS,
+            "model": {
+                "values": [{"value": "claude-opus-5", "requires": {}}],
+                "pinned": [],
+            },
+            "mcp": {"values": [{"value": "off"}, "on"], "pinned": []},
+        }
+        paths = _setup_temp_config_dir(self.tmp, options=options)
+        cm = self._make_cm(paths)
+
+        self.assertIn("claude-opus-5", cm.options_def["model"]["values"])
+        self.assertNotIn(
+            True,
+            [isinstance(v, dict) for v in cm.options_def["model"]["values"]],
+        )
+        self.assertEqual(cm.options_def["mcp"]["values"], ["off", "on"])
+
+    def test_a_clean_options_file_is_left_alone(self) -> None:
+        """No dict entries means the values lists are untouched byte for byte."""
+        options = {
+            **DEFAULT_OPTIONS,
+            "permissions": {"values": ["bypass", "auto"], "pinned": ["auto"]},
+        }
+        paths = _setup_temp_config_dir(self.tmp, options=options)
+        cm = self._make_cm(paths)
+
+        self.assertEqual(cm.options_def["permissions"]["values"], ["bypass", "auto"])
+        self.assertEqual(cm.options_def["permissions"]["pinned"], ["auto"])
+        self.assertEqual(
+            _read_json(paths["OPTIONS_FILE"])["permissions"],
+            {"values": ["bypass", "auto"], "pinned": ["auto"]},
+        )
+
+    def test_schema_version_advances_past_the_migration(self) -> None:
+        """A store opened on an old schema records the new version on disk."""
+        config = {**DEFAULT_CONFIG, "_schema_version": 5}
+        paths = _setup_temp_config_dir(self.tmp, config=config)
+        cm = self._make_cm(paths)
+
+        self.assertGreaterEqual(cm.config["_schema_version"], 6)
+        self.assertGreaterEqual(_read_json(paths["CONFIG_FILE"])["_schema_version"], 6)
+
+    def test_the_migrated_file_builds_a_segment_bar(self) -> None:
+        """The crash the migration exists to prevent does not happen after it.
+
+        The model segment is the one that reads options.json ``values`` as its
+        option list, so an unwrapped dict there is what reaches
+        ``_deduplicate`` and raises ``TypeError: unhashable type: 'dict'``.
+        """
+        config = {**DEFAULT_CONFIG, "_schema_version": 5}
+        options = {
+            **DEFAULT_OPTIONS,
+            "model": {
+                "values": [
+                    "claude-sonnet-4-6",
+                    {"value": "claude-opus-5", "requires": {"version": ">=2.1.219"}},
+                ],
+                "pinned": [],
+            },
+        }
+        paths = _setup_temp_config_dir(self.tmp, config=config, options=options)
+        cm = self._make_cm(paths)
+
+        bar = build_segment_bar(cm, skip_slow=True)
+        model = [s for s in bar.segments if s.key == "model"]
+        self.assertTrue(model)
+        self.assertIn("claude-opus-5", model[0].state.options)
 
 
 # ---------------------------------------------------------------------------

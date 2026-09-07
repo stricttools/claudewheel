@@ -132,13 +132,19 @@ def _migration_3_classify_pinned(
     still in DEFAULT_OPTIONS -> discard (they come from defaults now). Values
     in HISTORICAL_DEFAULTS but NOT in current defaults -> pinned (conservative).
     Values not in any defaults -> pinned (user-added).
+
+    Non-string entries are skipped: a ``values`` list may still carry the
+    retired ``{"value": ..., "requires": {...}}`` dict form, which is
+    unhashable and would crash every membership test here. Migration 6 unwraps
+    those, and it cannot run before this one -- so a file old enough to replay
+    this migration has to survive them.
     """
     for key, seg_entry in options_def.items():
         if "values" not in seg_entry:
             continue
         seg_entry.setdefault("pinned", [])
         has_discovery = "discovery" in seg_entry
-        values = seg_entry["values"]
+        values = [v for v in seg_entry["values"] if isinstance(v, str)]
         metadata = seg_entry.get("metadata", {})
 
         if has_discovery:
@@ -219,6 +225,41 @@ def _migration_5_drop_fable_1m(
         metadata.pop("claude-fable-5[1m]", None)
 
 
+def _migration_6_unwrap_dict_option_values(
+    config: dict[str, Any],
+    segments_def: list[dict[str, Any]],
+    theme: dict[str, Any],
+    options_def: dict[str, Any],
+) -> None:
+    """Replace dict entries in every segment's ``values`` list with their value.
+
+    A ``values`` list once accepted the dict form
+    ``{"value": "x", "requires": {...}}`` to declare an option's cross-segment
+    requirements. That parsing is gone -- the model segment's requirements are
+    derived from ``MODEL_MIN_CLI_VERSION``, and no other segment declares any
+    -- so such an entry is now an unhashable dict reaching ``_deduplicate`` and
+    crashing the segment build with a bare ``TypeError``. Each dict is replaced
+    by its ``"value"`` string; the rest of the dict, requirements included, is
+    dropped as superseded. A dict carrying no usable ``"value"`` names no
+    option and is removed.
+    """
+    for seg_entry in options_def.values():
+        if not isinstance(seg_entry, dict):
+            continue
+        values = seg_entry.get("values")
+        if not isinstance(values, list):
+            continue
+        unwrapped: list[Any] = []
+        for entry in values:
+            if isinstance(entry, dict):
+                value = entry.get("value")
+                if isinstance(value, str) and value:
+                    unwrapped.append(value)
+                continue
+            unwrapped.append(entry)
+        seg_entry["values"] = unwrapped
+
+
 _MIGRATIONS: list[dict[str, Any]] = [
     {
         "version": 1,
@@ -244,6 +285,11 @@ _MIGRATIONS: list[dict[str, Any]] = [
         "version": 5,
         "description": "Drop the claude-fable-5[1m] model option (Fable 5 is natively 1M)",
         "apply": _migration_5_drop_fable_1m,
+    },
+    {
+        "version": 6,
+        "description": "Unwrap dict entries in options 'values' lists to plain strings",
+        "apply": _migration_6_unwrap_dict_option_values,
     },
 ]
 
