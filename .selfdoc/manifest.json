@@ -2062,6 +2062,11 @@
         },
         {
           "level": 3,
+          "text": "`_list_at`",
+          "anchor": "_list_at"
+        },
+        {
+          "level": 3,
           "text": "`merge_hooks`",
           "anchor": "merge_hooks"
         },
@@ -2858,6 +2863,16 @@
           "level": 3,
           "text": "`_reconcile_list`",
           "anchor": "_reconcile_list"
+        },
+        {
+          "level": 3,
+          "text": "`MalformedSettingsError`",
+          "anchor": "malformedsettingserror"
+        },
+        {
+          "level": 3,
+          "text": "`_json_type_name`",
+          "anchor": "_json_type_name"
         },
         {
           "level": 3,
@@ -5620,6 +5635,6 @@
     }
   ],
   "posts": [],
-  "last_gen": "2026-09-06T21:13:05.475820+00:00",
+  "last_gen": "2026-09-07T10:59:53.508838+00:00",
   "theme": "minimal"
 }
