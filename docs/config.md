@@ -1,6 +1,6 @@
 ---
 title: Configuration
-description: "How the claudewheel configuration system works: the root file layout, per-profile directories and their claudewheel data, segments and options, discovery with its caches -- including model discovery from the Anthropic API, the release-date ordering it feeds, and the built-in minimum-version table that dims models needing a newer Claude Code than the one selected or installed -- the migration framework, schema versioning, flag-driven launches, and how interactivity is derived from a controlling terminal."
+description: "How the claudewheel configuration system works: the root file layout, per-profile directories and their claudewheel data, segments and options, discovery with its caches -- including model discovery from the Anthropic API, the release-date ordering it feeds, and the built-in minimum-version table that dims models needing a newer Claude Code than the version you have selected or installed -- the migration framework, schema versioning, flag-driven launches, and how interactivity is derived from a controlling terminal."
 nav_group: "Concepts"
 order: 4
 ---
@@ -157,7 +157,7 @@ table of model minimum CLI versions (`MODEL_MIN_CLI_VERSION` in
   with no selection would run. Nothing dims when that is new enough, and the
   fallback applies just as well when the version segment is not enabled at
   all. Neither answer available -- no selection and no resolvable symlink --
-  leaves the minimum unsatisfiable, so the listed models are dimmed.
+  leaves nothing to satisfy the minimum with, so the listed models are dimmed.
 - A model absent from the table is unrestricted: no selection and no installed
   binary can dim it.
 - The same table drives the pre-launch `model-version-guard` step, which
