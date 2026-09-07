@@ -1,6 +1,6 @@
 ---
 title: Getting Started
-description: "Install claudewheel, create your first profile, understand the segment bar and its sessions overview, and launch a Claude Code session with the right model, context window, and permissions."
+description: "Install claudewheel, create your first profile, understand the segment bar and its sessions overview, work with a model list that keeps itself current from the Anthropic API, and launch a Claude Code session with the right model, context window, and permissions."
 nav_group: "Guides"
 order: 2
 ---
