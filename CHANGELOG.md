@@ -2,6 +2,31 @@
 
 # Changelog
 
+## 0.29.0
+
+The model picker now discovers newly available Claude models from the Anthropic API on its own and orders them by release date.
+
+<details>
+<summary>Context</summary>
+
+Previously every new Claude model had to be hand-added to the launcher's
+hardcoded list, so new releases (most recently Fable 5.1) were invisible
+until someone edited defaults. The picker's list is now the accumulated
+values list in options.json -- append-only, seeded from the built-in
+defaults, extended by a background fetch of the Anthropic models endpoint
+using stored profile tokens, and never shrunk. Release dates from the API
+drive a newest-first display order. Alongside the feature, the
+minimum-CLI-version facts were unified onto a single built-in table that
+feeds both the picker's dimming and the pre-launch guard through one
+shared version resolution, so the two can no longer disagree.
+
+</details>
+
+### Features
+
+- **Model auto-discovery.** The model picker asks the Anthropic API which models your account may use, adds any it has not seen before to your option list, and orders the list by release date, newest first. The list only grows: a model that stops being served stays selectable, and an offline launch offers everything a previous one discovered.
+- **Models needing a newer Claude Code are dimmed in the picker.** A model whose minimum CLI version is above the one you have selected or installed now renders unavailable in the model segment, the same table that already blocked such a launch at the pre-launch check.
+
 ## 0.28.0
 
 Correctness sweep: atomic writes that survive concurrent processes, a guardrail model that guards the live safegit spelling, mv fixes for underscore paths and corrupt registries, loud errors for malformed settings values, and a workspace-injection seam on resolve_profile.
