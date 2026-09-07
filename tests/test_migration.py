@@ -638,6 +638,62 @@ class ModelSyncTests(unittest.TestCase):
         self.assertIn("claude-opus-5", on_disk["model"]["values"])
         self.assertEqual(on_disk["model"]["pinned"], old_pins)
 
+    def test_options_without_a_model_entry_gets_one_on_disk(self) -> None:
+        """An options.json with no model section is materialized, not silently skipped.
+
+        The sync used to extend a list read out of a throwaway default when the
+        file had no model entry, so nothing reached disk -- and the model list
+        is what the picker reads.
+        """
+        options = {k: v for k, v in DEFAULT_OPTIONS.items() if k != "model"}
+        paths = _setup_temp_config_dir(self.tmp, options=options)
+        cm = self._make_cm(paths)
+
+        defaults = DEFAULT_OPTIONS["model"]["values"]
+        self.assertEqual(cm.options_def["model"]["values"], defaults)
+
+        on_disk = _read_json(paths["OPTIONS_FILE"])
+        self.assertEqual(on_disk["model"]["values"], defaults)
+
+    def test_model_entry_without_values_gets_them_on_disk(self) -> None:
+        """A model entry carrying only pins gains the default values list."""
+        options = {**DEFAULT_OPTIONS, "model": {"pinned": ["claude-opus-4-8"]}}
+        paths = _setup_temp_config_dir(self.tmp, options=options)
+        cm = self._make_cm(paths)
+
+        defaults = DEFAULT_OPTIONS["model"]["values"]
+        self.assertEqual(cm.options_def["model"]["values"], defaults)
+        self.assertEqual(_read_json(paths["OPTIONS_FILE"])["model"]["values"], defaults)
+
+    def test_model_discovery_config_is_materialized(self) -> None:
+        """An options.json predating model discovery gains the discovery config.
+
+        The registry dispatches on what options.json declares, so without this
+        the model segment would never run its discovery.
+        """
+        options = {**DEFAULT_OPTIONS, "model": {"values": ["claude-opus-4-8"]}}
+        options["model"].pop("discovery", None)
+        paths = _setup_temp_config_dir(self.tmp, options=options)
+        cm = self._make_cm(paths)
+
+        expected = DEFAULT_OPTIONS["model"]["discovery"]
+        self.assertEqual(cm.options_def["model"]["discovery"], expected)
+        self.assertEqual(
+            _read_json(paths["OPTIONS_FILE"])["model"]["discovery"], expected
+        )
+
+    def test_existing_model_discovery_config_is_left_alone(self) -> None:
+        """A discovery config already on disk is never rewritten."""
+        custom = {"type": "anthropic_models", "custom_key": "kept"}
+        options = {
+            **DEFAULT_OPTIONS,
+            "model": {"values": ["claude-opus-4-8"], "discovery": custom},
+        }
+        paths = _setup_temp_config_dir(self.tmp, options=options)
+        cm = self._make_cm(paths)
+
+        self.assertEqual(cm.options_def["model"]["discovery"], custom)
+
 
 # ---------------------------------------------------------------------------
 # 5. Rename recovery at startup

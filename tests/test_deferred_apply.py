@@ -7,6 +7,7 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 from claudewheel.segment import (
+    MODEL_LIST_CACHE_KEY,
     DiscoveryResult,
     Segment,
     SegmentBar,
@@ -96,6 +97,59 @@ class ApplySlowDiscoveryDeferralTests(unittest.TestCase):
         self.assertEqual(app._pending_discovery, {})
         self.assertFalse(bar.segments[0].has_pending)
         mock_merge.assert_called_once()
+
+    def test_discovered_models_are_recorded_even_while_focused(self) -> None:
+        """options.json is written on this thread, regardless of where focus sits.
+
+        Applying the result to the bar is deferred while the model segment is
+        focused, but what the API reported is recorded either way -- the record
+        is not a function of which segment the user is standing on.
+        """
+        bar = _make_bar("model", "version")
+        bar.focus_idx = 0  # "model" is focused, so its result is deferred
+        app = self._make_app(bar)
+
+        dr_model = DiscoveryResult(
+            values=["claude-fable-5-1"],
+            metadata={"claude-fable-5-1": {"created_at": "2026-08-28T00:00:00Z"}},
+        )
+        app._slow_results = {"model": dr_model}
+
+        with patch("claudewheel.app.merge_slow_results", autospec=True):
+            app._apply_slow_discovery()
+
+        app.cfg.record_discovered_models.assert_called_once_with(
+            dr_model.values, dr_model.metadata
+        )
+        self.assertIn("model", app._pending_discovery)
+
+    def test_nothing_recorded_without_model_results(self) -> None:
+        """A run that discovered no models writes nothing to options.json."""
+        bar = _make_bar("version")
+        bar.focus_idx = 0
+        app = self._make_app(bar)
+
+        app._slow_results = {"version": DiscoveryResult(values=["1.0"])}
+
+        with patch("claudewheel.app.merge_slow_results", autospec=True):
+            app._apply_slow_discovery()
+
+        app.cfg.record_discovered_models.assert_not_called()
+
+    def test_model_list_cache_is_copied_back_from_the_thread(self) -> None:
+        """The background thread's cache lands in the live state, not its copy."""
+        bar = _make_bar("version")
+        bar.focus_idx = 0
+        app = self._make_app(bar)
+        cache = {"fetched_at": 1.0, "models": [{"id": "m1"}]}
+        app._slow_state_copy = {MODEL_LIST_CACHE_KEY: cache}
+        app._slow_results = {"version": DiscoveryResult(values=["1.0"])}
+
+        with patch("claudewheel.app.merge_slow_results", autospec=True):
+            app._apply_slow_discovery()
+
+        self.assertEqual(app.cfg.state[MODEL_LIST_CACHE_KEY], cache)
+        self.assertIsNone(app._slow_state_copy)
 
     def test_slow_results_consumed_once(self) -> None:
         """_slow_results is set to None after being consumed."""

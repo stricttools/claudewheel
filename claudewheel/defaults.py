@@ -228,6 +228,14 @@ DEFAULT_OPTIONS: dict[str, Any] = {
         },
     },
     "model": {
+        # These values are the FIRST-RUN SEED and the list the startup sync
+        # appends from -- not the picker's option list. options.json accumulates
+        # the models: this seed plus everything the Anthropic models endpoint
+        # has since reported, each with the release date the picker sorts on,
+        # and nothing is ever removed from it. A model that ships in Claude Code
+        # after this list was written arrives through that discovery, which is
+        # the point of it; adding it here by hand is not needed.
+        #
         # The [1m] suffix selects the 1M token context window on models that
         # have a 200K default to switch away from (Opus 4.8, Opus 4.7, Opus 4.6,
         # Sonnet 4.6). Claude Code strips it before sending to the API.
@@ -254,6 +262,9 @@ DEFAULT_OPTIONS: dict[str, Any] = {
             "claude-sonnet-4-5-20241022",
         ],
         "pinned": [],
+        "discovery": {
+            "type": "anthropic_models",
+        },
     },
     "mcp": {"values": ["default", "strict"], "pinned": []},
     "permissions": {

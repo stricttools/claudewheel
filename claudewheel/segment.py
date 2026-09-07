@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+import urllib.error
+import urllib.parse
 
 from . import effects
 import time
@@ -13,13 +15,34 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from .auth import ANTHROPIC_VERSION, MODELS_ENDPOINT
 from .fuzzy import fuzzy_rank
+from .tokens import TokenStoreError
 
 if TYPE_CHECKING:
     from .config import AppConfigStore
     from .workspace import Workspace
 
 NPM_CACHE_TTL = 3600  # 1 hour
+
+# The model list is cached in state.json on the same 1-hour terms as the npm
+# version list: a TTL-fresh cache skips the network entirely, and a stale one
+# is still used when a refresh fails.
+MODEL_LIST_CACHE_TTL = 3600  # 1 hour
+MODEL_LIST_CACHE_KEY = "model_list_cache"
+
+# Page size for the models endpoint, and the ceiling on how many pages one
+# refresh will walk. The ceiling is not a limit on the model list -- eleven
+# models fit in a single page -- it is what keeps a far side that always
+# answers ``has_more`` from spinning the discovery thread forever.
+_MODEL_PAGE_LIMIT = 100
+_MODEL_MAX_PAGES = 20
+_MODEL_FETCH_TIMEOUT = 5.0
+
+# The context-window suffix claudewheel appends to a model id to select the 1M
+# window. It is not part of any id the API serves, so a suffixed entry takes
+# its release date from the base model it is derived from.
+CONTEXT_1M_SUFFIX = "[1m]"
 
 
 # ---------------------------------------------------------------------------
@@ -44,6 +67,11 @@ class DiscoveryEntry:
     func: Callable[..., DiscoveryResult]  # (config, state, ws) -> DiscoveryResult
     is_slow: bool = False
     verify: Callable[..., bool] | None = None  # for staleness checks (Phase 4)
+    # The startup counterpart of a slow function: same signature, but reads
+    # only what is already on hand (a warm cache, the local filesystem) and
+    # never touches the network. A slow entry without one produces nothing at
+    # startup and waits for the background thread.
+    warm_func: Callable[..., DiscoveryResult] | None = None
 
 
 def _deduplicate(items: list[str]) -> list[str]:
@@ -100,10 +128,52 @@ class SegmentState:
             # Apply sort if configured
             if self.sort == "semver_desc":
                 deduped.sort(key=version_sort_key, reverse=True)
+            elif self.sort == "release_date_desc":
+                deduped = self._sorted_by_release_date(deduped)
             # Ephemeral always appended at the end (after sort)
             deduped = _deduplicate(deduped + self._ephemeral)
             self._options = deduped
         return self._options
+
+    def _release_date_of(self, val: str) -> str:
+        """The ISO release date recorded for *val*, or ``""`` when unknown.
+
+        A ``[1m]`` entry is claudewheel's own spelling of a base model with the
+        1M context window selected, so it takes the base model's date; its own
+        metadata is consulted only when the base carries no date.
+        """
+        base = val
+        if val.endswith(CONTEXT_1M_SUFFIX):
+            base = val[: -len(CONTEXT_1M_SUFFIX)]
+        for name in (base, val):
+            created = (self.metadata.get(name) or {}).get("created_at")
+            if isinstance(created, str) and created:
+                return created
+        return ""
+
+    def _sorted_by_release_date(self, values: list[str]) -> list[str]:
+        """Order *values* newest release first, without touching stored order on disk.
+
+        Pinned entries keep their stored order at the front -- pinning is an
+        explicit statement about position. The rest are ordered by recorded
+        release date, newest first, with a ``[1m]`` entry immediately after the
+        base model it derives from (same date, lower tiebreak). Entries with no
+        recorded date follow all dated ones in their stored order, which is what
+        the whole list looks like before the first successful refresh.
+        """
+        pinned = set(self._pinned)
+        pinned_part = [v for v in values if v in pinned]
+        rest = [v for v in values if v not in pinned]
+        dated = [v for v in rest if self._release_date_of(v)]
+        undated = [v for v in rest if not self._release_date_of(v)]
+        dated.sort(
+            key=lambda v: (
+                self._release_date_of(v),
+                -1 if v.endswith(CONTEXT_1M_SUFFIX) else 0,
+            ),
+            reverse=True,
+        )
+        return pinned_part + dated + undated
 
     # -- Mutation methods (each invalidates cache) --
 
@@ -163,13 +233,17 @@ class SegmentState:
         """Mark a single value as installed."""
         self._installed.add(val)
 
+    # Both metadata writers invalidate the option cache: the release-date sort
+    # reads metadata, so a metadata change can reorder the option list.
     def set_metadata(self, meta: dict[str, dict[str, Any]]) -> None:
         """Replace all metadata with the given mapping."""
         self.metadata = meta
+        self._options = None
 
     def update_metadata(self, partial: dict[str, dict[str, Any]]) -> None:
         """Merge partial metadata into the existing metadata mapping."""
         self.metadata.update(partial)
+        self._options = None
 
     # -- Query methods --
 
@@ -439,6 +513,143 @@ def fetch_npm_versions(state: dict[str, Any], count: int = 15) -> list[str]:
 
 
 # ---------------------------------------------------------------------------
+# Anthropic model list
+# ---------------------------------------------------------------------------
+
+
+def _candidate_token_profiles(state: dict[str, Any], ws: "Workspace") -> list[str]:
+    """Profile names to try for a token, last-used first.
+
+    The last-used profile is the one whose token is most likely to be current,
+    so it is asked first; every other registered profile follows in enumeration
+    order. Profiles carrying no token of their own (the vanilla ``default``
+    among them) are dropped here rather than at the request.
+    """
+    try:
+        discovered = [p.name for p in ws.profiles.enumerate() if p.has_token]
+    except (TokenStoreError, OSError):
+        return []
+    last = state.get("last_config", {}).get("profile")
+    if isinstance(last, str) and last in discovered:
+        return [last] + [n for n in discovered if n != last]
+    return discovered
+
+
+def _models_page_url(after_id: str | None) -> str:
+    """The models endpoint URL for one page of the list."""
+    params = {"limit": str(_MODEL_PAGE_LIMIT)}
+    if after_id:
+        params["after_id"] = after_id
+    return f"{MODELS_ENDPOINT}?{urllib.parse.urlencode(params)}"
+
+
+def _fetch_models_with_token(token: str) -> list[dict[str, str]]:
+    """Read the whole model list with one token, following pagination.
+
+    Raises ``urllib.error.HTTPError`` (401 for a rejected token) and the
+    network errors ``urllib`` raises; the caller decides what each means.
+    """
+    models: list[dict[str, str]] = []
+    after_id: str | None = None
+    for _page in range(_MODEL_MAX_PAGES):
+        body = effects.http_read(
+            _models_page_url(after_id),
+            headers={
+                "Authorization": f"Bearer {token}",
+                "anthropic-version": ANTHROPIC_VERSION,
+            },
+            timeout=_MODEL_FETCH_TIMEOUT,
+        )
+        payload = json.loads(body)
+        for item in payload.get("data", []):
+            if not isinstance(item, dict):
+                continue
+            model_id = item.get("id")
+            if not isinstance(model_id, str) or not model_id:
+                continue
+            created = item.get("created_at")
+            entry: dict[str, str] = {"id": model_id}
+            if isinstance(created, str) and created:
+                entry["created_at"] = created
+            models.append(entry)
+        last_id = payload.get("last_id")
+        if not payload.get("has_more") or not isinstance(last_id, str) or not last_id:
+            break
+        if last_id == after_id:
+            # The far side is not advancing; stop rather than re-request the
+            # same page until the page ceiling runs out.
+            break
+        after_id = last_id
+    return models
+
+
+def fetch_available_models(
+    state: dict[str, Any], ws: "Workspace"
+) -> list[dict[str, str]]:
+    """Fetch the models the account may use, with a 1-hour cache in *state*.
+
+    Purely additive discovery: the answer names what the API currently serves,
+    and callers never remove an option because it stopped appearing. Every
+    failure is quiet -- this runs on the discovery thread, where an exception
+    would take the refresh down with no UI to report it -- and falls back to the
+    cached list, however stale, so an offline launch looks exactly like an
+    online one.
+
+    Token selection walks the profiles' own stored tokens (last-used first). A
+    401 means that token cannot list models and the next one is tried; a
+    network failure ends the whole refresh, because the next token would fail
+    the same way.
+    """
+    cache = state.get(MODEL_LIST_CACHE_KEY, {})
+    cached_at = cache.get("fetched_at", 0)
+    cached_models: list[dict[str, str]] = cache.get("models", [])
+
+    if time.time() - cached_at < MODEL_LIST_CACHE_TTL and cached_models:
+        return cached_models
+
+    try:
+        for name in _candidate_token_profiles(state, ws):
+            try:
+                token = ws.profiles.data_for(name).token()
+            except (TokenStoreError, OSError):
+                continue
+            if not token:
+                continue
+            try:
+                models = _fetch_models_with_token(token)
+            except urllib.error.HTTPError as exc:
+                if exc.code == 401:
+                    continue  # this token cannot list models; try the next
+                break  # rate limit, server error: this refresh is over
+            except (urllib.error.URLError, TimeoutError, OSError):
+                break  # offline: no other token would fare better
+            state[MODEL_LIST_CACHE_KEY] = {
+                "fetched_at": time.time(),
+                "models": models,
+            }
+            return models
+    except (Exception, KeyboardInterrupt):
+        pass
+
+    return cached_models
+
+
+def _models_to_result(models: list[dict[str, str]]) -> DiscoveryResult:
+    """Turn a fetched model list into discovered values plus release dates."""
+    values: list[str] = []
+    metadata: dict[str, dict[str, Any]] = {}
+    for model in models:
+        model_id = model.get("id")
+        if not isinstance(model_id, str) or not model_id:
+            continue
+        values.append(model_id)
+        created = model.get("created_at")
+        if isinstance(created, str) and created:
+            metadata[model_id] = {"created_at": created}
+    return DiscoveryResult(values=values, metadata=metadata)
+
+
+# ---------------------------------------------------------------------------
 # Individual discovery functions -- extracted from discover_options match/case
 # ---------------------------------------------------------------------------
 
@@ -500,6 +711,30 @@ def _discover_npm_and_local_cached(
             all_versions.append(v)
     all_versions.sort(key=version_sort_key, reverse=True)
     return DiscoveryResult(values=all_versions, installed=installed)
+
+
+def _discover_anthropic_models(
+    config: dict[str, Any], state: dict[str, Any], ws: "Workspace"
+) -> DiscoveryResult:
+    """Discover model ids from the Anthropic API (cached, quiet on failure)."""
+    return _models_to_result(fetch_available_models(state, ws))
+
+
+def _discover_anthropic_models_cached(
+    config: dict[str, Any], state: dict[str, Any], ws: "Workspace"
+) -> DiscoveryResult:
+    """Fast path for anthropic_models: the cached list, only while it is warm.
+
+    An empty answer costs nothing: every model ever discovered is already in
+    options.json, which feeds the segment's defaults collection, so a cold or
+    stale cache shows the same option list as a warm one.
+    """
+    cache = state.get(MODEL_LIST_CACHE_KEY, {})
+    cached_at = cache.get("fetched_at", 0)
+    cached_models: list[dict[str, str]] = cache.get("models", [])
+    if time.time() - cached_at < MODEL_LIST_CACHE_TTL and cached_models:
+        return _models_to_result(cached_models)
+    return DiscoveryResult()
 
 
 def _discover_directory_scan(
@@ -661,6 +896,12 @@ DISCOVERY_REGISTRY: dict[str, DiscoveryEntry] = {
             .joinpath(val)
             .is_file()
         ),
+        warm_func=_discover_npm_and_local_cached,
+    ),
+    "anthropic_models": DiscoveryEntry(
+        func=_discover_anthropic_models,
+        is_slow=True,
+        warm_func=_discover_anthropic_models_cached,
     ),
     "directory_scan": DiscoveryEntry(
         func=_discover_directory_scan,
@@ -707,11 +948,13 @@ def populate_segment_state(
     ws: "Workspace",
     *,
     skip_slow: bool = True,
-) -> None:
+) -> DiscoveryResult | None:
     """Populate a segment's state from discovery and static config.
 
-    Looks up the discovery config, calls the registry function (unless slow
-    and skip_slow is True), and writes results to seg.state.
+    Looks up the discovery config, calls the registry function (its warm
+    counterpart when the entry is slow and *skip_slow* is set), and writes the
+    result to seg.state. Returns the result so the caller can persist what was
+    discovered; None when nothing ran.
     """
     disc = options_def_entry.get("discovery")
     requires = _parse_requires(options_def_entry)
@@ -719,12 +962,12 @@ def populate_segment_state(
         seg.option_requires = requires
 
     if not disc:
-        return
+        return None
 
     dtype = disc["type"]
     entry = DISCOVERY_REGISTRY.get(dtype)
     if not entry:
-        return
+        return None
 
     # Build verify_fn closure if the entry has a verify callback
     verify_fn = None
@@ -739,16 +982,14 @@ def populate_segment_state(
             return _cb(val, _c)
 
     if entry.is_slow and skip_slow:
-        # For npm_and_local, use the cached fast-path
-        if dtype == "npm_and_local":
-            result = _discover_npm_and_local_cached(options_def_entry, state, ws)
-            seg.state.set_discovered(result.values, verify_fn=verify_fn)
-            if result.installed:
-                seg.state.set_installed(result.installed)
-        # Other slow types (gh_auth) produce nothing at startup
-        return
+        if entry.warm_func is None:
+            # A slow type with no warm counterpart (gh_auth) produces nothing
+            # at startup; the background thread supplies it.
+            return None
+        result = entry.warm_func(options_def_entry, state, ws)
+    else:
+        result = entry.func(options_def_entry, state, ws)
 
-    result = entry.func(options_def_entry, state, ws)
     seg.state.set_discovered(result.values, verify_fn=verify_fn)
     if result.installed:
         seg.state.set_installed(result.installed)
@@ -758,6 +999,7 @@ def populate_segment_state(
     # has_credentials are authenticated. Only activates when metadata
     # contains auth fields (generic -- not tied to a specific segment key).
     _update_auth_from_metadata(seg)
+    return result
 
 
 def _update_auth_from_metadata(seg: "Segment") -> None:
@@ -796,7 +1038,14 @@ def _update_auth_from_metadata(seg: "Segment") -> None:
 _SEGMENT_MERGE_SPECS: dict[str, dict[str, Any]] = {
     "version": {"sort": "semver_desc"},
     "profile": {"collection_order": ["pinned", "discovered"]},
-    "model": {"collection_order": ["pinned", "defaults"]},
+    # The model list accumulates: options.json holds every model ever seen and
+    # feeds the defaults collection, while discovery contributes whatever the
+    # API currently serves. Both are merged and then ordered by release date,
+    # newest first (see SegmentState._sorted_by_release_date).
+    "model": {
+        "collection_order": ["pinned", "discovered", "defaults"],
+        "sort": "release_date_desc",
+    },
     "mcp": {"collection_order": ["pinned", "defaults"]},
     "permissions": {"collection_order": ["pinned", "defaults"]},
     "github": {"collection_order": ["pinned", "discovered"]},
@@ -804,13 +1053,30 @@ _SEGMENT_MERGE_SPECS: dict[str, dict[str, Any]] = {
 }
 
 
+def _defaults_for(key: str, opt: dict[str, Any]) -> list[str]:
+    """The defaults collection for segment *key*.
+
+    Every segment but ``model`` takes the list shipped in DEFAULT_OPTIONS. The
+    model list is accumulated instead: options.json holds every model the user
+    has ever been offered -- the shipped seed plus everything discovery has
+    since appended -- and nothing is ever removed from it, so it, not the
+    shipped constant, is what the picker offers. The constant remains the
+    first-run seed and the source the startup sync appends from.
+    """
+    from .defaults import DEFAULT_OPTIONS
+
+    if key == "model":
+        accumulated = _parse_static_values(opt)
+        if accumulated:
+            return accumulated
+    return list(DEFAULT_OPTIONS.get(key, {}).get("values", []))
+
+
 def build_segment_bar(cfg: "AppConfigStore", *, skip_slow: bool = False) -> SegmentBar:
     """Construct the segment bar from config, applying discovery and last-state restore."""
     enabled = cfg.config.get("enabled_segments", [])
     segments: list[Segment] = []
     ws = cfg.workspace
-
-    from .defaults import DEFAULT_OPTIONS
 
     last = cfg.state.get("last_config", {})
 
@@ -844,7 +1110,7 @@ def build_segment_bar(cfg: "AppConfigStore", *, skip_slow: bool = False) -> Segm
             seg.state.sort = merge_spec["sort"]
 
         # Populate defaults and pinned from config
-        seg.state.set_defaults(DEFAULT_OPTIONS.get(key, {}).get("values", []))
+        seg.state.set_defaults(_defaults_for(key, opt))
         for pinned_val in opt.get("pinned", []):
             seg.state.add_pinned(pinned_val)
 
@@ -852,7 +1118,11 @@ def build_segment_bar(cfg: "AppConfigStore", *, skip_slow: bool = False) -> Segm
         seg.state.set_metadata(dict(opt.get("metadata", {})))
 
         # Run discovery via registry
-        populate_segment_state(seg, opt, cfg.state, ws, skip_slow=skip_slow)
+        result = populate_segment_state(seg, opt, cfg.state, ws, skip_slow=skip_slow)
+        if key == "model" and result is not None:
+            # Warm-path persistence: the same append-only record the background
+            # path writes, on the main thread where options.json has one owner.
+            cfg.record_discovered_models(result.values, result.metadata)
 
         # Phase 7: "+" is a virtual UI element via display_options,
         # no longer stored in any SegmentState collection.

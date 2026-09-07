@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from .binaries import BinaryLocator
     from .deletion_checklist import ChecklistOutcome
 from .segment import (
+    MODEL_LIST_CACHE_KEY,
     DiscoveryResult,
     Segment,
     build_segment_bar,
@@ -271,6 +272,15 @@ class App:
             return
         self._slow_results = None  # Consume results once
 
+        # Persist discovered models before the focus split: what gets recorded
+        # in options.json does not depend on which segment the user happens to
+        # be standing on, and options.json is written on this thread only.
+        model_result = results.get("model")
+        if model_result is not None:
+            self.cfg.record_discovered_models(
+                model_result.values, model_result.metadata
+            )
+
         focused_key = self.bar.focused.key
 
         # Split results: immediate for unfocused, deferred for focused
@@ -291,11 +301,13 @@ class App:
                 self.bar, immediate, self.cfg.state, options_def=self.cfg.options_def
             )
 
-        # Copy npm cache from the isolated state copy back to the live state
+        # Copy the discovery caches from the isolated state copy back to the
+        # live state (the background thread filled its own copy).
         if self._slow_state_copy:
-            self.cfg.state["npm_versions_cache"] = self._slow_state_copy.get(
-                "npm_versions_cache", {}
-            )
+            for cache_key in ("npm_versions_cache", MODEL_LIST_CACHE_KEY):
+                cached = self._slow_state_copy.get(cache_key)
+                if cached:
+                    self.cfg.state[cache_key] = cached
             self._slow_state_copy = None
         self.cfg.save_state()
 

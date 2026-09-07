@@ -302,6 +302,7 @@ class AppConfigStore:
         self.state = self._load_json(self._state_file, DEFAULT_STATE)
         self._migrate()
         self._run_versioned_migrations()
+        self._sync_model_discovery()
         self._recover_incomplete_renames()
         self._ensure_shared_settings()
 
@@ -414,13 +415,39 @@ class AppConfigStore:
             if self._deep_merge_missing(theme, theme_default):
                 write_json_atomic(theme_file, theme)
 
-        # 4. options.json -- sync default model values into user's list
+        # 4. options.json -- sync default model values into user's list.
+        # The segment entry and its values list are materialized when absent:
+        # extending a list read out of a throwaway default would land nowhere,
+        # and this list is what the model picker reads.
         default_models = DEFAULT_OPTIONS.get("model", {}).get("values", [])
-        user_models = self.options_def.get("model", {}).get("values", [])
+        model_entry = self.options_def.setdefault("model", {})
+        materialized = "values" not in model_entry
+        user_models = model_entry.setdefault("values", [])
         new_models = [m for m in default_models if m not in user_models]
-        if new_models:
+        if new_models or materialized:
             user_models.extend(new_models)
             OptionsFile(self._options_file).write(self.options_def)
+
+    def _sync_model_discovery(self) -> None:
+        """Give the model segment its discovery config when options.json lacks it.
+
+        The registry dispatches on what options.json declares, so a user's file
+        written before the model segment had a discovery type would never run
+        the model discovery at all.
+
+        It runs after the versioned migrations, not inside ``_migrate``:
+        migration 3 branches on whether a segment declares a discovery config,
+        and adding the key beforehand would change how it classifies an old
+        file's model values.
+        """
+        default_disc = DEFAULT_OPTIONS.get("model", {}).get("discovery")
+        if not default_disc:
+            return
+        model_entry = self.options_def.setdefault("model", {})
+        if model_entry.get("discovery"):
+            return
+        model_entry["discovery"] = copy.deepcopy(default_disc)
+        OptionsFile(self._options_file).write(self.options_def)
 
     def _run_versioned_migrations(self) -> None:
         """Run schema-versioned migrations that change existing values.
@@ -501,6 +528,27 @@ class AppConfigStore:
                 if AppConfigStore._deep_merge_missing(target[key], default_value):
                     changed = True
         return changed
+
+    def record_discovered_models(
+        self, values: list[str], metadata: dict[str, dict[str, Any]]
+    ) -> None:
+        """Record discovered model ids and their release dates in options.json.
+
+        Append-only and idempotent: a model the API newly lists joins the end of
+        the accumulated list once and stays there, offline runs included, while
+        a model that stops being served is never removed. Release dates are
+        merged for every discovered id -- including ids already in the list,
+        which is how the shipped models acquire theirs.
+
+        Runs on the main thread only. Discovery itself happens on a background
+        thread against a copy of the state, but options.json has one owner and
+        the write belongs to it.
+        """
+        if not values and not metadata:
+            return
+        self.options_def = OptionsFile(self._options_file).record_discovered(
+            "model", values, metadata, self.options_def
+        )
 
     def add_option(self, segment_key: str, value: str) -> None:
         """Add a new option value to the pinned list in options.json for the given segment."""

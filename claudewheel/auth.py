@@ -13,8 +13,14 @@ INVALID = "invalid"  # API rejected the token (HTTP 401)
 UNREACHABLE = "unreachable"  # network failure: DNS, timeout, refused
 INDETERMINATE = "indeterminate"  # any other HTTP status (400/429/5xx/...)
 
-_MODELS_URL = "https://api.anthropic.com/v1/models?limit=1"
-_ANTHROPIC_VERSION = "2023-06-01"
+# The Anthropic models endpoint and the API version header, shared with the
+# model-list discovery in ``segment`` so the endpoint and version string are
+# stated once. The probe here asks for a single model because it only reads the
+# status code; discovery pages through the full list.
+MODELS_ENDPOINT = "https://api.anthropic.com/v1/models"
+ANTHROPIC_VERSION = "2023-06-01"
+
+_MODELS_URL = f"{MODELS_ENDPOINT}?limit=1"
 
 # Terminal escape sequences to strip before scanning for a token:
 # OSC (incl. OSC-8 hyperlinks) terminated by BEL or ST, CSI sequences,
@@ -66,7 +72,7 @@ def validate_token(token: str, timeout: float = 5.0) -> str:
             _MODELS_URL,
             headers={
                 "Authorization": f"Bearer {token}",
-                "anthropic-version": _ANTHROPIC_VERSION,
+                "anthropic-version": ANTHROPIC_VERSION,
             },
             timeout=timeout,
         )

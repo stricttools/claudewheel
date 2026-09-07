@@ -66,6 +66,45 @@ class OptionsFile:
         write_json_atomic(self.path, options)
         return options
 
+    def record_discovered(
+        self,
+        segment_key: str,
+        values: list[str],
+        metadata: dict[str, dict[str, Any]],
+        default: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Append discovered *values* and merge their *metadata*, atomically.
+
+        Append-only: a value already in the segment's list keeps its position
+        and nothing is ever removed, so an option survives the day the source
+        that discovered it stops listing it. Metadata is merged key by key, so
+        an entry's other fields (a ``model_id``, say) survive an update that
+        only carries a release date. Fresh read, and the file is written only
+        when something actually changed.
+        """
+        options = self.load(default)
+        seg = options.setdefault(segment_key, {"values": [], "pinned": []})
+        stored: list[str] = seg.setdefault("values", [])
+        changed = False
+
+        for value in values:
+            if value not in stored:
+                stored.append(value)
+                changed = True
+
+        if metadata:
+            meta_map: dict[str, Any] = seg.setdefault("metadata", {})
+            for value, fields in metadata.items():
+                entry = meta_map.setdefault(value, {})
+                for field_name, field_value in fields.items():
+                    if entry.get(field_name) != field_value:
+                        entry[field_name] = field_value
+                        changed = True
+
+        if changed:
+            write_json_atomic(self.path, options)
+        return options
+
     def rename_value(
         self, segment_key: str, old: str, new: str, default: dict[str, Any]
     ) -> dict[str, Any]:
