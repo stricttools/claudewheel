@@ -2,11 +2,22 @@
 format_version = 1
 # Version bump type: patch, minor, major, infra, or prerelease
 #   prerelease: advance an existing pre-release (0.6.0-beta.0 -> -beta.1)
-bump = ""
+bump = "minor"
 # Short description of this release (required)
-description = ""
+description = "The model picker now discovers newly available Claude models from the Anthropic API on its own and orders them by release date."
 # Optional context explaining why these changes were made
-context = ""
+context = """
+Previously every new Claude model had to be hand-added to the launcher's
+hardcoded list, so new releases (most recently Fable 5.1) were invisible
+until someone edited defaults. The picker's list is now the accumulated
+values list in options.json -- append-only, seeded from the built-in
+defaults, extended by a background fetch of the Anthropic models endpoint
+using stored profile tokens, and never shrunk. Release dates from the API
+drive a newest-first display order. Alongside the feature, the
+minimum-CLI-version facts were unified onto a single built-in table that
+feeds both the picker's dimming and the pre-launch guard through one
+shared version resolution, so the two can no longer disagree.
+"""
 # Pre-release channel: alpha, beta, rc, or stable (ordered;
 # demotion is an error). With patch/minor/major it ENTERS the
 # channel (0.5.2 + minor + alpha -> 0.6.0-alpha.0); with
