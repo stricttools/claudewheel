@@ -336,11 +336,14 @@ def _model_version_guard_run(ctx: PreflightContext) -> StepResult:
     Reads the selected model (stripping a trailing ``[1m]`` context-window
     suffix) and looks up its minimum CLI version in
     :data:`MODEL_MIN_CLI_VERSION`. Models absent from the table pass unguarded.
-    The effective binary version is the selected version if set, else the
-    resolved symlink target's version name. If no version can be determined the
-    guard passes (it only acts on a positive too-old determination). A binary
-    older than the model's minimum aborts with an actionable message.
+    The effective binary version comes from
+    :func:`claudewheel.binaries.effective_cli_version`, the one place that
+    resolution is written down -- the model picker's dimming calls it too. If
+    no version can be determined the guard passes (it only acts on a positive
+    too-old determination). A binary older than the model's minimum aborts with
+    an actionable message.
     """
+    from .binaries import effective_cli_version
     from .defaults import MODEL_MIN_CLI_VERSION
     from .segment import CONTEXT_1M_SUFFIX, version_sort_key
 
@@ -354,11 +357,7 @@ def _model_version_guard_run(ctx: PreflightContext) -> StepResult:
     if min_version is None:
         return StepResult.cont()
 
-    # Effective binary version: explicit selection wins; else the symlink target.
-    version = ctx.selections.get("version")
-    if not version:
-        target = ctx.locator.symlink_target()
-        version = target.name if target is not None else None
+    version = effective_cli_version(ctx.selections.get("version"), ctx.locator)
     if not version:
         return StepResult.cont()
 

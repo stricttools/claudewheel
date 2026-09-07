@@ -20,8 +20,14 @@ from .fuzzy import fuzzy_rank
 from .tokens import TokenStoreError
 
 if TYPE_CHECKING:
+    from .binaries import BinaryLocator
     from .config import AppConfigStore
     from .workspace import Workspace
+
+# The segment key naming the Claude Code binary version. A requirement on it
+# is the one constraint resolved against the installed binary when nothing is
+# selected, so the key is written once here rather than quoted at each site.
+VERSION_SEGMENT_KEY = "version"
 
 NPM_CACHE_TTL = 3600  # 1 hour
 
@@ -899,8 +905,8 @@ def model_option_requires() -> dict[str, dict[str, str]]:
 
     requires: dict[str, dict[str, str]] = {}
     for model, min_version in MODEL_MIN_CLI_VERSION.items():
-        requires[model] = {"version": f">={min_version}"}
-        requires[model + CONTEXT_1M_SUFFIX] = {"version": f">={min_version}"}
+        requires[model] = {VERSION_SEGMENT_KEY: f">={min_version}"}
+        requires[model + CONTEXT_1M_SUFFIX] = {VERSION_SEGMENT_KEY: f">={min_version}"}
     return requires
 
 
@@ -1249,15 +1255,45 @@ def merge_slow_results(
             seg.select_value(state["last_config"][seg.key])
 
 
-def evaluate_requires(bar: SegmentBar) -> None:
-    """Recompute unavailable sets based on cross-segment requirements."""
+def evaluate_requires(
+    bar: SegmentBar, locator: "BinaryLocator | None" = None
+) -> None:
+    """Recompute unavailable sets based on cross-segment requirements.
+
+    A requirement on the ``version`` segment is evaluated against the
+    *effective* Claude Code version rather than the raw selection: with nothing
+    selected, the launch runs whatever the ``claude`` symlink points at, so
+    that binary's version is what the constraint must be satisfied by. The
+    resolution comes from :func:`claudewheel.binaries.effective_cli_version`,
+    the same call the pre-launch model-version guard makes, so the picker and
+    the guard read one table through one resolution.
+
+    *locator* names the binaries to resolve the symlink against; None uses the
+    default locations. The symlink is resolved at most once per call -- lazily,
+    so a bar whose options carry no version requirement never touches the
+    filesystem -- and never once per option.
+    """
     selections = bar.get_selections()
+    resolved: dict[str, str | None] = {}
+
+    def resolve(req_segment: str) -> str | None:
+        """The value a constraint on *req_segment* is checked against."""
+        if req_segment not in resolved:
+            value = selections.get(req_segment)
+            if req_segment == VERSION_SEGMENT_KEY:
+                from .binaries import BinaryLocator, effective_cli_version
+
+                value = effective_cli_version(
+                    value, locator if locator is not None else BinaryLocator.default()
+                )
+            resolved[req_segment] = value
+        return resolved[req_segment]
+
     for seg in bar.segments:
         unavailable: set[str] = set()
         for opt_value, reqs in seg.option_requires.items():
             for req_segment, constraint in reqs.items():
-                current_value = selections.get(req_segment)
-                if not _satisfies_constraint(current_value, constraint):
+                if not _satisfies_constraint(resolve(req_segment), constraint):
                     unavailable.add(opt_value)
                     break
         seg.unavailable = unavailable

@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from claudewheel.binaries import BinaryLocator
 from claudewheel.defaults import DEFAULT_CONFIG, DEFAULT_OPTIONS
 from claudewheel.segment import (
     CONTEXT_1M_SUFFIX,
@@ -166,14 +167,28 @@ class ModelMinVersionDimmingTests(unittest.TestCase):
         ):
             return model_option_requires()
 
-    def _bar(self, version_value: str | None) -> SegmentBar:
-        version = Segment(
-            key="version",
-            label="Version",
-            _init_options=["2.1.218", _FLOOR],
-            selected_value=version_value,
+    def setUp(self) -> None:
+        self._tmp_obj = tempfile.TemporaryDirectory()
+        tmp = Path(self._tmp_obj.name)
+        self.versions_dir = tmp / "versions"
+        self.versions_dir.mkdir()
+        self.symlink = tmp / "claude"
+
+    def tearDown(self) -> None:
+        self._tmp_obj.cleanup()
+
+    def _locator(self, installed: str | None) -> BinaryLocator:
+        """A locator whose `claude` symlink points at *installed*, or at nothing."""
+        if installed is not None:
+            binary = self.versions_dir / installed
+            binary.write_text("#!/bin/sh\n")
+            self.symlink.symlink_to(binary)
+        return BinaryLocator(
+            versions_dir=self.versions_dir, claude_symlink=self.symlink
         )
-        model = Segment(
+
+    def _model_segment(self) -> Segment:
+        return Segment(
             key="model",
             label="Model",
             _init_options=[
@@ -183,7 +198,19 @@ class ModelMinVersionDimmingTests(unittest.TestCase):
             ],
             option_requires=self._derived(),
         )
-        return SegmentBar(segments=[version, model])
+
+    def _bar(self, version_value: str | None) -> SegmentBar:
+        version = Segment(
+            key="version",
+            label="Version",
+            _init_options=["2.1.218", _FLOOR],
+            selected_value=version_value,
+        )
+        return SegmentBar(segments=[version, self._model_segment()])
+
+    def _model_only_bar(self) -> SegmentBar:
+        """A bar with no version segment at all (version not in enabled_segments)."""
+        return SegmentBar(segments=[self._model_segment()])
 
     def test_derivation_covers_the_base_and_its_1m_variant(self) -> None:
         """Each table entry yields a floor for the id and for its [1m] spelling."""
@@ -221,14 +248,44 @@ class ModelMinVersionDimmingTests(unittest.TestCase):
         evaluate_requires(bar)
         self.assertEqual(bar.segments[1].unavailable, set())
 
-    def test_no_version_selected_dims_the_restricted_model(self) -> None:
-        """With no version chosen there is nothing to satisfy the floor with.
+    def test_no_version_selected_falls_back_to_the_installed_binary(self) -> None:
+        """No selection resolves to the `claude` symlink's version, as the guard does.
 
-        This is the generic cross-segment rule: a constraint on a segment
-        carrying no selection cannot be satisfied.
+        A new-enough installed binary therefore dims nothing: the pre-launch
+        guard would let this launch through, so the picker must not refuse it.
         """
         bar = self._bar(None)
-        evaluate_requires(bar)
+        evaluate_requires(bar, locator=self._locator(_FLOOR))
+        self.assertEqual(bar.segments[1].unavailable, set())
+
+    def test_no_version_selected_dims_when_the_installed_binary_is_too_old(self) -> None:
+        """The fallback dims exactly when the guard would abort: binary below the floor."""
+        bar = self._bar(None)
+        evaluate_requires(bar, locator=self._locator("2.1.218"))
+        model = bar.segments[1]
+        self.assertIn(_RESTRICTED, model.unavailable)
+        self.assertIn(_RESTRICTED + CONTEXT_1M_SUFFIX, model.unavailable)
+        self.assertNotIn(_UNRESTRICTED, model.unavailable)
+
+    def test_a_selected_version_wins_over_the_installed_binary(self) -> None:
+        """The selection is consulted first, exactly as the guard consults it."""
+        bar = self._bar("2.1.218")
+        evaluate_requires(bar, locator=self._locator(_FLOOR))
+        self.assertIn(_RESTRICTED, bar.segments[1].unavailable)
+
+    def test_without_a_version_segment_the_symlink_still_decides(self) -> None:
+        """A bar with no version segment resolves through the same fallback."""
+        for installed, dimmed in ((_FLOOR, False), ("2.1.218", True)):
+            with self.subTest(installed=installed):
+                self.setUp()  # fresh symlink per subtest
+                bar = self._model_only_bar()
+                evaluate_requires(bar, locator=self._locator(installed))
+                self.assertEqual(_RESTRICTED in bar.segments[0].unavailable, dimmed)
+
+    def test_an_undeterminable_version_dims_the_restricted_model(self) -> None:
+        """With no selection and no symlink there is nothing to satisfy the floor."""
+        bar = self._bar(None)
+        evaluate_requires(bar, locator=self._locator(None))
         self.assertIn(_RESTRICTED, bar.segments[1].unavailable)
 
     def test_build_segment_bar_wires_the_model_segment(self) -> None:

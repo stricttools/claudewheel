@@ -5,7 +5,7 @@ from __future__ import annotations
 import dataclasses
 from pathlib import Path
 
-from claudewheel.binaries import BinaryLocator
+from claudewheel.binaries import BinaryLocator, effective_cli_version
 
 from .wheelhelpers import SandboxHomeTestCase
 
@@ -89,6 +89,23 @@ class BinaryLocatorTest(SandboxHomeTestCase):
         self.assertIsNotNone(target)
         assert target is not None
         self.assertEqual(target.name, "gone")
+
+    # -- effective_cli_version ---------------------------------------------
+
+    def test_effective_version_prefers_the_selection(self) -> None:
+        self.symlink_path.symlink_to(self.versions_dir / "2.1.120")
+        self.assertEqual(effective_cli_version("2.1.9", self.loc), "2.1.9")
+
+    def test_effective_version_falls_back_to_the_symlink(self) -> None:
+        self.symlink_path.symlink_to(self.versions_dir / "2.1.120")
+        self.assertEqual(effective_cli_version(None, self.loc), "2.1.120")
+
+    def test_effective_version_treats_an_empty_selection_as_absent(self) -> None:
+        self.symlink_path.symlink_to(self.versions_dir / "2.1.120")
+        self.assertEqual(effective_cli_version("", self.loc), "2.1.120")
+
+    def test_effective_version_is_none_when_undeterminable(self) -> None:
+        self.assertIsNone(effective_cli_version(None, self.loc))
 
     # -- frozen dataclass --------------------------------------------------
 

@@ -64,3 +64,22 @@ class BinaryLocator:
         except OSError:
             pass
         return None
+
+
+def effective_cli_version(selected: str | None, locator: BinaryLocator) -> str | None:
+    """Resolve the Claude Code version a launch would actually run.
+
+    The version segment's selection wins; with none, the launch runs whatever
+    the ``claude`` symlink points at, so the symlink target's name is the
+    answer. None means the version cannot be determined -- no selection and no
+    resolvable symlink.
+
+    This is the ONE place that fallback is expressed. Both readers of
+    ``MODEL_MIN_CLI_VERSION`` call it -- the pre-launch model-version guard and
+    the model picker's dimming -- so the picker cannot dim a model the guard
+    would have let through, or the other way round.
+    """
+    if selected:
+        return selected
+    target = locator.symlink_target()
+    return target.name if target is not None else None
