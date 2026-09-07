@@ -643,9 +643,10 @@ def rmtree(path: Any, *, ignore_errors: bool = False) -> None:
 def rename(src: Any, dst: Any) -> None:
     """Rename *src* to *dst* (``Path.rename`` semantics: no cross-device move).
 
-    ``Path.rename`` rather than ``os.rename`` on purpose: it is the single
-    commit seam the write canary in ``tests/wheelhelpers.py`` patches to prove
-    no test ever renames anything over the real ``~/.claude``.
+    ``Path.rename`` rather than ``os.rename`` on purpose: it is one of the
+    commit seams the write canary in ``tests/wheelhelpers.py`` patches (the
+    atomic writers commit through ``os.replace``, which the canary patches too)
+    to prove no test ever renames anything over the real ``~/.claude``.
     """
     h = _handle()
     if h is None:

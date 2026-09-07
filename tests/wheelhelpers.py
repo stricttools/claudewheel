@@ -618,9 +618,9 @@ class ClaudeDirWriteViolation(BaseException):
     ``offending_path`` is the destination path that tripped the canary.
     ``stray_tmp_files`` is populated by the canary's exit cleanup with any
     ``*.tmp`` staging files that a tripped atomic writer left behind under
-    ``claude_dir`` (the writer stages ``<target>.tmp`` BEFORE the rename that
-    trips, so the stray can outlive the aborted commit). It is an empty list
-    when nothing was left behind.
+    ``claude_dir`` (the writer stages ``<target name>.<random>.tmp`` BEFORE the
+    rename that trips, so the stray can outlive the aborted commit). It is an
+    empty list when nothing was left behind.
     """
 
     def __init__(self, path: Path) -> None:

@@ -113,7 +113,7 @@ def _plan_migrations(
 def _decode_rel(root: Path, enc: str) -> list[str]:
     """Find every existing relative dir path under root whose encoding is enc.
 
-    The path encoding is lossy ('/', '.', and literal '-' all become '-'), so
+    The path encoding is lossy ('/', '.', '_' and literal '-' all become '-'), so
     one encoded string can correspond to several real paths.  All matches are
     returned so the caller can detect ambiguity.
     """

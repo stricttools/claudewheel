@@ -62,8 +62,9 @@ def load_settings(settings_path: Path) -> dict[str, Any]:
 def save_settings(settings_path: Path, data: dict[str, Any]) -> None:
     """Atomic-write *data* as JSON to *settings_path*.
 
-    Writes to a temporary sibling file first, then renames over the
-    original to avoid partial writes, preserving the file's mode.
+    Writes to a uniquely named staging file in the target's own directory
+    first, then commits it with ``os.replace`` to avoid partial writes,
+    preserving the file's mode.
     """
     write_json_atomic(settings_path, data)
 
