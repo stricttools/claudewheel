@@ -1,6 +1,6 @@
 ---
 title: Configuration
-description: "How the claudewheel configuration system works: the root file layout, per-profile directories and their claudewheel data, segments and options, discovery with its caches -- including model discovery from the Anthropic API, the release-date ordering it feeds, and the built-in minimum-version table that dims models needing a newer Claude Code -- the migration framework, schema versioning, flag-driven launches, and how interactivity is derived from a controlling terminal."
+description: "How the claudewheel configuration system works: the root file layout, per-profile directories and their claudewheel data, segments and options, discovery with its caches -- including model discovery from the Anthropic API, the release-date ordering it feeds, and the built-in minimum-version table that dims models needing a newer Claude Code than the one selected or installed -- the migration framework, schema versioning, flag-driven launches, and how interactivity is derived from a controlling terminal."
 nav_group: "Concepts"
 order: 4
 ---
@@ -148,15 +148,26 @@ declared in `options.json` at all -- they are derived from claudewheel's own
 table of model minimum CLI versions (`MODEL_MIN_CLI_VERSION` in
 `defaults.py`), which is the single place that fact is written down:
 
-- A model listed there is dimmed whenever the effective Claude Code version --
-  the version segment's selection -- is older than its minimum, and so is the
-  model's `[1m]` spelling, which inherits the base model's minimum.
-- A model absent from the table is unrestricted, and every model is dimmed
-  while the version segment carries no selection, because there is then
-  nothing to satisfy the minimum with.
+- A model listed there is dimmed whenever the effective Claude Code version is
+  older than its minimum, and so is the model's `[1m]` spelling, which
+  inherits the base model's minimum.
+- The effective version is resolved by `effective_cli_version` in
+  `binaries.py`: the version segment's selection if there is one, otherwise
+  the version the `claude` symlink points at, which is the binary a launch
+  with no selection would run. Nothing dims when that is new enough, and the
+  fallback applies just as well when the version segment is not enabled at
+  all. Neither answer available -- no selection and no resolvable symlink --
+  leaves the minimum unsatisfiable, so the listed models are dimmed.
+- A model absent from the table is unrestricted: no selection and no installed
+  binary can dim it.
 - The same table drives the pre-launch `model-version-guard` step, which
   aborts a launch whose effective binary is too old for the selected model.
-  Picker and guard therefore cannot disagree.
+  The step reads that table through the same `effective_cli_version` call the
+  dimming makes, so the two cannot disagree about which binary a model needs
+  or about which binary you are on: neither fact exists in two places to drift
+  apart. They differ only in what they do when the version cannot be
+  determined at all -- the picker dims, while the guard passes, acting only on
+  a positive too-old determination.
 
 ### options.json structure
 

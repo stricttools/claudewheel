@@ -1,6 +1,6 @@
 ---
 title: Getting Started
-description: "Install claudewheel, create your first profile, understand the segment bar and its sessions overview, work with a model list that keeps itself current from the Anthropic API, and launch a Claude Code session with the right model, context window, and permissions."
+description: "Install claudewheel, create your first profile, understand the segment bar and its sessions overview, work with a model list that keeps itself current from the Anthropic API -- including models dimmed because they need a newer Claude Code than you are launching -- and launch a Claude Code session with the right model, context window, and permissions."
 nav_group: "Guides"
 order: 2
 ---
@@ -184,6 +184,8 @@ Focus the Model segment and cycle or search. Models are listed from `options.jso
 That list keeps itself current: claudewheel asks the Anthropic API which models your account may use and appends any it has not seen before. Nothing is ever removed, so a model that stops being served stays selectable and an offline launch still offers everything a previous one discovered. Pinned models stay at the top of the list, ahead of the date ordering.
 
 To add a model the API does not list at all, cycle to the `+` sentinel and type the full model ID. It is saved to `options.json` for future launches.
+
+Some models need a minimum Claude Code version. One of those shows up dimmed when the version you are about to launch -- the one selected in the Version segment, or whatever the `claude` symlink points at when nothing is selected -- is older than the model needs, and pressing Enter on it refuses the launch instead of starting a session that would fail. Select a new enough version in the Version segment, or install one with `claudewheel install <version>`, and the model lights up again.
 
 From the command line:
 
