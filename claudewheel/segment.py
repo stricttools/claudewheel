@@ -1255,9 +1255,7 @@ def merge_slow_results(
             seg.select_value(state["last_config"][seg.key])
 
 
-def evaluate_requires(
-    bar: SegmentBar, locator: "BinaryLocator | None" = None
-) -> None:
+def evaluate_requires(bar: SegmentBar, locator: "BinaryLocator | None" = None) -> None:
     """Recompute unavailable sets based on cross-segment requirements.
 
     A requirement on the ``version`` segment is evaluated against the

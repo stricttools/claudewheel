@@ -258,7 +258,9 @@ class ModelMinVersionDimmingTests(unittest.TestCase):
         evaluate_requires(bar, locator=self._locator(_FLOOR))
         self.assertEqual(bar.segments[1].unavailable, set())
 
-    def test_no_version_selected_dims_when_the_installed_binary_is_too_old(self) -> None:
+    def test_no_version_selected_dims_when_the_installed_binary_is_too_old(
+        self,
+    ) -> None:
         """The fallback dims exactly when the guard would abort: binary below the floor."""
         bar = self._bar(None)
         evaluate_requires(bar, locator=self._locator("2.1.218"))
