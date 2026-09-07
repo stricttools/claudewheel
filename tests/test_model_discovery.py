@@ -24,6 +24,7 @@ from claudewheel.profile_store import Profile
 from claudewheel.segment import (
     MODEL_LIST_CACHE_KEY,
     SegmentState,
+    _defaults_for,
     _discover_anthropic_models,
     _discover_anthropic_models_cached,
     build_segment_bar,
@@ -523,6 +524,34 @@ class AccumulatedModelValuesTests(unittest.TestCase):
             {"values": ["claude-newly-discovered-9"], "pinned": []}
         )
         self.assertIn("claude-newly-discovered-9", options)
+
+    def test_an_empty_on_disk_list_offers_no_base_values(self) -> None:
+        """No fallback to the shipped seed: an empty list is an empty picker.
+
+        The startup sync is what keeps options.json's model list populated. If
+        it ever stops doing that, the picker goes empty rather than silently
+        switching to the list in defaults.py.
+        """
+        self.assertEqual(_defaults_for("model", {"values": []}), [])
+        self.assertEqual(_defaults_for("model", {}), [])
+
+    def test_a_bar_built_on_an_emptied_list_offers_no_models(self) -> None:
+        """Emptied after the startup sync ran, the model segment offers nothing."""
+        paths = setup_temp_config_dir(
+            self.tmp,
+            config={
+                **DEFAULT_CONFIG,
+                "enabled_segments": ["model"],
+                "_schema_version": CURRENT_SCHEMA_VERSION,
+            },
+            options={**DEFAULT_OPTIONS, "model": {"values": ["a"], "pinned": []}},
+        )
+        cfg = Workspace.open(paths["CONFIG_DIR"]).appconfig()
+        cfg.options_def["model"]["values"] = []
+
+        bar = build_segment_bar(cfg, skip_slow=True)
+
+        self.assertEqual(bar.segments[0].options, [])
 
     def test_shipped_defaults_are_still_offered(self) -> None:
         options = self._bar_model_options(

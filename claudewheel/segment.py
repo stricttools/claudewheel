@@ -1088,13 +1088,16 @@ def _defaults_for(key: str, opt: dict[str, Any]) -> list[str]:
     since appended -- and nothing is ever removed from it, so it, not the
     shipped constant, is what the picker offers. The constant remains the
     first-run seed and the source the startup sync appends from.
+
+    The on-disk list is used unconditionally, empty included: the startup sync
+    in ``AppConfigStore._migrate`` is the one mechanism that keeps it
+    populated, and if that ever stops working the honest symptom is a picker
+    with nothing in it -- not a silent switch to a different list.
     """
     from .defaults import DEFAULT_OPTIONS
 
     if key == "model":
-        accumulated = _parse_static_values(opt)
-        if accumulated:
-            return accumulated
+        return _parse_static_values(opt)
     return list(DEFAULT_OPTIONS.get(key, {}).get("values", []))
 
 
