@@ -179,9 +179,11 @@ Each profile carries its own `settings.json` with permissions, hooks, and prefer
 
 ### Changing models
 
-Focus the Model segment and cycle or search. Models are listed from `options.json` and include common options like `claude-sonnet-4-20250514` and `claude-opus-4-7`. The `[1m]` suffix on a model name enables the extended 1M-token context window.
+Focus the Model segment and cycle or search. Models are listed from `options.json`, newest release first. The `[1m]` suffix on a model name enables the extended 1M-token context window and sits directly under the model it applies to.
 
-To add a model not in the list, cycle to the `+` sentinel and type the full model ID. It is saved to `options.json` for future launches.
+That list keeps itself current: claudewheel asks the Anthropic API which models your account may use and appends any it has not seen before. Nothing is ever removed, so a model that stops being served stays selectable and an offline launch still offers everything a previous one discovered. Pinned models stay at the top of the list, ahead of the date ordering.
+
+To add a model the API does not list at all, cycle to the `+` sentinel and type the full model ID. It is saved to `options.json` for future launches.
 
 From the command line:
 
