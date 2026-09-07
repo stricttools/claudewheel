@@ -35,3 +35,4 @@
 {"format_version":1,"id":"18d3048c3a5fc1685a1ee51cd8a74cd0aaab0a3194459968","commits":["090a45e4e2cbebf98e470b4b85acf76d88b35af0"],"user_facing":true,"description":"A malformed `hooks` value in a profile's settings now produces a clear error naming the key and the type found, instead of crashing.","type":"fix"}
 {"format_version":1,"id":"18d3049ac1cddbd428f31ca5b5914014b9e048cfb1511825","commits":["5376b9baf4c3f880709f817e5d91d758e86481e2"],"user_facing":false}
 {"format_version":1,"id":"18d3049c49f8dbd38e9eed3bce854c978b2af7134ab132cd","commits":["c4b27c31dd51b7856916d86d37605fa4e07cc603"],"user_facing":false}
+{"format_version":1,"id":"18d3049d18cef5ab4f10eebd92ad45c78396a3826f9d53d9","commits":["d4683452653fd285961099404feb6dbe8d393b8b"],"user_facing":false}
