@@ -102,6 +102,29 @@ class WorktreeHookDenyTests(unittest.TestCase):
         )
 
 
+class WorktreeHookTemplateTests(unittest.TestCase):
+    """The deny envelope is built by jq, and that is not observable at runtime.
+
+    Today's reason string contains no quote, backslash or newline, so a
+    reverted printf-built JSON literal would emit byte-identical output and
+    every execution test above would still pass -- the escaping only shows up
+    once someone edits the reason.  The property is therefore asserted on the
+    template text itself.
+    """
+
+    def test_deny_envelope_is_built_with_jq(self) -> None:
+        script = HOOK_SCRIPTS["hook-block-worktree"]
+        self.assertIn("jq -cn --arg reason", script)
+
+    def test_deny_envelope_is_not_a_printf_json_literal(self) -> None:
+        script = HOOK_SCRIPTS["hook-block-worktree"]
+        for line in script.splitlines():
+            if line.lstrip().startswith("#"):
+                continue
+            if "printf" in line and "hookSpecificOutput" in line:
+                self.fail(f"deny JSON is hand-interpolated by printf: {line!r}")
+
+
 class WorktreeHookAllowTests(unittest.TestCase):
     """Every early-exit branch allows: exit 0 with empty stdout."""
 
