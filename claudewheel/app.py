@@ -170,7 +170,7 @@ class App:
             # which is claude-only). Borrowed render -- reuses this raw session.
             if not self._select_client():
                 return None
-            evaluate_requires(self.bar)
+            evaluate_requires(self.bar, locator=self._locator)
             self.renderer.render(
                 self.bar,
                 show_provenance=self._show_provenance,
@@ -190,7 +190,7 @@ class App:
                 # Check if background discovery finished
                 if self._slow_results is not None and not self._slow_thread.is_alive():
                     self._apply_slow_discovery()
-                evaluate_requires(self.bar)
+                evaluate_requires(self.bar, locator=self._locator)
                 self.renderer.render(
                     self.bar,
                     self._flash,

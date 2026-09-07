@@ -6,6 +6,7 @@ import io
 import json
 import tempfile
 import unittest
+from collections.abc import Callable
 from contextlib import redirect_stdout
 from pathlib import Path
 from typing import Any
@@ -99,6 +100,146 @@ class LocatorInjectionTests(unittest.TestCase):
         app_cls: Any = app_mod.App
         with self.assertRaises(TypeError):
             app_cls(mock.MagicMock())
+
+
+_MODEL_FLOOR = "2.1.219"
+_BELOW_FLOOR = "2.1.218"
+_FLOORED_MODEL = "model-with-a-floor"
+
+
+def _quit(key: str) -> str:
+    """A keypress step that ends the TUI loop."""
+    return "quit"
+
+
+class RequiresLocatorInjectionTests(unittest.TestCase):
+    """The TUI's dimming pass resolves versions through the INJECTED locator.
+
+    ``evaluate_requires`` resolves a version requirement against the effective
+    Claude Code version, which with nothing selected is whatever the ``claude``
+    symlink points at. The App already takes its ``BinaryLocator`` as a
+    required constructor dependency; if the dimming pass re-derived
+    ``BinaryLocator.default()`` instead, the picker would dim against a
+    different installation than the one the launch will run.
+    """
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        root = Path(self._tmp.name)
+        self.new_enough = self._locator(root / "injected", _MODEL_FLOOR)
+        self.too_old = self._locator(root / "elsewhere", _BELOW_FLOOR)
+
+    def _locator(self, base: Path, installed: str) -> BinaryLocator:
+        """A locator whose `claude` symlink resolves to *installed*."""
+        versions = base / "versions"
+        versions.mkdir(parents=True)
+        binary = versions / installed
+        binary.write_text("#!/bin/sh\n")
+        symlink = base / "claude"
+        symlink.symlink_to(binary)
+        return BinaryLocator(versions_dir=versions, claude_symlink=symlink)
+
+    def _bar(self, version_value: str | None) -> SegmentBar:
+        version = Segment(
+            key="version",
+            label="Version",
+            _init_options=[_BELOW_FLOOR, _MODEL_FLOOR],
+            selected_value=version_value,
+        )
+        model = Segment(
+            key="model",
+            label="Model",
+            _init_options=[_FLOORED_MODEL],
+            option_requires={_FLOORED_MODEL: {"version": f">={_MODEL_FLOOR}"}},
+        )
+        return SegmentBar(segments=[version, model])
+
+    def _make_app(self, locator: BinaryLocator, bar: SegmentBar) -> Any:
+        app = object.__new__(app_mod.App)
+        app._locator = locator
+        app.bar = bar
+        app.terminal = mock.MagicMock()
+        app.renderer = mock.MagicMock()
+        app.theme = mock.MagicMock()
+        app.cfg = mock.MagicMock()
+        # Explicit client: _select_client resolves it without a picker.
+        app._explicit_client = "claude"
+        app._default_client = "claude"
+        app._clients_config = {}
+        app.selected_client = "claude"
+        app._slow_results = None
+        app._flash = ""
+        app._show_provenance = False
+        app._pending_discovery = {}
+        return app
+
+    def _run_tui(self, app: Any, steps: list[Callable[[str], str | None]]) -> Any:
+        """Drive run_tui, running one *step* per keypress in order.
+
+        Each step stands in for ``_handle_key``: it may mutate the bar and
+        returns the action string (the last one must return ``"quit"`` so the
+        loop returns). Key decoding, hint computation, signal registration and
+        Mode 2031 detection are all stubbed: what is under test is the requires
+        evaluation around them.
+        """
+        remaining = iter(steps)
+
+        def dispatch(key: str) -> str | None:
+            return next(remaining)(key)
+
+        with (
+            mock.patch.object(
+                app_mod, "detect_mode2031_support", autospec=True, return_value=None
+            ),
+            mock.patch.object(app_mod.signal, "signal", autospec=True),
+            mock.patch.object(app, "_handle_key", autospec=True, side_effect=dispatch),
+            mock.patch.object(app, "_compute_hints", autospec=True, return_value=[]),
+            mock.patch.object(
+                BinaryLocator, "default", autospec=True, return_value=self.too_old
+            ) as mock_default,
+        ):
+            result = app.run_tui()
+        mock_default.assert_not_called()
+        return result
+
+    def test_first_pass_dims_against_the_injected_locator(self) -> None:
+        """With no version selected, the injected symlink decides the dimming.
+
+        ``BinaryLocator.default()`` would answer with a binary below the floor;
+        the injected locator's is at it, so the model must stay lit.
+        """
+        bar = self._bar(version_value=None)
+        app = self._make_app(self.new_enough, bar)
+
+        self._run_tui(app, [_quit])
+
+        self.assertNotIn(_FLOORED_MODEL, bar.segments[1].unavailable)
+
+    def test_the_in_loop_pass_uses_the_injected_locator_too(self) -> None:
+        """Clearing the selection mid-loop re-resolves through the same locator."""
+        bar = self._bar(version_value=_BELOW_FLOOR)
+        app = self._make_app(self.new_enough, bar)
+
+        def clear_selection(key: str) -> str | None:
+            """Stand in for a keypress that blanks the version segment."""
+            # The selection decided the first pass: below the floor, so dimmed.
+            self.assertIn(_FLOORED_MODEL, bar.segments[1].unavailable)
+            bar.segments[0].selected_value = None
+            return None
+
+        self._run_tui(app, [clear_selection, _quit])
+
+        self.assertNotIn(_FLOORED_MODEL, bar.segments[1].unavailable)
+
+    def test_an_old_injected_binary_dims_the_floored_model(self) -> None:
+        """The other direction: the injected locator can dim, too."""
+        bar = self._bar(version_value=None)
+        app = self._make_app(self.too_old, bar)
+
+        self._run_tui(app, [_quit])
+
+        self.assertIn(_FLOORED_MODEL, bar.segments[1].unavailable)
 
 
 class WizardRefreshDiscoveryTests(unittest.TestCase):
