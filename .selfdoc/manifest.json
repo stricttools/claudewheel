@@ -3157,6 +3157,11 @@
         },
         {
           "level": 4,
+          "text": "`_base_of`",
+          "anchor": "_base_of"
+        },
+        {
+          "level": 4,
           "text": "`_release_date_of`",
           "anchor": "_release_date_of"
         },
@@ -5705,6 +5710,6 @@
     }
   ],
   "posts": [],
-  "last_gen": "2026-09-07T16:50:32.005398+00:00",
+  "last_gen": "2026-09-07T17:04:44.824366+00:00",
   "theme": "minimal"
 }
