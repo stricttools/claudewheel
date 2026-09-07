@@ -1,6 +1,6 @@
 ---
 title: Configuration
-description: "How the claudewheel configuration system works: the root file layout, per-profile directories and their claudewheel data, segments and options, discovery with its caches -- including model discovery from the Anthropic API, the release-date ordering it feeds, and the built-in minimum-version table that dims models needing a newer Claude Code than the version you have selected or installed (a dimmed model refuses to launch) -- the migration framework, schema versioning, flag-driven launches, and how interactivity is derived from a controlling terminal."
+description: "How the claudewheel configuration system works: the root file layout, per-profile directories and their claudewheel data, segments and options, discovery with its caches -- including model discovery from the Anthropic API, the release-date ordering it feeds, and the built-in minimum-version table that dims models needing a newer Claude Code than the version you have selected or installed (a dimmed model refuses to launch) -- the migration framework with the one-time versioned fixes it replays from the list registered in the code, schema versioning, flag-driven launches, and how interactivity is derived from a controlling terminal."
 nav_group: "Concepts"
 order: 4
 ---
@@ -290,14 +290,10 @@ the config's `_schema_version` is less than the migration's version). After all
 applicable migrations run, `_schema_version` is bumped to the highest applied
 version.
 
-Current migrations:
-
-| Version | Description |
-| --- | --- |
-| 1 | Make the `github` segment optional (was incorrectly `required: true`) |
-| 2 | Rewrite profile metadata paths from `~/.claude-<name>` to `~/.claudewheel/profiles/<name>` |
-| 3 | Classify existing option `values` into `pinned` vs defaults (the pinned/discovered/defaults split) |
-| 4 | Drop the legacy `metadata` block from the `profile` segment (locations are now derived from the profile directory) |
+The migrations themselves are not reproduced here. The `_MIGRATIONS` list in
+`config.py` is the authority: it holds every migration in replay order, and each
+entry carries its version number, a `description` of what it fixes, and the
+function that applies it. Read that list to see which fixes exist.
 
 ### Adding a new migration
 
