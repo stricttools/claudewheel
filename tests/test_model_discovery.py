@@ -360,7 +360,9 @@ class RecordDiscoveredModelsTests(unittest.TestCase):
             }
         )
 
-        with mock.patch("claudewheel.appdata.write_json_atomic") as writer:
+        with mock.patch(
+            "claudewheel.appdata.write_json_atomic", autospec=True
+        ) as writer:
             cfg.record_discovered_models(
                 ["a"], {"a": {"created_at": "2025-01-01T00:00:00Z"}}
             )
@@ -368,7 +370,9 @@ class RecordDiscoveredModelsTests(unittest.TestCase):
 
     def test_empty_discovery_writes_nothing(self) -> None:
         cfg, _options_file = self._store({"values": ["a"], "pinned": []})
-        with mock.patch("claudewheel.appdata.write_json_atomic") as writer:
+        with mock.patch(
+            "claudewheel.appdata.write_json_atomic", autospec=True
+        ) as writer:
             cfg.record_discovered_models([], {})
         writer.assert_not_called()
 
