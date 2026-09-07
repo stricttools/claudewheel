@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import json
+import signal
 import tempfile
 import unittest
 from collections.abc import Callable
@@ -192,7 +193,7 @@ class RequiresLocatorInjectionTests(unittest.TestCase):
             mock.patch.object(
                 app_mod, "detect_mode2031_support", autospec=True, return_value=None
             ),
-            mock.patch.object(app_mod.signal, "signal", autospec=True),
+            mock.patch.object(signal, "signal", autospec=True),
             mock.patch.object(app, "_handle_key", autospec=True, side_effect=dispatch),
             mock.patch.object(app, "_compute_hints", autospec=True, return_value=[]),
             mock.patch.object(
