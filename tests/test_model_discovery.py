@@ -424,6 +424,20 @@ class ModelReleaseSortTests(unittest.TestCase):
         )
         self.assertEqual(state.options, ["base-new", "base-new[1m]", "base-old"])
 
+    def test_each_1m_entry_follows_its_own_base_when_bases_share_a_date(self) -> None:
+        """Two bases released the same day still each keep their variant beside them."""
+        state = self._state(
+            ["base-a", "base-a[1m]", "base-b", "base-b[1m]"],
+            {
+                "base-a": {"created_at": "2026-01-01T00:00:00Z"},
+                "base-b": {"created_at": "2026-01-01T00:00:00Z"},
+            },
+        )
+        self.assertEqual(
+            state.options,
+            ["base-a", "base-a[1m]", "base-b", "base-b[1m]"],
+        )
+
     def test_undated_entries_follow_dated_ones_in_stored_order(self) -> None:
         state = self._state(
             ["undated-first", "dated", "undated-second"],

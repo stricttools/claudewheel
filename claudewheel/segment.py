@@ -135,6 +135,13 @@ class SegmentState:
             self._options = deduped
         return self._options
 
+    @staticmethod
+    def _base_of(val: str) -> str:
+        """The model id *val* derives from: itself, or the id under its ``[1m]``."""
+        if val.endswith(CONTEXT_1M_SUFFIX):
+            return val[: -len(CONTEXT_1M_SUFFIX)]
+        return val
+
     def _release_date_of(self, val: str) -> str:
         """The ISO release date recorded for *val*, or ``""`` when unknown.
 
@@ -142,9 +149,7 @@ class SegmentState:
         1M context window selected, so it takes the base model's date; its own
         metadata is consulted only when the base carries no date.
         """
-        base = val
-        if val.endswith(CONTEXT_1M_SUFFIX):
-            base = val[: -len(CONTEXT_1M_SUFFIX)]
+        base = self._base_of(val)
         for name in (base, val):
             created = (self.metadata.get(name) or {}).get("created_at")
             if isinstance(created, str) and created:
@@ -157,21 +162,37 @@ class SegmentState:
         Pinned entries keep their stored order at the front -- pinning is an
         explicit statement about position. The rest are ordered by recorded
         release date, newest first, with a ``[1m]`` entry immediately after the
-        base model it derives from (same date, lower tiebreak). Entries with no
-        recorded date follow all dated ones in their stored order, which is what
-        the whole list looks like before the first successful refresh.
+        base model it derives from. Entries with no recorded date follow all
+        dated ones in their stored order, which is what the whole list looks
+        like before the first successful refresh.
+
+        The unit being ordered is the base model, not the individual entry: a
+        base and its ``[1m]`` variant move together, so two bases sharing a
+        release date cannot separate one of them from its own variant. Bases
+        sharing a date keep their stored order relative to each other.
         """
         pinned = set(self._pinned)
         pinned_part = [v for v in values if v in pinned]
         rest = [v for v in values if v not in pinned]
         dated = [v for v in rest if self._release_date_of(v)]
         undated = [v for v in rest if not self._release_date_of(v)]
+        # Rank dates newest first, so the whole key can sort ascending and the
+        # stored-order tiebreak stays ascending with it.
+        date_rank = {
+            date: rank
+            for rank, date in enumerate(
+                sorted({self._release_date_of(v) for v in dated}, reverse=True)
+            )
+        }
+        group_position: dict[str, int] = {}
+        for index, val in enumerate(dated):
+            group_position.setdefault(self._base_of(val), index)
         dated.sort(
             key=lambda v: (
-                self._release_date_of(v),
-                -1 if v.endswith(CONTEXT_1M_SUFFIX) else 0,
-            ),
-            reverse=True,
+                date_rank[self._release_date_of(v)],
+                group_position[self._base_of(v)],
+                1 if v.endswith(CONTEXT_1M_SUFFIX) else 0,
+            )
         )
         return pinned_part + dated + undated
 
