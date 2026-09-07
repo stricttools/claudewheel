@@ -32,9 +32,10 @@ MODEL_LIST_CACHE_TTL = 3600  # 1 hour
 MODEL_LIST_CACHE_KEY = "model_list_cache"
 
 # Page size for the models endpoint, and the ceiling on how many pages one
-# refresh will walk. The ceiling is not a limit on the model list -- eleven
-# models fit in a single page -- it is what keeps a far side that always
-# answers ``has_more`` from spinning the discovery thread forever.
+# refresh will walk. The page size is far larger than the list the endpoint
+# serves, so pagination is a safety net rather than the normal path, and the
+# ceiling is what keeps a far side that always answers ``has_more`` from
+# spinning the discovery thread forever.
 _MODEL_PAGE_LIMIT = 100
 _MODEL_MAX_PAGES = 20
 _MODEL_FETCH_TIMEOUT = 5.0
