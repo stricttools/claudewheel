@@ -631,6 +631,11 @@
           "level": 4,
           "text": "`symlink_target`",
           "anchor": "symlink_target"
+        },
+        {
+          "level": 3,
+          "text": "`effective_cli_version`",
+          "anchor": "effective_cli_version"
         }
       ]
     },
@@ -1012,6 +1017,11 @@
           "level": 3,
           "text": "`_migration_5_drop_fable_1m`",
           "anchor": "_migration_5_drop_fable_1m"
+        },
+        {
+          "level": 3,
+          "text": "`_migration_6_unwrap_dict_option_values`",
+          "anchor": "_migration_6_unwrap_dict_option_values"
         },
         {
           "level": 3,
@@ -5710,6 +5720,6 @@
     }
   ],
   "posts": [],
-  "last_gen": "2026-09-07T17:59:23.225239+00:00",
+  "last_gen": "2026-09-07T18:38:00.405095+00:00",
   "theme": "minimal"
 }
