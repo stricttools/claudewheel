@@ -49,9 +49,10 @@ def resolve_profile(name: str, *, workspace: Workspace | None = None) -> dict[st
       Profile locations are derived from directories, never persisted;
       ``options.json`` metadata is no longer consulted (a deliberate contract
       change from earlier versions).
-    - The workspace root is chosen by :meth:`Workspace.default`: the
-      ``CLAUDEWHEEL_CONFIG_DIR`` environment variable when set (expanduser'd),
-      otherwise ``~/.claudewheel``.
+    - The workspace root is chosen by the caller through the *workspace*
+      parameter, or -- when it is omitted or ``None`` -- by
+      :meth:`Workspace.default`: the ``CLAUDEWHEEL_CONFIG_DIR`` environment
+      variable when set (expanduser'd), otherwise ``~/.claudewheel``.
     - Zero filesystem writes, zero terminal I/O -- safe for read-only mounts
       and headless servers.
 
