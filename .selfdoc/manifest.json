@@ -2,7 +2,7 @@
   "schema_version": 1,
   "name": "claudewheel",
   "slug": "claudewheel",
-  "version": "0.27.0",
+  "version": "0.28.0",
   "description": "TUI launcher for Claude Code: pick a profile, model, directory, and permissions from a segment bar, then launch.",
   "language": "python",
   "base_url": "https://claudewheel.smmh.dev",
@@ -350,6 +350,11 @@
           "level": 4,
           "text": "`set_metadata`",
           "anchor": "set_metadata"
+        },
+        {
+          "level": 4,
+          "text": "`record_discovered`",
+          "anchor": "record_discovered"
         },
         {
           "level": 4,
@@ -1055,6 +1060,11 @@
         },
         {
           "level": 4,
+          "text": "`_sync_model_discovery`",
+          "anchor": "_sync_model_discovery"
+        },
+        {
+          "level": 4,
           "text": "`_run_versioned_migrations`",
           "anchor": "_run_versioned_migrations"
         },
@@ -1062,6 +1072,11 @@
           "level": 4,
           "text": "`_deep_merge_missing`",
           "anchor": "_deep_merge_missing"
+        },
+        {
+          "level": 4,
+          "text": "`record_discovered_models`",
+          "anchor": "record_discovered_models"
         },
         {
           "level": 4,
@@ -3142,6 +3157,16 @@
         },
         {
           "level": 4,
+          "text": "`_release_date_of`",
+          "anchor": "_release_date_of"
+        },
+        {
+          "level": 4,
+          "text": "`_sorted_by_release_date`",
+          "anchor": "_sorted_by_release_date"
+        },
+        {
+          "level": 4,
           "text": "`set_discovered`",
           "anchor": "set_discovered"
         },
@@ -3307,6 +3332,31 @@
         },
         {
           "level": 3,
+          "text": "`_candidate_token_profiles`",
+          "anchor": "_candidate_token_profiles"
+        },
+        {
+          "level": 3,
+          "text": "`_models_page_url`",
+          "anchor": "_models_page_url"
+        },
+        {
+          "level": 3,
+          "text": "`_fetch_models_with_token`",
+          "anchor": "_fetch_models_with_token"
+        },
+        {
+          "level": 3,
+          "text": "`fetch_available_models`",
+          "anchor": "fetch_available_models"
+        },
+        {
+          "level": 3,
+          "text": "`_models_to_result`",
+          "anchor": "_models_to_result"
+        },
+        {
+          "level": 3,
           "text": "`_discover_directory_listing`",
           "anchor": "_discover_directory_listing"
         },
@@ -3319,6 +3369,16 @@
           "level": 3,
           "text": "`_discover_npm_and_local_cached`",
           "anchor": "_discover_npm_and_local_cached"
+        },
+        {
+          "level": 3,
+          "text": "`_discover_anthropic_models`",
+          "anchor": "_discover_anthropic_models"
+        },
+        {
+          "level": 3,
+          "text": "`_discover_anthropic_models_cached`",
+          "anchor": "_discover_anthropic_models_cached"
         },
         {
           "level": 3,
@@ -3364,6 +3424,11 @@
           "level": 3,
           "text": "`_update_auth_from_metadata`",
           "anchor": "_update_auth_from_metadata"
+        },
+        {
+          "level": 3,
+          "text": "`_defaults_for`",
+          "anchor": "_defaults_for"
         },
         {
           "level": 3,
@@ -4944,6 +5009,11 @@
         },
         {
           "level": 3,
+          "text": "Model discovery",
+          "anchor": "model-discovery"
+        },
+        {
+          "level": 3,
           "text": "Staleness verification",
           "anchor": "staleness-verification"
         },
@@ -5635,6 +5705,6 @@
     }
   ],
   "posts": [],
-  "last_gen": "2026-09-07T10:59:53.508838+00:00",
+  "last_gen": "2026-09-07T16:50:32.005398+00:00",
   "theme": "minimal"
 }
