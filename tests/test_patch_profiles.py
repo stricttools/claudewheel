@@ -218,9 +218,7 @@ class MergeHooksTests(_PatchProfilesTestCase):
         added = merge_hooks(
             existing, {"UserPromptSubmit": c["hooks"]["UserPromptSubmit"]}
         )
-        self.assertEqual(
-            existing["UserPromptSubmit"], c["hooks"]["UserPromptSubmit"]
-        )
+        self.assertEqual(existing["UserPromptSubmit"], c["hooks"]["UserPromptSubmit"])
         self.assertEqual(len(added), 1)
 
 
