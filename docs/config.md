@@ -1,6 +1,6 @@
 ---
 title: Configuration
-description: "How the claudewheel configuration system works: the root file layout, per-profile directories and their claudewheel data, segments and options, discovery with its caches -- including model discovery from the Anthropic API, the release-date ordering it feeds, and the built-in minimum-version table that dims models needing a newer Claude Code than the version you have selected or installed (a dimmed model refuses to launch) -- the migration framework with the one-time versioned fixes it replays from the list registered in the code, schema versioning, flag-driven launches, and how interactivity is derived from a controlling terminal."
+description: "How the claudewheel configuration system works: the root file layout, per-profile directories and their claudewheel data, segments and options, discovery with its caches -- including model discovery from the Anthropic API, the release-date ordering it feeds, and the built-in minimum-version table that dims models needing a newer Claude Code than the version you have selected or installed (a dimmed model refuses to launch, while a version neither selection nor symlink can resolve dims nothing) -- the migration framework with the one-time versioned fixes it replays from the list registered in the code, schema versioning, flag-driven launches, and how interactivity is derived from a controlling terminal."
 nav_group: "Concepts"
 order: 4
 ---
@@ -158,7 +158,9 @@ table of model minimum CLI versions (`MODEL_MIN_CLI_VERSION` in
   with no selection would run. Nothing dims when that is new enough, and the
   fallback applies just as well when the version segment is not enabled at
   all. Neither answer available -- no selection and no resolvable symlink --
-  leaves nothing to satisfy the minimum with, so the listed models are dimmed.
+  means the version could not be determined at all, and nothing is dimmed:
+  the minimum is enforced on a positive determination that the effective
+  version is too old, never on an unknown one.
 - A model absent from the table is unrestricted: no selection and no installed
   binary can dim it.
 - The same table drives the pre-launch `model-version-guard` step, which
@@ -166,9 +168,10 @@ table of model minimum CLI versions (`MODEL_MIN_CLI_VERSION` in
   The step reads that table through the same `effective_cli_version` call the
   dimming makes, so the two cannot disagree about which binary a model needs
   or about which binary you are on: neither fact exists in two places to drift
-  apart. They differ only in what they do when the version cannot be
-  determined at all -- the picker dims, while the guard passes, acting only on
-  a positive too-old determination.
+  apart. They agree in every case, including the one where the version cannot
+  be determined at all: both act only on a positive too-old determination, so
+  a version nothing can resolve restricts nothing. The launch proceeds, and
+  Claude Code itself reports the incompatibility if there is one.
 
 ### options.json structure
 
