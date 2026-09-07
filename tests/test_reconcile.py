@@ -538,6 +538,7 @@ class MalformedNestedContainerTests(_ReconcileTestCase):
 
         self.assertIn("aaa: malformed", out)
         self.assertIn('"permissions"', out)
+        self.assertIn(str(self.settings_path("aaa")), out)
         self.assertEqual((aaa / "settings.json").read_text(), aaa_before)
         self.assertIn("zzz: reconciled", out)
 

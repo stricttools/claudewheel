@@ -1354,6 +1354,50 @@ class CheckResumeSessionTests(unittest.TestCase):
 
         self.assertIn("Error: disk went away", err.getvalue())
 
+    def test_resume_dry_run_failure_aborts_instead_of_raising(self) -> None:
+        """The DRY-RUN invocation gets the same handling as the real one.
+
+        The failure is reported before the second prompt is ever printed, so
+        only the first answer is consumed and nothing was migrated.
+        """
+        from claudewheel.session import SessionInfo
+
+        session_id = "abc-123-def"
+        current_dir = os.path.abspath("/home/user/new-project")
+        old_cwd = "/home/user/old-project"
+
+        info = SessionInfo(
+            session_id=session_id,
+            jsonl_path=Path("/fake/path/abc-123-def.jsonl"),
+            encoded_cwd="encoded-old",
+            cwd=old_cwd,
+        )
+
+        err = io.StringIO()
+        with (
+            mock.patch(
+                "claudewheel.session.find_session", autospec=True, return_value=info
+            ),
+            mock.patch(
+                "claudewheel.mv.run_mv",
+                autospec=True,
+                side_effect=[FileNotFoundError("no such project dir")],
+            ) as mock_mv,
+            mock.patch("builtins.input", autospec=True, side_effect=["y"]),
+            mock.patch("os.path.isdir", autospec=True, return_value=False),
+            redirect_stdout(io.StringIO()),
+            redirect_stderr(err),
+        ):
+            with self.assertRaises(SystemExit) as ctx:
+                cli._check_resume_session(self.ws, session_id, current_dir)
+            self.assertEqual(ctx.exception.code, 1)
+
+        self.assertIn("Error: no such project dir", err.getvalue())
+        # The dry run is the only invocation: nothing was migrated for real.
+        self.assertEqual(mock_mv.call_count, 1)
+        _, kwargs = mock_mv.call_args_list[0]
+        self.assertTrue(kwargs.get("dry_run", False))
+
     # -- 5.1c: User declines first prompt --
 
     def test_resume_session_found_elsewhere_user_declines_first_prompt(self) -> None:
@@ -1697,6 +1741,44 @@ class CheckContSessionTests(unittest.TestCase):
             self.assertEqual(ctx.exception.code, 1)
 
         self.assertIn("Error: disk went away", err.getvalue())
+
+    def test_cont_dry_run_failure_aborts_instead_of_raising(self) -> None:
+        """The DRY-RUN invocation gets the same handling as the real one."""
+        from claudewheel.session import OrphanedProject
+
+        current_dir = os.path.abspath("/home/user/new-project")
+        orphan = OrphanedProject(
+            encoded_cwd="-home-user-old-project",
+            cwd="/home/user/old-project",
+            session_count=3,
+            total_size_bytes=1024,
+            projects_dir=self.shared_dir / "projects" / "-home-user-old-project",
+        )
+
+        err = io.StringIO()
+        with (
+            mock.patch(
+                "claudewheel.session.find_orphaned_project_dirs",
+                autospec=True,
+                return_value=[orphan],
+            ),
+            mock.patch(
+                "claudewheel.mv.run_mv",
+                autospec=True,
+                side_effect=[FileNotFoundError("no such project dir")],
+            ) as mock_mv,
+            mock.patch("builtins.input", autospec=True, side_effect=["y"]),
+            redirect_stdout(io.StringIO()),
+            redirect_stderr(err),
+        ):
+            with self.assertRaises(SystemExit) as ctx:
+                cli._check_cont_session(self.ws, current_dir)
+            self.assertEqual(ctx.exception.code, 1)
+
+        self.assertIn("Error: no such project dir", err.getvalue())
+        self.assertEqual(mock_mv.call_count, 1)
+        _, kwargs = mock_mv.call_args_list[0]
+        self.assertTrue(kwargs.get("dry_run", False))
 
     # -- No sessions, one candidate, user declines --
 
