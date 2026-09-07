@@ -156,6 +156,26 @@ class FetchAvailableModelsTests(unittest.TestCase):
             "Bearer sk-ant-work",
         )
 
+    def test_429_tries_the_next_token(self) -> None:
+        """A rate limit is per-account, so the next profile's token is tried."""
+        urlopen = MagicMock(
+            side_effect=[
+                _http_error(429),
+                _page([_model("m1", "2026-01-01T00:00:00Z")]),
+            ]
+        )
+        with mock.patch("urllib.request.urlopen", urlopen):
+            models = fetch_available_models(
+                {}, _ws({"limited": "sk-ant-limited", "work": "sk-ant-work"})
+            )
+
+        self.assertEqual([m["id"] for m in models], ["m1"])
+        self.assertEqual(urlopen.call_count, 2)
+        self.assertEqual(
+            urlopen.call_args_list[1][0][0].get_header("Authorization"),
+            "Bearer sk-ant-work",
+        )
+
     def test_network_error_stops_at_the_first_token(self) -> None:
         urlopen = MagicMock(side_effect=urllib.error.URLError("name resolution failed"))
         with mock.patch("urllib.request.urlopen", urlopen):

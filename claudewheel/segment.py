@@ -568,8 +568,9 @@ def _models_page_url(after_id: str | None) -> str:
 def _fetch_models_with_token(token: str) -> list[dict[str, str]]:
     """Read the whole model list with one token, following pagination.
 
-    Raises ``urllib.error.HTTPError`` (401 for a rejected token) and the
-    network errors ``urllib`` raises; the caller decides what each means.
+    Raises ``urllib.error.HTTPError`` (401 for a rejected token, 429 for a
+    rate-limited account) and the network errors ``urllib`` raises; the caller
+    decides what each means.
     """
     models: list[dict[str, str]] = []
     after_id: str | None = None
@@ -618,9 +619,9 @@ def fetch_available_models(
     online one.
 
     Token selection walks the profiles' own stored tokens (last-used first). A
-    401 means that token cannot list models and the next one is tried; a
-    network failure ends the whole refresh, because the next token would fail
-    the same way.
+    401 (this token cannot list models) or a 429 (this account is rate limited)
+    moves on to the next token; any other HTTP status ends the refresh, and so
+    does a network failure, because the next token would fail the same way.
     """
     cache = state.get(MODEL_LIST_CACHE_KEY, {})
     cached_at = cache.get("fetched_at", 0)
@@ -640,9 +641,12 @@ def fetch_available_models(
             try:
                 models = _fetch_models_with_token(token)
             except urllib.error.HTTPError as exc:
-                if exc.code == 401:
-                    continue  # this token cannot list models; try the next
-                break  # rate limit, server error: this refresh is over
+                if exc.code in (401, 429):
+                    # 401: this token cannot list models. 429: this account is
+                    # rate limited, and a rate limit is per-account. Either way
+                    # another profile's token may still answer.
+                    continue
+                break  # server error: this refresh is over
             except (urllib.error.URLError, TimeoutError, OSError):
                 break  # offline: no other token would fare better
             state[MODEL_LIST_CACHE_KEY] = {
