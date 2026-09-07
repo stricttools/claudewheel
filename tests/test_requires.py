@@ -290,6 +290,59 @@ class ModelMinVersionDimmingTests(unittest.TestCase):
         evaluate_requires(bar, locator=self._locator(None))
         self.assertIn(_RESTRICTED, bar.segments[1].unavailable)
 
+    def test_the_symlink_is_resolved_once_per_pass_not_once_per_option(self) -> None:
+        """One evaluation pass reads the `claude` symlink exactly once.
+
+        Every version-constrained option is checked against the same effective
+        version, so resolving it per option would stat the filesystem once per
+        model for an answer that cannot differ within the pass.
+        """
+        model = Segment(
+            key="model",
+            label="Model",
+            _init_options=[
+                _RESTRICTED,
+                _RESTRICTED + CONTEXT_1M_SUFFIX,
+                _RESTRICTED + "-2",
+                _RESTRICTED + "-3",
+                _UNRESTRICTED,
+            ],
+            option_requires={
+                _RESTRICTED: {"version": f">={_FLOOR}"},
+                _RESTRICTED + CONTEXT_1M_SUFFIX: {"version": f">={_FLOOR}"},
+                _RESTRICTED + "-2": {"version": f">={_FLOOR}"},
+                _RESTRICTED + "-3": {"version": ">=2.1.218"},
+            },
+        )
+        bar = SegmentBar(segments=[model])
+        locator = self._locator(_FLOOR)
+
+        with mock.patch.object(
+            BinaryLocator,
+            "symlink_target",
+            autospec=True,
+            return_value=self.versions_dir / _FLOOR,
+        ) as resolve:
+            evaluate_requires(bar, locator=locator)
+
+        resolve.assert_called_once_with(locator)
+        self.assertEqual(model.unavailable, set())
+
+    def test_no_version_requirement_never_touches_the_symlink(self) -> None:
+        """The resolution is lazy: an unconstrained bar reads no filesystem."""
+        bar = SegmentBar(
+            segments=[
+                Segment(key="model", label="Model", _init_options=[_UNRESTRICTED])
+            ]
+        )
+
+        with mock.patch.object(
+            BinaryLocator, "symlink_target", autospec=True, return_value=None
+        ) as resolve:
+            evaluate_requires(bar, locator=self._locator(_FLOOR))
+
+        resolve.assert_not_called()
+
     def test_build_segment_bar_wires_the_model_segment(self) -> None:
         """The bar the app builds carries the derived requirements."""
         with tempfile.TemporaryDirectory() as tmp:
