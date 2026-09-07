@@ -28,3 +28,7 @@ shared version resolution, so the two can no longer disagree.
 # blog = false
 include = ["npm", "pypi"]
 exclude = []
+candidate_sha = "068b8409426a36a88ed2f049516a923060ecd163"
+
+[tree_hashes]
+"." = "131dcb45949d0bf9d8b6a1ecf2e130c1b94a43b4"
