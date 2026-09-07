@@ -283,9 +283,12 @@ DEFAULT_STATE = {
     "launch_count": 0,
 }
 
-# Minimum Claude Code CLI version required to run a given model. A model absent
-# from this table is unguarded (any installed binary may run it). The launch
-# preflight strips a trailing "[1m]" context-window suffix before lookup.
+# Minimum Claude Code CLI version required to run a given model, and the only
+# place that fact is declared. It drives both the launch preflight's hard abort
+# and the model picker's dimming (claudewheel.segment.model_option_requires).
+# A model absent from this table is unrestricted: any installed binary may run
+# it. Both consumers strip a trailing context-window suffix before lookup, and
+# a suffixed entry inherits its base model's minimum.
 MODEL_MIN_CLI_VERSION: dict[str, str] = {
     "claude-opus-5": "2.1.219",
 }

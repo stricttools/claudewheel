@@ -342,14 +342,14 @@ def _model_version_guard_run(ctx: PreflightContext) -> StepResult:
     older than the model's minimum aborts with an actionable message.
     """
     from .defaults import MODEL_MIN_CLI_VERSION
-    from .segment import version_sort_key
+    from .segment import CONTEXT_1M_SUFFIX, version_sort_key
 
     model = ctx.selections.get("model")
     if not model:
         return StepResult.cont()
-    # Strip the "[1m]" context-window suffix before table lookup.
-    if model.endswith("[1m]"):
-        model = model[: -len("[1m]")]
+    # Strip the context-window suffix before table lookup.
+    if model.endswith(CONTEXT_1M_SUFFIX):
+        model = model[: -len(CONTEXT_1M_SUFFIX)]
     min_version = MODEL_MIN_CLI_VERSION.get(model)
     if min_version is None:
         return StepResult.cont()

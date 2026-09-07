@@ -878,24 +878,29 @@ def _discover_state_field(
 
 
 def _parse_static_values(config: dict[str, Any]) -> list[str]:
-    """Extract plain string values from an options_def entry, stripping requires dicts."""
-    raw = config.get("values", [])
-    values: list[str] = []
-    for v in raw:
-        if isinstance(v, dict):
-            values.append(v["value"])
-        else:
-            values.append(v)
-    return values
+    """The plain string values listed in an options_def entry."""
+    return list(config.get("values", []))
 
 
-def _parse_requires(config: dict[str, Any]) -> dict[str, dict[str, str]]:
-    """Extract requires constraints from dict-style values in an options_def entry."""
-    raw = config.get("values", [])
+def model_option_requires() -> dict[str, dict[str, str]]:
+    """The model picker's version requirements, derived from one table.
+
+    ``MODEL_MIN_CLI_VERSION`` in ``defaults.py`` is the single place a model's
+    minimum Claude Code version is declared. The pre-launch guard reads it to
+    abort a launch; this turns the same table into the cross-segment
+    constraints :func:`evaluate_requires` dims options with, so the picker and
+    the guard can never disagree about which binary a model needs.
+
+    A ``[1m]`` entry is claudewheel's own spelling of a base model with the 1M
+    context window selected, so it inherits the base model's requirement.
+    Models absent from the table are unrestricted.
+    """
+    from .defaults import MODEL_MIN_CLI_VERSION
+
     requires: dict[str, dict[str, str]] = {}
-    for v in raw:
-        if isinstance(v, dict) and "requires" in v:
-            requires[v["value"]] = v["requires"]
+    for model, min_version in MODEL_MIN_CLI_VERSION.items():
+        requires[model] = {"version": f">={min_version}"}
+        requires[model + CONTEXT_1M_SUFFIX] = {"version": f">={min_version}"}
     return requires
 
 
@@ -983,10 +988,6 @@ def populate_segment_state(
     discovered; None when nothing ran.
     """
     disc = options_def_entry.get("discovery")
-    requires = _parse_requires(options_def_entry)
-    if requires:
-        seg.option_requires = requires
-
     if not disc:
         return None
 
@@ -1137,6 +1138,11 @@ def build_segment_bar(cfg: "AppConfigStore", *, skip_slow: bool = False) -> Segm
             seg.state.collection_order = list(merge_spec["collection_order"])
         if "sort" in merge_spec:
             seg.state.sort = merge_spec["sort"]
+
+        # The model segment's version requirements are derived from
+        # MODEL_MIN_CLI_VERSION, the same table the pre-launch guard reads.
+        if key == "model":
+            seg.option_requires = model_option_requires()
 
         # Populate defaults and pinned from config
         seg.state.set_defaults(_defaults_for(key, opt))

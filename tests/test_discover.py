@@ -20,7 +20,6 @@ from claudewheel.segment import (
     _discover_npm_and_local_cached,
     _discover_profiles,
     _discover_state_field,
-    _parse_requires,
     _parse_static_values,
 )
 from claudewheel.workspace import Workspace
@@ -630,10 +629,6 @@ class ParseStaticValuesTests(unittest.TestCase):
         config = {"values": ["a", "b", "c"]}
         self.assertEqual(_parse_static_values(config), ["a", "b", "c"])
 
-    def test_dict_values_unwrapped(self) -> None:
-        config = {"values": ["a", {"value": "b", "requires": {"ver": ">=1"}}]}
-        self.assertEqual(_parse_static_values(config), ["a", "b"])
-
     def test_empty_values(self) -> None:
         config: dict[str, Any] = {"values": []}
         self.assertEqual(_parse_static_values(config), [])
@@ -641,22 +636,6 @@ class ParseStaticValuesTests(unittest.TestCase):
     def test_missing_values_key(self) -> None:
         config: dict[str, Any] = {}
         self.assertEqual(_parse_static_values(config), [])
-
-
-class ParseRequiresTests(unittest.TestCase):
-    def test_dict_values_with_requires(self) -> None:
-        config = {
-            "values": ["a", {"value": "b", "requires": {"ver": ">=1"}}],
-        }
-        self.assertEqual(_parse_requires(config), {"b": {"ver": ">=1"}})
-
-    def test_no_requires(self) -> None:
-        config = {"values": ["a", "b"]}
-        self.assertEqual(_parse_requires(config), {})
-
-    def test_dict_value_without_requires(self) -> None:
-        config = {"values": [{"value": "a"}, "b"]}
-        self.assertEqual(_parse_requires(config), {})
 
 
 class DiscoveryResultTests(unittest.TestCase):
