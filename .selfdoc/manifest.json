@@ -3412,8 +3412,8 @@
         },
         {
           "level": 3,
-          "text": "`_parse_requires`",
-          "anchor": "_parse_requires"
+          "text": "`model_option_requires`",
+          "anchor": "model_option_requires"
         },
         {
           "level": 3,
@@ -5710,6 +5710,6 @@
     }
   ],
   "posts": [],
-  "last_gen": "2026-09-07T17:04:44.824366+00:00",
+  "last_gen": "2026-09-07T17:59:23.225239+00:00",
   "theme": "minimal"
 }
