@@ -466,7 +466,13 @@ class RewriteJsonlTests(unittest.TestCase):
                 self.assertEqual(parsed["cwd"], "/home/m/test")
 
     def test_atomic_write_no_tmp_left(self) -> None:
-        """After write, target exists and .tmp file does not."""
+        """After the write the directory holds the source and target, nothing else.
+
+        Asserted as an exact directory listing rather than as a check on any
+        particular staging spelling: the writer stages through a unique
+        ``tempfile.mkstemp`` name, so a filter keyed on one spelling would stop
+        asserting anything the moment the naming changes.
+        """
         src = self.root / "src.jsonl"
         src.write_text(_make_jsonl_line(cwd="/a") + "\n")
         dst = self.root / "dst.jsonl"
@@ -475,7 +481,9 @@ class RewriteJsonlTests(unittest.TestCase):
         _rewrite_jsonl(src, dst, rewriters, None, None, dry_run=False)
 
         self.assertTrue(dst.exists())
-        self.assertFalse(dst.with_suffix(".tmp").exists())
+        self.assertEqual(
+            sorted(p.name for p in self.root.iterdir()), ["dst.jsonl", "src.jsonl"]
+        )
 
     def test_dry_run_does_not_create_target(self) -> None:
         """Dry run returns line count but creates no file."""

@@ -179,12 +179,18 @@ class SaveSettingsTests(unittest.TestCase):
             self.assertEqual(loaded, {"key": "value"})
 
     def test_save_atomic_write(self) -> None:
+        """The staged write leaves the target and nothing else behind.
+
+        Asserted as "the directory holds exactly settings.json" rather than as
+        a check on any particular staging spelling: the writer stages through a
+        unique ``tempfile.mkstemp`` name, so a filter keyed on one spelling
+        would stop asserting anything the moment the naming changes.
+        """
         with tempfile.TemporaryDirectory() as tmp:
             p = Path(tmp) / "settings.json"
             permission.save_settings(p, {"a": 1})
-            tmp_file = p.with_suffix(".tmp")
-            self.assertFalse(
-                tmp_file.exists(), ".tmp file should not remain after save"
+            self.assertEqual(
+                sorted(q.name for q in Path(tmp).iterdir()), ["settings.json"]
             )
 
     def test_save_format(self) -> None:
