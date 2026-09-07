@@ -181,7 +181,7 @@ A nonzero exit aborts the launch (and prevents `launch_count` from being increme
 
 ## Adding new options
 
-- **Profile / GitHub / Model**: cycle the segment to its `+` sentinel, press Enter, type the new value. It is appended to `options.json` under the segment's `values` list and selected.
+- **Profile / GitHub / Model**: cycle the segment to its `+` sentinel, press Enter, type the new value. It is appended to `options.json` under the segment's `pinned` list and selected.
 - **Direct edit**: open `~/.claudewheel/options.json` and add to the relevant segment's `values` array. For profiles you also need a `metadata.<name>.config_dir` entry.
 - **Install a Claude Code version**: run `c --install <version>` or pick a not-yet-installed version in the TUI and confirm the install prompt. Binaries land in `~/.local/share/claude/versions/<version>`.
 
