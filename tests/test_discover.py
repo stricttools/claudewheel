@@ -644,7 +644,6 @@ class DiscoveryResultTests(unittest.TestCase):
         dr = DiscoveryResult()
         self.assertEqual(dr.values, [])
         self.assertEqual(dr.installed, set())
-        self.assertEqual(dr.requires, {})
         self.assertEqual(dr.metadata, {})
 
     def test_fields_populated(self) -> None:
@@ -652,12 +651,10 @@ class DiscoveryResultTests(unittest.TestCase):
         dr = DiscoveryResult(
             values=["a", "b"],
             installed={"a"},
-            requires={"b": {"ver": ">=1"}},
             metadata={"a": {"key": "val"}},
         )
         self.assertEqual(dr.values, ["a", "b"])
         self.assertEqual(dr.installed, {"a"})
-        self.assertEqual(dr.requires, {"b": {"ver": ">=1"}})
         self.assertEqual(dr.metadata, {"a": {"key": "val"}})
 
 

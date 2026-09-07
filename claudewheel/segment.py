@@ -63,7 +63,6 @@ class DiscoveryResult:
 
     values: list[str] = field(default_factory=list)
     installed: set[str] = field(default_factory=set)
-    requires: dict[str, dict[str, str]] = field(default_factory=dict)
     metadata: dict[str, dict[str, Any]] = field(default_factory=dict)
 
 
