@@ -30,3 +30,7 @@ audit round before release.
 # blog = false
 include = ["npm", "pypi"]
 exclude = []
+candidate_sha = "a4b178584632d29edd78c4ffcd4ec148cc27efdc"
+
+[tree_hashes]
+"." = "28eac3bd2929b7293064c2eb31a40e7a1992fe3d"
