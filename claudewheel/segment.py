@@ -1265,6 +1265,14 @@ def evaluate_requires(bar: SegmentBar, locator: "BinaryLocator | None" = None) -
     the same call the pre-launch model-version guard makes, so the picker and
     the guard read one table through one resolution.
 
+    When that resolution answers None -- nothing selected and no symlink to
+    read a version off -- a version requirement restricts nothing. The picker
+    takes the pre-launch guard's disposition: an option is marked unavailable
+    only on a positive determination that the effective version is below the
+    requirement, never on an unknown one. This permissiveness is scoped to the
+    version resolution; a requirement on an ordinary segment with no selection
+    is unsatisfied as before.
+
     *locator* names the binaries to resolve the symlink against; None uses the
     default locations. The symlink is resolved at most once per call -- lazily,
     so a bar whose options carry no version requirement never touches the
@@ -1290,7 +1298,13 @@ def evaluate_requires(bar: SegmentBar, locator: "BinaryLocator | None" = None) -
         unavailable: set[str] = set()
         for opt_value, reqs in seg.option_requires.items():
             for req_segment, constraint in reqs.items():
-                if not _satisfies_constraint(resolve(req_segment), constraint):
+                value = resolve(req_segment)
+                if value is None and req_segment == VERSION_SEGMENT_KEY:
+                    # The effective version is unknown, so there is no positive
+                    # too-old determination to act on. Restrict nothing, which
+                    # is what the pre-launch guard does with the same answer.
+                    continue
+                if not _satisfies_constraint(value, constraint):
                     unavailable.add(opt_value)
                     break
         seg.unavailable = unavailable

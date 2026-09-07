@@ -47,6 +47,30 @@ def _make_bar(version_value: str | None) -> SegmentBar:
     return SegmentBar(segments=[version, permissions])
 
 
+def _make_generic_bar(toolset_value: str | None) -> SegmentBar:
+    """Build a two-segment bar constrained on an ordinary (non-version) segment.
+
+    ``toolset_value`` selects the option in the toolset segment; None means
+    blank. ``auto`` requires ``toolset`` to be exactly ``extended``. Nothing
+    here goes through the effective-version resolution, so this is the generic
+    constraint path, which stays strict about a missing selection.
+    """
+    toolset = Segment(
+        key="toolset",
+        label="Toolset",
+        _init_options=["basic", "extended"],
+        selected_value=toolset_value,
+    )
+    permissions = Segment(
+        key="permissions",
+        label="Permissions",
+        _init_options=["bypass", "auto"],
+        selected_value="bypass",
+        option_requires={"auto": {"toolset": "extended"}},
+    )
+    return SegmentBar(segments=[toolset, permissions])
+
+
 class EvaluateRequiresTests(unittest.TestCase):
     def test_old_version_marks_auto_unavailable(self) -> None:
         """version=2.1.108 < 2.1.110, so 'auto' is unavailable."""
@@ -69,12 +93,24 @@ class EvaluateRequiresTests(unittest.TestCase):
         permissions = bar.segments[1]
         self.assertNotIn("auto", permissions.unavailable)
 
-    def test_blank_version_marks_auto_unavailable(self) -> None:
-        """No version selected (value=None) cannot satisfy any constraint."""
-        bar = _make_bar(version_value=None)
+    def test_a_blank_generic_segment_marks_auto_unavailable(self) -> None:
+        """Nothing selected on an ordinary segment cannot satisfy any constraint.
+
+        Only the version requirement is permissive about an unknown answer,
+        because only there does an unknown answer mean the effective version
+        could not be determined. A constraint on any other segment is
+        unsatisfied while that segment holds no selection.
+        """
+        bar = _make_generic_bar(toolset_value=None)
         evaluate_requires(bar)
         permissions = bar.segments[1]
         self.assertIn("auto", permissions.unavailable)
+
+    def test_a_matching_generic_selection_satisfies_the_constraint(self) -> None:
+        """toolset=extended satisfies the exact-match constraint, so 'auto' is lit."""
+        bar = _make_generic_bar(toolset_value="extended")
+        evaluate_requires(bar)
+        self.assertNotIn("auto", bar.segments[1].unavailable)
 
     def test_unconstrained_option_never_unavailable(self) -> None:
         """'bypass' has no requirement, so it is never in unavailable regardless of state."""
@@ -284,11 +320,16 @@ class ModelMinVersionDimmingTests(unittest.TestCase):
                 evaluate_requires(bar, locator=self._locator(installed))
                 self.assertEqual(_RESTRICTED in bar.segments[0].unavailable, dimmed)
 
-    def test_an_undeterminable_version_dims_the_restricted_model(self) -> None:
-        """With no selection and no symlink there is nothing to satisfy the floor."""
+    def test_an_undeterminable_version_dims_nothing(self) -> None:
+        """With no selection and no symlink, the version restricts nothing.
+
+        The picker acts only on a positive too-old determination, exactly as
+        the pre-launch guard does: an unknown effective version lets every
+        model through rather than dimming the whole table.
+        """
         bar = self._bar(None)
         evaluate_requires(bar, locator=self._locator(None))
-        self.assertIn(_RESTRICTED, bar.segments[1].unavailable)
+        self.assertEqual(bar.segments[1].unavailable, set())
 
     def test_the_symlink_is_resolved_once_per_pass_not_once_per_option(self) -> None:
         """One evaluation pass reads the `claude` symlink exactly once.
