@@ -19,6 +19,8 @@ from copy import deepcopy
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from .reconcile import MalformedSettingsError, _json_type_name
+
 if TYPE_CHECKING:
     from .workspace import Workspace
 
@@ -26,6 +28,30 @@ if TYPE_CHECKING:
 def _script_basename(command: str) -> str:
     """Return the trailing script name of a hook command path (or "")."""
     return Path(command).name if command else ""
+
+
+def _list_at(container: dict[str, Any], key: str) -> list[Any]:
+    """Return ``container[key]`` as a list; raise when it is not one.
+
+    The array counterpart of the reconcile core's ``_dict_at``, and it follows
+    the same rule: a MISSING key is created empty and returned (absence is
+    ordinary bootstrap), an existing list is returned as is, and a
+    present-but-non-list value raises :class:`MalformedSettingsError` naming
+    the key and the type found.  ``setdefault`` alone would hand the malformed
+    value straight to ``.append`` and crash with a bare ``AttributeError``
+    naming neither the key nor the file.  *container* is left exactly as it
+    was: a value nobody can interpret is never silently repaired.
+    """
+    if key not in container:
+        created: list[Any] = []
+        container[key] = created
+        return created
+    value = container[key]
+    if not isinstance(value, list):
+        raise MalformedSettingsError(
+            f'"{key}" is {_json_type_name(value)}, expected an array'
+        )
+    return value
 
 
 def merge_hooks(existing: dict[str, Any], canonical: dict[str, Any]) -> list[str]:
@@ -46,14 +72,18 @@ def merge_hooks(existing: dict[str, Any], canonical: dict[str, Any]) -> list[str
     and so are preserved exactly. Returns human-readable descriptions of every
     hook added or repathed.
 
+    A malformed *existing* value raises :class:`MalformedSettingsError` naming
+    the key and the type found: an event whose value is not an array
+    (``"PreToolUse": null``), or a matched entry whose ``"hooks"`` is not one.
+    Hand-edited settings are reported, never crashed on and never silently
+    skipped past.
+
     Used by the wizard to assemble a new profile's hooks. Existing profiles are
     reconciled to exact canonical by the reconcile core, not by this merge.
     """
     added: list[str] = []
     for event, canonical_entries in canonical.items():
-        existing_entries = existing.setdefault(event, [])
-        if not isinstance(existing_entries, list):
-            continue
+        existing_entries = _list_at(existing, event)
         for c_entry in canonical_entries:
             matcher = c_entry.get("matcher", "")
             c_hooks = c_entry.get("hooks", [])
@@ -73,7 +103,7 @@ def merge_hooks(existing: dict[str, Any], canonical: dict[str, Any]) -> list[str
                         f"{event}[{label}] {_script_basename(h.get('command', ''))}"
                     )
                 continue
-            target_hooks = target.setdefault("hooks", [])
+            target_hooks = _list_at(target, "hooks")
             for h in c_hooks:
                 base = _script_basename(h.get("command", ""))
                 if not base:

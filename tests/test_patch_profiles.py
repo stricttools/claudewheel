@@ -22,6 +22,7 @@ from claudewheel import cli
 from claudewheel.defaults import DISALLOWED_TOOLS, build_canonical_shared_settings
 from claudewheel.health import check_relocated_hook_paths
 from claudewheel.patch_profiles import merge_hooks, run_patch_profiles
+from claudewheel.reconcile import MalformedSettingsError
 from tests.wheelhelpers import build_profile_dir
 
 _CANONICAL_SCRIPT_NAMES = (
@@ -171,6 +172,56 @@ class MergeHooksTests(_PatchProfilesTestCase):
         # The repath is reported as a change.
         self.assertEqual(len(added), 1)
         self.assertIn("hook-timestamp", added[0])
+
+    def test_null_event_value_raises_naming_the_key(self) -> None:
+        """``"UserPromptSubmit": null`` is reported, not crashed on."""
+        c = self.canonical()
+        existing: dict[str, Any] = {"UserPromptSubmit": None}
+        with self.assertRaises(MalformedSettingsError) as cm:
+            merge_hooks(existing, {"UserPromptSubmit": c["hooks"]["UserPromptSubmit"]})
+        self.assertIn('"UserPromptSubmit"', str(cm.exception))
+        self.assertIn("null", str(cm.exception))
+        self.assertIn("expected an array", str(cm.exception))
+        # The unreadable value is left exactly as it was.
+        self.assertIsNone(existing["UserPromptSubmit"])
+
+    def test_non_list_event_value_raises_naming_the_type(self) -> None:
+        """An event whose value is a string names the key and the type found."""
+        c = self.canonical()
+        existing: dict[str, Any] = {"UserPromptSubmit": "hook-timestamp"}
+        with self.assertRaises(MalformedSettingsError) as cm:
+            merge_hooks(existing, {"UserPromptSubmit": c["hooks"]["UserPromptSubmit"]})
+        self.assertIn('"UserPromptSubmit"', str(cm.exception))
+        self.assertIn("a string", str(cm.exception))
+        self.assertEqual(existing["UserPromptSubmit"], "hook-timestamp")
+
+    def test_non_list_hooks_on_a_matched_entry_raises(self) -> None:
+        """A matched entry whose "hooks" is not an array is reported too.
+
+        This is the one that used to crash: ``setdefault`` returned the
+        malformed value and ``.append`` raised a bare ``AttributeError``.
+        """
+        c = self.canonical()
+        existing: dict[str, Any] = {
+            "UserPromptSubmit": [{"matcher": "", "hooks": None}],
+        }
+        with self.assertRaises(MalformedSettingsError) as cm:
+            merge_hooks(existing, {"UserPromptSubmit": c["hooks"]["UserPromptSubmit"]})
+        self.assertIn('"hooks"', str(cm.exception))
+        self.assertIn("null", str(cm.exception))
+        self.assertIsNone(existing["UserPromptSubmit"][0]["hooks"])
+
+    def test_missing_event_key_is_ordinary_bootstrap(self) -> None:
+        """An ABSENT event is created empty and filled -- absence is not malformed."""
+        c = self.canonical()
+        existing: dict[str, Any] = {}
+        added = merge_hooks(
+            existing, {"UserPromptSubmit": c["hooks"]["UserPromptSubmit"]}
+        )
+        self.assertEqual(
+            existing["UserPromptSubmit"], c["hooks"]["UserPromptSubmit"]
+        )
+        self.assertEqual(len(added), 1)
 
 
 # ---------------------------------------------------------------------------
