@@ -522,7 +522,14 @@ def _stage_and_replace(target: Path, text: str, *, secret: bool) -> None:
         dir=target.parent, prefix=target.name + ".", suffix=".tmp"
     )
     try:
-        with os.fdopen(fd, "w") as f:
+        try:
+            stream = os.fdopen(fd, "w")
+        except BaseException:
+            # fdopen did not take ownership of the descriptor, so nothing else
+            # will ever close it: the staging file below is unlinked either way.
+            os.close(fd)
+            raise
+        with stream as f:
             f.write(text)
         if secret:
             mode = 0o600
@@ -684,10 +691,14 @@ def symlink(link: Any, target: Any) -> None:
 
 def copy_file(src: Any, dst: Any) -> Any:
     """Copy *src* to *dst*, preserving metadata (``shutil.copy2``)."""
+    # Above the mode branch, for the same reason as copytree: in preview mode
+    # the source is only read (``Path(src).read_bytes()``), which turns a mock
+    # operand into a FileNotFoundError about a repr-named path instead of the
+    # boundary's TypeError.
+    _reject_mock(src)
+    _reject_mock(dst)
     h = _handle()
     if h is None:
-        _reject_mock(src)
-        _reject_mock(dst)
         return shutil.copy2(str(src), str(dst))
     # The contract has no copy: reading the source is not an effect, writing
     # the destination is the one that gets recorded.
@@ -697,10 +708,13 @@ def copy_file(src: Any, dst: Any) -> Any:
 
 def copytree(src: Any, dst: Any, *, dirs_exist_ok: bool = False) -> Any:
     """Recursively copy the directory tree *src* to *dst*."""
+    # Above the mode branch, like write_text_atomic: a mock operand is not a
+    # path in either mode, and a preview that accepted one would record
+    # nothing and hand the mock back as if the copy had been planned.
+    _reject_mock(src)
+    _reject_mock(dst)
     h = _handle()
     if h is None:
-        _reject_mock(src)
-        _reject_mock(dst)
         return shutil.copytree(str(src), str(dst), dirs_exist_ok=dirs_exist_ok)
     # One mkdir plus one write per file, so the preview names every path the
     # copy would create rather than a single opaque "copy tree" line.
