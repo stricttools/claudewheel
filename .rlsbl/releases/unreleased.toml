@@ -2,11 +2,24 @@
 format_version = 1
 # Version bump type: patch, minor, major, infra, or prerelease
 #   prerelease: advance an existing pre-release (0.6.0-beta.0 -> -beta.1)
-bump = ""
+bump = "minor"
 # Short description of this release (required)
-description = ""
+description = "Correctness sweep: atomic writes that survive concurrent processes, a guardrail model that guards the live safegit spelling, mv fixes for underscore paths and corrupt registries, loud errors for malformed settings values, and a workspace-injection seam on resolve_profile."
 # Optional context explaining why these changes were made
-context = ""
+context = """
+An audit of every open todo against the real code, the live config tree, and
+the installed Claude Code client falsified several long-held premises and
+surfaced defects the todos did not know about. This release ships the
+verified quick wins from that audit: the atomic-write race (two claudewheel
+processes could publish a spliced, invalid settings or token file while both
+reported success), the guardrail rule that guarded a retired safegit spelling
+while the live history-rewriting command ran unguarded, session-store
+encoding that disagreed with what Claude Code actually writes, silently
+swallowed corrupt profile registries during mv, and silent normalization of
+malformed settings values (now a loud per-target refusal naming the file and
+key). Every fix carries a red-green regression test and passed a fresh-context
+audit round before release.
+"""
 # Pre-release channel: alpha, beta, rc, or stable (ordered;
 # demotion is an error). With patch/minor/major it ENTERS the
 # channel (0.5.2 + minor + alpha -> 0.6.0-alpha.0); with
