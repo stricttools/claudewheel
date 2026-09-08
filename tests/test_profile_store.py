@@ -475,11 +475,32 @@ class LaunchEnvKeyTests(SandboxHomeTestCase):
             env["CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL"], "1"
         )
 
+    def test_the_autoupdater_is_disabled_for_a_named_profile(self) -> None:
+        p = self.make_profile("alpha", credentials=True)
+        write_token_entry(p, {"token": "tok"})
+        env = self._store().env("alpha")
+        self.assertEqual(env["DISABLE_AUTOUPDATER"], "1")
+
+    def test_feature_flag_evaluation_is_disabled_for_a_named_profile(self) -> None:
+        p = self.make_profile("alpha", credentials=True)
+        write_token_entry(p, {"token": "tok"})
+        env = self._store().env("alpha")
+        self.assertEqual(env["DISABLE_GROWTHBOOK"], "1")
+
     def test_suppression_does_not_depend_on_a_token(self) -> None:
-        """Every named profile gets it, tokenless ones included."""
+        """Every named profile gets them, tokenless ones included."""
         self.make_profile("alpha", credentials=True)
         env = self._store().env("alpha")
         self.assertIn("CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL", env)
+        self.assertIn("DISABLE_AUTOUPDATER", env)
+        self.assertIn("DISABLE_GROWTHBOOK", env)
+
+    def test_the_quieting_variables_are_declared_profile_owned(self) -> None:
+        """Declared in PROFILE_ENV_KEYS, so the vanilla path strips them."""
+        from claudewheel.profile_store import PROFILE_ENV_KEYS
+
+        self.assertIn("DISABLE_AUTOUPDATER", PROFILE_ENV_KEYS)
+        self.assertIn("DISABLE_GROWTHBOOK", PROFILE_ENV_KEYS)
 
     def test_the_vanilla_profile_declares_nothing(self) -> None:
         (self.home / ".claude").mkdir(parents=True, exist_ok=True)

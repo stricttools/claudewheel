@@ -84,6 +84,8 @@ PROFILE_ENV_KEYS: tuple[str, ...] = (
     "CLAUDE_CODE_SUBSCRIPTION_TYPE",
     "CLAUDE_CODE_RATE_LIMIT_TIER",
     "CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL",
+    "DISABLE_AUTOUPDATER",
+    "DISABLE_GROWTHBOOK",
 )
 
 # The variable that stops Claude Code installing the official plugin
@@ -93,6 +95,25 @@ PROFILE_ENV_KEYS: tuple[str, ...] = (
 # any release. Claude Code parses it as a boolean accepting 1/true/yes/on,
 # case-insensitively; "1" is the plainest of those.
 MARKETPLACE_AUTOINSTALL_OFF = "1"
+
+# The variable that stops Claude Code's own auto-updater. claudewheel owns the
+# versions directory and the `claude` symlink into it, so a client that updates
+# itself is writing over state claudewheel manages. The settings route
+# (``autoUpdates: false`` in ``.claude.json``) cannot do it: on a native
+# install the client overrides that key from its own
+# ``autoUpdatesProtectedForNative`` flag, which every managed profile carries,
+# so the environment is the only lever. Parsed as a truthy string; "1" is the
+# plainest of those. Undocumented client surface that could change in any
+# release.
+AUTOUPDATER_OFF = "1"
+
+# The variable that turns off Claude Code's feature-flag evaluation. It is the
+# only switch for the server-delivered model-upsell tip ("<model> writes better
+# code ... /model") shown at startup, which is delivered as a feature flag and
+# has no settings key of its own. Side effect, and a wanted one here: with no
+# flag evaluation the client also disables Remote Control entirely. Parsed as a
+# truthy string. Undocumented client surface that could change in any release.
+GROWTHBOOK_OFF = "1"
 
 
 @dataclass(frozen=True)
@@ -375,6 +396,17 @@ class ProfileStore:
         the client has recorded the install as ``policy_blocked`` it treats that
         as final, so removing the variable later does not make it try again.
         Un-suppressing a profile means installing the marketplace yourself.
+
+        Every named profile also carries ``DISABLE_AUTOUPDATER`` and
+        ``DISABLE_GROWTHBOOK``. The first stops the client updating itself over
+        the versions directory claudewheel owns -- the settings route
+        (``autoUpdates: false``) is overridden on a native install, so the
+        environment is the only lever. The second turns off feature-flag
+        evaluation, which is the only way to stop the server-delivered
+        model-upsell tip at startup; as a side effect the client also disables
+        Remote Control, which is wanted here since the startup auto-connect is
+        one of the things these launches are quieting. Both are undocumented
+        client surface.
         """
         if self._record_for(name) is None:
             available = sorted(n for n, _, _ in self._records())
@@ -392,6 +424,8 @@ class ProfileStore:
             "CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL": (
                 MARKETPLACE_AUTOINSTALL_OFF
             ),
+            "DISABLE_AUTOUPDATER": AUTOUPDATER_OFF,
+            "DISABLE_GROWTHBOOK": GROWTHBOOK_OFF,
         }
         data = self.data_for(name)
         token = data.token()

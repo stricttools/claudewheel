@@ -284,6 +284,29 @@ class ResolveTokenTests(ResolveLaunchConfigTestBase):
             env["CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL"], "1"
         )
 
+    def test_quieting_variables_reach_the_launch_environment(self) -> None:
+        """The updater and feature-flag switches are assembled into the
+        environment a launch really execs with."""
+        pdir = self._make_profile("work")
+        write_token_entry(pdir, {"token": "tok-abc"})
+
+        _, _, env = self._resolve(selections={"profile": "work"})
+        self.assertEqual(env["DISABLE_AUTOUPDATER"], "1")
+        self.assertEqual(env["DISABLE_GROWTHBOOK"], "1")
+
+    def test_vanilla_default_strips_the_quieting_variables(self) -> None:
+        """The vanilla path strips them like every other profile-owned
+        variable, ambient values included."""
+        self.claude_dir.mkdir(parents=True, exist_ok=True)
+        os.environ["DISABLE_AUTOUPDATER"] = "1"
+        os.environ["DISABLE_GROWTHBOOK"] = "1"
+        self.addCleanup(os.environ.pop, "DISABLE_AUTOUPDATER", None)
+        self.addCleanup(os.environ.pop, "DISABLE_GROWTHBOOK", None)
+
+        _, _, env = self._resolve(selections={"profile": "default"})
+        self.assertNotIn("DISABLE_AUTOUPDATER", env)
+        self.assertNotIn("DISABLE_GROWTHBOOK", env)
+
     def test_vanilla_default_strips_marketplace_suppression(self) -> None:
         """The vanilla path strips it like every other profile-owned variable,
         ambient value included."""
