@@ -266,7 +266,7 @@ off.
 - No `.claude.json` yet: continue without creating one -- the client creates
   the file with the key absent, which shows nothing.
 - A file that is not a JSON object: continue, touching nothing, with one
-  informational line -- the same notice an unreadable or unparsable file gets.
+  informational line -- the same notice an unreadable or unparseable file gets.
 - A stored version at or above the launched one: continue.
 - Otherwise the key is set to the launched version, every other key preserved.
 
