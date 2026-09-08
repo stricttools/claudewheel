@@ -17,6 +17,7 @@ from unittest import mock
 from claudewheel.wizard import WizardResult, create_profile, run_profile_wizard
 from claudewheel.shared_store import SharedStore
 from claudewheel.defaults import (
+    CANONICAL_PROFILE_SETTINGS,
     DEFAULT_CONFIG,
     DEFAULT_SEGMENTS,
     DEFAULT_OPTIONS,
@@ -211,6 +212,8 @@ class SettingsFromDefaultsTests(CreateProfileTestBase):
         )
         self.assertFalse(settings["awaySummaryEnabled"])
         self.assertEqual(settings["cleanupPeriodDays"], 3650)
+        for key, value in CANONICAL_PROFILE_SETTINGS.items():
+            self.assertEqual(settings[key], value)
 
     def test_malformed_shared_settings_uses_canonical_defaults(self) -> None:
         """A corrupt shared-settings.json falls back to canonical defaults."""
@@ -247,7 +250,8 @@ class SettingsFromCloneTests(CreateProfileTestBase):
 
     def test_missing_source_settings_gets_hardcoded_defaults(self) -> None:
         """If the source profile dir exists but has no settings.json, settings
-        contain only the hardcoded disableAutoMode and claudewheel.disallowedTools."""
+        contain only the unconditional keys: the canonical settings keys,
+        disableAutoMode and claudewheel.disallowedTools."""
         source_dir = self.fake_home / ".claudewheel" / "profiles" / "source"
         source_dir.mkdir(parents=True)
         # No settings.json written
@@ -257,10 +261,27 @@ class SettingsFromCloneTests(CreateProfileTestBase):
 
         settings = self._read_settings("cloned2")
         expected = {
+            **CANONICAL_PROFILE_SETTINGS,
             "permissions": {"disableAutoMode": "disable"},
             "claudewheel": {"disallowedTools": DISALLOWED_TOOLS[:]},
         }
         self.assertEqual(settings, expected)
+
+    def test_a_clone_still_gets_the_canonical_settings_keys(self) -> None:
+        """The clone path never sees profileDefaults, so the keys are applied
+        unconditionally -- including over a source that set them true."""
+        source_dir = self.fake_home / ".claudewheel" / "profiles" / "source"
+        source_dir.mkdir(parents=True)
+        (source_dir / "settings.json").write_text(
+            json.dumps({k: True for k in CANONICAL_PROFILE_SETTINGS})
+        )
+
+        result = _make_result(name="cloned3", clone_from="source")
+        create_profile(self.ws, result)
+
+        settings = self._read_settings("cloned3")
+        for key, value in CANONICAL_PROFILE_SETTINGS.items():
+            self.assertEqual(settings[key], value)
 
 
 class CloneFromDefaultTests(CreateProfileTestBase):

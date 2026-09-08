@@ -10,7 +10,7 @@ from typing import Any
 from unittest.mock import patch
 
 from claudewheel import guardrail, health
-from claudewheel.defaults import DISALLOWED_TOOLS
+from claudewheel.defaults import CANONICAL_PROFILE_SETTINGS, DISALLOWED_TOOLS
 from claudewheel.health import (
     _discover_profiles,
     check_auth_shadow,
@@ -412,6 +412,7 @@ class CheckSettingsDefaultsTests(_HomeDirTestCase):
         # check_settings_defaults no longer enforces any deny/ask count. These
         # arrays are deliberately empty to prove the old thresholds are gone.
         return {
+            **CANONICAL_PROFILE_SETTINGS,
             "awaySummaryEnabled": False,
             "cleanupPeriodDays": 365,
             "autoMemoryEnabled": False,
@@ -500,6 +501,43 @@ class CheckSettingsDefaultsTests(_HomeDirTestCase):
         result = check_settings_defaults(self.ws)
         self.assertFalse(result.ok)
         self.assertIn("autoMemoryEnabled != false", result.detail)
+
+    def test_warn_when_a_canonical_settings_key_is_missing(self) -> None:
+        """Each canonical settings key is reported by name when absent."""
+        for key, value in CANONICAL_PROFILE_SETTINGS.items():
+            with self.subTest(key=key):
+                pdir = self._make_profile(f"missing-{key}")
+                settings = self._good_settings()
+                del settings[key]
+                self._write_settings(pdir, settings)
+
+                result = check_settings_defaults(self.ws)
+                self.assertFalse(result.ok)
+                self.assertIn(f"{key} != {value!r}", result.detail)
+                self.assertIn("claudewheel patch-profiles", result.detail)
+
+    def test_warn_when_a_canonical_settings_key_is_true(self) -> None:
+        """A key set to the client's own default is drift, not agreement."""
+        for key, value in CANONICAL_PROFILE_SETTINGS.items():
+            with self.subTest(key=key):
+                pdir = self._make_profile(f"true-{key}")
+                settings = self._good_settings()
+                settings[key] = True
+                self._write_settings(pdir, settings)
+
+                result = check_settings_defaults(self.ws)
+                self.assertFalse(result.ok)
+                self.assertIn(f"{key} != {value!r}", result.detail)
+
+    def test_ok_when_the_canonical_settings_keys_are_false(self) -> None:
+        """_good_settings() carries them; the check passes and names nothing."""
+        pdir = self._make_profile("quiet")
+        self._write_settings(pdir, self._good_settings())
+
+        result = check_settings_defaults(self.ws)
+        self.assertTrue(result.ok)
+        for key in CANONICAL_PROFILE_SETTINGS:
+            self.assertNotIn(key, result.detail)
 
     def test_warn_when_disallowed_tools_missing(self) -> None:
         """Returns WARN when claudewheel.disallowedTools is absent."""

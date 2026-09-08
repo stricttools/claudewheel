@@ -12,7 +12,11 @@ from typing import TYPE_CHECKING, Any
 
 from . import auth
 from .appdata import StateFile
-from .defaults import DISALLOWED_TOOLS, build_canonical_shared_settings
+from .defaults import (
+    CANONICAL_PROFILE_SETTINGS,
+    DISALLOWED_TOOLS,
+    build_canonical_shared_settings,
+)
 from .discovery import detect_browsers
 from . import effects
 from .effects import write_json_atomic
@@ -278,6 +282,12 @@ def create_profile(
         settings["autoMemoryEnabled"] = False
     if result.disable_attribution:
         settings["attribution"] = {"commit": "", "pr": ""}
+
+    # The canonical settings keys, applied unconditionally: the clone path (and
+    # a shared-settings.json with no profileDefaults) never sees them
+    # otherwise, and reconcile makes them exact on every managed profile
+    # anyway, so a new profile starts where a reconciled one ends up.
+    settings.update(CANONICAL_PROFILE_SETTINGS)
 
     # Disable auto mode
     settings.setdefault("permissions", {})["disableAutoMode"] = "disable"

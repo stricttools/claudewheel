@@ -10,6 +10,24 @@ from . import guardrail
 
 DISALLOWED_TOOLS = guardrail.disallowed_tool_names()
 
+# Top-level settings.json keys made EXACTLY equal in every managed profile and
+# in shared-settings.json's profileDefaults. The reconcile core writes them,
+# health reports drift on them, and the wizard seeds them into a new profile --
+# all three read this one dict.
+#
+#   remoteControlAtStartup: Claude Code otherwise auto-connects Remote Control
+#     at startup and reports the attempt ("Remote Control disconnected",
+#     "/rc failed") in every session. There is no environment variable for it.
+#   spinnerTipsEnabled: turns off the client's built-in rotating tips.
+#
+# The wizard's checkbox-driven keys (awaySummaryEnabled, cleanupPeriodDays,
+# autoMemoryEnabled, ...) are deliberately NOT in here: the user chooses those
+# at creation time, so making them exact would overwrite a real choice.
+CANONICAL_PROFILE_SETTINGS: dict[str, object] = {
+    "remoteControlAtStartup": False,
+    "spinnerTipsEnabled": False,
+}
+
 
 def canonical_hook_command(scripts_dir: Path, script: str) -> str:
     """Return the canonical hook command string for *script* under *scripts_dir*.
@@ -53,12 +71,14 @@ def build_canonical_shared_settings(scripts_dir: Path) -> dict[str, Any]:
     The profileDefaults permissions deny/ask arrays are derived from the
     guardrail model (canonical_deny_rules() / canonical_ask_rules()).
     The profileDefaults section contains default settings applied to new profiles
-    when no clone source is specified (previously lived in profile-defaults.json).
+    when no clone source is specified (previously lived in profile-defaults.json),
+    and carries the CANONICAL_PROFILE_SETTINGS keys above.
     """
     return {
         "hooks": _build_canonical_hooks(scripts_dir),
         "disallowedTools": DISALLOWED_TOOLS[:],
         "profileDefaults": {
+            **CANONICAL_PROFILE_SETTINGS,
             "awaySummaryEnabled": False,
             "cleanupPeriodDays": 3650,
             "autoMemoryEnabled": False,

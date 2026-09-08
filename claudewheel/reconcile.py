@@ -20,6 +20,10 @@ canonical model:
     canonical entries added, non-canonical entries pruned.
   - ``permissions.allow``: only ``guardrail.ALLOW_CONFLICTS`` entries removed;
     all other allow entries are left alone and nothing is ever added to allow.
+  - the canonical settings keys (``defaults.CANONICAL_PROFILE_SETTINGS``:
+    ``remoteControlAtStartup``, ``spinnerTipsEnabled``): each made exactly
+    equal to its canonical value, at the top level of a profile's settings and
+    inside ``profileDefaults`` in ``shared-settings.json``.
 
 This DELIBERATELY replaces the old additive, user-extras-preserving semantics
 of ``patch_profiles`` (``merge_hooks`` etc.): extras are pruned.
@@ -52,7 +56,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 
-from .defaults import DISALLOWED_TOOLS, build_canonical_shared_settings
+from .defaults import (
+    CANONICAL_PROFILE_SETTINGS,
+    DISALLOWED_TOOLS,
+    build_canonical_shared_settings,
+)
 from .guardrail import ALLOW_CONFLICTS, canonical_ask_rules, canonical_deny_rules
 from . import effects
 from .hook_scripts import HOOK_SCRIPTS, deploy_scripts
@@ -287,19 +295,37 @@ def _reconcile_shared_disallowed(shared: dict[str, Any]) -> list[str]:
     return []
 
 
+def _reconcile_canonical_settings(container: dict[str, Any]) -> list[str]:
+    """Make every ``defaults.CANONICAL_PROFILE_SETTINGS`` key exact in *container*.
+
+    A key that is absent or carries a different value is set to the canonical
+    value; one already equal is left alone. Returns one change description per
+    key written (empty when the container is already canonical).
+    """
+    changes: list[str] = []
+    for key, value in CANONICAL_PROFILE_SETTINGS.items():
+        if container.get(key) != value or key not in container:
+            container[key] = value
+            changes.append(f"{key} -> {json.dumps(value)}")
+    return changes
+
+
 def reconcile_profile_dict(
     settings: dict[str, Any], canonical: dict[str, Any]
 ) -> list[str]:
     """Reconcile one profile ``settings.json`` dict IN PLACE to exact canonical.
 
-    Reconciles hooks, the ``claudewheel.disallowedTools`` list, and
-    ``permissions`` deny/ask/allow. Non-guardrail keys are left untouched.
-    Returns human-readable change descriptions (empty when already canonical).
+    Reconciles hooks, the ``claudewheel.disallowedTools`` list, ``permissions``
+    deny/ask/allow, and the canonical settings keys
+    (``defaults.CANONICAL_PROFILE_SETTINGS``). Non-guardrail keys are left
+    untouched. Returns human-readable change descriptions (empty when already
+    canonical).
     """
     changes: list[str] = []
     changes += _reconcile_hooks(settings, canonical["hooks"])
     changes += _reconcile_profile_disallowed(settings)
     changes += _reconcile_permissions(settings)
+    changes += _reconcile_canonical_settings(settings)
     return changes
 
 
@@ -309,14 +335,17 @@ def reconcile_shared_dict(
     """Reconcile the ``shared-settings.json`` dict IN PLACE to exact canonical.
 
     Reconciles the top-level hooks and disallowedTools plus the
-    ``profileDefaults.permissions`` deny/ask/allow. Non-guardrail keys are left
-    untouched. Returns human-readable change descriptions.
+    ``profileDefaults.permissions`` deny/ask/allow and the canonical settings
+    keys (``defaults.CANONICAL_PROFILE_SETTINGS``) inside ``profileDefaults``.
+    Non-guardrail keys are left untouched. Returns human-readable change
+    descriptions.
     """
     changes: list[str] = []
     changes += _reconcile_hooks(shared, canonical["hooks"])
     changes += _reconcile_shared_disallowed(shared)
     pd = _dict_at(shared, "profileDefaults")
     changes += [f"profileDefaults {c}" for c in _reconcile_permissions(pd)]
+    changes += [f"profileDefaults {c}" for c in _reconcile_canonical_settings(pd)]
     return changes
 
 

@@ -12,7 +12,11 @@ from typing import Any
 from unittest.mock import patch
 
 from claudewheel import cli
-from claudewheel.defaults import DISALLOWED_TOOLS, build_canonical_shared_settings
+from claudewheel.defaults import (
+    CANONICAL_PROFILE_SETTINGS,
+    DISALLOWED_TOOLS,
+    build_canonical_shared_settings,
+)
 from claudewheel.guardrail import (
     ALLOW_CONFLICTS,
     canonical_ask_rules,
@@ -109,10 +113,12 @@ class _ReconcileTestCase(unittest.TestCase):
         """A profile already exactly canonical (a clean no-op target).
 
         Fully canonical across ALL guardrail sections the unified core touches:
-        hooks, the claudewheel.disallowedTools list, and permissions
-        deny/ask/allow (allow keeps a non-conflicting survivor).
+        hooks, the claudewheel.disallowedTools list, permissions
+        deny/ask/allow (allow keeps a non-conflicting survivor), and the
+        canonical settings keys.
         """
         return {
+            **CANONICAL_PROFILE_SETTINGS,
             "hooks": self.canonical_hooks(),
             "claudewheel": {"disallowedTools": list(DISALLOWED_TOOLS)},
             "permissions": {
@@ -368,6 +374,85 @@ class RunReconcileTests(_ReconcileTestCase):
         self.assertIn("shared-settings.json: no settings.json", out)
         # No profile targets were processed (no "<name>: reconciled" line).
         self.assertNotIn(": reconciled", out)
+
+
+# ---------------------------------------------------------------------------
+# The canonical settings keys (defaults.CANONICAL_PROFILE_SETTINGS)
+# ---------------------------------------------------------------------------
+
+
+class CanonicalSettingsKeyTests(_ReconcileTestCase):
+    """remoteControlAtStartup / spinnerTipsEnabled are made EXACTLY canonical."""
+
+    def test_missing_keys_are_added_to_a_profile(self) -> None:
+        settings = self.drifted_settings()
+        changes = reconcile_profile_dict(
+            settings, build_canonical_shared_settings(self.ws.scripts_dir)
+        )
+        for key, value in CANONICAL_PROFILE_SETTINGS.items():
+            self.assertEqual(settings[key], value)
+            self.assertIn(f"{key} -> {json.dumps(value)}", changes)
+
+    def test_wrong_values_are_corrected_in_a_profile(self) -> None:
+        settings = self.drifted_settings()
+        for key in CANONICAL_PROFILE_SETTINGS:
+            settings[key] = True
+        changes = reconcile_profile_dict(
+            settings, build_canonical_shared_settings(self.ws.scripts_dir)
+        )
+        for key, value in CANONICAL_PROFILE_SETTINGS.items():
+            self.assertEqual(settings[key], value)
+            self.assertIn(f"{key} -> {json.dumps(value)}", changes)
+
+    def test_canonical_values_produce_no_change_string(self) -> None:
+        settings = self.canonical_settings()
+        changes = reconcile_profile_dict(
+            settings, build_canonical_shared_settings(self.ws.scripts_dir)
+        )
+        self.assertEqual(changes, [])
+        for key, value in CANONICAL_PROFILE_SETTINGS.items():
+            self.assertEqual(settings[key], value)
+
+    def test_shared_profiledefaults_missing_keys_are_added(self) -> None:
+        shared: dict[str, Any] = {"profileDefaults": {}}
+        changes = reconcile_shared_dict(
+            shared, build_canonical_shared_settings(self.ws.scripts_dir)
+        )
+        pd = shared["profileDefaults"]
+        for key, value in CANONICAL_PROFILE_SETTINGS.items():
+            self.assertEqual(pd[key], value)
+            self.assertIn(f"profileDefaults {key} -> {json.dumps(value)}", changes)
+
+    def test_shared_profiledefaults_wrong_values_are_corrected(self) -> None:
+        shared: dict[str, Any] = {
+            "profileDefaults": {k: True for k in CANONICAL_PROFILE_SETTINGS}
+        }
+        changes = reconcile_shared_dict(
+            shared, build_canonical_shared_settings(self.ws.scripts_dir)
+        )
+        pd = shared["profileDefaults"]
+        for key, value in CANONICAL_PROFILE_SETTINGS.items():
+            self.assertEqual(pd[key], value)
+            self.assertIn(f"profileDefaults {key} -> {json.dumps(value)}", changes)
+
+    def test_shared_profiledefaults_canonical_values_produce_no_change(self) -> None:
+        canonical = build_canonical_shared_settings(self.ws.scripts_dir)
+        shared = json.loads(json.dumps(canonical))
+        changes = reconcile_shared_dict(shared, canonical)
+        for key in CANONICAL_PROFILE_SETTINGS:
+            self.assertNotIn(f"profileDefaults {key}", " ".join(changes))
+
+    def test_the_canonical_shared_settings_carry_the_keys(self) -> None:
+        pd = build_canonical_shared_settings(self.ws.scripts_dir)["profileDefaults"]
+        for key, value in CANONICAL_PROFILE_SETTINGS.items():
+            self.assertEqual(pd[key], value)
+
+    def test_end_to_end_run_writes_the_keys_into_a_profile(self) -> None:
+        self.make_profile("work", self.drifted_settings())
+        self._run(dry_run=False)
+        settings = self.read_settings("work")
+        for key, value in CANONICAL_PROFILE_SETTINGS.items():
+            self.assertEqual(settings[key], value)
 
 
 # ---------------------------------------------------------------------------

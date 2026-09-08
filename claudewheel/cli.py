@@ -1027,8 +1027,8 @@ def _handle_reconcile_permissions(ws: "Workspace", profile: str | None) -> int:
     """Reconcile every managed target to EXACTLY the canonical guardrail model.
 
     Delegates to the unified reconcile core. Makes each target's hooks, the
-    disallowedTools list, and permissions deny/ask EXACTLY canonical (allow keeps
-    only its non-conflicting entries), pruning all drift and user-added extras --
+    disallowedTools list, permissions deny/ask and the canonical settings keys
+    EXACTLY canonical (allow keeps only its non-conflicting entries), pruning all drift and user-added extras --
     the old additive, extras-preserving behavior is gone. The 'default' profile
     (~/.claude) is never read from or written to.
 
@@ -2546,14 +2546,14 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
         "patch-profiles",
         effect="mutating",
         consequential=True,
-        help="reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask); prunes drift and user-added extras -- the old additive, extras-preserving behavior is gone. Deploys any missing guardrail hook scripts. The 'default' profile (~/.claude) is never touched. Preview with --dry-run; writing needs a terminal or --approve-consequential.",
+        help="reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask, canonical settings keys); prunes drift and user-added extras -- the old additive, extras-preserving behavior is gone. Deploys any missing guardrail hook scripts. The 'default' profile (~/.claude) is never touched. Preview with --dry-run; writing needs a terminal or --approve-consequential.",
     )(_bind(_handle_patch_profiles, ws))
 
     app.command(
         "reconcile-permissions",
         effect="mutating",
         consequential=True,
-        help="reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask made exact; allow keeps only its non-conflicting entries); prunes all drift and user-added extras. The 'default' profile (~/.claude) is never touched. Pass --dry-run to preview the per-target diff without writing; writing needs a terminal to confirm at, or --approve-consequential.",
+        help="reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask and the canonical settings keys made exact; allow keeps only its non-conflicting entries); prunes all drift and user-added extras. The 'default' profile (~/.claude) is never touched. Pass --dry-run to preview the per-target diff without writing; writing needs a terminal to confirm at, or --approve-consequential.",
     )(_bind(_handle_reconcile_permissions, ws))
 
     # -- Permission group --

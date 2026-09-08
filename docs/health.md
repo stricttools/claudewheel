@@ -91,6 +91,9 @@ Verifies per-profile settings that claudewheel expects to be set:
 - `awaySummaryEnabled` must be `false`
 - `cleanupPeriodDays` must be at least 365
 - `autoMemoryEnabled` must be `false`
+- `remoteControlAtStartup` must be `false` (otherwise Claude Code auto-connects
+  Remote Control at startup and reports the attempt in every session)
+- `spinnerTipsEnabled` must be `false` (turns off the client's rotating tips)
 - `permissions.disableAutoMode` must be `"disable"`
 - `claudewheel.disallowedTools` must contain all canonical disallowed tools
 - No inert top-level `disallowedTools` key (Claude Code ignores it at the
@@ -307,6 +310,11 @@ sections into exact agreement with the canonical model:
   entries added, non-canonical entries pruned.
 - **permissions.allow**: only entries in `ALLOW_CONFLICTS` are removed; all
   other allow entries are left alone. Nothing is ever added to allow.
+- **the canonical settings keys** (`defaults.CANONICAL_PROFILE_SETTINGS`:
+  `remoteControlAtStartup`, `spinnerTipsEnabled`): each made exactly equal to
+  its canonical value, at the top level of a profile's settings and inside
+  `profileDefaults` in `shared-settings.json`. The wizard's checkbox-driven
+  keys are deliberately not among them -- the user chooses those at creation.
 
 Non-guardrail keys in each settings file are left untouched.
 

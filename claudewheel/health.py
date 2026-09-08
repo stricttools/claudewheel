@@ -11,7 +11,11 @@ from typing import IO, TYPE_CHECKING
 
 from . import guardrail
 from .appdata import OptionsFile
-from .defaults import DISALLOWED_TOOLS, canonical_hook_command
+from .defaults import (
+    CANONICAL_PROFILE_SETTINGS,
+    DISALLOWED_TOOLS,
+    canonical_hook_command,
+)
 from . import effects
 from .effects import write_json_atomic
 from .hook_scripts import HOOK_SCRIPTS
@@ -265,6 +269,11 @@ def check_settings_defaults(
             issues.append(f"{p.name}: cleanupPeriodDays < 365 ({cpd!r})")
         if s.get("autoMemoryEnabled") is not False:
             issues.append(f"{p.name}: autoMemoryEnabled != false")
+        for key, canonical in CANONICAL_PROFILE_SETTINGS.items():
+            if key not in s or s[key] != canonical:
+                issues.append(
+                    f"{p.name}: {key} != {canonical!r} (run 'claudewheel patch-profiles')"
+                )
         perms = s.get("permissions", {})
         if perms.get("disableAutoMode") != "disable":
             issues.append(f"{p.name}: auto mode not disabled")

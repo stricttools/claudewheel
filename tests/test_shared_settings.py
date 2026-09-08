@@ -296,6 +296,15 @@ class BuildCanonicalSharedSettingsTests(unittest.TestCase):
         result = build_canonical_shared_settings(Path("/scripts"))
         self.assertIsNot(result["disallowedTools"], DISALLOWED_TOOLS)
 
+    def test_profile_defaults_carry_the_canonical_settings_keys(self) -> None:
+        """profileDefaults seeds new profiles, so it carries the keys the
+        reconcile core makes exact."""
+        from claudewheel.defaults import CANONICAL_PROFILE_SETTINGS
+
+        pd = build_canonical_shared_settings(Path("/scripts"))["profileDefaults"]
+        for key, value in CANONICAL_PROFILE_SETTINGS.items():
+            self.assertEqual(pd[key], value)
+
     # -- canonical permissions derive from the guardrail model --------------
 
     def test_deny_matches_guardrail_model(self) -> None:
