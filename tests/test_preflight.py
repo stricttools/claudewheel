@@ -602,10 +602,38 @@ class ReleaseNotesSeenStepTests(unittest.TestCase):
         self.assertEqual(self.claude_json.read_text(), "{not json")
         self.assertIn("release notes as seen", out.getvalue())
 
-    def test_a_non_object_document_is_untouched(self) -> None:
+    def test_a_non_object_document_is_untouched_and_reported(self) -> None:
         self.claude_json.write_text("[1, 2]\n")
-        _release_notes_seen_run(self._ctx())
+        out = io.StringIO()
+        with redirect_stdout(out):
+            self.assertEqual(
+                _release_notes_seen_run(self._ctx()).decision, Decision.CONTINUE
+            )
         self.assertEqual(self.claude_json.read_text(), "[1, 2]\n")
+        self.assertIn("release notes as seen", out.getvalue())
+
+    def test_a_non_version_symlink_target_writes_nothing(self) -> None:
+        """No selection means the symlink target's name IS the version.
+
+        That name need not be a version at all -- a symlink pointing at a
+        ``stable`` or ``latest`` entry resolves to exactly that string, and
+        writing it into the key would only be rewritten by the client on the
+        next launch. The step declines rather than writing junk.
+        """
+        self._write({"numStartups": 1})
+        before = self.claude_json.read_bytes()
+        versions = self.tmp / "versions"
+        versions.mkdir(parents=True, exist_ok=True)
+        target = versions / "stable"
+        target.write_text("")
+        symlink = self.tmp / "bin" / "claude"
+        symlink.parent.mkdir(parents=True, exist_ok=True)
+        symlink.symlink_to(target)
+        self.assertEqual(
+            _release_notes_seen_run(self._ctx(version=None)).decision,
+            Decision.CONTINUE,
+        )
+        self.assertEqual(self.claude_json.read_bytes(), before)
 
     def test_every_other_key_is_preserved(self) -> None:
         self._write(

@@ -21,7 +21,7 @@ from .discovery import detect_browsers
 from . import effects
 from .effects import write_json_atomic
 from .patch_profiles import merge_hooks
-from .profile_store import RESERVED_PROFILE_NAMES
+from .profile_store import CLAUDE_GLOBAL_CONFIG_NAME, RESERVED_PROFILE_NAMES
 from .state import AUTH_BROWSER_KEY
 from .terminal import Terminal
 from .tokens import PLAN_TIERS, PlanTier, TokenExpiryDisposition, plan_by_key
@@ -224,7 +224,7 @@ def _set_onboarding_flag(config_dir: str) -> None:
     expanded = Path(config_dir).expanduser()
     if not expanded.is_dir():
         return
-    path = expanded / ".claude.json"
+    path = expanded / CLAUDE_GLOBAL_CONFIG_NAME
     data: dict[str, Any] = {}
     if path.exists():
         try:

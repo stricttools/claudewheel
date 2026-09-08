@@ -260,9 +260,13 @@ off.
 - No profile, or the vanilla `default` (Claude Code's own `~/.claude`):
   continue, touching nothing.
 - No determinable effective version: continue.
+- A resolved version that is not `MAJOR.MINOR.PATCH`: continue, touching
+  nothing. With no version selected the effective version is the `claude`
+  symlink target's directory name, which need not be a version at all.
 - No `.claude.json` yet: continue without creating one -- the client creates
   the file with the key absent, which shows nothing.
-- A file that is not a JSON object: continue, touching nothing.
+- A file that is not a JSON object: continue, touching nothing, with one
+  informational line -- the same notice an unreadable or unparsable file gets.
 - A stored version at or above the launched one: continue.
 - Otherwise the key is set to the launched version, every other key preserved.
 

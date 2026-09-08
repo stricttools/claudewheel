@@ -31,6 +31,7 @@ from tests.wheelhelpers import (
     build_profile_dir,
     claude_dir_write_canary,
     hash_snapshot,
+    inert_locator,
 )
 
 
@@ -140,7 +141,10 @@ class PreflightReconcileTests(unittest.TestCase):
         ):
             cli._do_launch_sequence(
                 self.ws,
-                mock.MagicMock(),
+                # A real locator under the sandboxed home rather than a mock:
+                # the steps ask it for the effective CLI version, and a mock
+                # answers that with a mock instead of a version string.
+                inert_locator(self.home),
                 FakeAppConfigStore(),
                 {"profile": "work", "directory": str(self.project)},
                 interactive=interactive,

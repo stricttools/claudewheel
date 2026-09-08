@@ -25,6 +25,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any
 
 from . import effects
+from .profile_store import CLAUDE_GLOBAL_CONFIG_NAME
 
 if TYPE_CHECKING:
     from .binaries import BinaryLocator
@@ -372,7 +373,6 @@ def _model_version_guard_run(ctx: PreflightContext) -> StepResult:
     )
 
 
-CLAUDE_GLOBAL_CONFIG_NAME = ".claude.json"
 LAST_RELEASE_NOTES_SEEN_KEY = "lastReleaseNotesSeen"
 
 
@@ -397,10 +397,16 @@ def _release_notes_seen_run(ctx: PreflightContext) -> StepResult:
     - no profile, or the vanilla ``default`` (Claude Code's own ``~/.claude``,
       strictly read-only to claudewheel) -> CONTINUE;
     - no determinable effective version -> CONTINUE;
+    - a resolved version that is not ``MAJOR.MINOR.PATCH`` -> CONTINUE,
+      touching nothing: with no version selected the effective version is the
+      ``claude`` symlink target's directory name, which need not be a version
+      at all, and a non-version value written into the key would be rewritten
+      by the client on every launch;
     - no ``.claude.json`` yet -> CONTINUE without creating one: the client
       creates the file on first run with the key absent, which shows nothing;
-    - a file that is not a JSON object -> CONTINUE, touching nothing: a file
-      claudewheel cannot read safely is not one it rewrites;
+    - a file that is not a JSON object -> CONTINUE with one informational line,
+      touching nothing: a file claudewheel cannot read safely is not one it
+      rewrites;
     - a stored version at or above the launched one -> CONTINUE;
     - otherwise the key is set to the launched version and the file written back
       with every other key preserved.
@@ -410,6 +416,7 @@ def _release_notes_seen_run(ctx: PreflightContext) -> StepResult:
     than performed -- the effects layer handles that.
     """
     import json
+    import re
 
     from .binaries import effective_cli_version
     from .segment import version_sort_key
@@ -419,7 +426,7 @@ def _release_notes_seen_run(ctx: PreflightContext) -> StepResult:
         return StepResult.cont()
 
     version = effective_cli_version(ctx.selections.get("version"), ctx.locator)
-    if not version:
+    if not version or not re.fullmatch(r"\d+\.\d+\.\d+", version):
         return StepResult.cont()
 
     path = ctx.workspace.profiles.path_for(profile) / CLAUDE_GLOBAL_CONFIG_NAME
@@ -432,6 +439,10 @@ def _release_notes_seen_run(ctx: PreflightContext) -> StepResult:
         return StepResult.cont()
 
     if not isinstance(data, dict):
+        effects.info(
+            f"Could not read {path} to mark release notes as seen: "
+            "the file is not a JSON object"
+        )
         return StepResult.cont()
 
     stored = data.get(LAST_RELEASE_NOTES_SEEN_KEY)

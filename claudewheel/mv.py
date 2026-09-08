@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from . import effects
 from .effects import write_json_atomic, write_text_atomic
+from .profile_store import CLAUDE_GLOBAL_CONFIG_NAME
 from .shared_store import SharedStore
 
 if TYPE_CHECKING:
@@ -163,7 +164,7 @@ def _collect_project_keys(profile_dirs: list[Path], shared_dir: Path) -> set[str
     for pdir in profile_dirs:
         if pdir == shared_dir:
             continue
-        claude_json = pdir / ".claude.json"
+        claude_json = pdir / CLAUDE_GLOBAL_CONFIG_NAME
         if not claude_json.is_file():
             continue
         data = _read_claude_json(claude_json)
@@ -547,7 +548,7 @@ def run_mv(
     for pdir in profile_dirs:
         if pdir == shared_dir:
             continue
-        claude_json = pdir / ".claude.json"
+        claude_json = pdir / CLAUDE_GLOBAL_CONFIG_NAME
         if claude_json.is_file():
             keys_updated, github_updated = _update_claude_json(
                 claude_json, migrations, dry_run

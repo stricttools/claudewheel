@@ -96,6 +96,10 @@ PROFILE_ENV_KEYS: tuple[str, ...] = (
 # case-insensitively; "1" is the plainest of those.
 MARKETPLACE_AUTOINSTALL_OFF = "1"
 
+# Claude Code's global config file, which lives INSIDE the profile directory
+# because ``CLAUDE_CONFIG_DIR`` points there.
+CLAUDE_GLOBAL_CONFIG_NAME = ".claude.json"
+
 # The variable that stops Claude Code's own auto-updater. claudewheel owns the
 # versions directory and the `claude` symlink into it, so a client that updates
 # itself is writing over state claudewheel manages. The settings route
@@ -463,7 +467,7 @@ class ProfileStore:
         """
         if not config_dir.is_dir():
             return
-        path = config_dir / ".claude.json"
+        path = config_dir / CLAUDE_GLOBAL_CONFIG_NAME
         data: dict[str, Any] = {}
         if path.exists():
             try:
