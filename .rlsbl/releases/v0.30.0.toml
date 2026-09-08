@@ -31,3 +31,7 @@ reset to default so it can never fall through to a bypass launch.
 # blog = false
 include = ["npm", "pypi"]
 exclude = []
+candidate_sha = "27ce6deb7cd79f1fee951ab9119792da7625cb46"
+
+[tree_hashes]
+"." = "11fc850564f7db4de39ad8703ebf57b17bae9dba"
