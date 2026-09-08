@@ -101,7 +101,7 @@ The viewport activates automatically and deactivates when the terminal is resize
 | `model`       | Model   | Passes the model id as `--model`; an Opus/Sonnet `[1m]` suffix selects 1M-context |
 | `directory`   | Dir     | Working directory to `cd` into before launch                                   |
 | `mcp`         | MCP     | MCP profile mode (`default`, `strict`)                                         |
-| `permissions` | Perms   | Permission mode passed to Claude Code (`bypass`, `default`, `plan`, `auto`)    |
+| `permissions` | Perms   | Permission mode passed to Claude Code. Offered: `bypass`, `default`. Accepted when pinned in `options.json` or passed with `--set`: `plan`, `auto` |
 
 Profile, GitHub, and Model are *creatable*: their option lists end with a `+` sentinel that prompts for a new value and persists it to `options.json`. Directory is *freeform*: you can type any path. Version pulls a live npm listing merged with the locally installed binaries.
 

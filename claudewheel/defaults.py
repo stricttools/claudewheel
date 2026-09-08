@@ -288,10 +288,15 @@ DEFAULT_OPTIONS: dict[str, Any] = {
     },
     "mcp": {"values": ["default", "strict"], "pinned": []},
     "permissions": {
+        # "plan" and "auto" are deliberately not offered. Claude Code's own
+        # Shift+Tab cycle reaches plan mode from inside any session regardless
+        # of what the launcher passed, so offering it here duplicates a control
+        # the client already has. Both values stay ACCEPTED -- pin one in
+        # options.json or pass it with --set and the launch honors it -- they
+        # are just not in the offered list.
         "values": [
             "bypass",
             "default",
-            "plan",
         ],
         "pinned": [],
     },

@@ -260,6 +260,47 @@ def _migration_6_unwrap_dict_option_values(
         seg_entry["values"] = unwrapped
 
 
+def _migration_7_drop_plan_permission(
+    config: dict[str, Any],
+    segments_def: list[dict[str, Any]],
+    theme: dict[str, Any],
+    options_def: dict[str, Any],
+) -> None:
+    """Drop the ``plan`` option from the permissions segment.
+
+    Claude Code's own Shift+Tab cycle reaches plan mode from inside any
+    session, whatever permission mode the launch passed, and nothing removes
+    it from that cycle. So the launcher offering ``plan`` as a launch-time
+    choice duplicates a control the client already has, for a mode these
+    launches never start in -- they start in bypass or in manual (``default``)
+    mode. The value stays ACCEPTED everywhere else: pin it in options.json or
+    pass ``--set permissions=plan`` and the launch still honors it.
+
+    Removing it from the defaults does not reach an options.json that already
+    lists it, and migration 3 would classify the removed default as pinned --
+    reading a user intent into a value that was only ever a shipped default.
+    Both ``values`` and ``pinned`` are cleaned so the option cannot survive in
+    either place.
+
+    A ``last_config`` selection naming ``plan`` is left alone, and needs no
+    repair: ``build_segment_bar`` restores a selection with
+    ``Segment.select_value``, which returns False and changes nothing when the
+    value is not among the segment's options. The permissions segment is not
+    required, so the bar comes up with it simply unselected -- a state the bar
+    already supports -- rather than raising or holding an option that does not
+    exist. (Migrations receive config/segments/theme/options and not state, so
+    reaching state.json from here would need new plumbing for a repair that is
+    not needed.)
+    """
+    perms_seg = options_def.get("permissions")
+    if not isinstance(perms_seg, dict):
+        return
+    for list_key in ("values", "pinned"):
+        entries = perms_seg.get(list_key)
+        if isinstance(entries, list):
+            perms_seg[list_key] = [v for v in entries if v != "plan"]
+
+
 _MIGRATIONS: list[dict[str, Any]] = [
     {
         "version": 1,
@@ -290,6 +331,11 @@ _MIGRATIONS: list[dict[str, Any]] = [
         "version": 6,
         "description": "Unwrap dict entries in options 'values' lists to plain strings",
         "apply": _migration_6_unwrap_dict_option_values,
+    },
+    {
+        "version": 7,
+        "description": "Drop the plan option from the permissions segment",
+        "apply": _migration_7_drop_plan_permission,
     },
 ]
 

@@ -525,7 +525,7 @@ class Migration6Tests(unittest.TestCase):
                 "values": [
                     "bypass",
                     {"value": "auto", "requires": {"version": ">=2.1.110"}},
-                    "plan",
+                    "default",
                 ],
                 "pinned": [],
             },
@@ -534,10 +534,10 @@ class Migration6Tests(unittest.TestCase):
         cm = self._make_cm(paths)
 
         self.assertEqual(
-            cm.options_def["permissions"]["values"], ["bypass", "auto", "plan"]
+            cm.options_def["permissions"]["values"], ["bypass", "auto", "default"]
         )
         on_disk = _read_json(paths["OPTIONS_FILE"])
-        self.assertEqual(on_disk["permissions"]["values"], ["bypass", "auto", "plan"])
+        self.assertEqual(on_disk["permissions"]["values"], ["bypass", "auto", "default"])
 
     def test_a_dict_without_a_usable_value_is_dropped(self) -> None:
         """A dict naming no option is removed rather than kept in any form."""
@@ -636,6 +636,114 @@ class Migration6Tests(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # 4. ModelSyncTests
 # ---------------------------------------------------------------------------
+
+
+class Migration7Tests(unittest.TestCase):
+    """Test migration 7: ``plan`` leaves the permissions segment's options.
+
+    Claude Code's Shift+Tab cycle reaches plan mode from inside any session
+    regardless, so the launcher stopped offering it as a launch-time choice.
+    The value stays accepted when pinned or passed with ``--set``; it is only
+    removed from what an existing options.json offers.
+    """
+
+    def setUp(self) -> None:
+        self._tmp_obj = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._tmp_obj.name)
+
+    def tearDown(self) -> None:
+        self._tmp_obj.cleanup()
+
+    def _make_cm(self, paths: dict[str, Path]) -> AppConfigStore:
+        return _appconfig(paths)
+
+    def _options_with(self, values: list[str], pinned: list[str]) -> dict[str, Any]:
+        return {
+            **copy.deepcopy(DEFAULT_OPTIONS),
+            "permissions": {"values": values, "pinned": pinned},
+        }
+
+    def test_plan_is_dropped_from_values_and_pinned(self) -> None:
+        """Migration 3 would otherwise classify the removed default as pinned,
+        so both lists are cleaned."""
+        options = self._options_with(["bypass", "default", "plan"], ["plan"])
+        paths = _setup_temp_config_dir(self.tmp, options=options)
+        cm = self._make_cm(paths)
+
+        perms = cm.options_def["permissions"]
+        self.assertNotIn("plan", perms["values"])
+        self.assertNotIn("plan", perms["pinned"])
+        self.assertIn("bypass", perms["values"])
+        self.assertIn("default", perms["values"])
+
+        on_disk = _read_json(paths["OPTIONS_FILE"])
+        self.assertNotIn("plan", on_disk["permissions"]["values"])
+        self.assertNotIn("plan", on_disk["permissions"]["pinned"])
+
+    def test_other_permission_values_survive(self) -> None:
+        """``auto`` is not a shipped default and is left exactly alone."""
+        options = self._options_with(["bypass", "default", "plan", "auto"], ["auto"])
+        paths = _setup_temp_config_dir(self.tmp, options=options)
+        cm = self._make_cm(paths)
+
+        perms = cm.options_def["permissions"]
+        self.assertIn("auto", perms["values"])
+        self.assertIn("auto", perms["pinned"])
+        self.assertNotIn("plan", perms["values"])
+
+    def test_other_segments_are_untouched(self) -> None:
+        """Only the permissions segment is rewritten."""
+        options = self._options_with(["bypass", "plan"], [])
+        options["mcp"] = {"values": ["default", "strict", "plan"], "pinned": ["plan"]}
+        paths = _setup_temp_config_dir(self.tmp, options=options)
+        cm = self._make_cm(paths)
+
+        mcp = cm.options_def["mcp"]
+        self.assertIn("plan", mcp["values"])
+        self.assertIn("plan", mcp["pinned"])
+
+    def test_idempotent_second_load_changes_nothing(self) -> None:
+        """Re-loading a migrated store leaves options.json byte-identical."""
+        options = self._options_with(["bypass", "default", "plan"], ["plan"])
+        paths = _setup_temp_config_dir(self.tmp, options=options)
+        self._make_cm(paths)
+        after_first = paths["OPTIONS_FILE"].read_text()
+
+        self._make_cm(paths)
+        self.assertEqual(paths["OPTIONS_FILE"].read_text(), after_first)
+
+    def test_plan_is_no_longer_a_shipped_default(self) -> None:
+        """DEFAULT_OPTIONS offers bypass and default only; HISTORICAL_DEFAULTS
+        still records plan, because that set records what EVER shipped."""
+        self.assertEqual(DEFAULT_OPTIONS["permissions"]["values"], ["bypass", "default"])
+        self.assertIn("plan", HISTORICAL_DEFAULTS["permissions"])
+
+    def test_a_stale_plan_selection_leaves_the_segment_unselected(self) -> None:
+        """last_config is deliberately not repaired: select_value returns False
+        for a value that is not an option, so the (non-required) permissions
+        segment simply comes up unselected instead of raising."""
+        options = self._options_with(["bypass", "default", "plan"], [])
+        state = {**copy.deepcopy(DEFAULT_STATE), "last_config": {"permissions": "plan"}}
+        paths = _setup_temp_config_dir(self.tmp, options=options, state=state)
+        cm = self._make_cm(paths)
+
+        bar = build_segment_bar(cm, skip_slow=True)
+        seg = next(s for s in bar.segments if s.key == "permissions")
+        self.assertNotIn("plan", seg.options)
+        self.assertIsNone(seg.value)
+        self.assertEqual(seg.selected_idx, -1)
+
+    def test_a_pinned_plan_still_reaches_the_picker(self) -> None:
+        """Pinning is how the value stays available: a pin written AFTER the
+        migration ran is offered again."""
+        options = self._options_with(["bypass", "default"], [])
+        paths = _setup_temp_config_dir(self.tmp, options=options)
+        cm = self._make_cm(paths)
+        cm.options_def["permissions"]["pinned"] = ["plan"]
+
+        bar = build_segment_bar(cm, skip_slow=True)
+        seg = next(s for s in bar.segments if s.key == "permissions")
+        self.assertIn("plan", seg.options)
 
 
 class ModelSyncTests(unittest.TestCase):

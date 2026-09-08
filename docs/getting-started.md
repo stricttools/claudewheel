@@ -88,7 +88,7 @@ The segment bar is the core of the claudewheel interface -- a horizontal row of 
 | Model | Model | The model ID (e.g. `claude-fable-5`); on Opus and Sonnet a `[1m]` suffix selects the 1M-context window. Fable 5 runs at 1M unconditionally and takes no suffix |
 | Directory | Dir | The working directory Claude Code starts in |
 | MCP | MCP | MCP profile mode (`default` or `strict`) |
-| Permissions | Perms | Permission mode (`bypass`, `default`, `plan`, or `auto`) |
+| Permissions | Perms | Permission mode. The picker offers `bypass` and `default`; `plan` and `auto` are accepted only when pinned in `options.json` or passed with `--set permissions=<value>` |
 
 ### Navigation
 
