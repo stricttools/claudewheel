@@ -537,7 +537,9 @@ class Migration6Tests(unittest.TestCase):
             cm.options_def["permissions"]["values"], ["bypass", "auto", "default"]
         )
         on_disk = _read_json(paths["OPTIONS_FILE"])
-        self.assertEqual(on_disk["permissions"]["values"], ["bypass", "auto", "default"])
+        self.assertEqual(
+            on_disk["permissions"]["values"], ["bypass", "auto", "default"]
+        )
 
     def test_a_dict_without_a_usable_value_is_dropped(self) -> None:
         """A dict naming no option is removed rather than kept in any form."""
@@ -715,7 +717,9 @@ class Migration7Tests(unittest.TestCase):
     def test_plan_is_no_longer_a_shipped_default(self) -> None:
         """DEFAULT_OPTIONS offers bypass and default only; HISTORICAL_DEFAULTS
         still records plan, because that set records what EVER shipped."""
-        self.assertEqual(DEFAULT_OPTIONS["permissions"]["values"], ["bypass", "default"])
+        self.assertEqual(
+            DEFAULT_OPTIONS["permissions"]["values"], ["bypass", "default"]
+        )
         self.assertIn("plan", HISTORICAL_DEFAULTS["permissions"])
 
     def test_a_stale_plan_selection_is_reset_to_default(self) -> None:

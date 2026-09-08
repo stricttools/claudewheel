@@ -533,7 +533,9 @@ class ReleaseNotesSeenStepTests(unittest.TestCase):
         self.claude_json.write_text(json.dumps(data, indent=2) + "\n")
 
     def _read(self) -> dict[str, object]:
-        return json.loads(self.claude_json.read_text())
+        data = json.loads(self.claude_json.read_text())
+        assert isinstance(data, dict)
+        return data
 
     def test_registered_right_after_the_model_version_guard(self) -> None:
         from claudewheel.preflight import PREFLIGHT_STEPS
