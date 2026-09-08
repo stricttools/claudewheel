@@ -273,9 +273,13 @@ environment variables:
   declared plan (see below)
 - `CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL` suppresses the plugin
   marketplace auto-install (see below)
+- `DISABLE_AUTOUPDATER` stops the client updating itself (see below)
+- `DISABLE_GROWTHBOOK` turns off feature-flag evaluation (see below)
 
 The `default` profile is the exception: it resolves to an empty environment
-(no config dir override, no token injection).
+(no config dir override, no token injection). Every variable above is declared
+in `PROFILE_ENV_KEYS`, and the launch path removes each of them for that
+profile -- an ambient shell value included.
 
 ### Plugin marketplace suppression
 
@@ -311,6 +315,35 @@ folding a plugin purge into it would delete plugin state on every run,
 including state somebody installed on purpose. The `default` profile is never
 touched, and a `plugins` entry that is a symlink is left alone -- it points at
 data the profile does not own.
+
+### Auto-updater suppression
+
+claudewheel owns the versions directory (`~/.local/share/claude/versions/`)
+and the `claude` symlink into it, and the Version segment is how a session
+picks a binary. A client that updates itself writes over exactly that state,
+so every named profile launches with `DISABLE_AUTOUPDATER=1`.
+
+The settings route cannot do this. `autoUpdates: false` in `.claude.json` is
+overridden on a *native* install: the client carries its own
+`autoUpdatesProtectedForNative` flag, which every managed profile's
+`.claude.json` has, and that flag wins over the config key. The environment is
+the only lever, and like the marketplace variable it is undocumented client
+surface that could change in any Claude Code release.
+
+### Feature-flag evaluation, and Remote Control
+
+Claude Code shows a server-delivered model-upsell tip at startup (of the
+"<model> writes better code ... /model" shape). It arrives through feature
+flags rather than any settings key, and `DISABLE_GROWTHBOOK=1` -- which every
+named profile launches with -- is the only switch that stops it.
+
+Turning off feature-flag evaluation has one further effect, and it is a wanted
+one here: **Remote Control is disabled entirely**, since the client requires
+feature-flag evaluation for it. That removes the startup auto-connect and the
+"Remote Control disconnected" / "/rc failed" lines it reports. The settings
+key `remoteControlAtStartup: false` -- part of the canonical settings the
+reconciliation makes exact -- covers the same startup auto-connect from the
+profile's side.
 
 ### The declared plan
 
