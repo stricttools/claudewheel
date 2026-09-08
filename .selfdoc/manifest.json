@@ -1025,6 +1025,11 @@
         },
         {
           "level": 3,
+          "text": "`_migration_7_drop_plan_permission`",
+          "anchor": "_migration_7_drop_plan_permission"
+        },
+        {
+          "level": 3,
           "text": "`resolve_theme_name`",
           "anchor": "resolve_theme_name"
         },
@@ -5725,6 +5730,6 @@
     }
   ],
   "posts": [],
-  "last_gen": "2026-09-08T09:55:21.975361+00:00",
+  "last_gen": "2026-09-08T09:58:57.702731+00:00",
   "theme": "minimal"
 }
