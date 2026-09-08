@@ -7,3 +7,4 @@
 {"format_version":1,"id":"18d35abb9cd17c06bfbd92babd1c462eb2a31bd625f297fe","commits":["1e24b0f08803b422df1950d668f024aed8ee9861"],"user_facing":true,"description":"**A stale `plan` launch selection now resets to `default`.** Previously it restored unselected and the launch fell through to the default bypass flags.","type":"fix"}
 {"format_version":1,"id":"18d35c08c33ee9e0001fa8f3389e48ad9066b64b1cd06071","commits":["1857ba3ab2ea7b9edb57bcb0e3d10bef11723d34"],"user_facing":false}
 {"format_version":1,"id":"18d35c208e79ab2ce253f5acc3c44a4a9c796826b55a541e","commits":["9fd08605aefeb691cb2e4a679a48984e70cb4be2"],"user_facing":false}
+{"format_version":1,"id":"18d35e5558a2897020ab9ba22dae4293a3a50ac1d4d2e2be","commits":["c61adbe4020812201f939596c975e1de86898f88"],"user_facing":false}
