@@ -330,6 +330,19 @@ overridden on a *native* install: the client carries its own
 the only lever, and like the marketplace variable it is undocumented client
 surface that could change in any Claude Code release.
 
+### The post-update summary
+
+After a version switch Claude Code opens with "Updated to latest. Got N
+features, N bugfixes, and N other changes." plus a changelog URL. There is no
+variable for this one and no settings key either: the client shows the summary
+whenever `lastReleaseNotesSeen` in the profile's `.claude.json` holds a version
+lower than the running one, and then writes the running version into that key
+itself. So claudewheel prevents the summary by pre-seeding rather than by
+switching it off -- the `release-notes-seen` preflight step writes the version
+about to be launched into the key before the client starts. Like the variables
+above, the key is undocumented client surface that could change in any Claude
+Code release.
+
 ### Feature-flag evaluation, and Remote Control
 
 Claude Code shows a server-delivered model-upsell tip at startup (of the

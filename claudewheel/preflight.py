@@ -372,6 +372,84 @@ def _model_version_guard_run(ctx: PreflightContext) -> StepResult:
     )
 
 
+CLAUDE_GLOBAL_CONFIG_NAME = ".claude.json"
+LAST_RELEASE_NOTES_SEEN_KEY = "lastReleaseNotesSeen"
+
+
+def _release_notes_seen_run(ctx: PreflightContext) -> StepResult:
+    """Mark the launched Claude Code version as seen, so no update summary shows.
+
+    Claude Code keeps a ``lastReleaseNotesSeen`` key in its global config file
+    (``.claude.json``, which lives INSIDE the profile directory because
+    ``CLAUDE_CONFIG_DIR`` points there). At startup, whenever that key holds a
+    version string LOWER than the running version, the client prints
+    "Updated to latest. Got N features, N bugfixes, and N other changes." plus a
+    changelog-URL line -- and then writes the running version into the key
+    itself. An absent or non-version value shows nothing. There is no settings
+    key and no environment variable that turns the summary off, so the only way
+    to prevent it is to pre-seed the key with the version about to be launched.
+
+    This is undocumented client surface, read out of the Claude Code 2.1.263
+    binary: the key name, the lower-than comparison and the client's own
+    write-back are behavior claudewheel observes rather than an interface Claude
+    Code promises.
+
+    - no profile, or the vanilla ``default`` (Claude Code's own ``~/.claude``,
+      strictly read-only to claudewheel) -> CONTINUE;
+    - no determinable effective version -> CONTINUE;
+    - no ``.claude.json`` yet -> CONTINUE without creating one: the client
+      creates the file on first run with the key absent, which shows nothing;
+    - a file that is not a JSON object -> CONTINUE, touching nothing: a file
+      claudewheel cannot read safely is not one it rewrites;
+    - a stored version at or above the launched one -> CONTINUE;
+    - otherwise the key is set to the launched version and the file written back
+      with every other key preserved.
+
+    Never aborts: a read or write failure is reported as one informational line
+    and the launch proceeds. Under ``--dry-run`` the write is recorded rather
+    than performed -- the effects layer handles that.
+    """
+    import json
+
+    from .binaries import effective_cli_version
+    from .segment import version_sort_key
+
+    profile = ctx.selections.get("profile")
+    if not profile or profile == "default":
+        return StepResult.cont()
+
+    version = effective_cli_version(ctx.selections.get("version"), ctx.locator)
+    if not version:
+        return StepResult.cont()
+
+    path = ctx.workspace.profiles.path_for(profile) / CLAUDE_GLOBAL_CONFIG_NAME
+    try:
+        if not path.exists():
+            return StepResult.cont()
+        data = json.loads(path.read_text())
+    except (OSError, ValueError) as e:
+        effects.info(f"Could not read {path} to mark release notes as seen: {e}")
+        return StepResult.cont()
+
+    if not isinstance(data, dict):
+        return StepResult.cont()
+
+    stored = data.get(LAST_RELEASE_NOTES_SEEN_KEY)
+    if (
+        isinstance(stored, str)
+        and stored
+        and version_sort_key(stored) >= version_sort_key(version)
+    ):
+        return StepResult.cont()
+
+    data[LAST_RELEASE_NOTES_SEEN_KEY] = version
+    try:
+        effects.write_json_atomic(path, data)
+    except (OSError, ValueError) as e:
+        effects.info(f"Could not write {path} to mark release notes as seen: {e}")
+    return StepResult.cont()
+
+
 def _prompt_plan(ctx: PreflightContext, profile: str) -> "PlanTier | None":
     """Render the composite plan picker and return the chosen plan.
 
@@ -683,6 +761,15 @@ PREFLIGHT_STEPS: list[PreflightStep] = [
         runs_in_non_interactive=True,
         renders_ui=False,
         run=_model_version_guard_run,
+    ),
+    PreflightStep(
+        name="release-notes-seen",
+        # Placed immediately after the version guard: it resolves the same
+        # effective version, and must not pre-seed a version the guard refused
+        # to launch.
+        runs_in_non_interactive=True,
+        renders_ui=False,
+        run=_release_notes_seen_run,
     ),
     PreflightStep(
         name="plan-declaration",

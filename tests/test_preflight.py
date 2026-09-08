@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import io
+import json
 import tempfile
 import unittest
-from contextlib import redirect_stderr
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from unittest import mock
 
-from claudewheel import cli
+from claudewheel import cli, effects
 from claudewheel.binaries import BinaryLocator
 from claudewheel.preflight import (
     Decision,
@@ -18,6 +19,7 @@ from claudewheel.preflight import (
     StepResult,
     _model_version_guard_run,
     _plan_declaration_run,
+    _release_notes_seen_run,
     run_preflight,
 )
 from claudewheel.profile_data import ProfileDataStore
@@ -471,6 +473,173 @@ class PlanDeclarationStepTests(unittest.TestCase):
         self.assertNotEqual(ctx.exception.code, 0)
         do_launch_mock.assert_not_called()
         self.assertIn("profile set-plan work", err.getvalue())
+
+
+class _RecordingHandle:
+    """A stand-in for strictcli's effects handle that only records calls."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, tuple[object, ...]]] = []
+
+    def __getattr__(self, name: str):  # type: ignore[no-untyped-def]
+        def record(*args: object, **kwargs: object) -> None:
+            self.calls.append((name, args))
+
+        return record
+
+
+class _PreviewCtx:
+    """The minimum dispatch context ``effects._handle`` accepts as previewing."""
+
+    def __init__(self, handle: _RecordingHandle) -> None:
+        self.dry_run = True
+        self.effects = handle
+        self.lines: list[str] = []
+
+    def info(self, msg: str) -> None:
+        self.lines.append(msg)
+
+
+class ReleaseNotesSeenStepTests(unittest.TestCase):
+    """The release-notes-seen preflight step.
+
+    Claude Code prints its "Updated to latest. Got N features..." summary when
+    ``lastReleaseNotesSeen`` in the profile's own ``.claude.json`` holds a
+    version lower than the running one. Pre-seeding the key with the version
+    about to be launched is the only way to prevent it -- there is no switch.
+    """
+
+    def setUp(self) -> None:
+        self._tmp_obj = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp_obj.cleanup)
+        self.tmp = Path(self._tmp_obj.name)
+        self.ws = Workspace.open(root=self.tmp, claude_dir=self.tmp / ".claude")
+        self.profile_dir = self.ws.profiles.path_for("work")
+        self.profile_dir.mkdir(parents=True)
+        self.claude_json = self.profile_dir / ".claude.json"
+
+    def _ctx(self, **selections: str | None) -> PreflightContext:
+        base: dict[str, str | None] = {"profile": "work", "version": "2.1.263"}
+        base.update(selections)
+        return PreflightContext(
+            selections=base,
+            workspace=self.ws,
+            locator=inert_locator(self.tmp),
+            cfg=FakeAppConfigStore(),
+            interactive=True,
+        )
+
+    def _write(self, data: dict[str, object]) -> None:
+        self.claude_json.write_text(json.dumps(data, indent=2) + "\n")
+
+    def _read(self) -> dict[str, object]:
+        return json.loads(self.claude_json.read_text())
+
+    def test_registered_right_after_the_model_version_guard(self) -> None:
+        from claudewheel.preflight import PREFLIGHT_STEPS
+
+        names = [s.name for s in PREFLIGHT_STEPS]
+        self.assertIn("release-notes-seen", names)
+        self.assertEqual(
+            names.index("release-notes-seen"),
+            names.index("model-version-guard") + 1,
+        )
+
+    def test_step_is_always_on_no_ui(self) -> None:
+        from claudewheel.preflight import PREFLIGHT_STEPS
+
+        step = next(s for s in PREFLIGHT_STEPS if s.name == "release-notes-seen")
+        self.assertTrue(step.runs_in_non_interactive)
+        self.assertFalse(step.renders_ui)
+
+    def test_absent_key_is_written_with_the_launched_version(self) -> None:
+        self._write({"numStartups": 3})
+        self.assertEqual(
+            _release_notes_seen_run(self._ctx()).decision, Decision.CONTINUE
+        )
+        self.assertEqual(self._read()["lastReleaseNotesSeen"], "2.1.263")
+
+    def test_a_lower_stored_version_is_overwritten(self) -> None:
+        self._write({"lastReleaseNotesSeen": "2.1.100"})
+        _release_notes_seen_run(self._ctx())
+        self.assertEqual(self._read()["lastReleaseNotesSeen"], "2.1.263")
+
+    def test_an_equal_stored_version_leaves_the_file_byte_identical(self) -> None:
+        self._write({"lastReleaseNotesSeen": "2.1.263"})
+        before = self.claude_json.read_bytes()
+        handle = _RecordingHandle()
+        with effects.bound(_PreviewCtx(handle)):
+            _release_notes_seen_run(self._ctx())
+        self.assertEqual(self.claude_json.read_bytes(), before)
+        self.assertEqual(handle.calls, [])
+
+    def test_a_higher_stored_version_is_left_alone(self) -> None:
+        self._write({"lastReleaseNotesSeen": "2.2.0"})
+        before = self.claude_json.read_bytes()
+        _release_notes_seen_run(self._ctx())
+        self.assertEqual(self.claude_json.read_bytes(), before)
+
+    def test_the_default_profile_is_never_touched(self) -> None:
+        claude_json = self.ws.profiles.path_for("default") / ".claude.json"
+        claude_json.parent.mkdir(parents=True)
+        claude_json.write_text("{}\n")
+        _release_notes_seen_run(self._ctx(profile="default"))
+        self.assertEqual(claude_json.read_text(), "{}\n")
+
+    def test_a_missing_file_is_not_created(self) -> None:
+        self.assertEqual(
+            _release_notes_seen_run(self._ctx()).decision, Decision.CONTINUE
+        )
+        self.assertFalse(self.claude_json.exists())
+
+    def test_an_unparsable_file_is_untouched_and_reported(self) -> None:
+        self.claude_json.write_text("{not json")
+        out = io.StringIO()
+        with redirect_stdout(out):
+            self.assertEqual(
+                _release_notes_seen_run(self._ctx()).decision, Decision.CONTINUE
+            )
+        self.assertEqual(self.claude_json.read_text(), "{not json")
+        self.assertIn("release notes as seen", out.getvalue())
+
+    def test_a_non_object_document_is_untouched(self) -> None:
+        self.claude_json.write_text("[1, 2]\n")
+        _release_notes_seen_run(self._ctx())
+        self.assertEqual(self.claude_json.read_text(), "[1, 2]\n")
+
+    def test_every_other_key_is_preserved(self) -> None:
+        self._write(
+            {
+                "numStartups": 7,
+                "projects": {"/home/x": {"allowedTools": []}},
+                "lastReleaseNotesSeen": "2.1.100",
+            }
+        )
+        _release_notes_seen_run(self._ctx())
+        data = self._read()
+        self.assertEqual(data["numStartups"], 7)
+        self.assertEqual(data["projects"], {"/home/x": {"allowedTools": []}})
+        self.assertEqual(data["lastReleaseNotesSeen"], "2.1.263")
+
+    def test_no_determinable_version_writes_nothing(self) -> None:
+        self._write({"numStartups": 1})
+        before = self.claude_json.read_bytes()
+        _release_notes_seen_run(self._ctx(version=None))
+        self.assertEqual(self.claude_json.read_bytes(), before)
+
+    def test_dry_run_records_the_write_and_leaves_the_file_alone(self) -> None:
+        self._write({"lastReleaseNotesSeen": "2.1.100"})
+        before = self.claude_json.read_bytes()
+        handle = _RecordingHandle()
+        with effects.bound(_PreviewCtx(handle)):
+            _release_notes_seen_run(self._ctx())
+        self.assertEqual(self.claude_json.read_bytes(), before)
+        self.assertEqual([name for name, _ in handle.calls], ["write"])
+        recorded_path, recorded_text = handle.calls[0][1]
+        self.assertEqual(recorded_path, str(self.claude_json))
+        self.assertEqual(
+            json.loads(str(recorded_text))["lastReleaseNotesSeen"], "2.1.263"
+        )
 
 
 if __name__ == "__main__":

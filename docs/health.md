@@ -247,7 +247,29 @@ version. If the effective binary version (explicit selection or symlink
 target) is older than the model's minimum, the launch aborts with a message
 naming the required version and the install command.
 
-#### 4. plan-declaration
+#### 4. release-notes-seen
+
+Pre-seeds `lastReleaseNotesSeen` in the profile's own `.claude.json` with the
+version about to be launched, so Claude Code's "Updated to latest. Got N
+features, N bugfixes, and N other changes." summary never appears after a
+version switch. The client shows that summary whenever the stored key holds a
+version lower than the running one, then writes the running version into the
+key itself; there is no settings key and no environment variable that turns it
+off.
+
+- No profile, or the vanilla `default` (Claude Code's own `~/.claude`):
+  continue, touching nothing.
+- No determinable effective version: continue.
+- No `.claude.json` yet: continue without creating one -- the client creates
+  the file with the key absent, which shows nothing.
+- A file that is not a JSON object: continue, touching nothing.
+- A stored version at or above the launched one: continue.
+- Otherwise the key is set to the launched version, every other key preserved.
+
+This step never aborts: a read or write failure is reported as one line and the
+launch proceeds. Under `--dry-run` the write is recorded, not performed.
+
+#### 5. plan-declaration
 
 Requires a declared plan for a profile that launches on claudewheel's stored
 token. Claude Code resolves its subscription tier from the launch environment
@@ -263,7 +285,7 @@ launches with the tier null and tier-dependent features failing closed.
 - Undeclared, non-interactive: abort, naming
   `claudewheel profile set-plan <name> <plan>` and the valid plans.
 
-#### 5. approved-hooks
+#### 6. approved-hooks
 
 Gates the launch on the target project's Claude Code hooks
 (`.claude/settings.json` and `settings.local.json` in the project directory).
@@ -277,7 +299,7 @@ stored per-project approval:
 - New or changed fingerprint, non-interactive: abort (never silent trust).
 - Malformed project hooks config: abort.
 
-#### 6. scratchpad-cleanup
+#### 7. scratchpad-cleanup
 
 Interactive-only. Scans `/tmp/claude-$UID/` for stale per-project scratchpad
 directories. When stale directories are found, renders a confirmation page
