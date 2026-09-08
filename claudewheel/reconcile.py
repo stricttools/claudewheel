@@ -304,7 +304,7 @@ def _reconcile_canonical_settings(container: dict[str, Any]) -> list[str]:
     """
     changes: list[str] = []
     for key, value in CANONICAL_PROFILE_SETTINGS.items():
-        if container.get(key) != value or key not in container:
+        if container.get(key) != value:
             container[key] = value
             changes.append(f"{key} -> {json.dumps(value)}")
     return changes

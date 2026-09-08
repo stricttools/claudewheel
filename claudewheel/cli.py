@@ -1001,9 +1001,10 @@ def _handle_patch_profiles(ws: "Workspace") -> int:
     """Reconcile every managed profile and shared-settings.json to exact canonical.
 
     Delegates to the unified reconcile core. This PRUNES each target's guardrail
-    sections (the entire hooks structure, the disallowedTools list, and
-    permissions deny/ask) to EXACTLY the canonical model, removing drift and any
-    user-added extras -- the old additive, extras-preserving semantics are gone.
+    sections (the entire hooks structure, the disallowedTools list,
+    permissions deny/ask and the canonical settings keys) to EXACTLY the
+    canonical model, removing drift and any user-added extras -- the old
+    additive, extras-preserving semantics are gone.
     Also deploys any missing guardrail hook scripts. The 'default' profile
     (~/.claude) is never read from or written to.
 

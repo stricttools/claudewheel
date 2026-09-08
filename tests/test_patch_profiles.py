@@ -3,7 +3,8 @@ core) and the wizard's ``merge_hooks`` helper.
 
 ``patch-profiles`` no longer has additive per-profile sync semantics: it now
 delegates to the reconcile core, which PRUNES each target's guardrail sections
-(hooks, disallowedTools, permissions) to EXACTLY canonical. ``merge_hooks``
+(hooks, disallowedTools, permissions, and the canonical settings keys) to
+EXACTLY canonical. ``merge_hooks``
 remains only because the wizard uses it to assemble a new profile's hooks.
 """
 

@@ -1,6 +1,6 @@
 ---
 title: c reconcile-permissions
-description: "Reconcile every managed profile and shared-settings.json to exactly the canonical guardrail model (hooks, disallowedTools, permissions); preview with --dry-run, and write at a terminal or with --approve-consequential."
+description: "Reconcile every managed profile and shared-settings.json to exactly the canonical guardrail model (hooks, disallowedTools, permissions, and the canonical settings keys); preview with --dry-run, and write at a terminal or with --approve-consequential."
 generated: true
 nav_group: "CLI Reference"
 nav_order: 13

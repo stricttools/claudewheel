@@ -25,7 +25,7 @@ All configuration lives under `~/.claudewheel/` (overridable via the
 | `state.json` | Runtime state: last-selected values (`last_config`), recent directories, launch count, auth browser preference, per-project hook approvals, and the npm version and model list caches |
 | `themes/dark.json` | Dark theme color definitions |
 | `themes/light.json` | Light theme color definitions |
-| `shared-settings.json` | Canonical shared settings applied to all profiles: hooks, disallowedTools, and profileDefaults (permissions deny/ask arrays) |
+| `shared-settings.json` | Canonical shared settings applied to all profiles: hooks, disallowedTools, and profileDefaults (permissions deny/ask arrays and the canonical settings keys) |
 
 Additionally, `profiles/<name>/` directories hold per-profile settings and
 credentials plus claudewheel's own `.claudewheel/` data directory (the stored

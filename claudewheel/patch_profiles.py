@@ -135,8 +135,9 @@ def run_patch_profiles(ws: "Workspace", dry_run: bool = False) -> int:
     """Reconcile every managed profile and shared-settings.json to exact canonical.
 
     Thin delegate to the unified reconcile core. This PRUNES each target's
-    guardrail sections (hooks, disallowedTools, permissions deny/ask) to exactly
-    canonical -- the old additive, user-extras-preserving behavior is gone.
+    guardrail sections (hooks, disallowedTools, permissions deny/ask and the
+    canonical settings keys) to exactly canonical -- the old additive,
+    user-extras-preserving behavior is gone.
     """
     from .reconcile import run_reconcile
 
