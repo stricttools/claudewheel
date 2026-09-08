@@ -301,7 +301,10 @@ function that applies it. Read that list to see which fixes exist.
 ### Adding a new migration
 
 1. Write a function with the signature
-   `(config, segments_def, theme, options_def) -> None` that mutates in place.
+   `(config, segments_def, theme, options_def, state) -> None` that mutates in
+   place. `state` is the in-memory `state.json`, so a migration that retires an
+   option can repair a launch selection naming it in the same pass. Every file
+   the migrations touch is written back only when one actually changed it.
 2. Append an entry to the `_MIGRATIONS` list in `config.py` with the next
    version number.
 3. The migration runs against all theme files uniformly (not just the

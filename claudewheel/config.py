@@ -75,7 +75,8 @@ HISTORICAL_DEFAULTS: dict[str, set[str]] = {
 # ---------------------------------------------------------------------------
 # Each migration targets a schema version. It runs exactly once: when the
 # config's _schema_version is less than the migration's version number.
-# The callable receives (config, segments_def, theme) and mutates in place.
+# The callable receives (config, segments_def, theme, options_def, state) and
+# mutates in place.
 
 
 def _migration_1_github_optional(
@@ -83,6 +84,7 @@ def _migration_1_github_optional(
     segments_def: list[dict[str, Any]],
     theme: dict[str, Any],
     options_def: dict[str, Any],
+    state: dict[str, Any],
 ) -> None:
     """Make github segment optional (was incorrectly required)."""
     for seg in segments_def:
@@ -95,6 +97,7 @@ def _migration_2_profile_paths(
     segments_def: list[dict[str, Any]],
     theme: dict[str, Any],
     options_def: dict[str, Any],
+    state: dict[str, Any],
 ) -> None:
     """Rewrite profile metadata config_dir from ~/.claude-<name> to ~/.claudewheel/profiles/<name>.
 
@@ -122,6 +125,7 @@ def _migration_3_classify_pinned(
     segments_def: list[dict[str, Any]],
     theme: dict[str, Any],
     options_def: dict[str, Any],
+    state: dict[str, Any],
 ) -> None:
     """Classify existing 'values' into 'pinned' vs discard.
 
@@ -176,6 +180,7 @@ def _migration_4_drop_profile_metadata(
     segments_def: list[dict[str, Any]],
     theme: dict[str, Any],
     options_def: dict[str, Any],
+    state: dict[str, Any],
 ) -> None:
     """Remove the legacy ``metadata`` block from the ``profile`` segment only.
 
@@ -195,6 +200,7 @@ def _migration_5_drop_fable_1m(
     segments_def: list[dict[str, Any]],
     theme: dict[str, Any],
     options_def: dict[str, Any],
+    state: dict[str, Any],
 ) -> None:
     """Drop the ``claude-fable-5[1m]`` model option, which never meant anything.
 
@@ -230,6 +236,7 @@ def _migration_6_unwrap_dict_option_values(
     segments_def: list[dict[str, Any]],
     theme: dict[str, Any],
     options_def: dict[str, Any],
+    state: dict[str, Any],
 ) -> None:
     """Replace dict entries in every segment's ``values`` list with their value.
 
@@ -265,6 +272,7 @@ def _migration_7_drop_plan_permission(
     segments_def: list[dict[str, Any]],
     theme: dict[str, Any],
     options_def: dict[str, Any],
+    state: dict[str, Any],
 ) -> None:
     """Drop the ``plan`` option from the permissions segment.
 
@@ -282,23 +290,27 @@ def _migration_7_drop_plan_permission(
     Both ``values`` and ``pinned`` are cleaned so the option cannot survive in
     either place.
 
-    A ``last_config`` selection naming ``plan`` is left alone, and needs no
-    repair: ``build_segment_bar`` restores a selection with
-    ``Segment.select_value``, which returns False and changes nothing when the
-    value is not among the segment's options. The permissions segment is not
-    required, so the bar comes up with it simply unselected -- a state the bar
-    already supports -- rather than raising or holding an option that does not
-    exist. (Migrations receive config/segments/theme/options and not state, so
-    reaching state.json from here would need new plumbing for a repair that is
-    not needed.)
+    A ``last_config`` selection naming ``plan`` is RESET to ``default`` (manual
+    mode). Left alone it would restore as nothing at all: ``build_segment_bar``
+    restores a selection with ``Segment.select_value``, which returns False and
+    changes nothing when the value is not among the segment's options, and the
+    permissions segment is not required -- so the bar would come up with the
+    segment simply unselected. An unselected permissions segment passes no
+    ``--permission-mode``, and the launch then falls through to
+    ``default_flags``, which carry ``--dangerously-skip-permissions``. A stale
+    plan selection would silently become a bypass launch, which is the opposite
+    of what it asked for; ``default`` is the manual mode nearest to it.
     """
     perms_seg = options_def.get("permissions")
-    if not isinstance(perms_seg, dict):
-        return
-    for list_key in ("values", "pinned"):
-        entries = perms_seg.get(list_key)
-        if isinstance(entries, list):
-            perms_seg[list_key] = [v for v in entries if v != "plan"]
+    if isinstance(perms_seg, dict):
+        for list_key in ("values", "pinned"):
+            entries = perms_seg.get(list_key)
+            if isinstance(entries, list):
+                perms_seg[list_key] = [v for v in entries if v != "plan"]
+
+    last_config = state.get("last_config")
+    if isinstance(last_config, dict) and last_config.get("permissions") == "plan":
+        last_config["permissions"] = "default"
 
 
 _MIGRATIONS: list[dict[str, Any]] = [
@@ -547,16 +559,23 @@ class AppConfigStore:
         Complements _migrate() which only adds missing keys. Versioned
         migrations can mutate values and run exactly once per version bump.
         Theme migrations run against BOTH theme files uniformly: the primary
-        pass mutates config/segments/options plus the first theme file, and
-        secondary passes apply only theme changes to the remaining files (using
-        throwaway copies of config/segments/options so they are not mutated
-        twice).
+        pass mutates config/segments/options/state plus the first theme file,
+        and secondary passes apply only theme changes to the remaining files
+        (using throwaway copies of config/segments/options/state so they are not
+        mutated twice).
+
+        State is passed so a migration that retires an option can also repair a
+        launch selection naming it: options.json and state.json describe the
+        same choice from two sides, and cleaning only one of them leaves the
+        other stale. Each of config/segments/options/state is written back only
+        when a migration actually changed it.
         """
         current_version = self.config.get("_schema_version", 0)
         highest_applied = current_version
         config_changed = False
         segments_changed = False
         options_changed = False
+        state_changed = False
 
         themes = [
             (theme_file, theme_default, self._load_json(theme_file, theme_default))
@@ -569,25 +588,35 @@ class AppConfigStore:
                 # Snapshot segments/options to detect mutations
                 seg_before = json.dumps(self.segments_def, sort_keys=True)
                 options_before = json.dumps(self.options_def, sort_keys=True)
+                state_before = json.dumps(self.state, sort_keys=True)
 
-                # Primary pass: config/segments/options + the first theme file.
+                # Primary pass: config/segments/options/state + the first theme
+                # file.
                 migration["apply"](
-                    self.config, self.segments_def, themes[0][2], self.options_def
+                    self.config,
+                    self.segments_def,
+                    themes[0][2],
+                    self.options_def,
+                    self.state,
                 )
                 # Secondary passes: remaining theme files only. Copies keep
-                # config/segments/options from being mutated more than once.
+                # config/segments/options/state from being mutated more than
+                # once.
                 for _tf, _td, tdict in themes[1:]:
                     migration["apply"](
                         copy.deepcopy(self.config),
                         copy.deepcopy(self.segments_def),
                         tdict,
                         copy.deepcopy(self.options_def),
+                        copy.deepcopy(self.state),
                     )
 
                 if json.dumps(self.segments_def, sort_keys=True) != seg_before:
                     segments_changed = True
                 if json.dumps(self.options_def, sort_keys=True) != options_before:
                     options_changed = True
+                if json.dumps(self.state, sort_keys=True) != state_before:
+                    state_changed = True
 
                 highest_applied = max(highest_applied, migration["version"])
 
@@ -601,6 +630,8 @@ class AppConfigStore:
             write_json_atomic(self._segments_file, self.segments_def)
         if options_changed:
             OptionsFile(self._options_file).write(self.options_def)
+        if state_changed:
+            StateFile(self._state_file).save(self.state)
         for (theme_file, _td, tdict), before in zip(themes, theme_before):
             if json.dumps(tdict, sort_keys=True) != before:
                 write_json_atomic(theme_file, tdict)

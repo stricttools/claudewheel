@@ -718,20 +718,67 @@ class Migration7Tests(unittest.TestCase):
         self.assertEqual(DEFAULT_OPTIONS["permissions"]["values"], ["bypass", "default"])
         self.assertIn("plan", HISTORICAL_DEFAULTS["permissions"])
 
-    def test_a_stale_plan_selection_leaves_the_segment_unselected(self) -> None:
-        """last_config is deliberately not repaired: select_value returns False
-        for a value that is not an option, so the (non-required) permissions
-        segment simply comes up unselected instead of raising."""
+    def test_a_stale_plan_selection_is_reset_to_default(self) -> None:
+        """A retired selection is repaired, not left to come up unselected.
+
+        Unselected is not neutral here: the permissions segment is not
+        required, so it would restore with no value, pass no
+        ``--permission-mode``, and let the launch fall through to
+        ``default_flags`` -- which carry ``--dangerously-skip-permissions``. The
+        selection is reset to ``default`` (manual mode) instead, in memory and
+        on disk.
+        """
         options = self._options_with(["bypass", "default", "plan"], [])
         state = {**copy.deepcopy(DEFAULT_STATE), "last_config": {"permissions": "plan"}}
         paths = _setup_temp_config_dir(self.tmp, options=options, state=state)
         cm = self._make_cm(paths)
 
+        self.assertEqual(cm.state["last_config"]["permissions"], "default")
+        on_disk = _read_json(paths["STATE_FILE"])
+        self.assertEqual(on_disk["last_config"]["permissions"], "default")
+
         bar = build_segment_bar(cm, skip_slow=True)
         seg = next(s for s in bar.segments if s.key == "permissions")
         self.assertNotIn("plan", seg.options)
-        self.assertIsNone(seg.value)
-        self.assertEqual(seg.selected_idx, -1)
+        self.assertEqual(seg.value, "default")
+
+    def test_a_bypass_selection_is_untouched(self) -> None:
+        """Only the retired value is rewritten; a live selection stands."""
+        options = self._options_with(["bypass", "default", "plan"], [])
+        state = {
+            **copy.deepcopy(DEFAULT_STATE),
+            "last_config": {"permissions": "bypass"},
+        }
+        paths = _setup_temp_config_dir(self.tmp, options=options, state=state)
+        cm = self._make_cm(paths)
+        self.assertEqual(cm.state["last_config"]["permissions"], "bypass")
+
+    def test_a_default_selection_is_untouched(self) -> None:
+        options = self._options_with(["bypass", "default", "plan"], [])
+        state = {
+            **copy.deepcopy(DEFAULT_STATE),
+            "last_config": {"permissions": "default"},
+        }
+        paths = _setup_temp_config_dir(self.tmp, options=options, state=state)
+        cm = self._make_cm(paths)
+        self.assertEqual(cm.state["last_config"]["permissions"], "default")
+
+    def test_a_missing_last_config_does_not_crash(self) -> None:
+        """State with no ``last_config`` at all migrates cleanly."""
+        options = self._options_with(["bypass", "default", "plan"], ["plan"])
+        state = {k: v for k, v in copy.deepcopy(DEFAULT_STATE).items()}
+        state.pop("last_config", None)
+        paths = _setup_temp_config_dir(self.tmp, options=options, state=state)
+        cm = self._make_cm(paths)
+        self.assertNotIn("plan", cm.options_def["permissions"]["values"])
+
+    def test_a_non_dict_last_config_does_not_crash(self) -> None:
+        """A corrupt ``last_config`` is stepped over, not indexed into."""
+        options = self._options_with(["bypass", "default", "plan"], ["plan"])
+        state = {**copy.deepcopy(DEFAULT_STATE), "last_config": "plan"}
+        paths = _setup_temp_config_dir(self.tmp, options=options, state=state)
+        cm = self._make_cm(paths)
+        self.assertNotIn("plan", cm.options_def["permissions"]["values"])
 
     def test_a_pinned_plan_still_reaches_the_picker(self) -> None:
         """Pinning is how the value stays available: a pin written AFTER the
