@@ -5621,6 +5621,16 @@
         },
         {
           "level": 3,
+          "text": "Auto-updater suppression",
+          "anchor": "auto-updater-suppression"
+        },
+        {
+          "level": 3,
+          "text": "Feature-flag evaluation, and Remote Control",
+          "anchor": "feature-flag-evaluation-and-remote-control"
+        },
+        {
+          "level": 3,
           "text": "The declared plan",
           "anchor": "the-declared-plan"
         },
@@ -5730,6 +5740,6 @@
     }
   ],
   "posts": [],
-  "last_gen": "2026-09-08T09:58:57.702731+00:00",
+  "last_gen": "2026-09-08T10:16:26.426474+00:00",
   "theme": "minimal"
 }
