@@ -2288,6 +2288,11 @@
         },
         {
           "level": 3,
+          "text": "`_release_notes_seen_run`",
+          "anchor": "_release_notes_seen_run"
+        },
+        {
+          "level": 3,
           "text": "`_prompt_plan`",
           "anchor": "_prompt_plan"
         },
@@ -5407,18 +5412,23 @@
         },
         {
           "level": 4,
-          "text": "4. plan-declaration",
-          "anchor": "4-plan-declaration"
+          "text": "4. release-notes-seen",
+          "anchor": "4-release-notes-seen"
         },
         {
           "level": 4,
-          "text": "5. approved-hooks",
-          "anchor": "5-approved-hooks"
+          "text": "5. plan-declaration",
+          "anchor": "5-plan-declaration"
         },
         {
           "level": 4,
-          "text": "6. scratchpad-cleanup",
-          "anchor": "6-scratchpad-cleanup"
+          "text": "6. approved-hooks",
+          "anchor": "6-approved-hooks"
+        },
+        {
+          "level": 4,
+          "text": "7. scratchpad-cleanup",
+          "anchor": "7-scratchpad-cleanup"
         },
         {
           "level": 2,
@@ -5626,6 +5636,11 @@
         },
         {
           "level": 3,
+          "text": "The post-update summary",
+          "anchor": "the-post-update-summary"
+        },
+        {
+          "level": 3,
           "text": "Feature-flag evaluation, and Remote Control",
           "anchor": "feature-flag-evaluation-and-remote-control"
         },
@@ -5740,6 +5755,6 @@
     }
   ],
   "posts": [],
-  "last_gen": "2026-09-08T10:16:26.426474+00:00",
+  "last_gen": "2026-09-08T14:18:49.033285+00:00",
   "theme": "minimal"
 }
