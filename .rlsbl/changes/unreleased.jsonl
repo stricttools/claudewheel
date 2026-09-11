@@ -1,3 +1,4 @@
 {"format_version":1,"id":"18d444ff57517b742a5cfe4fae7f4e64a1f27677a861de16","commits":["e78887c312a77f6c4ae14098e1a7d0d94d5ed0bf"],"user_facing":true,"description":"**Stashed work no longer gets steered onto a temporary branch.** The `git stash` guardrail's deny message told agents to commit on a temporary branch; it now says to commit the work in progress on the current branch with `safegit commit`.","type":"fix"}
 {"format_version":1,"id":"18d4450016d212c89a03955a43874d3ab10c49bb2ccf5030","commits":["8e5849cc48d50be2f92a4674d14f297064cee675"],"user_facing":false}
 {"format_version":1,"id":"18d44500299bfc43d915daae24474293969577bc1a4c82c1","commits":["e564595f89d5f9030dcd2d4e4528756a734be3a9"],"user_facing":false}
+{"format_version":1,"id":"18d44500392d5358a4f25b7388544cd79e14f64b686728f6","commits":["a3322b3516b4addbf770787aa684ea969d63acb5"],"user_facing":false}
