@@ -295,7 +295,8 @@ RULES: tuple[GuardrailRule, ...] = (
         "git-stash",
         [_cmd(r"git\s+stash(\s|$)")],
         ["Bash(git stash:*)"],
-        "Use 'safegit commit' on a temporary branch instead of 'git stash'",
+        "Never 'git stash'. Commit the work in progress on the current branch "
+        "with 'safegit commit' instead.",
         coverage=SettingsCoverage.FULL,
     ),
     _hard_deny(

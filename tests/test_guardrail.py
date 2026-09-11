@@ -212,6 +212,48 @@ class SentencePunctuationTests(unittest.TestCase):
         self.assertTrue(found)
 
 
+class AdviceTextTests(unittest.TestCase):
+    """The advice text agents actually read, pinned where it has been wrong.
+
+    The git-stash advice used to point at "a temporary branch", which the
+    fleet rules forbid outright: work in progress is committed on the branch
+    the agent is already on, never parked on a side branch and never stashed.
+    """
+
+    GIT_STASH_ADVICE = (
+        "Never 'git stash'. Commit the work in progress on the current branch "
+        "with 'safegit commit' instead."
+    )
+
+    _SIDE_BRANCH_PHRASES = (
+        "temporary branch",
+        "temp branch",
+        "new branch",
+        "separate branch",
+        "side branch",
+        "another branch",
+        "different branch",
+    )
+
+    def test_git_stash_main_advice_is_exact(self) -> None:
+        self.assertEqual(_rule("git-stash").main_advice, self.GIT_STASH_ADVICE)
+
+    def test_git_stash_subagent_advice_is_advice_plus_suffix(self) -> None:
+        self.assertEqual(
+            _rule("git-stash").subagent_advice,
+            self.GIT_STASH_ADVICE + " " + guardrail.SUBAGENT_HARD_DENY_SUFFIX,
+        )
+
+    def test_no_advice_sends_an_agent_to_a_side_branch(self) -> None:
+        for r in RULES:
+            for advice in (r.main_advice, r.subagent_advice):
+                if advice is None:
+                    continue
+                lowered = advice.lower()
+                for phrase in self._SIDE_BRANCH_PHRASES:
+                    self.assertNotIn(phrase, lowered, f"{r.key}: {advice}")
+
+
 class HookPatternTests(unittest.TestCase):
     def test_every_hook_pattern_compiles(self) -> None:
         for r in RULES:
