@@ -2,6 +2,14 @@
 
 # Changelog
 
+## 0.30.1
+
+The git stash guardrail no longer tells agents to park work in progress on a temporary branch.
+
+### Fixes
+
+- **Stashed work no longer gets steered onto a temporary branch.** The `git stash` guardrail's deny message told agents to commit on a temporary branch; it now says to commit the work in progress on the current branch with `safegit commit`.
+
 ## 0.30.0
 
 Quieter Claude Code sessions: launches disable the client self-updater and feature-flag evaluation, Remote Control auto-connect and spinner tips are off in every managed profile, the post-update summary is suppressed, and the launcher no longer offers plan mode.
