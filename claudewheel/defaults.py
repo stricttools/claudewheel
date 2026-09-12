@@ -19,6 +19,14 @@ DISALLOWED_TOOLS = guardrail.disallowed_tool_names()
 #     at startup and reports the attempt ("Remote Control disconnected",
 #     "/rc failed") in every session. There is no environment variable for it.
 #   spinnerTipsEnabled: turns off the client's built-in rotating tips.
+#   disableAgentView: Claude Code's agent view moves a running interactive
+#     session into a daemon-managed background session on a single left-arrow
+#     press on an empty prompt -- with no confirmation once the prompt has been
+#     empty for more than two seconds -- then opens the agents view and forces
+#     the fullscreen renderer. Setting it true disables `claude agents`, `--bg`,
+#     `/background`, the left-arrow gesture and the on-demand daemon together.
+#     Equivalent to CLAUDE_CODE_DISABLE_AGENT_VIEW=1, and restrictive: true in
+#     any settings scope wins.
 #
 # The wizard's checkbox-driven keys (awaySummaryEnabled, cleanupPeriodDays,
 # autoMemoryEnabled, ...) are deliberately NOT in here: the user chooses those
@@ -26,6 +34,7 @@ DISALLOWED_TOOLS = guardrail.disallowed_tool_names()
 CANONICAL_PROFILE_SETTINGS: dict[str, object] = {
     "remoteControlAtStartup": False,
     "spinnerTipsEnabled": False,
+    "disableAgentView": True,
 }
 
 

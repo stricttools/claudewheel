@@ -20,10 +20,10 @@ canonical model:
     canonical entries added, non-canonical entries pruned.
   - ``permissions.allow``: only ``guardrail.ALLOW_CONFLICTS`` entries removed;
     all other allow entries are left alone and nothing is ever added to allow.
-  - the canonical settings keys (``defaults.CANONICAL_PROFILE_SETTINGS``:
-    ``remoteControlAtStartup``, ``spinnerTipsEnabled``): each made exactly
-    equal to its canonical value, at the top level of a profile's settings and
-    inside ``profileDefaults`` in ``shared-settings.json``.
+  - the canonical settings keys: every key in
+    ``defaults.CANONICAL_PROFILE_SETTINGS`` -- which is the one list of them --
+    made exactly equal to its canonical value, at the top level of a profile's
+    settings and inside ``profileDefaults`` in ``shared-settings.json``.
 
 This DELIBERATELY replaces the old additive, user-extras-preserving semantics
 of ``patch_profiles`` (``merge_hooks`` etc.): extras are pruned.

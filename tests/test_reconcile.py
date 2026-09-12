@@ -382,7 +382,7 @@ class RunReconcileTests(_ReconcileTestCase):
 
 
 class CanonicalSettingsKeyTests(_ReconcileTestCase):
-    """remoteControlAtStartup / spinnerTipsEnabled are made EXACTLY canonical."""
+    """Every key in CANONICAL_PROFILE_SETTINGS is made EXACTLY canonical."""
 
     def test_missing_keys_are_added_to_a_profile(self) -> None:
         settings = self.drifted_settings()
@@ -395,8 +395,8 @@ class CanonicalSettingsKeyTests(_ReconcileTestCase):
 
     def test_wrong_values_are_corrected_in_a_profile(self) -> None:
         settings = self.drifted_settings()
-        for key in CANONICAL_PROFILE_SETTINGS:
-            settings[key] = True
+        for key, value in CANONICAL_PROFILE_SETTINGS.items():
+            settings[key] = not value
         changes = reconcile_profile_dict(
             settings, build_canonical_shared_settings(self.ws.scripts_dir)
         )
@@ -425,7 +425,7 @@ class CanonicalSettingsKeyTests(_ReconcileTestCase):
 
     def test_shared_profiledefaults_wrong_values_are_corrected(self) -> None:
         shared: dict[str, Any] = {
-            "profileDefaults": {k: True for k in CANONICAL_PROFILE_SETTINGS}
+            "profileDefaults": {k: not v for k, v in CANONICAL_PROFILE_SETTINGS.items()}
         }
         changes = reconcile_shared_dict(
             shared, build_canonical_shared_settings(self.ws.scripts_dir)
@@ -453,6 +453,41 @@ class CanonicalSettingsKeyTests(_ReconcileTestCase):
         settings = self.read_settings("work")
         for key, value in CANONICAL_PROFILE_SETTINGS.items():
             self.assertEqual(settings[key], value)
+
+    def test_disable_agent_view_is_added_to_a_profile_that_lacks_it(self) -> None:
+        """A profile with no disableAgentView key gets it set to true."""
+        settings = self.drifted_settings()
+        self.assertNotIn("disableAgentView", settings)
+        changes = reconcile_profile_dict(
+            settings, build_canonical_shared_settings(self.ws.scripts_dir)
+        )
+        self.assertIs(settings["disableAgentView"], True)
+        self.assertIn("disableAgentView -> true", changes)
+
+    def test_disable_agent_view_false_is_corrected_to_true(self) -> None:
+        """A profile that turned the agent view back on is corrected."""
+        settings = self.drifted_settings()
+        settings["disableAgentView"] = False
+        changes = reconcile_profile_dict(
+            settings, build_canonical_shared_settings(self.ws.scripts_dir)
+        )
+        self.assertIs(settings["disableAgentView"], True)
+        self.assertIn("disableAgentView -> true", changes)
+
+    def test_disable_agent_view_is_added_to_shared_profiledefaults(self) -> None:
+        """shared-settings.json seeds new profiles with the key set to true."""
+        shared: dict[str, Any] = {"profileDefaults": {"disableAgentView": False}}
+        changes = reconcile_shared_dict(
+            shared, build_canonical_shared_settings(self.ws.scripts_dir)
+        )
+        self.assertIs(shared["profileDefaults"]["disableAgentView"], True)
+        self.assertIn("profileDefaults disableAgentView -> true", changes)
+
+    def test_end_to_end_run_writes_disable_agent_view_into_a_profile(self) -> None:
+        """The real run writes the key into a drifted profile's settings.json."""
+        self.make_profile("work", self.drifted_settings())
+        self._run(dry_run=False)
+        self.assertIs(self.read_settings("work")["disableAgentView"], True)
 
 
 # ---------------------------------------------------------------------------

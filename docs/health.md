@@ -94,6 +94,10 @@ Verifies per-profile settings that claudewheel expects to be set:
 - `remoteControlAtStartup` must be `false` (otherwise Claude Code auto-connects
   Remote Control at startup and reports the attempt in every session)
 - `spinnerTipsEnabled` must be `false` (turns off the client's rotating tips)
+- `disableAgentView` must be `true` (otherwise a single left-arrow press on an
+  empty prompt moves the running session into a daemon-managed background
+  session and opens the agents view; setting it turns off `claude agents`,
+  `--bg`, `/background`, that gesture and the on-demand daemon together)
 - `permissions.disableAutoMode` must be `"disable"`
 - `claudewheel.disallowedTools` must contain all canonical disallowed tools
 - No inert top-level `disallowedTools` key (Claude Code ignores it at the
@@ -336,11 +340,12 @@ sections into exact agreement with the canonical model:
   entries added, non-canonical entries pruned.
 - **permissions.allow**: only entries in `ALLOW_CONFLICTS` are removed; all
   other allow entries are left alone. Nothing is ever added to allow.
-- **the canonical settings keys** (`defaults.CANONICAL_PROFILE_SETTINGS`:
-  `remoteControlAtStartup`, `spinnerTipsEnabled`): each made exactly equal to
-  its canonical value, at the top level of a profile's settings and inside
-  `profileDefaults` in `shared-settings.json`. The wizard's checkbox-driven
-  keys are deliberately not among them -- the user chooses those at creation.
+- **the canonical settings keys**: every key in
+  `defaults.CANONICAL_PROFILE_SETTINGS` -- which is the one list of them --
+  made exactly equal to its canonical value, at the top level of a profile's
+  settings and inside `profileDefaults` in `shared-settings.json`. The wizard's
+  checkbox-driven keys are deliberately not among them -- the user chooses
+  those at creation.
 
 Non-guardrail keys in each settings file are left untouched.
 

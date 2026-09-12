@@ -269,11 +269,11 @@ class SettingsFromCloneTests(CreateProfileTestBase):
 
     def test_a_clone_still_gets_the_canonical_settings_keys(self) -> None:
         """The clone path never sees profileDefaults, so the keys are applied
-        unconditionally -- including over a source that set them true."""
+        unconditionally -- including over a source that inverted every one."""
         source_dir = self.fake_home / ".claudewheel" / "profiles" / "source"
         source_dir.mkdir(parents=True)
         (source_dir / "settings.json").write_text(
-            json.dumps({k: True for k in CANONICAL_PROFILE_SETTINGS})
+            json.dumps({k: not v for k, v in CANONICAL_PROFILE_SETTINGS.items()})
         )
 
         result = _make_result(name="cloned3", clone_from="source")

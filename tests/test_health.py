@@ -516,20 +516,20 @@ class CheckSettingsDefaultsTests(_HomeDirTestCase):
                 self.assertIn(f"{key} != {value!r}", result.detail)
                 self.assertIn("claudewheel patch-profiles", result.detail)
 
-    def test_warn_when_a_canonical_settings_key_is_true(self) -> None:
+    def test_warn_when_a_canonical_settings_key_is_inverted(self) -> None:
         """A key set to the client's own default is drift, not agreement."""
         for key, value in CANONICAL_PROFILE_SETTINGS.items():
             with self.subTest(key=key):
-                pdir = self._make_profile(f"true-{key}")
+                pdir = self._make_profile(f"inverted-{key}")
                 settings = self._good_settings()
-                settings[key] = True
+                settings[key] = not value
                 self._write_settings(pdir, settings)
 
                 result = check_settings_defaults(self.ws)
                 self.assertFalse(result.ok)
                 self.assertIn(f"{key} != {value!r}", result.detail)
 
-    def test_ok_when_the_canonical_settings_keys_are_false(self) -> None:
+    def test_ok_when_the_canonical_settings_keys_are_canonical(self) -> None:
         """_good_settings() carries them; the check passes and names nothing."""
         pdir = self._make_profile("quiet")
         self._write_settings(pdir, self._good_settings())
@@ -538,6 +538,30 @@ class CheckSettingsDefaultsTests(_HomeDirTestCase):
         self.assertTrue(result.ok)
         for key in CANONICAL_PROFILE_SETTINGS:
             self.assertNotIn(key, result.detail)
+
+    def test_warn_when_disable_agent_view_is_missing(self) -> None:
+        """A profile with no disableAgentView key is reported by name."""
+        settings = self._good_settings()
+        self.assertIn("disableAgentView", settings)
+        del settings["disableAgentView"]
+        pdir = self._make_profile("noAgentView")
+        self._write_settings(pdir, settings)
+
+        result = check_settings_defaults(self.ws)
+        self.assertFalse(result.ok)
+        self.assertIn("disableAgentView != True", result.detail)
+        self.assertIn("claudewheel patch-profiles", result.detail)
+
+    def test_warn_when_disable_agent_view_is_false(self) -> None:
+        """A profile that turned the agent view back on is reported."""
+        settings = self._good_settings()
+        settings["disableAgentView"] = False
+        pdir = self._make_profile("agentViewOn")
+        self._write_settings(pdir, settings)
+
+        result = check_settings_defaults(self.ws)
+        self.assertFalse(result.ok)
+        self.assertIn("disableAgentView != True", result.detail)
 
     def test_warn_when_disallowed_tools_missing(self) -> None:
         """Returns WARN when claudewheel.disallowedTools is absent."""
