@@ -47,7 +47,7 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 - **claudewheel.plugins** (`claudewheel/plugins.py`): Claude Code's plugin tree inside a profile: inventory it, and remove it.
 - **claudewheel.preflight** (`claudewheel/preflight.py`): Pre-launch step framework: a deterministic sequence of gate steps.
 - **claudewheel.processes** (`claudewheel/processes.py`): Measure and stop the processes holding a profile.
-- **claudewheel.profile** (`claudewheel/profile.py`): Resolve a profile name to CLAUDE_CONFIG_DIR and OAuth token env vars.
+- **claudewheel.profile** (`claudewheel/profile.py`): Resolve a profile name to its launch environment (see ProfileStore.env).
 - **claudewheel.profile_data** (`claudewheel/profile_data.py`): claudewheel's own data, stored inside each profile directory.
 - **claudewheel.profile_info** (`claudewheel/profile_info.py`): Gather and format a detailed inspection report for a single profile.
 - **claudewheel.profile_ops** (`claudewheel/profile_ops.py`): Profile auth-shadow repair and running-state detection.
