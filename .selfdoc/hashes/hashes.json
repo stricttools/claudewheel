@@ -153,7 +153,7 @@
   "en/claudewheel-profile.md": {
     "content": "912b63113198ae7bf75a1f7e93eb44e1cd65892c713336d14cd193afce5602f4",
     "description": "542bb527d8ac6a6f89a6217fcf916c3b1c04043aedfe8fb14d6cd3d0b0fb3787",
-    "source_docstring": "57339e233de82733b8fae688540ec4a60f52081a7c29369d17be485e4337a113"
+    "source_docstring": "457c59a3b7c47a52ceabff76cd199930585de60da26bcd8e1f50cf5998532e2c"
   },
   "en/claudewheel-profile_data.md": {
     "content": "332d0de032be696ced75fd9384e86b23e133f0560bd90d9f3d19a809a1cd8ede",
@@ -406,7 +406,7 @@
     "source_docstring": "fe18bab92438b4b951c568eb30ffbf901e9f67cc2194d536a753c5dbd0934455"
   },
   "en/profiles.md": {
-    "content": "65c5997a6140b2bd535f1af4517c22074d76c0a7ebf7bf7ddb2df7c609fb78a6",
+    "content": "30271858f1bb9ef4f047a397b329a8356d74d008a4ec8eff8863c88e9d84520c",
     "description": "dcd41107a25aa47fc0add7b0039217e20f9219ae951aa51c2db7bb28ae99e9a9"
   },
   "en/theming.md": {
