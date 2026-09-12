@@ -26,3 +26,7 @@ launch through CLAUDE_CODE_DISABLE_TERMINAL_TITLE.
 # blog = false
 include = ["npm", "pypi"]
 exclude = []
+candidate_sha = "29ba2e859eb98462e2da65a5db11850c1831dbc6"
+
+[tree_hashes]
+"." = "efb596405ff21de37efca7343a53c462576f1d8d"
