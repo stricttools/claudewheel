@@ -2,6 +2,29 @@
 
 # Changelog
 
+## 0.31.0
+
+Every managed profile now disables Claude Code's agent view and its on-demand daemon, and every profile session launches without auto-generated session titles.
+
+<details>
+<summary>Context</summary>
+
+A single left-arrow press on an empty prompt in Claude Code 2.1.263 moves a
+running interactive session into a daemon-managed background session, opens
+the agents view and forces the fullscreen renderer, with no confirmation once
+the prompt has been idle. The canonical settings model now carries
+disableAgentView so patch-profiles and the launch health check keep it off
+everywhere. The auto-generated session title, which the same path promoted
+into a name shown on the prompt bar with no display switch, is turned off at
+launch through CLAUDE_CODE_DISABLE_TERMINAL_TITLE.
+
+</details>
+
+### Features
+
+- **Agent view disabled in every profile.** The canonical settings model now sets `disableAgentView: true`, so `patch-profiles` turns off Claude Code's agent view, `--bg`, `/background`, the left-arrow background gesture and the on-demand daemon in every managed profile, and the launch health check reports a profile that drifts from it.
+- **No auto-generated session titles.** Every profile session claudewheel launches now carries `CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1`, which stops Claude Code from generating a session title and from rewriting the terminal title; names set with `--name` or `/rename` still apply.
+
 ## 0.30.1
 
 The git stash guardrail no longer tells agents to park work in progress on a temporary branch.

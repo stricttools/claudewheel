@@ -1,5 +1,5 @@
 {
-  "version": "0.30.1",
+  "version": "0.31.0",
   "source": [
     {
       "path": "claudewheel/",
@@ -15,7 +15,7 @@
   "base_url": "https://claudewheel.smmh.dev",
   "versions": [
     {
-      "version": "0.30.1"
+      "version": "0.31.0"
     }
   ],
   "locales": [
