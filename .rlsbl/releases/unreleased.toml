@@ -2,11 +2,20 @@
 format_version = 1
 # Version bump type: patch, minor, major, infra, or prerelease
 #   prerelease: advance an existing pre-release (0.6.0-beta.0 -> -beta.1)
-bump = ""
+bump = "minor"
 # Short description of this release (required)
-description = ""
+description = "Every managed profile now disables Claude Code's agent view and its on-demand daemon, and every profile session launches without auto-generated session titles."
 # Optional context explaining why these changes were made
-context = ""
+context = """
+A single left-arrow press on an empty prompt in Claude Code 2.1.263 moves a
+running interactive session into a daemon-managed background session, opens
+the agents view and forces the fullscreen renderer, with no confirmation once
+the prompt has been idle. The canonical settings model now carries
+disableAgentView so patch-profiles and the launch health check keep it off
+everywhere. The auto-generated session title, which the same path promoted
+into a name shown on the prompt bar with no display switch, is turned off at
+launch through CLAUDE_CODE_DISABLE_TERMINAL_TITLE.
+"""
 # Pre-release channel: alpha, beta, rc, or stable (ordered;
 # demotion is an error). With patch/minor/major it ENTERS the
 # channel (0.5.2 + minor + alpha -> 0.6.0-alpha.0); with
