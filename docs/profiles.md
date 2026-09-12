@@ -460,10 +460,10 @@ variable injection:
   unchecking "Symlink to shared store" during creation, which gives it
   plain directories instead of symlinks.
 
-- **Launch-time injection**: at launch, only two environment variables
-  control profile selection: `CLAUDE_CONFIG_DIR` (points Claude Code at
-  the profile directory) and `CLAUDE_CODE_OAUTH_TOKEN` (injects the
-  stored token). No other state leaks between profiles.
+- **Launch-time injection**: at launch, a named profile receives exactly
+  the profile-owned environment variables (`PROFILE_ENV_KEYS`, listed under
+  "Token resolution at launch" above), and the vanilla `default` profile
+  has the same variables stripped. No other state leaks between profiles.
 
 ### Profile operations
 

@@ -1,4 +1,4 @@
-"""Resolve a profile name to CLAUDE_CONFIG_DIR and OAuth token env vars.
+"""Resolve a profile name to its launch environment (see ProfileStore.env).
 
 This module is a thin facade over the workspace stores
 (:class:`claudewheel.workspace.Workspace`). Its single public function,
@@ -29,11 +29,12 @@ from .workspace import Workspace
 def resolve_profile(name: str, *, workspace: Workspace | None = None) -> dict[str, str]:
     """Resolve a profile *name* to its launch environment variables.
 
-    For a named profile the result carries ``CLAUDE_CONFIG_DIR`` and
-    additionally carries ``CLAUDE_CODE_OAUTH_TOKEN`` when a token exists for
-    *name*. The ``"default"`` profile is the exception: it is Claude Code's own
-    ``~/.claude`` (managed by Claude Code, read-only to cw), so it resolves to
-    an EMPTY dict -- no ``CLAUDE_CONFIG_DIR`` and no token (the vanilla path).
+    For a named profile the result is the profile-owned launch environment
+    that :meth:`claudewheel.profile_store.ProfileStore.env` defines (the
+    config dir, the stored token when one exists, and the quieting switches;
+    that method's docstring is the one list). The ``"default"`` profile is
+    the exception: it is Claude Code's own ``~/.claude`` (managed by Claude
+    Code, read-only to cw), so it resolves to an EMPTY dict (the vanilla path).
 
     Contract:
 
