@@ -84,6 +84,7 @@ PROFILE_ENV_KEYS: tuple[str, ...] = (
     "CLAUDE_CODE_SUBSCRIPTION_TYPE",
     "CLAUDE_CODE_RATE_LIMIT_TIER",
     "CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL",
+    "CLAUDE_CODE_DISABLE_TERMINAL_TITLE",
     "DISABLE_AUTOUPDATER",
     "DISABLE_GROWTHBOOK",
 )
@@ -118,6 +119,16 @@ AUTOUPDATER_OFF = "1"
 # flag evaluation the client also disables Remote Control entirely. Parsed as a
 # truthy string. Undocumented client surface that could change in any release.
 GROWTHBOOK_OFF = "1"
+
+# The variable that stops Claude Code generating a session title. Left alone,
+# the client asks Haiku for a title of the session and then promotes that
+# generated string into the session name shown on the prompt bar, with no
+# display switch to turn the display off -- and auto-generated titles are not
+# wanted here. The variable also stops the client writing the terminal title.
+# Names set with ``--name`` or ``/rename`` are unaffected. Parsed as a truthy
+# string. Undocumented client surface that could change in any release
+# (verified against Claude Code 2.1.263).
+TERMINAL_TITLE_OFF = "1"
 
 
 @dataclass(frozen=True)
@@ -411,6 +422,14 @@ class ProfileStore:
         Remote Control, which is wanted here since the startup auto-connect is
         one of the things these launches are quieting. Both are undocumented
         client surface.
+
+        Every named profile also carries
+        ``CLAUDE_CODE_DISABLE_TERMINAL_TITLE``, which stops the client
+        generating a title of the session -- a Haiku-generated string the client
+        then promotes into the session name shown on the prompt bar, with no
+        display switch of its own -- and stops it writing the terminal title. A
+        name set with ``--name`` or ``/rename`` is unaffected. Undocumented
+        client surface as well.
         """
         if self._record_for(name) is None:
             available = sorted(n for n, _, _ in self._records())
@@ -428,6 +447,7 @@ class ProfileStore:
             "CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL": (
                 MARKETPLACE_AUTOINSTALL_OFF
             ),
+            "CLAUDE_CODE_DISABLE_TERMINAL_TITLE": TERMINAL_TITLE_OFF,
             "DISABLE_AUTOUPDATER": AUTOUPDATER_OFF,
             "DISABLE_GROWTHBOOK": GROWTHBOOK_OFF,
         }

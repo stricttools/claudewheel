@@ -1,6 +1,6 @@
 ---
 title: Profiles
-description: "How claudewheel profiles work: the ~/.claudewheel/ layout, profile discovery, the creation wizard, shared store symlinks, per-profile token storage inside each profile directory, declaring the account plan Claude Code needs, suppressing and purging the plugin marketplace, recoverable deletion through saferm with the limits of what a restore puts back, and the isolation model."
+description: "How claudewheel profiles work: the ~/.claudewheel/ layout, profile discovery, the creation wizard, shared store symlinks, per-profile token storage inside each profile directory, declaring the account plan Claude Code needs, suppressing and purging the plugin marketplace, the launch-environment switches that quiet the auto-updater, the feature-flag tip and auto-generated session titles, recoverable deletion through saferm with the limits of what a restore puts back, and the isolation model."
 nav_group: "Concepts"
 order: 4
 ---
@@ -273,6 +273,8 @@ environment variables:
   declared plan (see below)
 - `CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL` suppresses the plugin
   marketplace auto-install (see below)
+- `CLAUDE_CODE_DISABLE_TERMINAL_TITLE` stops the client generating a session
+  title (see below)
 - `DISABLE_AUTOUPDATER` stops the client updating itself (see below)
 - `DISABLE_GROWTHBOOK` turns off feature-flag evaluation (see below)
 
@@ -357,6 +359,20 @@ feature-flag evaluation for it. That removes the startup auto-connect and the
 key `remoteControlAtStartup: false` -- part of the canonical settings the
 reconciliation makes exact -- covers the same startup auto-connect from the
 profile's side.
+
+### Auto-generated session titles
+
+Left alone, Claude Code asks Haiku for a title of the session and then promotes
+that generated string into the session name shown on the prompt bar. There is
+no display switch for it -- the only lever is to stop the title being generated
+at all -- so every named profile launches with
+`CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1`. The same variable also stops the client
+rewriting the terminal's own title.
+
+A name set deliberately is unaffected: `--name` at launch and `/rename` inside
+a session both still apply. Like the variables above, this one is undocumented
+client surface that could change in any Claude Code release (the behavior here
+was verified against Claude Code 2.1.263).
 
 ### The declared plan
 

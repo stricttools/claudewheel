@@ -487,6 +487,12 @@ class LaunchEnvKeyTests(SandboxHomeTestCase):
         env = self._store().env("alpha")
         self.assertEqual(env["DISABLE_GROWTHBOOK"], "1")
 
+    def test_session_title_generation_is_disabled_for_a_named_profile(self) -> None:
+        p = self.make_profile("alpha", credentials=True)
+        write_token_entry(p, {"token": "tok"})
+        env = self._store().env("alpha")
+        self.assertEqual(env["CLAUDE_CODE_DISABLE_TERMINAL_TITLE"], "1")
+
     def test_suppression_does_not_depend_on_a_token(self) -> None:
         """Every named profile gets them, tokenless ones included."""
         self.make_profile("alpha", credentials=True)
@@ -494,6 +500,7 @@ class LaunchEnvKeyTests(SandboxHomeTestCase):
         self.assertIn("CLAUDE_CODE_DISABLE_OFFICIAL_MARKETPLACE_AUTOINSTALL", env)
         self.assertIn("DISABLE_AUTOUPDATER", env)
         self.assertIn("DISABLE_GROWTHBOOK", env)
+        self.assertIn("CLAUDE_CODE_DISABLE_TERMINAL_TITLE", env)
 
     def test_the_quieting_variables_are_declared_profile_owned(self) -> None:
         """Declared in PROFILE_ENV_KEYS, so the vanilla path strips them."""
@@ -501,6 +508,7 @@ class LaunchEnvKeyTests(SandboxHomeTestCase):
 
         self.assertIn("DISABLE_AUTOUPDATER", PROFILE_ENV_KEYS)
         self.assertIn("DISABLE_GROWTHBOOK", PROFILE_ENV_KEYS)
+        self.assertIn("CLAUDE_CODE_DISABLE_TERMINAL_TITLE", PROFILE_ENV_KEYS)
 
     def test_the_vanilla_profile_declares_nothing(self) -> None:
         (self.home / ".claude").mkdir(parents=True, exist_ok=True)
