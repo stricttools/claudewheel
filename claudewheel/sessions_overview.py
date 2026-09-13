@@ -409,6 +409,37 @@ def _refocus(rows: Sequence[SessionRow], session: str | None, focus: int) -> int
     return max(0, min(len(rows) - 1, focus))
 
 
+def _row_key(row: SessionRow) -> str | None:
+    """What identifies *row* across a re-gather, or None when nothing does.
+
+    The session id where there is one; otherwise the path of the registry file
+    the row was read from, which is what a row with no session id has instead.
+    A row with neither cannot be followed, and the caller drops it rather than
+    matching it to a neighbour.
+    """
+    if row.session is not None:
+        return row.session
+    if row.record is not None:
+        return str(row.record.path)
+    return None
+
+
+def _re_expand(rows: Sequence[SessionRow], key: str | None) -> int | None:
+    """Which row the details belong to after a re-gather, given whose they are.
+
+    By the same kind of key the focus is kept by, and for the same reason: the
+    details are one session's, so an index would leave them under whichever
+    session the re-gather put in that slot. A session that is no longer listed
+    collapses.
+    """
+    if key is None:
+        return None
+    for index, row in enumerate(rows):
+        if _row_key(row) == key:
+            return index
+    return None
+
+
 def run_overview(
     workspace: Workspace,
     *,
@@ -483,15 +514,21 @@ def run_overview(
 
     def regather() -> None:
         nonlocal rows, focus, now, expanded, swept
+        before = visible()
         keep = focused()
+        open_on = (
+            _row_key(before[expanded])
+            if expanded is not None and 0 <= expanded < len(before)
+            else None
+        )
         now = clock()
         rows, swept_now, _captured = gather_rows(
             workspace, now_ms=now, identity=identity
         )
         swept += swept_now
-        focus = _refocus(visible(), keep.session if keep is not None else None, focus)
-        if expanded is not None:
-            expanded = focus if focus >= 0 else None
+        shown = visible()
+        focus = _refocus(shown, keep.session if keep is not None else None, focus)
+        expanded = _re_expand(shown, open_on)
 
     with screen_session(terminal, True, render):
         render()

@@ -448,6 +448,46 @@ class NavigationTests(KeyLoopCase):
 
 
 class ExpandTests(KeyLoopCase):
+    def _three(self) -> list[str]:
+        """Three store-only rows, newest first, each named after its index."""
+        sessions = [STALE_SESSION, STORE_SESSION, OTHER_SESSION]
+        for index, session in enumerate(sessions):
+            self.started(session, at_ms=NOW_MS - (index + 1) * 1000)
+            self.named(session, f"row-{index}")
+            self.mark(session, "blocked")
+        return sessions
+
+    def test_a_refresh_keeps_the_details_under_the_row_they_belong_to(self) -> None:
+        # Expand the second row, move the focus off it, then refresh: the
+        # details belong to the session they were opened on, not to whatever
+        # the focus has since moved to.
+        sessions = self._three()
+        _outcome, terminal = self.run_screen(
+            ["DOWN", "ENTER", "DOWN", "r", "ESC"], cols=200
+        )
+        final = _frame_lines(terminal.output[-1])
+        self.assertTrue(any(f"session {sessions[1]}" in line for line in final))
+        self.assertFalse(any(f"session {sessions[2]}" in line for line in final))
+
+    def test_a_refresh_that_loses_the_expanded_row_collapses(self) -> None:
+        sessions = self._three()
+        terminal = FakeTerminal(["DOWN", "ENTER", "r", "ESC"])
+        original = terminal.read_key
+
+        def read_key() -> str:
+            key = original()
+            if key == "r":
+                # Arrives between the two gathers, so the expanded row is gone
+                # by the time the refresh looks for it again.
+                lifecycle.session_file(self.lifecycle_dir, sessions[1]).unlink()
+            return key
+
+        terminal.read_key = read_key  # type: ignore[method-assign]
+        _outcome, term = self.run_screen([], cols=200, terminal=terminal)
+        final = _frame_lines(term.output[-1])
+        for session in sessions:
+            self.assertFalse(any(f"session {session}" in line for line in final))
+
     def test_enter_opens_and_closes_the_detail_lines(self) -> None:
         self.started(STORE_SESSION, at_ms=NOW_MS - 1000)
         self.mark(STORE_SESSION, "blocked")
