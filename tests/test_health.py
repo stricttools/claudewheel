@@ -10,7 +10,11 @@ from typing import Any
 from unittest.mock import patch
 
 from claudewheel import guardrail, health
-from claudewheel.defaults import CANONICAL_PROFILE_SETTINGS, DISALLOWED_TOOLS
+from claudewheel.defaults import (
+    CANONICAL_PROFILE_SETTINGS,
+    DISALLOWED_TOOLS,
+    build_canonical_shared_settings,
+)
 from claudewheel.health import (
     _discover_profiles,
     check_auth_shadow,
@@ -228,21 +232,21 @@ class CheckHooksWiredTests(_HomeDirTestCase):
         (pdir / "settings.json").write_text(json.dumps(settings))
 
     def _good_settings(self) -> dict[str, Any]:
-        """Return settings with all four canonical hook wirings present.
+        """Return settings carrying every canonical hook wiring.
 
         Commands are rooted at the workspace's current scripts dir because
         hooks-wired now requires the exact canonical command, not a substring.
         """
         return self._settings_under(self.ws.scripts_dir)
 
-    def _three_hook_settings(self) -> dict[str, Any]:
-        """Return settings with only the three old hooks (no PostToolUse advise)."""
+    def _settings_without_advise(self) -> dict[str, Any]:
+        """Canonical hooks minus the PostToolUse advise wiring."""
         settings = self._good_settings()
         del settings["hooks"]["PostToolUse"]
         return settings
 
     def test_ok_when_all_hooks_present(self) -> None:
-        """Returns OK when all four canonical hook wirings are present."""
+        """Returns OK when every canonical hook wiring is present."""
         pdir = self._make_profile("hooked")
         self._write_settings(pdir, self._good_settings())
 
@@ -250,10 +254,10 @@ class CheckHooksWiredTests(_HomeDirTestCase):
         self.assertTrue(result.ok)
         self.assertIn("1 profiles OK", result.detail)
 
-    def test_warn_when_only_three_old_hooks(self) -> None:
-        """A profile with only the three old hooks fails, missing PostToolUse advise."""
-        pdir = self._make_profile("three-only")
-        self._write_settings(pdir, self._three_hook_settings())
+    def test_warn_when_advise_hook_missing(self) -> None:
+        """A profile with no PostToolUse section fails, naming the advise hook."""
+        pdir = self._make_profile("no-advise")
+        self._write_settings(pdir, self._settings_without_advise())
 
         result = check_hooks_wired(self.ws)
         self.assertFalse(result.ok)
@@ -324,46 +328,14 @@ class CheckHooksWiredTests(_HomeDirTestCase):
         self.assertIn("no profiles found", result.detail)
 
     def _settings_under(self, scripts_dir: str | Path) -> dict[str, Any]:
-        """Build all four canonical wirings with commands rooted at *scripts_dir*."""
-        scripts_dir = Path(scripts_dir)
-        return {
-            "hooks": {
-                "UserPromptSubmit": [
-                    {
-                        "matcher": "",
-                        "hooks": [
-                            {"command": str(scripts_dir / "hook-timestamp")},
-                        ],
-                    },
-                ],
-                "PreToolUse": [
-                    {
-                        "matcher": "Agent",
-                        "hooks": [
-                            {"command": str(scripts_dir / "hook-block-worktree")},
-                        ],
-                    },
-                    {
-                        "matcher": "Bash",
-                        "hooks": [
-                            {
-                                "command": str(
-                                    scripts_dir / "hook-block-unsafe-commands"
-                                )
-                            },
-                        ],
-                    },
-                ],
-                "PostToolUse": [
-                    {
-                        "matcher": "Bash",
-                        "hooks": [
-                            {"command": str(scripts_dir / "hook-advise-commands")},
-                        ],
-                    },
-                ],
-            }
-        }
+        """Build every canonical wiring with commands rooted at *scripts_dir*.
+
+        Derived from the canonical hooks rather than retyped, so a wiring added
+        to the guardrail model cannot leave this fixture behind -- a retyped
+        copy would silently stop being "a profile with nothing missing".
+        """
+        canonical = build_canonical_shared_settings(Path(scripts_dir))
+        return {"hooks": canonical["hooks"]}
 
     def test_warn_when_hooks_under_wrong_dir(self) -> None:
         """Right basenames under the WRONG scripts dir must FAIL hooks-wired.
@@ -394,6 +366,36 @@ class CheckHooksWiredTests(_HomeDirTestCase):
         post = check_hooks_wired(self.ws)
         self.assertTrue(post.ok)
         self.assertIn("1 profiles OK", post.detail)
+
+    def test_lifecycle_hooks_missing_then_present_after_reconcile(self) -> None:
+        """A profile with no session lifecycle hooks fails, and reconcile fixes it.
+
+        The two lifecycle wirings (SessionStart/SessionEnd) are what claudewheel
+        records a session's start and end through, and nothing in the launcher
+        writes them: the canonical reconciliation does. This pins the whole path
+        -- the check names them as missing, and one reconcile_profile_dict pass
+        makes the same check pass.
+        """
+        from claudewheel.reconcile import reconcile_profile_dict
+
+        pdir = self._make_profile("no-lifecycle")
+        settings = self._good_settings()
+        del settings["hooks"]["SessionStart"]
+        del settings["hooks"]["SessionEnd"]
+        self._write_settings(pdir, settings)
+
+        pre = check_hooks_wired(self.ws)
+        self.assertFalse(pre.ok)
+        self.assertIn("(SessionStart, , hook-session-start)", pre.detail)
+        self.assertIn("(SessionEnd, , hook-session-end)", pre.detail)
+
+        canonical = build_canonical_shared_settings(self.ws.scripts_dir)
+        changes = reconcile_profile_dict(settings, canonical)
+        self.assertTrue(changes)
+        self._write_settings(pdir, settings)
+
+        post = check_hooks_wired(self.ws)
+        self.assertTrue(post.ok, post.detail)
 
 
 # ---------------------------------------------------------------------------

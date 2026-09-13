@@ -460,14 +460,22 @@ ALLOW_CONFLICTS: tuple[str, ...] = (
 )
 
 
-# The four (event, matcher, script-name) hook wirings every profile must have.
-# Phase 4 (health / patch_profiles) verifies these against each profile's
-# settings hooks section.
+# Every (event, matcher, script-name) hook wiring a profile must have. Phase 4
+# (health / patch_profiles) verifies these against each profile's settings hooks
+# section, and defaults._build_canonical_hooks derives the settings entries from
+# them, so a wiring added here flows into deployment and verification alike.
+#
+# The SessionStart/SessionEnd pair is not a guardrail: it records what happened
+# to the session in claudewheel's lifecycle store (see claudewheel.lifecycle),
+# which is the only place a session's fate survives its process. It is wired
+# here because this tuple is the one list of hooks a profile carries.
 EXPECTED_HOOK_WIRINGS: tuple[tuple[str, str, str], ...] = (
     ("UserPromptSubmit", "", "hook-timestamp"),
     ("PreToolUse", "Agent", "hook-block-worktree"),
     ("PreToolUse", "Bash", "hook-block-unsafe-commands"),
     ("PostToolUse", "Bash", "hook-advise-commands"),
+    ("SessionStart", "", "hook-session-start"),
+    ("SessionEnd", "", "hook-session-end"),
 )
 
 

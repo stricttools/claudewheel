@@ -383,8 +383,17 @@ class DerivedDataTests(unittest.TestCase):
                 ("PreToolUse", "Agent", "hook-block-worktree"),
                 ("PreToolUse", "Bash", "hook-block-unsafe-commands"),
                 ("PostToolUse", "Bash", "hook-advise-commands"),
+                ("SessionStart", "", "hook-session-start"),
+                ("SessionEnd", "", "hook-session-end"),
             ),
         )
+
+    def test_every_wired_script_exists_in_the_registry(self) -> None:
+        """No wiring may name a script deploy-hooks cannot deploy."""
+        from claudewheel.hook_scripts import HOOK_SCRIPTS
+
+        for _event, _matcher, script in EXPECTED_HOOK_WIRINGS:
+            self.assertIn(script, HOOK_SCRIPTS)
 
 
 if __name__ == "__main__":  # pragma: no cover

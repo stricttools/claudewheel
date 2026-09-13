@@ -118,11 +118,13 @@ class _PatchProfilesTestCase(unittest.TestCase):
 class MergeHooksTests(_PatchProfilesTestCase):
     def test_appends_missing_bash_entry(self) -> None:
         c = self.canonical()
-        existing = {
-            "UserPromptSubmit": c["hooks"]["UserPromptSubmit"],
-            "PreToolUse": [c["hooks"]["PreToolUse"][0]],  # Agent only, missing Bash
-            "PostToolUse": c["hooks"]["PostToolUse"],
-        }
+        # Canonical minus exactly one entry -- the PreToolUse Bash matcher --
+        # derived rather than retyped, so a new canonical wiring does not turn
+        # "one missing entry" into several.
+        existing = json.loads(json.dumps(c["hooks"]))
+        existing["PreToolUse"] = [
+            e for e in existing["PreToolUse"] if e.get("matcher") != "Bash"
+        ]
         added = merge_hooks(existing, c["hooks"])
         self.assertEqual(len(added), 1)
         self.assertIn("hook-block-unsafe-commands", added[0])
