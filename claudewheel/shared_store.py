@@ -5,6 +5,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+# The machine-wide per-session lifecycle store (one <session-uuid>.jsonl per
+# Claude Code session). Deliberately NOT in SHARED_SUBDIRS: that tuple lists the
+# directories symlinked INTO each profile, and this one is never symlinked --
+# every profile's sessions are recorded in the same place, because the record
+# outlives the profile that launched the session.
+LIFECYCLE_DIRNAME = "lifecycle"
+
 
 @dataclass(frozen=True)
 class SharedStore:
@@ -33,6 +40,11 @@ class SharedStore:
     def projects_dir(self) -> Path:
         """Directory holding per-project session data (shared/projects)."""
         return self.shared_dir / "projects"
+
+    @property
+    def lifecycle_dir(self) -> Path:
+        """Directory holding the per-session lifecycle files (shared/lifecycle)."""
+        return self.shared_dir / LIFECYCLE_DIRNAME
 
     @property
     def inodes_file(self) -> Path:

@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
-from claudewheel.shared_store import SharedStore
+from claudewheel.shared_store import LIFECYCLE_DIRNAME, SharedStore
 
 
 # Representative paths exercising the codec: absolute, nested, dotfiles,
@@ -79,6 +79,12 @@ class SharedSubdirsTests(unittest.TestCase):
             ],
         )
 
+    def test_lifecycle_is_not_a_profile_subdir(self) -> None:
+        # The lifecycle store is machine-wide: one file per session, whichever
+        # profile launched it. SHARED_SUBDIRS is the list of directories
+        # symlinked INTO each profile, and it must not acquire this one.
+        self.assertNotIn(LIFECYCLE_DIRNAME, SharedStore.SHARED_SUBDIRS)
+
     def test_no_constants_import(self) -> None:
         # Guard: shared_store must remain a leaf that does not import constants.
         import claudewheel.shared_store as ss_mod
@@ -99,6 +105,10 @@ class PathPropertyTests(unittest.TestCase):
 
     def test_inodes_file(self) -> None:
         self.assertEqual(self.store.inodes_file, self.shared / "inodes.json")
+
+    def test_lifecycle_dir(self) -> None:
+        self.assertEqual(self.store.lifecycle_dir, self.shared / LIFECYCLE_DIRNAME)
+        self.assertEqual(self.store.lifecycle_dir, self.shared / "lifecycle")
 
     def test_subdir(self) -> None:
         self.assertEqual(self.store.subdir("tasks"), self.shared / "tasks")
