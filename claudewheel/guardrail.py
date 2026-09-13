@@ -13,7 +13,7 @@ It carries everything later phases need:
     to populate profile ``permissions`` and ``ALLOW_CONFLICTS`` to scrub dead
     or conflicting allow-array entries.
   - Phase 4 (health / patch) reads ``EXPECTED_HOOK_WIRINGS`` to verify each
-    profile wires the four hook entries correctly.
+    profile wires every declared hook entry correctly.
 
 The hook regex patterns are stored as PLAIN ERE text (Python raw strings,
 single-escaped). Translating them into a bash/grep template (with the extra
