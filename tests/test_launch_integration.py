@@ -55,6 +55,7 @@ class LaunchIntegrationTests(SandboxHomeTestCase):
                 [],
                 locator=self.locator,
                 profiles=self.profiles,
+                lifecycle_dir=self.ws.shared.lifecycle_dir,
             )
 
     def test_created_profile_is_discovered(self) -> None:

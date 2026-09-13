@@ -134,6 +134,7 @@ class ResolveThenDoLaunchEndToEndTests(SandboxHomeTestCase):
                 ["--verbose"],
                 locator=self.locator,
                 profiles=self.profiles,
+                lifecycle_dir=self.ws.shared.lifecycle_dir,
             )
 
         with (
@@ -182,6 +183,7 @@ class ResolveThenDoLaunchEndToEndTests(SandboxHomeTestCase):
                     [],
                     locator=self.locator,
                     profiles=self.profiles,
+                    lifecycle_dir=self.ws.shared.lifecycle_dir,
                 )
 
         self.assertEqual(env["CW_SENTINEL_VAR"], "sentinel-123")

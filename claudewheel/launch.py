@@ -43,6 +43,8 @@ def resolve_launch_config(
     client: str = "claude",
     clients_config: dict[str, Any] | None = None,
     passthrough: list[str] | None = None,
+    *,
+    lifecycle_dir: Path,
 ) -> tuple[str, list[str], dict[str, str]]:
     """Build (cwd, argv, env) for os.execvpe from TUI selections.
 
@@ -79,6 +81,15 @@ def resolve_launch_config(
 
     When *metadata* is provided (TUI path), use it for model lookups. When
     None (skip-TUI path), fall back to reading from *options_def*.
+
+    The env also carries the LAUNCH FACTS: ``CLAUDEWHEEL_LIFECYCLE_DIR``
+    (*lifecycle_dir*, where the session lifecycle store is) plus one
+    ``CLAUDEWHEEL_LAUNCH_*`` variable per selection claudewheel actually made.
+    The SessionStart/SessionEnd hook scripts read them, because a session cannot
+    otherwise tell which profile, version, model or permissions mode it was
+    launched with. A selection claudewheel did not make sets no variable -- and
+    clears an inherited one, so a launcher run from inside a launched session
+    never passes its parent's facts off as the child's.
     """
     # 1. Profile -> config dir + OAuth token (via ProfileStore; no metadata).
     #    The default (explicit or fallback) is vanilla: no config dir, no token.
@@ -132,6 +143,24 @@ def resolve_launch_config(
         env.update(profile_env)
     if gh_token:
         env["GH_TOKEN"] = gh_token
+
+    # 5b. The launch facts the lifecycle hooks read. These are claudewheel's own
+    #     statements about the launch, not profile-owned values, so the vanilla
+    #     default path carries them too. A fact claudewheel did not choose is
+    #     REMOVED rather than left inherited: a launcher started from inside a
+    #     launched session would otherwise hand the child its parent's profile.
+    launch_facts = {
+        "CLAUDEWHEEL_LAUNCH_PROFILE": profile,
+        "CLAUDEWHEEL_LAUNCH_VERSION": selections.get("version"),
+        "CLAUDEWHEEL_LAUNCH_MODEL": model_id,
+        "CLAUDEWHEEL_LAUNCH_PERMISSIONS": selections.get("permissions"),
+        "CLAUDEWHEEL_LIFECYCLE_DIR": str(lifecycle_dir),
+    }
+    for key, value in launch_facts.items():
+        if value:
+            env[key] = value
+        else:
+            env.pop(key, None)
 
     # 6. Argv -- delegated to the selected client adapter.
     adapter = CLIENT_ADAPTERS.get(client)

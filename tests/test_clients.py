@@ -40,6 +40,7 @@ class MiniclaudeAdapterTestBase(unittest.TestCase):
         self.profiles_dir = self.tmp / "profiles"
         self.profiles_dir.mkdir()
         self.claude_dir = self.tmp / ".claude"
+        self.lifecycle_dir = self.tmp / "shared" / "lifecycle"
 
         self.locator = BinaryLocator(
             versions_dir=self.versions_dir,
@@ -93,6 +94,7 @@ class MiniclaudeAdapterTestBase(unittest.TestCase):
                 client="miniclaude",
                 clients_config=clients_config,
                 passthrough=passthrough,
+                lifecycle_dir=self.lifecycle_dir,
             )
 
 
@@ -491,6 +493,7 @@ class UnknownClientTests(MiniclaudeAdapterTestBase):
                     locator=self.locator,
                     profiles=self.profiles,
                     client="bogus",
+                    lifecycle_dir=self.lifecycle_dir,
                 )
         self.assertIn("bogus", str(ctx.exception))
 

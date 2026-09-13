@@ -39,6 +39,7 @@ class ResolveLaunchConfigTestBase(unittest.TestCase):
         self.profiles_dir = self.tmp / "profiles"
         self.profiles_dir.mkdir()
         self.claude_dir = self.tmp / ".claude"
+        self.lifecycle_dir = self.tmp / "shared" / "lifecycle"
 
         self.locator = BinaryLocator(
             versions_dir=self.versions_dir,
@@ -87,6 +88,7 @@ class ResolveLaunchConfigTestBase(unittest.TestCase):
                 locator=locator or self.locator,
                 profiles=profiles or self.profiles,
                 extra_flags=extra_flags,
+                lifecycle_dir=self.lifecycle_dir,
             )
 
 
@@ -370,6 +372,92 @@ class ResolveTokenTests(ResolveLaunchConfigTestBase):
         with self.assertRaises(TokenStoreError) as ctx:
             self._resolve(selections={"profile": "work"})
         self.assertIn(str(path), str(ctx.exception))
+
+
+class ResolveLaunchFactEnvTests(ResolveLaunchConfigTestBase):
+    """The CLAUDEWHEEL_LAUNCH_* / CLAUDEWHEEL_LIFECYCLE_DIR launch facts.
+
+    These are what the SessionStart/SessionEnd hook scripts read: the session
+    itself cannot tell which profile, version, model or permissions mode
+    claudewheel picked for it, so claudewheel states each one it picked -- and
+    states nothing where it picked nothing.
+    """
+
+    def test_every_chosen_fact_reaches_the_env(self) -> None:
+        binary = self.versions_dir / "2.1.116"
+        binary.write_bytes(b"fake binary")
+        self._make_profile("work")
+
+        _, argv, env = self._resolve(
+            selections={
+                "profile": "work",
+                "version": "2.1.116",
+                "model": "opus",
+                "permissions": "bypass",
+            },
+            options_def={
+                "model": {"metadata": {"opus": {"model_id": "claude-opus-5"}}}
+            },
+        )
+
+        self.assertEqual(env["CLAUDEWHEEL_LAUNCH_PROFILE"], "work")
+        self.assertEqual(env["CLAUDEWHEEL_LAUNCH_VERSION"], "2.1.116")
+        self.assertEqual(env["CLAUDEWHEEL_LAUNCH_PERMISSIONS"], "bypass")
+        self.assertEqual(env["CLAUDEWHEEL_LIFECYCLE_DIR"], str(self.lifecycle_dir))
+        # The model fact is the RESOLVED id, the same string --model carries.
+        self.assertEqual(env["CLAUDEWHEEL_LAUNCH_MODEL"], "claude-opus-5")
+        self.assertEqual(argv[argv.index("--model") + 1], "claude-opus-5")
+
+    def test_unchosen_facts_are_absent_and_the_store_is_not(self) -> None:
+        """A selection claudewheel did not make sets no variable at all."""
+        _, _, env = self._resolve(
+            selections={
+                "profile": None,
+                "version": None,
+                "model": None,
+                "permissions": None,
+            }
+        )
+
+        for key in (
+            "CLAUDEWHEEL_LAUNCH_PROFILE",
+            "CLAUDEWHEEL_LAUNCH_VERSION",
+            "CLAUDEWHEEL_LAUNCH_MODEL",
+            "CLAUDEWHEEL_LAUNCH_PERMISSIONS",
+        ):
+            self.assertNotIn(key, env)
+        # The store's location is claudewheel's own, never a selection: the
+        # hooks must always know where to write.
+        self.assertEqual(env["CLAUDEWHEEL_LIFECYCLE_DIR"], str(self.lifecycle_dir))
+
+    def test_an_inherited_fact_is_not_passed_off_as_this_launch(self) -> None:
+        """A claudewheel launched from inside a launched session must not let the
+        parent's facts stand for the child's unmade selections."""
+        with mock.patch.dict(
+            os.environ,
+            {
+                "CLAUDEWHEEL_LAUNCH_PROFILE": "parent-profile",
+                "CLAUDEWHEEL_LAUNCH_MODEL": "parent-model",
+                "CLAUDEWHEEL_LIFECYCLE_DIR": "/ambient/lifecycle",
+            },
+        ):
+            _, _, env = self._resolve(selections={"profile": None, "model": None})
+
+        self.assertNotIn("CLAUDEWHEEL_LAUNCH_PROFILE", env)
+        self.assertNotIn("CLAUDEWHEEL_LAUNCH_MODEL", env)
+        self.assertEqual(env["CLAUDEWHEEL_LIFECYCLE_DIR"], str(self.lifecycle_dir))
+
+    def test_the_vanilla_default_profile_still_states_its_facts(self) -> None:
+        """The facts are claudewheel's own, not profile-owned: the vanilla path
+        strips CLAUDE_CONFIG_DIR and the token, and keeps these."""
+        _, _, env = self._resolve(
+            selections={"profile": "default", "permissions": "bypass"}
+        )
+
+        self.assertNotIn("CLAUDE_CONFIG_DIR", env)
+        self.assertEqual(env["CLAUDEWHEEL_LAUNCH_PROFILE"], "default")
+        self.assertEqual(env["CLAUDEWHEEL_LAUNCH_PERMISSIONS"], "bypass")
+        self.assertEqual(env["CLAUDEWHEEL_LIFECYCLE_DIR"], str(self.lifecycle_dir))
 
 
 if __name__ == "__main__":

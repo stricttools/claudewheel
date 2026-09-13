@@ -221,6 +221,7 @@ def _do_launch_sequence(
             client=client,
             clients_config=cfg.config.get("clients", {}),
             passthrough=passthrough,
+            lifecycle_dir=ws.shared.lifecycle_dir,
         )
         # Nothing is written into the profile's config dir here. The plan-tier
         # fields reach Claude Code through the launch environment (see
