@@ -19,18 +19,17 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
-from claudewheel import cli
+from claudewheel import cli, guardrail
 from claudewheel.defaults import DISALLOWED_TOOLS, build_canonical_shared_settings
 from claudewheel.health import check_relocated_hook_paths
 from claudewheel.patch_profiles import merge_hooks, run_patch_profiles
 from claudewheel.reconcile import MalformedSettingsError
 from tests.wheelhelpers import build_profile_dir
 
-_CANONICAL_SCRIPT_NAMES = (
-    "hook-timestamp",
-    "hook-block-worktree",
-    "hook-block-unsafe-commands",
-    "hook-advise-commands",
+# Every script a canonical hook wiring names, derived from the guardrail model
+# so a new wiring cannot leave a retyped copy of this list behind.
+_CANONICAL_SCRIPT_NAMES = tuple(
+    script for _event, _matcher, script in guardrail.EXPECTED_HOOK_WIRINGS
 )
 
 # The three disallowedTools entries most recently added to canonical.
@@ -261,11 +260,9 @@ class RunPatchProfilesTests(_PatchProfilesTestCase):
 
         self._run_patch()
 
-        for name in (
-            "hook-timestamp",
-            "hook-block-worktree",
-            "hook-block-unsafe-commands",
-        ):
+        # Every script a canonical wiring names: a wiring whose script is never
+        # deployed points at nothing on disk.
+        for name in _CANONICAL_SCRIPT_NAMES:
             self.assertTrue(
                 (self.scripts_dir / name).exists(), f"{name} should be deployed"
             )
