@@ -218,7 +218,7 @@
   "en/claudewheel-session_list.md": {
     "content": "fa57fbf5360da708544d26829a5fb46bb3ee817eda033a7cb5c170cff008866b",
     "description": "b6428e2cd34eb19ee7c2d27cc09d3ec5012ccae12c7e435e61d26a5a5542ad90",
-    "source_docstring": "71f32f85e42c100b6dffc0bc0016ad001b49fb16981ca4d1866cf4a45d680641"
+    "source_docstring": "571a1a284c5f0f186466a955fe5ef0e8c9c044487b317f48a3c241035e731893"
   },
   "en/claudewheel-session_registry.md": {
     "content": "0486585a854d87b39e3a73f4deac0a57b70ed7d977aaf51efe9c4059cd228a3e",
@@ -228,12 +228,12 @@
   "en/claudewheel-session_rows.md": {
     "content": "1b917e134ac5857362cf88a10461efcd9b462fdf3dc1c6e91e44191b51f3aa86",
     "description": "f0d241694fa8e1ce0cba5c62607b032619eb8e8dfba416edacece648d75d8e6e",
-    "source_docstring": "2b3efd9afadca7d77ef10633d168f555dbe84520b91405bbccc34e30bdc08509"
+    "source_docstring": "9b7dd533c3b5664f26553499078ef62b718e521c6d6897883cfcec66d62da293"
   },
   "en/claudewheel-sessions_overview.md": {
     "content": "80c5f61cf0fc2702ecea5d34e9d4654dc8cb69c71bf727034eb1bc90923c47ac",
     "description": "4f23d50e12f888379a64ecf943c2cb4bcc47b7242e14239dd8a25adde7b892a4",
-    "source_docstring": "efe581b445e810a7c7d8f622a8fbde81b138b9322f508590ce350b9baf59d372"
+    "source_docstring": "f45099f2a08f6be3e6219465eb4ee636bba6e71943a36a441ab5b3c943dcdbe6"
   },
   "en/claudewheel-sessions_table.md": {
     "content": "158fbe0bb98ac714144c4f152a362501cb6fbfba56232a17934cecf30b775f09",
