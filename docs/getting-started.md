@@ -1,6 +1,6 @@
 ---
 title: Getting Started
-description: "Install claudewheel, create your first profile, understand the segment bar and its sessions overview, work with a model list that keeps itself current from the Anthropic API -- including models dimmed because they need a newer Claude Code than you are launching -- and launch a Claude Code session with the right model, context window, and permissions."
+description: "Install claudewheel, create your first profile, understand the segment bar and the machine-wide sessions table behind its S key, work with a model list that keeps itself current from the Anthropic API -- including models dimmed because they need a newer Claude Code than you are launching -- and launch a Claude Code session with the right model, context window, and permissions."
 nav_group: "Guides"
 order: 2
 ---
@@ -98,22 +98,30 @@ The segment bar is the core of the claudewheel interface -- a horizontal row of 
 - **Tab** -- accept the current fuzzy match and advance to the next segment.
 - **Backspace** -- delete a search or edit character. On a non-empty selected value, enters edit mode.
 - **Esc** -- cancel the in-progress search or edit.
-- **S** (uppercase) -- open the sessions overview for the selected profile.
+- **S** (uppercase) -- open the machine-wide sessions overview.
 - **Enter** -- launch Claude Code with the current selections.
 - **q / Ctrl-C** -- quit without launching.
 
-An uppercase `S` typed with nothing in the search buffer no longer starts a fuzzy search -- it opens the sessions overview described below. Lowercase `s` still searches, and inside an in-progress search `S` is an ordinary character again.
+An uppercase `S` typed with nothing in the search buffer does not start a fuzzy search -- it opens the sessions overview described below. Lowercase `s` still searches, and inside an in-progress search `S` is an ordinary character again.
 
 ### The sessions overview
 
-Uppercase `S` opens a scrolling list of every Claude Code session registered under the profile currently selected in the bar -- its name, working directory, uptime, resident memory, and a marker on the session you are sitting in. The focused row expands to its pid, session id and Claude Code version.
+Uppercase `S` opens a framed table of **every Claude Code session on this machine**, one row per session: every profile claudewheel discovers is read, the vanilla `default` profile included, and so is every session recorded in the lifecycle store under `~/.claudewheel/shared/lifecycle/`. The selection in the bar does not narrow it. The columns are name, state, kind, working directory, Claude Code version, model, how long ago the session started, and resident memory in MiB; a `*` marks the session you are sitting in.
 
-The screen is a snapshot taken when it opens: nothing re-reads the registry under the cursor, so rows never renumber while you move through them.
+A session's state comes from whichever store can answer. Where a process is still running it is Claude Code's own status -- `working`, `idle`, `shell`, `waiting`, or `unverified` when the process identity could not be checked against the kernel. Where nothing is running it is what claudewheel recorded: `starting` for a session that has only just begun, `crashed` for one that died without saying so, `exited` for one that ended cleanly, or the mark you gave it. A running process always wins over a recorded mark. The finished states, `done` and `exited`, are hidden until you press `a`.
 
-- **Up / Down** -- move the focus.
-- **r** -- re-read the registry into a fresh snapshot.
-- **p** -- prune: delete the registry files left behind by sessions whose processes are provably gone (a crash, a `kill -9`, a reboot). Both the process and the file are re-checked at that moment, so a session that started while the screen was open is never pruned.
+The screen is a snapshot taken when it opens: nothing re-reads either store under the cursor, so rows never renumber while you move through them.
+
+- **Up / Down**, **Page Up / Page Down**, **Home / End** -- move the focus.
+- **Left / Right** -- scroll the columns sideways when the terminal is narrower than the table. The handle along the bottom border shows how much of it you are seeing.
+- **Enter** -- expand the focused row into three more lines: its session id, its pid, profile, name source and config directory, and its transcript path.
+- **a** -- show the finished sessions as well, and hide them again.
+- **m** -- mark the focused session, then **h** for on hold, **b** for blocked, **d** for done, or **c** to clear the mark. A mark is your own word about a session nothing is running; any other key cancels.
+- **p** -- prune: delete the registry files left behind by the sessions that crashed (a `kill -9`, a reboot). Both the process and the file are re-checked at that moment, so a session that started while the screen was open is never pruned.
+- **r** -- read both stores again.
 - **q / Esc** -- close the overview and return to the segment bar.
+
+Opening the screen also records two things, both idempotent: an `ended` event for any session that died without writing one, and the display name of each live session -- the registry is the only place that name exists, and it goes away with the process.
 
 ### Fan-out display
 
