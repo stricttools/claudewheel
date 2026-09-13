@@ -1,8 +1,7 @@
 ---
 title: claudewheel.strictspec_gen.lifecycle_event_validator
-description: "API reference for the claudewheel.strictspec_gen.lifecycle_event_validator module — auto-generated documentation covering public functions, classes, and type signatures."
+description: "The generated validator for one session lifecycle line: the format_version marker, the kind arm set, every field type and the rejection of unknown keys."
 generated: true
-seeded: true
 nav_group: "API Reference"
 nav_order: 52
 ---

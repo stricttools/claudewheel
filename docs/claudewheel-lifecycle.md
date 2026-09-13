@@ -1,8 +1,7 @@
 ---
 title: claudewheel.lifecycle
-description: "The per-session lifecycle store: what happened to one Claude Code session."
+description: "The per-session lifecycle store: an append-only JSONL record of every Claude Code session's start, end, name and user mark, one file per session."
 generated: true
-seeded: true
 nav_group: "API Reference"
 nav_order: 24
 ---

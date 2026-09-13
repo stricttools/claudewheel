@@ -1,8 +1,7 @@
 ---
 title: claudewheel.strictspec_gen
-description: "strictspec-generated validators."
+description: "The strictspec-generated validators claudewheel checks its own JSONL records with: machine-written from the schemas, regenerated, never hand-edited."
 generated: true
-seeded: true
 nav_group: "API Reference"
 nav_order: 51
 ---
