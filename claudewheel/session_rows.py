@@ -1,11 +1,11 @@
 """Render one session registry record as a block of lines, collapsed or expanded.
 
-Two screens show the same list of processes holding a profile: the sessions
-overview, and the checklist deletion presents of everything holding the profile
-it is about to remove.  They differ in what they *do* with a row, not in what a
-row looks like, so the formatting lives here once: a
+The block form the deletion checklist lists the processes holding a profile in
+(through :mod:`claudewheel.session_list`): a
 :class:`~claudewheel.session_registry.SessionRecord` in, a tuple of plain text
 lines out, with no colour, no terminal and no clock of its own.
+:func:`format_uptime` and the identity helpers below are shared more widely --
+the machine-wide sessions table reads them too, though it draws its own rows.
 
 Block heights are fixed per state, because they are what
 :func:`claudewheel.vertical_viewport.compute_viewport` scrolls over:

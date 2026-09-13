@@ -551,7 +551,7 @@ class App:
         return None
 
     def _h_main_sessions(self, key: str) -> str | None:
-        """Handle 'S': open the sessions overview for the selected profile."""
+        """Handle 'S': open the machine-wide sessions overview."""
         self._show_sessions_overview()
         return None
 
@@ -1001,8 +1001,8 @@ class App:
             # the S first, exactly as the delete and inspect bindings above are
             # placed ahead of them for the same reason. The condition is only
             # "nothing typed": lowercase s still searches, and the overview is
-            # about the selected profile, not the focused segment, so it opens
-            # from anywhere on the bar.
+            # machine-wide rather than about any one segment, so it opens from
+            # anywhere on the bar.
             Binding(
                 keys=frozenset({"S"}),
                 label="S: sessions",
@@ -1376,12 +1376,11 @@ class App:
             )
 
     def _show_sessions_overview(self) -> None:
-        """Show the sessions registered under the SELECTED profile.
+        """Show every Claude Code session on this machine.
 
-        The selected profile, not the focused segment: the key opens from
-        anywhere on the bar, and the profile segment is where the answer lives
-        either way. With no profile selected there is no registry to read, so
-        the screen is not opened at all and the bar says why.
+        Machine-wide, so no segment decides anything: the table covers every
+        profile the workspace discovers plus every session the lifecycle store
+        recorded, and the key opens it from anywhere on the bar.
 
         The app's terminal stays raw -- the overview renders borrowed in the
         existing alt screen, like every other fullscreen surface here -- and the
@@ -1390,22 +1389,16 @@ class App:
         from .session_rows import current_identity
         from .sessions_overview import run_overview
 
-        profile = next((s for s in self.bar.segments if s.key == "profile"), None)
-        name = profile.value if profile is not None else None
-        if not name:
-            self._flash = "No profile selected"
-            return
-
         outcome = run_overview(
-            self.workspace.profiles.path_for(name),
-            profile_name=name,
+            self.workspace,
             theme=self.theme,
             terminal=self.terminal,
             clock=lambda: int(time.time() * 1000),
             identity=current_identity(os.environ),
+            home=os.path.expanduser("~"),
         )
         if outcome.pruned:
-            self._flash = f"Pruned {len(outcome.pruned)} stale session record(s)"
+            self._flash = f"Pruned {len(outcome.pruned)} crashed record(s)"
 
     def _resolve_archiver(self, name: str) -> "Saferm | None":
         """The archiving tool this deletion will use, or None to abort.

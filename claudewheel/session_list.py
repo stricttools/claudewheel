@@ -1,11 +1,14 @@
-"""The list component both session screens are drawn with.
+"""The scrolling column of session blocks the deletion checklist is drawn with.
 
-Two screens show the same column of session blocks: the checklist deletion
-presents of everything holding a profile, and the sessions overview.  They
-differ in what a key does, not in how the column looks or scrolls, so the
-looking and the scrolling live here once -- built on
-:func:`claudewheel.vertical_viewport.compute_viewport` for the arithmetic and
-:func:`claudewheel.session_rows.format_row` for the text.
+One screen uses it: the checklist deletion presents of everything holding a
+profile (:mod:`claudewheel.deletion_checklist`).  The looking and the scrolling
+are kept here rather than inside that screen, so the block layout is testable on
+its own -- built on :func:`claudewheel.vertical_viewport.compute_viewport` for
+the arithmetic and :func:`claudewheel.session_rows.format_row` for the text.
+
+The machine-wide sessions screen is a different presentation entirely -- a
+framed table of one line per session (:mod:`claudewheel.sessions_table`) -- and
+borrows only :func:`move_focus` from here.
 
 The frame builder is pure: rows, dimensions, a clock and an identity in, a list
 of :class:`FrameLine` out.  Each line carries a *style* naming what it is
@@ -14,9 +17,9 @@ for its state line), and :func:`render_frame` is the only place a style becomes
 an escape sequence.  That split is what lets the whole layout -- scrolling,
 clipping, truncation, the current-session mark -- be tested without a terminal.
 
-A screen owns its own key loop.  What it does with a row (tick it, stop it,
-prune it) is the screen's business; getting the right lines onto the right
-rows of a window that may be too short is this module's.
+A screen owns its own key loop.  What it does with a row (tick it, stop it) is
+the screen's business; getting the right lines onto the right rows of a window
+that may be too short is this module's.
 """
 
 from __future__ import annotations
