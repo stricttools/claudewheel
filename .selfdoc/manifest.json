@@ -3919,28 +3919,185 @@
         },
         {
           "level": 3,
-          "text": "`Snapshot`",
-          "anchor": "snapshot"
-        },
-        {
-          "level": 3,
           "text": "`OverviewOutcome`",
           "anchor": "overviewoutcome"
         },
         {
           "level": 3,
-          "text": "`take_snapshot`",
-          "anchor": "take_snapshot"
+          "text": "`style_sequence`",
+          "anchor": "style_sequence"
         },
         {
           "level": 3,
-          "text": "`refocus`",
-          "anchor": "refocus"
+          "text": "`draw`",
+          "anchor": "draw"
+        },
+        {
+          "level": 3,
+          "text": "`_verified`",
+          "anchor": "_verified"
+        },
+        {
+          "level": 3,
+          "text": "`_recordable`",
+          "anchor": "_recordable"
+        },
+        {
+          "level": 3,
+          "text": "`_row_for_record`",
+          "anchor": "_row_for_record"
+        },
+        {
+          "level": 3,
+          "text": "`_row_for_lifecycle`",
+          "anchor": "_row_for_lifecycle"
+        },
+        {
+          "level": 3,
+          "text": "`gather_rows`",
+          "anchor": "gather_rows"
+        },
+        {
+          "level": 3,
+          "text": "`_crashed_records`",
+          "anchor": "_crashed_records"
+        },
+        {
+          "level": 3,
+          "text": "`_refocus`",
+          "anchor": "_refocus"
         },
         {
           "level": 3,
           "text": "`run_overview`",
           "anchor": "run_overview"
+        }
+      ]
+    },
+    {
+      "path": "claudewheel-sessions_table.md",
+      "title": "claudewheel.sessions_table",
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.sessions_table",
+          "anchor": "claudewheelsessions_table"
+        },
+        {
+          "level": 2,
+          "text": "`claudewheel.sessions_table`",
+          "anchor": "claudewheelsessions_table"
+        },
+        {
+          "level": 3,
+          "text": "`state_style`",
+          "anchor": "state_style"
+        },
+        {
+          "level": 3,
+          "text": "`SessionRow`",
+          "anchor": "sessionrow"
+        },
+        {
+          "level": 3,
+          "text": "`Span`",
+          "anchor": "span"
+        },
+        {
+          "level": 3,
+          "text": "`Frame`",
+          "anchor": "frame"
+        },
+        {
+          "level": 3,
+          "text": "`_Spec`",
+          "anchor": "_spec"
+        },
+        {
+          "level": 3,
+          "text": "`sort_rows`",
+          "anchor": "sort_rows"
+        },
+        {
+          "level": 3,
+          "text": "`visible_rows`",
+          "anchor": "visible_rows"
+        },
+        {
+          "level": 3,
+          "text": "`tildify`",
+          "anchor": "tildify"
+        },
+        {
+          "level": 3,
+          "text": "`_truncate`",
+          "anchor": "_truncate"
+        },
+        {
+          "level": 3,
+          "text": "`cells`",
+          "anchor": "cells"
+        },
+        {
+          "level": 3,
+          "text": "`_widths`",
+          "anchor": "_widths"
+        },
+        {
+          "level": 3,
+          "text": "`_pad`",
+          "anchor": "_pad"
+        },
+        {
+          "level": 3,
+          "text": "`_strip_cells`",
+          "anchor": "_strip_cells"
+        },
+        {
+          "level": 3,
+          "text": "`_joint_line`",
+          "anchor": "_joint_line"
+        },
+        {
+          "level": 3,
+          "text": "`_clip`",
+          "anchor": "_clip"
+        },
+        {
+          "level": 3,
+          "text": "`_cut`",
+          "anchor": "_cut"
+        },
+        {
+          "level": 3,
+          "text": "`_handle`",
+          "anchor": "_handle"
+        },
+        {
+          "level": 3,
+          "text": "`_detail_lines`",
+          "anchor": "_detail_lines"
+        },
+        {
+          "level": 3,
+          "text": "`_row_line`",
+          "anchor": "_row_line"
+        },
+        {
+          "level": 3,
+          "text": "`labels`",
+          "anchor": "labels"
+        },
+        {
+          "level": 3,
+          "text": "`_clipped_text`",
+          "anchor": "_clipped_text"
+        },
+        {
+          "level": 3,
+          "text": "`layout`",
+          "anchor": "layout"
         }
       ]
     },
@@ -6206,6 +6363,6 @@
     }
   ],
   "posts": [],
-  "last_gen": "2026-09-13T01:23:16.580191+00:00",
+  "last_gen": "2026-09-13T01:48:57.619630+00:00",
   "theme": "minimal"
 }

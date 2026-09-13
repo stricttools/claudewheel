@@ -54,24 +54,32 @@ Keys:
 - Tab -- accept the current fuzzy match and advance to the next segment
 - Backspace -- delete a search/edit character (on a non-empty selected value, starts edit mode)
 - Esc -- cancel the in-progress search or edit
-- `S` (uppercase) -- open the sessions overview for the selected profile (see below)
+- `S` (uppercase) -- open the machine-wide sessions overview (see below)
 - Enter -- launch
 - q or Ctrl-C -- quit without launching
 
 Search shows the matched characters in the search-match colour. The search buffer turns red when no option matches.
 
-An uppercase `S` typed with nothing in the search buffer no longer seeds a fuzzy search -- it opens the sessions overview. Lowercase `s` still searches, and once a search is in progress `S` is an ordinary character again.
+An uppercase `S` typed with nothing in the search buffer does not seed a fuzzy search -- it opens the sessions overview. Lowercase `s` still searches, and once a search is in progress `S` is an ordinary character again.
 
 ## The sessions overview
 
-Press uppercase `S` from anywhere on the bar to list every Claude Code session registered under the *selected profile* -- name, working directory, uptime, resident memory, and the session you are sitting in marked. The focused row expands to show its pid, session id and Claude Code version.
+Press uppercase `S` from anywhere on the bar to see **every Claude Code session on this machine** as a framed table -- one row per session, gathered across every profile claudewheel discovers (the vanilla `default` profile included) plus every session recorded in the lifecycle store under `~/.claudewheel/shared/lifecycle/`. Nothing on the bar decides what it shows. The columns are the session's name, its state, its kind, its working directory, the Claude Code version, the model, how long ago it started, and its resident memory in MiB; the session you are sitting in is marked with a `*`.
 
-It is a snapshot, not a live monitor: the registry is read when the screen opens and nothing refreshes under the cursor.
+The state is the registry's own status wherever a process is still running (`working`, `idle`, `shell`, `waiting`, or `unverified` when the process identity could not be checked) and what the lifecycle store recorded otherwise: `starting`, `crashed`, `exited`, or the mark you gave it (`on-hold`, `blocked`, `done`). A running process always beats a recorded mark. Finished sessions -- `done` and `exited` -- are hidden until you ask for them.
 
-- Up / Down -- move the focus (clamped, never wrapping)
-- `r` -- re-read the registry into a new snapshot
-- `p` -- prune: delete the registry files of the sessions whose processes are provably gone. Liveness and file identity are both re-checked at that moment, so a session that started while the screen was open keeps its file
+It is a snapshot, not a live monitor: both stores are read when the screen opens and again only when you ask, so nothing renumbers under the cursor.
+
+- Up / Down, Page Up / Page Down, Home / End -- move the focus (clamped, never wrapping)
+- Left / Right -- scroll the columns sideways, for a terminal narrower than the table
+- Enter -- expand the focused row into its session id, pid, profile, config directory and transcript path
+- `a` -- show the finished sessions too, and hide them again
+- `m`, then `h` / `b` / `d` / `c` -- mark the focused session on hold, blocked or done, or clear its mark
+- `p` -- prune: delete the registry files of the sessions that crashed. Liveness and file identity are both re-checked at that moment, so a session that started while the screen was open keeps its file
+- `r` -- read both stores again
 - `q` or Esc -- close and return to the segment bar
+
+Opening the screen also writes two things into the lifecycle store, both idempotent: an end for every session that died without recording one, and the display name of each live session, which exists nowhere else once its process is gone.
 
 ## Client selection
 

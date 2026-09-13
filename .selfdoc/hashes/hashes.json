@@ -118,7 +118,6 @@
   "en/claudewheel-lifecycle.md": {
     "content": "e157b2614bce0e224d30bb80e388d5d2f7e07399afad835a54ca13637100dc4b",
     "description": "4348136cb370310e338ed3348c0878d8c79229ea0e28804ae097cc0315ce9b3e",
-    "seed_hash": "f1a2428a68b32e4b98e32d2708f87de335bc331a49bd176375836b58d68982a7",
     "source_docstring": "baea87b5eb5ea742bb703875c26457a0c9719cf3b7a4963937aad2378f449773"
   },
   "en/claudewheel-migrate.md": {
@@ -236,6 +235,11 @@
     "description": "56414aaeee853cee7e0e56f7d793731558f5cad36c92469f00907df4918b2b8e",
     "source_docstring": "efe581b445e810a7c7d8f622a8fbde81b138b9322f508590ce350b9baf59d372"
   },
+  "en/claudewheel-sessions_table.md": {
+    "content": "158fbe0bb98ac714144c4f152a362501cb6fbfba56232a17934cecf30b775f09",
+    "description": "98675188b8313724020f118e723d290edb3dbe71e992d6f8fefa702b4762517f",
+    "seed_hash": "98675188b8313724020f118e723d290edb3dbe71e992d6f8fefa702b4762517f"
+  },
   "en/claudewheel-shared_store.md": {
     "content": "76677400b8845fa21b2ac4884c8c1a332769516052bfb202754898c50b9feb62",
     "description": "ef53b0563a748e0608084f919d1d6db14bd4a4250b84dc7c8a65d7b7d541589c",
@@ -253,13 +257,11 @@
   },
   "en/claudewheel-strictspec_gen-lifecycle_event_validator.md": {
     "content": "1edc2a7d55dd30d726e057a88de801d0f625f17c876a20417446afe5d8d9cf9b",
-    "description": "835fb8fb3408bf1f08a43debf1b5bd89bc3033340fc7e1c62e8a7cfb75c6d257",
-    "seed_hash": "8fd59ef0376b044465e2d057f073d26d66627182ef8b8957d4bf6e592402a145"
+    "description": "835fb8fb3408bf1f08a43debf1b5bd89bc3033340fc7e1c62e8a7cfb75c6d257"
   },
   "en/claudewheel-strictspec_gen.md": {
     "content": "c9285aaafece2499d5562e749939f0f5acc9d8558aac9c165e5439f790dae935",
     "description": "62a28b2b7a72650a6d4822b07c6c8244ca693dd78467d41df5f7b1be0e5a9be6",
-    "seed_hash": "a3d938f60993d885ed0a26a4d448ca1e0ffbe56ddfede269828998a7b212c022",
     "source_docstring": "338f64fb94645a93998d791d5bdfa893594a54a3160ee69e279b8602eed71ea3"
   },
   "en/claudewheel-terminal.md": {
@@ -401,9 +403,9 @@
     "description": "84aec6c3a090c8c277496b729bab04b3dcb5fb7a3729c3006f307ad9ddb345a3"
   },
   "en/gen-index.md": {
-    "content": "d3c87e38986e33f4e061f0e80d705987984bdbe7a14a8d3e779be0da8fef28ff",
-    "description": "e11cec9f07b16b689eb075424601d0029909f13768474ff90397c831364c9b72",
-    "seed_hash": "e11cec9f07b16b689eb075424601d0029909f13768474ff90397c831364c9b72"
+    "content": "c3d57d9c83a18b8257a16945888537c81463167cd57f5e3228a89dd4899be927",
+    "description": "7b97d5e8bec75549756a1ce90f742ccae4451066ff18ab895c31605acc961028",
+    "seed_hash": "7b97d5e8bec75549756a1ce90f742ccae4451066ff18ab895c31605acc961028"
   },
   "en/getting-started.md": {
     "content": "43f744dd66456977867a20226dffcd37873d895d6f1228bf6c28a927d5f6b61b",

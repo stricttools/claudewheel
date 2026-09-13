@@ -60,10 +60,11 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 - **claudewheel.scratchpad** (`claudewheel/scratchpad.py`): Scan the per-user Claude Code scratchpad tree under /tmp for stale data.
 - **claudewheel.segment** (`claudewheel/segment.py`): Segment and SegmentBar dataclasses, option discovery, and cross-segment constraints.
 - **claudewheel.session** (`claudewheel/session.py`): Session lookup: locate session JSONL files and extract metadata.
-- **claudewheel.session_list** (`claudewheel/session_list.py`): The list component both session screens are drawn with.
+- **claudewheel.session_list** (`claudewheel/session_list.py`): The scrolling column of session blocks the deletion checklist is drawn with.
 - **claudewheel.session_registry** (`claudewheel/session_registry.py`): Read Claude Code's per-session registry into typed, liveness-checked records.
 - **claudewheel.session_rows** (`claudewheel/session_rows.py`): Render one session registry record as a block of lines, collapsed or expanded.
-- **claudewheel.sessions_overview** (`claudewheel/sessions_overview.py`): Every Claude Code session registered under a profile, on one scrolling screen.
+- **claudewheel.sessions_overview** (`claudewheel/sessions_overview.py`): Every Claude Code session on this machine, on one framed scrolling table.
+- **claudewheel.sessions_table** (`claudewheel/sessions_table.py`): Lay every Claude Code session on this machine out as one framed table.
 - **claudewheel.shared_store** (`claudewheel/shared_store.py`): Thin path owner for the ~/.claudewheel/shared store layout.
 - **claudewheel.state** (`claudewheel/state.py`): Persist launch state (selections, counts, recent dirs) and project inodes.
 - **claudewheel.stats** (`claudewheel/stats.py`): Report shared-store statistics and clean up legacy data.
