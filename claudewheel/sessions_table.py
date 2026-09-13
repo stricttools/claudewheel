@@ -192,19 +192,23 @@ class _Spec:
 
     ``fixed`` is a width the content cannot change.  Otherwise the column is
     *natural*: as wide as its longest cell (never narrower than its own label),
-    clamped between ``minimum`` and ``maximum``.
+    floored at ``minimum`` and capped at ``maximum`` -- and a ``maximum`` of
+    ``None`` is no cap at all, for a column whose cells must never be cut.
     """
 
     label: str
     fixed: int | None = None
     minimum: int = 0
-    maximum: int = 0
+    maximum: int | None = None
     align_right: bool = False
     truncate_left: bool = False
 
 
 #: The columns, in order.  State is as wide as the longest state name, so the
-#: column cannot be outgrown by a state added to the lifecycle model.
+#: column cannot be outgrown by a state added to the lifecycle model.  Started
+#: takes whatever its longest cell asks for and is capped at nothing: an age is
+#: already the shortest spelling of itself, so cutting one ("23h 59m a…") would
+#: destroy the value rather than abbreviate it.
 SPECS: tuple[_Spec, ...] = (
     _Spec("Name", minimum=8, maximum=40),
     _Spec("State", fixed=max(len(state) for state in STATES)),
@@ -212,7 +216,7 @@ SPECS: tuple[_Spec, ...] = (
     _Spec("Directory", minimum=10, maximum=40, truncate_left=True),
     _Spec("Version", fixed=7),
     _Spec("Model", maximum=24),
-    _Spec("Started", fixed=10),
+    _Spec("Started"),
     _Spec("MiB", fixed=5, align_right=True),
 )
 
@@ -329,7 +333,8 @@ def _widths(table: Sequence[Sequence[str]]) -> tuple[int, ...]:
         natural = max(
             [len(spec.label)] + [len(row[index]) for row in table],
         )
-        widths.append(max(spec.minimum, min(spec.maximum, natural)))
+        width = max(spec.minimum, natural)
+        widths.append(width if spec.maximum is None else min(spec.maximum, width))
     return tuple(widths)
 
 

@@ -159,6 +159,20 @@ class CellTests(unittest.TestCase):
         self.assertEqual(self._cells(_row())[6], "1h 0m ago")
         self.assertEqual(self._cells(_row(started_ms=None))[6], "unknown")
 
+    def test_a_long_age_is_never_truncated(self) -> None:
+        # The longest ages the formatter produces: just under a day, and a
+        # three-digit day count.  Both are longer than the label, so a column
+        # sized for "Started" alone would cut them.
+        rows = [
+            _row(name="almost-a-day", started_ms=NOW_MS - 86_340_000),
+            _row(name="ancient", started_ms=NOW_MS - 8_640_000_000),
+        ]
+        drawn = [
+            [cell.strip() for cell in line.strip("│").split("│")][6]
+            for line in _lines(_layout(rows, width=200))[3:5]
+        ]
+        self.assertEqual(drawn, ["23h 59m ago", "100d 0h ago"])
+
     def test_memory_is_rounded_to_whole_mebibytes(self) -> None:
         self.assertEqual(self._cells(_row(rss_kib=1024))[7], "1")
         self.assertEqual(self._cells(_row(rss_kib=1536))[7], "2")
@@ -195,12 +209,17 @@ class CellTests(unittest.TestCase):
 
 class HorizontalScrollTests(unittest.TestCase):
     def _wide(self) -> list[SessionRow]:
-        """Rows whose columns add up to a strip of 129 columns."""
+        """Rows whose columns add up to a strip of 129 columns.
+
+        Started is a natural column, so the age pinned here ("10h 0m ago") is
+        part of that width just as the name and the directory are.
+        """
         return [
             _row(
                 name="n" * 18,
                 cwd="/home/m/" + "x" * 80,
                 model="opus",
+                started_ms=NOW_MS - 36_000_000,
             )
         ]
 
