@@ -1,8 +1,7 @@
 ---
 title: claudewheel.sessions_table
-description: "Lay every Claude Code session on this machine out as one framed table."
+description: "Lays every Claude Code session on the machine out as one framed table of styled spans, with both scrollbars drawn into its borders and no terminal in sight."
 generated: true
-seeded: true
 nav_group: "API Reference"
 nav_order: 48
 ---

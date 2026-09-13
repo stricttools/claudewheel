@@ -217,7 +217,7 @@
   },
   "en/claudewheel-session_list.md": {
     "content": "fa57fbf5360da708544d26829a5fb46bb3ee817eda033a7cb5c170cff008866b",
-    "description": "c0045d95b1b3c32f7904f1416bea2253a290a473b2acb0632483f988c9148a42",
+    "description": "b6428e2cd34eb19ee7c2d27cc09d3ec5012ccae12c7e435e61d26a5a5542ad90",
     "source_docstring": "71f32f85e42c100b6dffc0bc0016ad001b49fb16981ca4d1866cf4a45d680641"
   },
   "en/claudewheel-session_registry.md": {
@@ -227,18 +227,17 @@
   },
   "en/claudewheel-session_rows.md": {
     "content": "1b917e134ac5857362cf88a10461efcd9b462fdf3dc1c6e91e44191b51f3aa86",
-    "description": "8bd2e245b64ff35d6d64c299e2d13272cb94846b44e2d55fc16edef4c221a5b3",
+    "description": "f0d241694fa8e1ce0cba5c62607b032619eb8e8dfba416edacece648d75d8e6e",
     "source_docstring": "2b3efd9afadca7d77ef10633d168f555dbe84520b91405bbccc34e30bdc08509"
   },
   "en/claudewheel-sessions_overview.md": {
     "content": "80c5f61cf0fc2702ecea5d34e9d4654dc8cb69c71bf727034eb1bc90923c47ac",
-    "description": "56414aaeee853cee7e0e56f7d793731558f5cad36c92469f00907df4918b2b8e",
+    "description": "4f23d50e12f888379a64ecf943c2cb4bcc47b7242e14239dd8a25adde7b892a4",
     "source_docstring": "efe581b445e810a7c7d8f622a8fbde81b138b9322f508590ce350b9baf59d372"
   },
   "en/claudewheel-sessions_table.md": {
     "content": "158fbe0bb98ac714144c4f152a362501cb6fbfba56232a17934cecf30b775f09",
-    "description": "98675188b8313724020f118e723d290edb3dbe71e992d6f8fefa702b4762517f",
-    "seed_hash": "98675188b8313724020f118e723d290edb3dbe71e992d6f8fefa702b4762517f",
+    "description": "94ca0a4b9c63acc479621afafedc846d00451c4e3cb7916362de9b56a543417d",
     "source_docstring": "593eb18ffa5531711a0631816f18c26cfb8ec70218c6a7f983e5b582f7cf34e6"
   },
   "en/claudewheel-shared_store.md": {
@@ -409,8 +408,8 @@
     "seed_hash": "7b97d5e8bec75549756a1ce90f742ccae4451066ff18ab895c31605acc961028"
   },
   "en/getting-started.md": {
-    "content": "43f744dd66456977867a20226dffcd37873d895d6f1228bf6c28a927d5f6b61b",
-    "description": "b5a15db6b3dffc82531c8541b2a2dd72c7b531adccfe970200fb59ce621ce12e"
+    "content": "741011e03216c715ce76e6b1969a5c4ccafcdf04dda57102de5b352858d7f7b8",
+    "description": "f74cf1ae70dab24e4743abd25647b9facf4c45fdc54920698a8598358a351939"
   },
   "en/guardrails.md": {
     "content": "d3861ccf45504e680e3a7b620d21bf29a280f8ba30c85f899b001dd00ccdf0f7",

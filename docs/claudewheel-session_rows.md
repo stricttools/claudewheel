@@ -1,6 +1,6 @@
 ---
 title: claudewheel.session_rows
-description: "Turns a session registry record into a fixed-height block of lines, and marks the row belonging to the session the reader is sitting in."
+description: "Turns a session registry record into a fixed-height block of lines for the deletion checklist, and marks the row belonging to the session the reader is sitting in."
 generated: true
 nav_group: "API Reference"
 nav_order: 46

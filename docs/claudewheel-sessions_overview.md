@@ -1,6 +1,6 @@
 ---
 title: claudewheel.sessions_overview
-description: "Lists every session registered under a profile as a snapshot the user refreshes by hand, and prunes the registry files whose processes are provably gone."
+description: "Joins every profile's session registry with the machine-wide lifecycle store into one scrolling table, and marks, prunes and re-reads what it lists."
 generated: true
 nav_group: "API Reference"
 nav_order: 47
