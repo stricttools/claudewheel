@@ -117,7 +117,7 @@
   },
   "en/claudewheel-lifecycle.md": {
     "content": "e157b2614bce0e224d30bb80e388d5d2f7e07399afad835a54ca13637100dc4b",
-    "description": "f1a2428a68b32e4b98e32d2708f87de335bc331a49bd176375836b58d68982a7",
+    "description": "4348136cb370310e338ed3348c0878d8c79229ea0e28804ae097cc0315ce9b3e",
     "seed_hash": "f1a2428a68b32e4b98e32d2708f87de335bc331a49bd176375836b58d68982a7",
     "source_docstring": "baea87b5eb5ea742bb703875c26457a0c9719cf3b7a4963937aad2378f449773"
   },
@@ -253,12 +253,12 @@
   },
   "en/claudewheel-strictspec_gen-lifecycle_event_validator.md": {
     "content": "1edc2a7d55dd30d726e057a88de801d0f625f17c876a20417446afe5d8d9cf9b",
-    "description": "8fd59ef0376b044465e2d057f073d26d66627182ef8b8957d4bf6e592402a145",
+    "description": "835fb8fb3408bf1f08a43debf1b5bd89bc3033340fc7e1c62e8a7cfb75c6d257",
     "seed_hash": "8fd59ef0376b044465e2d057f073d26d66627182ef8b8957d4bf6e592402a145"
   },
   "en/claudewheel-strictspec_gen.md": {
     "content": "c9285aaafece2499d5562e749939f0f5acc9d8558aac9c165e5439f790dae935",
-    "description": "a3d938f60993d885ed0a26a4d448ca1e0ffbe56ddfede269828998a7b212c022",
+    "description": "62a28b2b7a72650a6d4822b07c6c8244ca693dd78467d41df5f7b1be0e5a9be6",
     "seed_hash": "a3d938f60993d885ed0a26a4d448ca1e0ffbe56ddfede269828998a7b212c022",
     "source_docstring": "338f64fb94645a93998d791d5bdfa893594a54a3160ee69e279b8602eed71ea3"
   },
