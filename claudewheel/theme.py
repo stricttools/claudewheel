@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from .constants import fg_rgb, bg_rgb
+from .lifecycle import STATES
 
 
 def parse_hex(hex_str: str | None) -> tuple[int, int, int] | None:
@@ -63,6 +64,19 @@ class ThemeColors:
     forms_hint_fg: str = ""
     forms_cursor_fg: str = ""
     forms_readonly_fg: str = ""
+    # Sessions table colors
+    sessions_frame_fg: str = ""
+    sessions_header_fg: str = ""
+    sessions_row_fg: str = ""
+    sessions_focus_bg: str = ""
+    sessions_focus_fg: str = ""
+    sessions_detail_fg: str = ""
+    sessions_hint_fg: str = ""
+    sessions_message_fg: str = ""
+    # One entry per claudewheel.lifecycle state, keyed by the state name as it
+    # is written (hyphen included, e.g. "on-hold"). Always complete: a theme
+    # declaring none still gets every key, mapped to the empty sequence.
+    sessions_state_fg: dict[str, str] = field(default_factory=dict)
 
 
 def parse_theme(theme_dict: dict[str, Any]) -> ThemeColors:
@@ -82,6 +96,14 @@ def parse_theme(theme_dict: dict[str, Any]) -> ThemeColors:
     search = theme_dict.get("search", {})
     overflow = theme_dict.get("overflow", {})
     forms = theme_dict.get("forms", {})
+    sessions = theme_dict.get("sessions", {})
+
+    # The state colours are derived from the state list, never hand-listed: a
+    # state added to claudewheel.lifecycle gets a key here without an edit.
+    sessions_state_fg = {
+        state: _hex_to_fg(sessions.get(f"state_{state.replace('-', '_')}_fg"))
+        for state in STATES
+    }
 
     return ThemeColors(
         global_fg=_hex_to_fg(g.get("fg")),
@@ -106,4 +128,13 @@ def parse_theme(theme_dict: dict[str, Any]) -> ThemeColors:
         forms_hint_fg=_hex_to_fg(forms.get("hint_fg")),
         forms_cursor_fg=_hex_to_fg(forms.get("cursor_fg")),
         forms_readonly_fg=_hex_to_fg(forms.get("readonly_fg")),
+        sessions_frame_fg=_hex_to_fg(sessions.get("frame_fg")),
+        sessions_header_fg=_hex_to_fg(sessions.get("header_fg")),
+        sessions_row_fg=_hex_to_fg(sessions.get("row_fg")),
+        sessions_focus_bg=_hex_to_bg(sessions.get("focus_bg")),
+        sessions_focus_fg=_hex_to_fg(sessions.get("focus_fg")),
+        sessions_detail_fg=_hex_to_fg(sessions.get("detail_fg")),
+        sessions_hint_fg=_hex_to_fg(sessions.get("hint_fg")),
+        sessions_message_fg=_hex_to_fg(sessions.get("message_fg")),
+        sessions_state_fg=sessions_state_fg,
     )
