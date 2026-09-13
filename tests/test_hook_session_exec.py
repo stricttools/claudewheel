@@ -32,6 +32,12 @@ SESSION = "4d97ca01-9d56-4f49-8047-77f5160febde"
 START = "hook-session-start"
 END = "hook-session-end"
 
+# Registry values carrying every character a tab-separated extraction would
+# have mangled: a tab, a newline, a carriage return, a backslash and quotes.
+TRICKY_NAME = 'tab\there "quoted" back\\slash\nnewline\rcarriage'
+TRICKY_SOURCE = "derived\tpeer"
+TRICKY_VERSION = "2.1.263\tbuild\\x"
+
 
 def setUpModule() -> None:
     """Both scripts are bash + jq; without either there is nothing to exercise."""
@@ -114,14 +120,18 @@ class _SessionHookCase(unittest.TestCase):
         name: str,
         payload: dict[str, Any] | str,
         env: dict[str, str] | None = None,
+        home: bool = True,
     ) -> subprocess.CompletedProcess[str]:
-        """Run hook script *name* with *payload* on stdin under a clean env."""
+        """Run hook script *name* with *payload* on stdin under a clean env.
+
+        With ``home=False`` the child gets no HOME at all, the way a system
+        service or a stripped cron environment runs one.
+        """
         script = self.root / name
         script.write_text(HOOK_SCRIPTS[name])
-        full_env = {
-            "HOME": str(self.home),
-            "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
-        }
+        full_env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin")}
+        if home:
+            full_env["HOME"] = str(self.home)
         full_env.update(env or {})
         stdin = payload if isinstance(payload, str) else json.dumps(payload)
         return subprocess.run(
@@ -270,6 +280,36 @@ class SessionStartHookTests(_SessionHookCase):
         assert isinstance(started, StartedEvent)
         self.assertIsNone(started.pid)
 
+    def test_registry_values_round_trip_byte_for_byte(self) -> None:
+        """A name full of tabs, newlines and backslashes arrives unchanged."""
+        self.write_registry(
+            name=TRICKY_NAME, name_source=TRICKY_SOURCE, version=TRICKY_VERSION
+        )
+        env = {**self.launch_env(), "CLAUDE_CONFIG_DIR": str(self.config_dir)}
+        del env["CLAUDEWHEEL_LAUNCH_VERSION"]  # so the registry version is used
+        proc = self.run_hook(START, start_payload(), env)
+        self.assert_clean(proc)
+
+        events = self.events()
+        self.assertEqual(len(events), 2, events)
+        started, named = events
+        assert isinstance(started, StartedEvent)
+        self.assertEqual(started.claude_version, TRICKY_VERSION)
+        assert isinstance(named, NamedEvent)
+        self.assertEqual(named.name, TRICKY_NAME)
+        self.assertEqual(named.name_source, TRICKY_SOURCE)
+
+    def test_compact_does_not_create_the_lifecycle_directory(self) -> None:
+        """Nothing on disk is touched before the early exit."""
+        proc = self.run_hook(START, start_payload("compact"), self.launch_env())
+        self.assert_clean(proc)
+        self.assertFalse(self.lifecycle_dir.exists())
+
+    def test_unrecognized_source_does_not_create_the_lifecycle_directory(self) -> None:
+        proc = self.run_hook(START, start_payload("teleport"), self.launch_env())
+        self.assertEqual(proc.returncode, 1)
+        self.assertFalse(self.lifecycle_dir.exists())
+
 
 class SessionEndHookTests(_SessionHookCase):
     """hook-session-end: the `ended` line, preceded by a `named` line."""
@@ -311,6 +351,63 @@ class SessionEndHookTests(_SessionHookCase):
         self.assertEqual(proc.returncode, 1)
         self.assertTrue(proc.stderr.strip())
         self.assertEqual(list(self.lifecycle_dir.glob("*")), [])
+
+    def test_registry_values_round_trip_byte_for_byte(self) -> None:
+        self.write_registry(name=TRICKY_NAME, name_source=TRICKY_SOURCE)
+        proc = self.run_hook(
+            END,
+            end_payload(),
+            {**self.launch_env(), "CLAUDE_CONFIG_DIR": str(self.config_dir)},
+        )
+        self.assert_clean(proc)
+
+        events = self.events()
+        self.assertEqual(len(events), 2, events)
+        named = events[0]
+        assert isinstance(named, NamedEvent)
+        self.assertEqual(named.name, TRICKY_NAME)
+        self.assertEqual(named.name_source, TRICKY_SOURCE)
+
+
+class SessionHookEnvironmentTests(_SessionHookCase):
+    """Both scripts diagnose an environment they cannot resolve a path from."""
+
+    def payload_for(self, name: str) -> dict[str, Any]:
+        return start_payload() if name == START else end_payload()
+
+    def assert_one_line_failure(
+        self, proc: subprocess.CompletedProcess[str], name: str, message: str
+    ) -> None:
+        self.assertEqual(proc.returncode, 1)
+        self.assertEqual(proc.stdout, "")
+        self.assertTrue(proc.stderr.startswith(f"{name}: "), proc.stderr)
+        self.assertIn(message, proc.stderr)
+        self.assertEqual(proc.stderr.count("\n"), 1, proc.stderr)
+
+    def test_unset_home_fails_on_the_lifecycle_directory(self) -> None:
+        """No HOME and no claudewheel root: the hook's own message, not bash's."""
+        for name in (START, END):
+            with self.subTest(hook=name):
+                proc = self.run_hook(name, self.payload_for(name), {}, home=False)
+                self.assert_one_line_failure(
+                    proc, name, "cannot resolve the lifecycle directory"
+                )
+                self.assertFalse(self.lifecycle_dir.exists())
+
+    def test_unset_home_fails_on_the_config_directory(self) -> None:
+        """The store is declared, but the Claude Code config dir is not."""
+        for name in (START, END):
+            with self.subTest(hook=name):
+                proc = self.run_hook(
+                    name,
+                    self.payload_for(name),
+                    {"CLAUDEWHEEL_LIFECYCLE_DIR": str(self.lifecycle_dir)},
+                    home=False,
+                )
+                self.assert_one_line_failure(
+                    proc, name, "cannot resolve the config directory"
+                )
+                self.assertFalse(self.lifecycle_dir.exists())
 
 
 class SessionHookAppendTests(_SessionHookCase):

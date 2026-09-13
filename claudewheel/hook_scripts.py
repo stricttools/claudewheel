@@ -13,8 +13,8 @@ from claudewheel import guardrail
 from . import effects
 
 # The two lifecycle hooks are held in raw strings: their bash contains
-# backslash escapes of its own (``IFS=$'\t'``, ``tr -d ' \n'``) that a regular
-# Python string would eat before bash ever saw them.
+# backslash escapes of its own (``tr -d ' \n'``, ``printf '%s\n'``) that a
+# regular Python string would eat before bash ever saw them.
 #
 # Everything from `set -uo pipefail` down to `exit 0` in the first script is
 # repeated verbatim in the second, on purpose: a deployed hook is ONE file that
@@ -53,35 +53,55 @@ session=$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null)
 
 # Where the store is: claudewheel says so outright when it launched the session;
 # otherwise this mirrors Workspace.default() -- the CLAUDEWHEEL_CONFIG_DIR root,
-# or ~/.claudewheel.
-lifecycle_dir="${CLAUDEWHEEL_LIFECYCLE_DIR:-${CLAUDEWHEEL_CONFIG_DIR:-$HOME/.claudewheel}/shared/lifecycle}"
-mkdir -p "$lifecycle_dir" 2>/dev/null || fail "cannot create $lifecycle_dir"
+# or ~/.claudewheel. An environment with none of the three (a stripped service
+# env with no HOME) is the hook's own diagnostic, not bash's unbound-variable
+# abort. Nothing is created here: the store is touched only once every check
+# below has passed.
+lifecycle_dir="${CLAUDEWHEEL_LIFECYCLE_DIR:-}"
+if [[ -z "$lifecycle_dir" ]]; then
+    cw_root="${CLAUDEWHEEL_CONFIG_DIR:-${HOME:+${HOME}/.claudewheel}}"
+    [[ -n "$cw_root" ]] ||
+        fail 'cannot resolve the lifecycle directory: set CLAUDEWHEEL_LIFECYCLE_DIR, CLAUDEWHEEL_CONFIG_DIR or HOME'
+    lifecycle_dir="$cw_root/shared/lifecycle"
+fi
 file="$lifecycle_dir/$session.jsonl"
 
-config_dir="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+config_dir="${CLAUDE_CONFIG_DIR:-${HOME:+${HOME}/.claude}}"
+[[ -n "$config_dir" ]] ||
+    fail 'cannot resolve the config directory: set CLAUDE_CONFIG_DIR or HOME'
 
 # Claude Code's own per-session registry, which holds the display name, the pid
 # and the client version while the process lives. No directory, or no record for
-# this session, leaves every field empty, and the line then says null.
-reg_name=""
-reg_name_source=""
-reg_pid=""
-reg_version=""
+# this session, leaves every field null.
+#
+# Each value is carried as JSON TEXT (`"a\tb"`, `4242`, `null`) from the record
+# straight into the final jq's --argjson, so a name holding a tab, a newline or a
+# backslash is never decoded, re-encoded or split by the shell on its way to the
+# line.
+reg_name=null
+reg_name_source=null
+reg_pid=null
+reg_version=null
 if [[ -d "$config_dir/sessions" ]]; then
     for record in "$config_dir"/sessions/*.json; do
         [[ -f "$record" ]] || continue
-        found=$(jq -r --arg s "$session" \
-            'select(.sessionId == $s)
-             | [(.name // ""), (.nameSource // ""), ((.pid // "") | tostring), (.version // "")]
-             | @tsv' "$record" 2>/dev/null)
-        if [[ -n "$found" ]]; then
-            IFS=$'\t' read -r reg_name reg_name_source reg_pid reg_version <<<"$found"
-            break
-        fi
+        match=$(jq -r --arg s "$session" \
+            'if .sessionId == $s then "yes" else "no" end' "$record" 2>/dev/null)
+        [[ "$match" == "yes" ]] || continue
+        reg_name=$(jq -c '.name // null' "$record" 2>/dev/null)
+        reg_name_source=$(jq -c '.nameSource // null' "$record" 2>/dev/null)
+        # A pid reaches the line as a JSON number or not at all.
+        reg_pid=$(jq -c 'if (.pid|type) == "number" then .pid else null end' \
+            "$record" 2>/dev/null)
+        reg_version=$(jq -c '.version // null' "$record" 2>/dev/null)
+        break
     done
 fi
-# A pid reaches the line as a JSON number or not at all.
-[[ "$reg_pid" =~ ^[0-9]+$ ]] || reg_pid=""
+# A jq that failed mid-read leaves its variable empty, which is not JSON.
+[[ -n "$reg_name" ]] || reg_name=null
+[[ -n "$reg_name_source" ]] || reg_name_source=null
+[[ -n "$reg_pid" ]] || reg_pid=null
+[[ -n "$reg_version" ]] || reg_version=null
 
 event_id=""
 event_at=""
@@ -109,14 +129,16 @@ append() {
 
 append_named() {
     local line
-    [[ -n "$reg_name" ]] || return 0
+    # No name, or an empty one, is no `named` line. Both tests are against the
+    # JSON text, which is why '""' is spelled out.
+    [[ "$reg_name" != null && "$reg_name" != '""' ]] || return 0
     mint
     line=$(jq -cn \
         --arg id "$event_id" \
         --arg at "$event_at" \
         --arg session "$session" \
-        --arg name "$reg_name" \
-        --arg name_source "$reg_name_source" \
+        --argjson name "$reg_name" \
+        --argjson name_source "$reg_name_source" \
         '{format_version: 1, id: $id, at: $at, session: $session,
           source: "hook", kind: "named", name: $name,
           name_source: (if $name_source == "" then null else $name_source end)}' \
@@ -141,9 +163,8 @@ transcript=$(printf '%s' "$input" | jq -r '.transcript_path // empty' 2>/dev/nul
 # What claudewheel chose beats what the session reports, because claudewheel
 # chose it. The version and the model have a second source (the registry, and
 # the payload); a profile and a permissions mode do not -- their absence means
-# claudewheel did not launch this session.
-claude_version="${CLAUDEWHEEL_LAUNCH_VERSION:-}"
-[[ -n "$claude_version" ]] || claude_version="$reg_version"
+# claudewheel did not launch this session. The registry version stays JSON text
+# so it is never decoded, which is why jq picks between the two rather than bash.
 model="${CLAUDEWHEEL_LAUNCH_MODEL:-}"
 [[ -n "$model" ]] || model=$(printf '%s' "$input" | jq -r '.model // empty' 2>/dev/null)
 
@@ -155,21 +176,27 @@ started=$(jq -cn \
     --arg cwd "$cwd" \
     --arg config_dir "$config_dir" \
     --arg profile "${CLAUDEWHEEL_LAUNCH_PROFILE:-}" \
-    --arg claude_version "$claude_version" \
+    --arg launch_version "${CLAUDEWHEEL_LAUNCH_VERSION:-}" \
+    --argjson reg_version "$reg_version" \
     --arg model "$model" \
     --arg permissions "${CLAUDEWHEEL_LAUNCH_PERMISSIONS:-}" \
     --arg entry "$entry" \
     --arg transcript "$transcript" \
-    --argjson pid "${reg_pid:-null}" \
+    --argjson pid "$reg_pid" \
     '{format_version: 1, id: $id, at: $at, session: $session,
       source: "hook", kind: "started", cwd: $cwd, config_dir: $config_dir,
       profile: (if $profile == "" then null else $profile end),
-      claude_version: (if $claude_version == "" then null else $claude_version end),
+      claude_version: (if $launch_version != "" then $launch_version
+                       elif $reg_version == "" then null
+                       else $reg_version end),
       model: (if $model == "" then null else $model end),
       permissions: (if $permissions == "" then null else $permissions end),
       entry: $entry,
       transcript: (if $transcript == "" then null else $transcript end),
       pid: $pid}' 2>/dev/null)
+
+# The first thing that touches the disk, after every check above has passed.
+mkdir -p "$lifecycle_dir" 2>/dev/null || fail "cannot create $lifecycle_dir"
 append "$started" started
 
 append_named
@@ -207,35 +234,55 @@ session=$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null)
 
 # Where the store is: claudewheel says so outright when it launched the session;
 # otherwise this mirrors Workspace.default() -- the CLAUDEWHEEL_CONFIG_DIR root,
-# or ~/.claudewheel.
-lifecycle_dir="${CLAUDEWHEEL_LIFECYCLE_DIR:-${CLAUDEWHEEL_CONFIG_DIR:-$HOME/.claudewheel}/shared/lifecycle}"
-mkdir -p "$lifecycle_dir" 2>/dev/null || fail "cannot create $lifecycle_dir"
+# or ~/.claudewheel. An environment with none of the three (a stripped service
+# env with no HOME) is the hook's own diagnostic, not bash's unbound-variable
+# abort. Nothing is created here: the store is touched only once every check
+# below has passed.
+lifecycle_dir="${CLAUDEWHEEL_LIFECYCLE_DIR:-}"
+if [[ -z "$lifecycle_dir" ]]; then
+    cw_root="${CLAUDEWHEEL_CONFIG_DIR:-${HOME:+${HOME}/.claudewheel}}"
+    [[ -n "$cw_root" ]] ||
+        fail 'cannot resolve the lifecycle directory: set CLAUDEWHEEL_LIFECYCLE_DIR, CLAUDEWHEEL_CONFIG_DIR or HOME'
+    lifecycle_dir="$cw_root/shared/lifecycle"
+fi
 file="$lifecycle_dir/$session.jsonl"
 
-config_dir="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+config_dir="${CLAUDE_CONFIG_DIR:-${HOME:+${HOME}/.claude}}"
+[[ -n "$config_dir" ]] ||
+    fail 'cannot resolve the config directory: set CLAUDE_CONFIG_DIR or HOME'
 
 # Claude Code's own per-session registry, which holds the display name, the pid
 # and the client version while the process lives. No directory, or no record for
-# this session, leaves every field empty, and the line then says null.
-reg_name=""
-reg_name_source=""
-reg_pid=""
-reg_version=""
+# this session, leaves every field null.
+#
+# Each value is carried as JSON TEXT (`"a\tb"`, `4242`, `null`) from the record
+# straight into the final jq's --argjson, so a name holding a tab, a newline or a
+# backslash is never decoded, re-encoded or split by the shell on its way to the
+# line.
+reg_name=null
+reg_name_source=null
+reg_pid=null
+reg_version=null
 if [[ -d "$config_dir/sessions" ]]; then
     for record in "$config_dir"/sessions/*.json; do
         [[ -f "$record" ]] || continue
-        found=$(jq -r --arg s "$session" \
-            'select(.sessionId == $s)
-             | [(.name // ""), (.nameSource // ""), ((.pid // "") | tostring), (.version // "")]
-             | @tsv' "$record" 2>/dev/null)
-        if [[ -n "$found" ]]; then
-            IFS=$'\t' read -r reg_name reg_name_source reg_pid reg_version <<<"$found"
-            break
-        fi
+        match=$(jq -r --arg s "$session" \
+            'if .sessionId == $s then "yes" else "no" end' "$record" 2>/dev/null)
+        [[ "$match" == "yes" ]] || continue
+        reg_name=$(jq -c '.name // null' "$record" 2>/dev/null)
+        reg_name_source=$(jq -c '.nameSource // null' "$record" 2>/dev/null)
+        # A pid reaches the line as a JSON number or not at all.
+        reg_pid=$(jq -c 'if (.pid|type) == "number" then .pid else null end' \
+            "$record" 2>/dev/null)
+        reg_version=$(jq -c '.version // null' "$record" 2>/dev/null)
+        break
     done
 fi
-# A pid reaches the line as a JSON number or not at all.
-[[ "$reg_pid" =~ ^[0-9]+$ ]] || reg_pid=""
+# A jq that failed mid-read leaves its variable empty, which is not JSON.
+[[ -n "$reg_name" ]] || reg_name=null
+[[ -n "$reg_name_source" ]] || reg_name_source=null
+[[ -n "$reg_pid" ]] || reg_pid=null
+[[ -n "$reg_version" ]] || reg_version=null
 
 event_id=""
 event_at=""
@@ -263,14 +310,16 @@ append() {
 
 append_named() {
     local line
-    [[ -n "$reg_name" ]] || return 0
+    # No name, or an empty one, is no `named` line. Both tests are against the
+    # JSON text, which is why '""' is spelled out.
+    [[ "$reg_name" != null && "$reg_name" != '""' ]] || return 0
     mint
     line=$(jq -cn \
         --arg id "$event_id" \
         --arg at "$event_at" \
         --arg session "$session" \
-        --arg name "$reg_name" \
-        --arg name_source "$reg_name_source" \
+        --argjson name "$reg_name" \
+        --argjson name_source "$reg_name_source" \
         '{format_version: 1, id: $id, at: $at, session: $session,
           source: "hook", kind: "named", name: $name,
           name_source: (if $name_source == "" then null else $name_source end)}' \
@@ -285,6 +334,9 @@ case "$reason" in
     clear | resume | logout | prompt_input_exit | other) ;;
     *) reason="" ;;
 esac
+
+# The first thing that touches the disk, after every check above has passed.
+mkdir -p "$lifecycle_dir" 2>/dev/null || fail "cannot create $lifecycle_dir"
 
 append_named
 
