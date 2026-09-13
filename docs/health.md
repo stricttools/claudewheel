@@ -1,6 +1,6 @@
 ---
 title: Health Checks and Preflight
-description: "How claudewheel's diagnostic health checks and pre-launch preflight steps work: what each check detects, how per-profile token data is read, the plan-declaration step, how to interpret the output, common problems and their fixes, and the reconciliation model."
+description: "How claudewheel's diagnostic health checks and pre-launch preflight steps work: what each check detects, the canonical hook wirings it requires (guardrails plus the session lifecycle recorders), how per-profile token data is read, the plan-declaration step, how to interpret the output, common problems and their fixes, and the reconciliation model."
 nav_group: "Concepts"
 order: 6
 ---
@@ -68,7 +68,7 @@ claudewheel.
 
 #### hooks-wired
 
-Checks that every managed profile's `settings.json` contains the 4 canonical
+Checks that every managed profile's `settings.json` contains the canonical
 hook wirings:
 
 | Event | Matcher | Script |
@@ -77,6 +77,15 @@ hook wirings:
 | `PreToolUse` | `Agent` | `hook-block-worktree` |
 | `PreToolUse` | `Bash` | `hook-block-unsafe-commands` |
 | `PostToolUse` | `Bash` | `hook-advise-commands` |
+| `SessionStart` | (empty) | `hook-session-start` |
+| `SessionEnd` | (empty) | `hook-session-end` |
+
+The last two are not guardrails: they write the session's `started` and
+`ended` lines into claudewheel's per-session lifecycle store (plus the
+session's display name while Claude Code's registry still carries it), which
+is the only place a session's fate is recorded once its process is gone.
+Neither can block a session -- a hook that cannot write says so on stderr and
+gets out of the way.
 
 A hook entry matches only when its event, matcher, and the exact canonical
 command path (under the current `scripts_dir`) all agree. A hook pointing at
