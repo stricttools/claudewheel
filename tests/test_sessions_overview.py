@@ -24,8 +24,11 @@ from unittest import mock
 
 from claudewheel import lifecycle
 from claudewheel import sessions_overview as so
+from claudewheel import sessions_table
+from claudewheel.constants import BOLD, DIM
 from claudewheel.defaults import DEFAULT_THEME_DARK
 from claudewheel.lifecycle import (
+    STATES,
     SWEEP_GRACE_MS,
     MarkEvent,
     NamedEvent,
@@ -78,6 +81,43 @@ class _Clock:
         value = self.now + self.step * self.calls
         self.calls += 1
         return value
+
+
+class StyleSequenceTests(unittest.TestCase):
+    """The one place a style name from the table becomes colour."""
+
+    def setUp(self) -> None:
+        self.theme = _theme()
+
+    def test_the_waiting_state_is_drawn_bold(self) -> None:
+        for state in sorted(so.BOLD_STATES):
+            with self.subTest(state=state):
+                self.assertTrue(
+                    so.style_sequence(self.theme, f"state:{state}").startswith(BOLD)
+                )
+
+    def test_a_parked_or_finished_state_is_drawn_dim(self) -> None:
+        for state in sorted(so.DIM_STATES):
+            with self.subTest(state=state):
+                self.assertTrue(
+                    so.style_sequence(self.theme, f"state:{state}").startswith(DIM)
+                )
+
+    def test_a_focused_state_opens_with_the_focus_background(self) -> None:
+        for state in sorted(STATES):
+            with self.subTest(state=state):
+                sequence = so.style_sequence(self.theme, f"state_focus:{state}")
+                self.assertTrue(sequence.startswith(self.theme.sessions_focus_bg))
+
+    def test_the_empty_table_carries_the_detail_colour(self) -> None:
+        self.assertEqual(
+            so.style_sequence(self.theme, sessions_table.STYLE_EMPTY),
+            self.theme.sessions_detail_fg,
+        )
+
+    def test_an_unknown_style_is_refused_rather_than_coloured(self) -> None:
+        with self.assertRaisesRegex(ValueError, "row_focs"):
+            so.style_sequence(self.theme, "row_focs")
 
 
 class WorkspaceCase(unittest.TestCase):

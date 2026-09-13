@@ -134,6 +134,10 @@ def style_sequence(theme: ThemeColors, style: str) -> str:
     colour. ``BOLD`` and ``DIM`` are the two attributes applied directly: they
     say "this one wants you" and "this one is over" on top of whatever hue the
     theme gave the state, which no single colour can do.
+
+    A name this function does not know raises :class:`ValueError`: a misspelled
+    style is a bug in the layout, and drawing it in the plain row colour would
+    hide it behind a screen that merely looks slightly wrong.
     """
     kind, _, state = style.partition(":")
     if kind in ("state", "state_focus"):
@@ -145,7 +149,7 @@ def style_sequence(theme: ThemeColors, style: str) -> str:
         if kind == "state_focus":
             sequence = theme.sessions_focus_bg + sequence
         return sequence
-    return {
+    known = {
         sessions_table.STYLE_FRAME: theme.sessions_frame_fg,
         sessions_table.STYLE_HEADER: BOLD + theme.sessions_header_fg,
         sessions_table.STYLE_ROW: theme.sessions_row_fg,
@@ -154,7 +158,10 @@ def style_sequence(theme: ThemeColors, style: str) -> str:
         ),
         sessions_table.STYLE_DETAIL: theme.sessions_detail_fg,
         sessions_table.STYLE_EMPTY: theme.sessions_detail_fg,
-    }.get(style, theme.sessions_row_fg)
+    }
+    if style not in known:
+        raise ValueError(f"unknown session table style: {style!r}")
+    return known[style]
 
 
 def draw(
