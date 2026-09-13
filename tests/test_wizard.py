@@ -3609,7 +3609,7 @@ class HookMergeGapTests(CreateProfileTestBase):
 
     def test_fresh_profile_gets_canonical_permissions_and_all_wirings(self) -> None:
         """A fresh (non-cloned) profile carries the canonical deny/ask arrays
-        from the guardrail model and all four hook wirings."""
+        from the guardrail model and every declared hook wiring."""
         from claudewheel import guardrail
 
         result = _make_result(name="freshcanon", wire_hooks=True)
