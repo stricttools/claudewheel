@@ -25,7 +25,10 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: CPython",
     "Topic :: Software Development :: User Interfaces",
 ]
-dependencies = ["strictcli>=0.41.1"]
+dependencies = [
+    "strictcli>=0.41.1",
+    "strictspec>=0.2.4",
+]
 
 [project.scripts]
 claudewheel = "claudewheel.cli:main"
@@ -76,6 +79,18 @@ stricttest_unix_socket_allowlist = []
 stricttest_loopback = "deny"
 stricttest_sandbox_required = "false"
 
+[tool.ruff]
+# claudewheel/strictspec_gen/ holds the strictspec-generated validators. They
+# are machine-written in strictspec's own emitted style and compared BYTE FOR
+# BYTE by `strictspec check`, so reformatting one makes the freshness check
+# fail. The fix for anything wrong in there is to edit
+# .strictspec/lifecycle-event.schema.toml and regenerate.
+#
+# `extend-exclude` (not `include`) on purpose: the scope of the lint and format
+# checks stays declared in .rlsbl/config.json, and rlsbl's scope guard polices
+# `include`/`extend-include` only.
+extend-exclude = ["claudewheel/strictspec_gen"]
+
 [tool.ruff.lint]
 # Pin ruff's current default rule families explicitly rather than relying on
 # the implicit default. This keeps the enforced rule set stable across ruff
@@ -99,3 +114,12 @@ strict = true
 # guardrail_table"), aborting the whole run. Excluding the build tree keeps the
 # real docs/ sources checked.
 exclude = ["^docs/_build/"]
+
+# The strictspec-generated validators are machine-written and byte-compared by
+# `strictspec check`; they are not annotated to mypy's strict standard and
+# cannot be edited to become so. Their errors are silenced; every call INTO
+# them from claudewheel code is still checked strictly, because the stubs mypy
+# infers for the generated module's public functions are unaffected by this.
+[[tool.mypy.overrides]]
+module = "claudewheel.strictspec_gen.*"
+ignore_errors = true

@@ -53,6 +53,7 @@ version = "0.31.0"
 source = { editable = "." }
 dependencies = [
     { name = "strictcli" },
+    { name = "strictspec" },
 ]
 
 [package.dev-dependencies]
@@ -64,7 +65,10 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "strictcli", specifier = ">=0.41.1" }]
+requires-dist = [
+    { name = "strictcli", specifier = ">=0.41.1" },
+    { name = "strictspec", specifier = ">=0.2.4" },
+]
 
 [package.metadata.requires-dev]
 dev = [
@@ -315,6 +319,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/27/a8/41f417562fc77996cabba33b0e072576289b34056154ade306c4268635f2/strictcli-0.41.1.tar.gz", hash = "sha256:2235a6928171288c85535dc7cc5fc9752358bd6831adff53da57e66f6bf29fd1", size = 480223, upload-time = "2026-08-17T14:52:36.455Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7c/d1/2483589b3896e992be44c128d2e6a40a181a7338b251a0bc3c98b5041583/strictcli-0.41.1-py3-none-any.whl", hash = "sha256:fdfc8abbee7a3f65fa1a9c553f6c18e96885d574c48ac6672ea7208e1ba9d780", size = 207722, upload-time = "2026-08-17T14:52:34.687Z" },
+]
+
+[[package]]
+name = "strictspec"
+version = "0.2.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "tomlkit" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/dd/e8/a317c594fc5f51e44ef9fd9084bf578c765e0ca55ac02d05e98a829b5b8f/strictspec-0.2.4.tar.gz", hash = "sha256:73992f5bf0ffbe8fb946037a2281de9096a1c700528586186fea482339ecd68a", size = 75493, upload-time = "2026-09-13T01:04:19.607Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/24/81/6ca9e13f9486b4eba2dc51e3146e673e730b7ff9f10d0e260fd026405fae/strictspec-0.2.4-py3-none-any.whl", hash = "sha256:576b3a3a9bdef7cd1ee8b32ec51af324be990b688ea4fe7ce2f64aa6cf4031ed", size = 52646, upload-time = "2026-09-13T01:04:18.155Z" },
 ]
 
 [[package]]

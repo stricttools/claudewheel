@@ -1,0 +1,331 @@
+# strictspec schema for one claudewheel SESSION LIFECYCLE line.
+# Source of truth for the Python side: claudewheel/lifecycle.py.
+# One document = one JSONL line = one lifecycle event.
+#
+# WHAT THE STORE IS: an append-only log, one file per Claude Code session
+# (`~/.claudewheel/shared/lifecycle/<session-uuid>.jsonl`), recording what
+# happened to that session -- that it started, that it was named, that the user
+# marked it, that it ended. Claude Code's own per-session registry is written
+# only while a process lives and says nothing once it is gone; this store is
+# what remains afterwards, and it is the only place a dead session's fate is
+# recorded.
+#
+# SCOPE: strictspec owns the raw DOCUMENT SHAPE -- the per-line format_version
+# marker, the `kind` discriminator and its arm set, field types, enums, required
+# fields, and unknown-key rejection. claudewheel keeps what strictspec cannot
+# see: ordering events by `at`, latest-wins reading of a file, the cross-event
+# rule that an `ended` older than the newest `started` is a previous run's, and
+# the state a reader derives from all of it together.
+#
+# EVERY FIELD IS PRESENT ON EVERY LINE IT BELONGS TO. A fact that is not known
+# is written as `null`, never omitted: absence would be a second spelling of
+# "unknown" that a writer could produce by forgetting a key, and a reader could
+# not tell the two apart.
+
+name = "claudewheel-lifecycle-event"
+meta_version = 1
+format_version = 1
+document_syntax = "jsonl"
+role = "schema"
+root = "LifecycleEvent"
+targets = ["python"]
+description = "One JSONL session lifecycle line: a single fact about one Claude Code session, discriminated by `kind`."
+
+# ---------------------------------------------------------------------------
+# Event arms
+#
+# Each arm repeats the common fields (format_version, id, at, session, source,
+# kind) rather than factoring them into a wrapper: `kind` is the discriminator
+# and must sit at the document root for the union to select an arm without an
+# extra nesting level.
+# ---------------------------------------------------------------------------
+
+[types.StartedEvent]
+type = "record"
+description = "A session began running, under a stated config directory and working directory."
+
+[types.StartedEvent.fields.format_version]
+type = "integer"
+required = true
+description = "Per-line format_version marker. Every line claudewheel writes carries 1."
+
+[types.StartedEvent.fields.id]
+type = "string"
+required = true
+non_empty = true
+description = "Stable identifier for this event, unique within the file."
+
+[types.StartedEvent.fields.at]
+type = "datetime"
+required = true
+datetime_kind = "offset"
+description = "When the event happened (RFC 3339 UTC, millisecond precision)."
+
+[types.StartedEvent.fields.session]
+type = "string"
+required = true
+regex = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+description = "The Claude Code session uuid. Also the name of the file this line is in."
+
+[types.StartedEvent.fields.source]
+type = "enum"
+required = true
+values = ["hook", "user", "sweep"]
+description = "Who wrote the line: a Claude Code hook script, a user keypress in claudewheel, or claudewheel's own observation pass."
+
+[types.StartedEvent.fields.kind]
+type = "literal"
+value = "started"
+required = true
+
+[types.StartedEvent.fields.cwd]
+type = "string"
+required = true
+non_empty = true
+description = "The working directory the session runs in."
+
+[types.StartedEvent.fields.config_dir]
+type = "string"
+required = true
+non_empty = true
+description = "The Claude Code config directory the session runs under -- a claudewheel profile directory, or ~/.claude for an unmanaged launch."
+
+[types.StartedEvent.fields.profile]
+type = "nullable"
+required = true
+description = "The claudewheel profile name, when claudewheel launched the session. Null for a launch claudewheel did not make."
+[types.StartedEvent.fields.profile.inner]
+type = "string"
+non_empty = true
+
+[types.StartedEvent.fields.claude_version]
+type = "nullable"
+required = true
+description = "The Claude Code version the session runs, when the writer knows it."
+[types.StartedEvent.fields.claude_version.inner]
+type = "string"
+non_empty = true
+
+[types.StartedEvent.fields.model]
+type = "nullable"
+required = true
+description = "The model the session was launched with, when the writer knows it."
+[types.StartedEvent.fields.model.inner]
+type = "string"
+non_empty = true
+
+[types.StartedEvent.fields.permissions]
+type = "nullable"
+required = true
+description = "claudewheel's permissions selection for the launch. Null for a launch claudewheel did not make."
+[types.StartedEvent.fields.permissions.inner]
+type = "string"
+non_empty = true
+
+[types.StartedEvent.fields.entry]
+type = "enum"
+required = true
+values = ["startup", "resume", "clear", "compact", "fork"]
+description = "How the session was entered, in Claude Code's own SessionStart `source` vocabulary, used verbatim."
+
+[types.StartedEvent.fields.transcript]
+type = "nullable"
+required = true
+description = "Path to the session's transcript JSONL, when the writer knows it."
+[types.StartedEvent.fields.transcript.inner]
+type = "string"
+non_empty = true
+
+[types.StartedEvent.fields.pid]
+type = "nullable"
+required = true
+description = "The session process id, when the writer knows it. A pid is reused by the kernel, so it identifies a process only together with `at`."
+[types.StartedEvent.fields.pid.inner]
+type = "integer"
+
+[types.EndedEvent]
+type = "record"
+description = "A session stopped running, either by exiting or by dying without one."
+
+[types.EndedEvent.fields.format_version]
+type = "integer"
+required = true
+description = "Per-line format_version marker. Every line claudewheel writes carries 1."
+
+[types.EndedEvent.fields.id]
+type = "string"
+required = true
+non_empty = true
+description = "Stable identifier for this event, unique within the file."
+
+[types.EndedEvent.fields.at]
+type = "datetime"
+required = true
+datetime_kind = "offset"
+description = "When the event happened (RFC 3339 UTC, millisecond precision)."
+
+[types.EndedEvent.fields.session]
+type = "string"
+required = true
+regex = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+description = "The Claude Code session uuid. Also the name of the file this line is in."
+
+[types.EndedEvent.fields.source]
+type = "enum"
+required = true
+values = ["hook", "user", "sweep"]
+description = "Who wrote the line: a Claude Code hook script, a user keypress in claudewheel, or claudewheel's own observation pass."
+
+[types.EndedEvent.fields.kind]
+type = "literal"
+value = "ended"
+required = true
+
+[types.EndedEvent.fields.outcome]
+type = "enum"
+required = true
+values = ["exited", "crashed"]
+description = "\"exited\" is a SessionEnd Claude Code reported; \"crashed\" is the observation pass finding no live process and no SessionEnd."
+
+[types.EndedEvent.fields.reason]
+type = "nullable"
+required = true
+description = "Claude Code's SessionEnd reason (clear, resume, logout, prompt_input_exit, other). Null when the line was written by the observation pass, which has no reason to report."
+[types.EndedEvent.fields.reason.inner]
+type = "string"
+non_empty = true
+
+[types.EndedEvent.fields.detail]
+type = "nullable"
+required = true
+description = "Free text explaining the outcome to a human. Never dispatched on."
+[types.EndedEvent.fields.detail.inner]
+type = "string"
+non_empty = true
+
+[types.NamedEvent]
+type = "record"
+description = "A session carried a display name. Recorded because Claude Code's registry holds the name only while the process lives."
+
+[types.NamedEvent.fields.format_version]
+type = "integer"
+required = true
+description = "Per-line format_version marker. Every line claudewheel writes carries 1."
+
+[types.NamedEvent.fields.id]
+type = "string"
+required = true
+non_empty = true
+description = "Stable identifier for this event, unique within the file."
+
+[types.NamedEvent.fields.at]
+type = "datetime"
+required = true
+datetime_kind = "offset"
+description = "When the event happened (RFC 3339 UTC, millisecond precision)."
+
+[types.NamedEvent.fields.session]
+type = "string"
+required = true
+regex = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+description = "The Claude Code session uuid. Also the name of the file this line is in."
+
+[types.NamedEvent.fields.source]
+type = "enum"
+required = true
+values = ["hook", "user", "sweep"]
+description = "Who wrote the line: a Claude Code hook script, a user keypress in claudewheel, or claudewheel's own observation pass."
+
+[types.NamedEvent.fields.kind]
+type = "literal"
+value = "named"
+required = true
+
+[types.NamedEvent.fields.name]
+type = "string"
+required = true
+non_empty = true
+description = "The session's display name, as seen."
+
+[types.NamedEvent.fields.name_source]
+type = "nullable"
+required = true
+description = "Claude Code's registry nameSource for the name (user, peer, derived, collision, auto, hook). Free text rather than an enum: it is Claude Code's vocabulary, it grows without notice, and claudewheel only displays it."
+[types.NamedEvent.fields.name_source.inner]
+type = "string"
+non_empty = true
+
+[types.MarkEvent]
+type = "record"
+description = "The user marked the session, or cleared a previous mark. The one kind a person authors directly."
+
+[types.MarkEvent.fields.format_version]
+type = "integer"
+required = true
+description = "Per-line format_version marker. Every line claudewheel writes carries 1."
+
+[types.MarkEvent.fields.id]
+type = "string"
+required = true
+non_empty = true
+description = "Stable identifier for this event, unique within the file."
+
+[types.MarkEvent.fields.at]
+type = "datetime"
+required = true
+datetime_kind = "offset"
+description = "When the event happened (RFC 3339 UTC, millisecond precision)."
+
+[types.MarkEvent.fields.session]
+type = "string"
+required = true
+regex = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+description = "The Claude Code session uuid. Also the name of the file this line is in."
+
+[types.MarkEvent.fields.source]
+type = "enum"
+required = true
+values = ["hook", "user", "sweep"]
+description = "Who wrote the line: a Claude Code hook script, a user keypress in claudewheel, or claudewheel's own observation pass."
+
+[types.MarkEvent.fields.kind]
+type = "literal"
+value = "mark"
+required = true
+
+[types.MarkEvent.fields.state]
+type = "nullable"
+required = true
+description = "The mark the user set. Null CLEARS whatever mark an earlier line set -- that is the only way a mark goes away, because the store is append-only."
+[types.MarkEvent.fields.state.inner]
+type = "enum"
+values = ["on-hold", "blocked", "done"]
+
+[types.MarkEvent.fields.note]
+type = "nullable"
+required = true
+description = "The user's own note about the mark. Free text, never dispatched on."
+[types.MarkEvent.fields.note.inner]
+type = "string"
+non_empty = true
+
+# ---------------------------------------------------------------------------
+# The document root: one line is exactly one event, selected by `kind`.
+# ---------------------------------------------------------------------------
+
+[types.LifecycleEvent]
+type = "discriminated-union"
+discriminator = "kind"
+description = "One session lifecycle line. The `kind` field selects the arm; an unrecognized kind is a hard error, never a skipped line."
+
+[types.LifecycleEvent.arms.started]
+type = "StartedEvent"
+
+[types.LifecycleEvent.arms.ended]
+type = "EndedEvent"
+
+[types.LifecycleEvent.arms.named]
+type = "NamedEvent"
+
+[types.LifecycleEvent.arms.mark]
+type = "MarkEvent"

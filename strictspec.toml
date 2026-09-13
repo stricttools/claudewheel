@@ -1,0 +1,14 @@
+# strictspec manifest for claudewheel. Generation is file-driven: declare each
+# schema and its targets, then run `strictspec gen`. Generated validators land
+# under claudewheel/strictspec_gen/ (committed, read-only 0444).
+# `strictspec check` verifies schema authoring validity and generated-code
+# freshness.
+format_version = 1
+
+[[schemas]]
+path = ".strictspec/lifecycle-event.schema.toml"
+
+  [[schemas.targets]]
+  lang    = "python"
+  output  = "claudewheel/strictspec_gen/lifecycle_event_validator.py"
+  package = "claudewheel.strictspec_gen"
