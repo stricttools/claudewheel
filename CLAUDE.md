@@ -40,6 +40,7 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 - **claudewheel.import_** (`claudewheel/import_.py`): Import Claude Code session data from an external directory into the shared store.
 - **claudewheel.install** (`claudewheel/install.py`): Download, verify, and install Claude Code binaries from Google Cloud Storage.
 - **claudewheel.launch** (`claudewheel/launch.py`): Map TUI selections to binary path, env vars, flags, and exec.
+- **claudewheel.lifecycle** (`claudewheel/lifecycle.py`): The per-session lifecycle store: what happened to one Claude Code session.
 - **claudewheel.migrate** (`claudewheel/migrate.py`): Move session artifacts between profiles.
 - **claudewheel.mv** (`claudewheel/mv.py`): Move session data after a project directory rename.
 - **claudewheel.patch_profiles** (`claudewheel/patch_profiles.py`): Wizard hook-merge helper plus a thin delegate to the unified reconcile core.
@@ -66,6 +67,8 @@ This project uses [rlsbl](https://github.com/smm-h/rlsbl) for release orchestrat
 - **claudewheel.shared_store** (`claudewheel/shared_store.py`): Thin path owner for the ~/.claudewheel/shared store layout.
 - **claudewheel.state** (`claudewheel/state.py`): Persist launch state (selections, counts, recent dirs) and project inodes.
 - **claudewheel.stats** (`claudewheel/stats.py`): Report shared-store statistics and clean up legacy data.
+- **claudewheel.strictspec_gen** (`claudewheel/strictspec_gen/__init__.py`): strictspec-generated validators.
+- **claudewheel.strictspec_gen.lifecycle_event_validator** (`claudewheel/strictspec_gen/lifecycle_event_validator.py`)
 - **claudewheel.terminal** (`claudewheel/terminal.py`): Raw terminal I/O: cbreak mode, escape sequence decoding, and alt screen.
 - **claudewheel.theme** (`claudewheel/theme.py`): Parse hex color themes into pre-computed ANSI escape sequences.
 - **claudewheel.tokens** (`claudewheel/tokens.py`): The OAuth token entry format: build one, date it, and read its tier fields.

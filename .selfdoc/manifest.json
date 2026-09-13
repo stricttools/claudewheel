@@ -2,7 +2,7 @@
   "schema_version": 1,
   "name": "claudewheel",
   "slug": "claudewheel",
-  "version": "0.30.1",
+  "version": "0.31.0",
   "description": "TUI launcher for Claude Code: pick a profile, model, directory, and permissions from a segment bar, then launch.",
   "language": "python",
   "base_url": "https://claudewheel.smmh.dev",
@@ -1942,6 +1942,178 @@
       ]
     },
     {
+      "path": "claudewheel-lifecycle.md",
+      "title": "claudewheel.lifecycle",
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.lifecycle",
+          "anchor": "claudewheellifecycle"
+        },
+        {
+          "level": 2,
+          "text": "`claudewheel.lifecycle`",
+          "anchor": "claudewheellifecycle"
+        },
+        {
+          "level": 3,
+          "text": "`LifecycleError`",
+          "anchor": "lifecycleerror"
+        },
+        {
+          "level": 3,
+          "text": "`StartedEvent`",
+          "anchor": "startedevent"
+        },
+        {
+          "level": 3,
+          "text": "`EndedEvent`",
+          "anchor": "endedevent"
+        },
+        {
+          "level": 3,
+          "text": "`NamedEvent`",
+          "anchor": "namedevent"
+        },
+        {
+          "level": 3,
+          "text": "`MarkEvent`",
+          "anchor": "markevent"
+        },
+        {
+          "level": 3,
+          "text": "`new_event_id`",
+          "anchor": "new_event_id"
+        },
+        {
+          "level": 3,
+          "text": "`now_timestamp`",
+          "anchor": "now_timestamp"
+        },
+        {
+          "level": 3,
+          "text": "`parse_timestamp_ms`",
+          "anchor": "parse_timestamp_ms"
+        },
+        {
+          "level": 3,
+          "text": "`session_file`",
+          "anchor": "session_file"
+        },
+        {
+          "level": 3,
+          "text": "`event_to_json`",
+          "anchor": "event_to_json"
+        },
+        {
+          "level": 3,
+          "text": "`_where`",
+          "anchor": "_where"
+        },
+        {
+          "level": 3,
+          "text": "`_validate_line`",
+          "anchor": "_validate_line"
+        },
+        {
+          "level": 3,
+          "text": "`parse_event`",
+          "anchor": "parse_event"
+        },
+        {
+          "level": 3,
+          "text": "`read_session`",
+          "anchor": "read_session"
+        },
+        {
+          "level": 3,
+          "text": "`_needs_separator`",
+          "anchor": "_needs_separator"
+        },
+        {
+          "level": 3,
+          "text": "`append_event`",
+          "anchor": "append_event"
+        },
+        {
+          "level": 3,
+          "text": "`SessionLifecycle`",
+          "anchor": "sessionlifecycle"
+        },
+        {
+          "level": 3,
+          "text": "`summarize`",
+          "anchor": "summarize"
+        },
+        {
+          "level": 3,
+          "text": "`load_all`",
+          "anchor": "load_all"
+        },
+        {
+          "level": 3,
+          "text": "`sweep_crashed`",
+          "anchor": "sweep_crashed"
+        },
+        {
+          "level": 3,
+          "text": "`capture_name`",
+          "anchor": "capture_name"
+        },
+        {
+          "level": 3,
+          "text": "`derive_state`",
+          "anchor": "derive_state"
+        },
+        {
+          "level": 3,
+          "text": "`LIFECYCLE_DIRNAME`",
+          "anchor": "lifecycle_dirname"
+        },
+        {
+          "level": 3,
+          "text": "`FORMAT_VERSION`",
+          "anchor": "format_version"
+        },
+        {
+          "level": 3,
+          "text": "`SESSION_UUID_RE`",
+          "anchor": "session_uuid_re"
+        },
+        {
+          "level": 3,
+          "text": "`SWEEP_GRACE_MS`",
+          "anchor": "sweep_grace_ms"
+        },
+        {
+          "level": 3,
+          "text": "`STATES`",
+          "anchor": "states"
+        },
+        {
+          "level": 3,
+          "text": "`LIVE_STATES`",
+          "anchor": "live_states"
+        },
+        {
+          "level": 3,
+          "text": "`LOOSE_END_STATES`",
+          "anchor": "loose_end_states"
+        },
+        {
+          "level": 3,
+          "text": "`HIDDEN_BY_DEFAULT_STATES`",
+          "anchor": "hidden_by_default_states"
+        },
+        {
+          "level": 3,
+          "text": "`Event`",
+          "anchor": "event"
+        }
+      ]
+    },
+    {
       "path": "claudewheel-migrate.md",
       "title": "claudewheel.migrate",
       "type": "doc",
@@ -3799,6 +3971,11 @@
         },
         {
           "level": 4,
+          "text": "`lifecycle_dir`",
+          "anchor": "lifecycle_dir"
+        },
+        {
+          "level": 4,
           "text": "`inodes_file`",
           "anchor": "inodes_file"
         },
@@ -3910,6 +4087,275 @@
           "level": 3,
           "text": "`run_stats`",
           "anchor": "run_stats"
+        }
+      ]
+    },
+    {
+      "path": "claudewheel-strictspec_gen-lifecycle_event_validator.md",
+      "title": "claudewheel.strictspec_gen.lifecycle_event_validator",
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.strictspec_gen.lifecycle_event_validator",
+          "anchor": "claudewheelstrictspec_genlifecycle_event_validator"
+        },
+        {
+          "level": 2,
+          "text": "`claudewheel.strictspec_gen.lifecycle_event_validator`",
+          "anchor": "claudewheelstrictspec_genlifecycle_event_validator"
+        },
+        {
+          "level": 3,
+          "text": "`validate_bytes`",
+          "anchor": "validate_bytes"
+        },
+        {
+          "level": 3,
+          "text": "`validate_bytes_with_evidence`",
+          "anchor": "validate_bytes_with_evidence"
+        },
+        {
+          "level": 3,
+          "text": "`validate_value`",
+          "anchor": "validate_value"
+        },
+        {
+          "level": 3,
+          "text": "`StartedEvent`",
+          "anchor": "startedevent"
+        },
+        {
+          "level": 4,
+          "text": "`with_format_version`",
+          "anchor": "with_format_version"
+        },
+        {
+          "level": 4,
+          "text": "`with_id`",
+          "anchor": "with_id"
+        },
+        {
+          "level": 4,
+          "text": "`with_at`",
+          "anchor": "with_at"
+        },
+        {
+          "level": 4,
+          "text": "`with_session`",
+          "anchor": "with_session"
+        },
+        {
+          "level": 4,
+          "text": "`with_source`",
+          "anchor": "with_source"
+        },
+        {
+          "level": 4,
+          "text": "`with_kind`",
+          "anchor": "with_kind"
+        },
+        {
+          "level": 4,
+          "text": "`with_cwd`",
+          "anchor": "with_cwd"
+        },
+        {
+          "level": 4,
+          "text": "`with_config_dir`",
+          "anchor": "with_config_dir"
+        },
+        {
+          "level": 4,
+          "text": "`with_profile`",
+          "anchor": "with_profile"
+        },
+        {
+          "level": 4,
+          "text": "`with_claude_version`",
+          "anchor": "with_claude_version"
+        },
+        {
+          "level": 4,
+          "text": "`with_model`",
+          "anchor": "with_model"
+        },
+        {
+          "level": 4,
+          "text": "`with_permissions`",
+          "anchor": "with_permissions"
+        },
+        {
+          "level": 4,
+          "text": "`with_entry`",
+          "anchor": "with_entry"
+        },
+        {
+          "level": 4,
+          "text": "`with_transcript`",
+          "anchor": "with_transcript"
+        },
+        {
+          "level": 4,
+          "text": "`with_pid`",
+          "anchor": "with_pid"
+        },
+        {
+          "level": 3,
+          "text": "`EndedEvent`",
+          "anchor": "endedevent"
+        },
+        {
+          "level": 4,
+          "text": "`with_format_version`",
+          "anchor": "with_format_version-1"
+        },
+        {
+          "level": 4,
+          "text": "`with_id`",
+          "anchor": "with_id-1"
+        },
+        {
+          "level": 4,
+          "text": "`with_at`",
+          "anchor": "with_at-1"
+        },
+        {
+          "level": 4,
+          "text": "`with_session`",
+          "anchor": "with_session-1"
+        },
+        {
+          "level": 4,
+          "text": "`with_source`",
+          "anchor": "with_source-1"
+        },
+        {
+          "level": 4,
+          "text": "`with_kind`",
+          "anchor": "with_kind-1"
+        },
+        {
+          "level": 4,
+          "text": "`with_outcome`",
+          "anchor": "with_outcome"
+        },
+        {
+          "level": 4,
+          "text": "`with_reason`",
+          "anchor": "with_reason"
+        },
+        {
+          "level": 4,
+          "text": "`with_detail`",
+          "anchor": "with_detail"
+        },
+        {
+          "level": 3,
+          "text": "`NamedEvent`",
+          "anchor": "namedevent"
+        },
+        {
+          "level": 4,
+          "text": "`with_format_version`",
+          "anchor": "with_format_version-2"
+        },
+        {
+          "level": 4,
+          "text": "`with_id`",
+          "anchor": "with_id-2"
+        },
+        {
+          "level": 4,
+          "text": "`with_at`",
+          "anchor": "with_at-2"
+        },
+        {
+          "level": 4,
+          "text": "`with_session`",
+          "anchor": "with_session-2"
+        },
+        {
+          "level": 4,
+          "text": "`with_source`",
+          "anchor": "with_source-2"
+        },
+        {
+          "level": 4,
+          "text": "`with_kind`",
+          "anchor": "with_kind-2"
+        },
+        {
+          "level": 4,
+          "text": "`with_name`",
+          "anchor": "with_name"
+        },
+        {
+          "level": 4,
+          "text": "`with_name_source`",
+          "anchor": "with_name_source"
+        },
+        {
+          "level": 3,
+          "text": "`MarkEvent`",
+          "anchor": "markevent"
+        },
+        {
+          "level": 4,
+          "text": "`with_format_version`",
+          "anchor": "with_format_version-3"
+        },
+        {
+          "level": 4,
+          "text": "`with_id`",
+          "anchor": "with_id-3"
+        },
+        {
+          "level": 4,
+          "text": "`with_at`",
+          "anchor": "with_at-3"
+        },
+        {
+          "level": 4,
+          "text": "`with_session`",
+          "anchor": "with_session-3"
+        },
+        {
+          "level": 4,
+          "text": "`with_source`",
+          "anchor": "with_source-3"
+        },
+        {
+          "level": 4,
+          "text": "`with_kind`",
+          "anchor": "with_kind-3"
+        },
+        {
+          "level": 4,
+          "text": "`with_state`",
+          "anchor": "with_state"
+        },
+        {
+          "level": 4,
+          "text": "`with_note`",
+          "anchor": "with_note"
+        }
+      ]
+    },
+    {
+      "path": "claudewheel-strictspec_gen.md",
+      "title": "claudewheel.strictspec_gen",
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.strictspec_gen",
+          "anchor": "claudewheelstrictspec_gen"
+        },
+        {
+          "level": 2,
+          "text": "`claudewheel.strictspec_gen`",
+          "anchor": "claudewheelstrictspec_gen"
         }
       ]
     },
@@ -5760,6 +6206,6 @@
     }
   ],
   "posts": [],
-  "last_gen": "2026-09-12T00:35:14.066356+00:00",
+  "last_gen": "2026-09-13T01:23:16.580191+00:00",
   "theme": "minimal"
 }

@@ -115,6 +115,11 @@
     "description": "e86ee61b4b17818b564c9d270c16e63a9b24ee5110a4084295356acd47bcc266",
     "source_docstring": "65c4febd91bc6c929fab1c39ad759ef23c9aa0e9499a443e8f3ed2b486084ced"
   },
+  "en/claudewheel-lifecycle.md": {
+    "content": "e157b2614bce0e224d30bb80e388d5d2f7e07399afad835a54ca13637100dc4b",
+    "description": "f1a2428a68b32e4b98e32d2708f87de335bc331a49bd176375836b58d68982a7",
+    "seed_hash": "f1a2428a68b32e4b98e32d2708f87de335bc331a49bd176375836b58d68982a7"
+  },
   "en/claudewheel-migrate.md": {
     "content": "3e56ee84b4442a58957bcc93094aef393633dbc3cb3f9e45c8d3e7ed50bd79ff",
     "description": "6ccfe6ece2e0043144fac3bef340be8a2a536feedfc8a0c7f609cf8ce3a39a7c",
@@ -244,6 +249,16 @@
     "content": "4869258353f8bc76c1fe9b057353a2f8c8969e891290391a22b72c026b9da1ef",
     "description": "a9f6eaee04f2e791702591ab6479bc794f8161ba7b25322fca5d45466e984969",
     "source_docstring": "a9f6eaee04f2e791702591ab6479bc794f8161ba7b25322fca5d45466e984969"
+  },
+  "en/claudewheel-strictspec_gen-lifecycle_event_validator.md": {
+    "content": "1edc2a7d55dd30d726e057a88de801d0f625f17c876a20417446afe5d8d9cf9b",
+    "description": "8fd59ef0376b044465e2d057f073d26d66627182ef8b8957d4bf6e592402a145",
+    "seed_hash": "8fd59ef0376b044465e2d057f073d26d66627182ef8b8957d4bf6e592402a145"
+  },
+  "en/claudewheel-strictspec_gen.md": {
+    "content": "c9285aaafece2499d5562e749939f0f5acc9d8558aac9c165e5439f790dae935",
+    "description": "a3d938f60993d885ed0a26a4d448ca1e0ffbe56ddfede269828998a7b212c022",
+    "seed_hash": "a3d938f60993d885ed0a26a4d448ca1e0ffbe56ddfede269828998a7b212c022"
   },
   "en/claudewheel-terminal.md": {
     "content": "0933d187937b7ec58900501e87ef417791093148d80733fe4565fc84c07cdf94",
@@ -384,9 +399,9 @@
     "description": "84aec6c3a090c8c277496b729bab04b3dcb5fb7a3729c3006f307ad9ddb345a3"
   },
   "en/gen-index.md": {
-    "content": "d8c32bc91081ae94efed3be5cc1df00b644b53bee0165ac7396c785d8e11cc6d",
-    "description": "8494ee2adb95db46a450e8cc7340f944ea981804b8c21cf566d0e98d94b18f34",
-    "seed_hash": "8494ee2adb95db46a450e8cc7340f944ea981804b8c21cf566d0e98d94b18f34"
+    "content": "d3c87e38986e33f4e061f0e80d705987984bdbe7a14a8d3e779be0da8fef28ff",
+    "description": "e11cec9f07b16b689eb075424601d0029909f13768474ff90397c831364c9b72",
+    "seed_hash": "e11cec9f07b16b689eb075424601d0029909f13768474ff90397c831364c9b72"
   },
   "en/getting-started.md": {
     "content": "43f744dd66456977867a20226dffcd37873d895d6f1228bf6c28a927d5f6b61b",

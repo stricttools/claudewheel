@@ -1,6 +1,6 @@
 ---
 title: API Reference
-description: "API reference index for claudewheel covering 56 modules"
+description: "API reference index for claudewheel covering 59 modules"
 generated: true
 seeded: true
 nav_group: "API Reference"
@@ -34,6 +34,7 @@ order: 90
 - [claudewheel.import_](../claudewheel-import_/)
 - [claudewheel.install](../claudewheel-install/)
 - [claudewheel.launch](../claudewheel-launch/)
+- [claudewheel.lifecycle](../claudewheel-lifecycle/)
 - [claudewheel.migrate](../claudewheel-migrate/)
 - [claudewheel.mv](../claudewheel-mv/)
 - [claudewheel.patch_profiles](../claudewheel-patch_profiles/)
@@ -60,6 +61,8 @@ order: 90
 - [claudewheel.shared_store](../claudewheel-shared_store/)
 - [claudewheel.state](../claudewheel-state/)
 - [claudewheel.stats](../claudewheel-stats/)
+- [claudewheel.strictspec_gen](../claudewheel-strictspec_gen/)
+- [claudewheel.strictspec_gen.lifecycle_event_validator](../claudewheel-strictspec_gen-lifecycle_event_validator/)
 - [claudewheel.terminal](../claudewheel-terminal/)
 - [claudewheel.theme](../claudewheel-theme/)
 - [claudewheel.tokens](../claudewheel-tokens/)
