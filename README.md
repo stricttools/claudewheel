@@ -4,7 +4,7 @@
   <img src="assets/banner.png" alt="claudewheel" width="700">
 </p>
 
-TUI launcher for Claude Code with profile, GitHub account, version, model, directory, MCP, and permission switching.
+claudewheel is a TUI launcher for Claude Code that lets you pick a profile, model, version, directory, MCP mode and permission mode from a horizontal segment bar, then launches the session. It is for developers who keep several Claude Code profiles on one machine -- separate accounts, plans, or permission setups -- and want to choose between them without editing config files or exporting environment variables by hand. Each profile is its own `CLAUDE_CONFIG_DIR` holding its own OAuth token, settings and permission rules, and `claudewheel patch-profiles` reconciles every managed profile back to one canonical guardrail model.
 
 ## Installation
 

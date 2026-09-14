@@ -3,7 +3,7 @@
   "name": "claudewheel",
   "slug": "claudewheel",
   "version": "0.31.0",
-  "description": "TUI launcher for Claude Code: pick a profile, model, directory, and permissions from a segment bar, then launch.",
+  "description": "TUI launcher for Claude Code that lets you pick a profile, model, version, directory, MCP mode and permission mode from a horizontal segment bar, then launches the session",
   "language": "python",
   "base_url": "https://claudewheel.smmh.dev",
   "pages": [
@@ -3969,6 +3969,16 @@
         },
         {
           "level": 3,
+          "text": "`_row_key`",
+          "anchor": "_row_key"
+        },
+        {
+          "level": 3,
+          "text": "`_re_expand`",
+          "anchor": "_re_expand"
+        },
+        {
+          "level": 3,
           "text": "`run_overview`",
           "anchor": "run_overview"
         }
@@ -6363,6 +6373,6 @@
     }
   ],
   "posts": [],
-  "last_gen": "2026-09-13T01:48:57.619630+00:00",
+  "last_gen": "2026-09-14T14:34:19.246813+00:00",
   "theme": "minimal"
 }
