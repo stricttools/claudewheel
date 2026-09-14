@@ -18,3 +18,4 @@
 {"format_version":1,"id":"18d537e51c704489c9c75e5a29494ec3bf45de07c2daa3a6","commits":["8f1b08115a8e674b9e215decf758091fcde0a3c3"],"user_facing":true,"description":"**Documentation links point at the unified site.** The declared docs base was the retired per-project host; it is `https://smmh.dev/claudewheel/` now, so generated sitemaps, feeds and llms.txt name the address that serves the pages.","type":"fix"}
 {"format_version":1,"id":"18d53a91c3fe5124bbac279dc41f45b0abd4dadc2801c33c","commits":["1b7ab95acc7f7ebde39f2858c22487dda8d4594c"],"user_facing":false}
 {"format_version":1,"id":"18d53a91eacbd5471dd737b17da7432c8efe12e39e9dd4c9","commits":["5c026a9bd2964973c0627582a4be24f98305b76c"],"user_facing":false}
+{"format_version":1,"id":"18d53a920e591d990a05146fce284e57b3bddd67f78e469c","commits":["e5f45aca0f40eb74c2c2dadc268ee5002ef57c90"],"user_facing":false}
