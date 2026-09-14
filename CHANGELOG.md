@@ -2,6 +2,24 @@
 
 # Changelog
 
+## 0.32.0
+
+A machine-wide sessions table and per-session lifecycle store, launch facts in the child environment, hook-script fixes, and the project now describes itself consistently on PyPI, npm and in its README with its docs at the unified site.
+
+### Features
+
+- **New feature.** Launched sessions now record their own start and end in claudewheel's per-session lifecycle store, through two new Claude Code hooks (`hook-session-start`, `hook-session-end`). `claudewheel patch-profiles` deploys and wires them; `claudewheel health` reports a profile that is missing either.
+- **New feature.** A launched session's environment now carries what claudewheel chose for it -- `CLAUDEWHEEL_LAUNCH_PROFILE`, `_VERSION`, `_MODEL`, `_PERMISSIONS` and `CLAUDEWHEEL_LIFECYCLE_DIR` -- so the session lifecycle record names the profile, version, model and permissions mode behind every session. A selection you did not make sets no variable.
+- **Machine-wide sessions table.** The `S` screen now lists every Claude Code session on the machine -- across all profiles, plus the sessions recorded in the lifecycle store -- as a framed, scrolling table with state, kind, directory, version, model, age and memory columns. Enter expands a row into its details, `m` marks a session on hold, blocked or done, `a` reveals the finished ones, and `p` prunes the registry files of the crashed ones.
+
+### Fixes
+
+- **Session lifecycle hooks record names faithfully.** A session display name containing a tab, newline, carriage return or backslash is now recorded byte-for-byte; the hooks print their own diagnostic instead of a bash `HOME: unbound variable` abort when no HOME, `CLAUDEWHEEL_LIFECYCLE_DIR`, `CLAUDEWHEEL_CONFIG_DIR` or `CLAUDE_CONFIG_DIR` is set; and a compaction or an unrecognized SessionStart source no longer creates the lifecycle directory.
+- **Sessions table.** The `Started` column no longer truncates a long age: a session up for `23h 59m` or `100d 0h` reads in full instead of `23h 59m a…`.
+- **Sessions table.** Refreshing no longer moves an expanded row's details onto another session: the open row is followed by its own session, and collapses when that session stops being listed.
+- **The project describes itself consistently on PyPI, npm and in its README.** The three registry surfaces carried three different one-line descriptions, PyPI had no Documentation, Issues or Changelog links, and the README opened with a fragment instead of a definition.
+- **Documentation links point at the unified site.** The declared docs base was the retired per-project host; it is `https://smmh.dev/claudewheel/` now, so generated sitemaps, feeds and llms.txt name the address that serves the pages.
+
 ## 0.31.0
 
 Every managed profile now disables Claude Code's agent view and its on-demand daemon, and every profile session launches without auto-generated session titles.

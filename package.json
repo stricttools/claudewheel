@@ -1,6 +1,6 @@
 {
   "name": "claudewheel",
-  "version": "0.31.0",
+  "version": "0.32.0",
   "description": "TUI launcher for Claude Code that lets you pick a profile, model, version, directory, MCP mode and permission mode from a horizontal segment bar, then launches the session",
   "keywords": [
     "claude",
