@@ -1,8 +1,21 @@
 {
   "name": "claudewheel",
   "version": "0.31.0",
-  "description": "TUI launcher for Claude Code — dial in your config and go",
+  "description": "TUI launcher for Claude Code that lets you pick a profile, model, version, directory, MCP mode and permission mode from a horizontal segment bar, then launches the session",
+  "keywords": [
+    "claude",
+    "claude-code",
+    "launcher",
+    "tui",
+    "cli",
+    "profiles",
+    "permissions",
+    "terminal",
+    "rlsbl"
+  ],
+  "homepage": "https://smmh.dev/claudewheel/",
   "license": "MIT",
+  "author": "smm-h",
   "bin": {
     "claudewheel": "bin/claudewheel.js"
   },
@@ -16,18 +29,12 @@
     "type": "git",
     "url": "git+https://github.com/smm-h/claudewheel.git"
   },
+  "bugs": {
+    "url": "https://github.com/smm-h/claudewheel/issues"
+  },
   "engines": {
     "node": ">=18"
   },
-  "keywords": [
-    "claude",
-    "claude-code",
-    "launcher",
-    "tui",
-    "config",
-    "rlsbl"
-  ],
-  "author": "smm-h",
   "scripts": {
     "test": "uv run pytest tests/"
   }

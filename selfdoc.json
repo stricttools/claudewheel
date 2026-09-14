@@ -25,7 +25,7 @@
       "default": true
     }
   ],
-  "description": "TUI launcher for Claude Code: pick a profile, model, directory, and permissions from a segment bar, then launch.",
+  "description": "TUI launcher for Claude Code that lets you pick a profile, model, version, directory, MCP mode and permission mode from a horizontal segment bar, then launches the session",
   "author": {
     "name": "SMMH",
     "url": "https://smmh.dev",
