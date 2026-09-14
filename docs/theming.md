@@ -1,9 +1,9 @@
----
-title: Theming
-description: "How claudewheel themes work: the hex color system, theme file structure, built-in dark and light themes, auto-detection, and creating custom themes."
-nav_group: "Concepts"
-order: 6
----
++++
+title = "Theming"
+description = "How claudewheel themes work: the hex color system, theme file structure, built-in dark and light themes, auto-detection, and creating custom themes."
+nav_group = "Concepts"
+nav_order = 6
++++
 
 # Theming
 

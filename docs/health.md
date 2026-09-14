@@ -1,9 +1,9 @@
----
-title: Health Checks and Preflight
-description: "How claudewheel's diagnostic health checks and pre-launch preflight steps work: what each check detects, the canonical hook wirings it requires (guardrails plus the session lifecycle recorders), how per-profile token data is read, the plan-declaration step, how to interpret the output, common problems and their fixes, and the reconciliation model."
-nav_group: "Concepts"
-order: 6
----
++++
+title = "Health Checks and Preflight"
+description = "How claudewheel's diagnostic health checks and pre-launch preflight steps work: what each check detects, the canonical hook wirings it requires (guardrails plus the session lifecycle recorders), how per-profile token data is read, the plan-declaration step, how to interpret the output, common problems and their fixes, and the reconciliation model."
+nav_group = "Concepts"
+nav_order = 6
++++
 
 # Health Checks and Preflight
 

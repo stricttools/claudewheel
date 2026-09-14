@@ -1,6 +1,6 @@
----
-title: README.md
----
++++
+title = "README.md"
++++
 <p align="center">
   <img src="assets/banner.png" alt="claudewheel" width="700">
 </p>

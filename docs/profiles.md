@@ -1,9 +1,9 @@
----
-title: Profiles
-description: "How claudewheel profiles work: the ~/.claudewheel/ layout, profile discovery, the creation wizard, shared store symlinks, per-profile token storage inside each profile directory, declaring the account plan Claude Code needs, suppressing and purging the plugin marketplace, the launch-environment switches that quiet the auto-updater and the ones that tell the deployed hook scripts what launched the session, the feature-flag tip and auto-generated session titles, recoverable deletion through saferm with the limits of what a restore puts back, and the isolation model."
-nav_group: "Concepts"
-order: 4
----
++++
+title = "Profiles"
+description = "How claudewheel profiles work: the ~/.claudewheel/ layout, profile discovery, the creation wizard, shared store symlinks, per-profile token storage inside each profile directory, declaring the account plan Claude Code needs, suppressing and purging the plugin marketplace, the launch-environment switches that quiet the auto-updater and the ones that tell the deployed hook scripts what launched the session, the feature-flag tip and auto-generated session titles, recoverable deletion through saferm with the limits of what a restore puts back, and the isolation model."
+nav_group = "Concepts"
+nav_order = 4
++++
 
 # Profiles
 

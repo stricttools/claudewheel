@@ -1,9 +1,9 @@
----
-title: Guardrails
-description: "How claudewheel guardrails work: the 4 enforcement tiers, subagent-versus-main-agent handling, command-string caveats, upgrading existing profiles, and the tools stripped from every session."
-nav_group: "Concepts"
-order: 5
----
++++
+title = "Guardrails"
+description = "How claudewheel guardrails work: the 4 enforcement tiers, subagent-versus-main-agent handling, command-string caveats, upgrading existing profiles, and the tools stripped from every session."
+nav_group = "Concepts"
+nav_order = 5
++++
 
 # Guardrails
 

@@ -1,6 +1,6 @@
----
-description: "claudewheel is a TUI launcher for Claude Code: pick a profile, model, directory, and permissions from a visual segment bar, then launch a guarded session."
----
++++
+description = "claudewheel is a TUI launcher for Claude Code: pick a profile, model, directory, and permissions from a visual segment bar, then launch a guarded session."
++++
 
 # claudewheel
 

@@ -1,9 +1,9 @@
----
-title: Getting Started
-description: "Install claudewheel, create your first profile, understand the segment bar and the machine-wide sessions table behind its S key, work with a model list that keeps itself current from the Anthropic API -- including models dimmed because they need a newer Claude Code than you are launching -- and launch a Claude Code session with the right model, context window, and permissions."
-nav_group: "Guides"
-order: 2
----
++++
+title = "Getting Started"
+description = "Install claudewheel, create your first profile, understand the segment bar and the machine-wide sessions table behind its S key, work with a model list that keeps itself current from the Anthropic API -- including models dimmed because they need a newer Claude Code than you are launching -- and launch a Claude Code session with the right model, context window, and permissions."
+nav_group = "Guides"
+nav_order = 2
++++
 
 # Getting Started
 

@@ -1,9 +1,9 @@
----
-title: Configuration
-description: "How the claudewheel configuration system works: the root file layout, per-profile directories and their claudewheel data, segments and options, discovery with its caches -- including model discovery from the Anthropic API, the release-date ordering it feeds, and the built-in minimum-version table that dims models needing a newer Claude Code than the version you have selected or installed (a dimmed model refuses to launch, while a version neither selection nor symlink can resolve dims nothing) -- the migration framework with the one-time versioned fixes it replays from the list registered in the code, schema versioning, flag-driven launches, and how interactivity is derived from a controlling terminal."
-nav_group: "Concepts"
-order: 4
----
++++
+title = "Configuration"
+description = "How the claudewheel configuration system works: the root file layout, per-profile directories and their claudewheel data, segments and options, discovery with its caches -- including model discovery from the Anthropic API, the release-date ordering it feeds, and the built-in minimum-version table that dims models needing a newer Claude Code than the version you have selected or installed (a dimmed model refuses to launch, while a version neither selection nor symlink can resolve dims nothing) -- the migration framework with the one-time versioned fixes it replays from the list registered in the code, schema versioning, flag-driven launches, and how interactivity is derived from a controlling terminal."
+nav_group = "Concepts"
+nav_order = 4
++++
 
 # Configuration
 

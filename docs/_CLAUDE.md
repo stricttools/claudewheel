@@ -1,6 +1,6 @@
----
-title: CLAUDE.md
----
++++
+title = "CLAUDE.md"
++++
 # claudewheel
 
 A TUI launcher for Claude Code: pick a profile, model, directory, MCP mode, and permissions from a horizontal segment bar, then launch.
