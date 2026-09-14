@@ -12,7 +12,7 @@
     "table-guardrails": "docs/_directives/guardrail_table.py",
     "table-disallowed-tools": "docs/_directives/disallowed_tools_table.py"
   },
-  "base_url": "https://claudewheel.smmh.dev",
+  "base_url": "https://smmh.dev/claudewheel",
   "versions": [
     {
       "version": "0.31.0"
