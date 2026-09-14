@@ -2,6 +2,14 @@
 
 # Changelog
 
+## 0.32.1
+
+Documentation frontmatter converted to TOML for the current selfdoc; no user-facing change.
+
+### Infrastructure
+
+- Documentation frontmatter converted to TOML for the current selfdoc; no user-facing change.
+
 ## 0.32.0
 
 A machine-wide sessions table and per-session lifecycle store, launch facts in the child environment, hook-script fixes, and the project now describes itself consistently on PyPI, npm and in its README with its docs at the unified site.
