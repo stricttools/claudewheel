@@ -6,11 +6,11 @@
       "language": "python"
     }
   ],
-  "docs": "docs/",
-  "output": "docs/_build/",
+  "docs": ".stricttools/docs/",
+  "output": ".stricttools/docs-cache/build/",
   "directives": {
-    "table-guardrails": "docs/_directives/guardrail_table.py",
-    "table-disallowed-tools": "docs/_directives/disallowed_tools_table.py"
+    "table-guardrails": ".stricttools/docs/_directives/guardrail_table.py",
+    "table-disallowed-tools": ".stricttools/docs/_directives/disallowed_tools_table.py"
   },
   "base_url": "https://smmh.dev/claudewheel",
   "versions": [
@@ -35,8 +35,8 @@
   },
   "repo": "https://github.com/smm-h/claudewheel",
   "root_files": [
-    "docs/_CLAUDE.md",
-    "docs/_README.md"
+    ".stricttools/docs/_CLAUDE.md",
+    ".stricttools/docs/_README.md"
   ],
   "branding": {
     "tagline": "Pick a profile. Pick a model. Launch.",
