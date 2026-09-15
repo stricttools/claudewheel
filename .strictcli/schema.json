@@ -83,7 +83,7 @@
   "project_id": "claudewheel",
   "name": "c",
   "version": "0.32.1",
-  "help": "claudewheel - TUI launcher for Claude Code with profile, model, and directory selection",
+  "help": "A TUI Claude Code Launcher that lets you have more than one profile, manage sessions lifecycle, pick the exact CC version, model to use (even older unlisted ones), pick which GitHub account to use, etc.",
   "commands": {
     "health": {
       "name": "health",

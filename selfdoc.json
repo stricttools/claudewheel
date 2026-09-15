@@ -25,7 +25,7 @@
       "default": true
     }
   ],
-  "description": "TUI launcher for Claude Code that lets you pick a profile, model, version, directory, MCP mode and permission mode from a horizontal segment bar, then launches the session",
+  "description": "A TUI Claude Code Launcher that lets you have more than one profile, manage sessions lifecycle, pick the exact CC version, model to use (even older unlisted ones), pick which GitHub account to use, etc.",
   "author": {
     "name": "SMMH",
     "url": "https://smmh.dev",

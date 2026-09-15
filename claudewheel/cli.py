@@ -2194,7 +2194,7 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
     app = App(
         name="c",
         version=__version__,
-        help="claudewheel - TUI launcher for Claude Code with profile, model, and directory selection",
+        help="A TUI Claude Code Launcher that lets you have more than one profile, manage sessions lifecycle, pick the exact CC version, model to use (even older unlisted ones), pick which GitHub account to use, etc.",
     )
 
     # -- One-shot commands --

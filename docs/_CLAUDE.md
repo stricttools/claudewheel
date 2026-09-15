@@ -3,7 +3,7 @@ title = "CLAUDE.md"
 +++
 # claudewheel
 
-A TUI launcher for Claude Code: pick a profile, model, directory, MCP mode, and permissions from a horizontal segment bar, then launch.
+A TUI Claude Code Launcher that lets you have more than one profile, manage sessions lifecycle, pick the exact CC version, model to use (even older unlisted ones), pick which GitHub account to use, etc.
 
 ## Release workflow
 

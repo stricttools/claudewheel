@@ -1,10 +1,12 @@
 +++
-description = "claudewheel is a TUI launcher for Claude Code: pick a profile, model, directory, and permissions from a visual segment bar, then launch a guarded session."
+description = "A TUI Claude Code Launcher that lets you have more than one profile, manage sessions lifecycle, pick the exact CC version, model to use (even older unlisted ones), pick which GitHub account to use, etc."
 +++
 
 # claudewheel
 
-A TUI launcher for Claude Code that presents a horizontal segment bar for selecting a profile, model, directory, MCP mode, and permissions before launching a session. Selections persist across launches, and the bar adapts to narrow terminals with viewport scrolling and a minimap.
+A TUI Claude Code Launcher that lets you have more than one profile, manage sessions lifecycle, pick the exact CC version, model to use (even older unlisted ones), pick which GitHub account to use, etc.
+
+Selections persist across launches, and the bar adapts to narrow terminals with viewport scrolling and a minimap.
 
 ## Documentation
 
