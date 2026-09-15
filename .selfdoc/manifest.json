@@ -2,8 +2,8 @@
   "schema_version": 1,
   "name": "claudewheel",
   "slug": "claudewheel",
-  "version": "0.32.0",
-  "description": "TUI launcher for Claude Code that lets you pick a profile, model, version, directory, MCP mode and permission mode from a horizontal segment bar, then launches the session",
+  "version": "0.32.1",
+  "description": "A TUI Claude Code Launcher that lets you have more than one profile, manage sessions lifecycle, pick the exact CC version, model to use (even older unlisted ones), pick which GitHub account to use, etc.",
   "language": "python",
   "base_url": "https://smmh.dev/claudewheel",
   "pages": [
@@ -6373,6 +6373,6 @@
     }
   ],
   "posts": [],
-  "last_gen": "2026-09-14T17:12:24.597732+00:00",
+  "last_gen": "2026-09-15T20:36:41.937128+00:00",
   "theme": "minimal"
 }

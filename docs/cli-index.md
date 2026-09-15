@@ -9,7 +9,7 @@ nav_order = 91
 
 # c CLI Reference
 
-claudewheel - TUI launcher for Claude Code with profile, model, and directory selection
+A TUI Claude Code Launcher that lets you have more than one profile, manage sessions lifecycle, pick the exact CC version, model to use (even older unlisted ones), pick which GitHub account to use, etc.
 
 Version: :-: var key="project.version"
 
