@@ -32,15 +32,25 @@ if TYPE_CHECKING:
     from claudewheel.guardrail import GuardrailRule
 
 
-def _load_guardrail_module() -> ModuleType:
-    """Load ``claudewheel/guardrail.py`` from the repo root and return it.
+def _repo_root() -> str:
+    """Return the repository root: the nearest ancestor holding selfdoc.json.
 
-    The repo root is two directories above this file
-    (``docs/_directives/guardrail_table.py`` -> repo root).
+    Found by marker rather than by a parent count, so this resolves correctly
+    wherever the docs tree sits inside the repository.
     """
-    here = os.path.abspath(__file__)
-    repo_root = os.path.dirname(os.path.dirname(os.path.dirname(here)))
-    guardrail_path = os.path.join(repo_root, "claudewheel", "guardrail.py")
+    directory = os.path.dirname(os.path.abspath(__file__))
+    while True:
+        if os.path.isfile(os.path.join(directory, "selfdoc.json")):
+            return directory
+        parent = os.path.dirname(directory)
+        if parent == directory:
+            raise RuntimeError(f"no selfdoc.json above {__file__}")
+        directory = parent
+
+
+def _load_guardrail_module() -> ModuleType:
+    """Load ``claudewheel/guardrail.py`` from the repo root and return it."""
+    guardrail_path = os.path.join(_repo_root(), "claudewheel", "guardrail.py")
     module_name = "claudewheel_guardrail_for_docs"
     spec = importlib.util.spec_from_file_location(module_name, guardrail_path)
     if spec is None or spec.loader is None:

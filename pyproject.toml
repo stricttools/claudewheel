@@ -122,12 +122,12 @@ strict = true
 #
 # `exclude` is not scope: it prunes recursive discovery inside the paths the
 # check already declares, so the scope guard (which polices `files`/`packages`/
-# `modules`) is untouched. docs/_build/ is the gitignored selfdoc output tree; it
-# holds a byte copy of docs/_directives/guardrail_table.py, and mypy refuses to
-# check two files that map to one module name ("Duplicate module named
-# guardrail_table"), aborting the whole run. Excluding the build tree keeps the
-# real docs/ sources checked.
-exclude = ["^docs/_build/"]
+# `modules`) is untouched. `.stricttools/docs-cache/` is the gitignored selfdoc
+# output tree; it holds a byte copy of the directive modules under
+# `.stricttools/docs/_directives/`, and mypy refuses to check two files that map
+# to one module name ("Duplicate module named guardrail_table"), aborting the
+# whole run. Excluding the build tree keeps the real docs sources checked.
+exclude = ['^\.stricttools/docs-cache/']
 
 # The strictspec-generated validators are machine-written and byte-compared by
 # `strictspec check`; they are not annotated to mypy's strict standard and

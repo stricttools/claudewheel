@@ -30,7 +30,7 @@
       "paths": [
         "claudewheel",
         "tests",
-        "docs"
+        ".stricttools/docs"
       ]
     },
     "lint": {
@@ -38,7 +38,7 @@
         "claudewheel",
         "tests",
         "scripts",
-        "docs"
+        ".stricttools/docs"
       ]
     },
     "format": {
@@ -46,7 +46,7 @@
         "claudewheel",
         "tests",
         "scripts",
-        "docs"
+        ".stricttools/docs"
       ]
     }
   },
