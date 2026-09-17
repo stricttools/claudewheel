@@ -27,10 +27,10 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/smm-h/claudewheel.git"
+    "url": "git+https://github.com/stricttools/claudewheel.git"
   },
   "bugs": {
-    "url": "https://github.com/smm-h/claudewheel/issues"
+    "url": "https://github.com/stricttools/claudewheel/issues"
   },
   "engines": {
     "node": ">=18"
