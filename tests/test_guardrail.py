@@ -38,6 +38,7 @@ EXPECTED_DENY = [
     "Bash(git restore:*)",
     "Bash(git checkout:*)",
     "Bash(git push origin --delete*)",
+    "Bash(sleep:*)",
 ]
 
 EXPECTED_ASK = [
@@ -244,6 +245,21 @@ class AdviceTextTests(unittest.TestCase):
             self.GIT_STASH_ADVICE + " " + guardrail.SUBAGENT_HARD_DENY_SUFFIX,
         )
 
+    SLEEP_ADVICE = (
+        "Never 'sleep' to wait: the harness notifies you when background work "
+        "finishes, so read the state you are waiting on or do other work "
+        "instead of padding the turn with a wait."
+    )
+
+    def test_sleep_main_advice_is_exact(self) -> None:
+        self.assertEqual(_rule("sleep").main_advice, self.SLEEP_ADVICE)
+
+    def test_sleep_subagent_advice_is_advice_plus_suffix(self) -> None:
+        self.assertEqual(
+            _rule("sleep").subagent_advice,
+            self.SLEEP_ADVICE + " " + guardrail.SUBAGENT_HARD_DENY_SUFFIX,
+        )
+
     def test_no_advice_sends_an_agent_to_a_side_branch(self) -> None:
         for r in RULES:
             for advice in (r.main_advice, r.subagent_advice):
@@ -276,6 +292,19 @@ class HookPatternTests(unittest.TestCase):
         self.assertIsNotNone(re.search(pat, "git switch -f main"))
         self.assertIsNotNone(re.search(pat, "git switch --force"))
 
+    def test_sleep_matches_command_word_positions_only(self) -> None:
+        pat = _rule("sleep").hook_patterns[0]
+        for command in (
+            "sleep 5",
+            "sleep 580; tail x",
+            "cmd && sleep 3",
+            "(sleep 1)",
+            "foo | sleep 2",
+        ):
+            self.assertIsNotNone(re.search(pat, command), command)
+        for command in ("nosleep", "./sleepwalker", "echo sleep", "grep sleep file"):
+            self.assertIsNone(re.search(pat, command), command)
+
 
 class SettingsCoverageTests(unittest.TestCase):
     """The settings_coverage annotation is honest and internally consistent.
@@ -292,6 +321,7 @@ class SettingsCoverageTests(unittest.TestCase):
         "git-push-delete": SettingsCoverage.PARTIAL,
         "git-reset": SettingsCoverage.PARTIAL,
         "git-checkout-file": SettingsCoverage.NONE,
+        "sleep": SettingsCoverage.PARTIAL,
     }
 
     def test_hook_backed_tiers_annotated(self) -> None:

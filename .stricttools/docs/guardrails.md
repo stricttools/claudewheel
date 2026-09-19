@@ -8,10 +8,11 @@ nav_order = 5
 # Guardrails
 
 claudewheel ships a canonical set of command guardrails that every profile
-inherits. The guardrails discourage or block destructive shell commands (bulk
-`git add`, `rm`, history rewrites, branch deletion) and steer agents toward
-safe alternatives such as `safegit` and `saferm`. The rules live in one place
-and drive both the deployed hook scripts and each profile's permission arrays.
+inherits. Each rule names one command form an agent should not reach for and
+says what to do instead: use a safer tool such as `safegit` or `saferm`, leave
+the decision to the user, or not run a command at all. The rules live in one
+place and drive both the deployed hook scripts and each profile's permission
+arrays, and the "Rule reference" table below lists every one of them.
 
 ## Enforcement tiers
 

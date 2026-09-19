@@ -77,6 +77,13 @@ class SettingsCoverage(Enum):
 # whitespace. Keeps ``git add`` from matching inside e.g. ``mygit add``.
 SEP = r"(^|[;&|]|&&|\|\|)\s*"
 
+# Separator anchor for a command word that may also open a subshell or a
+# grouping: everything ``SEP`` accepts, plus an opening parenthesis, so
+# ``(cmd ...)`` is recognised as a command start. Kept apart from ``SEP`` so
+# widening the anchor stays a per-rule decision rather than a silent change to
+# every matcher.
+SUBSHELL_SEP = r"(^|[;&|(]|&&|\|\|)\s*"
+
 # Fixed tail appended to a subagent's HARD_DENY advice.
 SUBAGENT_HARD_DENY_SUFFIX = (
     "You are a subagent: report to your parent agent why you attempted this command."
@@ -220,6 +227,18 @@ def _cmd(literal: str) -> str:
     return SEP + literal
 
 
+def _subshell_cmd(literal: str) -> str:
+    """Anchor a command-matcher *literal* at any command-word position.
+
+    Like ``_cmd`` but the anchor also accepts an opening parenthesis, so the
+    literal is matched when it starts a subshell (``(sleep 1)``) as well as at
+    the start of the string or after a ``;``/``&``/``|`` separator. A trailing
+    ``(\\s|$)`` is appended so a longer word beginning with the literal
+    (``sleepwalker``) is not a match.
+    """
+    return SUBSHELL_SEP + literal + r"(\s|$)"
+
+
 def _wrapped_matcher(cmd: str) -> str:
     """SEP-anchored matcher for *cmd* plus indirect-invocation wrappers.
 
@@ -345,6 +364,25 @@ RULES: tuple[GuardrailRule, ...] = (
             "the deny glob covers only origin + --delete; the hook also matches "
             "the empty-source colon refspec (:b / +:b), the -d short form, and "
             "any other remote."
+        ),
+    ),
+    _hard_deny(
+        "sleep",
+        # ``sleep`` wherever it begins a shell command: at the start, after a
+        # separator, or opening a subshell. Anchored by _subshell_cmd, so a
+        # word that merely contains it (``nosleep``, ``./sleepwalker``) and a
+        # mention inside another command's arguments (``echo sleep``,
+        # ``grep sleep file``) are left alone.
+        [_subshell_cmd("sleep")],
+        ["Bash(sleep:*)"],
+        "Never 'sleep' to wait: the harness notifies you when background work "
+        "finishes, so read the state you are waiting on or do other work "
+        "instead of padding the turn with a wait.",
+        coverage=SettingsCoverage.PARTIAL,
+        reason=(
+            "Bash(sleep:*) matches only a command line that starts with "
+            "'sleep'; the hook also matches it after a separator and inside a "
+            "subshell, which no deny glob covers."
         ),
     ),
     # -- ESCALATE ---------------------------------------------------------

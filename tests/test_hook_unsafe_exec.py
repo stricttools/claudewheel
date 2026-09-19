@@ -124,6 +124,7 @@ _HARD_DENY_SAMPLES: dict[str, str] = {
     "git-checkout-file": "git checkout -- file.txt",
     "git-checkout": "git checkout main",
     "git-push-delete": "git push origin --delete foo",
+    "sleep": "sleep 5",
 }
 
 # One representative command that matches each ESCALATE rule's pattern.
@@ -376,6 +377,49 @@ class HookSafegitAuthorRewriteTests(unittest.TestCase):
         # guard a command that cannot run.
         _assert_allows(self, "safegit rewrite-author --all")
         _assert_allows(self, "safegit rewrite-author --all", agent_id="sub-1")
+
+
+class HookSleepTests(unittest.TestCase):
+    """The sleep rule: every command-word position denies, mentions allow.
+
+    A waiting command is never the way to wait here -- the harness reports
+    background work when it finishes -- so ``sleep`` is hard-denied wherever it
+    begins a shell command, including inside a subshell. A token that merely
+    starts with or contains "sleep" is a different command and must run.
+    """
+
+    DENIED = (
+        "sleep 5",
+        "sleep 580; tail x",
+        "cmd && sleep 3",
+        "(sleep 1)",
+        "foo | sleep 2",
+    )
+
+    ALLOWED = (
+        "nosleep",
+        "./sleepwalker",
+        "echo sleep",
+        "grep sleep file",
+    )
+
+    def test_sleep_denied_for_both_callers(self) -> None:
+        for command in self.DENIED:
+            with self.subTest(command=command):
+                _assert_denies(self, command)
+                _assert_denies(self, command, agent_id="sub-1")
+
+    def test_other_words_allowed_for_both_callers(self) -> None:
+        for command in self.ALLOWED:
+            with self.subTest(command=command):
+                _assert_allows(self, command)
+                _assert_allows(self, command, agent_id="sub-1")
+
+    def test_deny_message_steers_the_agent(self) -> None:
+        reason = _assert_denies(self, "sleep 5")
+        self.assertIn("harness", reason)
+        self.assertIn("notifies", reason)
+        self.assertIn("read the state", reason)
 
 
 class HookNonBashTests(unittest.TestCase):
