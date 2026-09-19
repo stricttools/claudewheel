@@ -86,7 +86,9 @@ def conversation(path):
             if text is None:
                 continue
             # Harness-injected user turns: tool results, reminders, caveats.
-            if role == "user" and text.startswith(("<local-command", "<system-reminder", "Caveat:")):
+            if role == "user" and text.startswith(
+                ("<local-command", "<system-reminder", "Caveat:")
+            ):
                 continue
             yield role, entry.get("timestamp", ""), text
 
@@ -113,7 +115,7 @@ def subagent_owners(path, sub_dir):
     it. That keeps the mapping correct even though the announcement itself is
     filtered out of the page.
     """
-    ids = [p.stem[len("agent-"):] for p in sorted(sub_dir.glob("agent-*.jsonl"))]
+    ids = [p.stem[len("agent-") :] for p in sorted(sub_dir.glob("agent-*.jsonl"))]
     pending = set(ids)
     owners = {}
     messages = []
@@ -133,7 +135,9 @@ def subagent_owners(path, sub_dir):
             text = texts(entry)
             if text is None:
                 continue
-            if role == "user" and text.startswith(("<local-command", "<system-reminder", "Caveat:")):
+            if role == "user" and text.startswith(
+                ("<local-command", "<system-reminder", "Caveat:")
+            ):
                 continue
             messages.append((role, entry.get("timestamp", ""), text))
     owners = {a: i for a, i in owners.items() if i >= 0}
@@ -160,7 +164,9 @@ def render_tree(path, sub_dir):
     out = []
     for index, (role, stamp, text) in enumerate(messages):
         children = nested.get(index, [])
-        extra = f' <span class="count">[{len(children)} agent]</span>' if children else ""
+        extra = (
+            f' <span class="count">[{len(children)} agent]</span>' if children else ""
+        )
         piece = block(role, stamp, text, extra)
         if children:
             piece += '<div class="nest">'
