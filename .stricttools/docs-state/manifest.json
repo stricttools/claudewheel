@@ -2,7 +2,7 @@
   "schema_version": 1,
   "name": "claudewheel",
   "slug": "claudewheel",
-  "version": "0.32.1",
+  "version": "0.32.2",
   "description": "A TUI Claude Code Launcher that lets you have more than one profile, manage sessions lifecycle, pick the exact CC version, model to use (even older unlisted ones), pick which GitHub account to use, etc.",
   "language": "python",
   "base_url": "https://smmh.dev/claudewheel",
@@ -1546,6 +1546,11 @@
           "level": 3,
           "text": "`_cmd`",
           "anchor": "_cmd"
+        },
+        {
+          "level": 3,
+          "text": "`_subshell_cmd`",
+          "anchor": "_subshell_cmd"
         },
         {
           "level": 3,
@@ -6373,6 +6378,6 @@
     }
   ],
   "posts": [],
-  "last_gen": "2026-09-15T20:36:41.937128+00:00",
+  "last_gen": "2026-09-19T21:15:24.660620+00:00",
   "theme": "minimal"
 }
