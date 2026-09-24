@@ -38,7 +38,7 @@ classifiers = [
 ]
 dependencies = [
     "strictcli>=0.41.1",
-    "strictspec>=0.2.4",
+    "strictspec>=0.4.0",
 ]
 
 [project.scripts]

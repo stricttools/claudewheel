@@ -1,6 +1,6 @@
 # strictspec generated validator. DO NOT EDIT.
 #
-# strictspec generator: 0.2.4
+# strictspec generator: 0.4.0
 # schema:              claudewheel-lifecycle-event (format_version 1)
 # regenerate:          strictspec gen --manifest strictspec.toml
 #
@@ -14,9 +14,15 @@ from dataclasses import dataclass, replace
 import strictspec
 from strictspec import Diagnostic, Value
 
-# GENERATED_BY is the strictspec release that produced this file. The runtime
-# pairing guard hard-errors unless it matches the linked runtime exactly.
-GENERATED_BY = "0.2.4"
+# GENERATED_BY is the strictspec release that produced this file. It is
+# INFORMATIONAL: pairing is on GENERATED_CODE_FORMAT below, so a later release
+# of the runtime reads this file unchanged, and no tool may derive a dependency
+# floor from this string.
+GENERATED_BY = "0.4.0"
+# GENERATED_CODE_FORMAT is the shape of generated code this file was written to.
+# The runtime pairing guard hard-errors unless this format is one the linked
+# runtime reads; the remedy is regeneration.
+GENERATED_CODE_FORMAT = 2
 SCHEMA_FORMAT_VERSION = 1
 
 # _EMBEDDED_SCHEMA carries the compiled schema (and its imported type-definition
@@ -26,9 +32,10 @@ _EMBEDDED_SCHEMA = {
 }
 _EMBEDDED_MAIN_FILE = "lifecycle-event.schema.toml"
 
-# Version pairing: generated code and runtime must be the same release. This runs
-# at import, so a skewed runtime hard-errors before any validation is attempted.
-strictspec.require_runtime_version(GENERATED_BY)
+# Pairing: this file's generated-code format must be one the runtime reads. This
+# runs at import, so a runtime that cannot read it hard-errors before any
+# validation is attempted.
+strictspec.require_generated_code_format(GENERATED_CODE_FORMAT, GENERATED_BY)
 _program = strictspec.compile_embedded(_EMBEDDED_SCHEMA, _EMBEDDED_MAIN_FILE)
 
 
@@ -41,8 +48,8 @@ def validate_bytes(input: bytes, syntax: str) -> tuple[Value | None, tuple[Diagn
 
 
 def validate_bytes_with_evidence(input: bytes, syntax: str, evidence: dict | None) -> tuple[Value | None, tuple[Diagnostic, ...]]:
-    """validate_bytes plus cross-document resolver evidence for the phase-2
-    constraint vocabulary.
+    """validate_bytes plus cross-document resolver evidence for the constraint
+    vocabulary.
     """
     result = _program.validate_with_evidence(input, syntax, evidence)
     if not result.valid:
