@@ -1040,12 +1040,12 @@ class RenameRecoveryOnStartupTests(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# 6. Phase 5.1 construction contract: lazy, idempotent, fail-loud
+# 6. Construction contract: lazy, idempotent, fail-loud
 # ---------------------------------------------------------------------------
 
 
 class ConstructionContractTests(unittest.TestCase):
-    """Phase 5.1: Workspace.appconfig() is lazy-on-open, idempotent, fail-loud."""
+    """Workspace.appconfig() is lazy-on-open, idempotent, fail-loud."""
 
     def setUp(self) -> None:
         self._tmp_obj = tempfile.TemporaryDirectory()

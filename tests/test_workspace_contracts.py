@@ -233,7 +233,7 @@ class CorruptTokensContractTests(_FakeHomeMixin, unittest.TestCase):
 class WholePackageReadOnlyContractTests(_FakeHomeMixin, unittest.TestCase):
     """Every READ path must work on a fully-migrated, chmod-locked workspace.
 
-    Phase decisions: reads must work on read-only mounts; fail-loud is only for
+    Design decisions: reads must work on read-only mounts; fail-loud is only for
     WRITE operations. This builds a fully-populated, already-migrated workspace
     (``appconfig()`` runs all migrations + dir seeding while writable), then locks
     the whole tree down (dirs r-x, files r--) and exercises the read surface:

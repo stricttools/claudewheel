@@ -1,4 +1,4 @@
-"""Tests for the approved-hooks preflight step (Phase 2.2 + 2.3).
+"""Tests for the approved-hooks preflight step.
 
 The step reads the target project's Claude Code hooks and, on first sighting or
 change, prompts for one-key approval (interactive) or aborts with an actionable

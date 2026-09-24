@@ -1,4 +1,4 @@
-"""Phase 4: the vanilla, strictly read-only "default" profile (~/.claude).
+"""The vanilla, strictly read-only "default" profile (~/.claude).
 
 Covers the launch integration (a full ``_do_launch_sequence`` run against the
 default writes nothing into ~/.claude and injects neither CLAUDE_CONFIG_DIR nor

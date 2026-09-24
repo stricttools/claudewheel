@@ -72,7 +72,7 @@ class DiscoveryEntry:
 
     func: Callable[..., DiscoveryResult]  # (config, state, ws) -> DiscoveryResult
     is_slow: bool = False
-    verify: Callable[..., bool] | None = None  # for staleness checks (Phase 4)
+    verify: Callable[..., bool] | None = None  # for staleness checks
     # The startup counterpart of a slow function: same signature, but reads
     # only what is already on hand (a warm cache, the local filesystem) and
     # never touches the network. A slow entry without one produces nothing at
@@ -1164,7 +1164,7 @@ def build_segment_bar(cfg: "AppConfigStore", *, skip_slow: bool = False) -> Segm
             # path writes, on the main thread where options.json has one owner.
             cfg.record_discovered_models(result.values, result.metadata)
 
-        # Phase 7: "+" is a virtual UI element via display_options,
+        # "+" is a virtual UI element via display_options,
         # no longer stored in any SegmentState collection.
 
         # Pre-select from last session's config if available

@@ -1,4 +1,4 @@
-"""Tests for Phase 9: provenance overlay hotkey and glyph rendering."""
+"""Tests for the provenance overlay hotkey and glyph rendering."""
 
 from __future__ import annotations
 

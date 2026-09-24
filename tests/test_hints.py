@@ -1,12 +1,12 @@
-"""Tests for Phase 2-3: hint rendering, wrapping, and registry-derived hints.
+"""Tests for hint rendering, wrapping, and registry-derived hints.
 
 Covers:
-- 3a: Hint parity (registry produces correct hints for each mode/state)
-- 3b: Wrapping on narrow terminal
-- 3c: Fan-out bound respects reserved_bottom_rows
-- 3d: Flash override (hints hidden but reserved rows stable)
-- 3e: Dual-role hint visibility (profile-conditional bindings)
-- 3f: Priority ordering
+- Hint parity (registry produces correct hints for each mode/state)
+- Wrapping on narrow terminal
+- Fan-out bound respects reserved_bottom_rows
+- Flash override (hints hidden but reserved rows stable)
+- Dual-role hint visibility (profile-conditional bindings)
+- Priority ordering
 """
 
 from __future__ import annotations
@@ -56,7 +56,7 @@ def _make_renderer(cols: int = 120, rows: int = 24) -> Renderer:
 
 
 # ===========================================================================
-# 3a: Hint parity tests -- registry produces correct hints for each state
+# Hint parity tests -- registry produces correct hints for each state
 # ===========================================================================
 
 
@@ -169,7 +169,7 @@ class HintParityDefaultTests(unittest.TestCase):
 
 
 # ===========================================================================
-# 3b: Wrapping test -- narrow terminal causes two hint lines
+# Wrapping test -- narrow terminal causes two hint lines
 # ===========================================================================
 
 
@@ -227,7 +227,7 @@ class HintWrappingTests(unittest.TestCase):
 
 
 # ===========================================================================
-# 3c: Fan-out bound respects reserved_bottom_rows
+# Fan-out bound respects reserved_bottom_rows
 # ===========================================================================
 
 
@@ -277,7 +277,7 @@ class FanOutBoundTests(unittest.TestCase):
 
 
 # ===========================================================================
-# 3d: Flash override -- hints hidden but reserved rows stable
+# Flash override -- hints hidden but reserved rows stable
 # ===========================================================================
 
 
@@ -336,7 +336,7 @@ class FlashOverrideTests(unittest.TestCase):
 
 
 # ===========================================================================
-# 3e: Dual-role hint visibility -- profile-conditional bindings
+# Dual-role hint visibility -- profile-conditional bindings
 # ===========================================================================
 
 
@@ -393,7 +393,7 @@ class DualRoleHintTests(unittest.TestCase):
 
 
 # ===========================================================================
-# 3f: Priority ordering -- hints appear in priority order
+# Priority ordering -- hints appear in priority order
 # ===========================================================================
 
 

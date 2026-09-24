@@ -355,7 +355,7 @@ class FindSessionsByTitleTests(unittest.TestCase):
 
     # -- Regression: the OLD lookup path (find_session by UUID) cannot resolve a
     #    title, AND the title record can sit DEEP in the file (past any bounded
-    #    head-scan). This is the concrete failure Phase 6 fixes. --
+    #    head-scan). This is the concrete failure the title lookup fixes. --
 
     def test_regression_title_deep_in_file_unresolvable_by_uuid(self) -> None:
         title = "what is rlsbl and what is strictcli (Branch)"

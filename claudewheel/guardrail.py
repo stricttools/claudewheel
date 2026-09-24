@@ -5,19 +5,20 @@ guardrails: which commands are hard-denied, which escalate to the user when a
 subagent tries them, which merely advise, and which prompt via settings. It
 also owns ``DISALLOWED_TOOL_ENTRIES``, the stripped-tools list: every Claude
 Code tool removed from launched sessions, each with the reason it is banned.
-It carries everything later phases need:
+It carries everything its consumers need:
 
-  - Phase 2 (bash generation) reads ``hook_patterns`` plus the tier semantics
+  - Bash hook generation reads ``hook_patterns`` plus the tier semantics
     and advice text to emit the PreToolUse/PostToolUse hook scripts.
-  - Phase 3 (settings) reads ``canonical_deny_rules()`` / ``canonical_ask_rules()``
+  - Settings reads ``canonical_deny_rules()`` / ``canonical_ask_rules()``
     to populate profile ``permissions`` and ``ALLOW_CONFLICTS`` to scrub dead
     or conflicting allow-array entries.
-  - Phase 4 (health / patch) reads ``EXPECTED_HOOK_WIRINGS`` to verify each
+  - Health / patch reads ``EXPECTED_HOOK_WIRINGS`` to verify each
     profile wires every declared hook entry correctly.
 
 The hook regex patterns are stored as PLAIN ERE text (Python raw strings,
 single-escaped). Translating them into a bash/grep template (with the extra
-layer of shell escaping) is Phase 2's job -- this module never emits bash.
+layer of shell escaping) is the hook-script generator's job -- the model itself
+never emits bash.
 """
 
 from __future__ import annotations
@@ -475,7 +476,7 @@ RULES: tuple[GuardrailRule, ...] = (
 )
 
 
-# Allow-array entries the fleet cleanup (Phase 3) must remove because they are
+# Allow-array entries the fleet cleanup must remove because they are
 # dead or conflict with the canonical deny/ask rules above. Entries NOT in this
 # list stay allowed on purpose -- notably Bash(git rm:*) and Bash(npm run kill:*).
 ALLOW_CONFLICTS: tuple[str, ...] = (
@@ -498,8 +499,8 @@ ALLOW_CONFLICTS: tuple[str, ...] = (
 )
 
 
-# Every (event, matcher, script-name) hook wiring a profile must have. Phase 4
-# (health / patch_profiles) verifies these against each profile's settings hooks
+# Every (event, matcher, script-name) hook wiring a profile must have. Health /
+# patch_profiles verifies these against each profile's settings hooks
 # section, and defaults._build_canonical_hooks derives the settings entries from
 # them, so a wiring added here flows into deployment and verification alike.
 #
@@ -689,7 +690,7 @@ def disallowed_tool_names() -> list[str]:
 
 
 # ---------------------------------------------------------------------------
-# Bash hook-script generation (Phase 2)
+# Bash hook-script generation
 #
 # These functions turn the canonical model above into the actual bash sources
 # deployed as Claude Code hooks. They are the ONLY place in the codebase that

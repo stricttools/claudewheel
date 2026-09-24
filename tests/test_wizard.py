@@ -1644,7 +1644,7 @@ class AuthFlowTests(AuthFlowTestBase):
     def test_long_lived_token_recovery_paste_probe_gated(self) -> None:
         """A format-valid recovery paste proceeds to the probe; VALID saves it.
 
-        The offline format gate (Phase 8.2) admits any sk-ant- token without a
+        The offline format gate admits any sk-ant- token without a
         length check, so the live probe remains the real gate: VALID saves it.
         """
         from claudewheel import auth
@@ -2931,7 +2931,7 @@ class TokenRecoveryPasteTests(AuthFlowTestBase):
 
 
 class TokenValidationOutcomeTests(AuthFlowTestBase):
-    """Tests for the five-outcome hard-validation flow (Phase 3b)."""
+    """Tests for the five-outcome hard-validation flow."""
 
     def _run_scraped_flow(
         self,
@@ -3532,7 +3532,7 @@ class SessionLoginStoresNothingTests(AuthFlowTestBase):
 
 
 class HookMergeGapTests(CreateProfileTestBase):
-    """Phase 3: every canonical hook wiring lands, not just UserPromptSubmit.
+    """Every canonical hook wiring lands, not just UserPromptSubmit.
 
     Regression for the wizard merge gap: cloning a profile that already had a
     hooks section used to merge ONLY UserPromptSubmit, silently dropping the

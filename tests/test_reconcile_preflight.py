@@ -1,4 +1,4 @@
-"""Phase 1.2: the always-on preflight reconcile step heals the guardrail
+"""The always-on preflight reconcile step heals the guardrail
 surface on every launch.
 
 These drive the REAL ``_do_launch_sequence`` (PREFLIGHT_STEPS is NOT patched,

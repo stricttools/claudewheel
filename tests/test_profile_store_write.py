@@ -2,7 +2,7 @@
 
 These target the NEW ProfileStore write path (create/delete/rename/recover),
 built beside the live wizard/profile_ops code. The old paths remain the
-production code until a later cutover phase; the parity tests here pin the new
+production code until a later cutover; the parity tests here pin the new
 path's artifacts to what the old code produces today.
 
 RED observation (wizard atomicity, documented, not a permanent test)

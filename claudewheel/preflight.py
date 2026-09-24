@@ -9,7 +9,7 @@ CONTINUEs (there is no separate "skip" verdict -- skipping is CONTINUE without
 acting).
 
 The framework is intentionally content-free: :data:`PREFLIGHT_STEPS` starts
-empty and later phases register concrete steps. The runner is fully testable
+empty and concrete steps register into it. The runner is fully testable
 with synthetic steps.
 
 UI-rendering steps (``renders_ui=True``) are responsible for constructing and

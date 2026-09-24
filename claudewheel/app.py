@@ -41,7 +41,7 @@ from .workspace import Workspace
 
 
 # ---------------------------------------------------------------------------
-# Phase 0: Data structures for the keybinding registry
+# Data structures for the keybinding registry
 # ---------------------------------------------------------------------------
 
 
@@ -119,7 +119,7 @@ class App:
         self._slow_state_copy: dict[str, Any] | None = (
             None  # isolated copy for bg thread
         )
-        # Deferred discovery results for the focused segment (Phase 8)
+        # Deferred discovery results for the focused segment
         self._pending_discovery: dict[str, DiscoveryResult] = {}
         self._slow_thread = threading.Thread(
             target=self._run_slow_discovery_thread,
@@ -136,7 +136,7 @@ class App:
         )
         self.running = False
         self._flash: str = ""  # Temporary message shown for one render cycle
-        self._show_provenance: bool = False  # Phase 9: provenance overlay toggle
+        self._show_provenance: bool = False  # Provenance overlay toggle
         self._mode2031_supported: bool = False
         self._bindings: list[Binding] = self._build_bindings()
 

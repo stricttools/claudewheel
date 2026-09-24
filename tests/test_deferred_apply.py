@@ -1,4 +1,4 @@
-"""Tests for Phase 8: deferred application of slow discovery results."""
+"""Tests for deferred application of slow discovery results."""
 
 from __future__ import annotations
 

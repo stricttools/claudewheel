@@ -1,6 +1,6 @@
 """Tests for theme auto-detection at the UI boundary (not during store construction).
 
-Phase 5.2 moved terminal-querying theme resolution OUT of ``AppConfigStore``
+Terminal-querying theme resolution lives OUTSIDE ``AppConfigStore``
 construction. The store performs zero terminal I/O; ``resolve_theme_name`` (a
 module-level function) is called at the UI boundary, and ``store.load_theme``
 reads the resolved theme file. These tests split accordingly:

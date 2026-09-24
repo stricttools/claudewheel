@@ -1425,7 +1425,7 @@ class ApplySlowDiscoverySaveStateTests(unittest.TestCase):
 
 
 class ProfileInspectKeyTests(unittest.TestCase):
-    """The 'i' key opens the profile inspect page (Phase 4b guards)."""
+    """The 'i' key opens the profile inspect page (and its guards)."""
 
     def _make_app(self, seg: Segment) -> app_mod.App:
         """Minimal App with a real _handle_key bound and *seg* focused."""
@@ -1739,7 +1739,7 @@ class InspectAuthShadowFixTests(unittest.TestCase):
 
 
 class ProfileDeleteKeyTests(unittest.TestCase):
-    """CTRL_D/DELETE run the profile delete flow (Phase 5c)."""
+    """CTRL_D/DELETE run the profile delete flow."""
 
     _refresh_mock: mock.MagicMock
     _store: mock.MagicMock
@@ -2118,7 +2118,7 @@ class ProfileDeleteKeyTests(unittest.TestCase):
 
     def test_background_sessions_do_not_block(self) -> None:
         """Live background work holds the profile but is not a person at a
-        terminal, so it does not veto the deletion (Phase 2.2)."""
+        terminal, so it does not veto the deletion."""
         seg = _make_profile_segment(discovered=["work"])
         seg.select_value("work")
         app = self._make_app(seg)

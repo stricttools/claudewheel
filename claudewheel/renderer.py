@@ -169,7 +169,7 @@ class Renderer:
         th = self.theme
         sep = th.separator_char
 
-        # Pre-compute layout so later phases can access positions without rendering
+        # Pre-compute layout so later render steps can access positions without rendering
         layout, total_width = self._compute_bar_layout(bar)
         self._bar_layout = layout
         self._bar_total_width = total_width

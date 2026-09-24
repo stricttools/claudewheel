@@ -1,4 +1,4 @@
-"""Tests for the scratchpad scanner (Phase 3.1).
+"""Tests for the scratchpad scanner.
 
 Covers per-directory size and age computation, symlink safety (never followed
 for size or mtime), and the staleness rule (fresh activity anywhere in a tree

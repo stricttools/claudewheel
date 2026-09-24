@@ -238,7 +238,7 @@ class SegmentValueBasedSelectionTests(unittest.TestCase):
 
 
 class DisplayOptionsTests(unittest.TestCase):
-    """Tests for the display_options property (Phase 7: virtual '+')."""
+    """Tests for the display_options property (the virtual '+')."""
 
     def test_creatable_appends_plus(self) -> None:
         """Creatable segments have '+' appended to display_options."""

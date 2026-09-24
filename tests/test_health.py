@@ -352,7 +352,7 @@ class CheckHooksWiredTests(_HomeDirTestCase):
         self.assertIn("hook-timestamp", result.detail)
 
     def test_damaged_hooks_fail_then_pass_after_repair(self) -> None:
-        """Phase-1-style damage: hooks pointing at a dead dir FAIL pre-repair,
+        """Stale-path damage: hooks pointing at a dead dir FAIL pre-repair,
         and PASS once repathed to the current scripts dir (post-repair)."""
         pdir = self._make_profile("damaged")
 
@@ -1473,7 +1473,7 @@ class CheckRelocatedHookPathsTests(_HomeDirTestCase):
 
 
 class DefaultProfileExemptionTests(_HomeDirTestCase):
-    """Phase 4.5: the vanilla ~/.claude 'default' is exempt from guardrail checks.
+    """The vanilla ~/.claude 'default' is exempt from guardrail checks.
 
     A bare ~/.claude (managed by Claude Code, read-only to cw) must produce ZERO
     warnings attributable to the default across a health run.

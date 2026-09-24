@@ -8,7 +8,7 @@ git-push-delete before push).
 
 Note on regex: hook patterns are stored as ERE text and validated only for
 Python ``re`` compilability here. Real bash/grep -E behavior is exercised by
-Phase 2's end-to-end hook tests -- ERE/PCRE differences are out of scope for
+the end-to-end hook-script tests -- ERE/PCRE differences are out of scope for
 this model-level suite.
 """
 

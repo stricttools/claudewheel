@@ -1,6 +1,6 @@
 """Tests for the project-hooks reader (claudewheel.project_hooks).
 
-Covers Phase 2.1: reading ``.claude/settings.json`` and ``settings.local.json``,
+Covers reading ``.claude/settings.json`` and ``settings.local.json``,
 extracting each file's hooks section, fingerprint stability/distinctness, the
 malformed-JSON hard error naming the file, and the flattened human-readable
 listing.

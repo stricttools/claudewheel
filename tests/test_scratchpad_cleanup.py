@@ -1,4 +1,4 @@
-"""Tests for the scratchpad-cleanup preflight step (Phase 3.2).
+"""Tests for the scratchpad-cleanup preflight step.
 
 The step is interactive-only and never aborts. It honors a state snooze, scans
 the /tmp scratchpad root only when not snoozed, prompts (FakeTerminal) when stale
