@@ -374,7 +374,7 @@ class DryRunNarrationIsConditionalTests(SandboxHomeTestCase):
 class RealConfigDirIsAbsentTests(unittest.TestCase):
     """The suite cannot see the developer's real ``~/.claudewheel/``.
 
-    stricttest repoints ``HOME`` at a throwaway directory before any conftest
+    testisolation repoints ``HOME`` at a throwaway directory before any conftest
     module is imported, so ``Workspace.default()`` -- which derives every path
     from ``Path.home()`` -- resolves into the sandbox. This pins that: if the
     floor is ever removed or misconfigured, the whole suite's blast radius goes
@@ -384,7 +384,7 @@ class RealConfigDirIsAbsentTests(unittest.TestCase):
     def test_home_is_a_throwaway(self) -> None:
         home = Path(os.environ["HOME"])
         self.assertNotEqual(home, Path("/home/m"), "HOME is the real home")
-        self.assertIn("stricttest", str(home).lower())
+        self.assertIn("testisolation", str(home).lower())
 
     def test_workspace_default_resolves_inside_the_throwaway_home(self) -> None:
         from claudewheel.workspace import Workspace

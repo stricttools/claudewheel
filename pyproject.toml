@@ -59,11 +59,11 @@ dev = [
     "mypy>=2.3.0",
     "pytest>=9.1.1",
     "ruff>=0.15.20",
-    "stricttest>=0.2.0",
+    "testisolation>=0.3.0",
 ]
 
 [tool.pytest.ini_options]
-# stricttest's isolation floor. Installing the plugin IS adoption; these five
+# testisolation's isolation floor. Installing the plugin IS adoption; these five
 # keys are required and have no defaults, on purpose.
 #
 # claudewheel is the highest-value target in the fleet for this floor. It owns
@@ -87,11 +87,11 @@ dev = [
 #
 # sandbox_required = "false" because this repo has no sandbox runner yet; the
 # always-on env/push/chdir/socket guards apply regardless.
-stricttest_sockets = "deny"
-stricttest_socket_allowlist = []
-stricttest_unix_socket_allowlist = []
-stricttest_loopback = "deny"
-stricttest_sandbox_required = "false"
+testisolation_sockets = "deny"
+testisolation_socket_allowlist = []
+testisolation_unix_socket_allowlist = []
+testisolation_loopback = "deny"
+testisolation_sandbox_required = "false"
 
 [tool.ruff]
 # claudewheel/strictspec_gen/ holds the strictspec-generated validators. They

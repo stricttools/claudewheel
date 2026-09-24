@@ -61,7 +61,7 @@ dev = [
     { name = "mypy" },
     { name = "pytest" },
     { name = "ruff" },
-    { name = "stricttest" },
+    { name = "testisolation" },
 ]
 
 [package.metadata]
@@ -75,7 +75,7 @@ dev = [
     { name = "mypy", specifier = ">=2.3.0" },
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "ruff", specifier = ">=0.15.20" },
-    { name = "stricttest", specifier = ">=0.2.0" },
+    { name = "testisolation", specifier = ">=0.3.0" },
 ]
 
 [[package]]
@@ -334,15 +334,15 @@ wheels = [
 ]
 
 [[package]]
-name = "stricttest"
-version = "0.2.0"
+name = "testisolation"
+version = "0.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pytest" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/20/5d/abb037f117142f4063f43c0e92123d324bed5420a13bbae27bf21c3e7358/stricttest-0.2.0.tar.gz", hash = "sha256:f0d180017fe4781dc82500024f0123c761e0ed4ce930135afc7ffc00e7efbd69", size = 51302, upload-time = "2026-08-07T12:02:35.988Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/14/85/1e6df7783694d35b1679fe4a7e95370c1a3c56331514682dce27bfecee48/testisolation-0.3.0.tar.gz", hash = "sha256:99c0a30aa850f80df73388ce0c4b17cf39065508ecccb791dc78b3ab6ef5dbba", size = 51097, upload-time = "2026-09-24T17:01:15.835Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6e/b1/d79c6786287ec589e94d5255d585d3f5e837e9ecbaf15c3c0d7fdee65c23/stricttest-0.2.0-py3-none-any.whl", hash = "sha256:e945a7b0f7d47bba88f4de43417683b2db57dc38d4dfc304f52f1b3605a58964", size = 28626, upload-time = "2026-08-07T12:02:34.723Z" },
+    { url = "https://files.pythonhosted.org/packages/a8/9d/5daab1f73e5d468af2e0e051b1d2cf2d4af27932c244fc5df6fa01c7ccde/testisolation-0.3.0-py3-none-any.whl", hash = "sha256:b124b95b3e9b211e5bc02896574957d36189fd68f0e9936cc6932f93dc443036", size = 28826, upload-time = "2026-09-24T17:01:14.663Z" },
 ]
 
 [[package]]
