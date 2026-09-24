@@ -78,7 +78,7 @@ The enforcement must move from "match the git command" to "match the
 ## The more robust angle: cut the credentials, not the commands
 
 Command matching is a denylist and denylists leak. The structural fix
-(cf. the stricttest philosophy already used for test isolation) is to
+(cf. the testisolation philosophy already used for test isolation) is to
 make the write **impossible**, not merely un-typed:
 
 - Don't expose the GitHub token to agent sessions at all unless a task
