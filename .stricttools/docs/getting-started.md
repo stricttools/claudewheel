@@ -11,7 +11,7 @@ This tutorial walks through installing claudewheel, creating a profile, navigati
 
 ## Prerequisites
 
-- Python 3.11 or later
+- Python 3.14 or later
 - Claude Code installed (`npm install -g @anthropic-ai/claude-code`)
 - A terminal that supports ANSI colors
 

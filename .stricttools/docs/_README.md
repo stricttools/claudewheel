@@ -23,7 +23,7 @@ Or with `uv`:
 uv tool install claudewheel
 ```
 
-Requires Python 3.11+.
+Requires Python 3.14+.
 
 ### Upgrading from the Node package
 

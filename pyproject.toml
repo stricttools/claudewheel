@@ -7,7 +7,7 @@ name = "claudewheel"
 version = "0.33.0"
 description = "A TUI Claude Code Launcher that lets you have more than one profile, manage sessions lifecycle, pick the exact CC version, model to use (even older unlisted ones), pick which GitHub account to use, etc."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.14"
 license = "MIT"
 authors = [
     { name = "smm-h", email = "smmh72@gmail.com" },
@@ -29,9 +29,6 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Programming Language :: Python :: Implementation :: CPython",
     "Topic :: Software Development :: User Interfaces",
