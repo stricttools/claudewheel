@@ -44,9 +44,9 @@ claudewheel = "claudewheel.cli:main"
 [project.urls]
 Homepage = "https://smmh.dev/claudewheel/"
 Documentation = "https://smmh.dev/claudewheel/"
-Repository = "https://github.com/smm-h/claudewheel"
-Issues = "https://github.com/smm-h/claudewheel/issues"
-Changelog = "https://github.com/smm-h/claudewheel/blob/main/CHANGELOG.md"
+Repository = "https://github.com/stricttools/claudewheel"
+Issues = "https://github.com/stricttools/claudewheel/issues"
+Changelog = "https://github.com/stricttools/claudewheel/blob/main/CHANGELOG.md"
 
 [tool.hatch.build.targets.wheel]
 packages = ["claudewheel"]
