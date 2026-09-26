@@ -11,3 +11,7 @@ meaning = "An alternative REPL client for Claude, offered alongside the official
 [[accepted]]
 word = "saferm"
 meaning = "A file-deletion tool that archives a path with an audit trail before removing it, so it can be restored with 'saferm undelete'; profile delete uses it."
+
+[[accepted]]
+word = "tsv"
+meaning = "Tab-separated values, the flat output format of the permission listing."
