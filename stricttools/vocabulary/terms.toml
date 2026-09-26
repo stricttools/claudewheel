@@ -1,1 +1,5 @@
 format_version = 1
+
+[[accepted]]
+word = "claudewheel"
+meaning = "This project: a CLI that manages multiple Claude Code profiles (separate config directories with their own credentials, settings, and hooks) and launches Claude Code under one."
