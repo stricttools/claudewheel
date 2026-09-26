@@ -3,3 +3,4 @@
 {"format_version":1,"id":"18d8526e6289b0a02a6b9e38fec64f9d965ac2cd7d4e7958","commits":["5929f06aa4276e3b575c85ca2c949e42c8f1d8d6"],"user_facing":false}
 {"format_version":1,"id":"18d89d1318d33fa5f91509f914c342938191f566494f1615","commits":["52e950c7623edda773da4314ad4ef59c4739e187"],"user_facing":true,"description":"**Python 3.14 required.** claudewheel now declares `requires-python >=3.14`; installers on Python 3.11 to 3.13 can no longer install new versions, and the npm launcher and `c` script refuse older interpreters.","type":"breaking"}
 {"format_version":1,"id":"18d8f837227723defbfb67a6022d4124b6c19c47331efe89","commits":["14a6095d2ef4730ba8fce466de528c48618e8d51"],"user_facing":false}
+{"format_version":1,"id":"18d8fbac782132d2577526d39dce4cbf8352b7432e15e197","commits":["31275776364c8c20acb828764e61b03f9d3c9f9a"],"user_facing":false}
