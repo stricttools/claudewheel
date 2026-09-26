@@ -7,3 +7,7 @@ meaning = "This project: a CLI that manages multiple Claude Code profiles (separ
 [[accepted]]
 word = "miniclaude"
 meaning = "An alternative REPL client for Claude, offered alongside the official claude CLI in the launcher's client step."
+
+[[accepted]]
+word = "saferm"
+meaning = "A file-deletion tool that archives a path with an audit trail before removing it, so it can be restored with 'saferm undelete'; profile delete uses it."
