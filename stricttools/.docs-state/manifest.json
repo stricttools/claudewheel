@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "name": "claudewheel",
   "slug": "claudewheel",
   "version": "0.33.0",
@@ -6379,5 +6379,9 @@
   ],
   "posts": [],
   "last_gen": "2026-09-25T16:25:53.541738+00:00",
-  "theme": "minimal"
+  "theme": "minimal",
+  "vocabulary": {
+    "accepted": [],
+    "rejected": []
+  }
 }
