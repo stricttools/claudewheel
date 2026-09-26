@@ -475,7 +475,7 @@ variable injection:
   recovered on next startup.
 
 - **Delete** (`profile delete`): hands the whole profile directory to
-  [saferm](https://github.com/smm-h/saferm), which archives it and then removes
+  [saferm](https://github.com/stricttools/saferm), which archives it and then removes
   it, unregisters from `options.json`, and clears any `last_config` reference
   in `state.json`. The archive walk records symlinks as links rather than
   following them, so the shared store behind a profile's links is neither
