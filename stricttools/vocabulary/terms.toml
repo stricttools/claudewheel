@@ -3,3 +3,7 @@ format_version = 1
 [[accepted]]
 word = "claudewheel"
 meaning = "This project: a CLI that manages multiple Claude Code profiles (separate config directories with their own credentials, settings, and hooks) and launches Claude Code under one."
+
+[[accepted]]
+word = "miniclaude"
+meaning = "An alternative REPL client for Claude, offered alongside the official claude CLI in the launcher's client step."
