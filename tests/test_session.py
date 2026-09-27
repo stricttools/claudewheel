@@ -17,6 +17,9 @@ from claudewheel.session import (
     find_session,
     find_sessions_by_title,
     get_session_cwd,
+    recorded_store_cwds,
+    store_dir_path,
+    StoreDirPathError,
 )
 
 
@@ -128,6 +131,56 @@ class GetSessionCwdTests(unittest.TestCase):
         self.assertIsNone(get_session_cwd(p))
         # Confirm MAX_CWD_SCAN_LINES is the expected value.
         self.assertEqual(MAX_CWD_SCAN_LINES, 10)
+
+
+# ---------------------------------------------------------------------------
+# recorded_store_cwds / store_dir_path
+# ---------------------------------------------------------------------------
+
+
+class RecordedStoreCwdsTests(unittest.TestCase):
+    """The cwds a store dir's own top-level sessions recorded for its name."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.store_dir = Path(self._tmp.name) / "-home-m-Projects-demo"
+        self.store_dir.mkdir()
+
+    def _write(self, rel: str, cwds: list[str]) -> Path:
+        p = self.store_dir / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text("".join(json.dumps({"cwd": c}) + "\n" for c in cwds))
+        return p
+
+    def test_reads_whole_files_and_keeps_only_matching_cwds(self) -> None:
+        filler = [f"/home/m/other{i}" for i in range(50)]
+        self._write("a.jsonl", [*filler, "/home/m/Projects/demo"])
+        self.assertEqual(recorded_store_cwds(self.store_dir), {"/home/m/Projects/demo"})
+        self.assertEqual(store_dir_path(self.store_dir), "/home/m/Projects/demo")
+
+    def test_nested_transcripts_are_never_read(self) -> None:
+        self._write("a.jsonl", ["/home/m/elsewhere"])
+        self._write("a/subagents/agent-1.jsonl", ["/home/m/Projects/demo"])
+        self.assertEqual(recorded_store_cwds(self.store_dir), set())
+        with self.assertRaises(StoreDirPathError):
+            store_dir_path(self.store_dir)
+
+    def test_several_matching_paths_raise_listing_them(self) -> None:
+        self._write("a.jsonl", ["/home/m/Projects/demo"])
+        self._write("b.jsonl", ["/home/m/Projects.demo"])
+        with self.assertRaises(StoreDirPathError) as ctx:
+            store_dir_path(self.store_dir)
+        self.assertIn("/home/m/Projects/demo", str(ctx.exception))
+        self.assertIn("/home/m/Projects.demo", str(ctx.exception))
+
+    def test_unreadable_file_raises_naming_it(self) -> None:
+        p = self._write("a.jsonl", ["/home/m/Projects/demo"])
+        p.chmod(0)
+        self.addCleanup(p.chmod, 0o644)
+        with self.assertRaises(OSError) as ctx:
+            recorded_store_cwds(self.store_dir)
+        self.assertIn(str(p), str(ctx.exception))
 
 
 # ---------------------------------------------------------------------------

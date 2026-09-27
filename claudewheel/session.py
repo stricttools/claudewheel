@@ -26,7 +26,7 @@ class SessionInfo:
     session_id: str
     jsonl_path: Path
     encoded_cwd: str
-    cwd: str | None  # extracted from JSONL, None if unreadable
+    cwd: str  # the one recorded cwd that encodes to the store dir's name
 
 
 @dataclass
@@ -89,6 +89,30 @@ def recorded_store_cwds(store_dir: Path) -> set[str]:
     return found
 
 
+class StoreDirPathError(ValueError):
+    """A store dir's sessions do not record exactly one path matching its name."""
+
+
+def store_dir_path(store_dir: Path) -> str:
+    """The one real path a store dir's own sessions recorded for it.
+
+    The single value of :func:`recorded_store_cwds`.  None, or more than
+    one, raises :class:`StoreDirPathError` stating what was found: the dir's
+    path is then unknown, and nothing may act on a guess.
+    """
+    cwds = recorded_store_cwds(store_dir)
+    if len(cwds) == 1:
+        return next(iter(cwds))
+    if not cwds:
+        raise StoreDirPathError(
+            f"{store_dir}: no session recorded a cwd that encodes to this dir's name"
+        )
+    raise StoreDirPathError(
+        f"{store_dir}: its sessions recorded several paths that encode to "
+        f"this dir's name: {', '.join(sorted(cwds))}"
+    )
+
+
 def get_session_cwd(
     jsonl_path: Path, max_lines: int = MAX_CWD_SCAN_LINES
 ) -> str | None:
@@ -119,7 +143,10 @@ def find_session(session_id: str, shared_projects_dir: Path) -> SessionInfo | No
 
     Globs ``<shared_projects_dir>/*/<session_id>.jsonl`` and returns a
     :class:`SessionInfo` on the first match (UUIDs are globally unique).
-    Returns ``None`` when no matching file exists.
+    Returns ``None`` when no matching file exists.  The session's project
+    path is its store dir's (:func:`store_dir_path`), so a store dir whose
+    sessions do not record exactly one matching path raises
+    :class:`StoreDirPathError`.
     """
     matches = list(shared_projects_dir.glob(f"*/{session_id}.jsonl"))
     if not matches:
@@ -127,7 +154,7 @@ def find_session(session_id: str, shared_projects_dir: Path) -> SessionInfo | No
 
     jsonl_path = matches[0]
     encoded_cwd = jsonl_path.parent.name
-    cwd = get_session_cwd(jsonl_path)
+    cwd = store_dir_path(jsonl_path.parent)
 
     return SessionInfo(
         session_id=session_id,

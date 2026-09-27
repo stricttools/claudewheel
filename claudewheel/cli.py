@@ -445,7 +445,7 @@ def _offer_saferm_install(
     print(f"{verb} it now from its published release? [y/N] ", end="", flush=True)
     try:
         answer = input()
-    except (EOFError, KeyboardInterrupt):
+    except EOFError, KeyboardInterrupt:
         print()
         return unavailable
     if not answer.strip().lower().startswith("y"):
@@ -1484,7 +1484,7 @@ def _check_resume_session(ws: "Workspace", session_id: str, directory: str) -> N
     current directory, or sessions successfully moved).  Calls ``sys.exit(1)``
     when the session cannot be resumed from here.
     """
-    from .session import find_session
+    from .session import StoreDirPathError, find_session
 
     store = ws.shared
 
@@ -1495,7 +1495,11 @@ def _check_resume_session(ws: "Workspace", session_id: str, directory: str) -> N
         return  # Claude Code will find it
 
     # Step 2: Search the entire shared store
-    info = find_session(session_id, store.projects_dir)
+    try:
+        info = find_session(session_id, store.projects_dir)
+    except (StoreDirPathError, OSError) as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
     if info is None:
         print(
             f"Session {session_id} not found in any project directory.\n"
@@ -1506,10 +1510,6 @@ def _check_resume_session(ws: "Workspace", session_id: str, directory: str) -> N
 
     # Step 3: Session found elsewhere -- check if it's a rename or wrong directory
     old_cwd = info.cwd
-    if old_cwd is None:
-        # Can't extract cwd from JSONL; fall through to let Claude Code handle it
-        return
-
     if os.path.isdir(old_cwd):
         print(
             f"Session {session_id} belongs to {old_cwd} which still exists.\n"
@@ -1539,7 +1539,7 @@ def _check_resume_session(ws: "Workspace", session_id: str, directory: str) -> N
     )
     try:
         answer = input()
-    except (EOFError, KeyboardInterrupt):
+    except EOFError, KeyboardInterrupt:
         print()
         sys.exit(1)
 
@@ -1559,7 +1559,7 @@ def _check_resume_session(ws: "Workspace", session_id: str, directory: str) -> N
     )
     try:
         answer = input()
-    except (EOFError, KeyboardInterrupt):
+    except EOFError, KeyboardInterrupt:
         print()
         sys.exit(1)
 
@@ -1612,7 +1612,7 @@ def _check_cont_session(ws: "Workspace", directory: str) -> None:
         )
         try:
             answer = input()
-        except (EOFError, KeyboardInterrupt):
+        except EOFError, KeyboardInterrupt:
             print()
             return
 
@@ -1636,7 +1636,7 @@ def _check_cont_session(ws: "Workspace", directory: str) -> None:
         )
         try:
             answer = input()
-        except (EOFError, KeyboardInterrupt):
+        except EOFError, KeyboardInterrupt:
             print()
             return
 
@@ -1663,7 +1663,7 @@ def _check_cont_session(ws: "Workspace", directory: str) -> None:
     )
     try:
         answer = input()
-    except (EOFError, KeyboardInterrupt):
+    except EOFError, KeyboardInterrupt:
         print()
         return
 

@@ -1543,6 +1543,75 @@ class CheckResumeSessionTests(unittest.TestCase):
         self.assertIn("still exists", msg)
         self.assertIn("Run from that directory instead", msg)
 
+    def _write_store_session(
+        self, store_name: str, session_id: str, cwds: list[str]
+    ) -> None:
+        store_dir = self.shared_dir / "projects" / store_name
+        store_dir.mkdir(parents=True, exist_ok=True)
+        (store_dir / f"{session_id}.jsonl").write_text(
+            "".join(json.dumps({"type": "user", "cwd": c}) + "\n" for c in cwds)
+        )
+
+    def test_resume_uses_the_recorded_cwd_matching_the_store_dir(self) -> None:
+        """A first cwd naming another path does not decide the session's project."""
+        from claudewheel.shared_store import SharedStore
+
+        root = Path(self._tmp.name)
+        elsewhere = root / "elsewhere"
+        elsewhere.mkdir()
+        old_project = str(root / "old-project")
+        session_id = "abc-123-def"
+        self._write_store_session(
+            SharedStore.encode_path(old_project),
+            session_id,
+            [str(elsewhere), old_project],
+        )
+
+        out = io.StringIO()
+        with (
+            mock.patch("builtins.input", autospec=True, side_effect=["n"]),
+            redirect_stdout(out),
+            self.assertRaises(SystemExit),
+        ):
+            cli._check_resume_session(self.ws, session_id, str(root / "new-project"))
+
+        self.assertIn(f"was created in {old_project}", out.getvalue())
+
+    def test_resume_refuses_a_store_dir_with_no_matching_cwd(self) -> None:
+        from claudewheel.shared_store import SharedStore
+
+        root = Path(self._tmp.name)
+        store_name = SharedStore.encode_path(str(root / "old-project"))
+        session_id = "abc-123-def"
+        self._write_store_session(store_name, session_id, [str(root / "other")])
+
+        err = io.StringIO()
+        with redirect_stderr(err), self.assertRaises(SystemExit) as ctx:
+            cli._check_resume_session(self.ws, session_id, str(root / "new-project"))
+
+        self.assertEqual(ctx.exception.code, 1)
+        self.assertIn(store_name, err.getvalue())
+        self.assertIn("no session recorded a cwd", err.getvalue())
+
+    def test_resume_refuses_a_store_dir_with_several_matching_cwds(self) -> None:
+        from claudewheel.shared_store import SharedStore
+
+        root = Path(self._tmp.name)
+        child = str(root / "old" / "ish")
+        sibling = str(root / "old-ish")
+        session_id = "abc-123-def"
+        self._write_store_session(
+            SharedStore.encode_path(child), session_id, [child, sibling]
+        )
+
+        err = io.StringIO()
+        with redirect_stderr(err), self.assertRaises(SystemExit) as ctx:
+            cli._check_resume_session(self.ws, session_id, str(root / "new-project"))
+
+        self.assertEqual(ctx.exception.code, 1)
+        self.assertIn(child, err.getvalue())
+        self.assertIn(sibling, err.getvalue())
+
     # -- 5.1g: Bare resume (empty string) does NOT call _check_resume_session --
 
     def test_bare_resume_no_interception(self) -> None:
