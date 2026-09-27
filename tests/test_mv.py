@@ -1243,3 +1243,118 @@ class NestedMigrationTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# ---------------------------------------------------------------------------
+# The real profile layout: every profile's projects/ is a symlink into shared/
+# ---------------------------------------------------------------------------
+
+
+class SymlinkedStoreLayout:
+    """Build the on-disk layout mv meets on a real machine.
+
+    Three managed profiles whose ``projects`` entries are symlinks to the one
+    ``shared/projects`` store, plus a default profile with its own, separate
+    ``projects`` directory.  Profile discovery is NOT patched by the tests that
+    use it, so mv sees every profile directory the workspace enumerates.
+    """
+
+    PROFILE_NAMES = ("emergency", "hn", "work")
+
+    def __init__(self, root: Path) -> None:
+        from claudewheel.workspace import Workspace
+
+        self.home = root / "home"
+        self.home.mkdir()
+        self.claude_dir = self.home / ".claude"
+        (self.claude_dir / "projects").mkdir(parents=True)
+        self.ws = Workspace.open(self.home / ".claudewheel", claude_dir=self.claude_dir)
+        self.store = self.ws.shared_dir / "projects"
+        self.store.mkdir(parents=True)
+        self.claude_jsons: list[Path] = []
+        for name in self.PROFILE_NAMES:
+            pdir = self.ws.profiles_dir / name
+            pdir.mkdir(parents=True)
+            (pdir / "settings.json").write_text("{}")
+            (pdir / "projects").symlink_to(self.store)
+            claude_json = pdir / ".claude.json"
+            claude_json.write_text(json.dumps({"projects": {}}))
+            self.claude_jsons.append(claude_json)
+        self.projects_root = self.home / "Projects"
+        self.projects_root.mkdir()
+
+    def store_dir(self, real_path: str) -> Path:
+        return self.store / SharedStore.encode_path(real_path)
+
+    def add_session(
+        self, real_path: str, name: str, cwds: list[str], subagent_cwd: str | None = None
+    ) -> Path:
+        """Write one top-level transcript recording *cwds*, one line each."""
+        d = self.store_dir(real_path)
+        d.mkdir(exist_ok=True)
+        f = d / f"{name}.jsonl"
+        f.write_text(
+            "".join(json.dumps({"type": "user", "cwd": c}) + "\n" for c in cwds)
+        )
+        if subagent_cwd is not None:
+            sub = d / name / "subagents"
+            sub.mkdir(parents=True)
+            (sub / "agent-1.jsonl").write_text(
+                json.dumps({"type": "user", "cwd": subagent_cwd}) + "\n"
+            )
+        return f
+
+    def add_key(self, real_path: str) -> None:
+        for claude_json in self.claude_jsons:
+            data = json.loads(claude_json.read_text())
+            data["projects"][real_path] = {}
+            claude_json.write_text(json.dumps(data))
+
+    def snapshot(self) -> dict[str, bytes]:
+        """Every file under the store and every registry, by path."""
+        files = {
+            str(p): p.read_bytes() for p in sorted(self.store.rglob("*")) if p.is_file()
+        }
+        files.update({str(p): p.read_bytes() for p in self.claude_jsons})
+        return files
+
+
+class SymlinkedProfilesTests(unittest.TestCase):
+    """mv against profiles whose projects/ all point at the shared store."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.layout = SymlinkedStoreLayout(Path(self._tmp.name))
+        self.ws = self.layout.ws
+        self._stdout_trap = contextlib.redirect_stdout(io.StringIO())
+        self._stdout_trap.__enter__()
+
+    def tearDown(self) -> None:
+        self._stdout_trap.__exit__(None, None, None)
+        self._tmp.cleanup()
+
+    def test_rewrite_runs_once_when_new_path_contains_old(self) -> None:
+        """foo -> foobar leaves cwd at foobar, not foobarbarbarbar."""
+        old = self.layout.projects_root / "foo"
+        new = self.layout.projects_root / "foobar"
+        old.mkdir()
+        self.layout.add_session(str(old), "s", [str(old), str(old)])
+
+        run_mv(self.ws, str(old), str(new))
+
+        moved = self.layout.store_dir(str(new)) / "s.jsonl"
+        cwds = [json.loads(line)["cwd"] for line in moved.read_text().splitlines()]
+        self.assertEqual(cwds, [str(new), str(new)])
+
+    def test_dry_run_counters_count_the_shared_store_once(self) -> None:
+        """Four profile dirs reaching one store report one store's worth of work."""
+        old = self.layout.projects_root / "foo"
+        new = self.layout.projects_root / "foobar"
+        old.mkdir()
+        self.layout.add_session(str(old), "s", [str(old), str(old)])
+
+        result = run_mv(self.ws, str(old), str(new), dry_run=True)
+
+        self.assertEqual(result.dirs_renamed, 1)
+        self.assertEqual(result.files_rewritten, 1)
+        self.assertEqual(result.lines_replaced, 2)

@@ -54,6 +54,28 @@ def _discover_profile_dirs(ws: "Workspace") -> list[Path]:
     return sorted(dirs)
 
 
+def _distinct_store_dirs(profile_dirs: list[Path]) -> list[Path]:
+    """The ``projects`` store dirs of *profile_dirs*, each real directory once.
+
+    Managed profiles' ``projects`` entries are symlinks to the one shared
+    store, so several profile dirs reach the same directory.  Every pass over
+    session data must visit a real directory once: a second visit rewrites
+    already-rewritten paths again (``foo -> foobar`` compounding into
+    ``foobarbar``) and multiplies every counter.  Returned as resolved paths.
+    """
+    seen: set[Path] = set()
+    dirs: list[Path] = []
+    for pdir in profile_dirs:
+        projects = pdir / "projects"
+        if not projects.is_dir():
+            continue
+        real = projects.resolve()
+        if real not in seen:
+            seen.add(real)
+            dirs.append(real)
+    return dirs
+
+
 def _rewrite_jsonl_file(
     path: Path,
     old_path: str,
@@ -196,10 +218,7 @@ def _discover_descendants(
 
     old_encoded = SharedStore.encode_path(old_resolved)
     candidates: set[str] = set()
-    for pdir in profile_dirs:
-        projects = pdir / "projects"
-        if not projects.is_dir():
-            continue
+    for projects in _distinct_store_dirs(profile_dirs):
         for entry in projects.iterdir():
             name = entry.name
             if (
@@ -503,12 +522,8 @@ def run_mv(
                 f"failed to rename directory {old_resolved} -> {new_resolved}: {e}"
             ) from e
 
-    # 6. Process projects/ in each profile dir, longest source path first
-    for pdir in profile_dirs:
-        projects = pdir / "projects"
-        if not projects.is_dir():
-            continue
-
+    # 6. Process each distinct projects/ store, longest source path first
+    for projects in _distinct_store_dirs(profile_dirs):
         # 6a. Rename or merge each migrated project directory
         scan_dirs: list[Path] = []
         for mo, mn in migrations:
