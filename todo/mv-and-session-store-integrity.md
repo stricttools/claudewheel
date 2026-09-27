@@ -43,36 +43,6 @@ a true prefix rewrite but part of the same audit; `history.jsonl` is skipped by 
 copies carry a stale `originalPath` from past moves — rule: rewrite it, delete it, or
 establish whether the client even reads it.
 
-## Orphan migration (the old proposal, corrected by measurement)
-
-Undecodable encoded dirs abort the whole move today. The old proposal (a flag doing
-blind prefix rewrites) is REFUTED for the dangerous class: a blind rewrite cannot tell
-a child from a sibling and would move another project's data. What the measurements
-support instead:
-
-- The store's session JSONL lines carry a top-level `cwd` field naming the real path
-  (present on most user/assistant lines; NOT reliably on line one; absent in a few
-  metadata-only files). Measured store-wide 2026-09-06: of 130 orphan dirs, 123 had a
-  single consistent top-level cwd; 1 had conflicting cwds; 6 had no source at all
-  (empty shells). Restriction that must hold: read TOP-LEVEL `*.jsonl` only — never
-  recurse into `subagents/` (their cwd belongs to other projects; recursing produced
-  thousands of false mismatches in the measurement).
-- Design: add the cwd as a THIRD decode source in `_discover_descendants`, consulted
-  only when registry keys and filesystem decoding both fail (strictly additive; no
-  currently-resolving candidate changes answer). The decoded path flows into the
-  existing child-vs-sibling test unchanged. On conflicting cwds: hard-error like the
-  existing ambiguity branch — never majority-vote (the one real conflicting dir's
-  majority is the WRONG path). Open rulings: fallback-only (recommended) vs
-  always-cross-check; and what the 6 no-source shells do (permanent hard error on any
-  ancestor move, vs a skip — noting a skip flag is an escape hatch under the fleet's
-  no-escape-hatch rule).
-- The decode source alone does not unblock the real cases: many orphans are orphans
-  BECAUSE their source directory was deleted (session data outliving the project), and
-  `_verify_destinations` then refuses for a different reason (destination directory
-  will not exist). Ruling: a descendant whose session data exists but whose source dir
-  is gone should have its store dir renamed anyway (so resume works under the new path)
-  without requiring an on-disk directory. The two functions must change together.
-
 ## Store repair and recovery
 
 - The encoder fix means dirs encoded under the OLD rule (underscore projects) now
