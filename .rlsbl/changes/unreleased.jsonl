@@ -7,3 +7,4 @@
 {"format_version":1,"id":"18d8fc79e8d924517738bdbdc5c94731af727c99fdec94bc","commits":["b63120f2ad9d2bd9a495257c72b61822d0f24a17"],"user_facing":false}
 {"format_version":1,"id":"18d9028d5299c45a48ee4c6143d94c1d9a8818ef4186e377","commits":["886f2e9d46fd21e926362f28902d11d80c9dab62"],"user_facing":false}
 {"format_version":1,"id":"18d9398d6e3348ac5101fa1488cd461b81f7ad410ef379a1","commits":["61dec2509e0d26ab39d6321e5e724084c16b9554"],"user_facing":false}
+{"format_version":1,"id":"18d939981378aeb687f9bc8f8ed1463d85f8b83d37d25659","commits":["273af7dc19b8d8a45fab2dee9edb152ba72966a7"],"user_facing":true,"description":"**`claudewheel mv` no longer corrupts paths when the new name contains the old one.** With profiles sharing one session store, a move such as `foo` to `foobar` rewrote the transcripts once per profile, leaving `foobarbarbarbar` behind, and the dry-run counts were multiplied the same way. Each real session store is now processed once.","type":"fix"}
