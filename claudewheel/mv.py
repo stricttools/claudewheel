@@ -292,32 +292,6 @@ def _discover_descendants(
     return descendants
 
 
-def _verify_destinations(
-    migrations: list[tuple[str, str]],
-    old_resolved: str,
-    source_root: Path,
-    new_resolved: str,
-) -> None:
-    """Hard-error unless every descendant's destination will exist on disk.
-
-    ``source_root`` is the moved tree as it currently exists (OLD before the
-    rename, NEW in post-hoc mode), so ``source_root/<suffix>`` existing now is
-    equivalent to ``NEW/<suffix>`` existing at migration time.  On failure,
-    every unresolvable descendant is listed and nothing is migrated.
-    """
-    missing = [
-        f"  {mo} -> {mn}"
-        for mo, mn in migrations
-        if mo != old_resolved
-        and not (source_root / mo[len(old_resolved) + 1 :]).is_dir()
-    ]
-    if missing:
-        raise FileNotFoundError(
-            "descendant project paths have no matching directory under "
-            f"{new_resolved} -- nothing was migrated:\n" + "\n".join(missing)
-        )
-
-
 # ---------------------------------------------------------------------------
 # Per-target mutation helpers
 # ---------------------------------------------------------------------------
@@ -460,13 +434,15 @@ def run_mv(
     migrates all session data.  With post_hoc=True, skips the filesystem rename
     (the directory was already renamed externally) and only migrates sessions.
 
-    The migration is prefix-aware: every project keyed at old_path or nested
-    under it (Claude Code projects inside the moved tree) is migrated to
-    new_path plus the same relative suffix.  That covers the encoded
-    ``projects/`` dirs, the ``projects{}`` keys and ``githubRepoPaths``
-    entries in every profile's .claude.json, and the JSONL cwd references of
-    every migrated project.  Each descendant's destination must exist on disk
-    under new_path; otherwise the operation aborts before touching anything.
+    The migration is prefix-aware: every project proven to be old_path or
+    nested under it (see ``_discover_descendants``) is migrated to new_path
+    plus the same relative suffix.  That covers the encoded ``projects/``
+    dirs, the ``projects{}`` keys and ``githubRepoPaths`` entries in every
+    profile's .claude.json, and the JSONL cwd references of every migrated
+    project.  A proven descendant whose directory no longer exists (session
+    data outliving a deleted project) is relabeled all the same, so nothing
+    in the store stays recorded under old_path.  Every check runs before the
+    first change: a refusal leaves everything as it was.
     """
     global _quiet
     _quiet = quiet
@@ -526,7 +502,7 @@ def run_mv(
     # 4. Discover nested descendant projects and plan the migration.
     # The moved tree as it currently exists on disk: OLD before the rename
     # (default mode), NEW after it (post-hoc mode).  Both hold the same
-    # contents, so decoding and destination checks against it are equivalent.
+    # contents, so decoding directories against it is equivalent.
     source_root = (
         Path(old_resolved) if Path(old_resolved).is_dir() else Path(new_resolved)
     )
@@ -539,10 +515,6 @@ def run_mv(
     for mo, mn in migrations:
         if mo != old_resolved:
             _log(f"  nested project: {mo} -> {mn}")
-
-    # Atomic check-then-act: every descendant destination must exist on disk,
-    # otherwise nothing is migrated at all.
-    _verify_destinations(migrations, old_resolved, source_root, new_resolved)
 
     # 5. Rename the directory (default mode only)
     if not post_hoc:

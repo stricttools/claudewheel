@@ -1130,23 +1130,29 @@ class NestedMigrationTests(unittest.TestCase):
             gh["o/unrelated"], ["/somewhere/else", f"{self.old_resolved}x"]
         )
 
-    def test_descendant_missing_destination_hard_error(self) -> None:
-        """A descendant key with no NEW/<suffix> on disk aborts the whole move."""
+    def test_descendant_key_without_directory_is_relabeled(self) -> None:
+        """A key-proven descendant whose directory is gone still moves to NEW."""
         data = json.loads(self.claude_json.read_text())
         ghost = f"{self.old_resolved}/ghost"
+        new_ghost = f"{self.new_resolved}/ghost"
         data["projects"][ghost] = {"lastSession": "ghost"}
         self.claude_json.write_text(json.dumps(data))
-        original_json = self.claude_json.read_text()
+        ghost_project = self.projects / SharedStore.encode_path(ghost)
+        ghost_project.mkdir()
+        # A transcript that never recorded a cwd: the key is the only proof.
+        (ghost_project / "g.jsonl").write_text(
+            json.dumps({"type": "summary", "note": f"was in {ghost}"}) + "\n"
+        )
 
-        with self.assertRaises(FileNotFoundError) as ctx:
-            self._run()
+        result = self._run()
 
-        self.assertIn(ghost, str(ctx.exception))
-        # Nothing migrated (atomic check-then-act)
-        self.assertTrue(self.old_project.is_dir())
-        self.assertTrue(self.old_child_project.is_dir())
-        self.assertFalse((self.projects / self.new_encoded).exists())
-        self.assertEqual(self.claude_json.read_text(), original_json)
+        self.assertEqual(result.paths_migrated, 3)
+        self.assertFalse(ghost_project.exists())
+        moved = self.projects / SharedStore.encode_path(new_ghost) / "g.jsonl"
+        self.assertIn(new_ghost, moved.read_text())
+        projects = json.loads(self.claude_json.read_text())["projects"]
+        self.assertNotIn(ghost, projects)
+        self.assertEqual(projects[new_ghost], {"lastSession": "ghost"})
 
     def test_encoded_ambiguity_hard_error(self) -> None:
         """An encoded dir decoding to multiple real paths aborts the move."""
@@ -1452,6 +1458,21 @@ class RecordedCwdProofTests(unittest.TestCase):
                         cwd == self.old_s or str(cwd).startswith(self.old_s + "/"),
                         f"{d.name} still records {cwd}",
                     )
+
+    def test_orphan_whose_cwd_is_under_old_migrates(self) -> None:
+        gone = f"{self.old_s}/projects/exp_c084f6dd0d5e"
+        self.layout.add_session(self.old_s, "parent", [self.old_s])
+        self.layout.add_session(gone, "orphan", [gone, gone])
+
+        result = self._run()
+
+        new_gone = f"{self.new_s}/projects/exp_c084f6dd0d5e"
+        self.assertFalse(self.layout.store_dir(gone).exists())
+        moved = self.layout.store_dir(new_gone) / "orphan.jsonl"
+        cwds = [json.loads(line)["cwd"] for line in moved.read_text().splitlines()]
+        self.assertEqual(cwds, [new_gone, new_gone])
+        self.assertEqual(result.paths_migrated, 2)
+        self._assert_nothing_recorded_under_old()
 
     def test_orphan_whose_cwd_is_a_sibling_is_left_untouched(self) -> None:
         sibling = f"{self.old_s}-ish"
