@@ -423,7 +423,7 @@ class RunMvValidationTests(unittest.TestCase):
 
         msg = str(ctx.exception)
         self.assertIn(str(claude_json), msg)
-        self.assertNotIn("no known project key", msg)
+        self.assertNotIn("no project key", msg)
         # Nothing was renamed: discovery precedes every mutation.
         self.assertTrue(old.is_dir())
         self.assertFalse(new.exists())
@@ -1397,3 +1397,122 @@ class LongPathDecodeTests(unittest.TestCase):
 
         self.assertFalse(self.layout.store_dir(old_deep).exists())
         self.assertTrue(self.layout.store_dir(new_deep).is_dir())
+
+
+class RecordedCwdProofTests(unittest.TestCase):
+    """The cwd a store dir's own transcripts record is a third proof of its path.
+
+    Mirrors the real failure: session data outliving deleted project dirs
+    (``gamehome/projects/exp_<hash>``) under a directory being moved, with no
+    registry key naming them.
+    """
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.layout = SymlinkedStoreLayout(Path(self._tmp.name))
+        self.ws = self.layout.ws
+        self.old = self.layout.projects_root / "gamehome"
+        self.new = self.layout.projects_root / "pixelhelm" / "gamehome"
+        (self.old / "projects").mkdir(parents=True)
+        self.new.parent.mkdir()
+        self.old_s = str(self.old)
+        self.new_s = str(self.new)
+        self._stdout_trap = contextlib.redirect_stdout(io.StringIO())
+        self._stdout_trap.__enter__()
+
+    def tearDown(self) -> None:
+        self._stdout_trap.__exit__(None, None, None)
+        self._tmp.cleanup()
+
+    def _run(self) -> MvResult:
+        return run_mv(self.ws, self.old_s, self.new_s)
+
+    def _assert_nothing_changed(self, before: dict[str, bytes]) -> None:
+        self.assertEqual(self.layout.snapshot(), before)
+        self.assertTrue(self.old.is_dir())
+        self.assertFalse(self.new.exists())
+
+    def _assert_nothing_recorded_under_old(self) -> None:
+        """The move's postcondition: no store dir is named for a path under OLD."""
+        from claudewheel.mv import _names_under
+
+        under_old = _names_under(self.old_s)
+        old_name = SharedStore.encode_path(self.old_s)
+        for d in self.layout.store.iterdir():
+            if d.name == old_name:
+                self.fail(f"store dir for OLD left behind: {d.name}")
+            if under_old(d.name):
+                cwds = {
+                    json.loads(line).get("cwd")
+                    for f in d.glob("*.jsonl")
+                    for line in f.read_text().splitlines()
+                }
+                for cwd in cwds:
+                    self.assertFalse(
+                        cwd == self.old_s or str(cwd).startswith(self.old_s + "/"),
+                        f"{d.name} still records {cwd}",
+                    )
+
+    def test_orphan_whose_cwd_is_a_sibling_is_left_untouched(self) -> None:
+        sibling = f"{self.old_s}-ish"
+        self.layout.add_session(self.old_s, "parent", [self.old_s])
+        sibling_file = self.layout.add_session(sibling, "sib", [sibling])
+        sibling_before = sibling_file.read_bytes()
+
+        result = self._run()
+
+        self.assertEqual(sibling_file.read_bytes(), sibling_before)
+        self.assertEqual(result.paths_migrated, 1)
+        self._assert_nothing_recorded_under_old()
+
+    def test_child_and_sibling_cwds_in_one_dir_is_ambiguous(self) -> None:
+        child = f"{self.old_s}/ish"
+        sibling = f"{self.old_s}-ish"
+        self.assertEqual(
+            SharedStore.encode_path(child), SharedStore.encode_path(sibling)
+        )
+        self.layout.add_session(self.old_s, "parent", [self.old_s])
+        self.layout.add_session(child, "mixed", [child, sibling])
+        before = self.layout.snapshot()
+
+        with self.assertRaises(ValueError) as ctx:
+            self._run()
+
+        msg = str(ctx.exception)
+        self.assertIn("ambiguous", msg)
+        self.assertIn(child, msg)
+        self.assertIn(sibling, msg)
+        self._assert_nothing_changed(before)
+
+    def test_matching_cwd_only_in_subagents_does_not_count(self) -> None:
+        gone = f"{self.old_s}/projects/exp_deadbeef"
+        self.layout.add_session(self.old_s, "parent", [self.old_s])
+        self.layout.add_session(gone, "orphan", ["/somewhere/else"], subagent_cwd=gone)
+        before = self.layout.snapshot()
+
+        with self.assertRaises(ValueError) as ctx:
+            self._run()
+
+        msg = str(ctx.exception)
+        self.assertIn(SharedStore.encode_path(gone), msg)
+        self.assertIn("no project key", msg)
+        self.assertIn("no directory", msg)
+        self.assertIn("no recorded cwd", msg)
+        self._assert_nothing_changed(before)
+
+    def test_decoded_directory_plus_sibling_cwd_is_ambiguous(self) -> None:
+        (self.old / "ish").mkdir()
+        child = f"{self.old_s}/ish"
+        sibling = f"{self.old_s}-ish"
+        self.layout.add_session(self.old_s, "parent", [self.old_s])
+        self.layout.add_session(child, "sib", [sibling])
+        before = self.layout.snapshot()
+
+        with self.assertRaises(ValueError) as ctx:
+            self._run()
+
+        msg = str(ctx.exception)
+        self.assertIn("ambiguous", msg)
+        self.assertIn(child, msg)
+        self.assertIn(sibling, msg)
+        self._assert_nothing_changed(before)

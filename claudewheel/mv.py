@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any, cast
 from . import effects
 from .effects import write_json_atomic, write_text_atomic
 from .profile_store import CLAUDE_GLOBAL_CONFIG_NAME
+from .session import recorded_store_cwds
 from .shared_store import PROJECT_DIR_NAME_LIMIT, SharedStore
 
 if TYPE_CHECKING:
@@ -231,13 +232,17 @@ def _discover_descendants(
 ) -> set[str]:
     """Every real project path equal to or under old_resolved that has data.
 
-    Union of (a) .claude.json projects{} keys under OLD and (b) encoded
-    ``projects/`` dir names that decode to a path under OLD.  Encoded names
-    are never prefix-matched directly -- the encoding is ambiguous -- so each
-    candidate is resolved back to a real path via the known keys plus
-    filesystem checks under the moved tree.  A candidate that resolves to a
-    sibling path (merely sharing the encoded prefix) is skipped; one that
-    cannot be resolved to exactly one real path is a hard error.
+    Union of (a) .claude.json projects{} keys under OLD and (b) store dirs
+    whose name could encode a path under OLD.  Encoded names are never
+    prefix-matched directly -- the encoding is lossy -- so every such
+    candidate is resolved back to real paths from all three proofs at once:
+    registry keys that encode to its name, directories under the moved tree
+    that encode to it (``_decode_rel``), and the cwds its own sessions
+    recorded that encode to it (``recorded_store_cwds``).  Exactly one
+    distinct path must result.  A candidate resolving to a sibling (merely
+    sharing the encoded prefix, e.g. ``OLD-ish``) is not part of the move;
+    one resolving to several paths, or to none, is a hard error listing
+    every such candidate, raised before anything is changed.
     """
     descendants = {
         k for k in known_keys if k == old_resolved or k.startswith(old_resolved + "/")
@@ -245,27 +250,32 @@ def _discover_descendants(
 
     old_encoded = SharedStore.encode_path(old_resolved)
     under_old = _names_under(old_resolved)
-    candidates: set[str] = set()
+    candidates: dict[str, list[Path]] = {}
     for projects in _distinct_store_dirs(profile_dirs):
         for entry in projects.iterdir():
             name = entry.name
             if entry.is_dir() and name != old_encoded and under_old(name):
-                candidates.add(name)
+                candidates.setdefault(name, []).append(entry)
 
     errors: list[str] = []
     for cand in sorted(candidates):
+        store_dirs = candidates[cand]
         resolved = {k for k in known_keys if SharedStore.encode_path(k) == cand}
         for rel in _decode_rel(source_root, old_resolved, cand):
             resolved.add(f"{old_resolved}/{rel}")
+        for store_dir in store_dirs:
+            resolved |= recorded_store_cwds(store_dir)
 
+        where = ", ".join(str(d) for d in store_dirs)
         if not resolved:
             errors.append(
-                f"  projects/{cand}: no known project key and no directory "
-                f"under the moved tree decodes to it"
+                f"  {where}: no project key encodes to it, no directory under "
+                f"the moved tree encodes to it, and no recorded cwd in its "
+                f"sessions encodes to it"
             )
         elif len(resolved) > 1:
             listing = ", ".join(sorted(resolved))
-            errors.append(f"  projects/{cand}: ambiguous, decodes to: {listing}")
+            errors.append(f"  {where}: ambiguous, its name encodes: {listing}")
         else:
             path = resolved.pop()
             if path == old_resolved or path.startswith(old_resolved + "/"):
@@ -275,8 +285,9 @@ def _discover_descendants(
 
     if errors:
         raise ValueError(
-            "cannot safely migrate: encoded project dirs under the source "
-            "prefix could not be unambiguously decoded:\n" + "\n".join(errors)
+            "cannot safely migrate, nothing was changed: store dirs whose "
+            "name could belong to a path under the source do not resolve to "
+            "exactly one real path:\n" + "\n".join(errors)
         )
     return descendants
 

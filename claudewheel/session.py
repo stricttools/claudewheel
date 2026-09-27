@@ -7,6 +7,8 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+from .shared_store import SharedStore
+
 MAX_CWD_SCAN_LINES = 10
 
 # Substring marker used to cheaply pre-filter JSONL lines before JSON-parsing
@@ -47,6 +49,46 @@ class OrphanedProject:
     projects_dir: Path  # full path to the project dir in the shared store
 
 
+def recorded_store_cwds(store_dir: Path) -> set[str]:
+    """Every ``cwd`` a store dir's own sessions recorded that encodes to its name.
+
+    A store dir is named by encoding the path its sessions were started in;
+    its transcripts record that path as the top-level ``cwd`` of their lines.
+    Reads every top-level ``*.jsonl`` in *store_dir*, whole, and keeps only
+    the ``cwd`` values whose encoding equals the dir's name: a ``cwd`` that
+    encodes to something else is a directory change during the session, not
+    the path the dir was created for.  Nested transcripts
+    (``<session>/subagents/*.jsonl``) are never read: they record the cwds of
+    other projects.
+
+    More than one value means the name is shared by distinct paths (the
+    encoding is lossy) and the caller must refuse; none means the dir's
+    sessions never recorded the path.  A line that is not a JSON object is
+    skipped (a live session's last line may be partial).  A file that cannot
+    be read is a hard error naming it, never a file silently contributing
+    nothing.
+    """
+    found: set[str] = set()
+    for jsonl_path in sorted(store_dir.glob("*.jsonl")):
+        try:
+            text = jsonl_path.read_text(encoding="utf-8", errors="surrogateescape")
+        except OSError as e:
+            raise OSError(f"cannot read {jsonl_path}: {e}") from e
+        for line in text.splitlines():
+            if '"cwd"' not in line:
+                continue
+            try:
+                obj = json.loads(line)
+            except ValueError:
+                continue
+            if not isinstance(obj, dict):
+                continue
+            cwd = obj.get("cwd")
+            if isinstance(cwd, str) and SharedStore.encode_path(cwd) == store_dir.name:
+                found.add(cwd)
+    return found
+
+
 def get_session_cwd(
     jsonl_path: Path, max_lines: int = MAX_CWD_SCAN_LINES
 ) -> str | None:
@@ -62,12 +104,12 @@ def get_session_cwd(
                     break
                 try:
                     obj = json.loads(line)
-                except (json.JSONDecodeError, ValueError):
+                except json.JSONDecodeError, ValueError:
                     continue
                 if "cwd" in obj:
                     cwd = obj["cwd"]
                     return cwd if isinstance(cwd, str) else None
-    except (FileNotFoundError, OSError):
+    except FileNotFoundError, OSError:
         return None
     return None
 
@@ -116,14 +158,14 @@ def _find_title_in_file(jsonl_path: Path, title: str) -> str | None:
                     continue
                 try:
                     obj = json.loads(line)
-                except (json.JSONDecodeError, ValueError):
+                except json.JSONDecodeError, ValueError:
                     continue
                 if obj.get("type") != "custom-title":
                     continue
                 if obj.get("customTitle") == title:
                     sid = obj.get("sessionId")
                     return sid if isinstance(sid, str) else jsonl_path.stem
-    except (FileNotFoundError, OSError):
+    except FileNotFoundError, OSError:
         return None
     return None
 
