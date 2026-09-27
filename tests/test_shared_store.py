@@ -25,9 +25,9 @@ _CODEC_CASES = [
 ]
 
 
-# Expected Claude-Code-style encodings, pinned inline (the codec replaces
-# every "/", "." and "_" with "-"). Formerly asserted by parity against the
-# now-deleted constants.encode_path.
+# Expected Claude-Code-style encodings, pinned inline (among other characters,
+# the codec replaces every "/", "." and "_" with "-"). Formerly asserted by
+# parity against the now-deleted constants.encode_path.
 _CODEC_EXPECTATIONS = {
     "/": "-",
     "/home/m": "-home-m",
@@ -44,7 +44,7 @@ _CODEC_EXPECTATIONS = {
 
 
 class EncodePathTests(unittest.TestCase):
-    """SharedStore.encode_path replaces every /, . and _ with - (pinned expectations)."""
+    """SharedStore.encode_path replaces /, . and _ with - (pinned expectations)."""
 
     def test_encodes_representative_paths(self) -> None:
         for case in _CODEC_CASES:
@@ -61,6 +61,45 @@ class EncodePathTests(unittest.TestCase):
             SharedStore.encode_path("/home/m/my_project"), "-home-m-my-project"
         )
         self.assertEqual(SharedStore.encode_path("a_b_c"), "a-b-c")
+
+
+# Expected names derived by running Claude Code 2.1.281's own project-dir
+# sanitizer (its functions copied verbatim out of the installed binary and
+# executed under node): every UTF-16 code unit outside [a-zA-Z0-9] becomes "-",
+# and a result longer than 200 characters is cut to 200 and suffixed with "-"
+# plus the base-36 absolute value of a 32-bit string hash of the raw path.
+_LONG_PATH = "/home/m/Projects/" + "deep/" * 45 + "leaf"
+_LONG_PATH_NAME = "-home-m-Projects-" + "deep-" * 36 + "dee-bf0agf"
+
+
+class ClaudeCodeSanitizerTests(unittest.TestCase):
+    """encode_path produces the store-dir name Claude Code itself creates."""
+
+    def test_space_becomes_a_dash(self) -> None:
+        self.assertEqual(
+            SharedStore.encode_path("/home/m/Projects/my project"),
+            "-home-m-Projects-my-project",
+        )
+
+    def test_at_sign_and_plus_become_dashes(self) -> None:
+        self.assertEqual(
+            SharedStore.encode_path("/home/m/Projects/a@b+c"),
+            "-home-m-Projects-a-b-c",
+        )
+
+    def test_each_utf16_code_unit_outside_ascii_alnum_becomes_one_dash(self) -> None:
+        # "\u00e9" is one UTF-16 code unit, the emoji is a surrogate pair (two).
+        self.assertEqual(
+            SharedStore.encode_path("/home/m/Projects/caf\u00e9/x\U0001f600y"),
+            "-home-m-Projects-caf--x--y",
+        )
+
+    def test_over_long_path_is_truncated_and_hash_suffixed(self) -> None:
+        self.assertEqual(SharedStore.encode_path(_LONG_PATH), _LONG_PATH_NAME)
+
+    def test_two_hundred_characters_are_kept_whole(self) -> None:
+        path = "/" + "a" * 199
+        self.assertEqual(SharedStore.encode_path(path), "-" + "a" * 199)
 
 
 class SharedSubdirsTests(unittest.TestCase):

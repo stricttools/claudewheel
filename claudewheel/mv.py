@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
@@ -10,7 +11,7 @@ from typing import TYPE_CHECKING, Any, cast
 from . import effects
 from .effects import write_json_atomic, write_text_atomic
 from .profile_store import CLAUDE_GLOBAL_CONFIG_NAME
-from .shared_store import SharedStore
+from .shared_store import PROJECT_DIR_NAME_LIMIT, SharedStore
 
 if TYPE_CHECKING:
     from .workspace import Workspace
@@ -133,27 +134,53 @@ def _plan_migrations(
     return [(p, new_resolved + p[len(old_resolved) :]) for p in ordered]
 
 
-def _decode_rel(root: Path, enc: str) -> list[str]:
-    """Find every existing relative dir path under root whose encoding is enc.
+def _decode_rel(root: Path, root_real: str, name: str) -> list[str]:
+    """Every existing dir under *root* whose store-dir name is *name*.
 
-    The path encoding is lossy ('/', '.', '_' and literal '-' all become '-'), so
-    one encoded string can correspond to several real paths.  All matches are
-    returned so the caller can detect ambiguity.
+    *root* is the moved tree as it exists on disk and *root_real* the real
+    path its contents are recorded under; a relative dir ``rel`` matches when
+    ``encode_path(root_real + "/" + rel) == name``.  The encoding is lossy
+    (see ``SharedStore.encode_path_untruncated``), so one name can match
+    several dirs; all matches are returned so the caller can detect
+    ambiguity.  A name Claude Code truncated and hash-suffixed decodes the
+    same way, because each match is confirmed by encoding its full path.
     """
-    try:
-        entries = sorted(p for p in root.iterdir() if p.is_dir())
-    except OSError:
-        return []
-
+    limit = PROJECT_DIR_NAME_LIMIT
+    head = name[:limit]
     matches: list[str] = []
-    for entry in entries:
-        encoded_name = SharedStore.encode_path(entry.name)
-        if enc == encoded_name:
-            matches.append(entry.name)
-        elif enc.startswith(encoded_name + "-"):
-            for sub in _decode_rel(entry, enc[len(encoded_name) + 1 :]):
-                matches.append(f"{entry.name}/{sub}")
+
+    def walk(directory: Path, rel: str) -> None:
+        try:
+            entries = sorted(p for p in directory.iterdir() if p.is_dir())
+        except OSError:
+            return
+        for entry in entries:
+            entry_rel = f"{rel}/{entry.name}" if rel else entry.name
+            full = f"{root_real}/{entry_rel}"
+            if SharedStore.encode_path(full) == name:
+                matches.append(entry_rel)
+            # Descend only where a deeper path could still produce the name.
+            deeper = (SharedStore.encode_path_untruncated(full) + "-")[:limit]
+            if head.startswith(deeper):
+                walk(entry, entry_rel)
+
+    walk(root, "")
     return matches
+
+
+def _names_under(old_resolved: str) -> Callable[[str], bool]:
+    """A test for store-dir names that could belong to a path under OLD.
+
+    A path under OLD encodes to ``untruncated(OLD) + "-" + ...``; its store
+    name keeps the first ``PROJECT_DIR_NAME_LIMIT`` characters of that, so
+    the test compares that many characters.  It admits siblings that merely
+    share the encoded prefix (``OLD.ish``); resolution sorts them out.
+    """
+    prefix = SharedStore.encode_path_untruncated(old_resolved) + "-"
+    if len(prefix) <= PROJECT_DIR_NAME_LIMIT:
+        return lambda name: name.startswith(prefix)
+    cut = prefix[:PROJECT_DIR_NAME_LIMIT]
+    return lambda name: len(name) > PROJECT_DIR_NAME_LIMIT and name.startswith(cut)
 
 
 def _read_claude_json(path: Path) -> dict[str, Any]:
@@ -217,22 +244,18 @@ def _discover_descendants(
     }
 
     old_encoded = SharedStore.encode_path(old_resolved)
+    under_old = _names_under(old_resolved)
     candidates: set[str] = set()
     for projects in _distinct_store_dirs(profile_dirs):
         for entry in projects.iterdir():
             name = entry.name
-            if (
-                entry.is_dir()
-                and name != old_encoded
-                and name.startswith(old_encoded + "-")
-            ):
+            if entry.is_dir() and name != old_encoded and under_old(name):
                 candidates.add(name)
 
     errors: list[str] = []
     for cand in sorted(candidates):
         resolved = {k for k in known_keys if SharedStore.encode_path(k) == cand}
-        suffix_enc = cand[len(old_encoded) + 1 :]
-        for rel in _decode_rel(source_root, suffix_enc):
+        for rel in _decode_rel(source_root, old_resolved, cand):
             resolved.add(f"{old_resolved}/{rel}")
 
         if not resolved:

@@ -12,6 +12,35 @@ from pathlib import Path
 # outlives the profile that launched the session.
 LIFECYCLE_DIRNAME = "lifecycle"
 
+# The longest store-dir name Claude Code writes in full; a longer sanitized
+# path is cut to this length and suffixed with a hash of the raw path.
+PROJECT_DIR_NAME_LIMIT = 200
+
+_BASE36_DIGITS = "0123456789abcdefghijklmnopqrstuvwxyz"
+
+
+def _path_hash_base36(p: str) -> str:
+    """Claude Code's store-dir name hash of *p*, in base 36.
+
+    A 31-multiplier string hash over the UTF-16 code units of *p*, kept to a
+    signed 32-bit integer after every step (JavaScript's ``| 0``); the
+    absolute value is written in base 36, as ``Math.abs(h).toString(36)``.
+    """
+    units = p.encode("utf-16-le", errors="surrogatepass")
+    h = 0
+    for i in range(0, len(units), 2):
+        h = (h * 31 + int.from_bytes(units[i : i + 2], "little")) & 0xFFFFFFFF
+    if h >= 0x80000000:
+        h -= 0x100000000
+    n = abs(h)
+    if n == 0:
+        return "0"
+    digits: list[str] = []
+    while n:
+        n, r = divmod(n, 36)
+        digits.append(_BASE36_DIGITS[r])
+    return "".join(reversed(digits))
+
 
 @dataclass(frozen=True)
 class SharedStore:
@@ -56,10 +85,36 @@ class SharedStore:
         return self.shared_dir / name
 
     @staticmethod
-    def encode_path(p: str) -> str:
-        """Encode a path the way Claude Code does: replace /, . and _ with -.
+    def encode_path_untruncated(p: str) -> str:
+        """Claude Code's store-dir sanitizer before its length limit applies.
 
-        All three separators collapse to a single dash, so the encoding is
-        lossy and one encoded name can correspond to several real paths.
+        Every UTF-16 code unit outside ``[a-zA-Z0-9]`` becomes ``-`` (Claude
+        Code runs a JavaScript regex without the ``u`` flag, so a character
+        outside the Basic Multilingual Plane is two code units and becomes
+        two dashes).  The encoding is lossy: ``/``, ``.``, ``_``, a space and
+        a literal ``-`` all become ``-``, so one encoded name can correspond
+        to several real paths.  Encoding distributes over path joins:
+        ``encode(a + "/" + b) == encode(a) + "-" + encode(b)``.
         """
-        return p.replace("/", "-").replace(".", "-").replace("_", "-")
+        out: list[str] = []
+        for ch in p:
+            if ch.isascii() and ch.isalnum():
+                out.append(ch)
+            elif ord(ch) > 0xFFFF:
+                out.append("--")
+            else:
+                out.append("-")
+        return "".join(out)
+
+    @staticmethod
+    def encode_path(p: str) -> str:
+        """The name of the store dir Claude Code keeps a path's sessions in.
+
+        :meth:`encode_path_untruncated`, cut to
+        :data:`PROJECT_DIR_NAME_LIMIT` characters and suffixed with ``-`` plus
+        :func:`_path_hash_base36` of the raw path when it is longer than that.
+        """
+        name = SharedStore.encode_path_untruncated(p)
+        if len(name) <= PROJECT_DIR_NAME_LIMIT:
+            return name
+        return f"{name[:PROJECT_DIR_NAME_LIMIT]}-{_path_hash_base36(p)}"

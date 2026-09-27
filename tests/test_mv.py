@@ -28,7 +28,7 @@ from claudewheel.mv import (
 
 
 class EncodePathTests(unittest.TestCase):
-    """Slash/dot/underscore-to-dash encoding Claude Code uses for project dir names."""
+    """Slashes, dots, and underscores become dashes in Claude Code's store-dir names."""
 
     def test_replaces_slashes_with_dashes(self) -> None:
         self.assertEqual(
@@ -80,17 +80,22 @@ class DecodeRelTests(unittest.TestCase):
     def test_round_trips_a_dir_whose_name_contains_underscores(self) -> None:
         (self.root / "my_project" / "sub_dir").mkdir(parents=True)
         rel = "my_project/sub_dir"
-        enc = SharedStore.encode_path(rel)
+        name = SharedStore.encode_path(f"/r/{rel}")
 
-        self.assertEqual(enc, "my-project-sub-dir")
-        self.assertEqual(_decode_rel(self.root, enc), [rel])
+        self.assertEqual(name, "-r-my-project-sub-dir")
+        self.assertEqual(_decode_rel(self.root, "/r", name), [rel])
 
     def test_reports_every_real_path_sharing_one_encoding(self) -> None:
         # The encoding is lossy: "a_b" and "a.b" both encode to "a-b".
         (self.root / "a_b").mkdir()
         (self.root / "a.b").mkdir()
 
-        self.assertEqual(sorted(_decode_rel(self.root, "a-b")), ["a.b", "a_b"])
+        self.assertEqual(sorted(_decode_rel(self.root, "/r", "-r-a-b")), ["a.b", "a_b"])
+
+    def test_round_trips_a_dir_whose_name_contains_a_space(self) -> None:
+        (self.root / "my project").mkdir()
+
+        self.assertEqual(_decode_rel(self.root, "/r", "-r-my-project"), ["my project"])
 
 
 # ---------------------------------------------------------------------------
@@ -1287,7 +1292,11 @@ class SymlinkedStoreLayout:
         return self.store / SharedStore.encode_path(real_path)
 
     def add_session(
-        self, real_path: str, name: str, cwds: list[str], subagent_cwd: str | None = None
+        self,
+        real_path: str,
+        name: str,
+        cwds: list[str],
+        subagent_cwd: str | None = None,
     ) -> Path:
         """Write one top-level transcript recording *cwds*, one line each."""
         d = self.store_dir(real_path)
@@ -1358,3 +1367,33 @@ class SymlinkedProfilesTests(unittest.TestCase):
         self.assertEqual(result.dirs_renamed, 1)
         self.assertEqual(result.files_rewritten, 1)
         self.assertEqual(result.lines_replaced, 2)
+
+
+class LongPathDecodeTests(unittest.TestCase):
+    """A descendant whose store-dir name Claude Code truncated still decodes."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.layout = SymlinkedStoreLayout(Path(self._tmp.name))
+        self._stdout_trap = contextlib.redirect_stdout(io.StringIO())
+        self._stdout_trap.__enter__()
+
+    def tearDown(self) -> None:
+        self._stdout_trap.__exit__(None, None, None)
+        self._tmp.cleanup()
+
+    def test_truncated_descendant_name_decodes_from_the_moved_tree(self) -> None:
+        old = self.layout.projects_root / "old"
+        new = self.layout.projects_root / "new"
+        deep_rel = "/".join(["segment-of-a-long-path"] * 10)
+        (old / deep_rel).mkdir(parents=True)
+        old_deep = f"{old}/{deep_rel}"
+        new_deep = f"{new}/{deep_rel}"
+        self.assertGreater(len(SharedStore.encode_path_untruncated(old_deep)), 200)
+        # No registry key and no transcript: only the directory proves it.
+        self.layout.store_dir(old_deep).mkdir()
+
+        run_mv(self.layout.ws, str(old), str(new))
+
+        self.assertFalse(self.layout.store_dir(old_deep).exists())
+        self.assertTrue(self.layout.store_dir(new_deep).is_dir())
