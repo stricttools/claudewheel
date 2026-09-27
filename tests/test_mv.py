@@ -157,6 +157,133 @@ class RewriteJsonlFileTests(unittest.TestCase):
         self.assertEqual(replaced, 1)
         self.assertEqual(f.read_text(), original)
 
+    def _rewrite_one(self, record: object) -> object:
+        f = self.tmp_path / "one.jsonl"
+        f.write_text(json.dumps(record) + "\n")
+        _rewrite_jsonl_file(f, "/x/foo", "/y/moved", dry_run=False)
+        return json.loads(f.read_text())
+
+    def test_free_text_rewrites_only_at_a_path_boundary(self) -> None:
+        """A sibling whose name merely starts with the old path is never touched."""
+        text = (
+            "siblings /x/foobar and /x/foo-bar and /x/foo_bar and /x/foo2 stay; "
+            'moved: /x/foo, /x/foo/ and "/x/foo" and /x/foo/src and (/x/foo); '
+            "last /x/foo."
+        )
+        out = self._rewrite_one({"type": "user", "message": {"content": text}})
+        self.assertEqual(
+            out,
+            {
+                "type": "user",
+                "message": {
+                    "content": (
+                        "siblings /x/foobar and /x/foo-bar and /x/foo_bar and "
+                        "/x/foo2 stay; "
+                        'moved: /y/moved, /y/moved/ and "/y/moved" and '
+                        "/y/moved/src and (/y/moved); last /y/moved."
+                    )
+                },
+            },
+        )
+
+    def test_free_text_ending_at_the_old_path_is_rewritten(self) -> None:
+        out = self._rewrite_one({"message": {"content": "cd /x/foo"}})
+        self.assertEqual(out, {"message": {"content": "cd /y/moved"}})
+
+    def test_path_fields_rewrite_only_the_path_itself_and_below(self) -> None:
+        """Structural path fields match OLD or OLD/..., never a sibling like OLD.bak."""
+        record = {
+            "cwd": "/x/foo",
+            "message": {
+                "content": [
+                    {"input": {"file_path": "/x/foo/a.py", "path": "/x/foo.bak"}},
+                    {"input": {"file_path": "/x/foobar/a.py"}},
+                ]
+            },
+            "toolUseResult": {"filePath": "/x/foo/b.py"},
+            "attachment": {"planFilePath": "/x/foo-bar/plan.md"},
+        }
+        out = self._rewrite_one(record)
+        self.assertEqual(
+            out,
+            {
+                "cwd": "/y/moved",
+                "message": {
+                    "content": [
+                        {
+                            "input": {
+                                "file_path": "/y/moved/a.py",
+                                "path": "/x/foo.bak",
+                            }
+                        },
+                        {"input": {"file_path": "/x/foobar/a.py"}},
+                    ]
+                },
+                "toolUseResult": {"filePath": "/y/moved/b.py"},
+                "attachment": {"planFilePath": "/x/foo-bar/plan.md"},
+            },
+        )
+
+    def test_tracked_file_backup_keys_are_path_fields(self) -> None:
+        record = {
+            "type": "file-history-snapshot",
+            "snapshot": {
+                "trackedFileBackups": {
+                    "/x/foo/a.py": {"version": 1, "realParentDir": "/x/foo"},
+                    "/x/foobar/b.py": {"version": 1, "realParentDir": "/x/foobar"},
+                    "rel/c.py": {"version": 1},
+                }
+            },
+        }
+        out = self._rewrite_one(record)
+        self.assertEqual(
+            out,
+            {
+                "type": "file-history-snapshot",
+                "snapshot": {
+                    "trackedFileBackups": {
+                        "/y/moved/a.py": {"version": 1, "realParentDir": "/y/moved"},
+                        "/x/foobar/b.py": {
+                            "version": 1,
+                            "realParentDir": "/x/foobar",
+                        },
+                        "rel/c.py": {"version": 1},
+                    }
+                },
+            },
+        )
+
+    def test_line_holding_only_a_sibling_is_byte_identical_and_not_counted(
+        self,
+    ) -> None:
+        f = self.tmp_path / "s.jsonl"
+        original = '{"cwd": "/x/foobar", "message": {"content": "/x/foo-bar"}}\n'
+        f.write_text(original)
+
+        replaced = _rewrite_jsonl_file(f, "/x/foo", "/y/moved", dry_run=False)
+
+        self.assertEqual(replaced, 0)
+        self.assertEqual(f.read_text(), original)
+
+    def test_line_separator_characters_inside_a_string_stay_one_line(self) -> None:
+        """Only newline ends a record; U+2028 inside a string is part of it."""
+        f = self.tmp_path / "s.jsonl"
+        f.write_text(
+            '{"cwd":"/x/foo","message":{"content":"a b /x/foo/c"}}\n'
+            '{"cwd":"/elsewhere"}\n'
+        )
+
+        replaced = _rewrite_jsonl_file(f, "/x/foo", "/y/moved", dry_run=False)
+
+        self.assertEqual(replaced, 1)
+        lines = f.read_text().split("\n")
+        self.assertEqual(
+            json.loads(lines[0]),
+            {"cwd": "/y/moved", "message": {"content": "a b /y/moved/c"}},
+        )
+        self.assertEqual(lines[1], '{"cwd":"/elsewhere"}')
+        self.assertEqual(lines[2], "")
+
 
 # ---------------------------------------------------------------------------
 # _update_claude_json

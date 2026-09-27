@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -156,34 +157,139 @@ def _check_merges_complete(
         )
 
 
+# Transcript fields whose string value (or list of string values) is one
+# filesystem path.  Such a value is rewritten only when it IS the old path or
+# lies under it, so ``/x/foo.bak`` in a path field survives a move of
+# ``/x/foo``.  Every other string is free text (see ``_free_text_pattern``).
+_PATH_FIELDS = frozenset(
+    {
+        "cwd",
+        "file_path",
+        "filePath",
+        "filename",
+        "filesChanged",
+        "notebook_path",
+        "path",
+        "persistedOutputPath",
+        "planFilePath",
+        "realParentDir",
+        "workingDirectory",
+    }
+)
+
+# Objects whose keys are filesystem paths (a file-history snapshot maps each
+# tracked file to its backup).
+_PATH_KEYED_FIELDS = frozenset({"trackedFileBackups"})
+
+
+def _free_text_pattern(old_path: str) -> re.Pattern[str]:
+    """Occurrences of *old_path* in free text that end at a path boundary.
+
+    An occurrence followed by a letter, digit, ``-``, or ``_`` names a
+    different path (``/x/foobar``, ``/x/foo-bar``) and is not matched;
+    anything else after it (``/``, a quote, whitespace, punctuation, or the
+    end of the string) ends the path, so it is.
+    """
+    return re.compile(re.escape(old_path) + r"(?![\w-])")
+
+
+def _rewrite_path_value(value: str, old_path: str, new_path: str) -> str:
+    if value == old_path or value.startswith(old_path + "/"):
+        return new_path + value[len(old_path) :]
+    return value
+
+
+def _rewrite_record(
+    value: Any, old_path: str, new_path: str, free_text: re.Pattern[str], key: str
+) -> Any:
+    """*value* with every path equal to or under *old_path* moved to *new_path*.
+
+    *key* is the name of the field holding *value* ("" for none); it selects
+    the path-field rule over the free-text rule.
+    """
+    if isinstance(value, str):
+        if key in _PATH_FIELDS:
+            return _rewrite_path_value(value, old_path, new_path)
+        return free_text.sub(lambda _: new_path, value)
+    if isinstance(value, list):
+        return [
+            _rewrite_record(item, old_path, new_path, free_text, key) for item in value
+        ]
+    if isinstance(value, dict):
+        out: dict[str, Any] = {}
+        for k, v in value.items():
+            if key in _PATH_KEYED_FIELDS:
+                new_k = _rewrite_path_value(k, old_path, new_path)
+            else:
+                new_k = free_text.sub(lambda _: new_path, k)
+            out[new_k] = _rewrite_record(v, old_path, new_path, free_text, k)
+        return out
+    return value
+
+
+_LONE_SURROGATE = re.compile("[\ud800-\udfff]")
+
+
+def _dump_record(record: Any) -> str:
+    """Serialize one rewritten transcript record the way Claude Code writes it.
+
+    Compact separators and raw non-ASCII, as ``JSON.stringify`` does; a lone
+    surrogate (which ``JSON.stringify`` escapes) is escaped too, so the line
+    stays valid UTF-8.
+    """
+    text = json.dumps(record, ensure_ascii=False, separators=(",", ":"))
+    return _LONE_SURROGATE.sub(lambda m: f"\\u{ord(m.group()):04x}", text)
+
+
 def _rewrite_jsonl_file(
     path: Path,
     old_path: str,
     new_path: str,
     dry_run: bool,
 ) -> int:
-    """Replace old_path with new_path in every line of a JSONL file.
+    """Move every path equal to or under old_path to new_path in a JSONL file.
+
+    Each newline-terminated line is parsed as JSON.  Path fields
+    (``_PATH_FIELDS``, and the keys of ``_PATH_KEYED_FIELDS``) are rewritten
+    when they are old_path or under it; every other string, keys included,
+    is rewritten where old_path ends at a path boundary
+    (``_free_text_pattern``).  A line that changes is re-serialized; every
+    other line is kept byte for byte.  A line that is not JSON (a live
+    session's partial last line) is kept as it is, as the store's cwd reader
+    skips it.
 
     Returns the number of lines where a replacement was made.  An unreadable
     file is a hard error naming it (``_check_transcripts_readable`` refuses
     the same condition before the move changes anything).
     """
-    lines = _read_transcript(path).splitlines(keepends=True)
+    # Split on "\n" only: str.splitlines() also splits on U+2028 and kin,
+    # which JSON strings may hold raw.
+    lines = _read_transcript(path).split("\n")
+    free_text = _free_text_pattern(old_path)
 
     replaced = 0
     new_lines: list[str] = []
     for line in lines:
-        if old_path in line:
-            new_lines.append(line.replace(old_path, new_path))
-            replaced += 1
-        else:
+        if old_path not in line:
             new_lines.append(line)
+            continue
+        try:
+            record = json.loads(line)
+        except ValueError:
+            new_lines.append(line)
+            continue
+        rewritten = _rewrite_record(record, old_path, new_path, free_text, "")
+        if rewritten == record:
+            new_lines.append(line)
+        else:
+            new_lines.append(_dump_record(rewritten))
+            replaced += 1
 
     if replaced > 0:
         if dry_run:
             _log(f"  would rewrite {path} ({replaced} lines)")
         else:
-            write_text_atomic(path, "".join(new_lines))
+            write_text_atomic(path, "\n".join(new_lines))
             _log(f"  rewrote {path} ({replaced} lines)")
 
     return replaced
