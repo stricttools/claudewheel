@@ -10,7 +10,7 @@ from pathlib import Path
 
 from . import effects
 from .effects import write_text_atomic
-from .session import get_session_cwd
+from .session import store_dir_path
 from .shared_store import SharedStore
 
 UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
@@ -205,26 +205,45 @@ class _SessionBundle:
     uuid: str
     jsonl_path: Path
     companion_dir: Path | None  # <uuid>/ directory if it exists
-    cwd: str  # extracted cwd from the JSONL
+    cwd: str  # the path its store dir's sessions recorded (store_dir_path)
     source_encoded_dir: str  # the encoded project directory name in the source
 
 
 def _scan_source(source: Path) -> list[_SessionBundle]:
-    """Walk ``<source>/projects/*/`` and collect session bundles."""
-    projects_dir = source / "projects"
-    bundles: list[_SessionBundle] = []
+    """Walk ``<source>/projects/*/`` and collect session bundles.
 
-    for encoded_dir in sorted(projects_dir.iterdir()):
-        if not encoded_dir.is_dir():
-            continue
+    Every session's cwd is its store dir's path (:func:`store_dir_path`): a
+    dir whose sessions record no matching cwd, or several, is a hard error.
+    A session transcript that is a dangling symlink is a hard error too,
+    naming every such file; both are raised before the import writes
+    anything.
+    """
+    projects_dir = source / "projects"
+    encoded_dirs = [d for d in sorted(projects_dir.iterdir()) if d.is_dir()]
+
+    # Before anything reads a transcript: the cwd reader reads every one in
+    # a dir, and a dangling one must be named as such.
+    dangling = [
+        f"  {entry}: dangling symlink (its target {entry.readlink()} does not exist)"
+        for encoded_dir in encoded_dirs
+        for entry in sorted(encoded_dir.glob("*.jsonl"))
+        if entry.is_symlink() and not entry.exists()
+    ]
+    if dangling:
+        raise FileNotFoundError(
+            "cannot import, nothing was changed: session transcripts in the "
+            "source are symlinks whose target does not exist:\n" + "\n".join(dangling)
+        )
+
+    bundles: list[_SessionBundle] = []
+    dir_paths: dict[Path, str] = {}
+    for encoded_dir in encoded_dirs:
         for entry in sorted(encoded_dir.iterdir()):
             name = entry.name
             if not name.endswith(".jsonl"):
                 continue
             stem = name[:-6]
             if not _is_uuid(stem):
-                continue
-            if _skip_dangling(entry):
                 continue
             try:
                 size = entry.stat().st_size
@@ -235,12 +254,9 @@ def _scan_source(source: Path) -> list[_SessionBundle]:
                 continue
             if size == 0:
                 continue
-            cwd = get_session_cwd(entry)
-            if cwd is None:
-                raise ValueError(
-                    f"cannot extract cwd from {entry} -- "
-                    f"file has no cwd field in the first lines"
-                )
+            if encoded_dir not in dir_paths:
+                dir_paths[encoded_dir] = store_dir_path(encoded_dir)
+            cwd = dir_paths[encoded_dir]
             companion = encoded_dir / stem
             has_companion = not _skip_dangling(companion) and companion.is_dir()
             bundles.append(

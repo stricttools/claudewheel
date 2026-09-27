@@ -258,7 +258,7 @@ class SandboxEscapeGuardTest(SandboxHomeTestCase):
             '{"cwd":"/guard/proj","sessionId":"' + _A_UUID + '"}\n'
         )
         with mock.patch(
-            "claudewheel.import_.get_session_cwd",
+            "claudewheel.import_.store_dir_path",
             autospec=True,
             return_value="/guard/proj",
         ):
