@@ -123,6 +123,39 @@ def _check_transcripts_readable(
         )
 
 
+def _check_merges_complete(
+    stores: list[Path], migrations: list[tuple[str, str]]
+) -> None:
+    """Refuse the move, before anything changes, if a merge would strand entries.
+
+    When a migrated path's store dir and its destination's both exist, the
+    first is merged into the second and removed; an entry name present in
+    both cannot move, so the old store dir could not be removed.  Every such
+    pair is listed with the names both hold.
+    """
+    conflicts: list[str] = []
+    for projects in stores:
+        for mo, mn in migrations:
+            old_project = projects / SharedStore.encode_path(mo)
+            new_project = projects / SharedStore.encode_path(mn)
+            if not (old_project.is_dir() and new_project.exists()):
+                continue
+            shared = sorted(
+                item.name
+                for item in old_project.iterdir()
+                if (new_project / item.name).exists()
+            )
+            if shared:
+                conflicts.append(
+                    f"  {old_project} -> {new_project}: both hold " + ", ".join(shared)
+                )
+    if conflicts:
+        raise FileExistsError(
+            "cannot migrate, nothing was changed: merging these store dirs "
+            "would leave the old one non-empty:\n" + "\n".join(conflicts)
+        )
+
+
 def _rewrite_jsonl_file(
     path: Path,
     old_path: str,
@@ -356,22 +389,20 @@ def _rename_project_dir(old_project: Path, new_project: Path, dry_run: bool) -> 
         _log(
             f"  {'would merge' if dry_run else 'merging'} {old_project} -> {new_project}"
         )
+        # Name collisions were refused before any change
+        # (``_check_merges_complete``), so every entry moves.
         for item in sorted(old_project.iterdir()):
-            dest = new_project / item.name
-            if dest.exists():
-                _log(
-                    f"    {'would skip' if dry_run else 'skipping'} (already exists): {item.name}"
-                )
-                continue
             if effects.issue(dry_run):
-                effects.move(item, dest)
+                effects.move(item, new_project / item.name)
             _log(f"    {'would move' if dry_run else 'moved'}: {item.name}")
         # Remove the now-empty old directory
         try:
             if effects.issue(dry_run):
                 effects.rmdir(old_project)
-        except OSError:
-            _log(f"  WARNING: could not remove {old_project} (not empty after merge)")
+        except OSError as e:
+            raise OSError(
+                f"cannot remove {old_project} after merging it into {new_project}: {e}"
+            ) from e
         return True
 
     if effects.issue(dry_run):
@@ -561,6 +592,7 @@ def run_mv(
 
     stores = _distinct_store_dirs(profile_dirs)
     _check_transcripts_readable(stores, migrations)
+    _check_merges_complete(stores, migrations)
 
     # 5. Rename the directory (default mode only)
     if not post_hoc:

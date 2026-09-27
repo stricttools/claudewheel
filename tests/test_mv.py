@@ -802,44 +802,6 @@ class MergeDirsTests(unittest.TestCase):
         # File content unchanged
         self.assertEqual(uuid1.read_text(), original_uuid1)
 
-    def test_mv_merge_file_collision(self) -> None:
-        """A file with the same name in both dirs is skipped (kept in new)."""
-        collision_name = "same-uuid.jsonl"
-        old_file = self.old_project / collision_name
-        old_file.write_text(json.dumps({"cwd": self.old_resolved, "src": "old"}) + "\n")
-        new_file = self.new_project / collision_name
-        new_file.write_text(json.dumps({"cwd": self.new_resolved, "src": "new"}) + "\n")
-        # Also have a non-colliding file to verify it does get moved
-        other_file = self.old_project / "other.jsonl"
-        other_file.write_text(
-            json.dumps({"cwd": self.old_resolved, "type": "init"}) + "\n"
-        )
-
-        result = self._run()
-
-        # The collision file in new_project is the original new version
-        content = json.loads(new_file.read_text().strip())
-        self.assertEqual(content["src"], "new")
-
-        # The non-colliding file was moved and rewritten
-        moved = self.new_project / "other.jsonl"
-        self.assertTrue(moved.exists())
-        moved_content = moved.read_text()
-        self.assertNotIn(self.old_resolved, moved_content)
-        self.assertIn(self.new_resolved, moved_content)
-
-        # Old dir is gone (collision file was skipped but it stays in old;
-        # rmdir will fail because it's not empty -- old still has the collision file)
-        # Actually: the collision file stays in old_project, so rmdir won't remove it.
-        # The old_project dir may still exist with the skipped file.
-        if self.old_project.exists():
-            remaining = list(self.old_project.iterdir())
-            self.assertEqual(len(remaining), 1)
-            self.assertEqual(remaining[0].name, collision_name)
-
-        # Merge still counted
-        self.assertEqual(result.dirs_renamed, 1)
-
 
 # ---------------------------------------------------------------------------
 # Default (rename) mode
@@ -1587,3 +1549,40 @@ class HardErrorTests(unittest.TestCase):
         run_mv(self.ws, str(self.old), str(self.new))
 
         self.assertTrue(self.new.is_dir())
+
+    def test_merge_leaving_the_old_store_dir_non_empty_refuses(self) -> None:
+        """Both store dirs holding one name would strand it: refuse up front."""
+        old_store = self.layout.store_dir(str(self.old))
+        new_store = self.layout.store_dir(str(self.new))
+        self.layout.add_session(str(self.old), "same", [str(self.old)])
+        self.layout.add_session(str(self.old), "other", [str(self.old)])
+        new_store.mkdir()
+        (new_store / "same.jsonl").write_text(json.dumps({"cwd": str(self.new)}) + "\n")
+        before = self.layout.snapshot()
+
+        with self.assertRaises(FileExistsError) as ctx:
+            run_mv(self.ws, str(self.old), str(self.new))
+
+        msg = str(ctx.exception)
+        self.assertIn(str(old_store), msg)
+        self.assertIn("same.jsonl", msg)
+        self.assertEqual(self.layout.snapshot(), before)
+        self.assertTrue(self.old.is_dir())
+        self.assertFalse(self.new.exists())
+
+    def test_old_store_dir_not_removable_after_merge_is_a_hard_error(self) -> None:
+        old_store = self.layout.store_dir(str(self.old))
+        self.layout.add_session(str(self.old), "s", [str(self.old)])
+        self.layout.store_dir(str(self.new)).mkdir()
+
+        with (
+            patch(
+                "claudewheel.mv.effects.rmdir",
+                autospec=True,
+                side_effect=OSError("Directory not empty"),
+            ),
+            self.assertRaises(OSError) as ctx,
+        ):
+            run_mv(self.ws, str(self.old), str(self.new))
+
+        self.assertIn(str(old_store), str(ctx.exception))
