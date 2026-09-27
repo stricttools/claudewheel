@@ -1537,3 +1537,53 @@ class RecordedCwdProofTests(unittest.TestCase):
         self.assertIn(child, msg)
         self.assertIn(sibling, msg)
         self._assert_nothing_changed(before)
+
+
+class HardErrorTests(unittest.TestCase):
+    """Conditions mv used to log and continue past are refusals."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.layout = SymlinkedStoreLayout(Path(self._tmp.name))
+        self.ws = self.layout.ws
+        self.old = self.layout.projects_root / "old"
+        self.new = self.layout.projects_root / "new"
+        self.old.mkdir()
+        self._stdout_trap = contextlib.redirect_stdout(io.StringIO())
+        self._stdout_trap.__enter__()
+
+    def tearDown(self) -> None:
+        self._stdout_trap.__exit__(None, None, None)
+        for p in self.layout.store.rglob("*"):
+            p.chmod(0o755 if p.is_dir() else 0o644)
+        self._tmp.cleanup()
+
+    def test_unreadable_transcript_refuses_before_any_change(self) -> None:
+        self.layout.add_session(
+            str(self.old), "s", [str(self.old)], subagent_cwd="/elsewhere"
+        )
+        unreadable = self.layout.store_dir(str(self.old)) / "s" / "subagents"
+        unreadable = unreadable / "agent-1.jsonl"
+        unreadable.chmod(0)
+        readable = self.layout.store_dir(str(self.old)) / "s.jsonl"
+        before = readable.read_bytes()
+
+        with self.assertRaises(OSError) as ctx:
+            run_mv(self.ws, str(self.old), str(self.new))
+
+        self.assertIn(str(unreadable), str(ctx.exception))
+        self.assertTrue(self.old.is_dir())
+        self.assertFalse(self.new.exists())
+        self.assertEqual(readable.read_bytes(), before)
+
+    def test_unreadable_transcript_error_clears_once_readable(self) -> None:
+        self.layout.add_session(str(self.old), "s", [str(self.old)])
+        transcript = self.layout.store_dir(str(self.old)) / "s.jsonl"
+        transcript.chmod(0)
+        with self.assertRaises(OSError):
+            run_mv(self.ws, str(self.old), str(self.new))
+
+        transcript.chmod(0o644)
+        run_mv(self.ws, str(self.old), str(self.new))
+
+        self.assertTrue(self.new.is_dir())

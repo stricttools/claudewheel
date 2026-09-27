@@ -78,6 +78,51 @@ def _distinct_store_dirs(profile_dirs: list[Path]) -> list[Path]:
     return dirs
 
 
+def _read_transcript(path: Path) -> str:
+    """Read one session JSONL file, raising an error that names it."""
+    try:
+        return path.read_text()
+    except (OSError, UnicodeDecodeError) as e:
+        raise OSError(f"cannot read {path}: {e}") from e
+
+
+def _transcripts_to_rewrite(scan_dir: Path) -> list[Path]:
+    """Every JSONL file the rewrite visits in one migrated store dir.
+
+    Nested files (subagent transcripts) included; ``history.jsonl`` is
+    skipped, being append-only and not needed to resume.
+    """
+    return [p for p in sorted(scan_dir.rglob("*.jsonl")) if p.name != "history.jsonl"]
+
+
+def _check_transcripts_readable(
+    stores: list[Path], migrations: list[tuple[str, str]]
+) -> None:
+    """Refuse the move, before anything changes, if a transcript it would rewrite is unreadable.
+
+    Reads every file the rewrite step will read, in the same way, so an
+    unreadable one is found while nothing has been renamed yet.  Every
+    unreadable file is listed.
+    """
+    failures: list[str] = []
+    for projects in stores:
+        for mo, mn in migrations:
+            for name in (SharedStore.encode_path(mo), SharedStore.encode_path(mn)):
+                scan_dir = projects / name
+                if not scan_dir.is_dir():
+                    continue
+                for path in _transcripts_to_rewrite(scan_dir):
+                    try:
+                        _read_transcript(path)
+                    except OSError as e:
+                        failures.append(f"  {e}")
+    if failures:
+        raise OSError(
+            "cannot migrate, nothing was changed: session files the move "
+            "must rewrite cannot be read:\n" + "\n".join(failures)
+        )
+
+
 def _rewrite_jsonl_file(
     path: Path,
     old_path: str,
@@ -86,13 +131,11 @@ def _rewrite_jsonl_file(
 ) -> int:
     """Replace old_path with new_path in every line of a JSONL file.
 
-    Returns the number of lines where a replacement was made.
+    Returns the number of lines where a replacement was made.  An unreadable
+    file is a hard error naming it (``_check_transcripts_readable`` refuses
+    the same condition before the move changes anything).
     """
-    try:
-        lines = path.read_text().splitlines(keepends=True)
-    except OSError as e:
-        _log(f"  cannot read {path}: {e}")
-        return 0
+    lines = _read_transcript(path).splitlines(keepends=True)
 
     replaced = 0
     new_lines: list[str] = []
@@ -516,6 +559,9 @@ def run_mv(
         if mo != old_resolved:
             _log(f"  nested project: {mo} -> {mn}")
 
+    stores = _distinct_store_dirs(profile_dirs)
+    _check_transcripts_readable(stores, migrations)
+
     # 5. Rename the directory (default mode only)
     if not post_hoc:
         if dry_run:
@@ -529,7 +575,7 @@ def run_mv(
             ) from e
 
     # 6. Process each distinct projects/ store, longest source path first
-    for projects in _distinct_store_dirs(profile_dirs):
+    for projects in stores:
         # 6a. Rename or merge each migrated project directory
         scan_dirs: list[Path] = []
         for mo, mn in migrations:
@@ -550,10 +596,7 @@ def run_mv(
         # destinations are NEW + suffix, so replacing the parent prefix also
         # fixes every descendant path in one pass.
         for scan_dir in scan_dirs:
-            for jsonl_path in scan_dir.rglob("*.jsonl"):
-                # Skip history.jsonl -- append-only, not critical for resume
-                if jsonl_path.name == "history.jsonl":
-                    continue
+            for jsonl_path in _transcripts_to_rewrite(scan_dir):
                 lines_fixed = _rewrite_jsonl_file(
                     jsonl_path,
                     old_resolved,
