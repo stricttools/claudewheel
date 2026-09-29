@@ -120,6 +120,13 @@ DEFAULT_CONFIG = {
     # clients.CLIENT_ADAPTERS entry; an unknown value is a hard error at launch.
     # _migrate() backfills this key into existing config.json files.
     "default_client": "claude",
+    # The memory ceiling of the systemd user scope every launched session runs
+    # in (launch.SessionScope): a whole number with a K, M, G, or T suffix, and
+    # for swap also "0". A session's Claude Code process peaks under 1G, so 4G
+    # leaves room for its agents' commands outside heavy; 1G of swap lets idle
+    # memory compress into zram without letting a runaway fill swap first.
+    "session_memory_max": "4G",
+    "session_memory_swap_max": "1G",
     "_schema_version": 0,
 }
 

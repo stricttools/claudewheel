@@ -1,6 +1,6 @@
 +++
 title = "Guardrails"
-description = "How claudewheel guardrails work: the 4 enforcement tiers, subagents versus the main agent, command-string caveats, the heavy wrapper and its memory budget, upgrading profiles, and stripped tools."
+description = "How claudewheel guardrails work: the 4 enforcement tiers, subagents versus the main agent, command-string caveats, the heavy wrapper and its memory budget, the memory ceiling of each session, upgrading profiles, and stripped tools."
 nav_group = "Concepts"
 nav_order = 5
 +++
@@ -148,6 +148,54 @@ the old one, so a `heavy` that is running keeps the copy it started from. When
 anything else already stands at
 `~/.local/bin/heavy`, the deployment refuses and leaves it alone;
 `--force-overwrite` replaces it with the link.
+
+## A memory ceiling for each session
+
+The `heavy-unwrapped` rule matches command names, so a heavy command it cannot
+see, such as a test suite started inside `bash -c`, still runs unwrapped. So
+that such a command can take down only its own session, claudewheel starts
+every session it launches in its own systemd user scope with a memory ceiling:
+
+```bash
+systemd-run --user --scope --quiet --collect --expand-environment=no \
+    --unit=claudewheel-session-<pid>-<time>.scope \
+    -p MemoryMax=4G -p MemorySwapMax=1G -p OOMPolicy=continue -- <the client command>
+```
+
+`systemd-run` puts the client in the scope and then becomes it, so the session
+keeps claudewheel's process ID, terminal, and environment, and
+`--expand-environment=no` passes the client's arguments through with any `$`
+in them untouched. claudewheel prints
+the ceiling at every launch:
+
+```text
+claudewheel: this session runs in claudewheel-session-<pid>-<time>.scope, capped at 4G of memory and 1G of swap (session_memory_max and session_memory_swap_max in config.json)
+```
+
+- **The ceiling** is `session_memory_max` in `config.json`, 4G unless set. A
+  session's Claude Code process has been measured at under 1G at its peak over
+  days of work, so 4G leaves room for the commands its agents run outside
+  `heavy` (searches, git, package resolution, small scripts).
+- **Swap** is `session_memory_swap_max`, 1G unless set, or `0` for none. A
+  little swap lets an idle session's cold memory be compressed into zram
+  instead of holding RAM; more would let a runaway push gigabytes into swap,
+  slowing the whole machine, before the ceiling stopped it.
+- **`OOMPolicy=continue`**: when the scope reaches its ceiling, the kernel
+  kills the largest process in it, which is the runaway command rather than
+  Claude Code, and the session carries on. Without it, systemd would stop the
+  whole scope on the first kill.
+
+A `heavy` command started from inside a session is not counted against the
+session's ceiling: the user manager places every scope it starts beside the
+others in its own slice, not inside the scope of the process that asked, so the
+`heavy` scope is a sibling of the session scope and only its own `--mem` cap
+limits it.
+
+Both keys take a whole number with a `K`, `M`, `G`, or `T` suffix; any other
+value fails the launch with `Launch failed:` and the key's name. `systemd-run`
+must be on the launch `PATH`, and the launch fails if it is not. A session
+already running keeps the scope, or the absence of one, it was launched with;
+the ceiling applies from its next launch.
 
 ## Upgrading existing profiles
 

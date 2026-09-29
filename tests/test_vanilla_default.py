@@ -87,7 +87,9 @@ class VanillaLaunchIntegrationTests(ClaudeDirWriteCanaryMixin, _VanillaTestBase)
         """Drive the REAL _do_launch_sequence (resolve NOT stubbed), capturing env."""
         captured: dict[str, dict[str, str]] = {}
 
-        def _capture(cwd: str, argv: list[str], env: dict[str, str]) -> None:
+        def _capture(
+            cwd: str, argv: list[str], env: dict[str, str], scope: object
+        ) -> None:
             captured["env"] = env
 
         out = io.StringIO()

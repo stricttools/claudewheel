@@ -162,7 +162,7 @@ def _do_launch_sequence(
     """Run health check, hooks, save state, resolve, and exec. Does not return on success."""
     from .health import run_health_check, print_health_report
     from .hooks import run_hooks
-    from .launch import resolve_launch_config, do_launch
+    from .launch import SessionScope, resolve_launch_config, do_launch
     from .state import record_inode, save_launch_state
 
     if interactive and cfg.config.get("health_check_on_launch", True):
@@ -223,10 +223,12 @@ def _do_launch_sequence(
             passthrough=passthrough,
             lifecycle_dir=ws.shared.lifecycle_dir,
         )
+        # A malformed memory ceiling in config.json is a ValueError too.
+        scope = SessionScope.from_config(cfg.config)
         # Nothing is written into the profile's config dir here. The plan-tier
         # fields reach Claude Code through the launch environment (see
         # ProfileStore.env); a launch never touches its .credentials.json.
-        do_launch(cwd, argv, env)
+        do_launch(cwd, argv, env, scope)
     except ValueError as e:
         print(f"Launch failed: {e}", file=sys.stderr)
         sys.exit(1)

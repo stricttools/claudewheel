@@ -3,7 +3,12 @@
 from __future__ import annotations
 
 import os
+import re
+import shutil
 import subprocess
+import sys
+import time
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -46,7 +51,7 @@ def resolve_launch_config(
     *,
     lifecycle_dir: Path,
 ) -> tuple[str, list[str], dict[str, str]]:
-    """Build (cwd, argv, env) for os.execvpe from TUI selections.
+    """Build (cwd, argv, env) for do_launch from TUI selections.
 
     Maps segment values to their concrete effects. The env and cwd (the
     target-agnostic pieces) are assembled here; the argv is delegated to the
@@ -183,11 +188,110 @@ def resolve_launch_config(
     return (cwd, argv, env)
 
 
-def do_launch(cwd: str, argv: list[str], env: dict[str, str]) -> Any:
-    """Change to directory and exec Claude Code. Does not return.
+# A size as systemd reads it for MemoryMax and MemorySwapMax, spelled the way
+# heavy's --mem is: a whole number with a K, M, G, or T suffix.
+_SIZE = re.compile(r"[1-9][0-9]*[KMGT]")
+
+
+@dataclass(frozen=True)
+class SessionScope:
+    """The memory ceiling of the systemd user scope a launched session runs in.
+
+    Read from config.json's ``session_memory_max`` and
+    ``session_memory_swap_max``. The scope keeps a command that runs away
+    inside the session (one no guardrail routed through ``heavy``) from taking
+    more than the session's ceiling; ``heavy`` scopes started from inside the
+    session land beside it in the user manager's slice, so they are limited by
+    their own caps and never counted against this one.
+    """
+
+    memory_max: str
+    memory_swap_max: str
+
+    @classmethod
+    def from_config(cls, config: dict[str, Any]) -> "SessionScope":
+        """The ceiling config.json declares; a missing or malformed value raises ValueError."""
+        values: list[str] = []
+        for key, zero_allowed in (
+            ("session_memory_max", False),
+            ("session_memory_swap_max", True),
+        ):
+            if key not in config:
+                raise ValueError(
+                    f"config.json has no {key}; claudewheel adds it with its "
+                    "default when it starts, so restart claudewheel"
+                )
+            value = config[key]
+            if not isinstance(value, str) or not (
+                _SIZE.fullmatch(value) or (zero_allowed and value == "0")
+            ):
+                zero = ", or 0 for none" if zero_allowed else ""
+                raise ValueError(
+                    f"config.json {key} takes a whole number with a K, M, G, or "
+                    f"T suffix (such as 4G){zero}, not {value!r}"
+                )
+            values.append(value)
+        return cls(values[0], values[1])
+
+    def argv(self, systemd_run: str, unit: str, client_argv: list[str]) -> list[str]:
+        """*client_argv* started inside the scope named *unit*.
+
+        ``--scope`` makes systemd-run exec the client in place, so the session
+        keeps this process's PID, terminal, and environment. ``--collect``
+        unloads the scope when it ends, failed or not, so none accumulate.
+        ``--expand-environment=no`` passes the client's arguments through as
+        they are: systemd-run would otherwise expand ``$VAR`` and ``$$`` in
+        them, rewriting a prompt that mentions a price.
+        ``OOMPolicy=continue`` keeps the session alive when the kernel kills
+        the largest process at the ceiling (the runaway, not Claude Code):
+        without it systemd stops the whole scope on the first kill.
+        """
+        return [
+            systemd_run,
+            "--user",
+            "--scope",
+            "--quiet",
+            "--collect",
+            "--expand-environment=no",
+            f"--unit={unit}",
+            "-p",
+            f"MemoryMax={self.memory_max}",
+            "-p",
+            f"MemorySwapMax={self.memory_swap_max}",
+            "-p",
+            "OOMPolicy=continue",
+            "--",
+            *client_argv,
+        ]
+
+
+def do_launch(
+    cwd: str, argv: list[str], env: dict[str, str], scope: SessionScope
+) -> Any:
+    """Change to directory and exec the client inside its session scope. Does not return.
+
+    systemd-run is looked up on the launch environment's PATH, the one the
+    exec searches; without it the launch fails with an OSError rather than
+    starting a session with no ceiling. The ceiling is printed to stderr, which
+    print mode keeps apart from its answer on stdout.
 
     Under ``--dry-run`` there is nothing to replace this process with: the exec
     is recorded and the carrier standing in for it is returned, so the dispatch
     can finish and the would-do log can render.
     """
-    return effects.exec_replace(cwd, argv, env, grant="exec-client")
+    systemd_run = shutil.which("systemd-run", path=env.get("PATH", os.defpath))
+    if systemd_run is None:
+        raise OSError(
+            "systemd-run is not on PATH; claudewheel starts every session in its "
+            "own systemd user scope, capped at session_memory_max from config.json"
+        )
+    unit = f"claudewheel-session-{os.getpid()}-{int(time.time())}.scope"
+    print(
+        f"claudewheel: this session runs in {unit}, capped at "
+        f"{scope.memory_max} of memory and {scope.memory_swap_max} of swap "
+        "(session_memory_max and session_memory_swap_max in config.json)",
+        file=sys.stderr,
+    )
+    return effects.exec_replace(
+        cwd, scope.argv(systemd_run, unit, argv), env, grant="exec-client"
+    )

@@ -5,8 +5,9 @@ builds the ``(cwd, argv, env)`` triple; ``do_launch`` is the thin exec boundary
 that chdirs into ``cwd`` and replaces the process image via ``os.execvpe``. It
 had no direct test. These pin:
 
-- ``do_launch`` forwards the exact binary path (``argv[0]``), argv list, and env
-  dict to ``os.execvpe``;
+- ``do_launch`` forwards the exact argv list and env dict to ``os.execvpe``,
+  behind the ``systemd-run`` prefix that starts the session in its own scope
+  (the scope itself is covered in test_session_scope.py);
 - it chdirs to the selected directory *before* exec;
 - it forwards env VERBATIM -- the ``os.environ`` merge happens inside
   ``resolve_launch_config`` (``env = dict(os.environ)``), NOT in ``do_launch``,
@@ -18,34 +19,57 @@ had no direct test. These pin:
 
 from __future__ import annotations
 
+import io
 import os
 import unittest
 from unittest import mock
 
 from claudewheel.binaries import BinaryLocator
-from claudewheel.launch import do_launch, resolve_launch_config
+from claudewheel.launch import SessionScope, do_launch, resolve_launch_config
 from claudewheel.tokens import TokenExpiryDisposition, plan_by_key
 from claudewheel.workspace import Workspace
 from tests.wheelhelpers import SandboxHomeTestCase
+
+_SYSTEMD_RUN = "/usr/bin/systemd-run"
+_SCOPE = SessionScope("4G", "1G")
+
+
+def _client_argv(scoped: list[str]) -> list[str]:
+    """The client's own argv, after the systemd-run prefix and its '--'."""
+    return scoped[scoped.index("--") + 1 :]
+
+
+def _systemd_run_found(case: unittest.TestCase) -> None:
+    """Resolve systemd-run on every PATH and keep do_launch's notice quiet."""
+    for patcher in (
+        mock.patch("shutil.which", autospec=True, return_value=_SYSTEMD_RUN),
+        mock.patch("sys.stderr", new_callable=io.StringIO),
+    ):
+        patcher.start()
+        case.addCleanup(patcher.stop)
 
 
 class DoLaunchExecBoundaryTests(unittest.TestCase):
     """do_launch chdirs then execs, forwarding the triple verbatim."""
 
+    def setUp(self) -> None:
+        _systemd_run_found(self)
+
     def test_execvpe_receives_exact_binary_argv_env(self) -> None:
-        """execvpe is called once with (argv[0], argv, env) exactly as given."""
+        """execvpe runs systemd-run, then argv and env exactly as given."""
         argv = ["/opt/claude/bin/claude", "--verbose", "--model", "m-1"]
         env = {"CLAUDE_CONFIG_DIR": "/cfg", "GH_TOKEN": "gh-tok"}
         with (
             mock.patch("os.chdir", autospec=True),
             mock.patch("os.execvpe", autospec=True) as m_exec,
         ):
-            do_launch("/work/dir", argv, env)
+            do_launch("/work/dir", argv, env, _SCOPE)
 
-        m_exec.assert_called_once_with(argv[0], argv, env)
+        m_exec.assert_called_once()
         e_bin, e_argv, e_env = m_exec.call_args[0]
-        self.assertEqual(e_bin, "/opt/claude/bin/claude")
-        self.assertEqual(e_argv, argv)
+        self.assertEqual(e_bin, _SYSTEMD_RUN)
+        self.assertEqual(e_argv[0], _SYSTEMD_RUN)
+        self.assertEqual(_client_argv(e_argv), argv)
         self.assertEqual(e_env, env)
 
     def test_chdir_targets_selected_directory(self) -> None:
@@ -54,7 +78,7 @@ class DoLaunchExecBoundaryTests(unittest.TestCase):
             mock.patch("os.chdir", autospec=True) as m_chdir,
             mock.patch("os.execvpe", autospec=True),
         ):
-            do_launch("/some/project", ["/bin/claude"], {})
+            do_launch("/some/project", ["/bin/claude"], {}, _SCOPE)
 
         m_chdir.assert_called_once_with("/some/project")
 
@@ -65,7 +89,7 @@ class DoLaunchExecBoundaryTests(unittest.TestCase):
             mock.patch("os.chdir", parent.chdir),
             mock.patch("os.execvpe", parent.execvpe),
         ):
-            do_launch("/dir", ["/bin/claude"], {})
+            do_launch("/dir", ["/bin/claude"], {}, _SCOPE)
 
         self.assertEqual(
             [call[0] for call in parent.mock_calls],
@@ -86,7 +110,7 @@ class DoLaunchExecBoundaryTests(unittest.TestCase):
             mock.patch("os.chdir", autospec=True),
             mock.patch("os.execvpe", autospec=True) as m_exec,
         ):
-            do_launch("/dir", ["/bin/claude"], minimal_env)
+            do_launch("/dir", ["/bin/claude"], minimal_env, _SCOPE)
 
         passed_env = m_exec.call_args[0][2]
         self.assertEqual(passed_env, {"ONLY_KEY": "only-val"})
@@ -99,6 +123,7 @@ class ResolveThenDoLaunchEndToEndTests(SandboxHomeTestCase):
 
     def setUp(self) -> None:
         super().setUp()
+        _systemd_run_found(self)
         # Workspace.default() honors the poisoned Path.home -> sandbox root.
         self.ws = Workspace.default()
         self.profiles = self.ws.profiles
@@ -141,7 +166,7 @@ class ResolveThenDoLaunchEndToEndTests(SandboxHomeTestCase):
             mock.patch("os.chdir", autospec=True) as m_chdir,
             mock.patch("os.execvpe", autospec=True) as m_exec,
         ):
-            do_launch(cwd, argv, env)
+            do_launch(cwd, argv, env, _SCOPE)
 
         # chdir into the selected directory.
         m_chdir.assert_called_once_with(cwd)
@@ -149,8 +174,8 @@ class ResolveThenDoLaunchEndToEndTests(SandboxHomeTestCase):
 
         # execvpe received the exact triple resolve_launch_config produced.
         e_bin, e_argv, e_env = m_exec.call_args[0]
-        self.assertEqual(e_bin, argv[0])
-        self.assertEqual(e_argv, argv)
+        self.assertEqual(e_bin, _SYSTEMD_RUN)
+        self.assertEqual(_client_argv(e_argv), argv)
         self.assertIs(e_env, env)
 
         # GH token, OAuth token, and config dir carried end to end.
@@ -192,7 +217,7 @@ class ResolveThenDoLaunchEndToEndTests(SandboxHomeTestCase):
             mock.patch("os.chdir", autospec=True),
             mock.patch("os.execvpe", autospec=True) as m_exec,
         ):
-            do_launch(cwd, argv, env)
+            do_launch(cwd, argv, env, _SCOPE)
 
         self.assertEqual(m_exec.call_args[0][2]["CW_SENTINEL_VAR"], "sentinel-123")
 

@@ -43,6 +43,8 @@ The main configuration file controls global behavior.
 | `health_check_on_launch` | bool | `true` | Run diagnostic health checks before each launch |
 | `minimap` | string | `"auto"` | Minimap visibility: `"auto"` (only when scrolling) or `"always"` |
 | `default_client` | string | `"claude"` | Pre-selected client for the interactive launcher and fallback for non-interactive launches |
+| `session_memory_max` | string | `"4G"` | Memory ceiling of the systemd user scope each launched session runs in: a whole number with a `K`, `M`, `G`, or `T` suffix (see "A memory ceiling for each session" in the guardrails page) |
+| `session_memory_swap_max` | string | `"1G"` | Swap ceiling of that scope: a size in the same form, or `"0"` for none |
 | `_schema_version` | int | `0` | Internal migration counter (do not edit manually) |
 
 Remove a segment key from `enabled_segments` to hide it from the bar entirely.

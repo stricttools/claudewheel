@@ -2,8 +2,9 @@
 
 claudewheel can launch different Claude-compatible clients. Each client is an
 "adapter" -- a function that turns the shared launch context (resolved binary
-inputs, model id, selections, session flags) into the concrete argv handed to
-``os.execvpe``. The seam lets claudewheel target the official ``claude`` binary
+inputs, model id, selections, session flags) into the concrete argv the
+session runs, which ``launch.do_launch`` starts inside the session's systemd
+scope. The seam lets claudewheel target the official ``claude`` binary
 or an alternative client like ``miniclaude`` without special-casing launch.py.
 
 Adapters:

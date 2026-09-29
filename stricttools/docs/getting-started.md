@@ -133,7 +133,7 @@ When the bar is wider than your terminal, the renderer switches to a scrolling v
 
 ## Launch a session
 
-Once every segment has a value you are satisfied with, press **Enter**. claudewheel runs any pre-launch hooks, resolves your selections into the correct binary path, environment variables, and flags, then `exec`s Claude Code.
+Once every segment has a value you are satisfied with, press **Enter**. claudewheel runs any pre-launch hooks, resolves your selections into the correct binary path, environment variables, and flags, then `exec`s Claude Code inside its own systemd user scope with a memory ceiling (`session_memory_max` in `config.json`, 4G unless set; see [Guardrails](../guardrails/)), printing the ceiling as it starts.
 
 Your selections persist in `state.json`, so the next time you launch, the bar starts with your previous choices pre-filled.
 
