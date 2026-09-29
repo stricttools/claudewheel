@@ -608,22 +608,24 @@ running() {
 }
 
 # The admission lock is held only for the moment of an admission, never while
-# a command runs, so it is always about to be free.
-exec 9>>"$lock"
+# a command runs, so it is always about to be free. It is open only during an
+# attempt, so a waiting heavy, and the sleep it waits in, never show among the
+# processes 'fuser -v' lists for it.
 waited=0
 next_report=0
 while :; do
     attempted=0
     kill_pids=()
+    exec 9>>"$lock"
     if flock -n 9; then
         attempted=1
         if try_admit; then
             break
         fi
-        flock -u 9
     else
         why="the admission lock $lock is held (find its holder with 'fuser -v $lock')"
     fi
+    exec 9>&-
     if ((waited >= next_report)); then
         echo "heavy: waiting to start a $mem job (${waited}s so far, gives up after $max_wait): $why$(running)" >&2
         next_report=$((next_report + report_every))
@@ -670,8 +672,11 @@ for _ in 1 2 3 4 5 6 7 8 9 10; do
     esac
 done
 # Whatever the command left running in its scope is stopped with it, so no
-# leftover process keeps holding memory, or budget, after heavy exits.
-if [[ "$(systemctl --user show -P ActiveState "$unit" 2>/dev/null || true)" == active ]]; then
+# leftover process keeps holding memory, or budget, after heavy exits. The
+# cgroup says whether any process is left; the unit's state can still read
+# active for a moment after the last one has exited.
+cg=$(systemctl --user show -P ControlGroup "$unit" 2>/dev/null || true)
+if [[ "$cg" == /* ]] && grep -qx 'populated 1' "/sys/fs/cgroup$cg/cgroup.events" 2>/dev/null; then
     systemctl --user stop "$unit" >/dev/null 2>&1 || true
     echo "heavy: stopped what the command left running in $unit" >&2
 fi

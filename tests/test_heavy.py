@@ -46,8 +46,8 @@ exec "$@"
 # lines of the file STUB_SCOPES names (none by default); 'show -P ControlGroup
 # UNIT' with /UNIT, a directory of the fixed cgroup tree that exists only when
 # the test made it, so a running job counts its whole cap against the budget
-# unless the test gave its scope a memory use; 'show -P ActiveState' with
-# STUB_ACTIVE (default inactive); and any other 'show' with the unit result
+# unless the test gave its scope a memory use (or with /STUB_CGROUP for every
+# unit, when set); and any other 'show' with the unit result
 # the test chose (STUB_RESULT, default success) as a failed or inactive unit,
 # the way systemd reports a finished scope.
 _STUB_SYSTEMCTL = """\
@@ -55,8 +55,8 @@ _STUB_SYSTEMCTL = """\
 printf '%s\\n' "$*" >> "$STUB_SYSTEMCTL_LOG"
 case " $* " in
     *" list-units "*) [[ -z "${STUB_SCOPES:-}" ]] || cat "$STUB_SCOPES" ;;
-    *" -P ControlGroup "*) printf '/%s\\n' "${@: -1}" ;;
-    *" -P ActiveState "*) printf '%s\\n' "${STUB_ACTIVE:-inactive}" ;;
+    *" -P ControlGroup "*) printf '/%s\\n' "${STUB_CGROUP:-${@: -1}}" ;;
+    *" -P ActiveState "*) [[ -n "${STUB_STILL_ACTIVE:-}" ]] && echo active || echo inactive ;;
     *" show "*)
         result="${STUB_RESULT:-success}"
         if [[ "$result" == success ]]; then state=inactive; else state=failed; fi
@@ -134,6 +134,19 @@ def _state(pid: int) -> str:
         return Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[0]
     except FileNotFoundError, ProcessLookupError:
         return ""
+
+
+def _children(pid: int) -> list[int]:
+    """The direct children of *pid*."""
+    try:
+        tasks = Path(f"/proc/{pid}/task").iterdir()
+        return [
+            int(child)
+            for task in tasks
+            for child in (task / "children").read_text().split()
+        ]
+    except FileNotFoundError, ProcessLookupError:
+        return []
 
 
 def _is_free(path: Path) -> bool:
@@ -840,7 +853,10 @@ class HeavyAdmissionTests(_AdmissionCase):
         self.assertEqual(proc.returncode, 0, proc.stderr)
 
     def test_what_the_command_leaves_running_is_stopped(self) -> None:
-        proc = self._heavy("--", "true", env={"STUB_ACTIVE": "active"})
+        # Its scope's cgroup still holds a process once the command returned.
+        (self.cgroup / "own").mkdir()
+        (self.cgroup / "own" / "cgroup.events").write_text("populated 1\nfrozen 0\n")
+        proc = self._heavy("--", "true", env={"STUB_CGROUP": "own"})
         self.assertEqual(proc.returncode, 0, proc.stderr)
         unit = next(
             line.split("=", 1)[1]
@@ -854,7 +870,13 @@ class HeavyAdmissionTests(_AdmissionCase):
         )
 
     def test_a_scope_that_ended_with_its_command_is_not_stopped(self) -> None:
-        proc = self._heavy("--", "true")
+        # Its scope's cgroup is empty, though the unit still reads active, as
+        # it does for a moment after the last process exits.
+        (self.cgroup / "own").mkdir()
+        (self.cgroup / "own" / "cgroup.events").write_text("populated 0\nfrozen 0\n")
+        proc = self._heavy(
+            "--", "true", env={"STUB_CGROUP": "own", "STUB_STILL_ACTIVE": "1"}
+        )
         self.assertEqual(proc.returncode, 0, proc.stderr)
         calls = self.systemctl_log.read_text().splitlines()
         self.assertFalse(any(" stop " in f" {c} " for c in calls), calls)
@@ -881,6 +903,34 @@ class HeavyAdmissionTests(_AdmissionCase):
         self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertNotIn("heavy.lock", proc.stdout)
         self.assertNotIn("heavy.slots", proc.stdout)
+
+    def test_a_waiting_heavy_leaves_the_admission_lock_closed_between_attempts(
+        self,
+    ) -> None:
+        # The waiting message points at 'fuser -v' on the admission lock, which
+        # lists every process with it open: a waiting heavy, and the sleep it
+        # waits in, must not be among them.
+        self._fill_slots(_SLOTS)
+        waiter = self._start_heavy("--mem", "1M", "--max-wait", "60s", "--", "true")
+        self._wait_for_line(waiter, "heavy: waiting")
+        lock = str(self.lock)
+        holders: set[str] = set()
+        deadline = time.monotonic() + 2.5
+        while time.monotonic() < deadline:
+            for pid in [waiter.pid, *_children(waiter.pid)]:
+                try:
+                    fds = list(Path(f"/proc/{pid}/fd").iterdir())
+                    comm = Path(f"/proc/{pid}/comm").read_text().strip()
+                except FileNotFoundError, ProcessLookupError:
+                    continue
+                for fd in fds:
+                    try:
+                        if os.readlink(fd) == lock:
+                            holders.add(comm)
+                    except FileNotFoundError, ProcessLookupError:
+                        pass
+            time.sleep(0.02)
+        self.assertNotIn("sleep", holders)
 
 
 class HeavyCrashTests(_AdmissionCase):
@@ -1149,6 +1199,12 @@ class HeavyRealScopeTests(_DeployCase):
         proc = self._run("--mem", "64M", "--", "printf", "%s", text)
         self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertEqual(proc.stdout, text)
+
+    def test_nothing_is_reported_stopped_when_nothing_was_left(self) -> None:
+        for _ in range(5):
+            proc = self._run("--mem", "64M", "--", "true")
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+            self.assertNotIn("stopped", proc.stderr)
 
     def test_what_the_command_leaves_running_is_stopped_with_its_scope(self) -> None:
         pidfile = Path(self._tmp.name) / "child.pid"
