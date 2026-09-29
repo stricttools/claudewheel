@@ -420,8 +420,8 @@ RULES: tuple[GuardrailRule, ...] = (
         # toolchain builds and make, verification runs) at any command
         # position. Several of them running at once from different sessions
         # have taken the whole machine down, so each must run through the heavy
-        # wrapper, which queues it behind every other heavy job and caps its
-        # memory. The wrapped form never matches: the command
+        # wrapper, which starts it only once the machine's memory budget has
+        # room for its cap, and caps its memory. The wrapped form never matches: the command
         # after 'heavy' or 'heavy --' is an argument, not a command position.
         [
             _prefixed_cmd(r"go\s+(test|build|vet|install)"),
@@ -466,12 +466,14 @@ RULES: tuple[GuardrailRule, ...] = (
             "Bash(bash run.bash:*)",
             "Bash(make:*)",
         ],
-        "Memory-heavy commands run only through the heavy wrapper, which queues "
-        "them behind every other heavy job on this machine and caps their "
-        "memory: run 'heavy -- <the command>' instead, putting 'heavy --' "
+        "Memory-heavy commands run only through the heavy wrapper, which starts "
+        "them once this machine has the memory for their cap and holds them to "
+        "it: run 'heavy -- <the command>' instead, putting 'heavy --' "
         "directly before each heavy command in a compound line (for example "
         "'cd x && heavy -- go test ./...'). For a job that needs more than the "
-        "default 5G, run 'heavy --mem 8G -- <the command>'.",
+        "default 5G, run 'heavy --mem 8G -- <the command>'; a smaller job, such "
+        "as a single test or a small build, starts sooner with a smaller cap, "
+        "such as 'heavy --mem 2G -- <the command>'.",
         coverage=SettingsCoverage.PARTIAL,
         reason=(
             "the deny globs cover the plain spellings only; the hook also "

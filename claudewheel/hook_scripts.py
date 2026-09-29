@@ -364,22 +364,32 @@ exit 0
 # it.
 _HEAVY_SCRIPT = r"""#!/usr/bin/env bash
 # heavy: run a memory-heavy command (a test suite, a large build, a long
-# verification) alone on this machine and under a memory cap.
+# verification) under a memory cap, once this machine has the memory for it.
 #
 #   heavy [--mem SIZE] [--max-wait TIME] [--] command [args...]
 #
-# One machine-wide lock serializes every heavy command from every session, so
-# two suites never overlap. While another command holds the lock, heavy prints
-# the holder and how long it has waited every 30 seconds, and gives up (exit
-# 75) after TIME, naming the holder and how to stop it. TIME is a whole number
-# of seconds, minutes, or hours (90s, 60m, 2h); the default is 60m.
+# Every heavy command declares its memory cap, SIZE: a whole number with a K,
+# M, G, or T suffix (512M, 8G); the default is 5G, and a smaller cap starts
+# sooner when others are running. The command starts only when its cap fits in
+# the memory budget: this machine's MemAvailable (from /proc/meminfo) less a 2G
+# margin, less the part of every running heavy command's cap that the command
+# has not used yet. Running heavy commands are counted by the heavy scopes
+# still running, so a command whose heavy was killed keeps its cap reserved
+# until its scope ends. At most 8 heavy commands run at once. A cap larger
+# than the machine's whole memory less the margin is a usage error.
+#
+# Until the command fits, heavy checks again every second and prints, every 30
+# seconds, how long it has waited, the memory figures, and every running heavy
+# command; it gives up (exit 75) after TIME, naming them and how to stop them.
+# TIME is a whole number of seconds, minutes, or hours (90s, 60m, 2h); the
+# default is 60m.
 #
 # The command runs in its own systemd user scope with MemoryMax=SIZE and no
 # swap, so a runaway is killed alone instead of the whole terminal session, and
 # with CPUWeight=20 (the default is 100), so interactive work stays responsive.
-# SIZE is a whole number with a K, M, G, or T suffix (512M, 8G); the default is
-# 5G. heavy prints the cap on every run; when the command is killed for going
-# over it, heavy says so and suggests a cap twice as large.
+# heavy prints the cap on every run; when the command is killed for going over
+# it, heavy says so and suggests a cap twice as large. When the command
+# returns, heavy stops its scope, so whatever it left running stops too.
 #
 # GOFLAGS gets -p=2 (at most two Go packages built or tested at once) unless it
 # already sets -p; heavy prints a line when it adds it. heavy exits with the
@@ -428,13 +438,50 @@ esac
 report_every="${HEAVY_REPORT_EVERY:-30}"
 [[ "$report_every" =~ ^[1-9][0-9]*$ ]] || report_every=30
 
+# The budget's constants. The margin is memory no heavy command may count on:
+# the desktop and the Claude sessions grow while a command runs, and swap is
+# never counted, because the zram swap it goes to first lives in RAM too.
+margin_kib=$((2 * 1024 * 1024))
+slot_count=8
+
+# A size with a K, M, G, or T suffix, in KiB (1024-based, as systemd reads it).
+to_kib() {
+    local n=${1%?}
+    case "${1: -1}" in
+        K) echo "$n" ;;
+        M) echo $((n * 1024)) ;;
+        G) echo $((n * 1024 * 1024)) ;;
+        T) echo $((n * 1024 * 1024 * 1024)) ;;
+    esac
+}
+
+# KiB as gigabytes with one decimal (5242880 -> 5.0G).
+gib() {
+    awk -v k="$1" 'BEGIN { printf "%.1fG", k / 1048576 }'
+}
+
+# A /proc/meminfo figure in KiB, such as MemAvailable.
+meminfo() {
+    awk -v key="$1:" '$1 == key { print $2 }' /proc/meminfo
+}
+
+cap_kib=$(to_kib "$mem")
+total_kib=$(meminfo MemTotal)
+if ((cap_kib > total_kib - margin_kib)); then
+    usage "--mem $mem is more than this machine can ever give a heavy command ($(gib "$total_kib") of memory less the 2G margin is $(gib $((total_kib - margin_kib))))"
+fi
+
 dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 lock="$dir/heavy.lock"
-holder="$dir/heavy.holder"
+slots="$dir/heavy.slots"
 unit="heavy-$$-$(date +%s).scope"
+# One line, as the slot note keeps it.
+command_line="$*"
+command_line=${command_line//$'\n'/ }
+mkdir -p "$slots"
 
 # The kernel start time of a process (field 22 of /proc/PID/stat), which tells
-# a live holder from a reused PID.
+# a live process from a reused PID.
 start_time() {
     local stat rest fields
     stat=$(cat "/proc/$1/stat" 2>/dev/null) || return 1
@@ -443,48 +490,156 @@ start_time() {
     printf '%s' "${fields[19]:-}"
 }
 
-# The holder note is two lines: "PID START_TIME", then the description. A note
-# is believed only while that PID is alive with that start time: a heavy killed
-# with SIGKILL never clears its note, and its PID may since have been reused.
-# Sets holder_desc, and holder_pid when the holder is known.
-read_holder() {
-    local pid="" start="" line=""
-    holder_pid=""
-    holder_desc="unknown"
-    { read -r pid start && read -r line; } <"$holder" 2>/dev/null || true
-    if [[ "$pid" =~ ^[0-9]+$ && -n "$start" && -n "$line" ]] \
-        && [[ "$(start_time "$pid" || true)" == "$start" ]]; then
-        holder_pid=$pid
-        holder_desc=$line
+# Reads a heavy scope's cgroup: scope_used_kib is what the scope holds now, in
+# KiB, less its page cache, which the kernel reclaims before it would kill the
+# command (0 while the scope has not started or cannot be read); scope_cap_kib
+# is its MemoryMax in KiB, empty when it has none or it cannot be read.
+read_scope() {
+    local cg cur file max
+    scope_used_kib=0
+    scope_cap_kib=""
+    cg=$(systemctl --user show -P ControlGroup "$1" 2>/dev/null || true)
+    [[ "$cg" == /* && -r "/sys/fs/cgroup$cg/memory.current" ]] || return 0
+    cur=$(cat "/sys/fs/cgroup$cg/memory.current" 2>/dev/null || echo 0)
+    file=$(awk '$1 == "file" { print $2 }' "/sys/fs/cgroup$cg/memory.stat" 2>/dev/null || true)
+    [[ "$cur" =~ ^[0-9]+$ ]] || cur=0
+    [[ "${file:-0}" =~ ^[0-9]+$ ]] || file=0
+    scope_used_kib=$(((cur - ${file:-0}) / 1024))
+    ((scope_used_kib > 0)) || scope_used_kib=0
+    max=$(cat "/sys/fs/cgroup$cg/memory.max" 2>/dev/null || true)
+    if [[ "$max" =~ ^[0-9]+$ ]]; then
+        scope_cap_kib=$((max / 1024))
     fi
 }
 
-exec 9>"$lock"
-if ! flock -n 9; then
-    waited=0
-    while :; do
-        read_holder
-        echo "heavy: waiting for the heavy-work lock (${waited}s so far, gives up after $max_wait); held by: $holder_desc" >&2
-        step=$((max_wait_s - waited))
-        if ((step <= 0)); then
-            if [[ -n "$holder_pid" ]]; then
-                how="look at it with 'ps -o pid,etime,args -p $holder_pid' and, if it is stuck, stop it with 'kill $holder_pid'"
-            else
-                how="find it with 'fuser -v $lock' and, if it is stuck, stop it with 'kill PID'"
+# One admission attempt, made while this heavy holds the admission lock.
+#
+# Each slot is a file that a heavy holds a flock on for as long as it runs, and
+# a slot's note (its content) says who holds it: "PID START_TIME", then
+# "CAP_KIB SIZE UNIT", then a description. A slot is taken while, and only
+# while, a live process holds its flock, so a heavy that dies in any way,
+# SIGKILL included, frees its slot and its share of the budget at once. A note
+# is believed only while its PID is alive with its start time; a taken slot
+# whose note is not believed counts as reserving all the memory there is.
+#
+# On success the claimed slot stays locked on descriptor 8 and its note names
+# this heavy. Otherwise nothing is held, and why, reserved_kib, running_jobs,
+# and kill_pids say why not.
+try_admit() {
+    local i file pid start cap note_mem note_unit desc rest scope load active
+    local unknown=0 free=""
+    local noted_units=()
+    reserved_kib=0
+    running_jobs=()
+    for ((i = 0; i < slot_count; i++)); do
+        file="$slots/$i"
+        exec 7>>"$file"
+        if flock -n 7; then
+            if [[ -z "$free" ]]; then
+                free=$file
+                exec 8>&7
             fi
-            echo "heavy: gave up after waiting $max_wait for the heavy-work lock, held by: $holder_desc; $how, or rerun with a longer --max-wait" >&2
-            exit 75
+            exec 7>&-
+            continue
         fi
-        ((step > report_every)) && step=$report_every
-        if flock -w "$step" 9; then
+        exec 7>&-
+        pid="" start="" cap="" note_mem="" note_unit="" desc=""
+        { read -r pid start && read -r cap note_mem note_unit && read -r desc; } <"$file" 2>/dev/null || true
+        if [[ "$pid" =~ ^[0-9]+$ && "$cap" =~ ^[0-9]+$ && -n "$start" && -n "$note_unit" && -n "$desc" ]] \
+            && [[ "$(start_time "$pid" || true)" == "$start" ]]; then
+            read_scope "$note_unit"
+            rest=$((cap - scope_used_kib))
+            ((rest > 0)) || rest=0
+            reserved_kib=$((reserved_kib + rest))
+            running_jobs+=("$desc (cap $note_mem, using $(gib "$scope_used_kib"))")
+            kill_pids+=("$pid")
+            noted_units+=("$note_unit")
+        else
+            unknown=1
+            running_jobs+=("unknown, holding $file (find it with 'fuser -v $file')")
+        fi
+    done
+    # Every other heavy scope still running that no slot names, as when its
+    # heavy was killed while its command ran: the command runs on in its
+    # capped scope, and the part of its cap it has not used stays reserved
+    # until the scope ends.
+    while read -r scope load active _; do
+        [[ "$scope" == heavy-*.scope && "$scope" != "$unit" ]] || continue
+        case "$active" in active|activating|deactivating) ;; *) continue ;; esac
+        [[ " ${noted_units[*]} " != *" $scope "* ]] || continue
+        read_scope "$scope"
+        if [[ -z "$scope_cap_kib" ]]; then
+            unknown=1
+            running_jobs+=("scope $scope with no memory cap, running without a heavy slot (stop it with 'systemctl --user stop $scope')")
+            continue
+        fi
+        rest=$((scope_cap_kib - scope_used_kib))
+        ((rest > 0)) || rest=0
+        reserved_kib=$((reserved_kib + rest))
+        running_jobs+=("scope $scope, running without a heavy slot, as when its heavy was killed (cap $(gib "$scope_cap_kib"), using $(gib "$scope_used_kib"); stop it with 'systemctl --user stop $scope')")
+    done < <(systemctl --user list-units --type=scope --plain --no-legend 'heavy-*.scope' 2>/dev/null || true)
+    avail_kib=$(meminfo MemAvailable)
+    if ((unknown)); then
+        why="a heavy slot or scope heavy cannot account for is counted as reserving all the memory"
+    elif [[ -z "$free" ]]; then
+        why="all $slot_count heavy slots are in use"
+    elif ((reserved_kib + cap_kib > avail_kib - margin_kib)); then
+        why="$(gib "$avail_kib") available less the 2G margin leaves $(gib $((avail_kib - margin_kib))), and running heavy jobs still reserve $(gib "$reserved_kib") of it"
+    else
+        printf '%s %s\n%s %s %s\npid %s since %s in %s, scope %s: %s\n' \
+            "$$" "$(start_time $$)" "$cap_kib" "$mem" "$unit" \
+            "$$" "$(date '+%H:%M:%S')" "$PWD" "$unit" "$command_line" >"$free"
+        return 0
+    fi
+    [[ -z "$free" ]] || exec 8>&-
+    return 1
+}
+
+# The running heavy jobs, for a report line; nothing when no attempt was made.
+running() {
+    local joined
+    ((attempted)) || return 0
+    if ((${#running_jobs[@]} == 0)); then
+        printf '; running heavy jobs: none'
+        return
+    fi
+    printf -v joined '%s; ' "${running_jobs[@]}"
+    printf '; running heavy jobs: %s' "${joined%; }"
+}
+
+# The admission lock is held only for the moment of an admission, never while
+# a command runs, so it is always about to be free.
+exec 9>>"$lock"
+waited=0
+next_report=0
+while :; do
+    attempted=0
+    kill_pids=()
+    if flock -n 9; then
+        attempted=1
+        if try_admit; then
             break
         fi
-        waited=$((waited + step))
-    done
-fi
-printf '%s %s\npid %s since %s in %s, scope %s: %s\n' \
-    "$$" "$(start_time $$)" "$$" "$(date '+%H:%M:%S')" "$PWD" "$unit" "$*" >"$holder"
-trap ': >"$holder"' EXIT
+        flock -u 9
+    else
+        why="the admission lock $lock is held (find its holder with 'fuser -v $lock')"
+    fi
+    if ((waited >= next_report)); then
+        echo "heavy: waiting to start a $mem job (${waited}s so far, gives up after $max_wait): $why$(running)" >&2
+        next_report=$((next_report + report_every))
+    fi
+    if ((waited >= max_wait_s)); then
+        how="free memory, rerun with a smaller --mem, or rerun with a longer --max-wait"
+        if ((${#kill_pids[@]} > 0)); then
+            how="look at a job with 'ps -o pid,etime,args -p PID' and, if it is stuck, stop it ($(printf "'kill %s', " "${kill_pids[@]}" | sed 's/, $//')); or $how"
+        fi
+        echo "heavy: gave up after waiting $max_wait to start a $mem job: $why$(running); $how" >&2
+        exit 75
+    fi
+    sleep 1
+    waited=$((waited + 1))
+done
+exec 9>&-
 
 case " ${GOFLAGS:-} " in
     *" -p="*|*" -p "*) ;;
@@ -496,11 +651,12 @@ esac
 
 echo "heavy: capped at $mem" >&2
 
-# 9>&- : the command must not inherit the lock, or a process it leaves running
-# would hold it after heavy exits and every later heavy would wait forever.
+# 8>&- : the command must not inherit the slot, or a process it leaves running
+# would hold the slot after heavy exits. --expand-environment=no: systemd-run
+# would otherwise expand $VAR and $$ in the command's own arguments.
 status=0
-systemd-run --user --scope --quiet --unit="$unit" \
-    -p MemoryMax="$mem" -p MemorySwapMax=0 -p CPUWeight=20 -- "$@" 9>&- || status=$?
+systemd-run --user --scope --quiet --expand-environment=no --unit="$unit" \
+    -p MemoryMax="$mem" -p MemorySwapMax=0 -p CPUWeight=20 -- "$@" 8>&- || status=$?
 
 # The scope is not collected on exit, so its result can be read here; a scope
 # that failed stays loaded until reset-failed clears it.
@@ -513,7 +669,14 @@ for _ in 1 2 3 4 5 6 7 8 9 10; do
         *) break ;;
     esac
 done
+# Whatever the command left running in its scope is stopped with it, so no
+# leftover process keeps holding memory, or budget, after heavy exits.
+if [[ "$(systemctl --user show -P ActiveState "$unit" 2>/dev/null || true)" == active ]]; then
+    systemctl --user stop "$unit" >/dev/null 2>&1 || true
+    echo "heavy: stopped what the command left running in $unit" >&2
+fi
 systemctl --user reset-failed "$unit" >/dev/null 2>&1 || true
+exec 8>&-
 
 if [[ "$result" == oom-kill ]]; then
     printf -v rerun ' %q' "$@"

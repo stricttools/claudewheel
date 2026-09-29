@@ -1,6 +1,6 @@
 +++
 title = "Guardrails"
-description = "How claudewheel guardrails work: the 4 enforcement tiers, subagents versus the main agent, command-string caveats, the heavy wrapper, upgrading profiles, and stripped tools."
+description = "How claudewheel guardrails work: the 4 enforcement tiers, subagents versus the main agent, command-string caveats, the heavy wrapper and its memory budget, upgrading profiles, and stripped tools."
 nav_group = "Concepts"
 nav_order = 5
 +++
@@ -80,22 +80,58 @@ cd go/src && heavy -- ./all.bash
 heavy --mem 8G -- scripts/full-suite.sh
 ```
 
-`heavy` takes one machine-wide lock, so heavy commands from every session run
-one at a time and a later one waits for the earlier one to finish. Only the
-wrapper holds the lock: the command runs with the lock's descriptor closed, so
-a process the command leaves running cannot keep the lock after `heavy` exits.
-While it waits, `heavy` prints the holder (its PID, start time, directory,
-scope, and command) and how long it has waited, every 30 seconds. A holder is
-named only while that process is still alive with the recorded start time;
-otherwise, as after a `heavy` killed with `SIGKILL`, it is reported as
-`unknown`. After 60 minutes (`--max-wait` sets another limit, such as `90s`,
-`30m`, or `2h`) it gives up with exit status 75, naming the holder and how to
-find and stop it.
+Every heavy command declares its memory cap (`--mem`, 5G unless given), and
+`heavy` starts it only when that cap fits in a machine-wide memory budget, so
+heavy commands from every session run side by side as long as the memory is
+there and wait only when it is not. A job that needs less, such as a single
+test or a small build, starts sooner with a smaller cap
+(`heavy --mem 2G -- go test -run TestOne ./pkg`). The rule is checked when the command would
+start:
+
+- the budget is `MemAvailable` from `/proc/meminfo` less a 2G margin, which
+  stays free for the desktop and the Claude sessions as they grow;
+- each running heavy command reserves the part of its cap it has not used yet
+  (its cap less what its scope holds now, page cache aside). Running commands
+  are counted by the `heavy-*` scopes still running as well as by their
+  slots, so a command whose `heavy` was killed, which runs on in its scope,
+  keeps its cap reserved until the scope ends, and the waiting message names
+  the `systemctl --user stop` command that ends it;
+- the new command starts when its cap plus those reservations fits in the
+  budget, and at most 8 heavy commands run at once.
+
+Swap never counts toward the budget: zram swap lives in RAM too, so a swapped
+page still costs memory, and swap on disk is too slow to lean on. A cap larger than the
+machine's whole memory less the margin could never start and is refused as a
+usage error.
+
+Each running command holds one of the 8 slots, a file under
+`$XDG_RUNTIME_DIR/heavy.slots/` that `heavy` keeps a lock on for as long as it
+runs, with a note naming its PID, start time, cap, directory, scope, and
+command. A slot is taken while, and only while, a live `heavy` holds its lock,
+so a `heavy` that dies in any way, `SIGKILL` included, gives back its slot and
+its share of the budget at once, except what its command, if still running,
+reserves through its scope. The admission itself happens under a short
+lock, `$XDG_RUNTIME_DIR/heavy.lock`, held only for that moment. The command
+runs with neither descriptor open, and when it returns `heavy` stops its scope,
+printing `heavy: stopped what the command left running in <scope>` when there
+was anything, so nothing the command started holds memory or budget after
+`heavy` exits. A note is believed only while its process is alive with
+the recorded start time; a slot held by a process `heavy` cannot identify is
+reported as `unknown`, with the `fuser -v` command that finds it, and counts as
+reserving all the memory.
+
+While a command waits, `heavy` checks again every second and prints, every 30
+seconds, how long it has waited, the memory figures, and every running heavy
+command with its cap and use. After 60 minutes (`--max-wait` sets another
+limit, such as `90s`, `30m`, or `2h`) it gives up with exit status 75, naming
+the running commands and how to stop them, and suggesting a smaller `--mem` or
+a longer `--max-wait`.
 
 The command runs in its own systemd user scope, named `heavy-<pid>-<time>.scope`,
 capped at 5G of memory with no swap (`--mem` sets another cap, a whole number
 with a `K`, `M`, `G`, or `T` suffix) and with `CPUWeight=20` (the default is
-100), so interactive work stays responsive. `heavy` prints the cap on every
+100), so interactive work stays responsive; its arguments reach it unchanged,
+`$` included. `heavy` prints the cap on every
 run (`heavy: capped at 5G`). When the command is killed for going over the
 cap, `heavy` reads that from the scope's result and prints
 `heavy: killed at the 5G memory cap; rerun with 'heavy --mem 10G -- <command>'`;
