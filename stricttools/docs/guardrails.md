@@ -69,27 +69,47 @@ Test suites, large builds, and verification runs can each take several
 gigabytes of memory, and several of them started at once from different
 sessions can exhaust the machine until the whole terminal session is killed.
 The `heavy-unwrapped` rule refuses such a command (`go test`, `pytest`,
-`npm test`, `cargo build`, a project's `scripts/*test*.sh`, and the rest of the
-forms in the rule reference below) wherever it stands at a command position,
-and tells the agent to run it through `heavy` instead:
+`npm test`, `cargo build`, `make`, Go's own toolchain builds `./make.bash`,
+`./all.bash`, and `./run.bash`, a project's `scripts/*test*.sh`, and the rest
+of the forms in the rule reference below) wherever it stands at a command
+position, and tells the agent to run it through `heavy` instead:
 
 ```bash
 cd project && heavy -- go test ./...
+cd go/src && heavy -- ./all.bash
 heavy --mem 8G -- scripts/full-suite.sh
 ```
 
 `heavy` takes one machine-wide lock, so heavy commands from every session run
-one at a time and a later one waits for the earlier one to finish. It runs the
-command in its own systemd user scope capped at 5G of memory with no swap
-(`--mem` sets another cap), so a runaway job is killed alone; it adds `-p=2` to
-`GOFLAGS` unless `GOFLAGS` already sets `-p`; and it exits with the command's
-exit code. A command behind `heavy` is an argument of `heavy`, never a command
-position of its own, so the wrapped form passes the hook, and none of the
-rule's `deny` globs starts with `heavy`.
+one at a time and a later one waits for the earlier one to finish. Only the
+wrapper holds the lock: the command runs with the lock's descriptor closed, so
+a process the command leaves running cannot keep the lock after `heavy` exits.
+While it waits, `heavy` prints the holder (its PID, start time, directory,
+scope, and command) and how long it has waited, every 30 seconds. A holder is
+named only while that process is still alive with the recorded start time;
+otherwise, as after a `heavy` killed with `SIGKILL`, it is reported as
+`unknown`. After 60 minutes (`--max-wait` sets another limit, such as `90s`,
+`30m`, or `2h`) it gives up with exit status 75, naming the holder and how to
+find and stop it.
+
+The command runs in its own systemd user scope, named `heavy-<pid>-<time>.scope`,
+capped at 5G of memory with no swap (`--mem` sets another cap, a whole number
+with a `K`, `M`, `G`, or `T` suffix) and with `CPUWeight=20` (the default is
+100), so interactive work stays responsive. `heavy` prints the cap on every
+run (`heavy: capped at 5G`). When the command is killed for going over the
+cap, `heavy` reads that from the scope's result and prints
+`heavy: killed at the 5G memory cap; rerun with 'heavy --mem 10G -- <command>'`;
+the scope is then cleared, so none accumulate. `heavy` adds `-p=2` to
+`GOFLAGS` unless `GOFLAGS` already sets `-p`, and prints a line when it does;
+and it exits with the command's exit status. A command behind `heavy` is an
+argument of `heavy`, never a command position of its own, so the wrapped form
+passes the hook, and none of the rule's `deny` globs starts with `heavy`.
 
 claudewheel ships the wrapper: `claudewheel deploy-hooks heavy` (or `--all`)
 writes it to `~/.claudewheel/scripts/heavy` and makes `~/.local/bin/heavy` a
-symlink to that copy. When anything else already stands at
+symlink to that copy. A redeployment swaps in a new file rather than rewriting
+the old one, so a `heavy` that is running keeps the copy it started from. When
+anything else already stands at
 `~/.local/bin/heavy`, the deployment refuses and leaves it alone;
 `--force-overwrite` replaces it with the link.
 

@@ -366,51 +366,160 @@ _HEAVY_SCRIPT = r"""#!/usr/bin/env bash
 # heavy: run a memory-heavy command (a test suite, a large build, a long
 # verification) alone on this machine and under a memory cap.
 #
-#   heavy [--mem SIZE] [--] command [args...]
+#   heavy [--mem SIZE] [--max-wait TIME] [--] command [args...]
 #
 # One machine-wide lock serializes every heavy command from every session, so
-# two suites never overlap. The command runs in its own systemd scope with
-# MemoryMax=SIZE (default 5G) and no swap, so a runaway is killed alone instead
-# of the whole terminal session. GOFLAGS gets -p=2 unless it already sets -p.
+# two suites never overlap. While another command holds the lock, heavy prints
+# the holder and how long it has waited every 30 seconds, and gives up (exit
+# 75) after TIME, naming the holder and how to stop it. TIME is a whole number
+# of seconds, minutes, or hours (90s, 60m, 2h); the default is 60m.
+#
+# The command runs in its own systemd user scope with MemoryMax=SIZE and no
+# swap, so a runaway is killed alone instead of the whole terminal session, and
+# with CPUWeight=20 (the default is 100), so interactive work stays responsive.
+# SIZE is a whole number with a K, M, G, or T suffix (512M, 8G); the default is
+# 5G. heavy prints the cap on every run; when the command is killed for going
+# over it, heavy says so and suggests a cap twice as large.
+#
+# GOFLAGS gets -p=2 (at most two Go packages built or tested at once) unless it
+# already sets -p; heavy prints a line when it adds it. heavy exits with the
+# command's exit status. HEAVY_REPORT_EVERY sets the waiting report interval in
+# seconds.
 set -euo pipefail
 
 # Shipped by claudewheel (claudewheel/hook_scripts.py) and deployed by
 # 'claudewheel deploy-hooks heavy'; edits to a deployed copy are overwritten.
 
+usage() {
+    echo "heavy: $1; usage: heavy [--mem SIZE] [--max-wait TIME] [--] command [args...]" >&2
+    exit 2
+}
+
 mem=5G
+max_wait=60m
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --mem) mem="$2"; shift 2 ;;
+        --mem)
+            [[ $# -ge 2 && "$2" != --* ]] || usage "--mem needs a size, such as 8G"
+            mem="$2"; shift 2 ;;
         --mem=*) mem="${1#--mem=}"; shift ;;
+        --max-wait)
+            [[ $# -ge 2 && "$2" != --* ]] || usage "--max-wait needs a time, such as 90m"
+            max_wait="$2"; shift 2 ;;
+        --max-wait=*) max_wait="${1#--max-wait=}"; shift ;;
         --) shift; break ;;
         -h|--help) awk 'NR == 1 { next } !/^#/ { exit } { sub(/^# ?/, ""); print }' "$0"; exit 0 ;;
         *) break ;;
     esac
 done
+[[ "$mem" =~ ^[1-9][0-9]*[KMGT]$ ]] \
+    || usage "--mem takes a whole number with a K, M, G, or T suffix (512M, 8G), not '$mem'"
+[[ "$max_wait" =~ ^[0-9]+[smh]$ ]] \
+    || usage "--max-wait takes a whole number of seconds, minutes, or hours (90s, 60m, 2h), not '$max_wait'"
 if [[ $# -eq 0 ]]; then
-    echo "heavy: no command given; usage: heavy [--mem SIZE] [--] command [args...]" >&2
-    exit 2
+    usage "no command given"
 fi
+
+case "$max_wait" in
+    *s) max_wait_s=$((10#${max_wait%s})) ;;
+    *m) max_wait_s=$((10#${max_wait%m} * 60)) ;;
+    *h) max_wait_s=$((10#${max_wait%h} * 3600)) ;;
+esac
+report_every="${HEAVY_REPORT_EVERY:-30}"
+[[ "$report_every" =~ ^[1-9][0-9]*$ ]] || report_every=30
 
 dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
 lock="$dir/heavy.lock"
 holder="$dir/heavy.holder"
+unit="heavy-$$-$(date +%s).scope"
+
+# The kernel start time of a process (field 22 of /proc/PID/stat), which tells
+# a live holder from a reused PID.
+start_time() {
+    local stat rest fields
+    stat=$(cat "/proc/$1/stat" 2>/dev/null) || return 1
+    rest=${stat##*) }
+    read -r -a fields <<<"$rest"
+    printf '%s' "${fields[19]:-}"
+}
+
+# The holder note is two lines: "PID START_TIME", then the description. A note
+# is believed only while that PID is alive with that start time: a heavy killed
+# with SIGKILL never clears its note, and its PID may since have been reused.
+# Sets holder_desc, and holder_pid when the holder is known.
+read_holder() {
+    local pid="" start="" line=""
+    holder_pid=""
+    holder_desc="unknown"
+    { read -r pid start && read -r line; } <"$holder" 2>/dev/null || true
+    if [[ "$pid" =~ ^[0-9]+$ && -n "$start" && -n "$line" ]] \
+        && [[ "$(start_time "$pid" || true)" == "$start" ]]; then
+        holder_pid=$pid
+        holder_desc=$line
+    fi
+}
 
 exec 9>"$lock"
 if ! flock -n 9; then
-    echo "heavy: waiting for the heavy-work lock, held by: $(cat "$holder" 2>/dev/null || echo unknown)" >&2
-    flock 9
+    waited=0
+    while :; do
+        read_holder
+        echo "heavy: waiting for the heavy-work lock (${waited}s so far, gives up after $max_wait); held by: $holder_desc" >&2
+        step=$((max_wait_s - waited))
+        if ((step <= 0)); then
+            if [[ -n "$holder_pid" ]]; then
+                how="look at it with 'ps -o pid,etime,args -p $holder_pid' and, if it is stuck, stop it with 'kill $holder_pid'"
+            else
+                how="find it with 'fuser -v $lock' and, if it is stuck, stop it with 'kill PID'"
+            fi
+            echo "heavy: gave up after waiting $max_wait for the heavy-work lock, held by: $holder_desc; $how, or rerun with a longer --max-wait" >&2
+            exit 75
+        fi
+        ((step > report_every)) && step=$report_every
+        if flock -w "$step" 9; then
+            break
+        fi
+        waited=$((waited + step))
+    done
 fi
-printf 'pid %s since %s in %s: %s\n' "$$" "$(date '+%H:%M:%S')" "$PWD" "$*" >"$holder"
+printf '%s %s\npid %s since %s in %s, scope %s: %s\n' \
+    "$$" "$(start_time $$)" "$$" "$(date '+%H:%M:%S')" "$PWD" "$unit" "$*" >"$holder"
 trap ': >"$holder"' EXIT
 
 case " ${GOFLAGS:-} " in
     *" -p="*|*" -p "*) ;;
-    *) export GOFLAGS="${GOFLAGS:+$GOFLAGS }-p=2" ;;
+    *)
+        export GOFLAGS="${GOFLAGS:+$GOFLAGS }-p=2"
+        echo "heavy: added -p=2 to GOFLAGS (at most two Go packages built or tested at once)" >&2
+        ;;
 esac
 
-systemd-run --user --scope --quiet --collect \
-    -p MemoryMax="$mem" -p MemorySwapMax=0 -- "$@"
+echo "heavy: capped at $mem" >&2
+
+# 9>&- : the command must not inherit the lock, or a process it leaves running
+# would hold it after heavy exits and every later heavy would wait forever.
+status=0
+systemd-run --user --scope --quiet --unit="$unit" \
+    -p MemoryMax="$mem" -p MemorySwapMax=0 -p CPUWeight=20 -- "$@" 9>&- || status=$?
+
+# The scope is not collected on exit, so its result can be read here; a scope
+# that failed stays loaded until reset-failed clears it.
+result=""
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+    state=$(systemctl --user show "$unit" -p ActiveState -p Result 2>/dev/null || true)
+    result=$(sed -n 's/^Result=//p' <<<"$state")
+    case "$(sed -n 's/^ActiveState=//p' <<<"$state")" in
+        active|activating|deactivating) [[ $status -ne 0 ]] || break ;;
+        *) break ;;
+    esac
+done
+systemctl --user reset-failed "$unit" >/dev/null 2>&1 || true
+
+if [[ "$result" == oom-kill ]]; then
+    printf -v rerun ' %q' "$@"
+    echo "heavy: killed at the $mem memory cap; rerun with 'heavy --mem $((${mem%?} * 2))${mem: -1} --${rerun}'" >&2
+fi
+exit "$status"
 """
 
 HOOK_SCRIPTS: dict[str, str] = {
@@ -478,7 +587,10 @@ def deploy_scripts(
             results.append((name, "exists"))
             continue
         action = "overwritten" if dest.exists() else "created"
-        effects.write_text(dest, HOOK_SCRIPTS[name])
+        # A new file renamed over the old one, never a rewrite in place: bash
+        # reads a script as it runs it, so a running copy (a heavy waiting on
+        # its command, a hook mid-run) must keep the file it started from.
+        effects.write_text_atomic(dest, HOOK_SCRIPTS[name])
         effects.chmod(dest, 0o755)
         results.append((name, action))
     return results
