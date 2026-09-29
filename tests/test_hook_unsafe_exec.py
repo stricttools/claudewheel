@@ -125,6 +125,7 @@ _HARD_DENY_SAMPLES: dict[str, str] = {
     "git-checkout": "git checkout main",
     "git-push-delete": "git push origin --delete foo",
     "sleep": "sleep 5",
+    "heavy-unwrapped": "go test ./...",
 }
 
 # One representative command that matches each ESCALATE rule's pattern.
@@ -420,6 +421,130 @@ class HookSleepTests(unittest.TestCase):
         self.assertIn("harness", reason)
         self.assertIn("notifies", reason)
         self.assertIn("read the state", reason)
+
+
+class HookHeavyUnwrappedTests(unittest.TestCase):
+    """The heavy-unwrapped rule: memory-heavy commands must run through heavy.
+
+    A heavy command at a command position is refused for both callers; the
+    same command behind the ``heavy`` wrapper is left alone, because the
+    wrapped command is an argument of ``heavy``, never a command position of
+    its own. Everything here runs the real generated hook under bash and grep.
+    """
+
+    DENIED = (
+        "go test ./...",
+        "go build ./cmd/x",
+        "go vet ./...",
+        "go install ./cmd/x",
+        "pytest",
+        "pytest -x tests/",
+        "python -m pytest",
+        "python3 -m pytest -q",
+        "python3.14 -m pytest",
+        ".venv/bin/pytest tests",
+        "uv run pytest",
+        "uv run --frozen pytest -x",
+        "uv run python -m pytest",
+        "uv run python3 -m pytest",
+        "npm test",
+        "npm t",
+        "npm run test",
+        "npm run test:unit",
+        "npm ci",
+        "cargo test",
+        "cargo build --release",
+        "scripts/test.sh",
+        "./scripts/full-suite.sh",
+        "bash scripts/run-tests.sh",
+        "sh ./scripts/e2e-test.sh --fast",
+        "/home/x/proj/scripts/test_all.sh",
+        "cgofree generate",
+        "cgofree verify ./...",
+        # Compound commands: a heavy command after a separator, in a subshell,
+        # on a later line, or behind a shell keyword is still a command.
+        "cd x && go test ./...",
+        "cd x; pytest",
+        "make fmt || go vet ./...",
+        "ls | go test ./...",
+        "(cd x && go test ./...)",
+        "echo $(go build ./...)",
+        "cd x\ngo test ./...",
+        "for p in a b; do go test $p; done",
+        "if true; then cargo test; fi",
+        # Prefixes that leave the heavy command at the command position.
+        "GOFLAGS=-p=2 go test ./...",
+        "CGO_ENABLED=0 GOOS=linux go build ./...",
+        "timeout 600 go test ./...",
+        "timeout -k 5 600 pytest",
+        "env CGO_ENABLED=0 go build ./...",
+        "nice -n 10 cargo build",
+        "time npm test",
+        "exec pytest",
+        # Only the first command is wrapped; the second is not.
+        "heavy -- go vet ./... && go test ./...",
+    )
+
+    ALLOWED = (
+        "heavy -- go test ./...",
+        "heavy go test",
+        "cd x && heavy -- pytest",
+        "heavy --mem 8G -- cargo build",
+        "heavy --mem=8G go build ./...",
+        "heavy -- uv run pytest",
+        "heavy -- python3 -m pytest",
+        "heavy -- npm ci",
+        "heavy -- scripts/full-suite.sh",
+        "heavy -- ./scripts/test.sh",
+        "heavy -- cgofree verify",
+        "GOFLAGS=-p=1 heavy -- go test ./...",
+        "cd x && heavy -- go test ./... && heavy -- go vet ./...",
+        # Mentions and look-alikes are not heavy commands.
+        "echo go test",
+        "grep -rn pytest tests/",
+        "go version",
+        "go mod tidy",
+        "go tester",
+        "gofmt -l .",
+        "npm install",
+        "npm run build",
+        "npm run lint",
+        "cargo check",
+        "cat scripts/test.sh",
+        "vim scripts/full-suite.sh",
+        "scripts/deploy.sh",
+        "myscripts/test.sh",
+        "mypytest",
+        "cgofree version",
+        "uv run ruff check",
+    )
+
+    def test_unwrapped_heavy_commands_denied_for_both_callers(self) -> None:
+        for command in self.DENIED:
+            with self.subTest(command=command):
+                reason = _assert_denies(self, command)
+                self.assertEqual(reason, _rule_advice("heavy-unwrapped"))
+                _assert_denies(self, command, agent_id="sub-1")
+
+    def test_wrapped_and_unrelated_commands_allowed_for_both_callers(self) -> None:
+        for command in self.ALLOWED:
+            with self.subTest(command=command):
+                _assert_allows(self, command)
+                _assert_allows(self, command, agent_id="sub-1")
+
+    def test_deny_message_names_the_wrapped_command(self) -> None:
+        reason = _assert_denies(self, "cd x && go test ./...")
+        self.assertIn("heavy -- <the command>", reason)
+        self.assertIn("--mem", reason)
+        self.assertIn("5G", reason)
+
+
+def _rule_advice(key: str) -> str:
+    for rule in guardrail.RULES:
+        if rule.key == key:
+            assert rule.main_advice is not None
+            return rule.main_advice
+    raise KeyError(key)
 
 
 class HookNonBashTests(unittest.TestCase):

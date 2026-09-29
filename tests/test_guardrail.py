@@ -39,6 +39,23 @@ EXPECTED_DENY = [
     "Bash(git checkout:*)",
     "Bash(git push origin --delete*)",
     "Bash(sleep:*)",
+    "Bash(go test:*)",
+    "Bash(go build:*)",
+    "Bash(go vet:*)",
+    "Bash(go install:*)",
+    "Bash(pytest:*)",
+    "Bash(python -m pytest:*)",
+    "Bash(python3 -m pytest:*)",
+    "Bash(uv run pytest:*)",
+    "Bash(uv run python -m pytest:*)",
+    "Bash(uv run python3 -m pytest:*)",
+    "Bash(npm test:*)",
+    "Bash(npm run test:*)",
+    "Bash(npm ci:*)",
+    "Bash(cargo test:*)",
+    "Bash(cargo build:*)",
+    "Bash(cgofree generate:*)",
+    "Bash(cgofree verify:*)",
 ]
 
 EXPECTED_ASK = [
@@ -306,6 +323,31 @@ class HookPatternTests(unittest.TestCase):
             self.assertIsNone(re.search(pat, command), command)
 
 
+class HeavyUnwrappedRuleTests(unittest.TestCase):
+    """The heavy-unwrapped rule's model-level contract.
+
+    Pattern behavior under real grep is pinned end to end in
+    test_hook_unsafe_exec; this pins what the model itself promises.
+    """
+
+    def test_is_hard_deny(self) -> None:
+        self.assertIs(_rule("heavy-unwrapped").tier, Tier.HARD_DENY)
+
+    def test_no_deny_glob_can_match_the_wrapped_form(self) -> None:
+        # Claude Code matches a Bash(<prefix>:*) glob against the command's
+        # leading words, so a glob starting with 'heavy' would refuse the very
+        # command the advice tells the agent to run.
+        for glob in _rule("heavy-unwrapped").deny_rules:
+            self.assertTrue(glob.startswith("Bash(") and glob.endswith(":*)"), glob)
+            self.assertFalse(glob.startswith("Bash(heavy"), glob)
+
+    def test_advice_names_the_command_to_run_instead(self) -> None:
+        advice = _rule("heavy-unwrapped").main_advice
+        assert advice is not None
+        self.assertIn("heavy -- <the command>", advice)
+        self.assertIn("--mem", advice)
+
+
 class SettingsCoverageTests(unittest.TestCase):
     """The settings_coverage annotation is honest and internally consistent.
 
@@ -322,6 +364,7 @@ class SettingsCoverageTests(unittest.TestCase):
         "git-reset": SettingsCoverage.PARTIAL,
         "git-checkout-file": SettingsCoverage.NONE,
         "sleep": SettingsCoverage.PARTIAL,
+        "heavy-unwrapped": SettingsCoverage.PARTIAL,
     }
 
     def test_hook_backed_tiers_annotated(self) -> None:

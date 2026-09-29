@@ -189,6 +189,12 @@ class HookBlockUnsafeCommandsTests(unittest.TestCase):
             finally:
                 os.unlink(f.name)
 
+    def test_script_contains_heavy_unwrapped_rule(self) -> None:
+        """The generated blocker carries the heavy-unwrapped HARD_DENY branch."""
+        script = HOOK_SCRIPTS["hook-block-unsafe-commands"]
+        self.assertIn("# heavy-unwrapped (HARD_DENY)", script)
+        self.assertIn("heavy -- <the command>", script)
+
     def test_script_starts_with_shebang(self) -> None:
         """Script begins with #!/usr/bin/env bash."""
         script = HOOK_SCRIPTS["hook-block-unsafe-commands"]

@@ -240,6 +240,34 @@ def _subshell_cmd(literal: str) -> str:
     return SUBSHELL_SEP + literal + r"(\s|$)"
 
 
+# Words that can stand before a command and still leave it at the command
+# position: variable assignments (``GOFLAGS=-p=2``), the shell keywords that
+# open a command inside a loop or conditional, and the transparent runners
+# (``env``, ``time``, ``timeout 600``, ``nice -n 10`` ...). Each word may carry
+# flags, and a flag may carry a numeric value. ``heavy`` is deliberately not
+# among them: a command behind ``heavy`` is heavy's argument, not a command.
+_COMMAND_PREFIX = (
+    r"(([A-Za-z_][A-Za-z0-9_]*=\S*"
+    r"|then|do|else|command|builtin|exec|nohup|sudo|env|nice|time|stdbuf"
+    r"|timeout(\s+-\S+(\s+[0-9][0-9.]*[smhd]?)?)*\s+[0-9][0-9.]*[smhd]?)"
+    r"\s+(-\S+(\s+[0-9]+)?\s+)*)*"
+)
+
+# What may follow a guarded command word: whitespace, a separator, the close of
+# a subshell, or the end of the line. Keeps ``go tester`` and ``mypytest`` out.
+_WORD_END = r"(\s|[;&|)]|$)"
+
+
+def _prefixed_cmd(literal: str) -> str:
+    """Anchor *literal* at any command position, prefixes included.
+
+    Like ``_subshell_cmd``, plus ``_COMMAND_PREFIX`` between the anchor and the
+    literal, so ``GOFLAGS=-p=2 go test`` and ``timeout 600 pytest`` match while
+    ``heavy -- go test`` does not.
+    """
+    return SUBSHELL_SEP + _COMMAND_PREFIX + literal + _WORD_END
+
+
 def _wrapped_matcher(cmd: str) -> str:
     """SEP-anchored matcher for *cmd* plus indirect-invocation wrappers.
 
@@ -384,6 +412,63 @@ RULES: tuple[GuardrailRule, ...] = (
             "Bash(sleep:*) matches only a command line that starts with "
             "'sleep'; the hook also matches it after a separator and inside a "
             "subshell, which no deny glob covers."
+        ),
+    ),
+    _hard_deny(
+        "heavy-unwrapped",
+        # Memory-heavy commands (test suites, large builds, verification runs)
+        # at any command position. Several of them running at once from
+        # different sessions have taken the whole machine down, so each must run
+        # through the heavy wrapper, which queues it behind every other heavy
+        # job and caps its memory. The wrapped form never matches: the command
+        # after 'heavy' or 'heavy --' is an argument, not a command position.
+        [
+            _prefixed_cmd(r"go\s+(test|build|vet|install)"),
+            _prefixed_cmd(r"(\S*/)?pytest"),
+            _prefixed_cmd(r"(\S*/)?python[0-9.]*\s+-m\s+pytest"),
+            _prefixed_cmd(r"uv\s+run(\s+-\S+)*\s+(pytest|python[0-9.]*\s+-m\s+pytest)"),
+            _prefixed_cmd(r"npm\s+(test|t|ci|run(-script)?\s+test[A-Za-z0-9:_-]*)"),
+            _prefixed_cmd(r"cargo\s+(test|build)"),
+            _prefixed_cmd(
+                r"((ba)?sh\s+)?(\S*/)?scripts/"
+                r"([A-Za-z0-9_.-]*test[A-Za-z0-9_.-]*|full-suite)\.sh"
+            ),
+            _prefixed_cmd(r"cgofree\s+(generate|verify)"),
+        ],
+        [
+            "Bash(go test:*)",
+            "Bash(go build:*)",
+            "Bash(go vet:*)",
+            "Bash(go install:*)",
+            "Bash(pytest:*)",
+            "Bash(python -m pytest:*)",
+            "Bash(python3 -m pytest:*)",
+            "Bash(uv run pytest:*)",
+            "Bash(uv run python -m pytest:*)",
+            "Bash(uv run python3 -m pytest:*)",
+            "Bash(npm test:*)",
+            "Bash(npm run test:*)",
+            "Bash(npm ci:*)",
+            "Bash(cargo test:*)",
+            "Bash(cargo build:*)",
+            "Bash(cgofree generate:*)",
+            "Bash(cgofree verify:*)",
+        ],
+        "Memory-heavy commands run only through the heavy wrapper, which queues "
+        "them behind every other heavy job on this machine and caps their "
+        "memory: run 'heavy -- <the command>' instead, putting 'heavy --' "
+        "directly before each heavy command in a compound line (for example "
+        "'cd x && heavy -- go test ./...'). For a job that needs more than the "
+        "default 5G, run 'heavy --mem 8G -- <the command>'.",
+        coverage=SettingsCoverage.PARTIAL,
+        reason=(
+            "the deny globs cover the plain spellings only; the hook also "
+            "matches path-qualified and versioned pytest/python, 'uv run' with "
+            "flags, 'npm t' and 'npm run test:<name>' variants, a command "
+            "inside a subshell or after a shell keyword, and the project suite "
+            "scripts (scripts/*test*.sh, scripts/full-suite.sh), which no glob "
+            "covers. No glob starts with 'heavy', so none refuses the wrapped "
+            "form."
         ),
     ),
     # -- ESCALATE ---------------------------------------------------------
