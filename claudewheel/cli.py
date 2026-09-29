@@ -938,6 +938,7 @@ def _handle_import(
 # deploy_scripts reports what it issued in the past tense; a preview only
 # recorded those writes, so the narration switches to the conditional form.
 _WOULD_DEPLOY = {"created": "would create", "overwritten": "would overwrite"}
+_WOULD_LINK = {"linked": "would link", "relinked": "would relink"}
 
 
 @strictcli.flag(
@@ -950,12 +951,13 @@ _WOULD_DEPLOY = {"created": "would create", "overwritten": "would overwrite"}
     "force-overwrite",
     type=bool,
     presence="optional",
-    help="overwrite existing hook scripts on disk instead of skipping them; when omitted, an existing script is left alone",
+    help="overwrite existing hook scripts on disk instead of skipping them, and replace whatever stands at a PATH command's link (~/.local/bin/heavy); when omitted, an existing script is left alone and a link path held by anything else is refused",
 )
 def _handle_deploy_hooks(
     ws: "Workspace", name: str | None, all: bool | None, force_overwrite: bool | None
 ) -> int:
-    """Deploy built-in hook scripts to the scripts directory.
+    """Deploy built-in hook scripts to the scripts directory, and link the
+    deployed PATH commands (the heavy wrapper) into the bin directory.
 
     "Name one script or pass --all" is half a declaration and half a handler
     rule, and the split is the framework's own boundary: the at-least-one half
@@ -965,7 +967,7 @@ def _handle_deploy_hooks(
     choice's scope). Moving it would mean spelling the script name as
     ``--script <name>``, which is not the argv this command has.
     """
-    from .hook_scripts import HOOK_SCRIPTS, deploy_scripts
+    from .hook_scripts import HOOK_SCRIPTS, deploy_scripts, link_path_commands
 
     all = _absent(all, False)
     force_overwrite = _absent(force_overwrite, False)
@@ -995,7 +997,26 @@ def _handle_deploy_hooks(
         else:
             print(f"{action}: {dest}")
 
-    return 0
+    refused = False
+    for link, target, action in link_path_commands(
+        targets, scripts_dir, ws.bin_dir, force_overwrite
+    ):
+        if action == "exists":
+            print(f"already linked: {link} -> {target}")
+        elif action == "foreign":
+            print(
+                f"Error: {link} exists and is not a link to {target}, so the "
+                f"command on PATH is not the one claudewheel deploys; pass "
+                f"--force-overwrite to replace it with that link",
+                file=sys.stderr,
+            )
+            refused = True
+        elif previewing:
+            print(f"{_WOULD_LINK[action]}: {link} -> {target}")
+        else:
+            print(f"{action}: {link} -> {target}")
+
+    return 1 if refused else 0
 
 
 def _handle_patch_profiles(ws: "Workspace") -> int:
@@ -2513,7 +2534,7 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
     app.command(
         "deploy-hooks",
         effect="mutating",
-        help="deploy built-in hook scripts to the ~/.claudewheel/scripts/ directory",
+        help="deploy built-in hook scripts and the heavy wrapper to the ~/.claudewheel/scripts/ directory, linking heavy into ~/.local/bin so it is on PATH",
         args=[
             Arg(
                 name="name",

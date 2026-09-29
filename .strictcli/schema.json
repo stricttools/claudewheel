@@ -296,7 +296,7 @@
     },
     "deploy-hooks": {
       "name": "deploy-hooks",
-      "help": "deploy built-in hook scripts to the ~/.claudewheel/scripts/ directory",
+      "help": "deploy built-in hook scripts and the heavy wrapper to the ~/.claudewheel/scripts/ directory, linking heavy into ~/.local/bin so it is on PATH",
       "effect": "mutating",
       "flags": [
         {
@@ -310,7 +310,7 @@
         },
         {
           "name": "force-overwrite",
-          "help": "overwrite existing hook scripts on disk instead of skipping them; when omitted, an existing script is left alone",
+          "help": "overwrite existing hook scripts on disk instead of skipping them, and replace whatever stands at a PATH command's link (~/.local/bin/heavy); when omitted, an existing script is left alone and a link path held by anything else is refused",
           "value_schema": {
             "type": "boolean"
           },

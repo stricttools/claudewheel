@@ -74,7 +74,8 @@ All claudewheel data lives under a single root directory, defaulting to
   themes/                # custom color themes
   hooks/                 # user hook scripts
   scripts/               # deployed hook scripts: the guardrails, and the
-                         # session lifecycle recorders
+                         # session lifecycle recorders; plus the heavy
+                         # wrapper, linked from ~/.local/bin/heavy
 ```
 
 ### Key files

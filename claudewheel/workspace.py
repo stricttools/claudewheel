@@ -27,17 +27,24 @@ class Workspace:
 
     root: Path
     claude_dir: Path
+    bin_dir: Path
 
     @classmethod
-    def open(cls, root: Path, claude_dir: Path | None = None) -> Workspace:
+    def open(
+        cls, root: Path, claude_dir: Path | None = None, bin_dir: Path | None = None
+    ) -> Workspace:
         """Build a Workspace at *root*. Pure value construction -- no I/O.
 
-        *claude_dir* defaults to ``Path.home()/".claude"`` evaluated at call
-        time (never at import), so a poisoned/sandboxed home is honored.
+        *claude_dir* defaults to ``Path.home()/".claude"`` and *bin_dir* (where
+        deploy-hooks links the commands it deploys) to ``Path.home()/".local/bin"``,
+        both evaluated at call time (never at import), so a poisoned/sandboxed
+        home is honored.
         """
         if claude_dir is None:
             claude_dir = Path.home() / ".claude"
-        return cls(root=root, claude_dir=claude_dir)
+        if bin_dir is None:
+            bin_dir = Path.home() / ".local" / "bin"
+        return cls(root=root, claude_dir=claude_dir, bin_dir=bin_dir)
 
     @classmethod
     def default(cls) -> Workspace:

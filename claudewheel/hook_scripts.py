@@ -1,11 +1,14 @@
-"""Registry of hook script templates for deploy-hooks, with blocker/advise scripts generated from the guardrail model.
+"""Registry of the scripts deploy-hooks deploys: the hook scripts, with blocker/advise generated from the guardrail model, and the heavy wrapper.
 
 Each entry maps a script name to its content as a string constant.
-Scripts are deployed to SCRIPTS_DIR (~/.claudewheel/scripts/).
+Scripts are deployed to SCRIPTS_DIR (~/.claudewheel/scripts/). The scripts
+named in ``PATH_COMMANDS`` are commands rather than hooks, and are also linked
+into the user's ``~/.local/bin`` so they are on PATH.
 """
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from claudewheel import guardrail
@@ -355,6 +358,61 @@ append "$ended" ended
 exit 0
 """
 
+# The heavy wrapper: the command the heavy-unwrapped guardrail rule tells an
+# agent to run instead of a bare test suite or large build. Help prints the
+# leading comment block, so the note on where the wrapper comes from sits below
+# it.
+_HEAVY_SCRIPT = r"""#!/usr/bin/env bash
+# heavy: run a memory-heavy command (a test suite, a large build, a long
+# verification) alone on this machine and under a memory cap.
+#
+#   heavy [--mem SIZE] [--] command [args...]
+#
+# One machine-wide lock serializes every heavy command from every session, so
+# two suites never overlap. The command runs in its own systemd scope with
+# MemoryMax=SIZE (default 5G) and no swap, so a runaway is killed alone instead
+# of the whole terminal session. GOFLAGS gets -p=2 unless it already sets -p.
+set -euo pipefail
+
+# Shipped by claudewheel (claudewheel/hook_scripts.py) and deployed by
+# 'claudewheel deploy-hooks heavy'; edits to a deployed copy are overwritten.
+
+mem=5G
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --mem) mem="$2"; shift 2 ;;
+        --mem=*) mem="${1#--mem=}"; shift ;;
+        --) shift; break ;;
+        -h|--help) awk 'NR == 1 { next } !/^#/ { exit } { sub(/^# ?/, ""); print }' "$0"; exit 0 ;;
+        *) break ;;
+    esac
+done
+if [[ $# -eq 0 ]]; then
+    echo "heavy: no command given; usage: heavy [--mem SIZE] [--] command [args...]" >&2
+    exit 2
+fi
+
+dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+lock="$dir/heavy.lock"
+holder="$dir/heavy.holder"
+
+exec 9>"$lock"
+if ! flock -n 9; then
+    echo "heavy: waiting for the heavy-work lock, held by: $(cat "$holder" 2>/dev/null || echo unknown)" >&2
+    flock 9
+fi
+printf 'pid %s since %s in %s: %s\n' "$$" "$(date '+%H:%M:%S')" "$PWD" "$*" >"$holder"
+trap ': >"$holder"' EXIT
+
+case " ${GOFLAGS:-} " in
+    *" -p="*|*" -p "*) ;;
+    *) export GOFLAGS="${GOFLAGS:+$GOFLAGS }-p=2" ;;
+esac
+
+systemd-run --user --scope --quiet --collect \
+    -p MemoryMax="$mem" -p MemorySwapMax=0 -- "$@"
+"""
+
 HOOK_SCRIPTS: dict[str, str] = {
     "hook-timestamp": """\
 #!/usr/bin/env bash
@@ -393,7 +451,13 @@ exit 0
     # Generated from the canonical guardrail model. See claudewheel/guardrail.py.
     "hook-block-unsafe-commands": guardrail.generate_blocker_script(),
     "hook-advise-commands": guardrail.generate_advise_script(),
+    "heavy": _HEAVY_SCRIPT,
 }
+
+# The deployed scripts that are commands an agent runs, not hooks Claude Code
+# runs. deploy-hooks links each one into the bin directory (``~/.local/bin``)
+# so the command on PATH is always the copy claudewheel deployed.
+PATH_COMMANDS: tuple[str, ...] = ("heavy",)
 
 
 def deploy_scripts(
@@ -417,4 +481,41 @@ def deploy_scripts(
         effects.write_text(dest, HOOK_SCRIPTS[name])
         effects.chmod(dest, 0o755)
         results.append((name, action))
+    return results
+
+
+def link_path_commands(
+    names: list[str], scripts_dir: Path, bin_dir: Path, force_overwrite: bool
+) -> list[tuple[Path, Path, str]]:
+    """Link each ``PATH_COMMANDS`` member of *names* from *bin_dir* to *scripts_dir*.
+
+    Returns (link, target, action) triples, action being one of "linked" (the
+    link was created), "exists" (it already points at the target), "relinked"
+    (something else stood there and *force_overwrite* replaced it), or
+    "foreign" (something else stands there and was left alone). Names outside
+    ``PATH_COMMANDS`` are skipped. A replacement is a new symlink renamed over
+    the old entry, so a running copy of the old command keeps its file and no
+    reader ever finds the name missing.
+    """
+    results: list[tuple[Path, Path, str]] = []
+    for name in names:
+        if name not in PATH_COMMANDS:
+            continue
+        link = bin_dir / name
+        target = scripts_dir / name
+        if link.is_symlink() and os.readlink(link) == str(target):
+            results.append((link, target, "exists"))
+            continue
+        if link.is_symlink() or link.exists():
+            if not force_overwrite:
+                results.append((link, target, "foreign"))
+                continue
+            staged = bin_dir / f".{name}.claudewheel-{os.getpid()}.tmp"
+            effects.symlink(staged, target)
+            effects.rename(staged, link)
+            results.append((link, target, "relinked"))
+            continue
+        effects.mkdir(bin_dir, parents=True, exist_ok=True)
+        effects.symlink(link, target)
+        results.append((link, target, "linked"))
     return results

@@ -1,6 +1,6 @@
 +++
 title = "Guardrails"
-description = "How claudewheel guardrails work: the 4 enforcement tiers, subagents versus the main agent, command-string caveats, upgrading profiles, and stripped tools."
+description = "How claudewheel guardrails work: the 4 enforcement tiers, subagents versus the main agent, command-string caveats, the heavy wrapper, upgrading profiles, and stripped tools."
 nav_group = "Concepts"
 nav_order = 5
 +++
@@ -62,6 +62,36 @@ split the command), whereas parsing the shell to eliminate them would be far
 more fragile than a conservative string match. When a benign command is
 blocked, move the guarded token out of the command line or run the pieces
 separately.
+
+## Heavy commands and the heavy wrapper
+
+Test suites, large builds, and verification runs can each take several
+gigabytes of memory, and several of them started at once from different
+sessions can exhaust the machine until the whole terminal session is killed.
+The `heavy-unwrapped` rule refuses such a command (`go test`, `pytest`,
+`npm test`, `cargo build`, a project's `scripts/*test*.sh`, and the rest of the
+forms in the rule reference below) wherever it stands at a command position,
+and tells the agent to run it through `heavy` instead:
+
+```bash
+cd project && heavy -- go test ./...
+heavy --mem 8G -- scripts/full-suite.sh
+```
+
+`heavy` takes one machine-wide lock, so heavy commands from every session run
+one at a time and a later one waits for the earlier one to finish. It runs the
+command in its own systemd user scope capped at 5G of memory with no swap
+(`--mem` sets another cap), so a runaway job is killed alone; it adds `-p=2` to
+`GOFLAGS` unless `GOFLAGS` already sets `-p`; and it exits with the command's
+exit code. A command behind `heavy` is an argument of `heavy`, never a command
+position of its own, so the wrapped form passes the hook, and none of the
+rule's `deny` globs starts with `heavy`.
+
+claudewheel ships the wrapper: `claudewheel deploy-hooks heavy` (or `--all`)
+writes it to `~/.claudewheel/scripts/heavy` and makes `~/.local/bin/heavy` a
+symlink to that copy. When anything else already stands at
+`~/.local/bin/heavy`, the deployment refuses and leaves it alone;
+`--force-overwrite` replaces it with the link.
 
 ## Upgrading existing profiles
 
