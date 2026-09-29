@@ -416,11 +416,12 @@ RULES: tuple[GuardrailRule, ...] = (
     ),
     _hard_deny(
         "heavy-unwrapped",
-        # Memory-heavy commands (test suites, large builds, verification runs)
-        # at any command position. Several of them running at once from
-        # different sessions have taken the whole machine down, so each must run
-        # through the heavy wrapper, which queues it behind every other heavy
-        # job and caps its memory. The wrapped form never matches: the command
+        # Memory-heavy commands (test suites, large builds including Go's own
+        # toolchain builds and make, verification runs) at any command
+        # position. Several of them running at once from different sessions
+        # have taken the whole machine down, so each must run through the heavy
+        # wrapper, which queues it behind every other heavy job and caps its
+        # memory. The wrapped form never matches: the command
         # after 'heavy' or 'heavy --' is an argument, not a command position.
         [
             _prefixed_cmd(r"go\s+(test|build|vet|install)"),
@@ -434,6 +435,10 @@ RULES: tuple[GuardrailRule, ...] = (
                 r"([A-Za-z0-9_.-]*test[A-Za-z0-9_.-]*|full-suite)\.sh"
             ),
             _prefixed_cmd(r"cgofree\s+(generate|verify)"),
+            # Go's own toolchain builds (src/make.bash, all.bash, run.bash),
+            # run directly or through bash/sh, and make.
+            _prefixed_cmd(r"((ba)?sh\s+)?(\S*/)?(make|all|run)\.bash"),
+            _prefixed_cmd(r"(\S*/)?make"),
         ],
         [
             "Bash(go test:*)",
@@ -453,6 +458,13 @@ RULES: tuple[GuardrailRule, ...] = (
             "Bash(cargo build:*)",
             "Bash(cgofree generate:*)",
             "Bash(cgofree verify:*)",
+            "Bash(./make.bash:*)",
+            "Bash(./all.bash:*)",
+            "Bash(./run.bash:*)",
+            "Bash(bash make.bash:*)",
+            "Bash(bash all.bash:*)",
+            "Bash(bash run.bash:*)",
+            "Bash(make:*)",
         ],
         "Memory-heavy commands run only through the heavy wrapper, which queues "
         "them behind every other heavy job on this machine and caps their "
@@ -465,10 +477,12 @@ RULES: tuple[GuardrailRule, ...] = (
             "the deny globs cover the plain spellings only; the hook also "
             "matches path-qualified and versioned pytest/python, 'uv run' with "
             "flags, 'npm t' and 'npm run test:<name>' variants, a command "
-            "inside a subshell or after a shell keyword, and the project suite "
-            "scripts (scripts/*test*.sh, scripts/full-suite.sh), which no glob "
-            "covers. No glob starts with 'heavy', so none refuses the wrapped "
-            "form."
+            "inside a subshell or after a shell keyword, the project suite "
+            "scripts (scripts/*test*.sh, scripts/full-suite.sh), Go toolchain "
+            "builds by any other path or shell (src/make.bash, 'sh ./all.bash', "
+            "'bash ./run.bash'), and a path-qualified 'make' (/usr/bin/make), "
+            "which no glob covers. No glob starts with 'heavy', so none refuses "
+            "the wrapped form."
         ),
     ),
     # -- ESCALATE ---------------------------------------------------------

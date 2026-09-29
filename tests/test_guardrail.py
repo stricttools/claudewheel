@@ -56,6 +56,13 @@ EXPECTED_DENY = [
     "Bash(cargo build:*)",
     "Bash(cgofree generate:*)",
     "Bash(cgofree verify:*)",
+    "Bash(./make.bash:*)",
+    "Bash(./all.bash:*)",
+    "Bash(./run.bash:*)",
+    "Bash(bash make.bash:*)",
+    "Bash(bash all.bash:*)",
+    "Bash(bash run.bash:*)",
+    "Bash(make:*)",
 ]
 
 EXPECTED_ASK = [
@@ -340,6 +347,25 @@ class HeavyUnwrappedRuleTests(unittest.TestCase):
         for glob in _rule("heavy-unwrapped").deny_rules:
             self.assertTrue(glob.startswith("Bash(") and glob.endswith(":*)"), glob)
             self.assertFalse(glob.startswith("Bash(heavy"), glob)
+
+    def test_deny_globs_cover_go_toolchain_builds_and_make(self) -> None:
+        globs = set(_rule("heavy-unwrapped").deny_rules)
+        for glob in (
+            "Bash(make:*)",
+            "Bash(./make.bash:*)",
+            "Bash(./all.bash:*)",
+            "Bash(./run.bash:*)",
+            "Bash(bash make.bash:*)",
+            "Bash(bash all.bash:*)",
+            "Bash(bash run.bash:*)",
+        ):
+            self.assertIn(glob, globs)
+
+    def test_coverage_reason_names_what_the_globs_miss(self) -> None:
+        reason = _rule("heavy-unwrapped").coverage_reason
+        assert reason is not None
+        self.assertIn("make.bash", reason)
+        self.assertIn("'make'", reason)
 
     def test_advice_names_the_command_to_run_instead(self) -> None:
         advice = _rule("heavy-unwrapped").main_advice
