@@ -378,6 +378,10 @@ _HEAVY_SCRIPT = r"""#!/usr/bin/env bash
 # until its scope ends. At most 8 heavy commands run at once. A cap larger
 # than the machine's whole memory less the margin is a usage error.
 #
+# When the cap does not fit while no heavy command is running, no heavy command
+# can end to make room, so heavy exits at once (exit 75), naming the largest cap
+# that fits now, instead of waiting.
+#
 # Until the command fits, heavy checks again every second and prints, every 30
 # seconds, how long it has waited, the memory figures, and every running heavy
 # command; it gives up (exit 75) after TIME, naming them and how to stop them.
@@ -529,6 +533,7 @@ try_admit() {
     local i file pid start cap note_mem note_unit desc rest scope load active
     local unknown=0 free=""
     local noted_units=()
+    hopeless=0
     reserved_kib=0
     running_jobs=()
     for ((i = 0; i < slot_count; i++)); do
@@ -585,6 +590,7 @@ try_admit() {
         why="all $slot_count heavy slots are in use"
     elif ((reserved_kib + cap_kib > avail_kib - margin_kib)); then
         why="$(gib "$avail_kib") available less the 2G margin leaves $(gib $((avail_kib - margin_kib))), and running heavy jobs still reserve $(gib "$reserved_kib") of it"
+        ((${#running_jobs[@]} > 0)) || hopeless=1
     else
         printf '%s %s\n%s %s %s\npid %s since %s in %s, scope %s: %s\n' \
             "$$" "$(start_time $$)" "$cap_kib" "$mem" "$unit" \
@@ -621,6 +627,20 @@ while :; do
         attempted=1
         if try_admit; then
             break
+        fi
+        if ((hopeless)); then
+            fits_kib=$((avail_kib - margin_kib))
+            if ((fits_kib >= 1048576)); then
+                fits="$((fits_kib / 1048576))G"
+            elif ((fits_kib >= 1024)); then
+                fits="$((fits_kib / 1024))M"
+            else
+                fits=""
+            fi
+            how="free memory outside heavy and rerun"
+            [[ -z "$fits" ]] || how="rerun with --mem $fits or less, or $how"
+            echo "heavy: cannot start a $mem job: $why; no heavy job is running, so none can end to make room; $how" >&2
+            exit 75
         fi
     else
         why="the admission lock $lock is held (find its holder with 'fuser -v $lock')"

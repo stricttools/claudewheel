@@ -770,10 +770,45 @@ class HeavyAdmissionTests(_AdmissionCase):
         self._set_memory(total="64G", available="6G")
         proc = self._heavy("--mem", "5G", "--max-wait", "0s", "--", "true")
         self.assertEqual(proc.returncode, 75, proc.stderr)
-        self.assertIn("running heavy jobs: none", proc.stderr)
+        self.assertIn("no heavy job is running", proc.stderr)
         self._set_memory(total="64G", available="7G")
         proc = self._heavy("--mem", "5G", "--max-wait", "0s", "--", "true")
         self.assertEqual(proc.returncode, 0, proc.stderr)
+
+    def test_a_cap_that_cannot_fit_with_no_heavy_job_running_fails_at_once(
+        self,
+    ) -> None:
+        # 5.2G available less the 2G margin is 3.2G: no heavy job can end to
+        # make room for 6G, so heavy does not wait out its --max-wait, and it
+        # names the largest cap that fits now.
+        self._set_memory(total="16G", available="5324M")
+        started = time.monotonic()
+        proc = self._heavy("--mem", "6G", "--max-wait", "60s", "--", "true")
+        self.assertLess(time.monotonic() - started, 10)
+        self.assertEqual(proc.returncode, 75, proc.stderr)
+        self.assertNotIn("heavy: waiting", proc.stderr)
+        self.assertIn("heavy: cannot start a 6G job", proc.stderr)
+        self.assertIn("leaves 3.2G", proc.stderr)
+        self.assertIn("no heavy job is running", proc.stderr)
+        self.assertIn("rerun with --mem 3G or less", proc.stderr)
+        self.assertNotIn("capped at", proc.stderr)
+
+    def test_the_largest_cap_that_fits_is_named_in_megabytes_below_a_gigabyte(
+        self,
+    ) -> None:
+        self._set_memory(total="16G", available="2560M")
+        proc = self._heavy("--mem", "1G", "--max-wait", "60s", "--", "true")
+        self.assertEqual(proc.returncode, 75, proc.stderr)
+        self.assertIn("rerun with --mem 512M or less", proc.stderr)
+
+    def test_a_cap_that_does_not_fit_beside_a_running_job_still_waits(
+        self,
+    ) -> None:
+        self._hold_slot(0, mem="10G")
+        proc = self._heavy("--mem", "5G", "--max-wait", "1s", "--", "true")
+        self.assertEqual(proc.returncode, 75, proc.stderr)
+        self.assertIn("heavy: waiting", proc.stderr)
+        self.assertNotIn("cannot start", proc.stderr)
 
     def test_a_dead_holder_is_unknown_and_blocks(self) -> None:
         # A note naming a process that is gone, on a slot some process still
