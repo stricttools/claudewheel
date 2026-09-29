@@ -9,7 +9,7 @@ nav_order = 2
 
 # c deploy-hooks
 
-deploy built-in hook scripts to the ~/.claudewheel/scripts/ directory
+deploy built-in hook scripts and the heavy wrapper to the ~/.claudewheel/scripts/ directory, linking heavy into ~/.local/bin so it is on PATH
 
 **Effect:** mutating
 
@@ -18,7 +18,7 @@ deploy built-in hook scripts to the ~/.claudewheel/scripts/ directory
 | Name | Short | Type | Presence | Env | Description |
 | --- | --- | --- | --- | --- | --- |
 | `--all`, `--no-all` |  | bool | optional |  | deploy every known hook script from the built-in registry at once; when omitted, the positional name selects one script |
-| `--force-overwrite`, `--no-force-overwrite` |  | bool | optional |  | overwrite existing hook scripts on disk instead of skipping them; when omitted, an existing script is left alone |
+| `--force-overwrite`, `--no-force-overwrite` |  | bool | optional |  | overwrite existing hook scripts on disk instead of skipping them, and replace whatever stands at a PATH command's link (~/.local/bin/heavy); when omitted, an existing script is left alone and a link path held by anything else is refused |
 
 ## Arguments
 

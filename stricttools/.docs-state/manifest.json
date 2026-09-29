@@ -1554,6 +1554,11 @@
         },
         {
           "level": 3,
+          "text": "`_prefixed_cmd`",
+          "anchor": "_prefixed_cmd"
+        },
+        {
+          "level": 3,
           "text": "`_wrapped_matcher`",
           "anchor": "_wrapped_matcher"
         },
@@ -1785,6 +1790,11 @@
           "level": 3,
           "text": "`deploy_scripts`",
           "anchor": "deploy_scripts"
+        },
+        {
+          "level": 3,
+          "text": "`link_path_commands`",
+          "anchor": "link_path_commands"
         }
       ]
     },
@@ -2192,6 +2202,46 @@
         },
         {
           "level": 3,
+          "text": "`_distinct_store_dirs`",
+          "anchor": "_distinct_store_dirs"
+        },
+        {
+          "level": 3,
+          "text": "`_read_transcript`",
+          "anchor": "_read_transcript"
+        },
+        {
+          "level": 3,
+          "text": "`_transcripts_to_rewrite`",
+          "anchor": "_transcripts_to_rewrite"
+        },
+        {
+          "level": 3,
+          "text": "`_check_transcripts_readable`",
+          "anchor": "_check_transcripts_readable"
+        },
+        {
+          "level": 3,
+          "text": "`_check_merges_complete`",
+          "anchor": "_check_merges_complete"
+        },
+        {
+          "level": 3,
+          "text": "`_free_text_pattern`",
+          "anchor": "_free_text_pattern"
+        },
+        {
+          "level": 3,
+          "text": "`_rewrite_record`",
+          "anchor": "_rewrite_record"
+        },
+        {
+          "level": 3,
+          "text": "`_dump_record`",
+          "anchor": "_dump_record"
+        },
+        {
+          "level": 3,
           "text": "`_rewrite_jsonl_file`",
           "anchor": "_rewrite_jsonl_file"
         },
@@ -2207,6 +2257,11 @@
         },
         {
           "level": 3,
+          "text": "`_names_under`",
+          "anchor": "_names_under"
+        },
+        {
+          "level": 3,
           "text": "`_read_claude_json`",
           "anchor": "_read_claude_json"
         },
@@ -2219,11 +2274,6 @@
           "level": 3,
           "text": "`_discover_descendants`",
           "anchor": "_discover_descendants"
-        },
-        {
-          "level": 3,
-          "text": "`_verify_destinations`",
-          "anchor": "_verify_destinations"
         },
         {
           "level": 3,
@@ -3691,6 +3741,21 @@
         },
         {
           "level": 3,
+          "text": "`recorded_store_cwds`",
+          "anchor": "recorded_store_cwds"
+        },
+        {
+          "level": 3,
+          "text": "`StoreDirPathError`",
+          "anchor": "storedirpatherror"
+        },
+        {
+          "level": 3,
+          "text": "`store_dir_path`",
+          "anchor": "store_dir_path"
+        },
+        {
+          "level": 3,
           "text": "`get_session_cwd`",
           "anchor": "get_session_cwd"
         },
@@ -4133,6 +4198,11 @@
         },
         {
           "level": 3,
+          "text": "`_path_hash_base36`",
+          "anchor": "_path_hash_base36"
+        },
+        {
+          "level": 3,
           "text": "`SharedStore`",
           "anchor": "sharedstore"
         },
@@ -4155,6 +4225,11 @@
           "level": 4,
           "text": "`subdir`",
           "anchor": "subdir"
+        },
+        {
+          "level": 4,
+          "text": "`encode_path_untruncated`",
+          "anchor": "encode_path_untruncated"
         },
         {
           "level": 4,
@@ -5888,6 +5963,11 @@
         },
         {
           "level": 2,
+          "text": "Heavy commands and the heavy wrapper",
+          "anchor": "heavy-commands-and-the-heavy-wrapper"
+        },
+        {
+          "level": 2,
           "text": "Upgrading existing profiles",
           "anchor": "upgrading-existing-profiles"
         },
@@ -6378,10 +6458,27 @@
     }
   ],
   "posts": [],
-  "last_gen": "2026-09-25T16:25:53.541738+00:00",
+  "last_gen": "2026-09-29T11:13:14.500018+00:00",
   "theme": "minimal",
   "vocabulary": {
-    "accepted": [],
+    "accepted": [
+      {
+        "word": "claudewheel",
+        "aliases": []
+      },
+      {
+        "word": "miniclaude",
+        "aliases": []
+      },
+      {
+        "word": "saferm",
+        "aliases": []
+      },
+      {
+        "word": "tsv",
+        "aliases": []
+      }
+    ],
     "rejected": []
   }
 }
