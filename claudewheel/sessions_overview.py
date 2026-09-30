@@ -52,6 +52,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from . import lifecycle
+from . import probe
 from . import processes
 from . import session_registry
 from . import sessions_table
@@ -230,6 +231,7 @@ def _row_for_record(
     rss_kib: int | None,
     identity: SessionIdentity | None,
     now_ms: int,
+    undelivered: int = 0,
 ) -> SessionRow:
     """One table row from a registry record, filled out from its lifecycle.
 
@@ -269,6 +271,7 @@ def _row_for_record(
         transcript=started.transcript if started is not None else None,
         record=record,
         lifecycle=life,
+        undelivered=undelivered,
     )
 
 
@@ -277,6 +280,7 @@ def _row_for_lifecycle(
     *,
     profiles: dict[str, str],
     now_ms: int,
+    undelivered: int = 0,
 ) -> SessionRow:
     """One table row for a session no registry record answers for.
 
@@ -316,6 +320,7 @@ def _row_for_lifecycle(
         transcript=started.transcript if started is not None else None,
         record=None,
         lifecycle=life,
+        undelivered=undelivered,
     )
 
 
@@ -369,6 +374,8 @@ def gather_rows(
         [record.pid for _, _, record in found if record.live]
     )
 
+    undelivered = probe.undelivered_counts(workspace.probes)
+
     rows: list[SessionRow] = []
     registered: set[str] = set()
     for profile_name, config_dir, record in found:
@@ -383,12 +390,20 @@ def gather_rows(
                 rss_kib=memory.get(record.pid) if record.live else None,
                 identity=identity,
                 now_ms=now_ms,
+                undelivered=undelivered.get(record.session_id or "", 0),
             )
         )
     for session, life in lifecycles.items():
         if session in registered:
             continue
-        rows.append(_row_for_lifecycle(life, profiles=profiles, now_ms=now_ms))
+        rows.append(
+            _row_for_lifecycle(
+                life,
+                profiles=profiles,
+                now_ms=now_ms,
+                undelivered=undelivered.get(session, 0),
+            )
+        )
 
     return sessions_table.sort_rows(rows), len(swept), named
 

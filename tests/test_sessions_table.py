@@ -134,6 +134,7 @@ class FrameShapeTests(unittest.TestCase):
                 "Model",
                 "Started",
                 "MiB",
+                "Undelivered",
             ],
         )
 
@@ -183,7 +184,12 @@ class CellTests(unittest.TestCase):
         # At a width the strip exactly fills there is no padding after the last
         # column, so the cell's own alignment is what the line ends with.
         exact = _layout(rows, width=_layout(rows, width=200).strip_width + 2)
-        self.assertTrue(_lines(exact)[3].endswith("│     1 │"))
+        self.assertTrue(_lines(exact)[3].endswith("│     1 │           - │"))
+
+    def test_undelivered_probe_reports_are_counted_in_the_last_column(self) -> None:
+        """A session with reports not yet confirmed delivered says how many."""
+        self.assertEqual(self._cells(_row(undelivered=3))[-1], "3")
+        self.assertEqual(self._cells(_row())[-1], "-")
 
     def test_the_current_session_carries_a_star(self) -> None:
         cells = self._cells(_row(current=True))
@@ -209,7 +215,7 @@ class CellTests(unittest.TestCase):
 
 class HorizontalScrollTests(unittest.TestCase):
     def _wide(self) -> list[SessionRow]:
-        """Rows whose columns add up to a strip of 129 columns.
+        """Rows whose columns add up to a strip of 143 columns.
 
         Started is a natural column, so the age pinned here ("10h 0m ago") is
         part of that width just as the name and the directory are.
@@ -225,15 +231,15 @@ class HorizontalScrollTests(unittest.TestCase):
 
     def test_the_strip_is_the_width_the_columns_ask_for(self) -> None:
         frame = _layout(self._wide(), width=96)
-        self.assertEqual(frame.strip_width, 129)
+        self.assertEqual(frame.strip_width, 143)
         self.assertEqual(frame.interior_width, 94)
 
     def test_the_handle_covers_the_visible_fraction_of_the_strip(self) -> None:
         frame = _layout(self._wide(), width=96, hscroll=0)
         bottom = _text(frame.lines[-1])
         handle = bottom.count("━")
-        self.assertEqual(handle, math.ceil(94 * 94 / 129))
-        self.assertEqual(handle, 69)
+        self.assertEqual(handle, math.ceil(94 * 94 / 143))
+        self.assertEqual(handle, 62)
         self.assertEqual(bottom.index("━"), 1)
 
     def test_the_handle_moves_with_the_scroll_and_never_leaves_the_track(
@@ -261,8 +267,8 @@ class HorizontalScrollTests(unittest.TestCase):
     def test_the_scroll_is_clamped_to_what_the_strip_can_offer(self) -> None:
         rows = self._wide()
         far = _layout(rows, width=96, hscroll=9999)
-        self.assertEqual(far.hscroll, 129 - 94)
-        self.assertEqual(_lines(far), _lines(_layout(rows, width=96, hscroll=35)))
+        self.assertEqual(far.hscroll, 143 - 94)
+        self.assertEqual(_lines(far), _lines(_layout(rows, width=96, hscroll=49)))
         behind = _layout(rows, width=96, hscroll=-5)
         self.assertEqual(behind.hscroll, 0)
 

@@ -23,7 +23,7 @@ Bottom border      ``╰``, the column joints, ``╯``, and the horizontal handl
 Two scrollbars, each drawn INTO a border rather than beside it: the vertical one
 over the right border of the data-window lines, the horizontal one over the
 interior of the bottom border.  Neither costs a column or a line, which is why
-the table can afford eight columns on an 80-column terminal.
+the table can afford all its columns on an 80-column terminal.
 
 The column strip and the two things that are not in it
 ------------------------------------------------------
@@ -153,6 +153,9 @@ class SessionRow:
     transcript: str | None
     record: SessionRecord | None
     lifecycle: SessionLifecycle | None
+    # Probe reports queued for the session and not yet confirmed delivered
+    # (claudewheel.probe): kept for a session that ended, until it resumes.
+    undelivered: int = 0
 
 
 @dataclass(frozen=True)
@@ -218,6 +221,7 @@ SPECS: tuple[_Spec, ...] = (
     _Spec("Model", maximum=24),
     _Spec("Started"),
     _Spec("MiB", fixed=5, align_right=True),
+    _Spec("Undelivered", align_right=True),
 )
 
 #: Which column carries the state, and therefore its own colour.
@@ -309,7 +313,7 @@ def _started(started_ms: int | None, now_ms: int) -> str:
 
 
 def cells(row: SessionRow, *, now_ms: int, home: str) -> tuple[str, ...]:
-    """The eight untruncated cell texts of *row*, in column order."""
+    """The untruncated cell texts of *row*, in column order."""
     name = f"* {row.name}" if row.current else row.name
     return (
         name,
@@ -320,6 +324,7 @@ def cells(row: SessionRow, *, now_ms: int, home: str) -> tuple[str, ...]:
         row.model or MISSING,
         _started(row.started_ms, now_ms),
         _mib(row.rss_kib),
+        str(row.undelivered) if row.undelivered else MISSING,
     )
 
 

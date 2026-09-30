@@ -268,6 +268,39 @@ class GatherTests(WorkspaceCase):
         _rows, _swept, again = self.gather()
         self.assertEqual(again, 0)
 
+    def test_undelivered_probe_reports_are_counted_per_session(self) -> None:
+        """A session that ended with reports waiting shows them until it resumes."""
+        from claudewheel import lifecycle as lc
+        from claudewheel import probe
+
+        self.started(STORE_SESSION)
+        for rid, state in (
+            ("aaaaaaaaaaaaaaaa", "pending"),
+            ("bbbbbbbbbbbbbbbb", "handed"),
+        ):
+            path = probe.write_report(
+                self.ws.probes,
+                probe.Report(
+                    id=rid,
+                    at=lc.now_timestamp(),
+                    session=STORE_SESSION,
+                    agent=None,
+                    task=None,
+                    probe=None,
+                    subscription=None,
+                    kill="cccccccccccccccc",
+                    text="t",
+                ),
+                "main",
+            )
+            if state == "handed":
+                [item] = [
+                    r for r in probe.list_reports(self.ws.probes) if r.path == path
+                ]
+                probe.move_report(self.ws.probes, item, "handed")
+        rows, _swept, _named = self.gather()
+        self.assertEqual([row.undelivered for row in rows], [2])
+
     def test_the_default_profile_is_gathered_too(self) -> None:
         self.claude_dir.mkdir(parents=True)
         stale_record(self.claude_dir / "sessions", extra={"sessionId": STALE_SESSION})
