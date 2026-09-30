@@ -31,3 +31,7 @@ meaning = "Tab-separated values, the flat output format of the permission listin
 [[accepted]]
 word = "unrouted"
 meaning = "an OOM kill no session and no probe subscription took, recorded and listed rather than dropped"
+
+[[accepted]]
+word = "zram"
+meaning = "the Linux kernel's compressed swap device held in RAM"
