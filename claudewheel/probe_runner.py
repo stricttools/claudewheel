@@ -147,7 +147,8 @@ def attribute(
             "heavy",
             None,
             None,
-            f"{unit} carries no session in its description: {description!r}",
+            f"{unit}'s description names no claudewheel session: the heavy that "
+            "started it does not record one",
         )
     return Attribution(
         "other",

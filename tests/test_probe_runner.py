@@ -179,6 +179,15 @@ class AttributionTests(_RunnerCase):
         self.assertEqual(self.reports(), [])
         self.assertEqual(len(probe.read_kills(self.store)), 1)
 
+    def test_a_heavy_started_before_heavy_recorded_its_session(self) -> None:
+        """systemd's default description is the whole argv: the reason names the case, not the argv."""
+        self.descriptions[HEAVY] = "[systemd-run] /usr/bin/bash -c " + "x" * 5000
+        kill = self.process(entry(HEAVY))
+        assert kill is not None
+        self.assertIsNone(kill["session"])
+        self.assertLess(len(kill["unattributed"]), 300)
+        self.assertIn("names no claudewheel session", kill["unattributed"])
+
     def test_heavy_outside_a_session(self) -> None:
         self.descriptions[HEAVY] = "heavy job outside any claudewheel session: make"
         kill = self.process(entry(HEAVY))
