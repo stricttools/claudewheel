@@ -67,7 +67,7 @@ An uppercase `S` typed with nothing in the search buffer does not seed a fuzzy s
 
 ## The sessions overview
 
-Press uppercase `S` from anywhere on the bar to see **every Claude Code session on this machine** as a framed table -- one row per session, gathered across every profile claudewheel discovers (the vanilla `default` profile included) plus every session recorded in the lifecycle store under `~/.claudewheel/shared/lifecycle/`. Nothing on the bar decides what it shows. The columns are the session's name, its state, its kind, its working directory, the Claude Code version, the model, how long ago it started, and its resident memory in MiB; the session you are sitting in is marked with a `*`.
+Press uppercase `S` from anywhere on the bar to see **every Claude Code session on this machine** as a framed table -- one row per session, gathered across every profile claudewheel discovers (the vanilla `default` profile included) plus every session recorded in the lifecycle store under `~/.claudewheel/shared/lifecycle/`. Nothing on the bar decides what it shows. The columns are the session's name, its state, its kind, its working directory, the Claude Code version, the model, how long ago it started, its resident memory in MiB, and how many of its probe reports (reports of OOM kills, see the probes guide) are not yet confirmed delivered; the session you are sitting in is marked with a `*`.
 
 The state is the registry's own status wherever a process is still running (`working`, `idle`, `shell`, `waiting`, or `unverified` when the process identity could not be checked) and what the lifecycle store recorded otherwise: `starting`, `crashed`, `exited`, or the mark you gave it (`on-hold`, `blocked`, `done`). A running process always beats a recorded mark. Finished sessions -- `done` and `exited` -- are hidden until you ask for them.
 
@@ -83,6 +83,17 @@ It is a snapshot, not a live monitor: both stores are read when the screen opens
 - `q` or Esc -- close and return to the segment bar
 
 Opening the screen also writes two things into the lifecycle store, both idempotent: an end for every session that died without recording one, and the display name of each live session, which exists nowhere else once its process is gone.
+
+## OOM kill reports and probes
+
+When the kernel's OOM killer kills a command a session started -- a `heavy` job over its `--mem` cap, or a command over the session's memory ceiling -- claudewheel tells that session, even when it sits idle: the report wakes its main conversation, a Bash call that died with status 137 is labeled for the conversation that made it, and a session that ended gets the report when it resumes. A probe watches another session's kills, or every session's, until a deadline it must state:
+
+```bash
+claudewheel probe create oom-kill --all-sessions --deadline 2h
+claudewheel probe list
+```
+
+The kills are read from the user journal by one user service, `claudewheel-probe-runner.service`, which `claudewheel deploy-hooks --all` installs, enables, and starts (`systemctl --user stop claudewheel-probe-runner.service` stops it). Nothing is dropped: `probe list` shows every undelivered or expired report and every kill no session took. See the probes guide in the documentation for the details.
 
 ## Client selection
 
@@ -211,8 +222,7 @@ Themes also include an `overflow` section for viewport chrome:
 ## Tests
 
 ```bash
-cd /home/m/Projects/claudewheel
-python3 -m unittest discover tests/
+heavy -- uv run pytest tests/
 ```
 
-240+ stdlib `unittest` tests covering segment cycling, fuzzy matching, requires-evaluation, install/manifest parsing, discovery merge logic, viewport scrolling, and config migration. Runs in under one second.
+The suite includes an integration test that runs a real interactive Claude Code of each version in `claudewheel.probe.VERIFIED_CLIENT_VERSIONS` under a pty against a mock API, to verify the probe report delivery; it fails, naming `claudewheel install <version>`, when that version is not installed.

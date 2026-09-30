@@ -13,6 +13,7 @@ Selections persist across launches, and the bar adapts to narrow terminals with 
 - [CLI Reference](cli-index/) -- all commands, flags, and arguments
 - [API Reference](gen-index/) -- auto-generated module and function docs
 - [Guardrails](guardrails/) -- enforcement tiers, subagent handling, command-string caveats, and upgrading profiles
+- [Probes](probes/) -- OOM kills reported to the sessions they concern, probes over other sessions, and the probe runner service
 
 ## Overview
 

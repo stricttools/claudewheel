@@ -1,6 +1,6 @@
 +++
 title = "Health Checks and Preflight"
-description = "How claudewheel's diagnostic health checks and pre-launch preflight steps work: what each check detects, the canonical hook wirings it requires (guardrails plus the session lifecycle recorders), how per-profile token data is read, the plan-declaration step, how to interpret the output, common problems and their fixes, and the reconciliation model."
+description = "How claudewheel's diagnostic health checks and pre-launch preflight steps work: what each check detects, the canonical hook wirings it requires (guardrails, the session lifecycle recorders, and the probe report hooks), the probe runner service, how per-profile token data is read, the plan-declaration step, how to interpret the output, common problems and their fixes, and the reconciliation model."
 nav_group = "Concepts"
 nav_order = 6
 +++
@@ -168,6 +168,18 @@ basename is in the hook script registry) are checked; user-custom hooks are
 ignored.
 
 Fix: `claudewheel patch-profiles`
+
+#### probe-runner
+
+Verifies the user service that reads OOM kills from the journal and queues
+the [probe reports](probes.md), `claudewheel-probe-runner.service`: its unit
+in `~/.config/systemd/user/` must be the one claudewheel deploys for the
+interpreter it runs under and the current workspace, and `systemctl --user`
+must report it enabled (so it starts again after a reboot) and active. The
+detail names what is wrong: not installed, a unit that differs, disabled, or
+not running.
+
+Fix: `claudewheel deploy-hooks claudewheel-probe-runner.service --force-overwrite`
 
 #### tokens
 
