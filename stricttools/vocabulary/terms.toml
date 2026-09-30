@@ -13,6 +13,10 @@ word = "miniclaude"
 meaning = "An alternative REPL client for Claude, offered alongside the official claude CLI in the launcher's client step."
 
 [[accepted]]
+word = "rewake"
+meaning = "Claude Code's asyncRewake: a background hook that exits 2 wakes the session with its output"
+
+[[accepted]]
 word = "saferm"
 meaning = "A file-deletion tool that archives a path with an audit trail before removing it, so it can be restored with 'saferm undelete'; profile delete uses it."
 
