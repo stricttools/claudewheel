@@ -59,6 +59,16 @@
     }
   ],
   "batch_limits": {
-    "exclusions": []
+    "exclusions": [
+      {
+        "reason": "one feature, the OOM kill reports and probes, built in nine commits (store, heavy description, runner, commands, hooks, service, overview column, wiring, docs); splitting the entry would split one feature",
+        "entries": [
+          {
+            "version": "unreleased",
+            "line": 34
+          }
+        ]
+      }
+    ]
   }
 }
