@@ -470,10 +470,14 @@ RULES: tuple[GuardrailRule, ...] = (
         "them once this machine has the memory for their cap and holds them to "
         "it: run 'heavy -- <the command>' instead, putting 'heavy --' "
         "directly before each heavy command in a compound line (for example "
-        "'cd x && heavy -- go test ./...'). For a job that needs more than the "
-        "default 5G, run 'heavy --mem 8G -- <the command>'; a smaller job, such "
-        "as a single test or a small build, starts sooner with a smaller cap, "
-        "such as 'heavy --mem 2G -- <the command>'.",
+        "'cd x && heavy -- go test ./...'). The cap is 5G unless --mem sets "
+        "another, and --mem comes from a measurement, never a guess: heavy "
+        "prints the peak memory use of the command's scope when the command "
+        "returns, so set --mem from that peak. When a command's need is not "
+        "known, measure it once with the largest cap that fits now, which "
+        "heavy names when a cap does not fit or a command is killed at its "
+        "cap. A command killed at its cap is a defect to fix at the source, "
+        "not a reason for a bigger cap.",
         coverage=SettingsCoverage.PARTIAL,
         reason=(
             "the deny globs cover the plain spellings only; the hook also "

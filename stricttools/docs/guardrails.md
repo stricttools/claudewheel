@@ -77,16 +77,21 @@ position, and tells the agent to run it through `heavy` instead:
 ```bash
 cd project && heavy -- go test ./...
 cd go/src && heavy -- ./all.bash
-heavy --mem 8G -- scripts/full-suite.sh
+heavy --mem 3G -- scripts/full-suite.sh   # 3G set from a measured peak
 ```
 
 Every heavy command declares its memory cap (`--mem`, 5G unless given), and
 `heavy` starts it only when that cap fits in a machine-wide memory budget, so
 heavy commands from every session run side by side as long as the memory is
-there and wait only when it is not. A job that needs less, such as a single
-test or a small build, starts sooner with a smaller cap
-(`heavy --mem 2G -- go test -run TestOne ./pkg`). The rule is checked when the command would
-start:
+there and wait only when it is not. A cap comes from a measurement, never a
+guess: `heavy` prints the peak memory use of the command's scope when the
+command returns, and `--mem` is set from that peak, so a job that needs less,
+such as a single test or a small build, starts sooner. A command whose need is
+not known is measured once with the largest cap that fits now, which `heavy`
+names when a cap does not fit or a command is killed at its cap, and a command
+killed at its cap is a defect to fix at the source, not a reason for a bigger
+cap. The rule's refusal says the same. The budget rule is checked when the
+command would start:
 
 - the budget is `MemAvailable` from `/proc/meminfo` less a 2G margin, which
   stays free for the desktop and the Claude sessions as they grow;

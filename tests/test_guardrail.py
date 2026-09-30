@@ -373,6 +373,28 @@ class HeavyUnwrappedRuleTests(unittest.TestCase):
         self.assertIn("heavy -- <the command>", advice)
         self.assertIn("--mem", advice)
 
+    def test_advice_sets_the_cap_from_a_measurement_never_a_guess(self) -> None:
+        advice = _rule("heavy-unwrapped").main_advice
+        assert advice is not None
+        # No ready-made cap: an agent copies whatever number it is shown.
+        self.assertIsNone(re.search(r"--mem [0-9]", advice), advice)
+        self.assertIn("--mem comes from a measurement, never a guess", advice)
+        self.assertIn(
+            "heavy prints the peak memory use of the command's scope when the "
+            "command returns",
+            advice,
+        )
+        self.assertIn(
+            "measure it once with the largest cap that fits now, which heavy "
+            "names when a cap does not fit",
+            advice,
+        )
+        self.assertIn(
+            "A command killed at its cap is a defect to fix at the source, not "
+            "a reason for a bigger cap",
+            advice,
+        )
+
 
 class SettingsCoverageTests(unittest.TestCase):
     """The settings_coverage annotation is honest and internally consistent.
