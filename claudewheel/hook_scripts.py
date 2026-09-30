@@ -11,7 +11,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from claudewheel import guardrail
+from claudewheel import guardrail, probe
 
 from . import effects
 
@@ -413,7 +413,8 @@ _HEAVY_SCRIPT = r"""#!/usr/bin/env bash
 # rather than a measurement may be measured, once, with the largest cap that
 # fits now, which heavy names, and then set from the peak that run reports.
 # When the command returns, heavy stops its scope, so whatever it left running
-# stops too.
+# stops too. The scope's description names the claudewheel session scope heavy
+# was started from, so an OOM kill of the command is reported to that session.
 #
 # GOFLAGS gets -p=2 (at most two Go packages built or tested at once) unless it
 # already sets -p; heavy prints a line when it adds it. heavy exits with the
@@ -522,6 +523,20 @@ unit="heavy-$$-$(date +%s).scope"
 # One line, as the slot note keeps it.
 command_line="$*"
 command_line=${command_line//$'\n'/ }
+
+# The claudewheel session scope heavy runs in, read from its own cgroup, goes
+# into the job scope's description. The journal keeps a scope's description in
+# its "Started" line after the scope is gone, which is how the probe runner
+# learns which session's job an OOM kill hit.
+session_scope=""
+while IFS= read -r cgroup_line; do
+    case "$cgroup_line" in 0::*) session_scope=${cgroup_line##*/} ;; esac
+done <"/proc/$$/cgroup"
+if [[ "$session_scope" =~ ^claudewheel-session-[0-9]+-[0-9]+\.scope$ ]]; then
+    description="heavy job of $session_scope: $command_line"
+else
+    description="heavy job outside any claudewheel session: $command_line"
+fi
 mkdir -p "$slots"
 
 # The kernel start time of a process (field 22 of /proc/PID/stat), which tells
@@ -736,6 +751,7 @@ run_in_scope() {
 # would otherwise expand $VAR and $$ in the command's own arguments.
 status=0
 systemd-run --user --scope --quiet --expand-environment=no --unit="$unit" \
+    --description="$description" \
     -p MemoryMax="$mem" -p MemorySwapMax=0 -p CPUWeight=20 \
     -- bash -c "$(declare -f peak_size run_in_scope)"'; run_in_scope "$@"' heavy "$mem" "$@" 8>&- \
     || status=$?
@@ -774,7 +790,7 @@ if [[ "$result" == oom-kill ]]; then
     if [[ "$peak" =~ ^[0-9]+$ ]]; then
         killed+=" (its scope peaked at $(peak_size "$peak") before the kill, page cache included)"
     fi
-    fix="do not rerun it with a bigger --mem: a command that outgrows its cap is a defect to fix at the source, so stop this line of work at a clean committed point, find where the memory goes (a heap profile, what is held at once, what is loaded that need not be), and cut it"
+    fix="do not rerun it with a bigger --mem: @OOM_KILL_FIX@"
     guess="if $mem was a guess rather than a measurement"
     exec 9>>"$lock"
     if ! flock -w 10 9; then
@@ -835,7 +851,10 @@ exit 0
     # Generated from the canonical guardrail model. See claudewheel/guardrail.py.
     "hook-block-unsafe-commands": guardrail.generate_blocker_script(),
     "hook-advise-commands": guardrail.generate_advise_script(),
-    "heavy": _HEAVY_SCRIPT,
+    # The kill message's fix is the one text every OOM report shares.
+    "heavy": _HEAVY_SCRIPT.replace(
+        "@OOM_KILL_FIX@", guardrail.bash_dquote_body(probe.OOM_KILL_FIX)
+    ),
 }
 
 # The deployed scripts that are commands an agent runs, not hooks Claude Code

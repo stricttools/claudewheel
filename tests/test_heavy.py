@@ -89,15 +89,21 @@ _WAIT_FOR_RELEASE = (
 )
 
 
-def _in_namespace(meminfo: Path, cgroup: Path | None, *argv: str) -> list[str]:
+def _in_namespace(
+    meminfo: Path, cgroup: Path | None, *argv: str, own_cgroup: Path | None = None
+) -> list[str]:
     """*argv* in its own user and mount namespace, with *meminfo* mounted over
-    /proc/meminfo and, when given, *cgroup* over /sys/fs/cgroup.
+    /proc/meminfo, when given, *cgroup* over /sys/fs/cgroup, and, when given,
+    *own_cgroup* over the process's own /proc/<pid>/cgroup.
 
-    unshare and bash exec in place, so the process started is *argv*'s own.
+    unshare and bash exec in place, so the process started is *argv*'s own,
+    and the pid whose cgroup file is covered is the one *argv* runs as.
     """
     mounts = 'mount --bind "$1" /proc/meminfo'
     if cgroup is not None:
         mounts += ' && mount --bind "$2" /sys/fs/cgroup'
+    if own_cgroup is not None:
+        mounts += ' && mount --bind "$3" /proc/$$/cgroup'
     return [
         "unshare",
         "--user",
@@ -105,10 +111,11 @@ def _in_namespace(meminfo: Path, cgroup: Path | None, *argv: str) -> list[str]:
         "--mount",
         "bash",
         "-c",
-        f'{mounts} && shift 2 && exec "$@"',
+        f'{mounts} && shift 3 && exec "$@"',
         "heavy-under-test",
         str(meminfo),
         str(cgroup or ""),
+        str(own_cgroup or ""),
         *argv,
     ]
 
@@ -401,15 +408,20 @@ class _HeavyRunCase(_DeployCase):
         listing.write_text("".join(f"{line}\n" for line in lines))
         self.env["STUB_SCOPES"] = str(listing)
 
-    def _argv(self, *args: str) -> list[str]:
+    def _argv(self, *args: str, own_cgroup: Path | None = None) -> list[str]:
         """heavy with *args*, under the fixed /proc/meminfo and cgroup tree."""
-        return _in_namespace(self.meminfo, self.cgroup, str(self.link), *args)
+        return _in_namespace(
+            self.meminfo, self.cgroup, str(self.link), *args, own_cgroup=own_cgroup
+        )
 
     def _heavy(
-        self, *args: str, env: dict[str, str] | None = None
+        self,
+        *args: str,
+        env: dict[str, str] | None = None,
+        own_cgroup: Path | None = None,
     ) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
-            self._argv(*args),
+            self._argv(*args, own_cgroup=own_cgroup),
             env={**self.env, **(env or {})},
             capture_output=True,
             text=True,
@@ -428,6 +440,42 @@ class HeavyBehaviorTests(_HeavyRunCase):
         lines = self._stub_lines()
         for expected in ("--user", "--scope", "MemoryMax=5G", "MemorySwapMax=0"):
             self.assertIn(expected, lines)
+
+    def test_the_scope_description_names_the_session_scope_heavy_ran_in(self) -> None:
+        """The journal keeps a scope's description after the scope is gone, so
+        the probe runner learns from it which session's job an OOM kill hit."""
+        own = Path(self._tmp.name) / "own-cgroup"
+        own.write_text(
+            "0::/user.slice/user-1000.slice/user@1000.service/app.slice/"
+            "claudewheel-session-4242-1790000000.scope\n"
+        )
+        proc = self._heavy("--", "echo", "hello", "world", own_cgroup=own)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn(
+            "--description=heavy job of claudewheel-session-4242-1790000000.scope: "
+            "echo hello world",
+            self._stub_lines(),
+        )
+
+    def test_the_scope_description_says_when_heavy_ran_outside_a_session(self) -> None:
+        own = Path(self._tmp.name) / "own-cgroup"
+        own.write_text("0::/user.slice/user-1000.slice/session-3.scope\n")
+        proc = self._heavy("--", "true", own_cgroup=own)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn(
+            "--description=heavy job outside any claudewheel session: true",
+            self._stub_lines(),
+        )
+
+    def test_the_description_is_what_the_probe_runner_parses(self) -> None:
+        from claudewheel.probe import HEAVY_DESCRIPTION_RE
+
+        match = HEAVY_DESCRIPTION_RE.match(
+            "heavy job of claudewheel-session-4242-1790000000.scope: echo hi"
+        )
+        assert match is not None
+        self.assertEqual(match.group(1), "claudewheel-session-4242-1790000000.scope")
+        self.assertEqual(match.group(2), "echo hi")
 
     def test_systemd_run_leaves_dollar_signs_alone(self) -> None:
         # systemd-run expands $VAR and $$ in the command line unless told not
@@ -539,6 +587,17 @@ class HeavyBehaviorTests(_HeavyRunCase):
         self.assertTrue(
             any(c.startswith("--user reset-failed heavy-") for c in calls), calls
         )
+
+    def test_the_kill_message_is_built_from_the_shared_oom_text(self) -> None:
+        """heavy's kill message and the probe reports share one text."""
+        from claudewheel.probe import OOM_KILL_FIX
+
+        self.assertEqual(HOOK_SCRIPTS["heavy"].count(OOM_KILL_FIX), 1)
+        proc = self._heavy(
+            "--", "bash", "-c", "exit 137", env={"STUB_RESULT": "oom-kill"}
+        )
+        kill = self._line(proc.stderr, "heavy: killed at")
+        self.assertIn(f"do not rerun it with a bigger --mem: {OOM_KILL_FIX}", kill)
 
     def test_a_memory_kill_names_no_peak_systemd_did_not_record(self) -> None:
         proc = self._heavy(

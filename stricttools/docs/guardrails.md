@@ -144,6 +144,11 @@ the memory outside `heavy` to be given back, and not to stop other programs to
 make room.
 
 The command runs in its own systemd user scope, named `heavy-<pid>-<time>.scope`,
+described as `heavy job of claudewheel-session-<pid>-<time>.scope: <command>`
+(the session scope `heavy` was started from, read from its own cgroup; `heavy
+job outside any claudewheel session: <command>` otherwise), which the journal
+keeps after the scope is gone, so an OOM kill of the command is reported to
+the session that started it (see [Probes](probes.md)). The scope is
 capped at 5G of memory with no swap (`--mem` sets another cap, a whole number
 with a `K`, `M`, `G`, or `T` suffix) and with `CPUWeight=20` (the default is
 100), so interactive work stays responsive; its arguments reach it unchanged,

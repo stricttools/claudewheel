@@ -881,7 +881,7 @@ def _bash_squote(s: str) -> str:
     return "'" + s.replace("'", "'\\''") + "'"
 
 
-def _bash_dquote_body(s: str) -> str:
+def bash_dquote_body(s: str) -> str:
     """Escape *s* for embedding INSIDE a bash double-quoted string.
 
     Returns only the body (no surrounding quotes). Escapes the four characters
@@ -966,9 +966,9 @@ def generate_blocker_script() -> str:
         lines.append(f"# {rule.key} (HARD_DENY)")
         lines.append(f"if {_match_condition(rule)}; then")
         lines.append('    if [[ -n "$agent_id" ]]; then')
-        lines.append(f'        deny "{_bash_dquote_body(rule.subagent_advice)}"')
+        lines.append(f'        deny "{bash_dquote_body(rule.subagent_advice)}"')
         lines.append("    else")
-        lines.append(f'        deny "{_bash_dquote_body(rule.main_advice)}"')
+        lines.append(f'        deny "{bash_dquote_body(rule.main_advice)}"')
         lines.append("    fi")
         lines.append("fi")
         lines.append("")
@@ -977,7 +977,7 @@ def generate_blocker_script() -> str:
         assert rule.subagent_advice is not None
         lines.append(f"# {rule.key} (ESCALATE, subagent-only)")
         lines.append(f'if [[ -n "$agent_id" ]] && ( {_match_condition(rule)} ); then')
-        lines.append(f'    deny "{_bash_dquote_body(rule.subagent_advice)}"')
+        lines.append(f'    deny "{bash_dquote_body(rule.subagent_advice)}"')
         lines.append("fi")
         lines.append("")
 
@@ -1030,7 +1030,7 @@ def generate_advise_script() -> str:
         assert rule.main_advice is not None
         lines.append(f"# {rule.key} (ADVISE)")
         lines.append(f"if {_match_condition(rule)}; then")
-        lines.append(f'    advise "{_bash_dquote_body(rule.main_advice)}"')
+        lines.append(f'    advise "{bash_dquote_body(rule.main_advice)}"')
         lines.append("fi")
         lines.append("")
 
