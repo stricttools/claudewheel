@@ -313,6 +313,25 @@ def _migration_7_drop_plan_permission(
         last_config["permissions"] = "default"
 
 
+def _migration_8_drop_session_memory_ceiling(
+    config: dict[str, Any],
+    segments_def: list[dict[str, Any]],
+    theme: dict[str, Any],
+    options_def: dict[str, Any],
+    state: dict[str, Any],
+) -> None:
+    """Drop session_memory_max and session_memory_swap_max.
+
+    They capped the one scope a session ran in, Claude Code included. A session
+    now runs uncapped and its Bash commands share tool_memory_max and
+    tool_memory_swap_max instead, which _migrate() adds with their defaults. A
+    value set for the old ceiling is not carried over: it capped something
+    else.
+    """
+    config.pop("session_memory_max", None)
+    config.pop("session_memory_swap_max", None)
+
+
 _MIGRATIONS: list[dict[str, Any]] = [
     {
         "version": 1,
@@ -348,6 +367,11 @@ _MIGRATIONS: list[dict[str, Any]] = [
         "version": 7,
         "description": "Drop the plan option from the permissions segment",
         "apply": _migration_7_drop_plan_permission,
+    },
+    {
+        "version": 8,
+        "description": "Drop the session memory ceiling for the tool memory cap",
+        "apply": _migration_8_drop_session_memory_ceiling,
     },
 ]
 

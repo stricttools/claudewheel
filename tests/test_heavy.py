@@ -463,6 +463,23 @@ class HeavyBehaviorTests(_HeavyRunCase):
             self._stub_lines(),
         )
 
+    def test_heavy_started_by_a_bash_command_names_its_session_scope(self) -> None:
+        """A Bash command runs in a tool scope inside the session's tools slice;
+        the tool scope's name carries the session scope's pid and launch time."""
+        own = Path(self._tmp.name) / "own-cgroup"
+        own.write_text(
+            "0::/user.slice/user-1000.slice/user@1000.service/claudewheel.slice/"
+            "claudewheel-4242_1790000000.slice/claudewheel-4242_1790000000-tools.slice/"
+            "claudewheel-tool-4242-1790000000-5150.scope\n"
+        )
+        proc = self._heavy("--", "echo", "hi", own_cgroup=own)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn(
+            "--description=heavy job of claudewheel-session-4242-1790000000.scope: "
+            "echo hi",
+            self._stub_lines(),
+        )
+
     def test_the_scope_description_says_when_heavy_ran_outside_a_session(self) -> None:
         own = Path(self._tmp.name) / "own-cgroup"
         own.write_text("0::/user.slice/user-1000.slice/session-3.scope\n")

@@ -88,7 +88,11 @@ class VanillaLaunchIntegrationTests(ClaudeDirWriteCanaryMixin, _VanillaTestBase)
         captured: dict[str, dict[str, str]] = {}
 
         def _capture(
-            cwd: str, argv: list[str], env: dict[str, str], scope: object
+            cwd: str,
+            argv: list[str],
+            env: dict[str, str],
+            cap: object,
+            scripts_dir: object,
         ) -> None:
             captured["env"] = env
 

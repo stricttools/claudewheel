@@ -144,8 +144,8 @@ class FakeAppConfigStore(AppConfigStore):
             "default_flags": [],
             "clients": {},
             "theme": "auto",
-            "session_memory_max": "4G",
-            "session_memory_swap_max": "1G",
+            "tool_memory_max": "6G",
+            "tool_memory_swap_max": "1G",
         }
         self.options_def: dict[str, Any] = {}
         self.state: dict[str, Any] = {}

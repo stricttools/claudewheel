@@ -63,8 +63,8 @@ description = "The journal cursor of the entry, so a restarted runner resumes af
 [types.OomKillEvent.fields.scope]
 type = "enum"
 required = true
-values = ["session", "heavy", "other"]
-description = "Which kind of unit it was: a claudewheel session scope, a heavy job's scope, or any other unit."
+values = ["session", "tool", "heavy", "other"]
+description = "Which kind of unit it was: a claudewheel session scope, the tool scope of one of a session's Bash commands, a heavy job's scope, or any other unit."
 
 [types.OomKillEvent.fields.session]
 type = "nullable"

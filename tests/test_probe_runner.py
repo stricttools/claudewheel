@@ -158,6 +158,24 @@ class AttributionTests(_RunnerCase):
         self.assertTrue(kill["label"].startswith(probe.OOM_KILL_LABEL))
         self.assertEqual(probe.read_kills(self.store), [kill])
 
+    def test_a_tool_scope_kill_is_reported_to_its_session(self) -> None:
+        self.started(S, 4242, LAUNCHED * 1000 + 1500)
+        kill = self.process(entry(f"claudewheel-tool-4242-{LAUNCHED}-5150.scope"))
+        assert kill is not None
+        self.assertEqual((kill["scope"], kill["session"]), ("tool", S))
+        self.assertIsNone(kill["command"])
+        self.assertIsNone(kill["unattributed"])
+        [item] = self.reports()
+        self.assertEqual((item.report.session, item.recipient), (S, "main"))
+        self.assertIn("Bash command", item.report.text)
+        self.assertEqual(probe.read_kills(self.store), [kill])
+
+    def test_a_tool_scope_the_store_cannot_map_is_unattributed(self) -> None:
+        kill = self.process(entry(f"claudewheel-tool-4242-{LAUNCHED}-5150.scope"))
+        assert kill is not None
+        self.assertEqual((kill["scope"], kill["session"]), ("tool", None))
+        self.assertIn("4242", kill["unattributed"])
+
     def test_a_heavy_kill_reaches_the_session_heavy_named(self) -> None:
         self.started(S, 4242, LAUNCHED * 1000 + 1500)
         self.descriptions[HEAVY] = f"heavy job of {SCOPE}: go test ./..."

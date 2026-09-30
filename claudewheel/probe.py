@@ -5,8 +5,9 @@ systemd's result term for a unit whose process the kernel's OOM killer killed
 -- in one Claude Code session or in all of them, until its deadline or an
 earlier stop, and reports each event to the sessions subscribed to it.
 Independently of any probe, every OOM kill of a command a session started (in
-its own session scope, or in a ``heavy`` scope it launched) is reported to that
-session; that report has no probe and no deadline.
+its own session scope, in the tool scope of one of its Bash commands, or in a
+``heavy`` scope it launched) is reported to that session; that report has no
+probe and no deadline.
 
 ``claudewheel-probe-runner.service`` (:mod:`claudewheel.probe_runner`) reads
 the kills from the user journal and writes the reports; two hook scripts hand
@@ -67,6 +68,11 @@ AGENT_RE = re.compile(r"^[0-9a-zA-Z_-]+$")
 # The scope claudewheel starts each session in (claudewheel.launch.do_launch):
 # the Claude Code process id, then the launch time in whole seconds.
 SESSION_SCOPE_RE = re.compile(r"^claudewheel-session-(\d+)-(\d+)\.scope$")
+
+# The scope each Bash command of a session runs in (the claudewheel-tool-scope
+# shell prefix): the session scope's Claude Code process id and launch time,
+# then the wrapper's own process id. It sits in the session's tools slice.
+TOOL_SCOPE_RE = re.compile(r"^claudewheel-tool-(\d+)-(\d+)-(\d+)\.scope$")
 
 # The scope heavy runs each job in.
 HEAVY_SCOPE_RE = re.compile(r"^heavy-(\d+)-(\d+)\.scope$")
@@ -573,16 +579,30 @@ def wake_waiter(store: ProbeStore, session: str) -> None:
 # ---------------------------------------------------------------------------
 
 
+def session_scope_of_unit(unit: str) -> str | None:
+    """The claudewheel session scope *unit* belongs to, or None.
+
+    A session scope is its own; a Bash command's tool scope names the session
+    scope's process id and launch time.
+    """
+    if SESSION_SCOPE_RE.match(unit):
+        return unit
+    match = TOOL_SCOPE_RE.match(unit)
+    if match is not None:
+        return f"claudewheel-session-{match.group(1)}-{match.group(2)}.scope"
+    return None
+
+
 def session_scope_of_cgroup(cgroup_text: str) -> str | None:
     """The claudewheel session scope a /proc/<pid>/cgroup file places a process in.
 
-    The unified hierarchy's line (``0::<path>``) is read; the scope is the
-    path's last element when it is a session scope, and None otherwise.
+    The unified hierarchy's line (``0::<path>``) is read; its last element is
+    the session scope itself (Claude Code and its hooks) or one of the
+    session's tool scopes (its Bash commands). None for anything else.
     """
     for line in cgroup_text.splitlines():
         if line.startswith("0::"):
-            name = line[3:].rstrip("/").rsplit("/", 1)[-1]
-            return name if SESSION_SCOPE_RE.match(name) else None
+            return session_scope_of_unit(line[3:].rstrip("/").rsplit("/", 1)[-1])
     return None
 
 
@@ -646,8 +666,10 @@ def what_was_killed(kill: Mapping[str, Any]) -> str:
     if kill["scope"] == "heavy":
         command = kill["command"] or "(command not recorded)"
         return f"the heavy job `{command}` in {kill['unit']} was killed at its memory cap at {when}"
+    if kill["scope"] == "tool":
+        return f"a process of the Bash command in {kill['unit']} was killed at {when}"
     if kill["scope"] == "session":
-        return f"a process in the session scope {kill['unit']} was killed at the session's memory ceiling at {when}"
+        return f"a process in the session scope {kill['unit']} was killed at {when}"
     return f"a process in {kill['unit']} was killed at {when}"
 
 
@@ -718,9 +740,9 @@ def now_ms() -> int:
 def resolve_session(lifecycle_dir: Path, cgroup_text: str, *, at_ms: int) -> str:
     """The Claude Code session the calling process belongs to, from its own cgroup.
 
-    Refused outside a claudewheel session scope, naming the fix: a probe
-    command is run from a Bash tool call of a session claudewheel launched,
-    whose commands run inside the session's scope.
+    Refused outside a claudewheel session, naming the fix: a probe command is
+    run from a Bash tool call of a session claudewheel launched, whose Bash
+    commands run in tool scopes that name the session's scope.
     """
     scope = session_scope_of_cgroup(cgroup_text)
     if scope is None:
@@ -732,7 +754,8 @@ def resolve_session(lifecycle_dir: Path, cgroup_text: str, *, at_ms: int) -> str
             "a probe command learns its session from its own cgroup, and this "
             f"process runs outside any claudewheel session scope (its cgroup is "
             f"{where}); run it from a Bash tool call of a Claude Code session "
-            "claudewheel launched, whose commands run in the session's scope "
+            "claudewheel launched, whose commands run in scopes named "
+            "claudewheel-tool-<pid>-<time>-<n>.scope after the session's "
             "claudewheel-session-<pid>-<time>.scope, and not through heavy, "
             "which runs its command in a scope of its own"
         )

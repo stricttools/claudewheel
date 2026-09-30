@@ -229,6 +229,22 @@ class SessionScopeTests(_StoreCase):
         )
         self.assertIsNone(probe.session_scope_of_cgroup("1:name=systemd:/x\n"))
 
+    def test_a_tool_scope_names_its_session_scope(self) -> None:
+        text = (
+            "0::/user.slice/user-1000.slice/user@1000.service/claudewheel.slice/"
+            "claudewheel-1546646_1790714551.slice/"
+            "claudewheel-1546646_1790714551-tools.slice/"
+            "claudewheel-tool-1546646-1790714551-99.scope\n"
+        )
+        self.assertEqual(
+            probe.session_scope_of_cgroup(text),
+            "claudewheel-session-1546646-1790714551.scope",
+        )
+        self.assertIsNone(probe.session_scope_of_unit("claudewheel-tool-1-2.scope"))
+        self.assertIsNone(
+            probe.session_scope_of_unit("claudewheel-1546646_1790714551-tools.slice")
+        )
+
     def test_the_newest_session_the_pid_started_since_launch_is_the_one(self) -> None:
         launched = 1_790_000_000
         self.started(OTHER, 4242, launched * 1000 - 5_000)  # an earlier process
@@ -281,6 +297,19 @@ class TextTests(unittest.TestCase):
         text = probe.probe_kill_text("aaaaaaaaaaaaaaaa", PROBE, self.KILL)
         self.assertIn(f"Probe {PROBE}", text)
         self.assertIn(SESSION, text)
+
+    def test_a_tool_scope_kill_names_the_bash_command_scope(self) -> None:
+        kill = {
+            **self.KILL,
+            "unit": "claudewheel-tool-4242-1790000000-99.scope",
+            "scope": "tool",
+            "command": None,
+        }
+        self.assertIn(
+            "a process of the Bash command in "
+            "claudewheel-tool-4242-1790000000-99.scope was killed at",
+            probe.own_kill_text("aaaaaaaaaaaaaaaa", kill),
+        )
 
     def test_the_label_leads_with_the_label_and_carries_the_shared_fix(self) -> None:
         text = probe.kill_label(self.KILL)

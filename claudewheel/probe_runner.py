@@ -72,7 +72,7 @@ def _digest_id(*parts: str) -> str:
 
 @dataclass(frozen=True)
 class Attribution:
-    scope: str  # "session" | "heavy" | "other"
+    scope: str  # "session" | "tool" | "heavy" | "other"
     session: str | None
     command: str | None
     unattributed: str | None
@@ -120,6 +120,12 @@ def attribute(
     if probe.SESSION_SCOPE_RE.match(unit):
         session, why = probe.session_for_scope(lifecycle_dir, unit, at_ms=killed_at_ms)
         return Attribution("session", session, None, why or None)
+    if probe.TOOL_SCOPE_RE.match(unit):
+        # A Bash command's scope names its session scope.
+        scope = probe.session_scope_of_unit(unit)
+        assert scope is not None
+        session, why = probe.session_for_scope(lifecycle_dir, scope, at_ms=killed_at_ms)
+        return Attribution("tool", session, None, why or None)
     if probe.HEAVY_SCOPE_RE.match(unit):
         description = describe(unit)
         if description is None:
@@ -154,7 +160,7 @@ def attribute(
         "other",
         None,
         None,
-        f"{unit} is neither a claudewheel session scope nor a heavy scope",
+        f"{unit} is neither a claudewheel session or tool scope nor a heavy scope",
     )
 
 

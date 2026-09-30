@@ -162,7 +162,7 @@ def _do_launch_sequence(
     """Run health check, hooks, save state, resolve, and exec. Does not return on success."""
     from .health import run_health_check, print_health_report
     from .hooks import run_hooks
-    from .launch import SessionScope, resolve_launch_config, do_launch
+    from .launch import ToolCap, do_launch, resolve_launch_config
     from .state import record_inode, save_launch_state
 
     if interactive and cfg.config.get("health_check_on_launch", True):
@@ -223,12 +223,12 @@ def _do_launch_sequence(
             passthrough=passthrough,
             lifecycle_dir=ws.shared.lifecycle_dir,
         )
-        # A malformed memory ceiling in config.json is a ValueError too.
-        scope = SessionScope.from_config(cfg.config)
+        # A malformed memory cap in config.json is a ValueError too.
+        cap = ToolCap.from_config(cfg.config)
         # Nothing is written into the profile's config dir here. The plan-tier
         # fields reach Claude Code through the launch environment (see
         # ProfileStore.env); a launch never touches its .credentials.json.
-        do_launch(cwd, argv, env, scope)
+        do_launch(cwd, argv, env, cap, ws.scripts_dir)
     except ValueError as e:
         print(f"Launch failed: {e}", file=sys.stderr)
         sys.exit(1)
@@ -958,8 +958,9 @@ _WOULD_LINK = {"linked": "would link", "relinked": "would relink"}
 def _handle_deploy_hooks(
     ws: "Workspace", name: str | None, all: bool | None, force_overwrite: bool | None
 ) -> int:
-    """Deploy built-in hook scripts to the scripts directory, and link the
-    deployed PATH commands (the heavy wrapper) into the bin directory.
+    """Deploy built-in hook scripts, heavy, and the shell prefix to the scripts
+    directory, and link the deployed PATH commands (the heavy wrapper) into the
+    bin directory.
 
     "Name one script or pass --all" is half a declaration and half a handler
     rule, and the split is the framework's own boundary: the at-least-one half
@@ -2756,7 +2757,7 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
     app.command(
         "deploy-hooks",
         effect="mutating",
-        help="deploy built-in hook scripts and the heavy wrapper to the ~/.claudewheel/scripts/ directory, linking heavy into ~/.local/bin so it is on PATH, and install the probe runner's user service (claudewheel-probe-runner.service, in ~/.config/systemd/user), enabled and started; systemctl --user stop claudewheel-probe-runner.service stops it gracefully",
+        help="deploy built-in hook scripts, the heavy wrapper, and claudewheel-tool-scope (the shell prefix every launched session runs its commands through; a launch deploys it when it is missing) to the ~/.claudewheel/scripts/ directory, linking heavy into ~/.local/bin so it is on PATH, and install the probe runner's user service (claudewheel-probe-runner.service, in ~/.config/systemd/user), enabled and started; systemctl --user stop claudewheel-probe-runner.service stops it gracefully",
         args=[
             Arg(
                 name="name",

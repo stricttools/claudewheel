@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import json
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
@@ -24,6 +25,12 @@ def cgroup_of(scope: str) -> str:
 SCOPE_S = cgroup_of(f"claudewheel-session-4242-{LAUNCHED}.scope")
 SCOPE_T = cgroup_of(f"claudewheel-session-7777-{LAUNCHED}.scope")
 OUTSIDE = cgroup_of("heavy-1-2.scope")
+# A Bash command of session S: its tool scope, in the session's tools slice.
+TOOL_S = (
+    "0::/user.slice/user-1000.slice/user@1000.service/claudewheel.slice/"
+    f"claudewheel-4242_{LAUNCHED}.slice/claudewheel-4242_{LAUNCHED}-tools.slice/"
+    f"claudewheel-tool-4242-{LAUNCHED}-5150.scope\n"
+)
 
 
 class _CliCase(unittest.TestCase):
@@ -169,6 +176,14 @@ class CreateTests(_CliCase):
         self.assertIn("Bash tool call", err)
         # The fix: the same command from inside a session scope.
         self.create("--all-sessions", cgroup=SCOPE_S)
+
+    def test_a_bash_command_in_its_tool_scope_is_its_sessions(self) -> None:
+        # Every Bash command of a launched session runs in a tool scope, which
+        # names the session scope.
+        self.create("--all-sessions", cgroup=TOOL_S)
+        [probe_file] = sorted(self.store.probes_dir.glob("*.jsonl"))
+        created = json.loads(probe_file.read_text().splitlines()[0])
+        self.assertEqual(created["session"], S)
 
     def test_a_scope_the_lifecycle_store_does_not_know_is_refused(self) -> None:
         code, _, err = self.run_cli(

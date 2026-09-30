@@ -192,29 +192,38 @@ def resolve_launch_config(
 # heavy's --mem is: a whole number with a K, M, G, or T suffix.
 _SIZE = re.compile(r"[1-9][0-9]*[KMGT]")
 
+# The environment the claudewheel-tool-scope shell prefix reads.
+TOOL_ENV_KEYS: tuple[str, ...] = (
+    "CLAUDE_CODE_SHELL_PREFIX",
+    "CLAUDEWHEEL_TOOL_SLICE",
+    "CLAUDEWHEEL_SESSION_SCOPE",
+    "CLAUDEWHEEL_TOOL_MEMORY_MAX",
+    "CLAUDEWHEEL_TOOL_MEMORY_SWAP_MAX",
+)
+
 
 @dataclass(frozen=True)
-class SessionScope:
-    """The memory ceiling of the systemd user scope a launched session runs in.
+class ToolCap:
+    """The memory cap a launched session's Bash commands share.
 
-    Read from config.json's ``session_memory_max`` and
-    ``session_memory_swap_max``. The scope keeps a command that runs away
-    inside the session (one no guardrail routed through ``heavy``) from taking
-    more than the session's ceiling; ``heavy`` scopes started from inside the
-    session land beside it in the user manager's slice, so they are limited by
-    their own caps and never counted against this one.
+    Read from config.json's ``tool_memory_max`` and ``tool_memory_swap_max``.
+    Claude Code itself is not capped: every Bash command the session runs, and
+    everything that command starts, runs in the session's tools slice, which
+    caps them together, so a runaway command is killed while the session goes
+    on (see :class:`SessionUnits`). ``heavy`` jobs run in scopes of their own
+    outside the slice, limited by their own caps and never counted against it.
     """
 
     memory_max: str
     memory_swap_max: str
 
     @classmethod
-    def from_config(cls, config: dict[str, Any]) -> "SessionScope":
-        """The ceiling config.json declares; a missing or malformed value raises ValueError."""
+    def from_config(cls, config: dict[str, Any]) -> "ToolCap":
+        """The cap config.json declares; a missing or malformed value raises ValueError."""
         values: list[str] = []
         for key, zero_allowed in (
-            ("session_memory_max", False),
-            ("session_memory_swap_max", True),
+            ("tool_memory_max", False),
+            ("tool_memory_swap_max", True),
         ):
             if key not in config:
                 raise ValueError(
@@ -228,23 +237,63 @@ class SessionScope:
                 zero = ", or 0 for none" if zero_allowed else ""
                 raise ValueError(
                     f"config.json {key} takes a whole number with a K, M, G, or "
-                    f"T suffix (such as 4G){zero}, not {value!r}"
+                    f"T suffix (such as 6G){zero}, not {value!r}"
                 )
             values.append(value)
         return cls(values[0], values[1])
 
-    def argv(self, systemd_run: str, unit: str, client_argv: list[str]) -> list[str]:
-        """*client_argv* started inside the scope named *unit*.
+
+# A session slice claudewheel.launch starts sessions in.
+SESSION_SLICE_RE = re.compile(r"^claudewheel-(\d+)_(\d+)\.slice$")
+
+
+@dataclass(frozen=True)
+class SessionUnits:
+    """The systemd user units one launched session runs in.
+
+    Named from the Claude Code process id (the launcher's own, which the exec
+    keeps) and the launch second::
+
+        claudewheel.slice
+          claudewheel-<pid>_<time>.slice               the session, uncapped
+            claudewheel-session-<pid>-<time>.scope     Claude Code and its hooks
+            claudewheel-<pid>_<time>-tools.slice       the ToolCap, shared
+              claudewheel-tool-<pid>-<time>-<n>.scope  one Bash command each
+
+    A slice's dashes name its parents, so the tools slice sits inside the
+    session slice by its name alone. The launcher starts the session scope;
+    the claudewheel-tool-scope shell prefix creates the tools slice with its
+    cap at the session's first Bash command and starts each tool scope.
+    """
+
+    pid: int
+    launched: int
+
+    @property
+    def session_slice(self) -> str:
+        return f"claudewheel-{self.pid}_{self.launched}.slice"
+
+    @property
+    def session_scope(self) -> str:
+        return f"claudewheel-session-{self.pid}-{self.launched}.scope"
+
+    @property
+    def tool_slice(self) -> str:
+        return f"claudewheel-{self.pid}_{self.launched}-tools.slice"
+
+    def argv(self, systemd_run: str, client_argv: list[str]) -> list[str]:
+        """*client_argv* started inside the session scope, in the session slice.
 
         ``--scope`` makes systemd-run exec the client in place, so the session
         keeps this process's PID, terminal, and environment. ``--collect``
         unloads the scope when it ends, failed or not, so none accumulate.
         ``--expand-environment=no`` passes the client's arguments through as
         they are: systemd-run would otherwise expand ``$VAR`` and ``$$`` in
-        them, rewriting a prompt that mentions a price.
-        ``OOMPolicy=continue`` keeps the session alive when the kernel kills
-        the largest process at the ceiling (the runaway, not Claude Code):
-        without it systemd stops the whole scope on the first kill.
+        them, rewriting a prompt that mentions a price. The scope has no
+        memory cap. ``OOMPolicy=continue`` keeps the session alive when the
+        kernel kills one of its processes (a hook, say) because the machine ran
+        out of memory: without it systemd stops the whole scope on the first
+        kill.
         """
         return [
             systemd_run,
@@ -253,45 +302,157 @@ class SessionScope:
             "--quiet",
             "--collect",
             "--expand-environment=no",
-            f"--unit={unit}",
-            "-p",
-            f"MemoryMax={self.memory_max}",
-            "-p",
-            f"MemorySwapMax={self.memory_swap_max}",
+            f"--slice={self.session_slice}",
+            f"--unit={self.session_scope}",
             "-p",
             "OOMPolicy=continue",
             "--",
             *client_argv,
         ]
 
+    def env(self, cap: ToolCap, prefix: Path) -> dict[str, str]:
+        """What the session's environment carries for the shell prefix."""
+        return {
+            "CLAUDE_CODE_SHELL_PREFIX": str(prefix),
+            "CLAUDEWHEEL_TOOL_SLICE": self.tool_slice,
+            "CLAUDEWHEEL_SESSION_SCOPE": self.session_scope,
+            "CLAUDEWHEEL_TOOL_MEMORY_MAX": cap.memory_max,
+            "CLAUDEWHEEL_TOOL_MEMORY_SWAP_MAX": cap.memory_swap_max,
+        }
+
+
+# A session slice younger than this is never swept: its session scope may not
+# have its process in it yet.
+SWEEP_AFTER_SECONDS = 60
+
+# Where the cgroup v2 hierarchy is mounted.
+CGROUP_ROOT = Path("/sys/fs/cgroup")
+
+
+def sweep_ended_sessions(*, now: float) -> list[str]:
+    """Stop the slices of sessions that ended; return the ones stopped.
+
+    systemd keeps an empty slice active until it is stopped, so each ended
+    session would leave its session slice and tools slice behind. A session
+    slice holds its Claude Code process for as long as the session lives and
+    each Bash command for as long as it runs, so an empty one belongs to a
+    session that ended with nothing left running; stopping it stops its tools
+    slice too and ends no process. A slice launched less than
+    ``SWEEP_AFTER_SECONDS`` ago is left alone. Sessions launched before
+    claudewheel started them in slices run in no slice of this form and are
+    never touched.
+    """
+    listing = effects.run(
+        [
+            "systemctl",
+            "--user",
+            "list-units",
+            "--type=slice",
+            "--state=active",
+            "--plain",
+            "--no-legend",
+            "claudewheel-*.slice",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=10,
+        read=True,
+    )
+    candidates = []
+    for line in (listing.stdout or "").splitlines():
+        fields = line.split()
+        if not fields:
+            continue
+        match = SESSION_SLICE_RE.match(fields[0])
+        if match and int(match.group(2)) <= now - SWEEP_AFTER_SECONDS:
+            candidates.append(fields[0])
+    stopped = []
+    for name in candidates:
+        shown = effects.run(
+            ["systemctl", "--user", "show", "-P", "ControlGroup", name],
+            capture_output=True,
+            text=True,
+            timeout=10,
+            read=True,
+        )
+        cgroup = (shown.stdout or "").strip()
+        if not cgroup.startswith("/"):
+            continue
+        try:
+            events = (CGROUP_ROOT / cgroup.lstrip("/") / "cgroup.events").read_text()
+        except OSError:
+            continue
+        if "populated 0" not in events.splitlines():
+            continue
+        effects.run(
+            ["systemctl", "--user", "stop", name],
+            capture_output=True,
+            timeout=30,
+        )
+        stopped.append(name)
+    return stopped
+
 
 def do_launch(
-    cwd: str, argv: list[str], env: dict[str, str], scope: SessionScope
+    cwd: str,
+    argv: list[str],
+    env: dict[str, str],
+    cap: ToolCap,
+    scripts_dir: Path,
 ) -> Any:
-    """Change to directory and exec the client inside its session scope. Does not return.
+    """Change to directory and exec the client inside its session units. Does not return.
 
-    systemd-run is looked up on the launch environment's PATH, the one the
-    exec searches; without it the launch fails with an OSError rather than
-    starting a session with no ceiling. The ceiling is printed to stderr, which
-    print mode keeps apart from its answer on stdout.
+    The client runs every shell command through the claudewheel-tool-scope
+    script in *scripts_dir* (CLAUDE_CODE_SHELL_PREFIX); the launch adds it and
+    the names it reads to *env*, and deploys it when it is missing, as the
+    reconcile deploys a missing hook script. Every hook and Bash call of the
+    session would fail without it, so one that cannot be run fails the launch,
+    as does a systemd-run missing from the launch environment's PATH, the one
+    the exec searches: no session starts without its units. The empty slices
+    of ended sessions are stopped first (:func:`sweep_ended_sessions`). The
+    layout and the cap are printed to stderr, which print mode keeps apart
+    from its answer on stdout.
 
     Under ``--dry-run`` there is nothing to replace this process with: the exec
     is recorded and the carrier standing in for it is returned, so the dispatch
     can finish and the would-do log can render.
     """
+    from .hook_scripts import TOOL_SCOPE_SCRIPT, deploy_scripts
+
     systemd_run = shutil.which("systemd-run", path=env.get("PATH", os.defpath))
     if systemd_run is None:
         raise OSError(
-            "systemd-run is not on PATH; claudewheel starts every session in its "
-            "own systemd user scope, capped at session_memory_max from config.json"
+            "systemd-run is not on PATH; claudewheel starts every session in "
+            "systemd user units, its Bash commands capped together at "
+            "tool_memory_max from config.json"
         )
-    unit = f"claudewheel-session-{os.getpid()}-{int(time.time())}.scope"
+    prefix = scripts_dir / TOOL_SCOPE_SCRIPT
+    if any(c.isspace() for c in str(prefix)):
+        raise ValueError(
+            f"the shell prefix {prefix} has whitespace in its path, which Claude "
+            "Code would split; claudewheel's scripts directory needs a path "
+            "without it"
+        )
+    if not prefix.exists():
+        deploy_scripts([TOOL_SCOPE_SCRIPT], scripts_dir)
+    if not effects.previewing() and not os.access(prefix, os.X_OK):
+        raise OSError(
+            f"{prefix} is not executable; it is the shell prefix every command "
+            "of the session runs through: redeploy it with 'claudewheel "
+            f"deploy-hooks {TOOL_SCOPE_SCRIPT} --force-overwrite'"
+        )
+    sweep_ended_sessions(now=time.time())
+    units = SessionUnits(os.getpid(), int(time.time()))
     print(
-        f"claudewheel: this session runs in {unit}, capped at "
-        f"{scope.memory_max} of memory and {scope.memory_swap_max} of swap "
-        "(session_memory_max and session_memory_swap_max in config.json)",
+        f"claudewheel: this session runs in {units.session_scope}, not memory-"
+        f"capped; its Bash commands run in {units.tool_slice}, capped together "
+        f"at {cap.memory_max} of memory and {cap.memory_swap_max} of swap "
+        "(tool_memory_max and tool_memory_swap_max in config.json)",
         file=sys.stderr,
     )
     return effects.exec_replace(
-        cwd, scope.argv(systemd_run, unit, argv), env, grant="exec-client"
+        cwd,
+        units.argv(systemd_run, argv),
+        {**env, **units.env(cap, prefix)},
+        grant="exec-client",
     )
