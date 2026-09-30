@@ -9,7 +9,7 @@ nav_order = 2
 
 # c deploy-hooks
 
-deploy built-in hook scripts and the heavy wrapper to the ~/.claudewheel/scripts/ directory, linking heavy into ~/.local/bin so it is on PATH, and install the probe runner's user service (claudewheel-probe-runner.service, in ~/.config/systemd/user), enabled and started; systemctl --user stop claudewheel-probe-runner.service stops it gracefully
+deploy built-in hook scripts, the heavy wrapper, and claudewheel-tool-scope (the shell prefix every launched session runs its commands through; a launch deploys it when it is missing) to the ~/.claudewheel/scripts/ directory, linking heavy into ~/.local/bin so it is on PATH, and install the probe runner's user service (claudewheel-probe-runner.service, in ~/.config/systemd/user), enabled and started; systemctl --user stop claudewheel-probe-runner.service stops it gracefully
 
 **Effect:** mutating
 

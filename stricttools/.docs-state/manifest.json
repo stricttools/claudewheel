@@ -1070,6 +1070,11 @@
         },
         {
           "level": 3,
+          "text": "`_migration_8_drop_session_memory_ceiling`",
+          "anchor": "_migration_8_drop_session_memory_ceiling"
+        },
+        {
+          "level": 3,
           "text": "`resolve_theme_name`",
           "anchor": "resolve_theme_name"
         },
@@ -2031,8 +2036,8 @@
         },
         {
           "level": 3,
-          "text": "`SessionScope`",
-          "anchor": "sessionscope"
+          "text": "`ToolCap`",
+          "anchor": "toolcap"
         },
         {
           "level": 4,
@@ -2040,9 +2045,39 @@
           "anchor": "from_config"
         },
         {
+          "level": 3,
+          "text": "`SessionUnits`",
+          "anchor": "sessionunits"
+        },
+        {
+          "level": 4,
+          "text": "`session_slice`",
+          "anchor": "session_slice"
+        },
+        {
+          "level": 4,
+          "text": "`session_scope`",
+          "anchor": "session_scope"
+        },
+        {
+          "level": 4,
+          "text": "`tool_slice`",
+          "anchor": "tool_slice"
+        },
+        {
           "level": 4,
           "text": "`argv`",
           "anchor": "argv"
+        },
+        {
+          "level": 4,
+          "text": "`env`",
+          "anchor": "env"
+        },
+        {
+          "level": 3,
+          "text": "`sweep_ended_sessions`",
+          "anchor": "sweep_ended_sessions"
         },
         {
           "level": 3,
@@ -2844,6 +2879,11 @@
           "level": 3,
           "text": "`wake_waiter`",
           "anchor": "wake_waiter"
+        },
+        {
+          "level": 3,
+          "text": "`session_scope_of_unit`",
+          "anchor": "session_scope_of_unit"
         },
         {
           "level": 3,
@@ -7092,8 +7132,8 @@
         },
         {
           "level": 2,
-          "text": "A memory ceiling for each session",
-          "anchor": "a-memory-ceiling-for-each-session"
+          "text": "A memory cap each session's commands share",
+          "anchor": "a-memory-cap-each-sessions-commands-share"
         },
         {
           "level": 2,
@@ -7649,10 +7689,14 @@
     }
   ],
   "posts": [],
-  "last_gen": "2026-09-30T13:31:32.954685+00:00",
+  "last_gen": "2026-09-30T16:05:13.875485+00:00",
   "theme": "minimal",
   "vocabulary": {
     "accepted": [
+      {
+        "word": "cgroup",
+        "aliases": []
+      },
       {
         "word": "claudewheel",
         "aliases": []
@@ -7662,11 +7706,23 @@
         "aliases": []
       },
       {
+        "word": "rewake",
+        "aliases": []
+      },
+      {
         "word": "saferm",
         "aliases": []
       },
       {
+        "word": "strictspec",
+        "aliases": []
+      },
+      {
         "word": "tsv",
+        "aliases": []
+      },
+      {
+        "word": "unrouted",
         "aliases": []
       }
     ],
