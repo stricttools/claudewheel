@@ -4,7 +4,7 @@ Deleting a profile used to be a removal loop: unlink the shared-store symlinks,
 remove every real child, rmdir the directory.  What went that way was gone --
 ``settings.json``, ``.credentials.json`` and the profile's own stored OAuth
 token among it.  Deletion now hands the whole directory to `saferm
-<https://github.com/smm-h/saferm>`_ instead, which archives it and then removes
+<https://github.com/stricttools/saferm>`_ instead, which archives it and then removes
 it, so the same operation is recoverable with one ``saferm undelete``.
 
 What this module owns
@@ -88,7 +88,7 @@ PROBE_TIMEOUT = 15.0
 ARCHIVE_TIMEOUT = 1800.0
 
 #: Where the release assets and their checksum manifest live.
-RELEASE_BASE = "https://github.com/smm-h/saferm/releases/latest/download"
+RELEASE_BASE = "https://github.com/stricttools/saferm/releases/latest/download"
 
 #: Timeouts for the two halves of an install.
 MANIFEST_TIMEOUT = 30.0
@@ -97,7 +97,7 @@ DOWNLOAD_TIMEOUT = 300.0
 #: What to tell a user, or a machine, to run.  Ordered as claudewheel would
 #: install it first, then the ecosystem's own channels.
 INSTALL_COMMANDS = (
-    "go install github.com/smm-h/saferm@v0",
+    "go install github.com/stricttools/saferm@v0",
     "npm install -g saferemove",
     "uv tool install saferm",
     "brew install smm-h/tap/saferm",

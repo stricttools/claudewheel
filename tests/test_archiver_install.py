@@ -179,7 +179,7 @@ class CliOfferTests(SandboxHomeTestCase):
         found, out, _err = self._resolve(tty=True, answer="n")
         self.assertIsInstance(found, Unavailable)
         self.assertIn("was not deleted", out)
-        self.assertIn("go install github.com/smm-h/saferm@v0", out)
+        self.assertIn("go install github.com/stricttools/saferm@v0", out)
 
     def test_the_offer_states_the_stakes_before_it_asks(self) -> None:
         _found, out, _err = self._resolve(tty=True, answer="n")
@@ -302,7 +302,7 @@ class TuiOfferTests(SandboxHomeTestCase):
         run_selection.assert_not_called()
         lines = "\n".join(show_page.call_args.args[1])
         self.assertIn("--dry-run", lines)
-        self.assertIn("go install github.com/smm-h/saferm@v0", lines)
+        self.assertIn("go install github.com/stricttools/saferm@v0", lines)
 
     def test_a_declined_offer_aborts_and_names_the_install(self) -> None:
         app = self._app()
@@ -321,7 +321,7 @@ class TuiOfferTests(SandboxHomeTestCase):
             self.assertIsNone(app._resolve_archiver("work"))
         install.assert_not_called()
         lines = "\n".join(show_page.call_args.args[1])
-        self.assertIn("go install github.com/smm-h/saferm@v0", lines)
+        self.assertIn("go install github.com/stricttools/saferm@v0", lines)
 
     def test_the_offer_never_lists_an_option_that_deletes_anyway(self) -> None:
         app = self._app()

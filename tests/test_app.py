@@ -2312,7 +2312,7 @@ class ProfileDeleteKeyTests(unittest.TestCase):
         self.assertEqual(seg.value, "work")
         lines = "\n".join(show_page.call_args.args[1])
         self.assertIn("saferm", lines)
-        self.assertIn("go install github.com/smm-h/saferm@v0", lines)
+        self.assertIn("go install github.com/stricttools/saferm@v0", lines)
 
     def test_the_abort_page_states_what_deleting_without_it_would_cost(self) -> None:
         seg = _make_profile_segment(discovered=["work"])

@@ -550,7 +550,7 @@ single feature are one situation with one remedy:
 Installing it yourself works just as well:
 
 ```bash
-go install github.com/smm-h/saferm@v0
+go install github.com/stricttools/saferm@v0
 npm install -g saferemove
 uv tool install saferm
 brew install smm-h/tap/saferm

@@ -260,12 +260,12 @@ class UnavailableMessageTests(unittest.TestCase):
     def test_both_wordings_name_saferm_and_the_install(self) -> None:
         for message in self._messages() + self._messages(previewing=True):
             self.assertIn("saferm", message)
-            self.assertIn("go install github.com/smm-h/saferm@v0", message)
+            self.assertIn("go install github.com/stricttools/saferm@v0", message)
 
     def test_the_headless_message_names_saferm_and_the_install(self) -> None:
         for message in self._messages():
             self.assertIn("saferm", message)
-            self.assertIn("go install github.com/smm-h/saferm@v0", message)
+            self.assertIn("go install github.com/stricttools/saferm@v0", message)
 
     def test_the_headless_message_states_irreversibility(self) -> None:
         for message in self._messages():

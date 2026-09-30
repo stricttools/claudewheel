@@ -2524,7 +2524,7 @@ class DeleteWithoutSafermTests(unittest.TestCase):
 
     def test_the_message_names_the_install_remedy(self) -> None:
         _code, err, _store = self._refuse()
-        self.assertIn("go install github.com/smm-h/saferm@v0", err)
+        self.assertIn("go install github.com/stricttools/saferm@v0", err)
 
     def test_the_message_never_teaches_an_override(self) -> None:
         """There is deliberately no flag that deletes without the archive."""
