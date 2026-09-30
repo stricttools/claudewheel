@@ -1,6 +1,6 @@
 +++
 title = "API Reference"
-description = "API reference index for claudewheel covering 60 modules"
+description = "API reference index for claudewheel covering 66 modules"
 generated = true
 seeded = true
 nav_group = "API Reference"
@@ -40,6 +40,8 @@ nav_order = 90
 - [claudewheel.permission](../claudewheel-permission/)
 - [claudewheel.plugins](../claudewheel-plugins/)
 - [claudewheel.preflight](../claudewheel-preflight/)
+- [claudewheel.probe](../claudewheel-probe/)
+- [claudewheel.probe_runner](../claudewheel-probe_runner/)
 - [claudewheel.processes](../claudewheel-processes/)
 - [claudewheel.profile](../claudewheel-profile/)
 - [claudewheel.profile_data](../claudewheel-profile_data/)
@@ -63,6 +65,10 @@ nav_order = 90
 - [claudewheel.stats](../claudewheel-stats/)
 - [claudewheel.strictspec_gen](../claudewheel-strictspec_gen/)
 - [claudewheel.strictspec_gen.lifecycle_event_validator](../claudewheel-strictspec_gen-lifecycle_event_validator/)
+- [claudewheel.strictspec_gen.oom_kill_event_validator](../claudewheel-strictspec_gen-oom_kill_event_validator/)
+- [claudewheel.strictspec_gen.probe_event_validator](../claudewheel-strictspec_gen-probe_event_validator/)
+- [claudewheel.strictspec_gen.probe_report_validator](../claudewheel-strictspec_gen-probe_report_validator/)
+- [claudewheel.strictspec_gen.probe_session_event_validator](../claudewheel-strictspec_gen-probe_session_event_validator/)
 - [claudewheel.terminal](../claudewheel-terminal/)
 - [claudewheel.theme](../claudewheel-theme/)
 - [claudewheel.tokens](../claudewheel-tokens/)

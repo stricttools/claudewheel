@@ -150,6 +150,16 @@
     "description": "9bca9cbb0cac41c335a79f3df73c07702e8117213796061bd91218baae3ef8cb",
     "source_docstring": "66671064c047113e3cb1de18b995f2f7e0766324722cab0aea0cdd14d4c0bd32"
   },
+  "en/claudewheel-probe.md": {
+    "content": "3f635c56968bc1417f6600d31d11c0af1407926b6f17395bf29ed3c89e426f09",
+    "description": "3a8d8ac9a7d5d87809e6b37af90e0426fc09f32c6ee5985c10854ef00d32b09f",
+    "seed_hash": "3a8d8ac9a7d5d87809e6b37af90e0426fc09f32c6ee5985c10854ef00d32b09f"
+  },
+  "en/claudewheel-probe_runner.md": {
+    "content": "70fac0e1bd48ad7f4ffc001b11b256b4d77754dcfdcb6e48f6f6851cb20c3156",
+    "description": "3786a8351714fee0bd6a2da1bfb25f435af71e33d1cb77ad96efe408809c160c",
+    "seed_hash": "3786a8351714fee0bd6a2da1bfb25f435af71e33d1cb77ad96efe408809c160c"
+  },
   "en/claudewheel-processes.md": {
     "content": "4d63367764f8b822798894bd46a60223e8871274b7709f4cd4b5a38b5fcd5e05",
     "description": "ada1f6428261490f0d4f961408e885fd836d2795ffd3af47bc049f474b36c992",
@@ -259,6 +269,26 @@
     "content": "1edc2a7d55dd30d726e057a88de801d0f625f17c876a20417446afe5d8d9cf9b",
     "description": "835fb8fb3408bf1f08a43debf1b5bd89bc3033340fc7e1c62e8a7cfb75c6d257"
   },
+  "en/claudewheel-strictspec_gen-oom_kill_event_validator.md": {
+    "content": "404b32dbae8b34a16ee4bb6125f03f8c1fbf20035288209ca07da039e3ec181c",
+    "description": "4d6bd1cd2b02d98a89354aa1b619672a901581ffe7b59511efe7ee9ac3a44e9a",
+    "seed_hash": "4d6bd1cd2b02d98a89354aa1b619672a901581ffe7b59511efe7ee9ac3a44e9a"
+  },
+  "en/claudewheel-strictspec_gen-probe_event_validator.md": {
+    "content": "7f6b000ebdb2594c9ef798d24e1a68ea62de0ba5676dd9aea33fe3e2c5ab0d2c",
+    "description": "13acbeac43cb773cc75b48379c8665012c26a66531e9f2cda130949650601300",
+    "seed_hash": "13acbeac43cb773cc75b48379c8665012c26a66531e9f2cda130949650601300"
+  },
+  "en/claudewheel-strictspec_gen-probe_report_validator.md": {
+    "content": "8a1cd623efe7b474e590184c1ec64f6be6f8a48166267c02ad1fcdd2a26ac05c",
+    "description": "6eee245760d7cd70f6e9cad1bef802ebda3a080c26a189a691318519449a588c",
+    "seed_hash": "6eee245760d7cd70f6e9cad1bef802ebda3a080c26a189a691318519449a588c"
+  },
+  "en/claudewheel-strictspec_gen-probe_session_event_validator.md": {
+    "content": "4b2294c134d4e839aa1a87049193139041cfe113ba764db39cbd6e03a38631bb",
+    "description": "639e279b3c0bad06ad69a97938567af2ed558ef734e82ac79a78759971932e89",
+    "seed_hash": "639e279b3c0bad06ad69a97938567af2ed558ef734e82ac79a78759971932e89"
+  },
   "en/claudewheel-strictspec_gen.md": {
     "content": "c9285aaafece2499d5562e749939f0f5acc9d8558aac9c165e5439f790dae935",
     "description": "62a28b2b7a72650a6d4822b07c6c8244ca693dd78467d41df5f7b1be0e5a9be6",
@@ -358,6 +388,11 @@
     "description": "96f33d3b151540d78d242b54b7c282d5bf0c1b82d959677a381d87dcdb0b2792",
     "schema_hash": "5a36ab7c0aa752f5700640f2f074d0c19d410a1fb2f5315d5ab8c7cc80ce882f"
   },
+  "en/cli-probe.md": {
+    "content": "445b8a134d0a28d3cb05aed98e6dd00a66387c6a8c4b3ba98a115af8c335e563",
+    "description": "2508a557cb967410290b735cd3179c5fcd6e0fdfd98a03be13d5fbbbc50ba689",
+    "seed_hash": "2508a557cb967410290b735cd3179c5fcd6e0fdfd98a03be13d5fbbbc50ba689"
+  },
   "en/cli-profile.md": {
     "content": "98a0bec3d5eceafb886037230dea42e2bffbfee154bbf1009a208cba2de2cfd8",
     "description": "433f493782f4dce9217087cfaa19a8e51abd35a17cfbd6abe7dea8decb7434c7",
@@ -403,26 +438,30 @@
     "description": "84aec6c3a090c8c277496b729bab04b3dcb5fb7a3729c3006f307ad9ddb345a3"
   },
   "en/gen-index.md": {
-    "content": "c3d57d9c83a18b8257a16945888537c81463167cd57f5e3228a89dd4899be927",
-    "description": "7b97d5e8bec75549756a1ce90f742ccae4451066ff18ab895c31605acc961028",
-    "seed_hash": "7b97d5e8bec75549756a1ce90f742ccae4451066ff18ab895c31605acc961028"
+    "content": "a64072ba7293cb50a60963408786a0e02ff787c2dbed16b5077dc89d93cfef82",
+    "description": "f764e0bd717e821ea04997e414bb878a67bc2b261332a2e435be077787cd958c",
+    "seed_hash": "f764e0bd717e821ea04997e414bb878a67bc2b261332a2e435be077787cd958c"
   },
   "en/getting-started.md": {
     "content": "741011e03216c715ce76e6b1969a5c4ccafcdf04dda57102de5b352858d7f7b8",
     "description": "f74cf1ae70dab24e4743abd25647b9facf4c45fdc54920698a8598358a351939"
   },
   "en/guardrails.md": {
-    "content": "c604ebd7400ec02393c68ae14659d6fd29ec49367f4bc18770b21fe85cd02544",
-    "description": "1942a3bfc0f6296818533d4d5455579659b4a766a22b8f2b0de7677be48c9cf0"
+    "content": "3939faac1f98b839de06eaba7e0949501545717db70093a81b5078545f3eb44c",
+    "description": "5922f0a93d6d0c2d775ce495a76530695221b73eb90bd7f0844a8332a21044c7"
   },
   "en/health.md": {
-    "content": "43523ad6aba55b3d9a3b05bd32fdeb82f8f6f451946614580c56c7ae93123cff",
-    "description": "a3c8ae79f0a76bfc1264565a4d3f579b430b18e9b89b8b01a5a8625b7109f9aa"
+    "content": "15724a25873cf2702fdcdf7d678178070040d728b732222db36cb14ebc5d4d6a",
+    "description": "0be49d55e9586e7aa54441445dc9f7b9d0627a7889dd21ca8a56998d199ee26f"
   },
   "en/index.md": {
     "content": "6fd16beb7b16bee875e9a57cc6e1f8a573c9195b9f693a7d994774613ad41797",
     "description": "82190c27b0b3a0598bd31e63823029a3cdac30d8bb218bae022c9a1256cf69b0",
     "source_docstring": "fe18bab92438b4b951c568eb30ffbf901e9f67cc2194d536a753c5dbd0934455"
+  },
+  "en/probes.md": {
+    "content": "2bd2aa5986ae239b992b6fb12dd9f3b00f8e29c5509a56a9794dec444de81da1",
+    "description": "084ea41892c3f560c423ee237e0fc63d9b61a6975cea9a7cc2cc6353d19d0243"
   },
   "en/profiles.md": {
     "content": "80e8cda57b2a9af91a3c26a5bad9d0738594ef1c72fc13cd177a3d506a01422a",

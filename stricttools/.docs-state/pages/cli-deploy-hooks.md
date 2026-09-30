@@ -9,7 +9,7 @@ nav_order = 2
 
 # c deploy-hooks
 
-deploy built-in hook scripts and the heavy wrapper to the ~/.claudewheel/scripts/ directory, linking heavy into ~/.local/bin so it is on PATH
+deploy built-in hook scripts and the heavy wrapper to the ~/.claudewheel/scripts/ directory, linking heavy into ~/.local/bin so it is on PATH, and install the probe runner's user service (claudewheel-probe-runner.service, in ~/.config/systemd/user), enabled and started; systemctl --user stop claudewheel-probe-runner.service stops it gracefully
 
 **Effect:** mutating
 
@@ -17,14 +17,14 @@ deploy built-in hook scripts and the heavy wrapper to the ~/.claudewheel/scripts
 
 | Name | Short | Type | Presence | Env | Description |
 | --- | --- | --- | --- | --- | --- |
-| `--all`, `--no-all` |  | bool | optional |  | deploy every known hook script from the built-in registry at once; when omitted, the positional name selects one script |
-| `--force-overwrite`, `--no-force-overwrite` |  | bool | optional |  | overwrite existing hook scripts on disk instead of skipping them, and replace whatever stands at a PATH command's link (~/.local/bin/heavy); when omitted, an existing script is left alone and a link path held by anything else is refused |
+| `--all`, `--no-all` |  | bool | optional |  | deploy every known hook script from the built-in registry and the probe runner's service at once; when omitted, the positional name selects one script, or the service by its name |
+| `--force-overwrite`, `--no-force-overwrite` |  | bool | optional |  | overwrite existing hook scripts and the probe runner's unit on disk instead of skipping them (a rewritten unit restarts the service), and replace whatever stands at a PATH command's link (~/.local/bin/heavy); when omitted, an existing script or unit is left alone and a link path held by anything else is refused |
 
 ## Arguments
 
 | Name | Type | Presence | Description |
 | --- | --- | --- | --- |
-| `name` | str | optional | name of the specific hook script to deploy (omit to use --all) |
+| `name` | str | optional | name of the specific hook script to deploy, or claudewheel-probe-runner.service to install the probe runner's service (omit to use --all) |
 
 ## Constraints
 

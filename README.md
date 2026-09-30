@@ -66,7 +66,7 @@ An uppercase `S` typed with nothing in the search buffer does not seed a fuzzy s
 
 ## The sessions overview
 
-Press uppercase `S` from anywhere on the bar to see **every Claude Code session on this machine** as a framed table -- one row per session, gathered across every profile claudewheel discovers (the vanilla `default` profile included) plus every session recorded in the lifecycle store under `~/.claudewheel/shared/lifecycle/`. Nothing on the bar decides what it shows. The columns are the session's name, its state, its kind, its working directory, the Claude Code version, the model, how long ago it started, and its resident memory in MiB; the session you are sitting in is marked with a `*`.
+Press uppercase `S` from anywhere on the bar to see **every Claude Code session on this machine** as a framed table -- one row per session, gathered across every profile claudewheel discovers (the vanilla `default` profile included) plus every session recorded in the lifecycle store under `~/.claudewheel/shared/lifecycle/`. Nothing on the bar decides what it shows. The columns are the session's name, its state, its kind, its working directory, the Claude Code version, the model, how long ago it started, its resident memory in MiB, and how many of its probe reports (reports of OOM kills, see the probes guide) are not yet confirmed delivered; the session you are sitting in is marked with a `*`.
 
 The state is the registry's own status wherever a process is still running (`working`, `idle`, `shell`, `waiting`, or `unverified` when the process identity could not be checked) and what the lifecycle store recorded otherwise: `starting`, `crashed`, `exited`, or the mark you gave it (`on-hold`, `blocked`, `done`). A running process always beats a recorded mark. Finished sessions -- `done` and `exited` -- are hidden until you ask for them.
 
@@ -82,6 +82,17 @@ It is a snapshot, not a live monitor: both stores are read when the screen opens
 - `q` or Esc -- close and return to the segment bar
 
 Opening the screen also writes two things into the lifecycle store, both idempotent: an end for every session that died without recording one, and the display name of each live session, which exists nowhere else once its process is gone.
+
+## OOM kill reports and probes
+
+When the kernel's OOM killer kills a command a session started -- a `heavy` job over its `--mem` cap, or a command over the session's memory ceiling -- claudewheel tells that session, even when it sits idle: the report wakes its main conversation, a Bash call that died with status 137 is labeled for the conversation that made it, and a session that ended gets the report when it resumes. A probe watches another session's kills, or every session's, until a deadline it must state:
+
+```bash
+claudewheel probe create oom-kill --all-sessions --deadline 2h
+claudewheel probe list
+```
+
+The kills are read from the user journal by one user service, `claudewheel-probe-runner.service`, which `claudewheel deploy-hooks --all` installs, enables, and starts (`systemctl --user stop claudewheel-probe-runner.service` stops it). Nothing is dropped: `probe list` shows every undelivered or expired report and every kill no session took. See the probes guide in the documentation for the details.
 
 ## Client selection
 
@@ -131,7 +142,7 @@ Model discovers itself: claudewheel asks the Anthropic API which models your acc
 | `stats` | report shared-store stats and clean up legacy data |
 | `mv` | rename a project directory and migrate session data |
 | `import` | import session data from an external Claude Code directory |
-| `deploy-hooks` | deploy built-in hook scripts and the heavy wrapper to the ~/.claudewheel/scripts/ directory, linking heavy into ~/.local/bin so it is on PATH |
+| `deploy-hooks` | deploy built-in hook scripts and the heavy wrapper to the ~/.claudewheel/scripts/ directory, linking heavy into ~/.local/bin so it is on PATH, and install the probe runner's user service (claudewheel-probe-runner.service, in ~/.config/systemd/user), enabled and started; systemctl --user stop claudewheel-probe-runner.service stops it gracefully |
 | `patch-profiles` | reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask, canonical settings keys); prunes drift and user-added extras -- the old additive, extras-preserving behavior is gone. Deploys any missing guardrail hook scripts. The 'default' profile (~/.claude) is never touched. Preview with --dry-run; writing needs a terminal or --approve-consequential. |
 | `reconcile-permissions` | reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask and the canonical settings keys made exact; allow keeps only its non-conflicting entries); prunes all drift and user-added extras. The 'default' profile (~/.claude) is never touched. Pass --dry-run to preview the per-target diff without writing; writing needs a terminal to confirm at, or --approve-consequential. |
 | `purge-plugins` | remove the Claude Code plugin tree from the selected profiles: the official-marketplace clone and every plugin installed from it, six to ten megabytes per profile. Opt-in and separate from the canonical reconciliation, which is exact and would otherwise delete plugin state on every run. Names the marketplaces and plugins it finds before removing them; --dry-run reports the inventory without touching anything. New launches do not collect a new tree -- the launch environment suppresses the auto-install, one-way per profile. The 'default' profile (~/.claude) is never touched. |
@@ -148,6 +159,12 @@ Model discovers itself: claudewheel asks the Anthropic API which models your acc
 | `permission add` | Add a permission rule to a profile's settings.json. Takes a category (allow, deny, or ask) and a rule string such as Bash or Read(//home/**). Writes the rule into the specified category array. Use --profile to target a single profile or --all-profiles to apply the rule across every registered profile. Skips duplicates if the rule already exists in the category. |
 | `permission remove` | Remove a permission rule from a profile's settings.json. Takes a category (allow, deny, or ask) and the exact rule string to delete. The rule is removed from the specified category array and the file is saved. Use --profile to target a single profile or --all-profiles to remove the rule from every registered profile. Reports whether the rule was found. |
 | `permission list` | List permission rules from a profile's settings.json. Displays rules in grouped or flat format controlled by --format. Use --category to filter output to a single category (allow, deny, or ask). Use --profile to inspect a single profile or --all-profiles to show rules from every registered profile, with each profile's rules displayed under a header. The framework-owned --json answers a machine instead: one envelope carrying every listed profile, whatever --format the human form would have used. |
+| **probe** | watch Claude Code sessions for OOM kills and report them to the sessions subscribed: create, list, stop, subscribe, and unsubscribe probes. Every session is told of its own commands' OOM kills without a probe |
+| `probe create` | create a probe of one kind (oom-kill: a unit's process killed by the kernel's OOM killer, as systemd reports it) watching one session (--session) or every session (--all-sessions), until its --deadline or an earlier stop (--count, --until-watched-ends, --until-file, or probe stop), and subscribe the session this runs in to it. A probe runs no command: an arbitrary command is refused. Run it from a Bash tool call of a claudewheel session, whose cgroup names the session; the reports go to the conversation that made the call, the main one or a subagent, once the hook that reads the call's payload binds the subscription to it |
+| `probe list` | list every probe with its stops and subscriptions, every report not yet confirmed delivered (with why), every expired report, and every OOM kill no session or subscription took; runs anywhere |
+| `probe stop` | end a live probe the session this runs in created; its undelivered reports to sessions that have ended are expired |
+| `probe subscribe` | subscribe the session this runs in to a live probe; the reports go to the conversation that made the call, once the hook that reads the call's payload binds the subscription to it |
+| `probe unsubscribe` | remove one of the subscriptions of the session this runs in; the probe reports nothing more to it |
 
 ### Segment overrides
 
@@ -239,8 +256,7 @@ Themes also include an `overflow` section for viewport chrome:
 ## Tests
 
 ```bash
-cd /home/m/Projects/claudewheel
-python3 -m unittest discover tests/
+heavy -- uv run pytest tests/
 ```
 
-240+ stdlib `unittest` tests covering segment cycling, fuzzy matching, requires-evaluation, install/manifest parsing, discovery merge logic, viewport scrolling, and config migration. Runs in under one second.
+The suite includes an integration test that runs a real interactive Claude Code of each version in `claudewheel.probe.VERIFIED_CLIENT_VERSIONS` under a pty against a mock API, to verify the probe report delivery; it fails, naming `claudewheel install <version>`, when that version is not installed.

@@ -47,6 +47,8 @@ This project uses [rlsbl](https://github.com/stricttools/rlsbl) for release orch
 - **claudewheel.permission** (`claudewheel/permission.py`): Core logic for managing profile permission rules.
 - **claudewheel.plugins** (`claudewheel/plugins.py`): Claude Code's plugin tree inside a profile: inventory it, and remove it.
 - **claudewheel.preflight** (`claudewheel/preflight.py`): Pre-launch step framework: a deterministic sequence of gate steps.
+- **claudewheel.probe** (`claudewheel/probe.py`): Probes: watch Claude Code sessions for an event and report it to the sessions that asked.
+- **claudewheel.probe_runner** (`claudewheel/probe_runner.py`): The probe runner: the one process that hosts every probe (claudewheel-probe-runner.service).
 - **claudewheel.processes** (`claudewheel/processes.py`): Measure and stop the processes holding a profile.
 - **claudewheel.profile** (`claudewheel/profile.py`): Resolve a profile name to its launch environment (see ProfileStore.env).
 - **claudewheel.profile_data** (`claudewheel/profile_data.py`): claudewheel's own data, stored inside each profile directory.
@@ -70,6 +72,10 @@ This project uses [rlsbl](https://github.com/stricttools/rlsbl) for release orch
 - **claudewheel.stats** (`claudewheel/stats.py`): Report shared-store statistics and clean up legacy data.
 - **claudewheel.strictspec_gen** (`claudewheel/strictspec_gen/__init__.py`): strictspec-generated validators.
 - **claudewheel.strictspec_gen.lifecycle_event_validator** (`claudewheel/strictspec_gen/lifecycle_event_validator.py`)
+- **claudewheel.strictspec_gen.oom_kill_event_validator** (`claudewheel/strictspec_gen/oom_kill_event_validator.py`)
+- **claudewheel.strictspec_gen.probe_event_validator** (`claudewheel/strictspec_gen/probe_event_validator.py`)
+- **claudewheel.strictspec_gen.probe_report_validator** (`claudewheel/strictspec_gen/probe_report_validator.py`)
+- **claudewheel.strictspec_gen.probe_session_event_validator** (`claudewheel/strictspec_gen/probe_session_event_validator.py`)
 - **claudewheel.terminal** (`claudewheel/terminal.py`): Raw terminal I/O: cbreak mode, escape sequence decoding, and alt screen.
 - **claudewheel.theme** (`claudewheel/theme.py`): Parse hex color themes into pre-computed ANSI escape sequences.
 - **claudewheel.tokens** (`claudewheel/tokens.py`): The OAuth token entry format: build one, date it, and read its tier fields.
@@ -93,7 +99,7 @@ This project uses [rlsbl](https://github.com/stricttools/rlsbl) for release orch
 | `stats` | report shared-store stats and clean up legacy data |
 | `mv` | rename a project directory and migrate session data |
 | `import` | import session data from an external Claude Code directory |
-| `deploy-hooks` | deploy built-in hook scripts and the heavy wrapper to the ~/.claudewheel/scripts/ directory, linking heavy into ~/.local/bin so it is on PATH |
+| `deploy-hooks` | deploy built-in hook scripts and the heavy wrapper to the ~/.claudewheel/scripts/ directory, linking heavy into ~/.local/bin so it is on PATH, and install the probe runner's user service (claudewheel-probe-runner.service, in ~/.config/systemd/user), enabled and started; systemctl --user stop claudewheel-probe-runner.service stops it gracefully |
 | `patch-profiles` | reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask, canonical settings keys); prunes drift and user-added extras -- the old additive, extras-preserving behavior is gone. Deploys any missing guardrail hook scripts. The 'default' profile (~/.claude) is never touched. Preview with --dry-run; writing needs a terminal or --approve-consequential. |
 | `reconcile-permissions` | reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask and the canonical settings keys made exact; allow keeps only its non-conflicting entries); prunes all drift and user-added extras. The 'default' profile (~/.claude) is never touched. Pass --dry-run to preview the per-target diff without writing; writing needs a terminal to confirm at, or --approve-consequential. |
 | `purge-plugins` | remove the Claude Code plugin tree from the selected profiles: the official-marketplace clone and every plugin installed from it, six to ten megabytes per profile. Opt-in and separate from the canonical reconciliation, which is exact and would otherwise delete plugin state on every run. Names the marketplaces and plugins it finds before removing them; --dry-run reports the inventory without touching anything. New launches do not collect a new tree -- the launch environment suppresses the auto-install, one-way per profile. The 'default' profile (~/.claude) is never touched. |
@@ -110,6 +116,12 @@ This project uses [rlsbl](https://github.com/stricttools/rlsbl) for release orch
 | `permission add` | Add a permission rule to a profile's settings.json. Takes a category (allow, deny, or ask) and a rule string such as Bash or Read(//home/**). Writes the rule into the specified category array. Use --profile to target a single profile or --all-profiles to apply the rule across every registered profile. Skips duplicates if the rule already exists in the category. |
 | `permission remove` | Remove a permission rule from a profile's settings.json. Takes a category (allow, deny, or ask) and the exact rule string to delete. The rule is removed from the specified category array and the file is saved. Use --profile to target a single profile or --all-profiles to remove the rule from every registered profile. Reports whether the rule was found. |
 | `permission list` | List permission rules from a profile's settings.json. Displays rules in grouped or flat format controlled by --format. Use --category to filter output to a single category (allow, deny, or ask). Use --profile to inspect a single profile or --all-profiles to show rules from every registered profile, with each profile's rules displayed under a header. The framework-owned --json answers a machine instead: one envelope carrying every listed profile, whatever --format the human form would have used. |
+| **probe** | watch Claude Code sessions for OOM kills and report them to the sessions subscribed: create, list, stop, subscribe, and unsubscribe probes. Every session is told of its own commands' OOM kills without a probe |
+| `probe create` | create a probe of one kind (oom-kill: a unit's process killed by the kernel's OOM killer, as systemd reports it) watching one session (--session) or every session (--all-sessions), until its --deadline or an earlier stop (--count, --until-watched-ends, --until-file, or probe stop), and subscribe the session this runs in to it. A probe runs no command: an arbitrary command is refused. Run it from a Bash tool call of a claudewheel session, whose cgroup names the session; the reports go to the conversation that made the call, the main one or a subagent, once the hook that reads the call's payload binds the subscription to it |
+| `probe list` | list every probe with its stops and subscriptions, every report not yet confirmed delivered (with why), every expired report, and every OOM kill no session or subscription took; runs anywhere |
+| `probe stop` | end a live probe the session this runs in created; its undelivered reports to sessions that have ended are expired |
+| `probe subscribe` | subscribe the session this runs in to a live probe; the reports go to the conversation that made the call, once the hook that reads the call's payload binds the subscription to it |
+| `probe unsubscribe` | remove one of the subscriptions of the session this runs in; the probe reports nothing more to it |
 
 ### Confirmation and preview
 

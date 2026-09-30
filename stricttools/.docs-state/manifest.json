@@ -836,6 +836,46 @@
         },
         {
           "level": 3,
+          "text": "`OneSession`",
+          "anchor": "onesession"
+        },
+        {
+          "level": 3,
+          "text": "`AllSessions`",
+          "anchor": "allsessions"
+        },
+        {
+          "level": 3,
+          "text": "`_probe_session`",
+          "anchor": "_probe_session"
+        },
+        {
+          "level": 3,
+          "text": "`_handle_probe_create`",
+          "anchor": "_handle_probe_create"
+        },
+        {
+          "level": 3,
+          "text": "`_handle_probe_subscribe`",
+          "anchor": "_handle_probe_subscribe"
+        },
+        {
+          "level": 3,
+          "text": "`_handle_probe_unsubscribe`",
+          "anchor": "_handle_probe_unsubscribe"
+        },
+        {
+          "level": 3,
+          "text": "`_handle_probe_stop`",
+          "anchor": "_handle_probe_stop"
+        },
+        {
+          "level": 3,
+          "text": "`_handle_probe_list`",
+          "anchor": "_handle_probe_list"
+        },
+        {
+          "level": 3,
           "text": "`_resolve_resume_title`",
           "anchor": "_resolve_resume_title"
         },
@@ -1164,6 +1204,11 @@
         },
         {
           "level": 3,
+          "text": "`canonical_hook_entry`",
+          "anchor": "canonical_hook_entry"
+        },
+        {
+          "level": 3,
           "text": "`_build_canonical_hooks`",
           "anchor": "_build_canonical_hooks"
         },
@@ -1327,6 +1372,11 @@
           "level": 3,
           "text": "`run`",
           "anchor": "run"
+        },
+        {
+          "level": 3,
+          "text": "`follow`",
+          "anchor": "follow"
         },
         {
           "level": 3,
@@ -1564,6 +1614,21 @@
         },
         {
           "level": 3,
+          "text": "`HookOptions`",
+          "anchor": "hookoptions"
+        },
+        {
+          "level": 4,
+          "text": "`settings_keys`",
+          "anchor": "settings_keys"
+        },
+        {
+          "level": 3,
+          "text": "`HookWiring`",
+          "anchor": "hookwiring"
+        },
+        {
+          "level": 3,
           "text": "`DisallowedTool`",
           "anchor": "disallowedtool"
         },
@@ -1604,8 +1669,8 @@
         },
         {
           "level": 3,
-          "text": "`_bash_dquote_body`",
-          "anchor": "_bash_dquote_body"
+          "text": "`bash_dquote_body`",
+          "anchor": "bash_dquote_body"
         },
         {
           "level": 3,
@@ -1761,6 +1826,11 @@
         },
         {
           "level": 3,
+          "text": "`check_probe_runner`",
+          "anchor": "check_probe_runner"
+        },
+        {
+          "level": 3,
           "text": "`run_health_check`",
           "anchor": "run_health_check"
         },
@@ -1795,6 +1865,16 @@
           "level": 3,
           "text": "`link_path_commands`",
           "anchor": "link_path_commands"
+        },
+        {
+          "level": 3,
+          "text": "`service_unit`",
+          "anchor": "service_unit"
+        },
+        {
+          "level": 3,
+          "text": "`deploy_service`",
+          "anchor": "deploy_service"
         }
       ]
     },
@@ -1948,6 +2028,21 @@
           "level": 3,
           "text": "`resolve_launch_config`",
           "anchor": "resolve_launch_config"
+        },
+        {
+          "level": 3,
+          "text": "`SessionScope`",
+          "anchor": "sessionscope"
+        },
+        {
+          "level": 4,
+          "text": "`from_config`",
+          "anchor": "from_config"
+        },
+        {
+          "level": 4,
+          "text": "`argv`",
+          "anchor": "argv"
         },
         {
           "level": 3,
@@ -2557,6 +2652,375 @@
           "level": 3,
           "text": "`run_preflight`",
           "anchor": "run_preflight"
+        }
+      ]
+    },
+    {
+      "path": "claudewheel-probe.md",
+      "title": "claudewheel.probe",
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.probe",
+          "anchor": "claudewheelprobe"
+        },
+        {
+          "level": 2,
+          "text": "`claudewheel.probe`",
+          "anchor": "claudewheelprobe"
+        },
+        {
+          "level": 3,
+          "text": "`ProbeError`",
+          "anchor": "probeerror"
+        },
+        {
+          "level": 3,
+          "text": "`new_id`",
+          "anchor": "new_id"
+        },
+        {
+          "level": 3,
+          "text": "`ProbeStore`",
+          "anchor": "probestore"
+        },
+        {
+          "level": 4,
+          "text": "`probes_dir`",
+          "anchor": "probes_dir"
+        },
+        {
+          "level": 4,
+          "text": "`kills_file`",
+          "anchor": "kills_file"
+        },
+        {
+          "level": 4,
+          "text": "`sessions_dir`",
+          "anchor": "sessions_dir"
+        },
+        {
+          "level": 4,
+          "text": "`reports_dir`",
+          "anchor": "reports_dir"
+        },
+        {
+          "level": 4,
+          "text": "`waiters_dir`",
+          "anchor": "waiters_dir"
+        },
+        {
+          "level": 4,
+          "text": "`cursor_file`",
+          "anchor": "cursor_file"
+        },
+        {
+          "level": 4,
+          "text": "`probe_file`",
+          "anchor": "probe_file"
+        },
+        {
+          "level": 4,
+          "text": "`session_file`",
+          "anchor": "session_file"
+        },
+        {
+          "level": 4,
+          "text": "`report_dir`",
+          "anchor": "report_dir"
+        },
+        {
+          "level": 4,
+          "text": "`fifo`",
+          "anchor": "fifo"
+        },
+        {
+          "level": 3,
+          "text": "`_read_jsonl`",
+          "anchor": "_read_jsonl"
+        },
+        {
+          "level": 3,
+          "text": "`Subscription`",
+          "anchor": "subscription"
+        },
+        {
+          "level": 3,
+          "text": "`ProbeState`",
+          "anchor": "probestate"
+        },
+        {
+          "level": 4,
+          "text": "`active`",
+          "anchor": "active"
+        },
+        {
+          "level": 3,
+          "text": "`append_probe_event`",
+          "anchor": "append_probe_event"
+        },
+        {
+          "level": 3,
+          "text": "`read_probe`",
+          "anchor": "read_probe"
+        },
+        {
+          "level": 3,
+          "text": "`load_probes`",
+          "anchor": "load_probes"
+        },
+        {
+          "level": 3,
+          "text": "`find_subscription`",
+          "anchor": "find_subscription"
+        },
+        {
+          "level": 3,
+          "text": "`append_kill`",
+          "anchor": "append_kill"
+        },
+        {
+          "level": 3,
+          "text": "`read_kills`",
+          "anchor": "read_kills"
+        },
+        {
+          "level": 3,
+          "text": "`AgentInfo`",
+          "anchor": "agentinfo"
+        },
+        {
+          "level": 3,
+          "text": "`read_session_agents`",
+          "anchor": "read_session_agents"
+        },
+        {
+          "level": 3,
+          "text": "`read_session_events`",
+          "anchor": "read_session_events"
+        },
+        {
+          "level": 3,
+          "text": "`Report`",
+          "anchor": "report"
+        },
+        {
+          "level": 4,
+          "text": "`to_json`",
+          "anchor": "to_json"
+        },
+        {
+          "level": 3,
+          "text": "`ReportFile`",
+          "anchor": "reportfile"
+        },
+        {
+          "level": 3,
+          "text": "`recipient_of`",
+          "anchor": "recipient_of"
+        },
+        {
+          "level": 3,
+          "text": "`write_report`",
+          "anchor": "write_report"
+        },
+        {
+          "level": 3,
+          "text": "`read_report`",
+          "anchor": "read_report"
+        },
+        {
+          "level": 3,
+          "text": "`list_reports`",
+          "anchor": "list_reports"
+        },
+        {
+          "level": 3,
+          "text": "`move_report`",
+          "anchor": "move_report"
+        },
+        {
+          "level": 3,
+          "text": "`wake_waiter`",
+          "anchor": "wake_waiter"
+        },
+        {
+          "level": 3,
+          "text": "`session_scope_of_cgroup`",
+          "anchor": "session_scope_of_cgroup"
+        },
+        {
+          "level": 3,
+          "text": "`session_for_scope`",
+          "anchor": "session_for_scope"
+        },
+        {
+          "level": 3,
+          "text": "`own_cgroup_text`",
+          "anchor": "own_cgroup_text"
+        },
+        {
+          "level": 3,
+          "text": "`local_time`",
+          "anchor": "local_time"
+        },
+        {
+          "level": 3,
+          "text": "`what_was_killed`",
+          "anchor": "what_was_killed"
+        },
+        {
+          "level": 3,
+          "text": "`own_kill_text`",
+          "anchor": "own_kill_text"
+        },
+        {
+          "level": 3,
+          "text": "`probe_kill_text`",
+          "anchor": "probe_kill_text"
+        },
+        {
+          "level": 3,
+          "text": "`kill_label`",
+          "anchor": "kill_label"
+        },
+        {
+          "level": 3,
+          "text": "`parse_duration`",
+          "anchor": "parse_duration"
+        },
+        {
+          "level": 3,
+          "text": "`now_ms`",
+          "anchor": "now_ms"
+        },
+        {
+          "level": 3,
+          "text": "`resolve_session`",
+          "anchor": "resolve_session"
+        },
+        {
+          "level": 3,
+          "text": "`create_probe`",
+          "anchor": "create_probe"
+        },
+        {
+          "level": 3,
+          "text": "`subscribe`",
+          "anchor": "subscribe"
+        },
+        {
+          "level": 3,
+          "text": "`unsubscribe`",
+          "anchor": "unsubscribe"
+        },
+        {
+          "level": 3,
+          "text": "`stop_probe`",
+          "anchor": "stop_probe"
+        },
+        {
+          "level": 3,
+          "text": "`describe_probe`",
+          "anchor": "describe_probe"
+        },
+        {
+          "level": 3,
+          "text": "`undelivered_counts`",
+          "anchor": "undelivered_counts"
+        },
+        {
+          "level": 3,
+          "text": "`render_list`",
+          "anchor": "render_list"
+        }
+      ]
+    },
+    {
+      "path": "claudewheel-probe_runner.md",
+      "title": "claudewheel.probe_runner",
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.probe_runner",
+          "anchor": "claudewheelprobe_runner"
+        },
+        {
+          "level": 2,
+          "text": "`claudewheel.probe_runner`",
+          "anchor": "claudewheelprobe_runner"
+        },
+        {
+          "level": 3,
+          "text": "`_digest_id`",
+          "anchor": "_digest_id"
+        },
+        {
+          "level": 3,
+          "text": "`Attribution`",
+          "anchor": "attribution"
+        },
+        {
+          "level": 3,
+          "text": "`heavy_description`",
+          "anchor": "heavy_description"
+        },
+        {
+          "level": 3,
+          "text": "`attribute`",
+          "anchor": "attribute"
+        },
+        {
+          "level": 3,
+          "text": "`process_entry`",
+          "anchor": "process_entry"
+        },
+        {
+          "level": 3,
+          "text": "`_session_state`",
+          "anchor": "_session_state"
+        },
+        {
+          "level": 3,
+          "text": "`_transcripts`",
+          "anchor": "_transcripts"
+        },
+        {
+          "level": 3,
+          "text": "`end_probes`",
+          "anchor": "end_probes"
+        },
+        {
+          "level": 3,
+          "text": "`settle_reports`",
+          "anchor": "settle_reports"
+        },
+        {
+          "level": 3,
+          "text": "`tick`",
+          "anchor": "tick"
+        },
+        {
+          "level": 3,
+          "text": "`journal_argv`",
+          "anchor": "journal_argv"
+        },
+        {
+          "level": 3,
+          "text": "`_lines`",
+          "anchor": "_lines"
+        },
+        {
+          "level": 3,
+          "text": "`run`",
+          "anchor": "run"
+        },
+        {
+          "level": 3,
+          "text": "`main`",
+          "anchor": "main"
         }
       ]
     },
@@ -4218,6 +4682,11 @@
         },
         {
           "level": 4,
+          "text": "`probes_dir`",
+          "anchor": "probes_dir"
+        },
+        {
+          "level": 4,
           "text": "`inodes_file`",
           "anchor": "inodes_file"
         },
@@ -4586,6 +5055,594 @@
           "level": 4,
           "text": "`with_note`",
           "anchor": "with_note"
+        }
+      ]
+    },
+    {
+      "path": "claudewheel-strictspec_gen-oom_kill_event_validator.md",
+      "title": "claudewheel.strictspec_gen.oom_kill_event_validator",
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.strictspec_gen.oom_kill_event_validator",
+          "anchor": "claudewheelstrictspec_genoom_kill_event_validator"
+        },
+        {
+          "level": 2,
+          "text": "`claudewheel.strictspec_gen.oom_kill_event_validator`",
+          "anchor": "claudewheelstrictspec_genoom_kill_event_validator"
+        },
+        {
+          "level": 3,
+          "text": "`validate_bytes`",
+          "anchor": "validate_bytes"
+        },
+        {
+          "level": 3,
+          "text": "`validate_bytes_with_evidence`",
+          "anchor": "validate_bytes_with_evidence"
+        },
+        {
+          "level": 3,
+          "text": "`validate_value`",
+          "anchor": "validate_value"
+        },
+        {
+          "level": 3,
+          "text": "`OomKillEvent`",
+          "anchor": "oomkillevent"
+        },
+        {
+          "level": 4,
+          "text": "`with_format_version`",
+          "anchor": "with_format_version"
+        },
+        {
+          "level": 4,
+          "text": "`with_id`",
+          "anchor": "with_id"
+        },
+        {
+          "level": 4,
+          "text": "`with_at`",
+          "anchor": "with_at"
+        },
+        {
+          "level": 4,
+          "text": "`with_killed_at_us`",
+          "anchor": "with_killed_at_us"
+        },
+        {
+          "level": 4,
+          "text": "`with_unit`",
+          "anchor": "with_unit"
+        },
+        {
+          "level": 4,
+          "text": "`with_cursor`",
+          "anchor": "with_cursor"
+        },
+        {
+          "level": 4,
+          "text": "`with_scope`",
+          "anchor": "with_scope"
+        },
+        {
+          "level": 4,
+          "text": "`with_session`",
+          "anchor": "with_session"
+        },
+        {
+          "level": 4,
+          "text": "`with_command`",
+          "anchor": "with_command"
+        },
+        {
+          "level": 4,
+          "text": "`with_unattributed`",
+          "anchor": "with_unattributed"
+        },
+        {
+          "level": 4,
+          "text": "`with_reports`",
+          "anchor": "with_reports"
+        },
+        {
+          "level": 4,
+          "text": "`with_probes`",
+          "anchor": "with_probes"
+        },
+        {
+          "level": 4,
+          "text": "`with_label`",
+          "anchor": "with_label"
+        }
+      ]
+    },
+    {
+      "path": "claudewheel-strictspec_gen-probe_event_validator.md",
+      "title": "claudewheel.strictspec_gen.probe_event_validator",
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.strictspec_gen.probe_event_validator",
+          "anchor": "claudewheelstrictspec_genprobe_event_validator"
+        },
+        {
+          "level": 2,
+          "text": "`claudewheel.strictspec_gen.probe_event_validator`",
+          "anchor": "claudewheelstrictspec_genprobe_event_validator"
+        },
+        {
+          "level": 3,
+          "text": "`validate_bytes`",
+          "anchor": "validate_bytes"
+        },
+        {
+          "level": 3,
+          "text": "`validate_bytes_with_evidence`",
+          "anchor": "validate_bytes_with_evidence"
+        },
+        {
+          "level": 3,
+          "text": "`validate_value`",
+          "anchor": "validate_value"
+        },
+        {
+          "level": 3,
+          "text": "`CreatedEvent`",
+          "anchor": "createdevent"
+        },
+        {
+          "level": 4,
+          "text": "`with_format_version`",
+          "anchor": "with_format_version"
+        },
+        {
+          "level": 4,
+          "text": "`with_id`",
+          "anchor": "with_id"
+        },
+        {
+          "level": 4,
+          "text": "`with_at`",
+          "anchor": "with_at"
+        },
+        {
+          "level": 4,
+          "text": "`with_probe`",
+          "anchor": "with_probe"
+        },
+        {
+          "level": 4,
+          "text": "`with_kind`",
+          "anchor": "with_kind"
+        },
+        {
+          "level": 4,
+          "text": "`with_session`",
+          "anchor": "with_session"
+        },
+        {
+          "level": 4,
+          "text": "`with_probe_kind`",
+          "anchor": "with_probe_kind"
+        },
+        {
+          "level": 4,
+          "text": "`with_watch_session`",
+          "anchor": "with_watch_session"
+        },
+        {
+          "level": 4,
+          "text": "`with_deadline`",
+          "anchor": "with_deadline"
+        },
+        {
+          "level": 4,
+          "text": "`with_until_count`",
+          "anchor": "with_until_count"
+        },
+        {
+          "level": 4,
+          "text": "`with_until_watched_ends`",
+          "anchor": "with_until_watched_ends"
+        },
+        {
+          "level": 4,
+          "text": "`with_until_file`",
+          "anchor": "with_until_file"
+        },
+        {
+          "level": 3,
+          "text": "`SubscribedEvent`",
+          "anchor": "subscribedevent"
+        },
+        {
+          "level": 4,
+          "text": "`with_format_version`",
+          "anchor": "with_format_version-1"
+        },
+        {
+          "level": 4,
+          "text": "`with_id`",
+          "anchor": "with_id-1"
+        },
+        {
+          "level": 4,
+          "text": "`with_at`",
+          "anchor": "with_at-1"
+        },
+        {
+          "level": 4,
+          "text": "`with_probe`",
+          "anchor": "with_probe-1"
+        },
+        {
+          "level": 4,
+          "text": "`with_kind`",
+          "anchor": "with_kind-1"
+        },
+        {
+          "level": 4,
+          "text": "`with_subscription`",
+          "anchor": "with_subscription"
+        },
+        {
+          "level": 4,
+          "text": "`with_session`",
+          "anchor": "with_session-1"
+        },
+        {
+          "level": 3,
+          "text": "`BoundEvent`",
+          "anchor": "boundevent"
+        },
+        {
+          "level": 4,
+          "text": "`with_format_version`",
+          "anchor": "with_format_version-2"
+        },
+        {
+          "level": 4,
+          "text": "`with_id`",
+          "anchor": "with_id-2"
+        },
+        {
+          "level": 4,
+          "text": "`with_at`",
+          "anchor": "with_at-2"
+        },
+        {
+          "level": 4,
+          "text": "`with_probe`",
+          "anchor": "with_probe-2"
+        },
+        {
+          "level": 4,
+          "text": "`with_kind`",
+          "anchor": "with_kind-2"
+        },
+        {
+          "level": 4,
+          "text": "`with_subscription`",
+          "anchor": "with_subscription-1"
+        },
+        {
+          "level": 4,
+          "text": "`with_agent`",
+          "anchor": "with_agent"
+        },
+        {
+          "level": 3,
+          "text": "`UnsubscribedEvent`",
+          "anchor": "unsubscribedevent"
+        },
+        {
+          "level": 4,
+          "text": "`with_format_version`",
+          "anchor": "with_format_version-3"
+        },
+        {
+          "level": 4,
+          "text": "`with_id`",
+          "anchor": "with_id-3"
+        },
+        {
+          "level": 4,
+          "text": "`with_at`",
+          "anchor": "with_at-3"
+        },
+        {
+          "level": 4,
+          "text": "`with_probe`",
+          "anchor": "with_probe-3"
+        },
+        {
+          "level": 4,
+          "text": "`with_kind`",
+          "anchor": "with_kind-3"
+        },
+        {
+          "level": 4,
+          "text": "`with_subscription`",
+          "anchor": "with_subscription-2"
+        },
+        {
+          "level": 3,
+          "text": "`EndedEvent`",
+          "anchor": "endedevent"
+        },
+        {
+          "level": 4,
+          "text": "`with_format_version`",
+          "anchor": "with_format_version-4"
+        },
+        {
+          "level": 4,
+          "text": "`with_id`",
+          "anchor": "with_id-4"
+        },
+        {
+          "level": 4,
+          "text": "`with_at`",
+          "anchor": "with_at-4"
+        },
+        {
+          "level": 4,
+          "text": "`with_probe`",
+          "anchor": "with_probe-4"
+        },
+        {
+          "level": 4,
+          "text": "`with_kind`",
+          "anchor": "with_kind-4"
+        },
+        {
+          "level": 4,
+          "text": "`with_reason`",
+          "anchor": "with_reason"
+        }
+      ]
+    },
+    {
+      "path": "claudewheel-strictspec_gen-probe_report_validator.md",
+      "title": "claudewheel.strictspec_gen.probe_report_validator",
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.strictspec_gen.probe_report_validator",
+          "anchor": "claudewheelstrictspec_genprobe_report_validator"
+        },
+        {
+          "level": 2,
+          "text": "`claudewheel.strictspec_gen.probe_report_validator`",
+          "anchor": "claudewheelstrictspec_genprobe_report_validator"
+        },
+        {
+          "level": 3,
+          "text": "`validate_bytes`",
+          "anchor": "validate_bytes"
+        },
+        {
+          "level": 3,
+          "text": "`validate_bytes_with_evidence`",
+          "anchor": "validate_bytes_with_evidence"
+        },
+        {
+          "level": 3,
+          "text": "`validate_value`",
+          "anchor": "validate_value"
+        },
+        {
+          "level": 3,
+          "text": "`ProbeReport`",
+          "anchor": "probereport"
+        },
+        {
+          "level": 4,
+          "text": "`with_format_version`",
+          "anchor": "with_format_version"
+        },
+        {
+          "level": 4,
+          "text": "`with_id`",
+          "anchor": "with_id"
+        },
+        {
+          "level": 4,
+          "text": "`with_at`",
+          "anchor": "with_at"
+        },
+        {
+          "level": 4,
+          "text": "`with_session`",
+          "anchor": "with_session"
+        },
+        {
+          "level": 4,
+          "text": "`with_agent`",
+          "anchor": "with_agent"
+        },
+        {
+          "level": 4,
+          "text": "`with_task`",
+          "anchor": "with_task"
+        },
+        {
+          "level": 4,
+          "text": "`with_probe`",
+          "anchor": "with_probe"
+        },
+        {
+          "level": 4,
+          "text": "`with_subscription`",
+          "anchor": "with_subscription"
+        },
+        {
+          "level": 4,
+          "text": "`with_kill`",
+          "anchor": "with_kill"
+        },
+        {
+          "level": 4,
+          "text": "`with_text`",
+          "anchor": "with_text"
+        }
+      ]
+    },
+    {
+      "path": "claudewheel-strictspec_gen-probe_session_event_validator.md",
+      "title": "claudewheel.strictspec_gen.probe_session_event_validator",
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.strictspec_gen.probe_session_event_validator",
+          "anchor": "claudewheelstrictspec_genprobe_session_event_validator"
+        },
+        {
+          "level": 2,
+          "text": "`claudewheel.strictspec_gen.probe_session_event_validator`",
+          "anchor": "claudewheelstrictspec_genprobe_session_event_validator"
+        },
+        {
+          "level": 3,
+          "text": "`validate_bytes`",
+          "anchor": "validate_bytes"
+        },
+        {
+          "level": 3,
+          "text": "`validate_bytes_with_evidence`",
+          "anchor": "validate_bytes_with_evidence"
+        },
+        {
+          "level": 3,
+          "text": "`validate_value`",
+          "anchor": "validate_value"
+        },
+        {
+          "level": 3,
+          "text": "`CallStartedEvent`",
+          "anchor": "callstartedevent"
+        },
+        {
+          "level": 4,
+          "text": "`with_format_version`",
+          "anchor": "with_format_version"
+        },
+        {
+          "level": 4,
+          "text": "`with_at_ms`",
+          "anchor": "with_at_ms"
+        },
+        {
+          "level": 4,
+          "text": "`with_kind`",
+          "anchor": "with_kind"
+        },
+        {
+          "level": 4,
+          "text": "`with_call`",
+          "anchor": "with_call"
+        },
+        {
+          "level": 4,
+          "text": "`with_agent`",
+          "anchor": "with_agent"
+        },
+        {
+          "level": 4,
+          "text": "`with_timeout_ms`",
+          "anchor": "with_timeout_ms"
+        },
+        {
+          "level": 3,
+          "text": "`CallEndedEvent`",
+          "anchor": "callendedevent"
+        },
+        {
+          "level": 4,
+          "text": "`with_format_version`",
+          "anchor": "with_format_version-1"
+        },
+        {
+          "level": 4,
+          "text": "`with_at_ms`",
+          "anchor": "with_at_ms-1"
+        },
+        {
+          "level": 4,
+          "text": "`with_kind`",
+          "anchor": "with_kind-1"
+        },
+        {
+          "level": 4,
+          "text": "`with_call`",
+          "anchor": "with_call-1"
+        },
+        {
+          "level": 4,
+          "text": "`with_agent`",
+          "anchor": "with_agent-1"
+        },
+        {
+          "level": 3,
+          "text": "`AgentLaunchedEvent`",
+          "anchor": "agentlaunchedevent"
+        },
+        {
+          "level": 4,
+          "text": "`with_format_version`",
+          "anchor": "with_format_version-2"
+        },
+        {
+          "level": 4,
+          "text": "`with_at_ms`",
+          "anchor": "with_at_ms-2"
+        },
+        {
+          "level": 4,
+          "text": "`with_kind`",
+          "anchor": "with_kind-2"
+        },
+        {
+          "level": 4,
+          "text": "`with_agent`",
+          "anchor": "with_agent-2"
+        },
+        {
+          "level": 4,
+          "text": "`with_task`",
+          "anchor": "with_task"
+        },
+        {
+          "level": 3,
+          "text": "`AgentFinishedEvent`",
+          "anchor": "agentfinishedevent"
+        },
+        {
+          "level": 4,
+          "text": "`with_format_version`",
+          "anchor": "with_format_version-3"
+        },
+        {
+          "level": 4,
+          "text": "`with_at_ms`",
+          "anchor": "with_at_ms-3"
+        },
+        {
+          "level": 4,
+          "text": "`with_kind`",
+          "anchor": "with_kind-3"
+        },
+        {
+          "level": 4,
+          "text": "`with_agent`",
+          "anchor": "with_agent-3"
         }
       ]
     },
@@ -5215,6 +6272,11 @@
         },
         {
           "level": 4,
+          "text": "`probes`",
+          "anchor": "probes"
+        },
+        {
+          "level": 4,
           "text": "`profiles`",
           "anchor": "profiles"
         },
@@ -5506,6 +6568,68 @@
           "level": 3,
           "text": "Flags",
           "anchor": "flags-2"
+        }
+      ]
+    },
+    {
+      "path": "cli-probe.md",
+      "title": "c probe",
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "c probe",
+          "anchor": "c-probe"
+        },
+        {
+          "level": 2,
+          "text": "probe create",
+          "anchor": "probe-create"
+        },
+        {
+          "level": 3,
+          "text": "Flags",
+          "anchor": "flags"
+        },
+        {
+          "level": 3,
+          "text": "Arguments",
+          "anchor": "arguments"
+        },
+        {
+          "level": 2,
+          "text": "probe list",
+          "anchor": "probe-list"
+        },
+        {
+          "level": 2,
+          "text": "probe stop",
+          "anchor": "probe-stop"
+        },
+        {
+          "level": 3,
+          "text": "Arguments",
+          "anchor": "arguments-1"
+        },
+        {
+          "level": 2,
+          "text": "probe subscribe",
+          "anchor": "probe-subscribe"
+        },
+        {
+          "level": 3,
+          "text": "Arguments",
+          "anchor": "arguments-2"
+        },
+        {
+          "level": 2,
+          "text": "probe unsubscribe",
+          "anchor": "probe-unsubscribe"
+        },
+        {
+          "level": 3,
+          "text": "Arguments",
+          "anchor": "arguments-3"
         }
       ]
     },
@@ -5968,6 +7092,11 @@
         },
         {
           "level": 2,
+          "text": "A memory ceiling for each session",
+          "anchor": "a-memory-ceiling-for-each-session"
+        },
+        {
+          "level": 2,
           "text": "Upgrading existing profiles",
           "anchor": "upgrading-existing-profiles"
         },
@@ -6052,6 +7181,11 @@
           "level": 4,
           "text": "hook-path-drift",
           "anchor": "hook-path-drift"
+        },
+        {
+          "level": 4,
+          "text": "probe-runner",
+          "anchor": "probe-runner"
         },
         {
           "level": 4,
@@ -6249,6 +7383,63 @@
           "level": 3,
           "text": "`_detect_version`",
           "anchor": "_detect_version"
+        }
+      ]
+    },
+    {
+      "path": "probes.md",
+      "title": "Probes",
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "Probes",
+          "anchor": "probes"
+        },
+        {
+          "level": 2,
+          "text": "Every session is told of its own kills",
+          "anchor": "every-session-is-told-of-its-own-kills"
+        },
+        {
+          "level": 2,
+          "text": "Probes watch other sessions",
+          "anchor": "probes-watch-other-sessions"
+        },
+        {
+          "level": 3,
+          "text": "Which session a probe command acts for",
+          "anchor": "which-session-a-probe-command-acts-for"
+        },
+        {
+          "level": 3,
+          "text": "Which conversation a subscription belongs to",
+          "anchor": "which-conversation-a-subscription-belongs-to"
+        },
+        {
+          "level": 2,
+          "text": "The probe runner",
+          "anchor": "the-probe-runner"
+        },
+        {
+          "level": 2,
+          "text": "How a report reaches a conversation",
+          "anchor": "how-a-report-reaches-a-conversation"
+        },
+        {
+          "level": 2,
+          "text": "The label on an OOM-killed tool call",
+          "anchor": "the-label-on-an-oom-killed-tool-call"
+        },
+        {
+          "level": 2,
+          "text": "Nothing is dropped silently",
+          "anchor": "nothing-is-dropped-silently"
+        },
+        {
+          "level": 2,
+          "text": "Where the state is",
+          "anchor": "where-the-state-is"
         }
       ]
     },
@@ -6458,7 +7649,7 @@
     }
   ],
   "posts": [],
-  "last_gen": "2026-09-29T11:13:14.500018+00:00",
+  "last_gen": "2026-09-30T13:31:32.954685+00:00",
   "theme": "minimal",
   "vocabulary": {
     "accepted": [
