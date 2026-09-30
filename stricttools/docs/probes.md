@@ -8,8 +8,8 @@ nav_order = 7
 # Probes
 
 A command a session starts can be killed by the kernel's OOM killer: a
-`heavy` job that went over its `--mem` cap, or a command that ran outside
-`heavy` and hit the session's memory ceiling. The session that started it
+`heavy` job that went over its `--mem` cap, or a Bash command that ran outside
+`heavy` when the session's Bash commands reached the memory cap they share. The session that started it
 should hear about it at once, even when it is sitting idle, and the fix is
 never to run it again as it was. claudewheel reports every such kill to the
 Claude Code session concerned, and a probe lets a session watch other
@@ -17,8 +17,9 @@ sessions' kills too.
 
 ## Every session is told of its own kills
 
-An OOM kill of a command a session started, in its own session scope or in a
-`heavy` scope it launched, is always reported to that session. Nothing has to
+An OOM kill of a command a session started, in its own session scope, in the
+tool scope of one of its Bash commands, or in a `heavy` scope it launched, is
+always reported to that session. Nothing has to
 be set up for it, and it has no deadline: when the session has ended, the
 report is kept until the session resumes. The report says what was killed,
 where, and when, and ends with the same advice `heavy` prints when it kills a
@@ -65,11 +66,13 @@ holds that someone may need to act on (see "Nothing is dropped silently").
 
 `probe create`, `subscribe`, `unsubscribe`, and `stop` learn their session from
 their own cgroup: claudewheel starts each session in its own systemd scope,
-`claudewheel-session-<pid>-<time>.scope`, and every command the session's Bash
-tool runs is inside it. The scope names the Claude Code process, and the
-lifecycle store maps that process to its session. A probe command run outside
-a session scope, from a terminal or through `heavy` (which runs its command in
-a scope of its own), refuses and says so. `probe list` runs anywhere.
+`claudewheel-session-<pid>-<time>.scope`, and each command the session's Bash
+tool runs in a tool scope, `claudewheel-tool-<pid>-<time>-<n>.scope`, that
+names it (see "A memory cap each session's commands share" in
+[Guardrails](guardrails.md)). The session scope names the Claude Code process,
+and the lifecycle store maps that process to its session. A probe command run
+outside a session, from a terminal or through `heavy` (which runs its command
+in a scope of its own), refuses and says so. `probe list` runs anywhere.
 
 ### Which conversation a subscription belongs to
 
@@ -88,7 +91,8 @@ One persistent user service hosts every probe:
 each one:
 
 - attributes the unit to a session: a session scope through the lifecycle
-  store; a `heavy` scope through the session scope `heavy` wrote into the
+  store; a Bash command's tool scope through the session scope its name
+  carries; a `heavy` scope through the session scope `heavy` wrote into the
   scope's description, which the journal keeps after the scope is gone;
 - queues the session's own report, and one report to each subscription of
   every live probe that watches that session or all sessions;
@@ -143,7 +147,10 @@ for the conversation that made the call: `this command was OOM-killed: fix
 the memory at its source, do not rerun`, with what was killed, where, and
 when. When other Bash calls of the session were running at the kill, the label
 names them and says the killed process may have been theirs; each of them
-that ended OOM-killed is labeled the same way.
+that ended OOM-killed is labeled the same way. The call's own output already
+ends with the line `claudewheel-tool-scope` prints for a kill in the command's
+scope, naming the memory cap the session's Bash commands share (see "A memory
+cap each session's commands share" in [Guardrails](guardrails.md)).
 
 ## Nothing is dropped silently
 

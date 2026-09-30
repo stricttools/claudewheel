@@ -86,7 +86,7 @@ Opening the screen also writes two things into the lifecycle store, both idempot
 
 ## OOM kill reports and probes
 
-When the kernel's OOM killer kills a command a session started -- a `heavy` job over its `--mem` cap, or a command over the session's memory ceiling -- claudewheel tells that session, even when it sits idle: the report wakes its main conversation, a Bash call that died with status 137 is labeled for the conversation that made it, and a session that ended gets the report when it resumes. A probe watches another session's kills, or every session's, until a deadline it must state:
+When the kernel's OOM killer kills a command a session started -- a `heavy` job over its `--mem` cap, or a Bash command when the session's Bash commands reach the memory cap they share -- claudewheel tells that session, even when it sits idle: the report wakes its main conversation, a Bash call that died with status 137 is labeled for the conversation that made it, and a session that ended gets the report when it resumes. A probe watches another session's kills, or every session's, until a deadline it must state:
 
 ```bash
 claudewheel probe create oom-kill --all-sessions --deadline 2h

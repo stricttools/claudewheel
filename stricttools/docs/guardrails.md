@@ -1,6 +1,6 @@
 +++
 title = "Guardrails"
-description = "How claudewheel guardrails work: the 4 enforcement tiers, subagents versus the main agent, command-string caveats, the heavy wrapper and its memory budget, the memory ceiling of each session, upgrading profiles, and stripped tools."
+description = "How claudewheel guardrails work: the 4 enforcement tiers, subagents versus the main agent, command-string caveats, the heavy wrapper and its memory budget, the memory cap each session's commands share, upgrading profiles, and stripped tools."
 nav_group = "Concepts"
 nav_order = 5
 +++
@@ -145,8 +145,9 @@ make room.
 
 The command runs in its own systemd user scope, named `heavy-<pid>-<time>.scope`,
 described as `heavy job of claudewheel-session-<pid>-<time>.scope: <command>`
-(the session scope `heavy` was started from, read from its own cgroup; `heavy
-job outside any claudewheel session: <command>` otherwise), which the journal
+(the session `heavy` was started from, read from its own cgroup: the Bash
+command's tool scope names the session scope; `heavy job outside any
+claudewheel session: <command>` otherwise), which the journal
 keeps after the scope is gone, so an OOM kill of the command is reported to
 the session that started it (see [Probes](probes.md)). The scope is
 capped at 5G of memory with no swap (`--mem` sets another cap, a whole number
@@ -184,53 +185,97 @@ anything else already stands at
 `~/.local/bin/heavy`, the deployment refuses and leaves it alone;
 `--force-overwrite` replaces it with the link.
 
-## A memory ceiling for each session
+## A memory cap each session's commands share
 
 The `heavy-unwrapped` rule matches command names, so a heavy command it cannot
 see, such as a test suite started inside `bash -c`, still runs unwrapped. So
-that such a command can take down only its own session, claudewheel starts
-every session it launches in its own systemd user scope with a memory ceiling:
+that such a command is killed while the session goes on, claudewheel caps
+what a session runs, and not the session itself:
+
+- **Claude Code runs uncapped** in the session scope,
+  `claudewheel-session-<pid>-<time>.scope`, inside the session slice
+  `claudewheel-<pid>_<time>.slice` (the Claude Code process ID and the launch
+  second).
+- **Every Bash command** the session runs, and everything that command starts,
+  runs in a scope of its own, `claudewheel-tool-<pid>-<time>-<n>.scope`, inside
+  the session's tools slice, `claudewheel-<pid>_<time>-tools.slice`. The tools
+  slice caps all of them together: 6G of memory and 1G of swap unless set.
+
+A slice's dashes name its parents, so the tools slice sits inside the session
+slice, and every session slice inside `claudewheel.slice`. claudewheel starts
+the session with
 
 ```bash
 systemd-run --user --scope --quiet --collect --expand-environment=no \
+    --slice=claudewheel-<pid>_<time>.slice \
     --unit=claudewheel-session-<pid>-<time>.scope \
-    -p MemoryMax=4G -p MemorySwapMax=1G -p OOMPolicy=continue -- <the client command>
+    -p OOMPolicy=continue -- <the client command>
 ```
 
 `systemd-run` puts the client in the scope and then becomes it, so the session
 keeps claudewheel's process ID, terminal, and environment, and
 `--expand-environment=no` passes the client's arguments through with any `$`
-in them untouched. claudewheel prints
-the ceiling at every launch:
+in them untouched. `OOMPolicy=continue` keeps the session running when the
+kernel kills one of its processes because the machine ran out of memory.
+claudewheel prints the layout and the cap at every launch:
 
 ```text
-claudewheel: this session runs in claudewheel-session-<pid>-<time>.scope, capped at 4G of memory and 1G of swap (session_memory_max and session_memory_swap_max in config.json)
+claudewheel: this session runs in claudewheel-session-<pid>-<time>.scope, not memory-capped; its Bash commands run in claudewheel-<pid>_<time>-tools.slice, capped together at 6G of memory and 1G of swap (tool_memory_max and tool_memory_swap_max in config.json)
 ```
 
-- **The ceiling** is `session_memory_max` in `config.json`, 4G unless set. A
-  session's Claude Code process has been measured at under 1G at its peak over
-  days of work, so 4G leaves room for the commands its agents run outside
-  `heavy` (searches, git, package resolution, small scripts).
-- **Swap** is `session_memory_swap_max`, 1G unless set, or `0` for none. A
-  little swap lets an idle session's cold memory be compressed into zram
-  instead of holding RAM; more would let a runaway push gigabytes into swap,
-  slowing the whole machine, before the ceiling stopped it.
-- **`OOMPolicy=continue`**: when the scope reaches its ceiling, the kernel
-  kills the largest process in it, which is the runaway command rather than
-  Claude Code, and the session carries on. Without it, systemd would stop the
-  whole scope on the first kill.
+The Bash commands reach their scopes through Claude Code's
+`CLAUDE_CODE_SHELL_PREFIX`: the launch points it at
+`~/.claudewheel/scripts/claudewheel-tool-scope`, and Claude Code runs every
+shell command it spawns as `claudewheel-tool-scope '<command line>'`. The
+wrapper tells a Bash tool call by the way Claude Code assembles one, a chain
+that ends by writing the shell's working directory to a file, and:
 
-A `heavy` command started from inside a session is not counted against the
-session's ceiling: the user manager places every scope it starts beside the
-others in its own slice, not inside the scope of the process that asked, so the
-`heavy` scope is a sibling of the session scope and only its own `--mem` cap
-limits it.
+- runs the call in its own scope in the tools slice. The session's first Bash
+  call creates the tools slice with its cap; when the slice cannot carry the
+  cap, the call is refused with `claudewheel: refused to run this command:`
+  and the reason, rather than run uncapped.
+- runs everything else Claude Code sends through the prefix directly, outside
+  the cap: hooks, the status line, and stdio MCP servers. A guardrail hook
+  killed at the cap would let its tool call through unchecked.
+- reports a kill. When the kernel's OOM killer kills a process of the command,
+  the wrapper prints one line on stderr once the command returns, and the
+  command keeps its own exit status. Nothing is retried:
+
+```text
+claudewheel: this command was OOM-killed: the kernel's OOM killer killed 1 of its processes when this session's Bash commands reached the 6G memory cap they share (claudewheel-<pid>_<time>-tools.slice, MemoryMax=6G, MemorySwapMax=1G). The command ran in claudewheel-tool-<pid>-<time>-<n>.scope, which peaked at 5.9G (page cache included). Claude Code itself is not capped and keeps running. Fix the memory at its source, do not rerun it: ...
+```
+
+The count is of the command's processes the kernel killed, read from its
+scope's `memory.events` (`oom_kill`). The tools slice's own count of the times
+it reached its limit (`oom` in its `memory.events`) tells a kill at the cap
+from one when the whole machine ran out of memory, which the line names
+instead (`when this machine ran out of memory, with this session's Bash
+commands under the 6G memory cap they share`). The cap is shared, so the
+process killed is the largest one of any of the session's Bash commands, not
+necessarily one of the command that went over.
+
+- **The cap** is `tool_memory_max` in `config.json`, 6G unless set.
+- **Swap** is `tool_memory_swap_max`, 1G unless set, or `0` for none. A little
+  swap lets cold memory be compressed into zram instead of holding RAM; more
+  would let a runaway push gigabytes into swap, slowing the whole machine,
+  before the cap stopped it.
+
+A `heavy` command started from a Bash command is not counted against the
+session's cap: the user manager places a scope that names no slice in its
+default slice, not inside the scope or slice of the process that asked, so the
+`heavy` scope is outside the tools slice and only its own `--mem` cap limits
+it.
 
 Both keys take a whole number with a `K`, `M`, `G`, or `T` suffix; any other
 value fails the launch with `Launch failed:` and the key's name. `systemd-run`
-must be on the launch `PATH`, and the launch fails if it is not. A session
-already running keeps the scope, or the absence of one, it was launched with;
-the ceiling applies from its next launch.
+must be on the launch `PATH`, and the launch fails if it is not. A launch
+deploys `claudewheel-tool-scope` when it is missing (`claudewheel deploy-hooks
+claudewheel-tool-scope --force-overwrite` replaces a stale copy), and fails
+when the deployed copy cannot be run. systemd keeps an empty slice until it is
+stopped, so each launch stops the session slices of sessions that ended with
+nothing left running in them, launched more than a minute ago. A session
+already running keeps the units it was launched with; the layout applies from
+its next launch.
 
 ## Upgrading existing profiles
 
