@@ -365,14 +365,21 @@ def end_probes(ws: Workspace, *, now_ms: int) -> list[tuple[str, str]]:
     """End every live probe whose deadline, count, file, or watched session says so."""
     store = ws.probes
     ended: list[tuple[str, str]] = []
-    probes = probe.load_probes(store)
-    if not probes:
+    live = [state for state in probe.load_probes(store).values() if state.active]
+    if not live:
         return ended
-    lifecycles = lifecycle.load_all(ws.shared.lifecycle_dir)
-    kills = probe.read_kills(store)
-    for state in probes.values():
-        if not state.active:
-            continue
+    # Read only what a live probe's stops need: this runs every tick.
+    lifecycles = (
+        lifecycle.load_all(ws.shared.lifecycle_dir)
+        if any(state.until_watched_ends for state in live)
+        else {}
+    )
+    kills = (
+        probe.read_kills(store)
+        if any(state.until_count is not None for state in live)
+        else []
+    )
+    for state in live:
         reason: str | None = None
         if lifecycle.parse_timestamp_ms(state.deadline) <= now_ms:
             reason = "deadline"
@@ -392,11 +399,13 @@ def end_probes(ws: Workspace, *, now_ms: int) -> list[tuple[str, str]]:
     return ended
 
 
-def settle_reports(ws: Workspace, *, now: float) -> dict[str, int]:
-    """Confirm, requeue, and expire reports; return how many of each."""
+def settle_reports(
+    ws: Workspace, *, now: float, states: tuple[str, ...] = ("pending", "handed")
+) -> dict[str, int]:
+    """Confirm and requeue handed reports and expire pending ones; return how many of each."""
     store = ws.probes
     counts = {"delivered": 0, "requeued": 0, "expired": 0}
-    reports = probe.list_reports(store, ["pending", "handed"])
+    reports = probe.list_reports(store, states)
     if not reports:
         return counts
     lifecycles = lifecycle.load_all(ws.shared.lifecycle_dir)
@@ -428,10 +437,18 @@ def settle_reports(ws: Workspace, *, now: float) -> dict[str, int]:
     return counts
 
 
-def tick(ws: Workspace) -> None:
-    """One pass of keeping the store moving."""
+# How often pending reports are checked for expiry, in seconds. A handed report
+# is settled every tick, since a session is waiting on it; a pending one can
+# only expire, and one kept for an ended session may wait for months.
+EXPIRY_EVERY_SECONDS = 60.0
+
+
+def tick(ws: Workspace, *, expire: bool) -> None:
+    """One pass of keeping the store moving; *expire* also checks pending reports."""
     end_probes(ws, now_ms=probe.now_ms())
-    settle_reports(ws, now=time.time())
+    settle_reports(
+        ws, now=time.time(), states=("pending", "handed") if expire else ("handed",)
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -497,11 +514,20 @@ def run(ws: Workspace) -> int:
         file=sys.stderr,
         flush=True,
     )
+    last_expiry = 0.0
+
+    def keep_moving() -> None:
+        nonlocal last_expiry
+        expire = time.monotonic() - last_expiry >= EXPIRY_EVERY_SECONDS
+        tick(ws, expire=expire)
+        if expire:
+            last_expiry = time.monotonic()
+
     try:
-        tick(ws)
+        keep_moving()
         for line in _lines(follower.stdout, lambda: stopping):
             if line is None:
-                tick(ws)
+                keep_moving()
                 continue
             try:
                 entry = json.loads(line)
@@ -522,7 +548,7 @@ def run(ws: Workspace) -> int:
                 )
             if isinstance(entry.get("__CURSOR"), str):
                 effects.write_text_atomic(store.cursor_file, entry["__CURSOR"] + "\n")
-            tick(ws)
+            keep_moving()
         if not stopping:
             print(f"{SERVICE_NAME}: journalctl ended", file=sys.stderr, flush=True)
             return 1

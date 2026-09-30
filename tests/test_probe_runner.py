@@ -451,6 +451,17 @@ class ExpiryTests(_RunnerCase):
         self.assertEqual(counts["expired"], 1)
         self.assertEqual(len(self.reports("expired")), 1)
 
+    def test_a_tick_expires_pending_reports_only_when_asked(self) -> None:
+        """Handed reports settle every tick; pending ones are checked for expiry each minute."""
+        self.make_probe(self.P, watch=None)
+        self.subscribe(self.P, "aaaaaaaaaaaaaaaa", T, None)
+        self.process(entry("other.scope"))
+        probe.append_probe_event(self.store, self.P, "ended", reason="stopped")
+        probe_runner.tick(self.ws, expire=False)
+        self.assertEqual(len(self.reports("pending")), 1)
+        probe_runner.tick(self.ws, expire=True)
+        self.assertEqual(len(self.reports("expired")), 1)
+
     def test_a_live_probes_report_waits_for_its_ended_session(self) -> None:
         self.make_probe(self.P, watch=None)
         self.subscribe(self.P, "aaaaaaaaaaaaaaaa", T, None)
