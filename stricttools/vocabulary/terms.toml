@@ -1,6 +1,10 @@
 format_version = 1
 
 [[accepted]]
+word = "cgroup"
+meaning = "a Linux control group, the kernel's unit of process grouping and resource accounting that systemd scopes are built on"
+
+[[accepted]]
 word = "claudewheel"
 meaning = "This project: a CLI that manages multiple Claude Code profiles (separate config directories with their own credentials, settings, and hooks) and launches Claude Code under one."
 
