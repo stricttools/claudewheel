@@ -190,6 +190,57 @@ class SessionStartHookTests(_SessionHookCase):
         self.assertEqual(named.name, "projects-9a")
         self.assertEqual(named.name_source, "derived")
 
+    def test_the_client_pid_claude_code_exports_is_the_recorded_pid(self) -> None:
+        """CLAUDE_PID, which Claude Code sets for its hooks, beats the registry's pid.
+
+        The registry file may not exist yet when SessionStart runs, and the
+        probe runner maps a session scope's pid to its session through this
+        line, so the pid must not depend on it.
+        """
+        self.write_registry(pid=424242)
+        proc = self.run_hook(
+            START,
+            start_payload(),
+            {
+                **self.launch_env(),
+                "CLAUDE_CONFIG_DIR": str(self.config_dir),
+                "CLAUDE_PID": "4242",
+            },
+        )
+        self.assert_clean(proc)
+        started = self.events()[0]
+        assert isinstance(started, StartedEvent)
+        self.assertEqual(started.pid, 4242)
+
+    def test_client_pid_without_a_registry_record(self) -> None:
+        proc = self.run_hook(
+            START,
+            start_payload(),
+            {
+                **self.launch_env(),
+                "CLAUDE_CONFIG_DIR": str(self.config_dir),
+                "CLAUDE_PID": "4242",
+            },
+        )
+        self.assert_clean(proc)
+        started = self.events()[0]
+        assert isinstance(started, StartedEvent)
+        self.assertEqual(started.pid, 4242)
+
+    def test_a_client_pid_that_is_not_a_number_fails_without_writing(self) -> None:
+        proc = self.run_hook(
+            START,
+            start_payload(),
+            {
+                **self.launch_env(),
+                "CLAUDE_CONFIG_DIR": str(self.config_dir),
+                "CLAUDE_PID": "12x",
+            },
+        )
+        self.assertEqual(proc.returncode, 1)
+        self.assertIn("CLAUDE_PID", proc.stderr)
+        self.assertFalse(self.lifecycle_dir.exists())
+
     def test_without_launch_env_falls_back_to_claudewheel_config_dir(self) -> None:
         """No CLAUDEWHEEL_LAUNCH_* at all: the store is found under the root."""
         self.write_registry(version="2.1.263")

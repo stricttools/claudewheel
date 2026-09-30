@@ -19,10 +19,10 @@ from . import effects
 # backslash escapes of its own (``tr -d ' \n'``, ``printf '%s\n'``) that a
 # regular Python string would eat before bash ever saw them.
 #
-# Everything from `set -uo pipefail` down to `exit 0` in the first script is
-# repeated verbatim in the second, on purpose: a deployed hook is ONE file that
-# Claude Code runs directly, so neither may depend on a shared include sitting
-# next to it.
+# The parts the two scripts share (the fail helper, the store and registry
+# lookups, mint, append) are repeated in each, on purpose: a deployed hook is
+# ONE file that Claude Code runs directly, so neither may depend on a shared
+# include sitting next to it.
 
 _SESSION_START_SCRIPT = r"""#!/usr/bin/env bash
 # SessionStart hook: record a `started` line in claudewheel's per-session
@@ -105,6 +105,16 @@ fi
 [[ -n "$reg_name_source" ]] || reg_name_source=null
 [[ -n "$reg_pid" ]] || reg_pid=null
 [[ -n "$reg_version" ]] || reg_version=null
+
+# The Claude Code process's own pid, which Claude Code exports to its hooks as
+# CLAUDE_PID, beats the registry's: the registry record may not be written yet
+# when SessionStart runs, and the probe runner finds a session scope's session
+# (claudewheel-session-<pid>-<time>.scope) through this line's pid.
+if [[ -n "${CLAUDE_PID:-}" ]]; then
+    [[ "$CLAUDE_PID" =~ ^[1-9][0-9]*$ ]] ||
+        fail "CLAUDE_PID is not a process id: '$CLAUDE_PID'"
+    reg_pid=$CLAUDE_PID
+fi
 
 event_id=""
 event_at=""
