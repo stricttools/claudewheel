@@ -947,13 +947,13 @@ _WOULD_LINK = {"linked": "would link", "relinked": "would relink"}
     "all",
     type=bool,
     presence="optional",
-    help="deploy every known hook script from the built-in registry at once; when omitted, the positional name selects one script",
+    help="deploy every known hook script from the built-in registry and the probe runner's service at once; when omitted, the positional name selects one script, or the service by its name",
 )
 @strictcli.flag(
     "force-overwrite",
     type=bool,
     presence="optional",
-    help="overwrite existing hook scripts on disk instead of skipping them, and replace whatever stands at a PATH command's link (~/.local/bin/heavy); when omitted, an existing script is left alone and a link path held by anything else is refused",
+    help="overwrite existing hook scripts and the probe runner's unit on disk instead of skipping them (a rewritten unit restarts the service), and replace whatever stands at a PATH command's link (~/.local/bin/heavy); when omitted, an existing script or unit is left alone and a link path held by anything else is refused",
 )
 def _handle_deploy_hooks(
     ws: "Workspace", name: str | None, all: bool | None, force_overwrite: bool | None
@@ -969,7 +969,15 @@ def _handle_deploy_hooks(
     choice's scope). Moving it would mean spelling the script name as
     ``--script <name>``, which is not the argv this command has.
     """
-    from .hook_scripts import HOOK_SCRIPTS, deploy_scripts, link_path_commands
+    import subprocess
+
+    from .hook_scripts import (
+        HOOK_SCRIPTS,
+        deploy_scripts,
+        deploy_service,
+        link_path_commands,
+    )
+    from .probe import SERVICE_NAME
 
     all = _absent(all, False)
     force_overwrite = _absent(force_overwrite, False)
@@ -980,13 +988,18 @@ def _handle_deploy_hooks(
         )
         sys.exit(1)
 
-    if name and name not in HOOK_SCRIPTS:
-        known = ", ".join(sorted(HOOK_SCRIPTS))
+    if name and name not in HOOK_SCRIPTS and name != SERVICE_NAME:
+        known = ", ".join([*sorted(HOOK_SCRIPTS), SERVICE_NAME])
         print(f"Error: unknown hook script: {name!r} (known: {known})", file=sys.stderr)
         sys.exit(1)
 
     scripts_dir = ws.scripts_dir
-    targets = sorted(HOOK_SCRIPTS) if all else [name or ""]
+    if all:
+        targets = sorted(HOOK_SCRIPTS)
+    elif name in HOOK_SCRIPTS:
+        targets = [name or ""]
+    else:
+        targets = []
     previewing = effects.previewing()
     for script_name, action in deploy_scripts(targets, scripts_dir, force_overwrite):
         dest = scripts_dir / script_name
@@ -1017,6 +1030,27 @@ def _handle_deploy_hooks(
             print(f"{_WOULD_LINK[action]}: {link} -> {target}")
         else:
             print(f"{action}: {link} -> {target}")
+
+    if all or name == SERVICE_NAME:
+        # The probe runner's unit names the interpreter claudewheel runs under
+        # now and the workspace this command acts on.
+        try:
+            unit, action = deploy_service(
+                ws.systemd_user_dir, sys.executable, ws.root, force_overwrite
+            )
+        except subprocess.CalledProcessError as exc:
+            print(
+                f"Error: {' '.join(exc.cmd)} failed with exit status "
+                f"{exc.returncode}; {SERVICE_NAME} is not running",
+                file=sys.stderr,
+            )
+            return 1
+        if action == "exists":
+            print(f"already exists: {unit} (enabled and started)")
+        elif previewing:
+            print(f"{_WOULD_DEPLOY[action]}: {unit} (and enable and restart it)")
+        else:
+            print(f"{action}: {unit} (enabled and restarted)")
 
     return 1 if refused else 0
 
@@ -2722,12 +2756,12 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
     app.command(
         "deploy-hooks",
         effect="mutating",
-        help="deploy built-in hook scripts and the heavy wrapper to the ~/.claudewheel/scripts/ directory, linking heavy into ~/.local/bin so it is on PATH",
+        help="deploy built-in hook scripts and the heavy wrapper to the ~/.claudewheel/scripts/ directory, linking heavy into ~/.local/bin so it is on PATH, and install the probe runner's user service (claudewheel-probe-runner.service, in ~/.config/systemd/user), enabled and started; systemctl --user stop claudewheel-probe-runner.service stops it gracefully",
         args=[
             Arg(
                 name="name",
                 presence="optional",
-                help="name of the specific hook script to deploy (omit to use --all)",
+                help="name of the specific hook script to deploy, or claudewheel-probe-runner.service to install the probe runner's service (omit to use --all)",
             )
         ],
         # The at-least-one half of "name one script or pass --all". The

@@ -12,6 +12,7 @@ from unittest import mock
 
 from claudewheel import cli
 from claudewheel.hook_scripts import HOOK_SCRIPTS
+from tests.wheelhelpers import install_stub_systemctl
 
 
 class DeployHooksTests(unittest.TestCase):
@@ -28,6 +29,8 @@ class DeployHooksTests(unittest.TestCase):
         )
         self._env_patch.start()
         self.addCleanup(self._env_patch.stop)
+        # --all installs the probe runner's service through systemctl.
+        self.systemctl_log, _ = install_stub_systemctl(self, Path(self._tmp.name))
 
     def _run_deploy(self, argv: list[str]) -> tuple[str, str, bool]:
         """Run deploy-hooks with the given argv, exactly as written.

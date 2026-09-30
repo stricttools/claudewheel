@@ -1317,3 +1317,61 @@ def link_path_commands(
         effects.symlink(link, target)
         results.append((link, target, "linked"))
     return results
+
+
+# ---------------------------------------------------------------------------
+# The probe runner's user service
+# ---------------------------------------------------------------------------
+
+
+def service_unit(python: str, root: Path) -> str:
+    """The unit file of claudewheel-probe-runner.service.
+
+    It runs the probe runner under *python*, the interpreter claudewheel was
+    deployed from, over the workspace at *root*, restarts it when it fails,
+    and starts it with the user's systemd manager, so it runs again after a
+    reboot. ``systemctl --user stop claudewheel-probe-runner.service`` stops it
+    gracefully: the runner saves its journal cursor and exits on SIGTERM.
+    """
+    return (
+        "# Deployed by claudewheel ('claudewheel deploy-hooks "
+        f"{probe.SERVICE_NAME}'); edits are overwritten.\n"
+        "[Unit]\n"
+        "Description=claudewheel probe runner: reports OOM kills to the Claude "
+        "Code sessions they concern\n"
+        "\n"
+        "[Service]\n"
+        "Type=simple\n"
+        f'Environment="CLAUDEWHEEL_CONFIG_DIR={root}"\n'
+        f'ExecStart="{python}" -m claudewheel.probe_runner\n'
+        "Restart=on-failure\n"
+        "RestartSec=5\n"
+        "\n"
+        "[Install]\n"
+        "WantedBy=default.target\n"
+    )
+
+
+def deploy_service(
+    unit_dir: Path, python: str, root: Path, force_overwrite: bool
+) -> tuple[Path, str]:
+    """Write the probe runner's unit into *unit_dir*, enable it, and (re)start it.
+
+    Returns the unit path and "created", "overwritten", or "exists" (left alone
+    because it was there and *force_overwrite* was False). A written unit is
+    loaded and the service restarted, so it runs the code deployed now; one
+    left alone is enabled and started when it is not running.
+    """
+    path = unit_dir / probe.SERVICE_NAME
+    systemctl = ["systemctl", "--user"]
+    if path.exists() and not force_overwrite:
+        action = "exists"
+        effects.run([*systemctl, "enable", "--now", probe.SERVICE_NAME], check=True)
+        return path, action
+    action = "overwritten" if path.exists() else "created"
+    effects.mkdir(unit_dir, parents=True, exist_ok=True)
+    effects.write_text_atomic(path, service_unit(python, root))
+    effects.run([*systemctl, "daemon-reload"], check=True)
+    effects.run([*systemctl, "enable", probe.SERVICE_NAME], check=True)
+    effects.run([*systemctl, "restart", probe.SERVICE_NAME], check=True)
+    return path, action

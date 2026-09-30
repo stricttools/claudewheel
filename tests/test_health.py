@@ -1380,7 +1380,7 @@ class HealthRunCorruptTokensTests(_HomeDirTestCase):
         results = run_health_check(self.ws)
 
         # Every check is reported -- nothing crashed or was skipped.
-        self.assertEqual(len(results), 15)
+        self.assertEqual(len(results), 16)
         labels = [r.label for r in results]
 
         # Both token checks failed with the actionable exception message.

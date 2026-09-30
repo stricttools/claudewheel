@@ -45,7 +45,7 @@ from . import effects, lifecycle, probe
 from .probe import ProbeState, ProbeStore, Report
 from .workspace import Workspace
 
-SERVICE_NAME = "claudewheel-probe-runner.service"
+SERVICE_NAME = probe.SERVICE_NAME
 
 # systemd's catalog ids: a unit's process was OOM-killed; a job finished (the
 # "Started <unit> - <description>" line).

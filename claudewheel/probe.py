@@ -123,6 +123,10 @@ REPORT_STATES: tuple[str, ...] = ("pending", "handed", "delivered", "expired")
 VERIFIED_CLIENT_VERSIONS: tuple[str, ...] = ("2.1.281",)
 
 
+# The user service that hosts every probe (claudewheel.probe_runner).
+SERVICE_NAME = "claudewheel-probe-runner.service"
+
+
 class ProbeError(Exception):
     """The probe store, or a request against it, cannot be honored."""
 

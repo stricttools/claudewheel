@@ -997,3 +997,49 @@ class SandboxHomeTestCase(unittest.TestCase):
         pdir = self.sandbox_paths["PROFILES_DIR"] / name
         pdir.mkdir(parents=True, exist_ok=True)
         return write_token_entry(pdir, entry)
+
+
+# Records each call; `enable` marks the unit enabled, `start`/`restart`/
+# `enable --now` mark it active, `is-enabled`/`is-active` answer from that,
+# the way systemctl prints them. STUB_FAIL names a verb that fails.
+STUB_SYSTEMCTL = """#!/usr/bin/env bash
+printf '%s\\n' "$*" >> "$STUB_SYSTEMCTL_LOG"
+state="$STUB_SYSTEMCTL_STATE"
+verb=$2
+[[ "$verb" == "${STUB_FAIL:-}" ]] && exit 1
+case "$verb" in
+    enable)
+        echo enabled > "$state.enabled"
+        [[ "$3" == --now ]] && echo active > "$state.active"
+        ;;
+    start | restart) echo active > "$state.active" ;;
+    disable) echo disabled > "$state.enabled" ;;
+    stop) echo inactive > "$state.active" ;;
+    is-enabled) cat "$state.enabled" 2>/dev/null || { echo disabled; exit 1; } ;;
+    is-active) cat "$state.active" 2>/dev/null || { echo inactive; exit 3; } ;;
+esac
+exit 0
+"""
+
+
+def stub_systemctl_env(base: Path) -> dict[str, str]:
+    """Write the stub systemctl under *base*; return the environment that uses it."""
+    stub_dir = base / "stub-systemctl-bin"
+    stub_dir.mkdir(exist_ok=True)
+    stub = stub_dir / "systemctl"
+    stub.write_text(STUB_SYSTEMCTL)
+    stub.chmod(0o755)
+    return {
+        "PATH": f"{stub_dir}:{os.environ.get('PATH', '/usr/bin:/bin')}",
+        "STUB_SYSTEMCTL_LOG": str(base / "systemctl.log"),
+        "STUB_SYSTEMCTL_STATE": str(base / "systemctl-state"),
+    }
+
+
+def install_stub_systemctl(case: unittest.TestCase, base: Path) -> tuple[Path, Path]:
+    """Put the stub systemctl first on PATH for *case*; return its log and state."""
+    values = stub_systemctl_env(base)
+    env = patch.dict("os.environ", values)
+    env.start()
+    case.addCleanup(env.stop)
+    return Path(values["STUB_SYSTEMCTL_LOG"]), Path(values["STUB_SYSTEMCTL_STATE"])

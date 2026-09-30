@@ -29,6 +29,7 @@ from unittest import mock
 
 from claudewheel import cli
 from claudewheel.hook_scripts import HOOK_SCRIPTS, PATH_COMMANDS
+from tests.wheelhelpers import stub_systemctl_env
 
 # Records systemd-run's arguments and the GOFLAGS it was started with, then runs
 # the command after "--" the way systemd-run --scope does: in the foreground,
@@ -191,6 +192,10 @@ class _DeployCase(unittest.TestCase):
         )
         env.start()
         self.addCleanup(env.stop)
+        # --all installs the probe runner's service through systemctl; the
+        # stub stands in for it during a deploy only, so the heavy runs below
+        # keep the systemctl each test gives them.
+        self._systemctl_env = stub_systemctl_env(base)
 
     def _run_deploy(self, argv: list[str]) -> tuple[str, str, int]:
         out = io.StringIO()
@@ -198,6 +203,7 @@ class _DeployCase(unittest.TestCase):
         code = 0
         with (
             mock.patch("sys.argv", argv),
+            mock.patch.dict("os.environ", self._systemctl_env),
             redirect_stdout(out),
             redirect_stderr(err),
         ):

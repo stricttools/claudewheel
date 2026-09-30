@@ -865,6 +865,57 @@ def check_relocated_hook_paths(
     )
 
 
+def check_probe_runner(ws: "Workspace") -> HealthResult:
+    """Verify the probe runner's user service is installed, current, enabled, and running.
+
+    Every probe and every session's report of its own OOM-killed commands
+    depend on it. The unit must be the one ``claudewheel deploy-hooks`` writes
+    for this interpreter and workspace, and systemd must report it enabled (so
+    it starts again after a reboot) and active. Each failure names the one fix
+    that clears it: deploying the service again, which rewrites the unit,
+    enables it, and restarts it.
+    """
+    import sys
+
+    from .hook_scripts import service_unit
+    from .probe import SERVICE_NAME
+
+    fix = f"run 'claudewheel deploy-hooks {SERVICE_NAME} --force-overwrite'"
+    unit = ws.systemd_user_dir / SERVICE_NAME
+    if not unit.exists():
+        return HealthResult(False, "probe-runner", f"{unit} is not installed -- {fix}")
+    if unit.read_text() != service_unit(sys.executable, ws.root):
+        return HealthResult(
+            False,
+            "probe-runner",
+            f"{unit} differs from the unit claudewheel deploys for {sys.executable} "
+            f"and {ws.root} -- {fix}",
+        )
+    states: list[str] = []
+    for verb in ("is-enabled", "is-active"):
+        try:
+            answer = effects.run(
+                ["systemctl", "--user", verb, SERVICE_NAME],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                read=True,
+            ).stdout.strip()
+        except (OSError, TimeoutError) as exc:
+            return HealthResult(False, "probe-runner", f"systemctl {verb} failed: {exc}")
+        states.append(answer or "unknown")
+    enabled, active = states
+    if enabled != "enabled":
+        return HealthResult(
+            False, "probe-runner", f"{SERVICE_NAME} is {enabled}, not enabled -- {fix}"
+        )
+    if active != "active":
+        return HealthResult(
+            False, "probe-runner", f"{SERVICE_NAME} is {active}, not running -- {fix}"
+        )
+    return HealthResult(True, "probe-runner", f"{SERVICE_NAME} installed, enabled, and running")
+
+
 def run_health_check(ws: "Workspace") -> list[HealthResult]:
     """Run all health checks and return results.
 
@@ -883,6 +934,7 @@ def run_health_check(ws: "Workspace") -> list[HealthResult]:
         check_canonical_permissions_drift(ws),
         check_deployed_hook_drift(ws),
         check_relocated_hook_paths(ws),
+        check_probe_runner(ws),
         check_tokens(ws),
         check_token_expiry(ws),
         check_auth_shadow(ws),
