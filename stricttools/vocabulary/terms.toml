@@ -23,3 +23,7 @@ meaning = "A file-deletion tool that archives a path with an audit trail before 
 [[accepted]]
 word = "tsv"
 meaning = "Tab-separated values, the flat output format of the permission listing."
+
+[[accepted]]
+word = "unrouted"
+meaning = "an OOM kill no session and no probe subscription took, recorded and listed rather than dropped"
