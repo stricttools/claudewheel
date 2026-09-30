@@ -1,0 +1,292 @@
+# strictspec schema for one claudewheel PROBE line.
+# Source of truth for the Python side: claudewheel/probe.py.
+# One document = one JSONL line = one event in one probe's life.
+#
+# WHAT THE STORE IS: an append-only log, one file per probe
+# (`~/.claudewheel/shared/probes/probes/<probe-id>.jsonl`). A probe watches for
+# one kind of event (the only kind is `oom-kill`) in one Claude Code session or
+# in all of them, until its deadline or an earlier stop, and hands each report
+# to the sessions subscribed to it. The log records that the probe was created,
+# who subscribed, which conversation each subscription is bound to, who
+# unsubscribed, and how the probe ended.
+#
+# SCOPE: strictspec owns the raw DOCUMENT SHAPE. claudewheel keeps what
+# strictspec cannot see: that every line of a file names the probe the file is
+# named after, that a `created` line comes first, and the state a reader
+# derives from the whole file.
+#
+# EVERY FIELD IS PRESENT ON EVERY LINE IT BELONGS TO. A fact that is not known
+# is written as `null`, never omitted.
+
+name = "claudewheel-probe-event"
+meta_version = 1
+format_version = 1
+document_syntax = "jsonl"
+role = "schema"
+root = "ProbeEvent"
+targets = ["python"]
+description = "One JSONL probe line: a single fact about one probe, discriminated by `kind`."
+
+[types.CreatedEvent]
+type = "record"
+description = "A session created the probe. The creating session is subscribed to it by a `subscribed` line written with this one."
+
+[types.CreatedEvent.fields.format_version]
+type = "integer"
+required = true
+description = "Per-line format_version marker. Every line claudewheel writes carries 1."
+
+[types.CreatedEvent.fields.id]
+type = "string"
+required = true
+non_empty = true
+description = "Stable identifier for this event, unique within the file."
+
+[types.CreatedEvent.fields.at]
+type = "datetime"
+required = true
+datetime_kind = "offset"
+description = "When the event happened (RFC 3339 UTC, millisecond precision)."
+
+[types.CreatedEvent.fields.probe]
+type = "string"
+required = true
+regex = "^[0-9a-f]{16}$"
+description = "The probe id. Also the name of the file this line is in."
+
+[types.CreatedEvent.fields.kind]
+type = "literal"
+value = "created"
+required = true
+
+[types.CreatedEvent.fields.session]
+type = "string"
+required = true
+regex = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+description = "The Claude Code session that created the probe."
+
+[types.CreatedEvent.fields.probe_kind]
+type = "enum"
+required = true
+values = ["oom-kill"]
+description = "What the probe watches for. `oom-kill` is systemd's result term for a unit whose process the kernel's OOM killer killed."
+
+[types.CreatedEvent.fields.watch_session]
+type = "nullable"
+required = true
+description = "The one Claude Code session whose events the probe watches. Null watches every session, which the creator had to spell out."
+[types.CreatedEvent.fields.watch_session.inner]
+type = "string"
+regex = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+
+[types.CreatedEvent.fields.deadline]
+type = "datetime"
+required = true
+datetime_kind = "offset"
+description = "When the probe ends at the latest. Every probe states one."
+
+[types.CreatedEvent.fields.until_count]
+type = "nullable"
+required = true
+description = "End the probe once it has seen this many events. Null when no count was given."
+[types.CreatedEvent.fields.until_count.inner]
+type = "integer"
+
+[types.CreatedEvent.fields.until_watched_ends]
+type = "boolean"
+required = true
+description = "End the probe when the watched session ends. Always false for a probe watching every session."
+
+[types.CreatedEvent.fields.until_file]
+type = "nullable"
+required = true
+description = "End the probe once this absolute path exists. Null when no file was given."
+[types.CreatedEvent.fields.until_file.inner]
+type = "string"
+non_empty = true
+
+[types.SubscribedEvent]
+type = "record"
+description = "A session subscribed to the probe. Which of its conversations receives the reports is decided by the `bound` line that follows."
+
+[types.SubscribedEvent.fields.format_version]
+type = "integer"
+required = true
+description = "Per-line format_version marker. Every line claudewheel writes carries 1."
+
+[types.SubscribedEvent.fields.id]
+type = "string"
+required = true
+non_empty = true
+description = "Stable identifier for this event, unique within the file."
+
+[types.SubscribedEvent.fields.at]
+type = "datetime"
+required = true
+datetime_kind = "offset"
+description = "When the event happened (RFC 3339 UTC, millisecond precision)."
+
+[types.SubscribedEvent.fields.probe]
+type = "string"
+required = true
+regex = "^[0-9a-f]{16}$"
+description = "The probe id. Also the name of the file this line is in."
+
+[types.SubscribedEvent.fields.kind]
+type = "literal"
+value = "subscribed"
+required = true
+
+[types.SubscribedEvent.fields.subscription]
+type = "string"
+required = true
+regex = "^[0-9a-f]{16}$"
+description = "The subscription id, unique across every probe."
+
+[types.SubscribedEvent.fields.session]
+type = "string"
+required = true
+regex = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+description = "The Claude Code session that subscribed."
+
+[types.BoundEvent]
+type = "record"
+description = "A subscription was bound to the conversation whose tool call created it: the main conversation, or one subagent. Written by the hook that reads the call's own payload."
+
+[types.BoundEvent.fields.format_version]
+type = "integer"
+required = true
+description = "Per-line format_version marker. Every line claudewheel writes carries 1."
+
+[types.BoundEvent.fields.id]
+type = "string"
+required = true
+non_empty = true
+description = "Stable identifier for this event, unique within the file."
+
+[types.BoundEvent.fields.at]
+type = "datetime"
+required = true
+datetime_kind = "offset"
+description = "When the event happened (RFC 3339 UTC, millisecond precision)."
+
+[types.BoundEvent.fields.probe]
+type = "string"
+required = true
+regex = "^[0-9a-f]{16}$"
+description = "The probe id. Also the name of the file this line is in."
+
+[types.BoundEvent.fields.kind]
+type = "literal"
+value = "bound"
+required = true
+
+[types.BoundEvent.fields.subscription]
+type = "string"
+required = true
+regex = "^[0-9a-f]{16}$"
+description = "The subscription being bound."
+
+[types.BoundEvent.fields.agent]
+type = "nullable"
+required = true
+description = "The subagent the subscription belongs to, as Claude Code's agent_id names it. Null for the main conversation."
+[types.BoundEvent.fields.agent.inner]
+type = "string"
+regex = "^[0-9a-zA-Z_-]+$"
+
+[types.UnsubscribedEvent]
+type = "record"
+description = "A subscription was removed; the probe no longer reports to it."
+
+[types.UnsubscribedEvent.fields.format_version]
+type = "integer"
+required = true
+description = "Per-line format_version marker. Every line claudewheel writes carries 1."
+
+[types.UnsubscribedEvent.fields.id]
+type = "string"
+required = true
+non_empty = true
+description = "Stable identifier for this event, unique within the file."
+
+[types.UnsubscribedEvent.fields.at]
+type = "datetime"
+required = true
+datetime_kind = "offset"
+description = "When the event happened (RFC 3339 UTC, millisecond precision)."
+
+[types.UnsubscribedEvent.fields.probe]
+type = "string"
+required = true
+regex = "^[0-9a-f]{16}$"
+description = "The probe id. Also the name of the file this line is in."
+
+[types.UnsubscribedEvent.fields.kind]
+type = "literal"
+value = "unsubscribed"
+required = true
+
+[types.UnsubscribedEvent.fields.subscription]
+type = "string"
+required = true
+regex = "^[0-9a-f]{16}$"
+description = "The subscription removed."
+
+[types.EndedEvent]
+type = "record"
+description = "The probe ended. It watches nothing more, and its undelivered reports to sessions that have ended are expired."
+
+[types.EndedEvent.fields.format_version]
+type = "integer"
+required = true
+description = "Per-line format_version marker. Every line claudewheel writes carries 1."
+
+[types.EndedEvent.fields.id]
+type = "string"
+required = true
+non_empty = true
+description = "Stable identifier for this event, unique within the file."
+
+[types.EndedEvent.fields.at]
+type = "datetime"
+required = true
+datetime_kind = "offset"
+description = "When the event happened (RFC 3339 UTC, millisecond precision)."
+
+[types.EndedEvent.fields.probe]
+type = "string"
+required = true
+regex = "^[0-9a-f]{16}$"
+description = "The probe id. Also the name of the file this line is in."
+
+[types.EndedEvent.fields.kind]
+type = "literal"
+value = "ended"
+required = true
+
+[types.EndedEvent.fields.reason]
+type = "enum"
+required = true
+values = ["stopped", "deadline", "count", "watched-ended", "file"]
+description = "Why the probe ended: an explicit stop, its deadline, its count reached, the watched session ended, or its file appeared."
+
+[types.ProbeEvent]
+type = "discriminated-union"
+discriminator = "kind"
+description = "One probe line. The `kind` field selects the arm; an unrecognized kind is a hard error, never a skipped line."
+
+[types.ProbeEvent.arms.created]
+type = "CreatedEvent"
+
+[types.ProbeEvent.arms.subscribed]
+type = "SubscribedEvent"
+
+[types.ProbeEvent.arms.bound]
+type = "BoundEvent"
+
+[types.ProbeEvent.arms.unsubscribed]
+type = "UnsubscribedEvent"
+
+[types.ProbeEvent.arms.ended]
+type = "EndedEvent"

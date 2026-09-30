@@ -12,3 +12,35 @@ path = ".strictspec/lifecycle-event.schema.toml"
   lang    = "python"
   output  = "claudewheel/strictspec_gen/lifecycle_event_validator.py"
   package = "claudewheel.strictspec_gen"
+
+[[schemas]]
+path = ".strictspec/probe-event.schema.toml"
+
+  [[schemas.targets]]
+  lang    = "python"
+  output  = "claudewheel/strictspec_gen/probe_event_validator.py"
+  package = "claudewheel.strictspec_gen"
+
+[[schemas]]
+path = ".strictspec/probe-report.schema.toml"
+
+  [[schemas.targets]]
+  lang    = "python"
+  output  = "claudewheel/strictspec_gen/probe_report_validator.py"
+  package = "claudewheel.strictspec_gen"
+
+[[schemas]]
+path = ".strictspec/oom-kill-event.schema.toml"
+
+  [[schemas.targets]]
+  lang    = "python"
+  output  = "claudewheel/strictspec_gen/oom_kill_event_validator.py"
+  package = "claudewheel.strictspec_gen"
+
+[[schemas]]
+path = ".strictspec/probe-session-event.schema.toml"
+
+  [[schemas.targets]]
+  lang    = "python"
+  output  = "claudewheel/strictspec_gen/probe_session_event_validator.py"
+  package = "claudewheel.strictspec_gen"

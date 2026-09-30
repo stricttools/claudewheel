@@ -1,0 +1,94 @@
+# strictspec schema for one claudewheel PROBE REPORT.
+# Source of truth for the Python side: claudewheel/probe.py.
+# One document = one JSON file = one report to one conversation.
+#
+# WHAT THE STORE IS: one file per report under
+# `~/.claudewheel/shared/probes/reports/<state>/<session>/`, where the state
+# directory (pending, handed, delivered, expired) is the report's delivery
+# state and the file name `<report-id>.<recipient>.json` says which
+# conversation of the session receives it: `main`, `agent-<agent id>`, or
+# `unbound-<subscription id>` while the subscription waits for its binding.
+# A report moves between states by rename; its content never changes, except
+# that binding a subscription fills in the subagent and its task.
+#
+# EVERY FIELD IS PRESENT. A fact that is not known is written as `null`.
+
+name = "claudewheel-probe-report"
+meta_version = 1
+format_version = 1
+document_syntax = "json"
+role = "schema"
+root = "ProbeReport"
+targets = ["python"]
+description = "One report of one OOM kill to one conversation of one Claude Code session."
+
+[types.ProbeReport]
+type = "record"
+description = "One report, as queued for delivery."
+
+[types.ProbeReport.fields.format_version]
+type = "integer"
+required = true
+description = "Document format_version marker. Every report claudewheel writes carries 1."
+
+[types.ProbeReport.fields.id]
+type = "string"
+required = true
+regex = "^[0-9a-f]{16}$"
+description = "The report id. The delivered text carries it, which is how a delivery is confirmed in the session's transcript."
+
+[types.ProbeReport.fields.at]
+type = "datetime"
+required = true
+datetime_kind = "offset"
+description = "When the report was queued (RFC 3339 UTC, millisecond precision)."
+
+[types.ProbeReport.fields.session]
+type = "string"
+required = true
+regex = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+description = "The Claude Code session the report goes to."
+
+[types.ProbeReport.fields.agent]
+type = "nullable"
+required = true
+description = "The subagent the report is for, as Claude Code's agent_id names it. Null for the main conversation."
+[types.ProbeReport.fields.agent.inner]
+type = "string"
+regex = "^[0-9a-zA-Z_-]+$"
+
+[types.ProbeReport.fields.task]
+type = "nullable"
+required = true
+description = "The task the subagent was given (the Agent call's description), when known. Labels a report that reaches the main conversation because the subagent has finished."
+[types.ProbeReport.fields.task.inner]
+type = "string"
+non_empty = true
+
+[types.ProbeReport.fields.probe]
+type = "nullable"
+required = true
+description = "The probe that produced the report. Null for the report every session gets of its own commands' kills, which no probe produces."
+[types.ProbeReport.fields.probe.inner]
+type = "string"
+regex = "^[0-9a-f]{16}$"
+
+[types.ProbeReport.fields.subscription]
+type = "nullable"
+required = true
+description = "The subscription the report was produced for. Null exactly when `probe` is null."
+[types.ProbeReport.fields.subscription.inner]
+type = "string"
+regex = "^[0-9a-f]{16}$"
+
+[types.ProbeReport.fields.kill]
+type = "string"
+required = true
+regex = "^[0-9a-f]{16}$"
+description = "The OOM kill the report is about, by its id in kills.jsonl."
+
+[types.ProbeReport.fields.text]
+type = "string"
+required = true
+non_empty = true
+description = "What the conversation is told."

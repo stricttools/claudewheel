@@ -1,0 +1,173 @@
+# strictspec schema for one claudewheel PROBE SESSION line.
+# Source of truth for the Python side: claudewheel/probe.py; the only writer is
+# the hook-deliver-probe-reports hook script.
+# One document = one JSONL line = one fact about one session's tool calls or
+# subagents that report delivery needs.
+#
+# WHAT THE STORE IS: an append-only log, one file per Claude Code session
+# (`~/.claudewheel/shared/probes/sessions/<session-uuid>.jsonl`), recording
+# when each Bash tool call started and ended (so a call that ends OOM-killed
+# is told whether another call was running at the kill) and which subagents
+# were launched, for which task, and when they finished (so a report for a
+# finished subagent reaches its main conversation, labeled).
+#
+# Times are integer milliseconds since the epoch, not RFC 3339 text: the hook
+# compares them with numbers from Claude Code's payloads, in jq.
+#
+# EVERY FIELD IS PRESENT ON EVERY LINE IT BELONGS TO. A fact that is not known
+# is written as `null`, never omitted.
+
+name = "claudewheel-probe-session-event"
+meta_version = 1
+format_version = 1
+document_syntax = "jsonl"
+role = "schema"
+root = "ProbeSessionEvent"
+targets = ["python"]
+description = "One JSONL probe session line: a Bash call starting or ending, or a subagent launched or finished."
+
+[types.CallStartedEvent]
+type = "record"
+description = "A Bash tool call started."
+
+[types.CallStartedEvent.fields.format_version]
+type = "integer"
+required = true
+description = "Per-line format_version marker. Every line claudewheel writes carries 1."
+
+[types.CallStartedEvent.fields.at_ms]
+type = "integer"
+required = true
+description = "When the call started, in milliseconds since the epoch."
+
+[types.CallStartedEvent.fields.kind]
+type = "literal"
+value = "call-started"
+required = true
+
+[types.CallStartedEvent.fields.call]
+type = "string"
+required = true
+non_empty = true
+description = "Claude Code's tool_use_id of the call."
+
+[types.CallStartedEvent.fields.agent]
+type = "nullable"
+required = true
+description = "The subagent making the call. Null for the main conversation."
+[types.CallStartedEvent.fields.agent.inner]
+type = "string"
+regex = "^[0-9a-zA-Z_-]+$"
+
+[types.CallStartedEvent.fields.timeout_ms]
+type = "integer"
+required = true
+description = "How long the call may run: its own timeout, or the Bash tool's default. Bounds a call whose end was never recorded."
+
+[types.CallEndedEvent]
+type = "record"
+description = "A Bash tool call ended, successfully or not."
+
+[types.CallEndedEvent.fields.format_version]
+type = "integer"
+required = true
+description = "Per-line format_version marker. Every line claudewheel writes carries 1."
+
+[types.CallEndedEvent.fields.at_ms]
+type = "integer"
+required = true
+description = "When the call ended, in milliseconds since the epoch."
+
+[types.CallEndedEvent.fields.kind]
+type = "literal"
+value = "call-ended"
+required = true
+
+[types.CallEndedEvent.fields.call]
+type = "string"
+required = true
+non_empty = true
+description = "Claude Code's tool_use_id of the call."
+
+[types.CallEndedEvent.fields.agent]
+type = "nullable"
+required = true
+description = "The subagent that made the call. Null for the main conversation."
+[types.CallEndedEvent.fields.agent.inner]
+type = "string"
+regex = "^[0-9a-zA-Z_-]+$"
+
+[types.AgentLaunchedEvent]
+type = "record"
+description = "The session launched a subagent."
+
+[types.AgentLaunchedEvent.fields.format_version]
+type = "integer"
+required = true
+description = "Per-line format_version marker. Every line claudewheel writes carries 1."
+
+[types.AgentLaunchedEvent.fields.at_ms]
+type = "integer"
+required = true
+description = "When the launch was recorded, in milliseconds since the epoch."
+
+[types.AgentLaunchedEvent.fields.kind]
+type = "literal"
+value = "agent-launched"
+required = true
+
+[types.AgentLaunchedEvent.fields.agent]
+type = "string"
+required = true
+regex = "^[0-9a-zA-Z_-]+$"
+description = "The subagent's id (the Agent call's agentId)."
+
+[types.AgentLaunchedEvent.fields.task]
+type = "nullable"
+required = true
+description = "The Agent call's description of the task. Null when the call gave none."
+[types.AgentLaunchedEvent.fields.task.inner]
+type = "string"
+non_empty = true
+
+[types.AgentFinishedEvent]
+type = "record"
+description = "A subagent finished (SubagentStop)."
+
+[types.AgentFinishedEvent.fields.format_version]
+type = "integer"
+required = true
+description = "Per-line format_version marker. Every line claudewheel writes carries 1."
+
+[types.AgentFinishedEvent.fields.at_ms]
+type = "integer"
+required = true
+description = "When the subagent finished, in milliseconds since the epoch."
+
+[types.AgentFinishedEvent.fields.kind]
+type = "literal"
+value = "agent-finished"
+required = true
+
+[types.AgentFinishedEvent.fields.agent]
+type = "string"
+required = true
+regex = "^[0-9a-zA-Z_-]+$"
+description = "The subagent's id."
+
+[types.ProbeSessionEvent]
+type = "discriminated-union"
+discriminator = "kind"
+description = "One probe session line. The `kind` field selects the arm; an unrecognized kind is a hard error, never a skipped line."
+
+[types.ProbeSessionEvent.arms.call-started]
+type = "CallStartedEvent"
+
+[types.ProbeSessionEvent.arms.call-ended]
+type = "CallEndedEvent"
+
+[types.ProbeSessionEvent.arms.agent-launched]
+type = "AgentLaunchedEvent"
+
+[types.ProbeSessionEvent.arms.agent-finished]
+type = "AgentFinishedEvent"

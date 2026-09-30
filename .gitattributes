@@ -1,1 +1,5 @@
 claudewheel/strictspec_gen/lifecycle_event_validator.py text eol=lf linguist-generated=true
+claudewheel/strictspec_gen/probe_event_validator.py text eol=lf linguist-generated=true
+claudewheel/strictspec_gen/probe_report_validator.py text eol=lf linguist-generated=true
+claudewheel/strictspec_gen/oom_kill_event_validator.py text eol=lf linguist-generated=true
+claudewheel/strictspec_gen/probe_session_event_validator.py text eol=lf linguist-generated=true

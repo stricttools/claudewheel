@@ -12,6 +12,11 @@ from pathlib import Path
 # outlives the profile that launched the session.
 LIFECYCLE_DIRNAME = "lifecycle"
 
+# The machine-wide probe store (claudewheel.probe): probes, the OOM kills the
+# probe runner read, and the reports it queued for each session. Not in
+# SHARED_SUBDIRS either, for the same reason as the lifecycle store.
+PROBES_DIRNAME = "probes"
+
 # The longest store-dir name Claude Code writes in full; a longer sanitized
 # path is cut to this length and suffixed with a hash of the raw path.
 PROJECT_DIR_NAME_LIMIT = 200
@@ -74,6 +79,11 @@ class SharedStore:
     def lifecycle_dir(self) -> Path:
         """Directory holding the per-session lifecycle files (shared/lifecycle)."""
         return self.shared_dir / LIFECYCLE_DIRNAME
+
+    @property
+    def probes_dir(self) -> Path:
+        """Directory holding the probe store (shared/probes)."""
+        return self.shared_dir / PROBES_DIRNAME
 
     @property
     def inodes_file(self) -> Path:

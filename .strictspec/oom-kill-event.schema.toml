@@ -1,0 +1,99 @@
+# strictspec schema for one claudewheel OOM KILL line.
+# Source of truth for the Python side: claudewheel/probe.py.
+# One document = one JSONL line = one OOM kill the probe runner read.
+#
+# WHAT THE STORE IS: an append-only log
+# (`~/.claudewheel/shared/probes/kills.jsonl`) of every entry systemd's user
+# manager wrote for a unit whose process the kernel's OOM killer killed, as
+# claudewheel-probe-runner.service read it from the user journal, with the
+# Claude Code session it was attributed to and the reports it produced. A kill
+# no session and no subscription could take is recorded here with no reports,
+# so nothing is dropped silently.
+#
+# EVERY FIELD IS PRESENT ON EVERY LINE IT BELONGS TO. A fact that is not known
+# is written as `null`, never omitted.
+
+name = "claudewheel-oom-kill-event"
+meta_version = 1
+format_version = 1
+document_syntax = "jsonl"
+role = "schema"
+root = "OomKillEvent"
+targets = ["python"]
+description = "One JSONL OOM kill line: a kill systemd reported for one unit, and where its reports went."
+
+[types.OomKillEvent]
+type = "record"
+description = "One OOM kill in one systemd user unit."
+
+[types.OomKillEvent.fields.format_version]
+type = "integer"
+required = true
+description = "Per-line format_version marker. Every line claudewheel writes carries 1."
+
+[types.OomKillEvent.fields.id]
+type = "string"
+required = true
+regex = "^[0-9a-f]{16}$"
+description = "The kill id, unique across the file. Every report of this kill names it."
+
+[types.OomKillEvent.fields.at]
+type = "datetime"
+required = true
+datetime_kind = "offset"
+description = "When the runner recorded the kill (RFC 3339 UTC, millisecond precision)."
+
+[types.OomKillEvent.fields.killed_at_us]
+type = "integer"
+required = true
+description = "When systemd wrote the kill to the journal, in microseconds since the epoch (the entry's __REALTIME_TIMESTAMP). An integer so a hook can compare it with a tool call's window without parsing a date."
+
+[types.OomKillEvent.fields.unit]
+type = "string"
+required = true
+non_empty = true
+description = "The systemd user unit the kill happened in."
+
+[types.OomKillEvent.fields.cursor]
+type = "string"
+required = true
+non_empty = true
+description = "The journal cursor of the entry, so a restarted runner resumes after it."
+
+[types.OomKillEvent.fields.scope]
+type = "enum"
+required = true
+values = ["session", "heavy", "other"]
+description = "Which kind of unit it was: a claudewheel session scope, a heavy job's scope, or any other unit."
+
+[types.OomKillEvent.fields.session]
+type = "nullable"
+required = true
+description = "The Claude Code session whose command was killed. Null when the kill could not be attributed to one."
+[types.OomKillEvent.fields.session.inner]
+type = "string"
+regex = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+
+[types.OomKillEvent.fields.command]
+type = "nullable"
+required = true
+description = "The command a heavy job ran, from its scope's description. Null for any other unit."
+[types.OomKillEvent.fields.command.inner]
+type = "string"
+non_empty = true
+
+[types.OomKillEvent.fields.unattributed]
+type = "nullable"
+required = true
+description = "Why the kill has no session. Null when it has one."
+[types.OomKillEvent.fields.unattributed.inner]
+type = "string"
+non_empty = true
+
+[types.OomKillEvent.fields.reports]
+type = "array"
+required = true
+description = "The ids of the reports the kill produced. Empty when nothing took it: an unrouted kill."
+[types.OomKillEvent.fields.reports.items]
+type = "string"
+regex = "^[0-9a-f]{16}$"

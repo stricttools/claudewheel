@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from .appdata import OptionsFile, StateFile
+from .probe import ProbeStore
 from .profile_store import ProfileStore
 from .shared_store import SharedStore
 
@@ -129,6 +130,11 @@ class Workspace:
     def shared(self) -> SharedStore:
         """The path-injected SharedStore over this workspace's shared + skills dirs."""
         return SharedStore(self.shared_dir, self.skills_dir)
+
+    @property
+    def probes(self) -> ProbeStore:
+        """The path-injected ProbeStore over this workspace's shared/probes."""
+        return ProbeStore(self.shared.probes_dir)
 
     @property
     def profiles(self) -> ProfileStore:
