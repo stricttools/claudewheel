@@ -1419,6 +1419,191 @@ _UUID_RE = re.compile(
 )
 
 
+# -- Probe group --------------------------------------------------------------
+#
+# A probe watches Claude Code sessions for one kind of event and reports it to
+# the sessions subscribed to it (claudewheel.probe). Every command but list acts
+# for the session it runs in, which it learns from its own cgroup.
+
+
+@strictcli.choice("session", help="watch one Claude Code session, by its uuid")
+class OneSession:
+    """The ``--session <uuid>`` member: one watched session."""
+
+    value: str = strictcli.member_value(
+        help="the uuid of the session to watch, as the lifecycle store records it"
+    )
+
+
+@strictcli.choice(
+    "all-sessions", help="watch every Claude Code session on this machine"
+)
+class AllSessions:
+    """The ``--all-sessions`` member: every session, spelled out."""
+
+
+_probe_watch = strictcli.choice_flag(
+    "watch",
+    help="which sessions the probe watches",
+    presence="required",
+    elect_by="member-flags",
+    choices=[OneSession, AllSessions],
+)
+
+
+def _probe_session(ws: "Workspace") -> str:
+    """The session this command runs in, or exit 1 naming the fix."""
+    from . import probe
+
+    try:
+        return probe.resolve_session(
+            ws.shared.lifecycle_dir, probe.own_cgroup_text(), at_ms=probe.now_ms()
+        )
+    except probe.ProbeError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        sys.exit(1)
+
+
+@strictcli.flag(
+    "deadline",
+    type=str,
+    presence="required",
+    help="how long the probe lives at the latest, from now: a whole number with an s, m, h, or d suffix (90s, 30m, 2h, 7d). Every probe states one",
+)
+@strictcli.flag(
+    "count",
+    type=int,
+    presence="optional",
+    help="end the probe once it has seen this many kills; when omitted, the count never ends it",
+)
+@strictcli.flag(
+    "until-watched-ends",
+    type=bool,
+    presence="optional",
+    help="end the probe when the watched session ends (needs --session); when omitted, the session ending does not end it",
+)
+@strictcli.flag(
+    "until-file",
+    type=str,
+    presence="optional",
+    help="end the probe once this absolute path exists; when omitted, no file ends it",
+)
+@_probe_watch
+def _handle_probe_create(
+    ws: "Workspace",
+    kind: str,
+    watch: OneSession | AllSessions,
+    deadline: str,
+    count: int | None,
+    until_watched_ends: bool | None,
+    until_file: str | None,
+) -> int:
+    """Create a probe and subscribe this session to it."""
+    from . import probe
+
+    if _passthrough:
+        print(
+            "Error: a probe runs no command; it watches for one kind of event, "
+            f"and the kinds that exist are: {', '.join(probe.PROBE_KINDS)}",
+            file=sys.stderr,
+        )
+        return 1
+    match watch:
+        case OneSession(value=value):
+            watch_session: str | None = value
+        case AllSessions():
+            watch_session = None
+    session = _probe_session(ws)
+    try:
+        seconds = probe.parse_duration(deadline)
+        probe_id, subscription = probe.create_probe(
+            ws.probes,
+            ws.shared.lifecycle_dir,
+            session=session,
+            kind=kind,
+            watch_session=watch_session,
+            deadline_seconds=seconds,
+            until_count=count,
+            until_watched_ends=_absent(until_watched_ends, False),
+            until_file=until_file,
+            now=probe.now_ms(),
+        )
+    except probe.ProbeError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+    watched = f"session {watch_session}" if watch_session else "all sessions"
+    if effects.previewing():
+        print(
+            f"would create a probe ({kind}) of {watched}, subscribing session {session}"
+        )
+        return 0
+    print(f"probe {probe_id}: {kind} in {watched}, subscribed by session {session}")
+    print(probe.BIND_LINE.format(subscription=subscription, probe=probe_id))
+    return 0
+
+
+def _handle_probe_subscribe(ws: "Workspace", probe_id: str) -> int:
+    """Subscribe this session to an existing live probe."""
+    from . import probe
+
+    session = _probe_session(ws)
+    try:
+        subscription = probe.subscribe(ws.probes, session=session, probe_id=probe_id)
+    except probe.ProbeError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+    if effects.previewing():
+        print(f"would subscribe session {session} to probe {probe_id}")
+        return 0
+    print(f"session {session} subscribed to probe {probe_id}")
+    print(probe.BIND_LINE.format(subscription=subscription, probe=probe_id))
+    return 0
+
+
+def _handle_probe_unsubscribe(ws: "Workspace", subscription: str) -> int:
+    """Remove one of this session's subscriptions."""
+    from . import probe
+
+    session = _probe_session(ws)
+    try:
+        probe_id = probe.unsubscribe(
+            ws.probes, session=session, subscription=subscription
+        )
+    except probe.ProbeError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+    verb = "would remove" if effects.previewing() else "removed"
+    print(f"{verb} subscription {subscription} of probe {probe_id}")
+    return 0
+
+
+def _handle_probe_stop(ws: "Workspace", probe_id: str) -> int:
+    """End a live probe this session created."""
+    from . import probe
+
+    session = _probe_session(ws)
+    try:
+        probe.stop_probe(ws.probes, session=session, probe_id=probe_id)
+    except probe.ProbeError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+    verb = "would stop" if effects.previewing() else "stopped"
+    print(f"{verb} probe {probe_id}")
+    return 0
+
+
+def _handle_probe_list(ws: "Workspace") -> int:
+    """Print every probe, every undelivered or expired report, and every unrouted kill."""
+    from . import probe
+
+    try:
+        sys.stdout.write(probe.render_list(ws.probes))
+    except probe.ProbeError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+    return 0
+
+
 def _resolve_resume_title(ws: "Workspace", resume_val: str, directory: str) -> str:
     """Resolve a ``--resume`` argument to a session UUID.
 
@@ -2083,6 +2268,7 @@ _SUBCOMMANDS = frozenset(
         "purge-plugins",
         "launch",
         "permission",
+        "probe",
         "profile",
         # Deprecated top-level names kept here so main() doesn't rewrite
         # e.g. "c new-profile" to "c launch new-profile" before the
@@ -2668,6 +2854,86 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
         ),
         payload_schema=_PERMISSION_LIST_PAYLOAD_SCHEMA,
     )(_bind(_handle_permission_list, ws))
+
+    probe_grp = app.group(
+        "probe",
+        help="watch Claude Code sessions for OOM kills and report them to the sessions subscribed: create, list, stop, subscribe, and unsubscribe probes. Every session is told of its own commands' OOM kills without a probe",
+    )
+
+    probe_grp.command(
+        "create",
+        effect="mutating",
+        help=(
+            "create a probe of one kind (oom-kill: a unit's process killed by the"
+            " kernel's OOM killer, as systemd reports it) watching one session"
+            " (--session) or every session (--all-sessions), until its --deadline"
+            " or an earlier stop (--count, --until-watched-ends, --until-file, or"
+            " probe stop), and subscribe the session this runs in to it. A probe"
+            " runs no command: an arbitrary command is refused. Run it from a Bash"
+            " tool call of a claudewheel session, whose cgroup names the session;"
+            " the reports go to the conversation that made the call, the main one"
+            " or a subagent, once the hook that reads the call's payload binds the"
+            " subscription to it"
+        ),
+        args=[
+            Arg(
+                name="kind",
+                presence="required",
+                help="what the probe watches for",
+                choices=[
+                    Choice(
+                        "oom-kill",
+                        help="a process in a systemd user unit killed by the kernel's OOM killer (systemd's result term)",
+                    )
+                ],
+            )
+        ],
+    )(_bind(_handle_probe_create, ws))
+
+    probe_grp.command(
+        "list",
+        effect="read_only",
+        help="list every probe with its stops and subscriptions, every report not yet confirmed delivered (with why), every expired report, and every OOM kill no session or subscription took; runs anywhere",
+    )(_bind(_handle_probe_list, ws))
+
+    probe_grp.command(
+        "stop",
+        effect="mutating",
+        help="end a live probe the session this runs in created; its undelivered reports to sessions that have ended are expired",
+        args=[
+            Arg(
+                name="probe_id",
+                presence="required",
+                help="the probe's id, as probe create and probe list print it",
+            )
+        ],
+    )(_bind(_handle_probe_stop, ws))
+
+    probe_grp.command(
+        "subscribe",
+        effect="mutating",
+        help="subscribe the session this runs in to a live probe; the reports go to the conversation that made the call, once the hook that reads the call's payload binds the subscription to it",
+        args=[
+            Arg(
+                name="probe_id",
+                presence="required",
+                help="the probe's id, as probe create and probe list print it",
+            )
+        ],
+    )(_bind(_handle_probe_subscribe, ws))
+
+    probe_grp.command(
+        "unsubscribe",
+        effect="mutating",
+        help="remove one of the subscriptions of the session this runs in; the probe reports nothing more to it",
+        args=[
+            Arg(
+                name="subscription",
+                presence="required",
+                help="the subscription's id, as probe create, probe subscribe, and probe list print it",
+            )
+        ],
+    )(_bind(_handle_probe_unsubscribe, ws))
 
     # -- Launch command (default when no subcommand given) --
     # The session selection is the `_launch_session` selector, declared on the

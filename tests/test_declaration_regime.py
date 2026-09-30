@@ -46,6 +46,7 @@ SELECTORS = {
         "session",
         ["cont", "resume", "print-prompt", "picker", "new-session"],
     ),
+    "probe.create": ("watch", ["session", "all-sessions"]),
 }
 
 #: Every optional flag of a mutating command whose absence the handler resolves
@@ -57,6 +58,7 @@ DOCUMENTED_FALLBACKS = {
     ("import", "reid"): "when omitted",
     ("deploy-hooks", "all"): "when omitted",
     ("deploy-hooks", "force-overwrite"): "when omitted",
+    ("probe.create", "until-watched-ends"): "when omitted",
 }
 
 #: The declared co-occurrence constraints, by command.

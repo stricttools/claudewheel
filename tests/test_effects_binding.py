@@ -101,6 +101,16 @@ EFFECTS = {
     "permission.remove": "mutating",
     # prints the rules
     "permission.list": "read_only",
+    # appends a probe's created and subscribed lines to its log
+    "probe.create": "mutating",
+    # prints the probes, undelivered and expired reports, and unrouted kills
+    "probe.list": "read_only",
+    # appends an ended line to the probe's log
+    "probe.stop": "mutating",
+    # appends a subscribed line to the probe's log
+    "probe.subscribe": "mutating",
+    # appends an unsubscribed line to the probe's log
+    "probe.unsubscribe": "mutating",
 }
 
 # The reviewed consequence set (contract §8.1). Every other registered command

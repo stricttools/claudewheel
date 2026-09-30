@@ -701,3 +701,247 @@ def parse_duration(text: str) -> int:
 
 def now_ms() -> int:
     return time.time_ns() // 1_000_000
+
+
+# ---------------------------------------------------------------------------
+# The probe commands' operations
+# ---------------------------------------------------------------------------
+
+
+def resolve_session(lifecycle_dir: Path, cgroup_text: str, *, at_ms: int) -> str:
+    """The Claude Code session the calling process belongs to, from its own cgroup.
+
+    Refused outside a claudewheel session scope, naming the fix: a probe
+    command is run from a Bash tool call of a session claudewheel launched,
+    whose commands run inside the session's scope.
+    """
+    scope = session_scope_of_cgroup(cgroup_text)
+    if scope is None:
+        where = next(
+            (line[3:] for line in cgroup_text.splitlines() if line.startswith("0::")),
+            "unknown",
+        )
+        raise ProbeError(
+            "a probe command learns its session from its own cgroup, and this "
+            f"process runs outside any claudewheel session scope (its cgroup is "
+            f"{where}); run it from a Bash tool call of a Claude Code session "
+            "claudewheel launched, whose commands run in the session's scope "
+            "claudewheel-session-<pid>-<time>.scope, and not through heavy, "
+            "which runs its command in a scope of its own"
+        )
+    session, why = session_for_scope(lifecycle_dir, scope, at_ms=at_ms)
+    if session is None:
+        raise ProbeError(
+            f"{why}; the hook-session-start hook records each session as it "
+            "starts, so this session started before that hook was wired, or "
+            "its record failed: relaunch the session with claudewheel"
+        )
+    return session
+
+
+def create_probe(
+    store: ProbeStore,
+    lifecycle_dir: Path,
+    *,
+    session: str,
+    kind: str,
+    watch_session: str | None,
+    deadline_seconds: int,
+    until_count: int | None,
+    until_watched_ends: bool,
+    until_file: str | None,
+    now: int,
+) -> tuple[str, str]:
+    """Create a probe owned by *session* and subscribe *session* to it.
+
+    Returns the probe id and the subscription id. Every refusal happens before
+    anything is written.
+    """
+    if kind not in PROBE_KINDS:
+        raise ProbeError(
+            f"no probe kind {kind!r}; the kinds that exist are: {', '.join(PROBE_KINDS)}"
+        )
+    if watch_session is not None:
+        _require_session_arg(watch_session)
+        if watch_session not in lifecycle.load_all(lifecycle_dir):
+            raise ProbeError(
+                f"the lifecycle store records no session {watch_session}; name a "
+                "session claudewheel has recorded (claudewheel's sessions overview "
+                "lists them)"
+            )
+    elif until_watched_ends:
+        raise ProbeError(
+            "--until-watched-ends needs a watched session, and a probe of all "
+            "sessions has none"
+        )
+    if until_count is not None and until_count < 1:
+        raise ProbeError(
+            f"--count takes a whole number of at least 1, not {until_count}"
+        )
+    if until_file is not None and not os.path.isabs(until_file):
+        raise ProbeError(f"--until-file takes an absolute path, not {until_file!r}")
+    probe_id = new_id()
+    subscription = new_id()
+    append_probe_event(
+        store,
+        probe_id,
+        "created",
+        session=session,
+        probe_kind=kind,
+        watch_session=watch_session,
+        deadline=lifecycle.now_timestamp(now + deadline_seconds * 1000),
+        until_count=until_count,
+        until_watched_ends=until_watched_ends,
+        until_file=until_file,
+    )
+    append_probe_event(
+        store, probe_id, "subscribed", subscription=subscription, session=session
+    )
+    return probe_id, subscription
+
+
+def _require_session_arg(session: str) -> None:
+    if not lifecycle.SESSION_UUID_RE.match(session):
+        raise ProbeError(
+            f"not a Claude Code session uuid: {session!r} (lowercase 8-4-4-4-12 hex)"
+        )
+
+
+def _require_id(kind: str, value: str) -> None:
+    if not ID_RE.match(value):
+        raise ProbeError(f"not a {kind} id: {value!r} (16 lowercase hex digits)")
+
+
+def subscribe(store: ProbeStore, *, session: str, probe_id: str) -> str:
+    """Subscribe *session* to a live probe; return the subscription id."""
+    _require_id("probe", probe_id)
+    state = read_probe(store, probe_id)
+    if not state.active:
+        raise ProbeError(
+            f"probe {probe_id} ended ({state.ended}); it reports nothing more"
+        )
+    subscription = new_id()
+    append_probe_event(
+        store, probe_id, "subscribed", subscription=subscription, session=session
+    )
+    return subscription
+
+
+def unsubscribe(store: ProbeStore, *, session: str, subscription: str) -> str:
+    """Remove one of *session*'s subscriptions; return its probe id."""
+    _require_id("subscription", subscription)
+    state, sub = find_subscription(load_probes(store), subscription)
+    if sub.session != session:
+        raise ProbeError(
+            f"subscription {subscription} belongs to session {sub.session}, not "
+            f"to this one ({session}); a session removes only its own"
+        )
+    if not sub.active:
+        raise ProbeError(f"subscription {subscription} was already removed")
+    append_probe_event(store, state.id, "unsubscribed", subscription=subscription)
+    return state.id
+
+
+def stop_probe(store: ProbeStore, *, session: str, probe_id: str) -> None:
+    """End a live probe *session* created."""
+    _require_id("probe", probe_id)
+    state = read_probe(store, probe_id)
+    if state.session != session:
+        raise ProbeError(
+            f"probe {probe_id} was created by session {state.session}, not by "
+            f"this one ({session}); only the session that created a probe stops it"
+        )
+    if not state.active:
+        raise ProbeError(f"probe {probe_id} already ended ({state.ended})")
+    append_probe_event(store, probe_id, "ended", reason="stopped")
+
+
+def _when(at: str) -> str:
+    return local_time(lifecycle.parse_timestamp_ms(at) * 1000)
+
+
+def describe_probe(state: ProbeState) -> list[str]:
+    """The lines ``probe list`` shows for one probe."""
+    watch = f"session {state.watch_session}" if state.watch_session else "all sessions"
+    stops = [f"deadline {_when(state.deadline)}"]
+    if state.until_count is not None:
+        stops.append(f"after {state.until_count} kill(s)")
+    if state.until_watched_ends:
+        stops.append("when the watched session ends")
+    if state.until_file is not None:
+        stops.append(f"when {state.until_file} exists")
+    status = (
+        "live"
+        if state.active
+        else f"ended ({state.ended}, {_when(state.ended_at or state.created_at)})"
+    )
+    lines = [
+        f"probe {state.id} [{status}]: {state.kind} in {watch}, created by session "
+        f"{state.session}; stops at {', '.join(stops)}"
+    ]
+    for sub in state.subscriptions.values():
+        if sub.agent == UNBOUND:
+            to = "not bound to a conversation yet"
+        elif sub.agent is None:
+            to = "main conversation"
+        else:
+            to = f"subagent {sub.agent}"
+        removed = "" if sub.active else " (unsubscribed)"
+        lines.append(f"  subscription {sub.id}: session {sub.session}, {to}{removed}")
+    return lines
+
+
+def undelivered_counts(store: ProbeStore) -> dict[str, int]:
+    """How many reports each session has not been confirmed to receive."""
+    counts: dict[str, int] = {}
+    for item in list_reports(store, ["pending", "handed"]):
+        counts[item.report.session] = counts.get(item.report.session, 0) + 1
+    return counts
+
+
+def render_list(store: ProbeStore) -> str:
+    """Everything the store holds that someone may need to act on, as text."""
+    out: list[str] = []
+    probes = load_probes(store)
+    out.append("Probes:")
+    if not probes:
+        out.append("  none")
+    for state in probes.values():
+        out.extend("  " + line for line in describe_probe(state))
+
+    out.append("Undelivered reports:")
+    undelivered = list_reports(store, ["pending", "handed"])
+    if not undelivered:
+        out.append("  none")
+    for item in undelivered:
+        why = (
+            "handed, not yet in the transcript" if item.state == "handed" else "pending"
+        )
+        if item.recipient.startswith("unbound-"):
+            why = "waiting for its subscription to be bound"
+        origin = f"probe {item.report.probe}" if item.report.probe else "own command"
+        out.append(
+            f"  report {item.report.id} to session {item.report.session} "
+            f"({item.recipient}), {origin}: {why}"
+        )
+
+    out.append("Expired reports:")
+    expired = list_reports(store, ["expired"])
+    if not expired:
+        out.append("  none")
+    for item in expired:
+        out.append(
+            f"  report {item.report.id} to session {item.report.session} "
+            f"({item.recipient}), probe {item.report.probe}"
+        )
+
+    out.append("Kills no session took (unrouted):")
+    unrouted = [k for k in read_kills(store) if not k["reports"]]
+    if not unrouted:
+        out.append("  none")
+    for kill in unrouted:
+        out.append(
+            f"  {local_time(kill['killed_at_us'])} {kill['unit']}: "
+            f"{kill['unattributed'] or 'attributed, but no conversation took it'}"
+        )
+    return "\n".join(out) + "\n"
