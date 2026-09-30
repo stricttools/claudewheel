@@ -26,6 +26,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
+from .probe import REWAKE_MESSAGE, REWAKE_SUMMARY
+
 
 class Tier(Enum):
     """The four guardrail enforcement tiers.
@@ -686,6 +688,29 @@ EXPECTED_HOOK_WIRINGS: tuple[HookWiring, ...] = (
     HookWiring("PostToolUse", "Bash", "hook-advise-commands"),
     HookWiring("SessionStart", "", "hook-session-start"),
     HookWiring("SessionEnd", "", "hook-session-end"),
+)
+
+
+# The hooks that hand probe reports (claudewheel.probe) to sessions. The waiter
+# is an async-rewake hook on SessionStart and Stop: it waits in the background
+# for the reports queued for the session's main conversation and wakes the
+# session with them. Its timeout is how long an idle session stays wakeable
+# after its last turn: a week. The deliver hook records Bash calls as they
+# start and end, binds subscriptions, labels an OOM-killed call, and hands a
+# subagent its reports on every tool event.
+PROBE_WAITER_OPTIONS = HookOptions(
+    async_rewake=True,
+    timeout=7 * 24 * 3600,
+    rewake_message=REWAKE_MESSAGE,
+    rewake_summary=REWAKE_SUMMARY,
+)
+PROBE_HOOK_WIRINGS: tuple[HookWiring, ...] = (
+    HookWiring("SessionStart", "", "hook-wait-for-probe-reports", PROBE_WAITER_OPTIONS),
+    HookWiring("Stop", "", "hook-wait-for-probe-reports", PROBE_WAITER_OPTIONS),
+    HookWiring("PreToolUse", "Bash", "hook-deliver-probe-reports"),
+    HookWiring("PostToolUse", "", "hook-deliver-probe-reports"),
+    HookWiring("PostToolUseFailure", "", "hook-deliver-probe-reports"),
+    HookWiring("SubagentStop", "", "hook-deliver-probe-reports"),
 )
 
 

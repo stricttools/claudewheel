@@ -263,6 +263,7 @@ class ListTests(_CliCase):
                 "unattributed": "ptyxis-spawn-x.scope is neither a claudewheel session scope nor a heavy scope",
                 "reports": [],
                 "probes": [],
+                "label": "l",
             },
         )
         probe.write_report(

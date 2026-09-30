@@ -105,3 +105,9 @@ description = "The ids of the probes that saw the kill, whether or not a subscri
 [types.OomKillEvent.fields.probes.items]
 type = "string"
 regex = "^[0-9a-f]{16}$"
+
+[types.OomKillEvent.fields.label]
+type = "string"
+required = true
+non_empty = true
+description = "What a tool call that ended OOM-killed during this kill is told. Rendered once here, so the hook that labels the call repeats it instead of building a second copy."

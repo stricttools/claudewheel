@@ -813,6 +813,392 @@ fi
 exit "$status"
 """
 
+# The waiter: hands the reports queued for a session's main conversation
+# over by exiting 2 from an asyncRewake hook. The one hook allowed to exit 2
+# (EXIT_2_HOOKS).
+_WAIT_FOR_PROBE_REPORTS_SCRIPT = r"""#!/usr/bin/env bash
+# hook-wait-for-probe-reports: the one waiter of a Claude Code session. Wired
+# on SessionStart and Stop as an asyncRewake hook: it runs in the background,
+# waits for the probe reports queued for the session's main conversation, and
+# hands them over by printing them and exiting 2, which wakes the session with
+# them (rewakeMessage and rewakeSummary label the reminder).
+#
+# The exit 2 is the one written exception to the rule that a claudewheel hook
+# never blocks a session (every other hook exits 1 on failure, never 2): on an
+# asyncRewake hook, exit 2 does not block anything -- it is how a background
+# hook wakes an idle session, and nothing else can. This hook exits 2 only
+# after it has handed reports over; every failure exits 1, and every other
+# outcome exits 0. hook_scripts.EXIT_2_HOOKS names it, and a test holds every
+# other hook to exit 1 or 0.
+#
+# It exits 0 at once when the session is not interactive: under `claude -p`
+# an asyncRewake hook holds the run open for its whole timeout. It exits 0
+# when its client process is gone (its pid, or the pid's start time, changed),
+# so a killed client leaves no waiter behind. One waiter per session, held by
+# a lock: a waiter armed while another serves the same client exits 0 at once.
+#
+# The reports are files the probe runner queues under
+# shared/probes/reports/pending/<session>/, each <report-id>.main.json. The
+# waiter moves each to handed/ before printing it; the runner confirms it in
+# the session's transcript, or queues it again. It sleeps on a FIFO the runner
+# writes a byte to, and looks again every few seconds regardless, without
+# starting a process while it waits.
+
+set -uo pipefail
+
+[[ "${CLAUDE_CODE_SESSION_ATTENDED:-}" == 1 && "${CLAUDE_CODE_ENTRYPOINT:-}" == cli ]] || exit 0
+
+fail() {
+    printf 'hook-wait-for-probe-reports: %s\n' "$1" >&2
+    exit 1
+}
+
+command -v jq >/dev/null 2>&1 || fail 'jq not found'
+command -v flock >/dev/null 2>&1 || fail 'flock not found'
+
+input=$(cat 2>/dev/null || true)
+session=$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null)
+[[ "$session" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]] ||
+    fail "payload carries no Claude Code session uuid: '$session'"
+
+client="${CLAUDE_PID:-}"
+[[ "$client" =~ ^[1-9][0-9]*$ ]] || fail "CLAUDE_PID is not a process id: '$client'"
+
+# The kernel start time of a process (field 22 of /proc/PID/stat) in REPLY,
+# read without starting a process; fails when the process is gone.
+proc_start() {
+    local stat rest
+    local -a fields
+    REPLY=""
+    { read -r stat <"/proc/$1/stat"; } 2>/dev/null || return 1
+    rest=${stat##*) }
+    read -r -a fields <<<"$rest"
+    REPLY=${fields[19]:-}
+    [[ -n "$REPLY" ]]
+}
+
+proc_start "$client" || fail "client process $client is gone"
+client_start=$REPLY
+
+root="${CLAUDEWHEEL_CONFIG_DIR:-${HOME:+${HOME}/.claudewheel}}"
+[[ -n "$root" ]] || fail 'cannot resolve the store: set CLAUDEWHEEL_CONFIG_DIR or HOME'
+probes="$root/shared/probes"
+waiters="$probes/waiters"
+pending="$probes/reports/pending/$session"
+handed="$probes/reports/handed/$session"
+mkdir -p "$waiters" || fail "cannot create $waiters"
+
+exec 9>>"$waiters/$session.lock" || fail "cannot open $waiters/$session.lock"
+if ! flock -n 9; then
+    holder=""
+    { read -r holder <"$waiters/$session.lock"; } 2>/dev/null || true
+    # A waiter already serves this client: it is the one.
+    [[ "$holder" == "$client $client_start" ]] && exit 0
+    # A waiter of an earlier client of this session exits on its next look.
+    flock -w 30 9 || exit 0
+fi
+printf '%s %s\n' "$client" "$client_start" >"$waiters/$session.lock"
+
+fifo="$waiters/$session.fifo"
+[[ -p "$fifo" ]] || mkfifo "$fifo" 2>/dev/null || [[ -p "$fifo" ]] || fail "cannot create $fifo"
+exec 3<>"$fifo" || fail "cannot open $fifo"
+
+has_pending() {
+    local f
+    for f in "$pending"/*.main.json; do
+        [[ -e "$f" ]] && return 0
+    done
+    return 1
+}
+
+while :; do
+    proc_start "$client" && [[ "$REPLY" == "$client_start" ]] || exit 0
+    if has_pending; then
+        # Reports arriving together go in one delivery.
+        while read -r -t 0.3 -n 1 -u 3 _; do :; done
+        mkdir -p "$handed" || fail "cannot create $handed"
+        files=()
+        for f in "$pending"/*.main.json; do
+            [[ -e "$f" ]] || continue
+            name=${f##*/}
+            mv "$f" "$handed/$name" 2>/dev/null || continue
+            touch "$handed/$name"
+            files+=("$handed/$name")
+        done
+        if ((${#files[@]} > 0)); then
+            text=$(jq -rs '[.[] | (if .agent != null then "For subagent \(.agent)" + (if .task != null then " (task: \(.task))" else "" end) + ", which has finished: " else "" end) + .text] | join("\n\n")' "${files[@]}") ||
+                fail "cannot read the reports ${files[*]}"
+            printf '%s\n' "$text" >&2
+            exit 2
+        fi
+    fi
+    read -r -t 5 -n 1 -u 3 _ || true
+done
+"""
+
+# The tool-event side of report delivery: subagents, bindings, 137 labels.
+_DELIVER_PROBE_REPORTS_SCRIPT = r"""#!/usr/bin/env bash
+# hook-deliver-probe-reports: the probe reports' way into tool calls, and the
+# record the reports need of a session's tool calls and subagents. Wired on
+# PreToolUse for Bash, and on PostToolUse, PostToolUseFailure, and
+# SubagentStop for every tool.
+#
+# - PreToolUse (Bash): records that the call started.
+# - PostToolUse / PostToolUseFailure (Bash): records that it ended. After a
+#   call that ran `claudewheel probe create` or `probe subscribe`, binds the
+#   subscription the command printed to the conversation that made the call:
+#   the payload's agent_id, or the main conversation when it has none.
+# - PostToolUseFailure (Bash, exit 137): when the probe runner recorded an OOM
+#   kill in this session during the call, labels the failure for the calling
+#   conversation, and says so when other Bash calls were running at the kill.
+# - PostToolUse (Agent): records the subagent the call launched and its task.
+# - PostToolUse / PostToolUseFailure of a subagent's call: hands the
+#   subagent the reports queued for it, as additionalContext.
+# - SubagentStop: records that the subagent finished and sends its queued
+#   reports to the main conversation, which gets them labeled with the
+#   subagent and its task.
+#
+# The hook never blocks a session. Every failure prints one line to stderr and
+# exits 1 -- never 2, which Claude Code reads as "block this event".
+
+set -uo pipefail
+
+fail() {
+    printf 'hook-deliver-probe-reports: %s\n' "$1" >&2
+    exit 1
+}
+
+command -v jq >/dev/null 2>&1 || fail 'jq not found'
+
+input=$(cat 2>/dev/null || true)
+# One jq for the five fields, joined by the unit separator: a tab is IFS
+# whitespace, so an empty field between two tabs would vanish.
+fields=$(printf '%s' "$input" | jq -r '[.hook_event_name // "", .session_id // "", .agent_id // "", .tool_name // "", .tool_use_id // ""] | map(tostring) | join("\u001f")' 2>/dev/null) ||
+    fail 'payload is not JSON'
+IFS=$'\x1f' read -r event session agent tool call <<<"$fields"
+[[ "$session" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]] ||
+    fail "payload carries no Claude Code session uuid: '$session'"
+[[ -z "$agent" || "$agent" =~ ^[0-9a-zA-Z_-]+$ ]] || fail "unexpected agent_id: '$agent'"
+
+root="${CLAUDEWHEEL_CONFIG_DIR:-${HOME:+${HOME}/.claudewheel}}"
+[[ -n "$root" ]] || fail 'cannot resolve the store: set CLAUDEWHEEL_CONFIG_DIR or HOME'
+probes="$root/shared/probes"
+record="$probes/sessions/$session.jsonl"
+pending="$probes/reports/pending/$session"
+handed="$probes/reports/handed/$session"
+
+now_ms() {
+    local us=${EPOCHREALTIME/[.,]/}
+    REPLY=$((10#$us / 1000))
+}
+
+agent_json() {
+    if [[ -n "$agent" ]]; then REPLY="\"$agent\""; else REPLY=null; fi
+}
+
+append() {
+    mkdir -p "${record%/*}" 2>/dev/null || fail "cannot create ${record%/*}"
+    printf '%s\n' "$1" >>"$record" || fail "cannot append to $record"
+}
+
+record_call() {
+    # $1: call-started or call-ended.
+    [[ "$call" =~ ^[0-9A-Za-z_-]+$ ]] || return 0
+    now_ms
+    local at=$REPLY
+    agent_json
+    if [[ "$1" == call-started ]]; then
+        local timeout
+        timeout=$(printf '%s' "$input" | jq -r '(.tool_input.timeout // 120000) | floor' 2>/dev/null)
+        [[ "$timeout" =~ ^[0-9]+$ ]] || timeout=120000
+        append "{\"format_version\":1,\"at_ms\":$at,\"kind\":\"call-started\",\"call\":\"$call\",\"agent\":$REPLY,\"timeout_ms\":$timeout}"
+    else
+        append "{\"format_version\":1,\"at_ms\":$at,\"kind\":\"call-ended\",\"call\":\"$call\",\"agent\":$REPLY}"
+    fi
+}
+
+wake_waiter() {
+    local fifo="$probes/waiters/$session.fifo"
+    [[ -p "$fifo" ]] || return 0
+    # Opened for reading and writing, so it never blocks for a reader.
+    { exec 4<>"$fifo" && printf x >&4 && exec 4>&-; } 2>/dev/null || true
+}
+
+mint() {
+    local rand
+    rand=$(od -An -N16 -tx1 /dev/urandom 2>/dev/null | tr -d ' \n')
+    [[ ${#rand} -eq 32 ]] || fail 'cannot read 16 random bytes from /dev/urandom'
+    event_id=$(printf '%016x%s' "$(date +%s%N)" "$rand")
+    event_at=$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)
+}
+
+# Bind a subscription this session created in this call to this conversation.
+bind() {
+    local sub=$1 probe_id=$2 file="$probes/probes/$2.jsonl" state target f moved task
+    [[ -f "$file" ]] || return 0
+    state=$(jq -rs --arg sub "$sub" --arg s "$session" '
+        (map(select(.kind == "subscribed" and .subscription == $sub and .session == $s)) | length) as $mine
+        | (map(select(.kind == "bound" and .subscription == $sub)) | length) as $bound
+        | if $mine == 1 and $bound == 0 then "unbound" else "no" end' "$file" 2>/dev/null)
+    [[ "$state" == unbound ]] || return 0
+    mint
+    agent_json
+    printf '%s\n' "{\"format_version\":1,\"id\":\"$event_id\",\"at\":\"$event_at\",\"probe\":\"$probe_id\",\"kind\":\"bound\",\"subscription\":\"$sub\",\"agent\":$REPLY}" >>"$file" ||
+        fail "cannot append to $file"
+    # Reports queued before the binding go to the conversation now known.
+    if [[ -n "$agent" ]]; then target="agent-$agent"; else target=main; fi
+    task=null
+    if [[ -n "$agent" && -f "$record" ]]; then
+        task=$(jq -cs --arg a "$agent" 'map(select(.kind == "agent-launched" and .agent == $a)) | (last | .task) // null' "$record" 2>/dev/null)
+        [[ -n "$task" ]] || task=null
+    fi
+    agent_json
+    for f in "$pending"/*".unbound-$sub.json"; do
+        [[ -e "$f" ]] || continue
+        # The content gains the conversation in place, then the name does.
+        jq --argjson a "$REPLY" --argjson t "$task" '.agent = $a | .task = $t' "$f" >"$f.new" &&
+            mv "$f.new" "$f" &&
+            mv "$f" "${f%.unbound-$sub.json}.$target.json"
+    done
+    wake_waiter
+}
+
+# The reports queued for this subagent, moved to handed/, as text in REPLY.
+take_agent_reports() {
+    local f name
+    local -a files=()
+    REPLY=""
+    [[ -n "$agent" ]] || return 0
+    for f in "$pending"/*".agent-$agent.json"; do
+        [[ -e "$f" ]] || continue
+        mkdir -p "$handed" || fail "cannot create $handed"
+        name=${f##*/}
+        mv "$f" "$handed/$name" 2>/dev/null || continue
+        touch "$handed/$name"
+        files+=("$handed/$name")
+    done
+    ((${#files[@]} > 0)) || return 0
+    REPLY=$(jq -rs '[.[] | .text] | join("\n\n")' "${files[@]}") || fail "cannot read ${files[*]}"
+}
+
+overlap_sentence='@OVERLAP_SENTENCE@'
+
+# The label of a Bash call that ended with status 137 while the runner recorded
+# an OOM kill in this session, in REPLY.
+label_oom_kill() {
+    local duration now start_ms end_ms kills="$probes/kills.jsonl" labels calls tries
+    REPLY=""
+    duration=$(printf '%s' "$input" | jq -r '(.duration_ms // 0) | floor' 2>/dev/null)
+    [[ "$duration" =~ ^[0-9]+$ ]] || duration=0
+    now_ms
+    now=$REPLY
+    REPLY=""
+    start_ms=$((now - duration - 1000))
+    # The runner records a kill from the journal a moment after it happens,
+    # so a kill during the call may be recorded after the call returned.
+    end_ms=$((now + @HOOK_WAIT_SECONDS@ * 1000))
+    labels=""
+    for ((tries = 0; tries < @HOOK_WAIT_SECONDS@ * 5; tries++)); do
+        if [[ -f "$kills" ]]; then
+            labels=$(jq -rs --arg s "$session" --argjson a "$((start_ms * 1000))" --argjson b "$((end_ms * 1000))" '
+                map(select(.session == $s and .killed_at_us >= $a and .killed_at_us <= $b)) | map(.label) | join(" ")' "$kills" 2>/dev/null)
+        fi
+        [[ -z "$labels" ]] || break
+        sleep 0.2
+    done
+    [[ -n "$labels" ]] || return 0
+    calls=""
+    if [[ -f "$record" && -f "$kills" ]]; then
+        calls=$(jq -rn --arg s "$session" --arg me "$call" --argjson a "$((start_ms * 1000))" --argjson b "$((end_ms * 1000))" \
+            --slurpfile k "$kills" --slurpfile r "$record" '
+            [$k[] | select(.session == $s and .killed_at_us >= $a and .killed_at_us <= $b) | .killed_at_us / 1000] as $times
+            | ($r | map(select(.kind == "call-ended")) | map({key: .call, value: .at_ms}) | from_entries) as $ends
+            | [$r[] | select(.kind == "call-started" and .call != $me)
+                | . as $c
+                | select(any($times[]; . >= $c.at_ms and . <= ($ends[$c.call] // ($c.at_ms + $c.timeout_ms))))
+                | "\(.call) (" + (if .agent == null then "main conversation" else "subagent \(.agent)" end) + ")"]
+            | unique | join(", ")' 2>/dev/null)
+    fi
+    REPLY=$labels
+    if [[ -n "$calls" ]]; then
+        REPLY+=${overlap_sentence//\{calls\}/$calls}
+    fi
+}
+
+emit() {
+    # $1: the additionalContext text; nothing is printed when it is empty.
+    [[ -n "$1" ]] || return 0
+    jq -cn --arg e "$event" --arg c "$1" '{hookSpecificOutput: {hookEventName: $e, additionalContext: $c}}'
+}
+
+bind_re='@BIND_RE@'
+
+case "$event" in
+    PreToolUse)
+        [[ "$tool" == Bash ]] && record_call call-started
+        exit 0
+        ;;
+    PostToolUse | PostToolUseFailure)
+        context=""
+        if [[ "$tool" == Bash ]]; then
+            record_call call-ended
+            if [[ "$event" == PostToolUse ]]; then
+                stdout=$(printf '%s' "$input" | jq -r '.tool_response.stdout // ""' 2>/dev/null)
+                while [[ "$stdout" =~ $bind_re ]]; do
+                    bind "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
+                    stdout=${stdout#*"${BASH_REMATCH[0]}"}
+                done
+            else
+                error=$(printf '%s' "$input" | jq -r '.error // ""' 2>/dev/null)
+                if [[ "$error" == "Exit code 137"* ]]; then
+                    label_oom_kill
+                    context=$REPLY
+                fi
+            fi
+        elif [[ "$tool" == Agent && "$event" == PostToolUse ]]; then
+            launched_agent=$(printf '%s' "$input" | jq -r '.tool_response.agentId // ""' 2>/dev/null)
+            launched_task=$(printf '%s' "$input" | jq -r '.tool_input.description // ""' 2>/dev/null)
+            if [[ "$launched_agent" =~ ^[0-9a-zA-Z_-]+$ ]]; then
+                now_ms
+                line=$(jq -cn --argjson at "$REPLY" --arg a "$launched_agent" --arg t "$launched_task" \
+                    '{format_version: 1, at_ms: $at, kind: "agent-launched", agent: $a, task: (if $t == "" then null else $t end)}')
+                append "$line"
+            fi
+        fi
+        take_agent_reports
+        if [[ -n "$REPLY" ]]; then
+            context+=${context:+$'\n\n'}$REPLY
+        fi
+        emit "$context"
+        exit 0
+        ;;
+    SubagentStop)
+        [[ -n "$agent" ]] || exit 0
+        now_ms
+        append "{\"format_version\":1,\"at_ms\":$REPLY,\"kind\":\"agent-finished\",\"agent\":\"$agent\"}"
+        moved=0
+        for f in "$pending"/*".agent-$agent.json"; do
+            [[ -e "$f" ]] || continue
+            mv "$f" "${f%.agent-$agent.json}.main.json" && moved=1
+        done
+        ((moved)) && wake_waiter
+        exit 0
+        ;;
+esac
+exit 0
+"""
+
+# The hooks that may exit 2, each with why: the written exception to the
+# rule that a claudewheel hook never blocks a session (it exits 1 on
+# failure, never 2). tests/test_probe_hooks.py holds every other hook to it.
+EXIT_2_HOOKS: dict[str, str] = {
+    "hook-wait-for-probe-reports": (
+        "an asyncRewake hook exiting 2 blocks nothing: it is how a background "
+        "hook wakes an idle session with its output, and nothing else can"
+    ),
+}
+
+
 HOOK_SCRIPTS: dict[str, str] = {
     "hook-timestamp": """\
 #!/usr/bin/env bash
@@ -852,6 +1238,12 @@ exit 0
     "hook-block-unsafe-commands": guardrail.generate_blocker_script(),
     "hook-advise-commands": guardrail.generate_advise_script(),
     # The kill message's fix is the one text every OOM report shares.
+    "hook-wait-for-probe-reports": _WAIT_FOR_PROBE_REPORTS_SCRIPT,
+    "hook-deliver-probe-reports": _DELIVER_PROBE_REPORTS_SCRIPT.replace(
+        "@OVERLAP_SENTENCE@", probe.OVERLAP_SENTENCE.replace("'", "'\\''")
+    )
+    .replace("@HOOK_WAIT_SECONDS@", str(probe.HOOK_WAIT_SECONDS))
+    .replace("@BIND_RE@", probe.BIND_LINE_RE.pattern),
     "heavy": _HEAVY_SCRIPT.replace(
         "@OOM_KILL_FIX@", guardrail.bash_dquote_body(probe.OOM_KILL_FIX)
     ),

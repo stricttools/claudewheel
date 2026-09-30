@@ -108,6 +108,11 @@ BIND_LINE_RE = re.compile(
     r"subscription ([0-9a-f]{16}) of probe ([0-9a-f]{16}) waits to be bound"
 )
 
+# How long the hook that labels a tool call ended with status 137 waits
+# for the runner to record the kill, which it reads from the journal a
+# moment after it happens, in seconds.
+HOOK_WAIT_SECONDS = 3
+
 REPORT_STATES: tuple[str, ...] = ("pending", "handed", "delivered", "expired")
 
 # The Claude Code versions the delivery mechanics (asyncRewake, rewakeMessage,
@@ -668,17 +673,19 @@ def probe_kill_text(report_id: str, probe: str, kill: Mapping[str, Any]) -> str:
     )
 
 
-def label_text(kills: list[Mapping[str, Any]], overlapping: list[str]) -> str:
-    """The label of a tool call that ended OOM-killed."""
-    what = "; ".join(what_was_killed(k) for k in kills)
-    text = f"{OOM_KILL_LABEL} ({what}; {OOM_KILL_FIX})."
-    if overlapping:
-        text += (
-            " Other Bash calls of this session were running at the kill ("
-            + ", ".join(overlapping)
-            + "), so the killed process may have been theirs; they are told the same."
-        )
-    return text
+def kill_label(kill: Mapping[str, Any]) -> str:
+    """What a tool call that ended OOM-killed during *kill* is told."""
+    return f"{OOM_KILL_LABEL} ({what_was_killed(kill)}; {OOM_KILL_FIX})."
+
+
+# Added to a call's label when other Bash calls of the session were running at
+# the kill; the hook fills in {calls}. Every overlapping call that ends
+# OOM-killed gets its own label with this sentence, so both are told.
+OVERLAP_SENTENCE = (
+    " Other Bash calls of this session were running at the kill ({calls}), so "
+    "the killed process may have been theirs; each of them that ended "
+    "OOM-killed is told the same."
+)
 
 
 # ---------------------------------------------------------------------------

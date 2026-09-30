@@ -155,6 +155,7 @@ class AttributionTests(_RunnerCase):
         self.assertIn(probe.OOM_KILL_FIX, item.report.text)
         self.assertIn(f"claudewheel probe report {item.report.id}", item.report.text)
         self.assertEqual(kill["reports"], [item.report.id])
+        self.assertTrue(kill["label"].startswith(probe.OOM_KILL_LABEL))
         self.assertEqual(probe.read_kills(self.store), [kill])
 
     def test_a_heavy_kill_reaches_the_session_heavy_named(self) -> None:

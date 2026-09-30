@@ -208,6 +208,7 @@ class KillTests(_StoreCase):
             "unattributed": None,
             "reports": [],
             "probes": [],
+            "label": "l",
         }
         probe.append_kill(self.store, kill)
         self.assertEqual(probe.read_kills(self.store), [kill])
@@ -281,12 +282,11 @@ class TextTests(unittest.TestCase):
         self.assertIn(f"Probe {PROBE}", text)
         self.assertIn(SESSION, text)
 
-    def test_label_leads_with_the_label_and_names_overlaps(self) -> None:
-        text = probe.label_text([self.KILL], ["toolu_2 (main conversation)"])
+    def test_the_label_leads_with_the_label_and_carries_the_shared_fix(self) -> None:
+        text = probe.kill_label(self.KILL)
         self.assertTrue(text.startswith(probe.OOM_KILL_LABEL))
         self.assertIn(probe.OOM_KILL_FIX, text)
-        self.assertIn("toolu_2 (main conversation)", text)
-        self.assertNotIn("Other Bash calls", probe.label_text([self.KILL], []))
+        self.assertIn("heavy-1-2.scope", text)
 
 
 class DurationTests(unittest.TestCase):

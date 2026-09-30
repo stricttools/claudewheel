@@ -59,10 +59,6 @@ TICK_SECONDS = 2.0
 # hand-off without it was lost on the way, and is queued again.
 LOST_AFTER_SECONDS = 60.0
 
-# How long a hook waits for the runner to record a kill it expects, in the
-# 137-labeling path; kept here so the runner's own latency budget is visible.
-HOOK_WAIT_SECONDS = 3
-
 
 def _digest_id(*parts: str) -> str:
     """A 16-hex-digit id derived from *parts*, so reprocessing an entry repeats its ids."""
@@ -228,6 +224,7 @@ def process_entry(
         "reports": [],
         "probes": [],
     }
+    kill["label"] = probe.kill_label(kill)
     woken: set[str] = set()
 
     def queue(
