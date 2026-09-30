@@ -509,6 +509,32 @@ class DerivedDataTests(unittest.TestCase):
                 HookWiring("PostToolUse", "Bash", "hook-advise-commands"),
                 HookWiring("SessionStart", "", "hook-session-start"),
                 HookWiring("SessionEnd", "", "hook-session-end"),
+                HookWiring(
+                    "SessionStart",
+                    "",
+                    "hook-wait-for-probe-reports",
+                    HookOptions(
+                        async_rewake=True,
+                        timeout=604800,
+                        rewake_message="claudewheel probe report:",
+                        rewake_summary="claudewheel probe report",
+                    ),
+                ),
+                HookWiring(
+                    "Stop",
+                    "",
+                    "hook-wait-for-probe-reports",
+                    HookOptions(
+                        async_rewake=True,
+                        timeout=604800,
+                        rewake_message="claudewheel probe report:",
+                        rewake_summary="claudewheel probe report",
+                    ),
+                ),
+                HookWiring("PreToolUse", "Bash", "hook-deliver-probe-reports"),
+                HookWiring("PostToolUse", "", "hook-deliver-probe-reports"),
+                HookWiring("PostToolUseFailure", "", "hook-deliver-probe-reports"),
+                HookWiring("SubagentStop", "", "hook-deliver-probe-reports"),
             ),
         )
 

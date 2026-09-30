@@ -395,12 +395,12 @@ class BuildCanonicalSharedSettingsTests(unittest.TestCase):
             async_rewake=True, timeout=30, rewake_message="m:", rewake_summary="s"
         )
         wirings = guardrail.EXPECTED_HOOK_WIRINGS + (
-            guardrail.HookWiring("Stop", "", "hook-timestamp", options),
+            guardrail.HookWiring("Notification", "", "hook-timestamp", options),
         )
         with patch.object(guardrail, "EXPECTED_HOOK_WIRINGS", wirings):
             hooks = build_canonical_shared_settings(Path("/s"))["hooks"]
         self.assertEqual(
-            hooks["Stop"],
+            hooks["Notification"],
             [
                 {
                     "matcher": "",
@@ -421,6 +421,16 @@ class BuildCanonicalSharedSettingsTests(unittest.TestCase):
         for entry in hooks["PreToolUse"]:
             for hook in entry["hooks"]:
                 self.assertEqual(set(hook), {"type", "command"})
+        # The probe waiter's wirings carry theirs.
+        [stop] = hooks["Stop"]
+        self.assertEqual(
+            stop["hooks"][0],
+            {
+                "type": "command",
+                "command": "/s/hook-wait-for-probe-reports",
+                **guardrail.PROBE_WAITER_OPTIONS.settings_keys(),
+            },
+        )
 
     def test_permissions_are_copies_not_model_references(self) -> None:
         """Mutating the returned deny/ask must not mutate the guardrail model."""

@@ -26,8 +26,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
-from .probe import REWAKE_MESSAGE, REWAKE_SUMMARY
-
 
 class Tier(Enum):
     """The four guardrail enforcement tiers.
@@ -672,25 +670,6 @@ class HookWiring:
     options: HookOptions = HookOptions()
 
 
-# Every hook wiring a profile must have. Health / patch_profiles verifies these
-# against each profile's settings hooks section, and
-# defaults._build_canonical_hooks derives the settings entries from them, so a
-# wiring added here flows into deployment and verification alike.
-#
-# The SessionStart/SessionEnd pair is not a guardrail: it records what happened
-# to the session in claudewheel's lifecycle store (see claudewheel.lifecycle),
-# which is the only place a session's fate survives its process. It is wired
-# here because this tuple is the one list of hooks a profile carries.
-EXPECTED_HOOK_WIRINGS: tuple[HookWiring, ...] = (
-    HookWiring("UserPromptSubmit", "", "hook-timestamp"),
-    HookWiring("PreToolUse", "Agent", "hook-block-worktree"),
-    HookWiring("PreToolUse", "Bash", "hook-block-unsafe-commands"),
-    HookWiring("PostToolUse", "Bash", "hook-advise-commands"),
-    HookWiring("SessionStart", "", "hook-session-start"),
-    HookWiring("SessionEnd", "", "hook-session-end"),
-)
-
-
 # The hooks that hand probe reports (claudewheel.probe) to sessions. The waiter
 # is an async-rewake hook on SessionStart and Stop: it waits in the background
 # for the reports queued for the session's main conversation and wakes the
@@ -698,6 +677,10 @@ EXPECTED_HOOK_WIRINGS: tuple[HookWiring, ...] = (
 # after its last turn: a week. The deliver hook records Bash calls as they
 # start and end, binds subscriptions, labels an OOM-killed call, and hands a
 # subagent its reports on every tool event.
+# The prefix and summary of the reminder a delivered probe report wakes the
+# main conversation with (the waiter's rewakeMessage and rewakeSummary).
+REWAKE_MESSAGE = "claudewheel probe report:"
+REWAKE_SUMMARY = "claudewheel probe report"
 PROBE_WAITER_OPTIONS = HookOptions(
     async_rewake=True,
     timeout=7 * 24 * 3600,
@@ -711,6 +694,27 @@ PROBE_HOOK_WIRINGS: tuple[HookWiring, ...] = (
     HookWiring("PostToolUse", "", "hook-deliver-probe-reports"),
     HookWiring("PostToolUseFailure", "", "hook-deliver-probe-reports"),
     HookWiring("SubagentStop", "", "hook-deliver-probe-reports"),
+)
+
+
+# Every hook wiring a profile must have. Health / patch_profiles verifies these
+# against each profile's settings hooks section, and
+# defaults._build_canonical_hooks derives the settings entries from them, so a
+# wiring added here flows into deployment and verification alike.
+#
+# The SessionStart/SessionEnd pair is not a guardrail: it records what happened
+# to the session in claudewheel's lifecycle store (see claudewheel.lifecycle),
+# which is the only place a session's fate survives its process. It is wired
+# here because this tuple is the one list of hooks a profile carries, and so
+# are the probe report hooks (PROBE_HOOK_WIRINGS above).
+EXPECTED_HOOK_WIRINGS: tuple[HookWiring, ...] = (
+    HookWiring("UserPromptSubmit", "", "hook-timestamp"),
+    HookWiring("PreToolUse", "Agent", "hook-block-worktree"),
+    HookWiring("PreToolUse", "Bash", "hook-block-unsafe-commands"),
+    HookWiring("PostToolUse", "Bash", "hook-advise-commands"),
+    HookWiring("SessionStart", "", "hook-session-start"),
+    HookWiring("SessionEnd", "", "hook-session-end"),
+    *PROBE_HOOK_WIRINGS,
 )
 
 

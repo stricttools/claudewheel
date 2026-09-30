@@ -79,8 +79,12 @@ dev = [
 # through the HTTP surface in claudewheel/effects.py, and every test that
 # exercises one of those call sites stubs the transport.
 #
-# loopback = "deny": there is no local server anywhere in the suite. The PTY
-# tests use pty.fork and socketpair-free pipes, not sockets.
+# loopback = "deny": the test process itself never opens a socket. The PTY
+# tests use pty.fork and socketpair-free pipes, not sockets. The one local
+# server, the mock Anthropic API the probe delivery integration test runs a real
+# Claude Code against (tests/mock_anthropic_api.py), is its own process on an
+# ephemeral loopback port that only that Claude Code connects to; the test reads
+# what it logged from a file.
 #
 # sandbox_required = "false" because this repo has no sandbox runner yet; the
 # always-on env/push/chdir/socket guards apply regardless.

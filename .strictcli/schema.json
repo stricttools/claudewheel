@@ -296,12 +296,12 @@
     },
     "deploy-hooks": {
       "name": "deploy-hooks",
-      "help": "deploy built-in hook scripts and the heavy wrapper to the ~/.claudewheel/scripts/ directory, linking heavy into ~/.local/bin so it is on PATH",
+      "help": "deploy built-in hook scripts and the heavy wrapper to the ~/.claudewheel/scripts/ directory, linking heavy into ~/.local/bin so it is on PATH, and install the probe runner's user service (claudewheel-probe-runner.service, in ~/.config/systemd/user), enabled and started; systemctl --user stop claudewheel-probe-runner.service stops it gracefully",
       "effect": "mutating",
       "flags": [
         {
           "name": "all",
-          "help": "deploy every known hook script from the built-in registry at once; when omitted, the positional name selects one script",
+          "help": "deploy every known hook script from the built-in registry and the probe runner's service at once; when omitted, the positional name selects one script, or the service by its name",
           "value_schema": {
             "type": "boolean"
           },
@@ -310,7 +310,7 @@
         },
         {
           "name": "force-overwrite",
-          "help": "overwrite existing hook scripts on disk instead of skipping them, and replace whatever stands at a PATH command's link (~/.local/bin/heavy); when omitted, an existing script is left alone and a link path held by anything else is refused",
+          "help": "overwrite existing hook scripts and the probe runner's unit on disk instead of skipping them (a rewritten unit restarts the service), and replace whatever stands at a PATH command's link (~/.local/bin/heavy); when omitted, an existing script or unit is left alone and a link path held by anything else is refused",
           "value_schema": {
             "type": "boolean"
           },
@@ -321,7 +321,7 @@
       "args": [
         {
           "name": "name",
-          "help": "name of the specific hook script to deploy (omit to use --all)",
+          "help": "name of the specific hook script to deploy, or claudewheel-probe-runner.service to install the probe runner's service (omit to use --all)",
           "value_schema": {
             "type": "string"
           },
@@ -946,6 +946,147 @@
                 }
               ],
               "elect_by": "member-flags"
+            }
+          ]
+        }
+      }
+    },
+    "probe": {
+      "name": "probe",
+      "help": "watch Claude Code sessions for OOM kills and report them to the sessions subscribed: create, list, stop, subscribe, and unsubscribe probes. Every session is told of its own commands' OOM kills without a probe",
+      "commands": {
+        "create": {
+          "name": "create",
+          "help": "create a probe of one kind (oom-kill: a unit's process killed by the kernel's OOM killer, as systemd reports it) watching one session (--session) or every session (--all-sessions), until its --deadline or an earlier stop (--count, --until-watched-ends, --until-file, or probe stop), and subscribe the session this runs in to it. A probe runs no command: an arbitrary command is refused. Run it from a Bash tool call of a claudewheel session, whose cgroup names the session; the reports go to the conversation that made the call, the main one or a subagent, once the hook that reads the call's payload binds the subscription to it",
+          "effect": "mutating",
+          "flags": [
+            {
+              "name": "deadline",
+              "help": "how long the probe lives at the latest, from now: a whole number with an s, m, h, or d suffix (90s, 30m, 2h, 7d). Every probe states one",
+              "value_schema": {
+                "type": "string"
+              },
+              "presence": "required"
+            },
+            {
+              "name": "count",
+              "help": "end the probe once it has seen this many kills; when omitted, the count never ends it",
+              "value_schema": {
+                "type": "integer"
+              },
+              "presence": "optional"
+            },
+            {
+              "name": "until-watched-ends",
+              "help": "end the probe when the watched session ends (needs --session); when omitted, the session ending does not end it",
+              "value_schema": {
+                "type": "boolean"
+              },
+              "presence": "optional",
+              "negatable": true
+            },
+            {
+              "name": "until-file",
+              "help": "end the probe once this absolute path exists; when omitted, no file ends it",
+              "value_schema": {
+                "type": "string"
+              },
+              "presence": "optional"
+            },
+            {
+              "name": "watch",
+              "help": "which sessions the probe watches",
+              "presence": "required",
+              "choices": [
+                {
+                  "name": "session",
+                  "help": "watch one Claude Code session, by its uuid",
+                  "flags": [
+                    {
+                      "name": "value",
+                      "help": "the uuid of the session to watch, as the lifecycle store records it",
+                      "value_schema": {
+                        "type": "string"
+                      },
+                      "presence": "required"
+                    }
+                  ]
+                },
+                {
+                  "name": "all-sessions",
+                  "help": "watch every Claude Code session on this machine"
+                }
+              ],
+              "elect_by": "member-flags"
+            }
+          ],
+          "args": [
+            {
+              "name": "kind",
+              "help": "what the probe watches for",
+              "value_schema": {
+                "type": "string",
+                "enum": [
+                  "oom-kill"
+                ]
+              },
+              "presence": "required",
+              "choices": [
+                {
+                  "value": "oom-kill",
+                  "help": "a process in a systemd user unit killed by the kernel's OOM killer (systemd's result term)"
+                }
+              ]
+            }
+          ]
+        },
+        "list": {
+          "name": "list",
+          "help": "list every probe with its stops and subscriptions, every report not yet confirmed delivered (with why), every expired report, and every OOM kill no session or subscription took; runs anywhere",
+          "effect": "read_only"
+        },
+        "stop": {
+          "name": "stop",
+          "help": "end a live probe the session this runs in created; its undelivered reports to sessions that have ended are expired",
+          "effect": "mutating",
+          "args": [
+            {
+              "name": "probe_id",
+              "help": "the probe's id, as probe create and probe list print it",
+              "value_schema": {
+                "type": "string"
+              },
+              "presence": "required"
+            }
+          ]
+        },
+        "subscribe": {
+          "name": "subscribe",
+          "help": "subscribe the session this runs in to a live probe; the reports go to the conversation that made the call, once the hook that reads the call's payload binds the subscription to it",
+          "effect": "mutating",
+          "args": [
+            {
+              "name": "probe_id",
+              "help": "the probe's id, as probe create and probe list print it",
+              "value_schema": {
+                "type": "string"
+              },
+              "presence": "required"
+            }
+          ]
+        },
+        "unsubscribe": {
+          "name": "unsubscribe",
+          "help": "remove one of the subscriptions of the session this runs in; the probe reports nothing more to it",
+          "effect": "mutating",
+          "args": [
+            {
+              "name": "subscription",
+              "help": "the subscription's id, as probe create, probe subscribe, and probe list print it",
+              "value_schema": {
+                "type": "string"
+              },
+              "presence": "required"
             }
           ]
         }

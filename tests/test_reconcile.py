@@ -394,7 +394,7 @@ class HookOptionsReconcileTests(_ReconcileTestCase):
             guardrail,
             "EXPECTED_HOOK_WIRINGS",
             guardrail.EXPECTED_HOOK_WIRINGS
-            + (guardrail.HookWiring("Stop", "", "hook-timestamp", options),),
+            + (guardrail.HookWiring("Notification", "", "hook-timestamp", options),),
         )
 
     def test_canonical_options_are_kept(self) -> None:
@@ -404,7 +404,9 @@ class HookOptionsReconcileTests(_ReconcileTestCase):
             settings.pop("profileDefaults")
             reconcile_profile_dict(settings, canonical)
             self.assertEqual(settings["hooks"], canonical["hooks"])
-            self.assertTrue(settings["hooks"]["Stop"][0]["hooks"][0]["asyncRewake"])
+            self.assertTrue(
+                settings["hooks"]["Notification"][0]["hooks"][0]["asyncRewake"]
+            )
 
     def test_lost_options_are_restored(self) -> None:
         with self._optioned():
@@ -412,7 +414,7 @@ class HookOptionsReconcileTests(_ReconcileTestCase):
             settings: dict[str, Any] = {
                 "hooks": json.loads(json.dumps(canonical["hooks"]))
             }
-            del settings["hooks"]["Stop"][0]["hooks"][0]["asyncRewake"]
+            del settings["hooks"]["Notification"][0]["hooks"][0]["asyncRewake"]
             changes = reconcile_profile_dict(settings, canonical)
             self.assertIn("hooks -> canonical", changes)
             self.assertEqual(settings["hooks"], canonical["hooks"])

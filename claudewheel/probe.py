@@ -95,10 +95,6 @@ OOM_KILL_LABEL = (
     "this command was OOM-killed: fix the memory at its source, do not rerun"
 )
 
-# The prefix and summary of the reminder a delivered report wakes the main
-# conversation with (the waiter hook's rewakeMessage and rewakeSummary).
-REWAKE_MESSAGE = "claudewheel probe report:"
-REWAKE_SUMMARY = "claudewheel probe report"
 
 # The line probe create and probe subscribe print for the hook that binds the
 # subscription to the conversation whose tool call ran them. The hook finds

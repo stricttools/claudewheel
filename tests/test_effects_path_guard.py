@@ -88,6 +88,7 @@ _NON_PATH_EFFECTS = frozenset(
         "payload",
         "info",
         "run",
+        "follow",
         "exec_replace",
         "kill",
         "run_under_pty",

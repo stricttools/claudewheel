@@ -346,7 +346,7 @@ class CheckHooksWiredTests(_HomeDirTestCase):
         from claudewheel import guardrail
 
         optioned = guardrail.HookWiring(
-            "Stop",
+            "Notification",
             "",
             "hook-timestamp",
             guardrail.HookOptions(
@@ -362,11 +362,11 @@ class CheckHooksWiredTests(_HomeDirTestCase):
 
             stripped = json.loads(json.dumps(good))
             for key in guardrail.HOOK_OPTION_KEYS:
-                del stripped["hooks"]["Stop"][0]["hooks"][0][key]
+                del stripped["hooks"]["Notification"][0]["hooks"][0][key]
             self._write_settings(pdir, stripped)
             result = check_hooks_wired(self.ws)
         self.assertFalse(result.ok)
-        self.assertIn("Stop", result.detail)
+        self.assertIn("Notification", result.detail)
         self.assertIn("asyncRewake", result.detail)
 
     def test_warn_when_hooks_under_wrong_dir(self) -> None:

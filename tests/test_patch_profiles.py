@@ -124,8 +124,11 @@ class MergeHooksTests(_PatchProfilesTestCase):
         existing["PreToolUse"] = [
             e for e in existing["PreToolUse"] if e.get("matcher") != "Bash"
         ]
+        [bash_entry] = [
+            e for e in c["hooks"]["PreToolUse"] if e.get("matcher") == "Bash"
+        ]
         added = merge_hooks(existing, c["hooks"])
-        self.assertEqual(len(added), 1)
+        self.assertEqual(len(added), len(bash_entry["hooks"]))
         self.assertIn("hook-block-unsafe-commands", added[0])
         matchers = [e.get("matcher") for e in existing["PreToolUse"]]
         self.assertIn("Bash", matchers)
@@ -139,16 +142,16 @@ class MergeHooksTests(_PatchProfilesTestCase):
         """A clone source wiring the script without its options gets them, and no stray ones."""
         options = guardrail.HookOptions(async_rewake=True, timeout=30)
         wirings = guardrail.EXPECTED_HOOK_WIRINGS + (
-            guardrail.HookWiring("Stop", "", "hook-timestamp", options),
+            guardrail.HookWiring("Notification", "", "hook-timestamp", options),
         )
         with patch.object(guardrail, "EXPECTED_HOOK_WIRINGS", wirings):
             c = self.canonical()
         existing = json.loads(json.dumps(c["hooks"]))
-        stop_hook = existing["Stop"][0]["hooks"][0]
+        stop_hook = existing["Notification"][0]["hooks"][0]
         del stop_hook["asyncRewake"]
         stop_hook["rewakeMessage"] = "stray"
         added = merge_hooks(existing, c["hooks"])
-        self.assertEqual(existing["Stop"], c["hooks"]["Stop"])
+        self.assertEqual(existing["Notification"], c["hooks"]["Notification"])
         self.assertEqual(len(added), 2)
 
     def test_preserves_user_added_hook(self) -> None:
