@@ -332,6 +332,17 @@ def run(
     return _completed_from(result, listed, capture_output, text, check)
 
 
+def follow(argv: list[str]) -> subprocess.Popen[bytes]:
+    """Start *argv* as a long-running declared read, its stdout piped back.
+
+    For a process that streams what it observes for as long as the caller
+    reads it -- the probe runner's ``journalctl --follow``. It changes
+    nothing, so, like ``run(read=True)``, it starts in every mode and is never
+    recorded. The caller owns the process: it reads the pipe and terminates it.
+    """
+    return subprocess.Popen(argv, stdout=subprocess.PIPE)
+
+
 def exec_replace(
     cwd: str,
     argv: list[str],

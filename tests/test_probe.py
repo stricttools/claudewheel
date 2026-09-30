@@ -207,6 +207,7 @@ class KillTests(_StoreCase):
             "command": "go test ./...",
             "unattributed": None,
             "reports": [],
+            "probes": [],
         }
         probe.append_kill(self.store, kill)
         self.assertEqual(probe.read_kills(self.store), [kill])

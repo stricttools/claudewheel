@@ -97,3 +97,11 @@ description = "The ids of the reports the kill produced. Empty when nothing took
 [types.OomKillEvent.fields.reports.items]
 type = "string"
 regex = "^[0-9a-f]{16}$"
+
+[types.OomKillEvent.fields.probes]
+type = "array"
+required = true
+description = "The ids of the probes that saw the kill, whether or not a subscriber took a report. A probe's count is the number of kills naming it."
+[types.OomKillEvent.fields.probes.items]
+type = "string"
+regex = "^[0-9a-f]{16}$"
