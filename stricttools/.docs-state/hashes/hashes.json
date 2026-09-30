@@ -153,12 +153,14 @@
   "en/claudewheel-probe.md": {
     "content": "3f635c56968bc1417f6600d31d11c0af1407926b6f17395bf29ed3c89e426f09",
     "description": "3a8d8ac9a7d5d87809e6b37af90e0426fc09f32c6ee5985c10854ef00d32b09f",
-    "seed_hash": "3a8d8ac9a7d5d87809e6b37af90e0426fc09f32c6ee5985c10854ef00d32b09f"
+    "seed_hash": "3a8d8ac9a7d5d87809e6b37af90e0426fc09f32c6ee5985c10854ef00d32b09f",
+    "source_docstring": "ba802bf772f7bd21aa4ad8748afeb9e28f44310afc5df554ba46fa4daa549ac4"
   },
   "en/claudewheel-probe_runner.md": {
     "content": "70fac0e1bd48ad7f4ffc001b11b256b4d77754dcfdcb6e48f6f6851cb20c3156",
     "description": "3786a8351714fee0bd6a2da1bfb25f435af71e33d1cb77ad96efe408809c160c",
-    "seed_hash": "3786a8351714fee0bd6a2da1bfb25f435af71e33d1cb77ad96efe408809c160c"
+    "seed_hash": "3786a8351714fee0bd6a2da1bfb25f435af71e33d1cb77ad96efe408809c160c",
+    "source_docstring": "6dc4fe6ebcfc7b67960d89d61f2c6ff0170e1e0bef817272032c159dc10bede1"
   },
   "en/claudewheel-processes.md": {
     "content": "4d63367764f8b822798894bd46a60223e8871274b7709f4cd4b5a38b5fcd5e05",
@@ -391,6 +393,7 @@
   "en/cli-probe.md": {
     "content": "445b8a134d0a28d3cb05aed98e6dd00a66387c6a8c4b3ba98a115af8c335e563",
     "description": "2508a557cb967410290b735cd3179c5fcd6e0fdfd98a03be13d5fbbbc50ba689",
+    "schema_hash": "eef18041648c58fe7ade6b6b1588d958e603f56a30afebbf88f47d007b4fb2db",
     "seed_hash": "2508a557cb967410290b735cd3179c5fcd6e0fdfd98a03be13d5fbbbc50ba689"
   },
   "en/cli-profile.md": {
