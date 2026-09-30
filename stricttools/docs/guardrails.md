@@ -124,19 +124,44 @@ While a command waits, `heavy` checks again every second and prints, every 30
 seconds, how long it has waited, the memory figures, and every running heavy
 command with its cap and use. After 60 minutes (`--max-wait` sets another
 limit, such as `90s`, `30m`, or `2h`) it gives up with exit status 75, naming
-the running commands and how to stop them, and suggesting a smaller `--mem` or
-a longer `--max-wait`.
+the running commands. It says to wait longer with a longer `--max-wait`, to
+lower `--mem` only to a measured peak of the command, never as a guess, and to
+stop a running job only when it is stuck, never to make room; for each job it
+names the `systemctl --user stop` of its scope, which ends the job and all it
+started, where killing the job's `heavy` would leave its command running.
+
+When the cap does not fit and no heavy command is running, none can end to
+make room, so `heavy` exits with status 75 at once instead of waiting. It
+names the largest cap that fits now, to be used only when a measured peak of
+the command fits under it; otherwise the command needs more memory than is
+free, and the message says to make it need less at the source, or to wait for
+the memory outside `heavy` to be given back, and not to stop other programs to
+make room.
 
 The command runs in its own systemd user scope, named `heavy-<pid>-<time>.scope`,
 capped at 5G of memory with no swap (`--mem` sets another cap, a whole number
 with a `K`, `M`, `G`, or `T` suffix) and with `CPUWeight=20` (the default is
 100), so interactive work stays responsive; its arguments reach it unchanged,
 `$` included. `heavy` prints the cap on every
-run (`heavy: capped at 5G`). When the command is killed for going over the
-cap, `heavy` reads that from the scope's result and prints
-`heavy: killed at the 5G memory cap; rerun with 'heavy --mem 10G -- <command>'`;
-the scope is then cleared, so none accumulate. `heavy` adds `-p=2` to
-`GOFLAGS` unless `GOFLAGS` already sets `-p`, and prints a line when it does;
+run (`heavy: capped at 5G`), and when the command returns, the peak memory use
+of its scope, page cache included, rounded up
+(`heavy: the command's scope peaked at 1.3G of its 5G cap (page cache included)`).
+
+When the command is killed for going over the cap, `heavy` reads that from the
+scope's result and prints `heavy: killed at the 5G memory cap`, with the
+scope's peak before the kill when systemd recorded one. The same line says not
+to rerun the command with a bigger `--mem`: a command that outgrows its cap is
+a defect to fix at the source, by stopping that line of work at a clean
+committed point, finding where the memory goes (a heap profile, what is held
+at once, what is loaded that need not be), and cutting it. It names one
+exception: when the cap was a guess rather than a measurement, measure once
+with the largest cap that fits now, which it names, counting the running heavy
+commands as an admission would, and set `--mem` from the peak that run
+reports. When no cap larger than the one the command was killed at fits now,
+it says so, and that the memory is to be cut at the source first. The scope is
+then cleared, so none accumulate.
+
+`heavy` adds `-p=2` to `GOFLAGS` unless `GOFLAGS` already sets `-p`, and prints a line when it does;
 and it exits with the command's exit status. A command behind `heavy` is an
 argument of `heavy`, never a command position of its own, so the wrapped form
 passes the hook, and none of the rule's `deny` globs starts with `heavy`.

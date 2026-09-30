@@ -379,21 +379,31 @@ _HEAVY_SCRIPT = r"""#!/usr/bin/env bash
 # than the machine's whole memory less the margin is a usage error.
 #
 # When the cap does not fit while no heavy command is running, no heavy command
-# can end to make room, so heavy exits at once (exit 75), naming the largest cap
-# that fits now, instead of waiting.
+# can end to make room, so heavy exits at once (exit 75) instead of waiting. It
+# names the largest cap that fits now, to be used only when a measured peak of
+# the command fits under it; otherwise the command needs less memory, made so
+# at the source.
 #
 # Until the command fits, heavy checks again every second and prints, every 30
 # seconds, how long it has waited, the memory figures, and every running heavy
-# command; it gives up (exit 75) after TIME, naming them and how to stop them.
+# command; it gives up (exit 75) after TIME, naming them, and names the scope
+# that ends each one, to be stopped only when it is stuck, never to make room.
 # TIME is a whole number of seconds, minutes, or hours (90s, 60m, 2h); the
 # default is 60m.
 #
 # The command runs in its own systemd user scope with MemoryMax=SIZE and no
 # swap, so a runaway is killed alone instead of the whole terminal session, and
 # with CPUWeight=20 (the default is 100), so interactive work stays responsive.
-# heavy prints the cap on every run; when the command is killed for going over
-# it, heavy says so and suggests a cap twice as large. When the command
-# returns, heavy stops its scope, so whatever it left running stops too.
+# heavy prints the cap on every run, and the peak memory use of the command's
+# scope when the command returns. When the command is killed for going over
+# its cap, heavy says so, with the scope's peak before the kill, and says not
+# to rerun it with a bigger cap: a command that outgrows its cap is a defect to
+# fix at the source, by stopping that line of work at a clean committed point,
+# finding where the memory goes, and cutting it. Only a cap that was a guess
+# rather than a measurement may be measured, once, with the largest cap that
+# fits now, which heavy names, and then set from the peak that run reports.
+# When the command returns, heavy stops its scope, so whatever it left running
+# stops too.
 #
 # GOFLAGS gets -p=2 (at most two Go packages built or tested at once) unless it
 # already sets -p; heavy prints a line when it adds it. heavy exits with the
@@ -464,6 +474,26 @@ gib() {
     awk -v k="$1" 'BEGIN { printf "%.1fG", k / 1048576 }'
 }
 
+# A peak memory use in bytes, rounded up, so a cap set from it never falls
+# short: to a tenth of a gigabyte from a gigabyte on, to a whole megabyte below.
+peak_size() {
+    awk -v b="$1" 'BEGIN {
+        g = 1073741824; m = 1048576
+        if (b >= g) { t = int(b * 10 / g); if (t * g < b * 10) t++; printf "%.1fG", t / 10 }
+        else { n = int(b / m); if (n * m < b) n++; printf "%dM", n }
+    }'
+}
+
+# KiB as a cap heavy accepts, rounded down so it still fits: whole gigabytes
+# from a gigabyte on, whole megabytes below, nothing below a megabyte.
+cap_size() {
+    if (($1 >= 1048576)); then
+        echo "$(($1 / 1048576))G"
+    elif (($1 >= 1024)); then
+        echo "$(($1 / 1024))M"
+    fi
+}
+
 # A /proc/meminfo figure in KiB, such as MemAvailable.
 meminfo() {
     awk -v key="$1:" '$1 == key { print $2 }' /proc/meminfo
@@ -516,7 +546,8 @@ read_scope() {
     fi
 }
 
-# One admission attempt, made while this heavy holds the admission lock.
+# One admission attempt, made while this heavy holds the admission lock; with
+# the argument "survey", only the count of what is reserved, claiming nothing.
 #
 # Each slot is a file that a heavy holds a flock on for as long as it runs, and
 # a slot's note (its content) says who holds it: "PID START_TIME", then
@@ -528,19 +559,21 @@ read_scope() {
 #
 # On success the claimed slot stays locked on descriptor 8 and its note names
 # this heavy. Otherwise nothing is held, and why, reserved_kib, running_jobs,
-# and kill_pids say why not.
+# and stop_hints say why not; unknown says whether reserved_kib is all of it.
 try_admit() {
     local i file pid start cap note_mem note_unit desc rest scope load active
-    local unknown=0 free=""
+    local free=""
     local noted_units=()
+    unknown=0
     hopeless=0
     reserved_kib=0
     running_jobs=()
+    stop_hints=()
     for ((i = 0; i < slot_count; i++)); do
         file="$slots/$i"
         exec 7>>"$file"
         if flock -n 7; then
-            if [[ -z "$free" ]]; then
+            if [[ -z "$free" && "${1:-}" != survey ]]; then
                 free=$file
                 exec 8>&7
             fi
@@ -557,7 +590,7 @@ try_admit() {
             ((rest > 0)) || rest=0
             reserved_kib=$((reserved_kib + rest))
             running_jobs+=("$desc (cap $note_mem, using $(gib "$scope_used_kib"))")
-            kill_pids+=("$pid")
+            stop_hints+=("'systemctl --user stop $note_unit' for pid $pid")
             noted_units+=("$note_unit")
         else
             unknown=1
@@ -584,6 +617,7 @@ try_admit() {
         running_jobs+=("scope $scope, running without a heavy slot, as when its heavy was killed (cap $(gib "$scope_cap_kib"), using $(gib "$scope_used_kib"); stop it with 'systemctl --user stop $scope')")
     done < <(systemctl --user list-units --type=scope --plain --no-legend 'heavy-*.scope' 2>/dev/null || true)
     avail_kib=$(meminfo MemAvailable)
+    [[ "${1:-}" != survey ]] || return 1
     if ((unknown)); then
         why="a heavy slot or scope heavy cannot account for is counted as reserving all the memory"
     elif [[ -z "$free" ]]; then
@@ -621,7 +655,7 @@ waited=0
 next_report=0
 while :; do
     attempted=0
-    kill_pids=()
+    stop_hints=()
     exec 9>>"$lock"
     if flock -n 9; then
         attempted=1
@@ -629,16 +663,13 @@ while :; do
             break
         fi
         if ((hopeless)); then
-            fits_kib=$((avail_kib - margin_kib))
-            if ((fits_kib >= 1048576)); then
-                fits="$((fits_kib / 1048576))G"
-            elif ((fits_kib >= 1024)); then
-                fits="$((fits_kib / 1024))M"
+            fits=$(cap_size $((avail_kib - margin_kib - reserved_kib)))
+            how="otherwise this command needs more memory than is free, so make it need less at the source (find where the memory goes and cut it), or wait for the memory outside heavy to be given back; do not stop other programs to make room"
+            if [[ -n "$fits" ]]; then
+                how="the largest cap that fits now is $fits: use it only if a measured peak of this command fits under it, never as a guess; $how"
             else
-                fits=""
+                how="less than 1M fits now; ${how#otherwise }"
             fi
-            how="free memory outside heavy and rerun"
-            [[ -z "$fits" ]] || how="rerun with --mem $fits or less, or $how"
             echo "heavy: cannot start a $mem job: $why; no heavy job is running, so none can end to make room; $how" >&2
             exit 75
         fi
@@ -651,9 +682,11 @@ while :; do
         next_report=$((next_report + report_every))
     fi
     if ((waited >= max_wait_s)); then
-        how="free memory, rerun with a smaller --mem, or rerun with a longer --max-wait"
-        if ((${#kill_pids[@]} > 0)); then
-            how="look at a job with 'ps -o pid,etime,args -p PID' and, if it is stuck, stop it ($(printf "'kill %s', " "${kill_pids[@]}" | sed 's/, $//')); or $how"
+        how="rerun with a longer --max-wait to wait for the running heavy jobs to end; lower --mem only to a measured peak of this command, never as a guess"
+        if ((${#stop_hints[@]} > 0)); then
+            # Killing a heavy leaves its command running in its scope, holding
+            # its cap: stopping the scope is what ends a job.
+            how+="; stop a job only when it is stuck, never to make room: 'ps -o pid,etime,args -p PID' shows it, and stopping its scope ends it and all it started ($(printf '%s, ' "${stop_hints[@]}" | sed 's/, $//'))"
         fi
         echo "heavy: gave up after waiting $max_wait to start a $mem job: $why$(running); $how" >&2
         exit 75
@@ -673,18 +706,36 @@ esac
 
 echo "heavy: capped at $mem" >&2
 
+# Runs the command inside its scope and, once it returns, reports the peak
+# memory use of the scope, read there because systemd drops a scope that ended
+# cleanly, figures and all, as soon as its last process exits.
+run_in_scope() {
+    local cap=$1 status=0 cg peak
+    shift
+    "$@" || status=$?
+    cg=$(sed -n 's/^0:://p' /proc/self/cgroup)
+    peak=$(cat "/sys/fs/cgroup$cg/memory.peak" 2>/dev/null || true)
+    if [[ "$peak" =~ ^[0-9]+$ ]]; then
+        echo "heavy: the command's scope peaked at $(peak_size "$peak") of its $cap cap (page cache included)" >&2
+    fi
+    return "$status"
+}
+
 # 8>&- : the command must not inherit the slot, or a process it leaves running
 # would hold the slot after heavy exits. --expand-environment=no: systemd-run
 # would otherwise expand $VAR and $$ in the command's own arguments.
 status=0
 systemd-run --user --scope --quiet --expand-environment=no --unit="$unit" \
-    -p MemoryMax="$mem" -p MemorySwapMax=0 -p CPUWeight=20 -- "$@" 8>&- || status=$?
+    -p MemoryMax="$mem" -p MemorySwapMax=0 -p CPUWeight=20 \
+    -- bash -c "$(declare -f peak_size run_in_scope)"'; run_in_scope "$@"' heavy "$mem" "$@" 8>&- \
+    || status=$?
 
 # The scope is not collected on exit, so its result can be read here; a scope
-# that failed stays loaded until reset-failed clears it.
+# that failed stays loaded, with the peak memory use systemd recorded for it,
+# until reset-failed clears it.
 result=""
 for _ in 1 2 3 4 5 6 7 8 9 10; do
-    state=$(systemctl --user show "$unit" -p ActiveState -p Result 2>/dev/null || true)
+    state=$(systemctl --user show "$unit" -p ActiveState -p Result -p MemoryPeak 2>/dev/null || true)
     result=$(sed -n 's/^Result=//p' <<<"$state")
     case "$(sed -n 's/^ActiveState=//p' <<<"$state")" in
         active|activating|deactivating) [[ $status -ne 0 ]] || break ;;
@@ -703,9 +754,35 @@ fi
 systemctl --user reset-failed "$unit" >/dev/null 2>&1 || true
 exec 8>&-
 
+# A command killed at its cap is a defect to fix at the source, never a reason
+# for a bigger cap. The one larger run it may get is a measurement, when its
+# cap was a guess: at the largest cap that fits now, counted the way an
+# admission counts it.
 if [[ "$result" == oom-kill ]]; then
-    printf -v rerun ' %q' "$@"
-    echo "heavy: killed at the $mem memory cap; rerun with 'heavy --mem $((${mem%?} * 2))${mem: -1} --${rerun}'" >&2
+    killed="heavy: killed at the $mem memory cap"
+    peak=$(sed -n 's/^MemoryPeak=//p' <<<"$state")
+    if [[ "$peak" =~ ^[0-9]+$ ]]; then
+        killed+=" (its scope peaked at $(peak_size "$peak") before the kill, page cache included)"
+    fi
+    fix="do not rerun it with a bigger --mem: a command that outgrows its cap is a defect to fix at the source, so stop this line of work at a clean committed point, find where the memory goes (a heap profile, what is held at once, what is loaded that need not be), and cut it"
+    guess="if $mem was a guess rather than a measurement"
+    exec 9>>"$lock"
+    if ! flock -w 10 9; then
+        measure="only $guess: measure once with the largest cap that fits now, which heavy cannot tell while the admission lock $lock is held (find its holder with 'fuser -v $lock')"
+    else
+        try_admit survey || true
+        fits=$(cap_size $((avail_kib - margin_kib - reserved_kib)))
+        if ((unknown)); then
+            measure="only $guess: measure once with the largest cap that fits now, which heavy cannot tell while a heavy slot or scope it cannot account for holds memory"
+        elif [[ -n "$fits" ]] && (($(to_kib "$fits") > cap_kib)); then
+            measure="only $guess: measure once with --mem $fits, the largest cap that fits now, and set --mem from the peak heavy prints when the command returns"
+        else
+            largest="${fits:+$fits is the largest}"
+            measure="even $guess, no cap larger than $mem fits now to measure with (${largest:-less than 1M fits}), so cut the memory at the source first"
+        fi
+    fi
+    exec 9>&-
+    echo "$killed; $fix; $measure" >&2
 fi
 exit "$status"
 """

@@ -49,7 +49,8 @@ exec "$@"
 # unless the test gave its scope a memory use (or with /STUB_CGROUP for every
 # unit, when set); and any other 'show' with the unit result
 # the test chose (STUB_RESULT, default success) as a failed or inactive unit,
-# the way systemd reports a finished scope.
+# the way systemd reports a finished scope, with the peak memory use in bytes
+# systemd recorded for it (STUB_PEAK; none recorded by default).
 _STUB_SYSTEMCTL = """\
 #!/usr/bin/env bash
 printf '%s\\n' "$*" >> "$STUB_SYSTEMCTL_LOG"
@@ -60,7 +61,7 @@ case " $* " in
     *" show "*)
         result="${STUB_RESULT:-success}"
         if [[ "$result" == success ]]; then state=inactive; else state=failed; fi
-        printf 'ActiveState=%s\\nResult=%s\\n' "$state" "$result"
+        printf 'ActiveState=%s\\nResult=%s\\nMemoryPeak=%s\\n' "$state" "$result" "${STUB_PEAK:-[not set]}"
         ;;
 esac
 """
@@ -377,6 +378,23 @@ class _HeavyRunCase(_DeployCase):
         max_ = "max" if cap is None else str(_kib(cap) * 1024)
         (scope / "memory.max").write_text(f"{max_}\n")
 
+    def _set_own_peak(self, peak_bytes: str) -> None:
+        """The memory.peak a command started by the stub systemd-run reads.
+
+        The stub starts it in this process's own cgroup, so the value goes to
+        that cgroup's path in the fixed cgroup tree.
+        """
+        own = Path("/proc/self/cgroup").read_text().split("::", 1)[1].strip()
+        cg = self.cgroup / own.lstrip("/")
+        cg.mkdir(parents=True, exist_ok=True)
+        (cg / "memory.peak").write_text(f"{peak_bytes}\n")
+
+    def _line(self, stderr: str, prefix: str) -> str:
+        """The one line of *stderr* that starts with *prefix*."""
+        lines = [line for line in stderr.splitlines() if line.startswith(prefix)]
+        self.assertEqual(len(lines), 1, stderr)
+        return lines[0]
+
     def _list_scopes(self, *lines: str) -> None:
         """The heavy scopes systemctl list-units reports as running."""
         listing = Path(self._tmp.name) / "scopes"
@@ -482,16 +500,47 @@ class HeavyBehaviorTests(_HeavyRunCase):
         self.assertTrue(any("reset-failed" in c and unit in c for c in calls), calls)
         self.assertNotIn("killed at", proc.stderr)
 
-    def test_a_memory_kill_is_explained(self) -> None:
+    def test_a_memory_kill_steers_to_the_source_not_a_bigger_cap(self) -> None:
         proc = self._heavy(
-            "--", "bash", "-c", "exit 137", env={"STUB_RESULT": "oom-kill"}
+            "--",
+            "bash",
+            "-c",
+            "exit 137",
+            env={"STUB_RESULT": "oom-kill", "STUB_PEAK": str(5 * 1024**3)},
         )
         self.assertEqual(proc.returncode, 137)
+        kill = self._line(proc.stderr, "heavy: killed at")
         self.assertIn(
-            "heavy: killed at the 5G memory cap; rerun with "
-            "'heavy --mem 10G -- bash -c exit\\ 137'",
-            proc.stderr,
+            "heavy: killed at the 5G memory cap (its scope peaked at 5.0G before "
+            "the kill, page cache included)",
+            kill,
         )
+        self.assertIn("do not rerun it with a bigger --mem", kill)
+        self.assertIn("a defect to fix at the source", kill)
+        self.assertIn("stop this line of work at a clean committed point", kill)
+        self.assertIn(
+            "find where the memory goes (a heap profile, what is held at once, "
+            "what is loaded that need not be), and cut it",
+            kill,
+        )
+        # The one legitimate larger run: a measurement, at the largest cap
+        # that fits now (16G available less the 2G margin, nothing running).
+        self.assertIn(
+            "only if 5G was a guess rather than a measurement: measure once "
+            "with --mem 14G, the largest cap that fits now, and set --mem from "
+            "the peak heavy prints when the command returns",
+            kill,
+        )
+        self.assertNotIn("rerun with", proc.stderr)
+        self.assertNotIn("10G", proc.stderr)
+        self.assertNotIn("bash -c", proc.stderr)
+        # The failed scope is read and then cleared, so none accumulate.
+        calls = self.systemctl_log.read_text().splitlines()
+        self.assertTrue(
+            any(c.startswith("--user reset-failed heavy-") for c in calls), calls
+        )
+
+    def test_a_memory_kill_names_no_peak_systemd_did_not_record(self) -> None:
         proc = self._heavy(
             "--mem",
             "700M",
@@ -501,16 +550,42 @@ class HeavyBehaviorTests(_HeavyRunCase):
             "./...",
             env={"STUB_RESULT": "oom-kill"},
         )
+        kill = self._line(proc.stderr, "heavy: killed at")
+        self.assertTrue(
+            kill.startswith(
+                "heavy: killed at the 700M memory cap; do not rerun it with a "
+                "bigger --mem"
+            ),
+            kill,
+        )
+        self.assertNotIn("peak", kill.split(";")[0])
+        self.assertIn("only if 700M was a guess", kill)
+        self.assertIn("--mem 14G, the largest cap that fits now", kill)
+
+    def test_the_measurement_a_memory_kill_names_runs_and_reports_its_peak(
+        self,
+    ) -> None:
+        killed = self._heavy("--", "true", env={"STUB_RESULT": "oom-kill"})
+        self.assertIn("measure once with --mem 14G", killed.stderr)
+        self._set_own_peak(str(9 * 1024**3 + 1))
+        proc = self._heavy("--mem", "14G", "--max-wait", "0s", "--", "true")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        # Rounded up, so a cap set from it never falls short of the peak.
         self.assertIn(
-            "heavy: killed at the 700M memory cap; rerun with "
-            "'heavy --mem 1400M -- go test ./...'",
+            "heavy: the command's scope peaked at 9.1G of its 14G cap "
+            "(page cache included)\n",
             proc.stderr,
         )
-        # The failed scope is read and then cleared, so none accumulate.
-        calls = self.systemctl_log.read_text().splitlines()
-        self.assertTrue(
-            any(c.startswith("--user reset-failed heavy-") for c in calls), calls
-        )
+
+    def test_the_peak_is_named_in_megabytes_below_a_gigabyte(self) -> None:
+        self._set_own_peak(str(300 * 1024**2 + 1))
+        proc = self._heavy("--mem", "1G", "--", "true")
+        self.assertIn("peaked at 301M of its 1G cap", proc.stderr)
+
+    def test_no_peak_is_reported_when_the_scope_has_none(self) -> None:
+        proc = self._heavy("--", "true")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertNotIn("peaked", proc.stderr)
 
     def test_other_failures_are_not_called_memory_kills(self) -> None:
         proc = self._heavy(
@@ -706,9 +781,25 @@ class HeavyAdmissionTests(_AdmissionCase):
         last = proc.stderr.splitlines()[-1]
         self.assertIn("gave up after waiting 3s", last)
         self.assertIn(f"pid {holder.pid}", last)
-        self.assertIn(f"kill {holder.pid}", last)
-        self.assertIn("--max-wait", last)
-        self.assertIn("smaller --mem", last)
+        self.assertIn(
+            "rerun with a longer --max-wait to wait for the running heavy jobs to end",
+            last,
+        )
+        # A smaller cap is no way around the wait unless it was measured.
+        self.assertNotIn("smaller --mem", last)
+        self.assertIn(
+            "lower --mem only to a measured peak of this command, never as a guess",
+            last,
+        )
+        # Killing a heavy leaves its command running in its scope, holding
+        # its cap, so the stop it names is the scope's, and only for a job
+        # that is stuck.
+        self.assertNotIn("kill ", last)
+        self.assertIn("stop a job only when it is stuck, never to make room", last)
+        self.assertRegex(
+            last,
+            rf"'systemctl --user stop heavy-[0-9]+-[0-9]+\.scope' for pid {holder.pid}",
+        )
         self.assertNotIn("capped at", proc.stderr)
 
     def test_a_waiting_job_starts_once_the_running_one_ends(self) -> None:
@@ -728,7 +819,10 @@ class HeavyAdmissionTests(_AdmissionCase):
         self.assertEqual(proc.returncode, 75, proc.stderr)
         self.assertIn(f"all {_SLOTS} heavy slots are in use", proc.stderr)
         self.assertIn("stand-in-7", proc.stderr)
-        self.assertIn(f"kill {os.getpid()}", proc.stderr.splitlines()[-1])
+        self.assertIn(
+            f"'systemctl --user stop heavy-stand-in.scope' for pid {os.getpid()}",
+            proc.stderr.splitlines()[-1],
+        )
 
     def test_a_cap_this_machine_can_never_admit_is_refused(self) -> None:
         proc = self._heavy("--mem", "100T", "--", "true")
@@ -790,8 +884,25 @@ class HeavyAdmissionTests(_AdmissionCase):
         self.assertIn("heavy: cannot start a 6G job", proc.stderr)
         self.assertIn("leaves 3.2G", proc.stderr)
         self.assertIn("no heavy job is running", proc.stderr)
-        self.assertIn("rerun with --mem 3G or less", proc.stderr)
+        # A smaller cap is named with the condition that makes it right, not
+        # as the way around the refusal.
+        self.assertNotIn("rerun with", proc.stderr)
+        self.assertIn(
+            "the largest cap that fits now is 3G: use it only if a measured peak "
+            "of this command fits under it, never as a guess",
+            proc.stderr,
+        )
+        self.assertIn(
+            "otherwise this command needs more memory than is free, so make it "
+            "need less at the source (find where the memory goes and cut it)",
+            proc.stderr,
+        )
+        self.assertIn("do not stop other programs to make room", proc.stderr)
+        self.assertNotIn("free memory", proc.stderr)
         self.assertNotIn("capped at", proc.stderr)
+        # The cap it names does start.
+        proc = self._heavy("--mem", "3G", "--max-wait", "0s", "--", "true")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
 
     def test_the_largest_cap_that_fits_is_named_in_megabytes_below_a_gigabyte(
         self,
@@ -799,7 +910,9 @@ class HeavyAdmissionTests(_AdmissionCase):
         self._set_memory(total="16G", available="2560M")
         proc = self._heavy("--mem", "1G", "--max-wait", "60s", "--", "true")
         self.assertEqual(proc.returncode, 75, proc.stderr)
-        self.assertIn("rerun with --mem 512M or less", proc.stderr)
+        self.assertIn("the largest cap that fits now is 512M", proc.stderr)
+        proc = self._heavy("--mem", "512M", "--max-wait", "0s", "--", "true")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
 
     def test_a_cap_that_does_not_fit_beside_a_running_job_still_waits(
         self,
@@ -809,6 +922,31 @@ class HeavyAdmissionTests(_AdmissionCase):
         self.assertEqual(proc.returncode, 75, proc.stderr)
         self.assertIn("heavy: waiting", proc.stderr)
         self.assertNotIn("cannot start", proc.stderr)
+
+    def test_a_memory_kill_counts_the_running_jobs_in_the_cap_that_fits(
+        self,
+    ) -> None:
+        # 16G available less the 2G margin is 14G, and a running job's 6G cap
+        # leaves 8G of it.
+        self._hold_slot(0, mem="6G")
+        proc = self._heavy("--", "true", env={"STUB_RESULT": "oom-kill"})
+        kill = self._line(proc.stderr, "heavy: killed at")
+        self.assertIn("measure once with --mem 8G, the largest cap that fits now", kill)
+
+    def test_a_memory_kill_with_no_larger_cap_free_says_there_is_none(self) -> None:
+        # The running job's 9G cap leaves 5G of the 14G budget: no more than
+        # the 5G the command was killed at, so there is nothing larger to
+        # measure with.
+        self._hold_slot(0, mem="9G")
+        proc = self._heavy("--", "true", env={"STUB_RESULT": "oom-kill"})
+        kill = self._line(proc.stderr, "heavy: killed at")
+        self.assertIn(
+            "even if 5G was a guess rather than a measurement, no cap larger than "
+            "5G fits now to measure with (5G is the largest), so cut the memory "
+            "at the source first",
+            kill,
+        )
+        self.assertNotIn("measure once", kill)
 
     def test_a_dead_holder_is_unknown_and_blocks(self) -> None:
         # A note naming a process that is gone, on a slot some process still
@@ -1234,6 +1372,31 @@ class HeavyRealScopeTests(_DeployCase):
         proc = self._run("--mem", "64M", "--", "printf", "%s", text)
         self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertEqual(proc.stdout, text)
+
+    def test_a_run_reports_the_peak_its_scope_reached(self) -> None:
+        # 48M held at once, well under the 256M cap: the scope's peak covers it.
+        proc = self._run(
+            "--mem",
+            "256M",
+            "--",
+            "python3",
+            "-c",
+            "b = bytearray(48 * 1024 * 1024); b[::4096] = b'x' * len(b[::4096])",
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        lines = [
+            line
+            for line in proc.stderr.splitlines()
+            if line.startswith("heavy: the command's scope peaked at ")
+        ]
+        self.assertEqual(len(lines), 1, proc.stderr)
+        line = lines[0]
+        self.assertRegex(
+            line, r"peaked at [0-9]+M of its 256M cap \(page cache included\)$"
+        )
+        peak = int(line.split("peaked at ", 1)[1].split("M", 1)[0])
+        self.assertGreaterEqual(peak, 48)
+        self.assertLess(peak, 256)
 
     def test_nothing_is_reported_stopped_when_nothing_was_left(self) -> None:
         for _ in range(5):
