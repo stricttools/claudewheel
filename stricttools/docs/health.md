@@ -88,8 +88,12 @@ Neither can block a session -- a hook that cannot write says so on stderr and
 gets out of the way.
 
 A hook entry matches only when its event, matcher, and the exact canonical
-command path (under the current `scripts_dir`) all agree. A hook pointing at
-the right script name under a stale directory does not pass.
+command path (under the current `scripts_dir`) all agree, and the hook carries
+exactly the options its wiring states (`asyncRewake`, `timeout`,
+`rewakeMessage`, `rewakeSummary`) and none it does not. A hook pointing at
+the right script name under a stale directory does not pass, and neither does
+one whose options were edited or dropped: the detail names the option keys
+that differ.
 
 Fix: `claudewheel patch-profiles`
 

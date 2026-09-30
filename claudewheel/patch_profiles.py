@@ -19,6 +19,7 @@ from copy import deepcopy
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from .guardrail import HOOK_OPTION_KEYS
 from .reconcile import MalformedSettingsError, _json_type_name
 
 if TYPE_CHECKING:
@@ -120,7 +121,8 @@ def merge_hooks(existing: dict[str, Any], canonical: dict[str, Any]) -> list[str
                     added.append(f"{event}[{label}] {base}")
                     continue
                 # Same script already wired; repath any stale absolute path so a
-                # relocated workspace points back at the current scripts dir.
+                # relocated workspace points back at the current scripts dir,
+                # and give it the canonical options (asyncRewake, timeout, ...).
                 for th in matches:
                     if th.get("command", "") != canonical_cmd:
                         old_cmd = th.get("command", "")
@@ -128,6 +130,13 @@ def merge_hooks(existing: dict[str, Any], canonical: dict[str, Any]) -> list[str
                         added.append(
                             f"{event}[{label}] {base} repath {old_cmd} -> {canonical_cmd}"
                         )
+                    for key in HOOK_OPTION_KEYS:
+                        if th.get(key) != h.get(key):
+                            if key in h:
+                                th[key] = h[key]
+                            else:
+                                del th[key]
+                            added.append(f"{event}[{label}] {base} option {key}")
     return added
 
 

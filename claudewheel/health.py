@@ -14,7 +14,7 @@ from .appdata import OptionsFile
 from .defaults import (
     CANONICAL_PROFILE_SETTINGS,
     DISALLOWED_TOOLS,
-    canonical_hook_command,
+    canonical_hook_entry,
 )
 from . import effects
 from .effects import write_json_atomic
@@ -170,33 +170,44 @@ def check_shared_symlinks(
 
 
 def _hook_wired(
-    hooks: object, event: str, matcher: str, script: str, scripts_dir: Path
-) -> bool:
-    """Return True if *hooks* wires *script* under *event* with *matcher*.
+    hooks: object, wiring: guardrail.HookWiring, scripts_dir: Path
+) -> str | None:
+    """Return None if *hooks* wires *wiring*, else what is wrong.
 
-    An entry matches when its ``matcher`` equals *matcher* (an absent matcher
-    is treated as the empty string, which is how UserPromptSubmit entries are
-    stored) and it carries a hook command equal to the EXACT canonical command
-    for *script* under *scripts_dir*. Exact-match (not substring) so a hook
-    pointing at a stale/dead scripts directory -- right basename, wrong root --
-    does NOT pass, which a substring match would have wrongly accepted.
+    An entry matches when its ``matcher`` equals the wiring's (an absent
+    matcher is treated as the empty string, which is how UserPromptSubmit
+    entries are stored) and it carries a hook whose command equals the EXACT
+    canonical command for the script under *scripts_dir*. Exact-match (not
+    substring) so a hook pointing at a stale/dead scripts directory -- right
+    basename, wrong root -- does NOT pass. That hook must then carry every
+    option key (``guardrail.HOOK_OPTION_KEYS``) exactly as the wiring states
+    it, and none it does not state: an async-rewake hook wired without
+    ``asyncRewake`` blocks every turn instead of waking the session.
     """
+    label = f"({wiring.event}, {wiring.matcher}, {wiring.script})"
     if not isinstance(hooks, dict):
-        return False
-    entries = hooks.get(event, [])
+        return f"missing {label}"
+    entries = hooks.get(wiring.event, [])
     if not isinstance(entries, list):
-        return False
-    expected_cmd = canonical_hook_command(scripts_dir, script)
+        return f"missing {label}"
+    expected = canonical_hook_entry(scripts_dir, wiring)
     for entry in entries:
         if not isinstance(entry, dict):
             continue
-        if entry.get("matcher", "") != matcher:
+        if entry.get("matcher", "") != wiring.matcher:
             continue
         for h in entry.get("hooks", []):
-            cmd = h.get("command", "") if isinstance(h, dict) else ""
-            if cmd == expected_cmd:
-                return True
-    return False
+            if not isinstance(h, dict) or h.get("command", "") != expected["command"]:
+                continue
+            wrong = [
+                key
+                for key in guardrail.HOOK_OPTION_KEYS
+                if h.get(key) != expected.get(key)
+            ]
+            if wrong:
+                return f"options differ on {label}: {', '.join(wrong)}"
+            return None
+    return f"missing {label}"
 
 
 def check_hooks_wired(
@@ -204,12 +215,12 @@ def check_hooks_wired(
 ) -> HealthResult:
     """Verify each profile wires every expected hook in settings.json.
 
-    The canonical wirings are the (event, matcher, script-name) triples in
-    ``guardrail.EXPECTED_HOOK_WIRINGS``. A profile passes only when every
-    triple is present: an entry under the given event whose matcher equals the
-    given matcher, containing a hook command equal to the exact canonical
-    command (``scripts_dir / script``) for that triple. A hook pointing at the
-    right basename under the wrong directory does NOT satisfy the wiring.
+    The canonical wirings are ``guardrail.EXPECTED_HOOK_WIRINGS``. A profile
+    passes only when every wiring is present: an entry under its event whose
+    matcher equals its matcher, containing a hook command equal to the exact
+    canonical command (``scripts_dir / script``) and carrying exactly the
+    wiring's options. A hook pointing at the right basename under the wrong
+    directory does NOT satisfy the wiring.
     """
     profiles = _managed_profiles(ws)
     if not profiles:
@@ -229,9 +240,10 @@ def check_hooks_wired(
             continue
 
         hooks = settings.get("hooks", {})
-        for event, matcher, script in guardrail.EXPECTED_HOOK_WIRINGS:
-            if not _hook_wired(hooks, event, matcher, script, scripts_dir):
-                missing.append(f"{p.name}: missing ({event}, {matcher}, {script})")
+        for wiring in guardrail.EXPECTED_HOOK_WIRINGS:
+            problem = _hook_wired(hooks, wiring, scripts_dir)
+            if problem is not None:
+                missing.append(f"{p.name}: {problem}")
 
     if missing:
         return HealthResult(

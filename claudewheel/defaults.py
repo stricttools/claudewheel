@@ -49,25 +49,39 @@ def canonical_hook_command(scripts_dir: Path, script: str) -> str:
     return str(scripts_dir / script)
 
 
+def canonical_hook_entry(
+    scripts_dir: Path, wiring: guardrail.HookWiring
+) -> dict[str, Any]:
+    """Return the settings.json hook object for *wiring* under *scripts_dir*.
+
+    The command plus the wiring's options, spelled as settings keys. The one
+    place a hook object is composed: ``_build_canonical_hooks`` deploys it and
+    ``health.check_hooks_wired`` compares against it.
+    """
+    return {
+        "type": "command",
+        "command": canonical_hook_command(scripts_dir, wiring.script),
+        **wiring.options.settings_keys(),
+    }
+
+
 def _build_canonical_hooks(scripts_dir: Path) -> dict[str, Any]:
     """Build the hooks dict from the guardrail model's EXPECTED_HOOK_WIRINGS.
 
-    Each wiring is an (event, matcher, script-name) tuple. Wirings are grouped
-    by event, and within each event by matcher, so several scripts sharing an
-    (event, matcher) pair land in one entry's ``hooks`` list. The guardrail
-    module is the single source of truth -- adding a wiring there flows through
-    here automatically.
+    Wirings are grouped by event, and within each event by matcher, so several
+    scripts sharing an (event, matcher) pair land in one entry's ``hooks``
+    list. Each hook carries its wiring's options. The guardrail module is the
+    single source of truth -- adding a wiring there flows through here
+    automatically.
     """
     hooks: dict[str, list[dict[str, Any]]] = {}
-    for event, matcher, script in guardrail.EXPECTED_HOOK_WIRINGS:
-        entries = hooks.setdefault(event, [])
-        entry = next((e for e in entries if e["matcher"] == matcher), None)
+    for wiring in guardrail.EXPECTED_HOOK_WIRINGS:
+        entries = hooks.setdefault(wiring.event, [])
+        entry = next((e for e in entries if e["matcher"] == wiring.matcher), None)
         if entry is None:
-            entry = {"matcher": matcher, "hooks": []}
+            entry = {"matcher": wiring.matcher, "hooks": []}
             entries.append(entry)
-        entry["hooks"].append(
-            {"type": "command", "command": canonical_hook_command(scripts_dir, script)}
-        )
+        entry["hooks"].append(canonical_hook_entry(scripts_dir, wiring))
     return hooks
 
 

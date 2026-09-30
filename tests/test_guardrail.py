@@ -21,6 +21,9 @@ from claudewheel import guardrail
 from claudewheel.guardrail import (
     ALLOW_CONFLICTS,
     EXPECTED_HOOK_WIRINGS,
+    HOOK_OPTION_KEYS,
+    HookOptions,
+    HookWiring,
     RULES,
     SettingsCoverage,
     Tier,
@@ -500,21 +503,58 @@ class DerivedDataTests(unittest.TestCase):
         self.assertEqual(
             EXPECTED_HOOK_WIRINGS,
             (
-                ("UserPromptSubmit", "", "hook-timestamp"),
-                ("PreToolUse", "Agent", "hook-block-worktree"),
-                ("PreToolUse", "Bash", "hook-block-unsafe-commands"),
-                ("PostToolUse", "Bash", "hook-advise-commands"),
-                ("SessionStart", "", "hook-session-start"),
-                ("SessionEnd", "", "hook-session-end"),
+                HookWiring("UserPromptSubmit", "", "hook-timestamp"),
+                HookWiring("PreToolUse", "Agent", "hook-block-worktree"),
+                HookWiring("PreToolUse", "Bash", "hook-block-unsafe-commands"),
+                HookWiring("PostToolUse", "Bash", "hook-advise-commands"),
+                HookWiring("SessionStart", "", "hook-session-start"),
+                HookWiring("SessionEnd", "", "hook-session-end"),
             ),
+        )
+
+    def test_rewake_texts_need_async_rewake(self) -> None:
+        """A rewake text on a hook that never rewakes is refused, not ignored."""
+        with self.assertRaises(ValueError):
+            HookOptions(rewake_message="report:")
+        with self.assertRaises(ValueError):
+            HookOptions(rewake_summary="report")
+
+    def test_timeout_must_be_positive(self) -> None:
+        with self.assertRaises(ValueError):
+            HookOptions(timeout=0)
+
+    def test_options_render_as_settings_keys(self) -> None:
+        """Each option set is one settings.json key; an option not set is absent."""
+        self.assertEqual(HookOptions().settings_keys(), {})
+        self.assertEqual(
+            HookOptions(
+                async_rewake=True,
+                timeout=60,
+                rewake_message="m:",
+                rewake_summary="s",
+            ).settings_keys(),
+            {
+                "asyncRewake": True,
+                "timeout": 60,
+                "rewakeMessage": "m:",
+                "rewakeSummary": "s",
+            },
+        )
+        self.assertEqual(
+            tuple(
+                HookOptions(
+                    async_rewake=True, timeout=1, rewake_message="m", rewake_summary="s"
+                ).settings_keys()
+            ),
+            HOOK_OPTION_KEYS,
         )
 
     def test_every_wired_script_exists_in_the_registry(self) -> None:
         """No wiring may name a script deploy-hooks cannot deploy."""
         from claudewheel.hook_scripts import HOOK_SCRIPTS
 
-        for _event, _matcher, script in EXPECTED_HOOK_WIRINGS:
-            self.assertIn(script, HOOK_SCRIPTS)
+        for wiring in EXPECTED_HOOK_WIRINGS:
+            self.assertIn(wiring.script, HOOK_SCRIPTS)
 
 
 if __name__ == "__main__":  # pragma: no cover

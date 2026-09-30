@@ -13,7 +13,7 @@ It carries everything its consumers need:
     to populate profile ``permissions`` and ``ALLOW_CONFLICTS`` to scrub dead
     or conflicting allow-array entries.
   - Health / patch reads ``EXPECTED_HOOK_WIRINGS`` to verify each
-    profile wires every declared hook entry correctly.
+    profile wires every declared hook entry correctly, options included.
 
 The hook regex patterns are stored as PLAIN ERE text (Python raw strings,
 single-escaped). Translating them into a bash/grep template (with the extra
@@ -604,22 +604,88 @@ ALLOW_CONFLICTS: tuple[str, ...] = (
 )
 
 
-# Every (event, matcher, script-name) hook wiring a profile must have. Health /
-# patch_profiles verifies these against each profile's settings hooks
-# section, and defaults._build_canonical_hooks derives the settings entries from
-# them, so a wiring added here flows into deployment and verification alike.
+# The per-hook options a wiring may carry, each spelled in settings.json the
+# way Claude Code reads it. A wiring states them here, in the model, so the
+# canonical hooks built from it carry them, health compares them, and the
+# reconcile core (which makes the whole hooks structure canonical) keeps them
+# instead of pruning them as hand-added extras.
+HOOK_OPTION_KEYS: tuple[str, ...] = (
+    "asyncRewake",
+    "timeout",
+    "rewakeMessage",
+    "rewakeSummary",
+)
+
+
+@dataclass(frozen=True)
+class HookOptions:
+    """Per-hook options of one wiring.
+
+    - async_rewake: the hook runs in the background, and exiting 2 wakes the
+      session's main conversation with the hook's output.
+    - timeout: seconds before Claude Code stops the hook.
+    - rewake_message: the prefix of the reminder a rewake shows the model.
+    - rewake_summary: the summary line a rewake's notification carries.
+
+    The two rewake texts only mean something on an async-rewake hook, so a
+    wiring that sets one without ``async_rewake`` is refused at construction.
+    """
+
+    async_rewake: bool = False
+    timeout: int | None = None
+    rewake_message: str | None = None
+    rewake_summary: str | None = None
+
+    def __post_init__(self) -> None:
+        if not self.async_rewake and (
+            self.rewake_message is not None or self.rewake_summary is not None
+        ):
+            raise ValueError("rewake_message and rewake_summary need async_rewake")
+        if self.timeout is not None and self.timeout <= 0:
+            raise ValueError(
+                f"timeout must be a positive number of seconds, not {self.timeout}"
+            )
+
+    def settings_keys(self) -> dict[str, object]:
+        """The options as settings.json keys; an option not set is absent."""
+        keys: dict[str, object] = {}
+        if self.async_rewake:
+            keys["asyncRewake"] = True
+        if self.timeout is not None:
+            keys["timeout"] = self.timeout
+        if self.rewake_message is not None:
+            keys["rewakeMessage"] = self.rewake_message
+        if self.rewake_summary is not None:
+            keys["rewakeSummary"] = self.rewake_summary
+        return keys
+
+
+@dataclass(frozen=True)
+class HookWiring:
+    """One hook a profile must wire: which event, which matcher, which script, and how."""
+
+    event: str
+    matcher: str
+    script: str
+    options: HookOptions = HookOptions()
+
+
+# Every hook wiring a profile must have. Health / patch_profiles verifies these
+# against each profile's settings hooks section, and
+# defaults._build_canonical_hooks derives the settings entries from them, so a
+# wiring added here flows into deployment and verification alike.
 #
 # The SessionStart/SessionEnd pair is not a guardrail: it records what happened
 # to the session in claudewheel's lifecycle store (see claudewheel.lifecycle),
 # which is the only place a session's fate survives its process. It is wired
 # here because this tuple is the one list of hooks a profile carries.
-EXPECTED_HOOK_WIRINGS: tuple[tuple[str, str, str], ...] = (
-    ("UserPromptSubmit", "", "hook-timestamp"),
-    ("PreToolUse", "Agent", "hook-block-worktree"),
-    ("PreToolUse", "Bash", "hook-block-unsafe-commands"),
-    ("PostToolUse", "Bash", "hook-advise-commands"),
-    ("SessionStart", "", "hook-session-start"),
-    ("SessionEnd", "", "hook-session-end"),
+EXPECTED_HOOK_WIRINGS: tuple[HookWiring, ...] = (
+    HookWiring("UserPromptSubmit", "", "hook-timestamp"),
+    HookWiring("PreToolUse", "Agent", "hook-block-worktree"),
+    HookWiring("PreToolUse", "Bash", "hook-block-unsafe-commands"),
+    HookWiring("PostToolUse", "Bash", "hook-advise-commands"),
+    HookWiring("SessionStart", "", "hook-session-start"),
+    HookWiring("SessionEnd", "", "hook-session-end"),
 )
 
 

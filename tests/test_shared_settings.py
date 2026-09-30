@@ -377,7 +377,8 @@ class BuildCanonicalSharedSettingsTests(unittest.TestCase):
         """Every guardrail.EXPECTED_HOOK_WIRINGS tuple is present in the hooks."""
         scripts = Path("/my/scripts")
         hooks = build_canonical_shared_settings(scripts)["hooks"]
-        for event, matcher, script in guardrail.EXPECTED_HOOK_WIRINGS:
+        for wiring in guardrail.EXPECTED_HOOK_WIRINGS:
+            event, matcher, script = wiring.event, wiring.matcher, wiring.script
             entries = hooks.get(event, [])
             entry = next((e for e in entries if e.get("matcher") == matcher), None)
             self.assertIsNotNone(entry, f"missing {event}[{matcher}] wiring")
@@ -387,6 +388,39 @@ class BuildCanonicalSharedSettingsTests(unittest.TestCase):
                 any(c == str(scripts / script) for c in cmds),
                 f"{event}[{matcher}] missing {script}",
             )
+
+    def test_a_wirings_options_become_keys_of_its_hook(self) -> None:
+        """A wiring's options are written beside its command, spelled as settings keys."""
+        options = guardrail.HookOptions(
+            async_rewake=True, timeout=30, rewake_message="m:", rewake_summary="s"
+        )
+        wirings = guardrail.EXPECTED_HOOK_WIRINGS + (
+            guardrail.HookWiring("Stop", "", "hook-timestamp", options),
+        )
+        with patch.object(guardrail, "EXPECTED_HOOK_WIRINGS", wirings):
+            hooks = build_canonical_shared_settings(Path("/s"))["hooks"]
+        self.assertEqual(
+            hooks["Stop"],
+            [
+                {
+                    "matcher": "",
+                    "hooks": [
+                        {
+                            "type": "command",
+                            "command": "/s/hook-timestamp",
+                            "asyncRewake": True,
+                            "timeout": 30,
+                            "rewakeMessage": "m:",
+                            "rewakeSummary": "s",
+                        }
+                    ],
+                }
+            ],
+        )
+        # A wiring without options carries none of the keys.
+        for entry in hooks["PreToolUse"]:
+            for hook in entry["hooks"]:
+                self.assertEqual(set(hook), {"type", "command"})
 
     def test_permissions_are_copies_not_model_references(self) -> None:
         """Mutating the returned deny/ask must not mutate the guardrail model."""

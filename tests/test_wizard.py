@@ -3544,7 +3544,8 @@ class HookMergeGapTests(CreateProfileTestBase):
         """Assert every guardrail.EXPECTED_HOOK_WIRINGS tuple is wired."""
         from claudewheel import guardrail
 
-        for event, matcher, script in guardrail.EXPECTED_HOOK_WIRINGS:
+        for wiring in guardrail.EXPECTED_HOOK_WIRINGS:
+            event, matcher, script = wiring.event, wiring.matcher, wiring.script
             entries = hooks.get(event, [])
             entry = next((e for e in entries if e.get("matcher") == matcher), None)
             self.assertIsNotNone(entry, f"missing {event}[{matcher}] wiring")

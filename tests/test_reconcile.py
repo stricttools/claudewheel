@@ -381,6 +381,43 @@ class RunReconcileTests(_ReconcileTestCase):
 # ---------------------------------------------------------------------------
 
 
+class HookOptionsReconcileTests(_ReconcileTestCase):
+    """The reconcile core keeps a wiring's options and restores lost ones."""
+
+    def _optioned(self) -> Any:
+        from claudewheel import guardrail
+
+        options = guardrail.HookOptions(
+            async_rewake=True, timeout=30, rewake_message="m:", rewake_summary="s"
+        )
+        return patch.object(
+            guardrail,
+            "EXPECTED_HOOK_WIRINGS",
+            guardrail.EXPECTED_HOOK_WIRINGS
+            + (guardrail.HookWiring("Stop", "", "hook-timestamp", options),),
+        )
+
+    def test_canonical_options_are_kept(self) -> None:
+        with self._optioned():
+            canonical = build_canonical_shared_settings(self.ws.scripts_dir)
+            settings = json.loads(json.dumps(canonical))
+            settings.pop("profileDefaults")
+            reconcile_profile_dict(settings, canonical)
+            self.assertEqual(settings["hooks"], canonical["hooks"])
+            self.assertTrue(settings["hooks"]["Stop"][0]["hooks"][0]["asyncRewake"])
+
+    def test_lost_options_are_restored(self) -> None:
+        with self._optioned():
+            canonical = build_canonical_shared_settings(self.ws.scripts_dir)
+            settings: dict[str, Any] = {
+                "hooks": json.loads(json.dumps(canonical["hooks"]))
+            }
+            del settings["hooks"]["Stop"][0]["hooks"][0]["asyncRewake"]
+            changes = reconcile_profile_dict(settings, canonical)
+            self.assertIn("hooks -> canonical", changes)
+            self.assertEqual(settings["hooks"], canonical["hooks"])
+
+
 class CanonicalSettingsKeyTests(_ReconcileTestCase):
     """Every key in CANONICAL_PROFILE_SETTINGS is made EXACTLY canonical."""
 

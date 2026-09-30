@@ -29,7 +29,7 @@ from tests.wheelhelpers import build_profile_dir
 # Every script a canonical hook wiring names, derived from the guardrail model
 # so a new wiring cannot leave a retyped copy of this list behind.
 _CANONICAL_SCRIPT_NAMES = tuple(
-    script for _event, _matcher, script in guardrail.EXPECTED_HOOK_WIRINGS
+    wiring.script for wiring in guardrail.EXPECTED_HOOK_WIRINGS
 )
 
 # The three disallowedTools entries most recently added to canonical.
@@ -134,6 +134,22 @@ class MergeHooksTests(_PatchProfilesTestCase):
         c = self.canonical()
         existing = json.loads(json.dumps(c["hooks"]))
         self.assertEqual(merge_hooks(existing, c["hooks"]), [])
+
+    def test_an_already_wired_script_gets_the_canonical_options(self) -> None:
+        """A clone source wiring the script without its options gets them, and no stray ones."""
+        options = guardrail.HookOptions(async_rewake=True, timeout=30)
+        wirings = guardrail.EXPECTED_HOOK_WIRINGS + (
+            guardrail.HookWiring("Stop", "", "hook-timestamp", options),
+        )
+        with patch.object(guardrail, "EXPECTED_HOOK_WIRINGS", wirings):
+            c = self.canonical()
+        existing = json.loads(json.dumps(c["hooks"]))
+        stop_hook = existing["Stop"][0]["hooks"][0]
+        del stop_hook["asyncRewake"]
+        stop_hook["rewakeMessage"] = "stray"
+        added = merge_hooks(existing, c["hooks"])
+        self.assertEqual(existing["Stop"], c["hooks"]["Stop"])
+        self.assertEqual(len(added), 2)
 
     def test_preserves_user_added_hook(self) -> None:
         c = self.canonical()

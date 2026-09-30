@@ -337,6 +337,38 @@ class CheckHooksWiredTests(_HomeDirTestCase):
         canonical = build_canonical_shared_settings(Path(scripts_dir))
         return {"hooks": canonical["hooks"]}
 
+    def test_warn_when_a_wirings_options_are_missing(self) -> None:
+        """A wiring whose hook lost its options (asyncRewake, timeout, ...) fails.
+
+        The command alone is not the wiring: an async-rewake hook wired without
+        asyncRewake would block every turn instead of waking the session.
+        """
+        from claudewheel import guardrail
+
+        optioned = guardrail.HookWiring(
+            "Stop",
+            "",
+            "hook-timestamp",
+            guardrail.HookOptions(
+                async_rewake=True, timeout=30, rewake_message="m:", rewake_summary="s"
+            ),
+        )
+        wirings = guardrail.EXPECTED_HOOK_WIRINGS + (optioned,)
+        with patch.object(guardrail, "EXPECTED_HOOK_WIRINGS", wirings):
+            good = self._good_settings()
+            pdir = self._make_profile("optioned")
+            self._write_settings(pdir, good)
+            self.assertTrue(check_hooks_wired(self.ws).ok)
+
+            stripped = json.loads(json.dumps(good))
+            for key in guardrail.HOOK_OPTION_KEYS:
+                del stripped["hooks"]["Stop"][0]["hooks"][0][key]
+            self._write_settings(pdir, stripped)
+            result = check_hooks_wired(self.ws)
+        self.assertFalse(result.ok)
+        self.assertIn("Stop", result.detail)
+        self.assertIn("asyncRewake", result.detail)
+
     def test_warn_when_hooks_under_wrong_dir(self) -> None:
         """Right basenames under the WRONG scripts dir must FAIL hooks-wired.
 
