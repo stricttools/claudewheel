@@ -21,6 +21,10 @@ word = "saferm"
 meaning = "A file-deletion tool that archives a path with an audit trail before removing it, so it can be restored with 'saferm undelete'; profile delete uses it."
 
 [[accepted]]
+word = "strictspec"
+meaning = "the StrictTools schema tool that owns the shape of claudewheel's store files"
+
+[[accepted]]
 word = "tsv"
 meaning = "Tab-separated values, the flat output format of the permission listing."
 
