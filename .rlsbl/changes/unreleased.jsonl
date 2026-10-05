@@ -40,3 +40,4 @@
 {"format_version":1,"id":"18da26c31383496a7e206d1c6ba8487f92713c5e4fa2277c","commits":["6996ae89a1631ae4550ace9d3aaeb5e539a67a9d"],"user_facing":true,"description":"**saferm is named at its new home.** When a profile deletion is refused for lack of saferm, the install command it prints is `go install github.com/stricttools/saferm@v0`, and the checksum-verified download comes from `github.com/stricttools/saferm`'s releases.","type":"fix"}
 {"format_version":1,"id":"18dacba115bc5769df6c6c3ae5bb4e5bb120e88c6fc0e186","commits":["e719f216925944d9945bdd3e664890f3413c3ee9"],"user_facing":false}
 {"format_version":1,"id":"18dba591ef7afd6c6860370a16824b13b75790b7c323aa0a","commits":["4cff92c408f1991e103942b1b40cc0de6c3a1072","46560f923bfcfc89d4b88e8cc020fdf33ed223ab"],"user_facing":false}
+{"format_version":1,"id":"18dbbc1176cd1e5c4e6552afe5c94c40a2f84e8fb41d9752","commits":["9ba910c5b70071b5d70a0a6863d85f5e64d06c7f"],"user_facing":false}
