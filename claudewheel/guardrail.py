@@ -496,22 +496,12 @@ RULES: tuple[GuardrailRule, ...] = (
         "push",
         [_cmd(r"(git|safegit|\./safegit)\s+push(\s|$)")],
         [
-            "Bash(git push --force*)",
-            "Bash(git push -f*)",
-            "Bash(git push * --force*)",
-            "Bash(git push * -f*)",
-            "Bash(git push * +*)",
+            "Bash(git push:*)",
             "Bash(safegit push:*)",
             "Bash(./safegit push:*)",
         ],
         "Pushes happen only via rlsbl release run.",
-        coverage=SettingsCoverage.PARTIAL,
-        reason=(
-            "by the user's decision, a plain 'git push' from the main session runs "
-            "without a prompt; the ask globs cover only force pushes (--force, -f, "
-            "--force-with-lease, a +refspec) and every safegit push. The hook still "
-            "refuses every push from a subagent."
-        ),
+        coverage=SettingsCoverage.FULL,
     ),
     _escalate(
         "git-reset",

@@ -69,13 +69,7 @@ EXPECTED_DENY = [
 ]
 
 EXPECTED_ASK = [
-    # Plain git push runs without a prompt for the main session; force pushes still ask.
-    # Subagents stay blocked from every push by the hook.
-    "Bash(git push --force*)",
-    "Bash(git push -f*)",
-    "Bash(git push * --force*)",
-    "Bash(git push * -f*)",
-    "Bash(git push * +*)",
+    "Bash(git push:*)",
     "Bash(safegit push:*)",
     "Bash(./safegit push:*)",
     "Bash(git reset *)",
