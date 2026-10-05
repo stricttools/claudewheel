@@ -9,8 +9,8 @@ had no direct test. These pin:
   behind the ``systemd-run`` prefix that starts the session in its own scope
   (the scope itself is covered in test_session_scope.py);
 - it chdirs to the selected directory *before* exec;
-- it forwards env VERBATIM but for the shell-prefix keys it adds
-  (``launch.TOOL_ENV_KEYS``) -- the ``os.environ`` merge happens inside
+- it forwards env VERBATIM but for the shell-prefix keys it sets
+  (``launch.TOOL_ENV_KEYS``), replacing any inherited from a parent session -- the ``os.environ`` merge happens inside
   ``resolve_launch_config`` (``env = dict(os.environ)``), NOT in ``do_launch``;
 - an end-to-end ``resolve_launch_config`` -> ``do_launch`` pass carries a live GH
   token and model flags all the way to the ``execvpe`` call, against a sandbox
@@ -162,10 +162,16 @@ class ResolveThenDoLaunchEndToEndTests(SandboxHomeTestCase):
             "model": "claude-opus-4-8",
             "directory": str(proj),
         }
-        with mock.patch(
-            "claudewheel.launch.fetch_gh_token",
-            autospec=True,
-            return_value="gh-live-tok",
+        # The shell-prefix keys a parent claudewheel session exports, set here so
+        # the test behaves the same inside and outside a launched session.
+        inherited = {key: f"inherited-{key}" for key in TOOL_ENV_KEYS}
+        with (
+            mock.patch.dict(os.environ, inherited),
+            mock.patch(
+                "claudewheel.launch.fetch_gh_token",
+                autospec=True,
+                return_value="gh-live-tok",
+            ),
         ):
             cwd, argv, env = resolve_launch_config(
                 selections,
@@ -186,11 +192,16 @@ class ResolveThenDoLaunchEndToEndTests(SandboxHomeTestCase):
         m_chdir.assert_called_once_with(cwd)
         self.assertEqual(cwd, str(proj))
 
-        # execvpe received the exact triple resolve_launch_config produced.
+        # execvpe received the triple resolve_launch_config produced, with the
+        # shell-prefix keys set to this launch's own values: the inherited ones
+        # resolve carried over from os.environ are replaced, not forwarded.
         e_bin, e_argv, e_env = m_exec.call_args[0]
         self.assertEqual(e_bin, _SYSTEMD_RUN)
         self.assertEqual(_client_argv(e_argv), argv)
-        self.assertEqual(_without_prefix_keys(e_env), env)
+        self.assertEqual(_without_prefix_keys(e_env), _without_prefix_keys(env))
+        self.assertEqual(set(e_env), set(env) | set(TOOL_ENV_KEYS))
+        for key, value in inherited.items():
+            self.assertNotEqual(e_env[key], value)
 
         # GH token, OAuth token, and config dir carried end to end.
         self.assertEqual(e_env["GH_TOKEN"], "gh-live-tok")
