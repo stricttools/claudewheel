@@ -2439,6 +2439,8 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
     app = App(
         name="claudewheel",
         version=__version__,
+        # Relative to the cwd at construction; selfdoc reads the schema here.
+        schema_path=".strictmetadata/.cli-schema/schema.json",
         help="A TUI Claude Code Launcher that lets you have more than one profile, manage sessions lifecycle, pick the exact CC version, model to use (even older unlisted ones), pick which GitHub account to use, etc.",
     )
 

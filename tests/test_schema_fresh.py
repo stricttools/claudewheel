@@ -1,4 +1,5 @@
-"""Schema-freshness guard: the committed .strictcli/schema.json must match the
+"""Schema-freshness guard: the committed .strictmetadata/.cli-schema/schema.json
+must match the
 live CLI structure, modulo the non-structural version/project_id fields.
 
 The strictcli schema is checked into the repo and consumed by selfdoc. If the
@@ -7,7 +8,7 @@ schema, this test fails so the schema gets re-dumped.
 
 The fresh schema is obtained in-process via ``App.dump_schema_dict()`` (strictcli
 >= 0.27.0): no subprocess, no throwaway temp cwd, no filesystem access. The
-returned dict is byte-identical to the written ``.strictcli/schema.json`` with
+returned dict is byte-identical to the written schema file with
 the ``project_id`` field removed, so the comparison normalizes out both
 ``project_id`` (absent from the in-process dump, present in the committed file)
 and ``version`` (changes every release, not structural).
@@ -25,7 +26,8 @@ from claudewheel.cli import _build_app
 from claudewheel.workspace import Workspace
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
-_COMMITTED_SCHEMA = _REPO_ROOT / ".strictcli" / "schema.json"
+_SCHEMA_RELPATH = Path(".strictmetadata") / ".cli-schema" / "schema.json"
+_COMMITTED_SCHEMA = _REPO_ROOT / _SCHEMA_RELPATH
 
 
 def _normalize(schema: dict[str, object]) -> dict[str, object]:
@@ -55,7 +57,7 @@ class SchemaFreshnessTests(unittest.TestCase):
         self.assertEqual(
             _normalize(_fresh_schema()),
             _normalize(committed),
-            "committed .strictcli/schema.json is stale -- re-run "
+            "committed .strictmetadata/.cli-schema/schema.json is stale -- re-run "
             "`claudewheel --dump-schema` from the repo root and commit it",
         )
 
@@ -86,6 +88,20 @@ class SchemaFreshnessTests(unittest.TestCase):
             _normalize(mutated),
             _normalize(committed),
         )
+
+
+def test_dump_schema_writes_where_selfdoc_reads(tmp_path, monkeypatch) -> None:
+    # `--dump-schema` writes under the construction-time cwd, at the path the
+    # selfdoc layout migration moved the committed schema to.
+    monkeypatch.chdir(tmp_path)
+    # The writer stamps project_id from the cwd's pyproject.toml.
+    (tmp_path / "pyproject.toml").write_text('[project]\nname = "claudewheel"\n')
+    app = _build_app(Workspace.default(), BinaryLocator.default())
+    result = app.test(["--dump-schema"])
+    assert result.exit_code == 0, result.stderr
+    written = json.loads((tmp_path / _SCHEMA_RELPATH).read_text())
+    assert _normalize(written) == _normalize(_fresh_schema())
+    assert not (tmp_path / ".strictcli").exists()
 
 
 if __name__ == "__main__":
