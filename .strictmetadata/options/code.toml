@@ -11,3 +11,9 @@ id = "rlsbl:lint"
 current = "error"
 ideal = "error"
 reason = "claudewheel is ruff-clean; releases keep it so"
+
+[[entry]]
+id = "rlsbl:format"
+current = "error"
+ideal = "error"
+reason = "claudewheel's code is formatted; releases keep it so"
