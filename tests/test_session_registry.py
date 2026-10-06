@@ -408,6 +408,30 @@ class _ProfileFixture(unittest.TestCase):
         self.ws = Workspace.open(self.launcher_dir, claude_dir=root / ".claude")
 
 
+class LiveSessionsAcrossProfilesTests(unittest.TestCase):
+    """Every profile's records, read once, and which of their sessions run."""
+
+    def test_records_carry_their_profile_and_only_live_ones_count(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            work = Path(tmp) / "work"
+            home = Path(tmp) / "home"
+            live_record(work / "sessions")
+            stale_record(
+                home / "sessions",
+                extra={"sessionId": "11111111-2222-4333-8444-555555555555"},
+            )
+            found = session_registry.read_profile_records(
+                {"work": work, "home": home, "empty": Path(tmp) / "empty"}
+            )
+            self.assertEqual(
+                [(n, d) for n, d, _ in found], [("work", work), ("home", home)]
+            )
+            self.assertEqual(
+                session_registry.live_session_ids(r for _, _, r in found),
+                {"4d97ca01-9d56-4f49-8047-77f5160febde"},
+            )
+
+
 class ReaderDelegationTests(_ProfileFixture):
     """Both former readers now delegate to the one module."""
 

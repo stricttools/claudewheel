@@ -13,6 +13,7 @@ from . import effects
 from .effects import write_json_atomic, write_text_atomic
 from .profile_store import CLAUDE_GLOBAL_CONFIG_NAME
 from .session import recorded_store_cwds
+from .session_stores import discover_profile_dirs, distinct_store_dirs
 from .shared_store import PROJECT_DIR_NAME_LIMIT, SharedStore
 
 if TYPE_CHECKING:
@@ -40,43 +41,6 @@ class MvResult:
     github_repo_paths_updated: int = 0
     paths_migrated: int = 0
     profiles_scanned: int = 0
-
-
-def _discover_profile_dirs(ws: "Workspace") -> list[Path]:
-    """Find all profile directories plus ~/.claudewheel/shared/ if it exists.
-
-    Enumerates profiles via the workspace's ProfileStore, then includes the
-    shared store directory as a peer target (it holds the actual session data).
-    A corrupt token entry raises ``TokenStoreError`` -- the uniform hard-error
-    contract.
-    """
-    dirs: list[Path] = [p.path for p in ws.profiles.enumerate()]
-    shared_dir = ws.shared_dir
-    if shared_dir.is_dir() and shared_dir not in dirs:
-        dirs.append(shared_dir)
-    return sorted(dirs)
-
-
-def _distinct_store_dirs(profile_dirs: list[Path]) -> list[Path]:
-    """The ``projects`` store dirs of *profile_dirs*, each real directory once.
-
-    Managed profiles' ``projects`` entries are symlinks to the one shared
-    store, so several profile dirs reach the same directory.  Every pass over
-    session data must visit a real directory once: a second visit rewrites
-    already-rewritten paths again (``foo -> foobar`` compounding into
-    ``foobarbar``) and multiplies every counter.  Returned as resolved paths.
-    """
-    seen: set[Path] = set()
-    dirs: list[Path] = []
-    for pdir in profile_dirs:
-        projects = pdir / "projects"
-        if not projects.is_dir():
-            continue
-        real = projects.resolve()
-        if real not in seen:
-            seen.add(real)
-            dirs.append(real)
-    return dirs
 
 
 def _read_transcript(path: Path) -> str:
@@ -434,7 +398,7 @@ def _discover_descendants(
     old_encoded = SharedStore.encode_path(old_resolved)
     under_old = _names_under(old_resolved)
     candidates: dict[str, list[Path]] = {}
-    for projects in _distinct_store_dirs(profile_dirs):
+    for projects in distinct_store_dirs(profile_dirs):
         for entry in projects.iterdir():
             name = entry.name
             if entry.is_dir() and name != old_encoded and under_old(name):
@@ -675,7 +639,7 @@ def run_mv(
     _log(f"encoded: {old_encoded} -> {new_encoded}")
 
     # 3. Discover profile dirs
-    profile_dirs = _discover_profile_dirs(ws)
+    profile_dirs = discover_profile_dirs(ws)
     result.profiles_scanned = len(profile_dirs)
     _log(f"found {len(profile_dirs)} profile/shared dirs")
     shared_dir = ws.shared_dir
@@ -697,7 +661,7 @@ def run_mv(
         if mo != old_resolved:
             _log(f"  nested project: {mo} -> {mn}")
 
-    stores = _distinct_store_dirs(profile_dirs)
+    stores = distinct_store_dirs(profile_dirs)
     _check_transcripts_readable(stores, migrations)
     _check_merges_complete(stores, migrations)
 

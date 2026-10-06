@@ -507,7 +507,7 @@ class RunMvValidationTests(unittest.TestCase):
         old.mkdir()
 
         with patch(
-            "claudewheel.mv._discover_profile_dirs", autospec=True, return_value=[]
+            "claudewheel.mv.discover_profile_dirs", autospec=True, return_value=[]
         ):
             run_mv(self.ws, str(old), str(new))  # should not raise
 
@@ -550,7 +550,7 @@ class RunMvValidationTests(unittest.TestCase):
         claude_json.write_text("{not json")
 
         with patch(
-            "claudewheel.mv._discover_profile_dirs",
+            "claudewheel.mv.discover_profile_dirs",
             autospec=True,
             return_value=[profile],
         ):
@@ -583,7 +583,7 @@ class RunMvValidationTests(unittest.TestCase):
         new.mkdir()
 
         with patch(
-            "claudewheel.mv._discover_profile_dirs", autospec=True, return_value=[]
+            "claudewheel.mv.discover_profile_dirs", autospec=True, return_value=[]
         ):
             run_mv(self.ws, str(old), str(new), post_hoc=True)  # should not raise
 
@@ -688,7 +688,7 @@ class RunMvIntegrationTests(unittest.TestCase):
         with (
             patch("claudewheel.mv.Path.home", autospec=True, return_value=self.home),
             patch(
-                "claudewheel.mv._discover_profile_dirs",
+                "claudewheel.mv.discover_profile_dirs",
                 autospec=True,
                 return_value=[self.profile],
             ),
@@ -777,7 +777,7 @@ class RunMvIntegrationTests(unittest.TestCase):
         with (
             patch("claudewheel.mv.Path.home", autospec=True, return_value=self.home),
             patch(
-                "claudewheel.mv._discover_profile_dirs",
+                "claudewheel.mv.discover_profile_dirs",
                 autospec=True,
                 return_value=[self.profile, shared],
             ),
@@ -858,7 +858,7 @@ class MergeDirsTests(unittest.TestCase):
         with (
             patch("claudewheel.mv.Path.home", autospec=True, return_value=self.home),
             patch(
-                "claudewheel.mv._discover_profile_dirs",
+                "claudewheel.mv.discover_profile_dirs",
                 autospec=True,
                 return_value=[self.profile],
             ),
@@ -970,7 +970,7 @@ class RenameModeTests(unittest.TestCase):
         (old / "file.txt").write_text("content")
 
         with patch(
-            "claudewheel.mv._discover_profile_dirs", autospec=True, return_value=[]
+            "claudewheel.mv.discover_profile_dirs", autospec=True, return_value=[]
         ):
             run_mv(self.ws, str(old), str(new))
 
@@ -1001,7 +1001,7 @@ class RenameModeTests(unittest.TestCase):
         session.write_text(json.dumps({"cwd": old_resolved, "type": "init"}) + "\n")
 
         with patch(
-            "claudewheel.mv._discover_profile_dirs",
+            "claudewheel.mv.discover_profile_dirs",
             autospec=True,
             return_value=[profile],
         ):
@@ -1030,7 +1030,7 @@ class RenameModeTests(unittest.TestCase):
         (old / "file.txt").write_text("content")
 
         with patch(
-            "claudewheel.mv._discover_profile_dirs", autospec=True, return_value=[]
+            "claudewheel.mv.discover_profile_dirs", autospec=True, return_value=[]
         ):
             run_mv(self.ws, str(old), str(new), dry_run=True)
 
@@ -1173,7 +1173,7 @@ class NestedMigrationTests(unittest.TestCase):
 
     def _run(self, dry_run: bool = False) -> MvResult:
         with patch(
-            "claudewheel.mv._discover_profile_dirs",
+            "claudewheel.mv.discover_profile_dirs",
             autospec=True,
             return_value=[self.profile],
         ):
@@ -1334,7 +1334,7 @@ class NestedMigrationTests(unittest.TestCase):
         (self.old_dir / "child").mkdir(parents=True)
 
         with patch(
-            "claudewheel.mv._discover_profile_dirs",
+            "claudewheel.mv.discover_profile_dirs",
             autospec=True,
             return_value=[self.profile],
         ):

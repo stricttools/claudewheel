@@ -55,7 +55,7 @@ from __future__ import annotations
 
 import json
 import os
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -197,7 +197,7 @@ def _parse(path: Path) -> SessionRecord | None:
     """
     try:
         data = json.loads(path.read_text())
-    except (OSError, json.JSONDecodeError):
+    except OSError, json.JSONDecodeError:
         return None
     if not isinstance(data, dict):
         return None
@@ -333,3 +333,27 @@ def has_live_interactive(config_dir: Path) -> bool:
     The predicate both the delete guard and the rename guard read.
     """
     return any(r.interactive and r.live for r in read_records(config_dir))
+
+
+def read_profile_records(
+    config_dirs: Mapping[str, Path],
+) -> list[tuple[str, Path, SessionRecord]]:
+    """Every registry record of every profile in *config_dirs* (name to config dir).
+
+    Each record comes with its profile's name and config directory, profiles in
+    *config_dirs* order and records in :func:`read_records` order.
+    """
+    return [
+        (name, config_dir, record)
+        for name, config_dir in config_dirs.items()
+        for record in read_records(config_dir)
+    ]
+
+
+def live_session_ids(records: Iterable[SessionRecord]) -> set[str]:
+    """The session ids of the *records* whose processes are really running."""
+    return {
+        record.session_id
+        for record in records
+        if record.live and record.session_id is not None
+    }

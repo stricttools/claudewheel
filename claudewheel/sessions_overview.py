@@ -337,19 +337,13 @@ def gather_rows(
     lifecycle_dir = workspace.shared.lifecycle_dir
     lifecycles = lifecycle.load_all(lifecycle_dir)
 
-    found: list[tuple[str, Path, SessionRecord]] = []
-    profiles: dict[str, str] = {}
-    for profile in workspace.profiles.enumerate():
-        config_dir = workspace.profiles.path_for(profile.name)
-        profiles[str(config_dir)] = profile.name
-        for record in session_registry.read_records(config_dir):
-            found.append((profile.name, config_dir, record))
-
-    live_sessions = {
-        record.session_id
-        for _, _, record in found
-        if record.live and record.session_id is not None
+    config_dirs = {
+        profile.name: workspace.profiles.path_for(profile.name)
+        for profile in workspace.profiles.enumerate()
     }
+    profiles = {str(config_dir): name for name, config_dir in config_dirs.items()}
+    found = session_registry.read_profile_records(config_dirs)
+    live_sessions = session_registry.live_session_ids(record for _, _, record in found)
     swept = lifecycle.sweep_crashed(
         lifecycle_dir, lifecycles, live_sessions=live_sessions, now_ms=now_ms
     )
