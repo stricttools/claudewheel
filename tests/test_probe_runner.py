@@ -502,7 +502,9 @@ class JournalTests(unittest.TestCase):
         done = subprocess.CompletedProcess(
             [], 0, stdout=json.dumps({"MESSAGE": message}) + "\n", stderr=""
         )
-        with mock.patch("claudewheel.effects.run", return_value=done) as run:
+        with mock.patch(
+            "claudewheel.effects.run", autospec=True, return_value=done
+        ) as run:
             self.assertEqual(
                 probe_runner.heavy_description(HEAVY),
                 f"heavy job of {SCOPE}: go test ./...",

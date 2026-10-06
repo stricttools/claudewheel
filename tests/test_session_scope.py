@@ -165,8 +165,8 @@ class DoLaunchTests(unittest.TestCase):
             mock.patch("shutil.which", autospec=True, return_value=_SYSTEMD_RUN),
             mock.patch("os.chdir", autospec=True),
             mock.patch("os.execvpe", autospec=True) as m_exec,
-            mock.patch("os.getpid", return_value=4242),
-            mock.patch("time.time", return_value=1790000000.5),
+            mock.patch("os.getpid", autospec=True, return_value=4242),
+            mock.patch("time.time", autospec=True, return_value=1790000000.5),
             redirect_stderr(err),
         ):
             do_launch(
@@ -399,7 +399,9 @@ class SweepTests(unittest.TestCase):
         return subprocess.CompletedProcess(argv, 0, out, "")
 
     def _sweep(self) -> list[str]:
-        with mock.patch("claudewheel.effects.run", side_effect=self._run):
+        with mock.patch(
+            "claudewheel.effects.run", autospec=True, side_effect=self._run
+        ):
             return launch.sweep_ended_sessions(now=self.NOW)
 
     def _stops(self) -> list[str]:

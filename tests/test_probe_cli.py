@@ -71,7 +71,9 @@ class _CliCase(unittest.TestCase):
         code = 0
         with (
             mock.patch("sys.argv", ["c", *argv]),
-            mock.patch.object(probe, "own_cgroup_text", return_value=cgroup),
+            mock.patch.object(
+                probe, "own_cgroup_text", autospec=True, return_value=cgroup
+            ),
             redirect_stdout(out),
             redirect_stderr(err),
         ):
