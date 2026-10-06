@@ -137,35 +137,35 @@ Model discovers itself: claudewheel asks the Anthropic API which models your acc
 Every enabled segment gets its own `--<key>` flag. These pre-fill the TUI:
 
 ```bash
-c --profile myprofile --github myhandle
-c --directory ~/Projects/foo --model claude-opus-4-7
+claudewheel --profile myprofile --github myhandle
+claudewheel --directory ~/Projects/foo --model claude-opus-4-7
 ```
 
 If the override set covers every *required* segment, the TUI is skipped entirely and Claude Code launches directly.
 
 ### Session passthrough
 
-Which session a launch starts in is one selection with five alternatives, exactly one of which is elected per launch. Four of them forward to Claude Code; the fifth is the plain launch a bare `c` performs:
+Which session a launch starts in is one selection with five alternatives, exactly one of which is elected per launch. Four of them forward to Claude Code; the fifth is the plain launch a bare `claudewheel` performs:
 
 ```bash
-c --cont                              # --continue: resume the most recent session
-c --resume 0123abcd                   # --resume <id>: jump to a specific session
-c --resume ""                         # --resume: open Claude Code's own session picker
-c --picker                            # browse this profile's sessions and pick one
-c --print-prompt "summarize this repo" # --print: non-interactive print mode
-c --new-session                       # start a new session -- what a bare `c` does
+claudewheel --cont                              # --continue: resume the most recent session
+claudewheel --resume 0123abcd                   # --resume <id>: jump to a specific session
+claudewheel --resume ""                         # --resume: open Claude Code's own session picker
+claudewheel --picker                            # browse this profile's sessions and pick one
+claudewheel --print-prompt "summarize this repo" # --print: non-interactive print mode
+claudewheel --new-session                       # start a new session -- what a bare `claudewheel` does
 ```
 
 Three of them carry a short form: `-c`, `-r <session>` and `-p <prompt>` are `--cont`, `--resume` and `--print-prompt`. A short takes its value as the next argument, so `-r 0123abcd` is the spelling and `-r=0123abcd` is not one.
 
 Naming two of them is refused: `--cont --picker` is `--cont and --picker are mutually exclusive`, from the parser rather than from claudewheel.
 
-These compose with segment overrides: `c --profile personal --picker` opens the picker against the personal profile.
+These compose with segment overrides: `claudewheel --profile personal --picker` opens the picker against the personal profile.
 
 Print mode (`--print-prompt`) skips the TUI and launches Claude Code non-interactively. Extra flags after `--` are passed through:
 
 ```bash
-c --print-prompt "explain auth.py" -- --output-format json --allowedTools "Read,Bash"
+claudewheel --print-prompt "explain auth.py" -- --output-format json --allowedTools "Read,Bash"
 ```
 
 ## Config directory
@@ -204,7 +204,7 @@ A nonzero exit aborts the launch (and prevents `launch_count` from being increme
 
 - **Profile / GitHub / Model**: cycle the segment to its `+` sentinel, press Enter, type the new value. It is appended to `options.json` under the segment's `pinned` list and selected.
 - **Direct edit**: open `~/.claudewheel/options.json` and add to the relevant segment's `values` array. For profiles you also need a `metadata.<name>.config_dir` entry.
-- **Install a Claude Code version**: run `c --install <version>` or pick a not-yet-installed version in the TUI and confirm the install prompt. Binaries land in `~/.local/share/claude/versions/<version>`.
+- **Install a Claude Code version**: run `claudewheel install <version>` or pick a not-yet-installed version in the TUI and confirm the install prompt. Binaries land in `~/.local/share/claude/versions/<version>`.
 
 ## Themes
 

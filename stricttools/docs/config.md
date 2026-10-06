@@ -323,7 +323,7 @@ bypassing the TUI entirely when all required segments are covered.
 Each segment has a dedicated flag:
 
 ```
-c --profile work --model claude-opus-4-8 --directory ~/Projects/myapp
+claudewheel --profile work --model claude-opus-4-8 --directory ~/Projects/myapp
 ```
 
 ### The `-s` / `--set` flag
@@ -331,14 +331,14 @@ c --profile work --model claude-opus-4-8 --directory ~/Projects/myapp
 The generic `--set` (short: `-s`) flag sets any segment as `KEY=VALUE`:
 
 ```
-c -s profile=work -s model=claude-opus-4-8
+claudewheel -s profile=work -s model=claude-opus-4-8
 ```
 
 It is repeatable but each segment can only be set once. Setting the same
 segment via both a dedicated flag and `-s` is an error:
 
 ```
-c --profile work -s profile=personal   # error: duplicate
+claudewheel --profile work -s profile=personal   # error: duplicate
 ```
 
 ### TUI bypass
@@ -371,12 +371,12 @@ The `reset-options` command deletes `options.json` so it regenerates from
 defaults on the next run:
 
 ```
-c reset-options
+claudewheel reset-options
 ```
 
 The `config` command opens `~/.claudewheel/` in your `$EDITOR` for manual
 editing:
 
 ```
-c config
+claudewheel config
 ```
