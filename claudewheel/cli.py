@@ -2310,17 +2310,32 @@ def _handle_launch(
 # ---------------------------------------------------------------------------
 
 
+# The commands strictcli answers itself, on every app: `help` (the help pages,
+# and under --json the help document) and `version`. They are not in the app's
+# schema, so they are named here; tests/test_dump_schema_flag.py holds this set
+# equal to the one strictcli reserves.
+_FRAMEWORK_COMMANDS = frozenset({"help", "version"})
+
+
 def _routing_names(app: App) -> frozenset[str]:
-    """Every top-level name *app* dispatches: its commands, groups, and deprecated names.
+    """Every top-level name *app* dispatches: its commands, groups, and
+    deprecated names, plus strictcli's own framework commands.
 
     Read off the registered app, so a command is routed as itself the moment
     it is registered. Deprecated names are included so ``claudewheel
     new-profile`` reaches its deprecation message instead of being rewritten to
-    ``claudewheel launch new-profile``.
+    ``claudewheel launch new-profile``, and the framework commands so
+    ``claudewheel help --json`` reaches strictcli's help command instead of
+    ``claudewheel launch help --json``.
     """
     schema = app.dump_schema_dict()
     return frozenset(
-        [*schema["commands"], *schema["groups"], *schema.get("deprecated", {})]
+        [
+            *schema["commands"],
+            *schema["groups"],
+            *schema.get("deprecated", {}),
+            *_FRAMEWORK_COMMANDS,
+        ]
     )
 
 

@@ -10,7 +10,13 @@ how the injection logic rewrites argv.
 
 from __future__ import annotations
 
+import io
+import json
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
+from unittest import mock
+
+import strictcli
 
 from claudewheel import cli
 from claudewheel.binaries import BinaryLocator
@@ -93,6 +99,49 @@ class InjectLaunchTests(unittest.TestCase):
             cli._inject_launch(["c", "--dry-run", "brand-new-command"], names),
             ["c", "--dry-run", "brand-new-command"],
         )
+
+    def test_framework_commands_not_rewritten(self) -> None:
+        # strictcli answers `help` and `version` itself; neither is in the
+        # app's schema, so they are named apart from it.
+        for argv in (
+            ["c", "help"],
+            ["c", "help", "--json"],
+            ["c", "help", "mv"],
+            ["c", "version"],
+            ["c", "--dry-run", "help", "--json"],
+        ):
+            with self.subTest(argv=argv):
+                self.assertEqual(inject_launch(argv), argv)
+
+    def test_framework_commands_are_strictcli_s(self) -> None:
+        # The routing names exactly the commands strictcli reserves for itself,
+        # so a framework command a later strictcli adds fails here first.
+        self.assertEqual(
+            cli._FRAMEWORK_COMMANDS,
+            strictcli._FRAMEWORK_COMMAND_NAMES,  # type: ignore[attr-defined]
+        )
+
+    def test_help_json_reaches_strictcli_help(self) -> None:
+        # `claudewheel help --json` through main() prints the help document,
+        # the same one the app's own help command prints, and exits 0.
+        out, err = io.StringIO(), io.StringIO()
+        code: object = 0
+        with (
+            mock.patch("sys.argv", ["claudewheel", "help", "--json"]),
+            redirect_stdout(out),
+            redirect_stderr(err),
+        ):
+            try:
+                cli.main()
+            except SystemExit as exc:
+                code = exc.code
+        self.assertIn(code, (0, None), err.getvalue())
+        app = cli._build_app(Workspace.default(), BinaryLocator.default())
+        expected = app.test(["help", "--json"])
+        self.assertEqual(expected.exit_code, 0, expected.stderr)
+        self.assertEqual(json.loads(out.getvalue()), json.loads(expected.stdout))
+        envelope = json.loads(err.getvalue())
+        self.assertEqual(envelope["command"], "help")
 
     def test_dump_schema_in_app_level_flags(self) -> None:
         # Guard the root-cause set directly so a future edit can't silently drop it.
