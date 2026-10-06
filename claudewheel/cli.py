@@ -15,6 +15,7 @@ from strictcli import AllOrNone, App, Arg, Choice, Flag, FlagSet, Grant, Member
 from . import __version__
 from . import effects
 from .clients import CLIENT_NAMES, DEFAULT_CLIENT, resolve_default_client
+from .lifecycle import SESSION_UUID_RE
 
 if TYPE_CHECKING:
     from .archiver import Saferm, Unavailable
@@ -1446,12 +1447,9 @@ def _handle_permission_list(
     return 0
 
 
-# A canonical UUID (Claude Code session id). Anything matching this is used
-# verbatim as a --resume value; anything else is treated as a session title.
-_UUID_RE = re.compile(
-    r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-"
-    r"[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
-)
+# The shape of a session id in any letter case: a --resume value of this shape
+# that is not a session id (lowercase) is refused rather than read as a title.
+_UUID_SHAPE_RE = re.compile(SESSION_UUID_RE.pattern, re.IGNORECASE)
 
 
 # -- Probe group --------------------------------------------------------------
@@ -1642,15 +1640,25 @@ def _handle_probe_list(ws: "Workspace") -> int:
 def _resolve_resume_title(ws: "Workspace", resume_val: str, directory: str) -> str:
     """Resolve a ``--resume`` argument to a session UUID.
 
-    If *resume_val* is UUID-shaped it is returned unchanged. Otherwise it is
-    treated as a session title (Claude Code accepts either). Titles are resolved
+    A session id (lowercase UUID) is returned unchanged. A value shaped like a
+    UUID but not lowercase is refused: it is not a session id, and it is never
+    searched as a title or lowercased. Anything else is treated as a session
+    title (Claude Code accepts either). Titles are resolved
     by scanning the current directory's project dir first, then all project
     dirs. Exactly one match rewrites the value to that session's UUID and the
     caller proceeds through the normal UUID machinery. Zero or multiple matches
     print guidance and exit nonzero.
     """
-    if _UUID_RE.match(resume_val):
+    if SESSION_UUID_RE.match(resume_val):
         return resume_val
+    if _UUID_SHAPE_RE.match(resume_val):
+        print(
+            f"Error: --resume {resume_val} is not a session id: session ids are "
+            "lowercase, and a value shaped like one is not searched as a "
+            "session title either.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
     from datetime import datetime
 
@@ -1992,8 +2000,8 @@ class ResumeSession:
 
     value: str = strictcli.member_value(
         help=(
-            "session to resume, by UUID or by title; an empty string opens "
-            "Claude Code's own picker"
+            "session to resume, by its session id (a lowercase UUID) or by "
+            "title; an empty string opens Claude Code's own picker"
         ),
         short="r",
     )

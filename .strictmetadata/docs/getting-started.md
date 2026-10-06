@@ -153,12 +153,12 @@ Which session a launch starts in is one selection over five alternatives, and
 exactly one of them is elected per launch:
 
 ```bash
-claudewheel --cont                              # resume the most recent session
-claudewheel --resume 0123abcd                   # resume a specific session by ID or title
-claudewheel --resume ""                         # open Claude Code's own session picker
-claudewheel --picker                            # browse this profile's sessions and pick one
-claudewheel --print-prompt "summarize this repo" # non-interactive print mode
-claudewheel --new-session                       # start a new session, as a bare launch does
+claudewheel --cont                                        # resume the most recent session
+claudewheel --resume 0123abcd-0123-4567-89ab-0123456789ab # resume a specific session by ID or title
+claudewheel --resume ""                                   # open Claude Code's own session picker
+claudewheel --picker                                      # browse this profile's sessions and pick one
+claudewheel --print-prompt "summarize this repo"          # non-interactive print mode
+claudewheel --new-session                                 # start a new session, as a bare launch does
 ```
 
 Naming two of them is a parse error naming both, and naming none of them is the
@@ -166,7 +166,7 @@ plain launch `--new-session` spells out.
 
 `--cont`, `--resume` and `--print-prompt` also answer to `-c`, `-r <session>`
 and `-p <prompt>`. A short form takes its value as the next argument, so
-`-r 0123abcd` works and `-r=0123abcd` does not.
+`-r 0123abcd-0123-4567-89ab-0123456789ab` works and `-r=0123abcd-0123-4567-89ab-0123456789ab` does not.
 
 These compose with segment overrides:
 

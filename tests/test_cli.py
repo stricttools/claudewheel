@@ -4107,6 +4107,37 @@ class ResumeTitleResolutionTests(unittest.TestCase):
         _, kwargs = launch_mock.call_args
         self.assertEqual(kwargs["extra_flags"], ["--resume", uuid])
 
+    def test_uppercase_uuid_is_refused_not_searched_or_lowercased(self) -> None:
+        """A UUID-shaped value that is not lowercase is not a session id.
+
+        It is refused as such: never searched as a title, never lowercased to
+        the session it resembles, and nothing is launched -- even when a
+        session with the lowercase id exists.
+        """
+        from claudewheel.shared_store import SharedStore
+
+        directory = "/home/user/proj"
+        uuid = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+        upper = uuid.upper()
+        encoded = SharedStore.encode_path(os.path.abspath(directory))
+        self._write_session(encoded, uuid, [{"cwd": directory}])
+
+        for value in (upper, "Aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"):
+            with self.subTest(value=value):
+                with mock.patch(
+                    "claudewheel.session.find_sessions_by_title", autospec=True
+                ) as mock_scan:
+                    launch_mock, err, code = self._run_main(
+                        self._BASE_ARGS + ["--resume", value], directory
+                    )
+                mock_scan.assert_not_called()
+                launch_mock.assert_not_called()
+                self.assertEqual(code, 1)
+                msg = err.getvalue()
+                self.assertIn(value, msg)
+                self.assertIn("is not a session id", msg)
+                self.assertIn("session ids are lowercase", msg)
+
     def test_unique_title_resolves_to_uuid(self) -> None:
         """A title matching exactly one session resolves to its UUID."""
         from claudewheel.shared_store import SharedStore

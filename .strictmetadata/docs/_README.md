@@ -148,15 +148,15 @@ If the override set covers every *required* segment, the TUI is skipped entirely
 Which session a launch starts in is one selection with five alternatives, exactly one of which is elected per launch. Four of them forward to Claude Code; the fifth is the plain launch a bare `claudewheel` performs:
 
 ```bash
-claudewheel --cont                              # --continue: resume the most recent session
-claudewheel --resume 0123abcd                   # --resume <id>: jump to a specific session
-claudewheel --resume ""                         # --resume: open Claude Code's own session picker
-claudewheel --picker                            # browse this profile's sessions and pick one
-claudewheel --print-prompt "summarize this repo" # --print: non-interactive print mode
-claudewheel --new-session                       # start a new session -- what a bare `claudewheel` does
+claudewheel --cont                                        # --continue: resume the most recent session
+claudewheel --resume 0123abcd-0123-4567-89ab-0123456789ab # --resume <id>: jump to a specific session
+claudewheel --resume ""                                   # --resume: open Claude Code's own session picker
+claudewheel --picker                                      # browse this profile's sessions and pick one
+claudewheel --print-prompt "summarize this repo"          # --print: non-interactive print mode
+claudewheel --new-session                                 # start a new session -- what a bare `claudewheel` does
 ```
 
-Three of them carry a short form: `-c`, `-r <session>` and `-p <prompt>` are `--cont`, `--resume` and `--print-prompt`. A short takes its value as the next argument, so `-r 0123abcd` is the spelling and `-r=0123abcd` is not one.
+Three of them carry a short form: `-c`, `-r <session>`, and `-p <prompt>` are `--cont`, `--resume`, and `--print-prompt`. A short takes its value as the next argument, so `-r 0123abcd-0123-4567-89ab-0123456789ab` is the spelling and `-r=0123abcd-0123-4567-89ab-0123456789ab` is not one.
 
 Naming two of them is refused: `--cont --picker` is `--cont and --picker are mutually exclusive`, from the parser rather than from claudewheel.
 
