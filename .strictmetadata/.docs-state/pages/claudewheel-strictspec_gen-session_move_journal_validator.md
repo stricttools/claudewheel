@@ -1,8 +1,7 @@
 +++
 title = "claudewheel.strictspec_gen.session_move_journal_validator"
-description = "API reference for the claudewheel.strictspec_gen.session_move_journal_validator module — auto-generated documentation covering public functions, classes, and type signatures."
+description = "The generated validator for one session-move journal: the format_version marker, the source and target store dirs, the transcript times and lifecycle event the move restores and records, the steps already done, and the rejection of unknown keys."
 generated = true
-seeded = true
 nav_group = "API Reference"
 nav_order = 62
 +++

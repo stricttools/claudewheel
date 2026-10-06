@@ -1,8 +1,7 @@
 +++
 title = "claudewheel.session_move"
-description = "Move one Claude Code session to another project directory's session store."
+description = "How claudewheel move-session moves one Claude Code session to another project directory's store: the checks that refuse a running, referenced, or duplicated session, the renames, the self-path rewrite and relocated record, the kept transcript times, the lifecycle event, and the journal that lets a rerun finish an interrupted move."
 generated = true
-seeded = true
 nav_group = "API Reference"
 nav_order = 47
 +++

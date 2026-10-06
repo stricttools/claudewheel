@@ -1,6 +1,6 @@
 +++
 title = "claudewheel launch"
-description = "Start the TUI launcher or preset segments via flags; supports session resume by UUID or title, and print mode."
+description = "Start the TUI launcher or preset segments via flags; supports session resume by session id or title, and print mode."
 generated = true
 nav_group = "CLI Reference"
 nav_order = 6

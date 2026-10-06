@@ -1,8 +1,7 @@
 +++
 title = "claudewheel.session_stores"
-description = "Find every Claude Code session store on this machine."
+description = "Finding every Claude Code session store on this machine: each profile's projects directory and the shared store, each real directory visited once although managed profiles reach the shared store through symlinks."
 generated = true
-seeded = true
 nav_group = "API Reference"
 nav_order = 50
 +++
