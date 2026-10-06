@@ -65,6 +65,8 @@ EFFECTS = {
     "stats": "mutating",
     # renames a project directory and rewrites every profile's session data
     "mv": "mutating",
+    # moves one session's transcript and folder to another directory's store
+    "move-session": "mutating",
     # copies session data, artifacts and the paste cache into the shared store
     "import": "mutating",
     # writes hook scripts into ~/.claudewheel/scripts/ and chmods them 0755

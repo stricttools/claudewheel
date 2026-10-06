@@ -44,3 +44,11 @@ path = ".strictspec/probe-session-event.schema.toml"
   lang    = "python"
   output  = "claudewheel/strictspec_gen/probe_session_event_validator.py"
   package = "claudewheel.strictspec_gen"
+
+[[schemas]]
+path = ".strictspec/session-move-journal.schema.toml"
+
+  [[schemas.targets]]
+  lang    = "python"
+  output  = "claudewheel/strictspec_gen/session_move_journal_validator.py"
+  package = "claudewheel.strictspec_gen"

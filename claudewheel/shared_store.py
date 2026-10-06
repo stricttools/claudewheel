@@ -17,6 +17,11 @@ LIFECYCLE_DIRNAME = "lifecycle"
 # SHARED_SUBDIRS either, for the same reason as the lifecycle store.
 PROBES_DIRNAME = "probes"
 
+# Where `claudewheel move-session` keeps the journal of a session move that has
+# not finished (claudewheel.session_move): one <session-uuid>.json per move,
+# removed when the move completes. Not in SHARED_SUBDIRS either.
+SESSION_MOVES_DIRNAME = "session-moves"
+
 # The longest store-dir name Claude Code writes in full; a longer sanitized
 # path is cut to this length and suffixed with a hash of the raw path.
 PROJECT_DIR_NAME_LIMIT = 200
@@ -84,6 +89,11 @@ class SharedStore:
     def probes_dir(self) -> Path:
         """Directory holding the probe store (shared/probes)."""
         return self.shared_dir / PROBES_DIRNAME
+
+    @property
+    def session_moves_dir(self) -> Path:
+        """Directory holding unfinished session-move journals (shared/session-moves)."""
+        return self.shared_dir / SESSION_MOVES_DIRNAME
 
     @property
     def inodes_file(self) -> Path:

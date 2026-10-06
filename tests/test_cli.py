@@ -4139,6 +4139,53 @@ class ResumeTitleResolutionTests(unittest.TestCase):
                 self.assertIn("is not a session id", msg)
                 self.assertIn("session ids are lowercase", msg)
 
+    def test_the_refusal_names_a_move_that_lets_the_resume_succeed(self) -> None:
+        """A session of another, existing directory: the refusal names the
+        move-session command, and once that command has run, the resume launches."""
+        import re
+        import shlex
+
+        from claudewheel.shared_store import SharedStore
+
+        alpha, beta = self.root / "alpha", self.root / "beta"
+        alpha.mkdir()
+        beta.mkdir()
+        uuid = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"
+        self._write_session(
+            SharedStore.encode_path(str(alpha)), uuid, [{"cwd": str(alpha)}]
+        )
+        args = self._BASE_ARGS + ["--resume", uuid]
+
+        launch_mock, err, code = self._run_main(args, str(beta))
+        self.assertEqual(code, 1)
+        launch_mock.assert_not_called()
+        msg = err.getvalue()
+        self.assertIn(f"belongs to {alpha} which still exists", msg)
+        named = re.search(r"`(claudewheel move-session [^`]+)`", msg)
+        assert named is not None, msg
+        command = named.group(1)
+        self.assertEqual(command, f"claudewheel move-session {uuid} {beta}")
+
+        out = io.StringIO()
+        with (
+            mock.patch.dict(os.environ, {"CLAUDEWHEEL_CONFIG_DIR": str(self.root)}),
+            mock.patch("sys.argv", shlex.split(command)),
+            redirect_stdout(out),
+            redirect_stderr(io.StringIO()) as move_err,
+        ):
+            try:
+                cli.main()
+                move_code = 0
+            except SystemExit as exc:
+                move_code = exc.code if isinstance(exc.code, int) else 1
+        self.assertEqual(move_code, 0, move_err.getvalue())
+
+        launch_mock, err, code = self._run_main(args, str(beta))
+        self.assertIn(code, (None, 0), err.getvalue())
+        launch_mock.assert_called_once()
+        _, kwargs = launch_mock.call_args
+        self.assertEqual(kwargs["extra_flags"], ["--resume", uuid])
+
     def test_unique_title_resolves_to_uuid(self) -> None:
         """A title matching exactly one session resolves to its UUID."""
         from claudewheel.shared_store import SharedStore

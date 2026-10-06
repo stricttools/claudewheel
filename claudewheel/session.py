@@ -104,7 +104,9 @@ def recorded_store_cwds(store_dir: Path) -> set[str]:
             if isinstance(cwd, str):
                 cwds.add(cwd)
         recorded = {relocated} if relocated is not None else cwds
-        found.update(d for d in recorded if SharedStore.encode_path(d) == store_dir.name)
+        found.update(
+            d for d in recorded if SharedStore.encode_path(d) == store_dir.name
+        )
     return found
 
 

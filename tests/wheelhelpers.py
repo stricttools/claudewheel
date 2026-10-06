@@ -1054,3 +1054,79 @@ def inject_launch(argv: list[str]) -> list[str]:
 
     app = cli._build_app(Workspace.default(), BinaryLocator.default())
     return cli._inject_launch(argv, cli._routing_names(app))
+
+
+# ---------------------------------------------------------------------------
+# The real profile layout: every profile's projects/ is a symlink into shared/
+# ---------------------------------------------------------------------------
+
+
+class SymlinkedStoreLayout:
+    """Build the on-disk layout mv meets on a real machine.
+
+    Three managed profiles whose ``projects`` entries are symlinks to the one
+    ``shared/projects`` store, plus a default profile with its own, separate
+    ``projects`` directory.  Profile discovery is NOT patched by the tests that
+    use it, so mv sees every profile directory the workspace enumerates.
+    """
+
+    PROFILE_NAMES = ("emergency", "hn", "work")
+
+    def __init__(self, root: Path) -> None:
+        self.home = root / "home"
+        self.home.mkdir()
+        self.claude_dir = self.home / ".claude"
+        (self.claude_dir / "projects").mkdir(parents=True)
+        self.ws = Workspace.open(self.home / ".claudewheel", claude_dir=self.claude_dir)
+        self.store = self.ws.shared_dir / "projects"
+        self.store.mkdir(parents=True)
+        self.claude_jsons: list[Path] = []
+        for name in self.PROFILE_NAMES:
+            pdir = self.ws.profiles_dir / name
+            pdir.mkdir(parents=True)
+            (pdir / "settings.json").write_text("{}")
+            (pdir / "projects").symlink_to(self.store)
+            claude_json = pdir / ".claude.json"
+            claude_json.write_text(json.dumps({"projects": {}}))
+            self.claude_jsons.append(claude_json)
+        self.projects_root = self.home / "Projects"
+        self.projects_root.mkdir()
+
+    def store_dir(self, real_path: str) -> Path:
+        return self.store / SharedStore.encode_path(real_path)
+
+    def add_session(
+        self,
+        real_path: str,
+        name: str,
+        cwds: list[str],
+        subagent_cwd: str | None = None,
+    ) -> Path:
+        """Write one top-level transcript recording *cwds*, one line each."""
+        d = self.store_dir(real_path)
+        d.mkdir(exist_ok=True)
+        f = d / f"{name}.jsonl"
+        f.write_text(
+            "".join(json.dumps({"type": "user", "cwd": c}) + "\n" for c in cwds)
+        )
+        if subagent_cwd is not None:
+            sub = d / name / "subagents"
+            sub.mkdir(parents=True)
+            (sub / "agent-1.jsonl").write_text(
+                json.dumps({"type": "user", "cwd": subagent_cwd}) + "\n"
+            )
+        return f
+
+    def add_key(self, real_path: str) -> None:
+        for claude_json in self.claude_jsons:
+            data = json.loads(claude_json.read_text())
+            data["projects"][real_path] = {}
+            claude_json.write_text(json.dumps(data))
+
+    def snapshot(self) -> dict[str, bytes]:
+        """Every file under the store and every registry, by path."""
+        files = {
+            str(p): p.read_bytes() for p in sorted(self.store.rglob("*")) if p.is_file()
+        }
+        files.update({str(p): p.read_bytes() for p in self.claude_jsons})
+        return files

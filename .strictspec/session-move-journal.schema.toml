@@ -1,0 +1,92 @@
+# strictspec schema for one claudewheel SESSION MOVE JOURNAL.
+# Source of truth for the Python side: claudewheel/session_move.py.
+# One document = one JSON file = one session move that has not finished.
+#
+# WHAT THE STORE IS: one file per session being moved, at
+# `~/.claudewheel/shared/session-moves/<session-uuid>.json`, written by
+# `claudewheel move-session` before it changes anything and removed when the
+# move finishes. While it exists, the move was interrupted: a rerun with the
+# same session and directory reads it and completes the steps not yet done,
+# and a move of the same session to any other directory is refused.
+#
+# EVERY FIELD IS PRESENT. A fact that is not known is written as `null`.
+
+name = "claudewheel-session-move-journal"
+meta_version = 1
+format_version = 1
+document_syntax = "json"
+role = "schema"
+root = "SessionMoveJournal"
+targets = ["python"]
+description = "One session move that has not finished: where the session moves, what it was before, and which steps are done."
+
+[types.SessionMoveJournal]
+type = "record"
+description = "One session move, recorded before its first change and updated as each step completes."
+
+[types.SessionMoveJournal.fields.format_version]
+type = "integer"
+required = true
+description = "Document format_version marker. Every journal claudewheel writes carries 1."
+
+[types.SessionMoveJournal.fields.session]
+type = "string"
+required = true
+regex = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+description = "The Claude Code session being moved. Also the name of the file."
+
+[types.SessionMoveJournal.fields.source_store_dir]
+type = "string"
+required = true
+non_empty = true
+description = "The session store dir the session is moved out of (a projects/<encoded directory> path)."
+
+[types.SessionMoveJournal.fields.target_store_dir]
+type = "string"
+required = true
+non_empty = true
+description = "The session store dir the session is moved into, in the same projects directory."
+
+[types.SessionMoveJournal.fields.target_cwd]
+type = "string"
+required = true
+non_empty = true
+description = "The directory the session belongs to after the move, as the command resolved it."
+
+[types.SessionMoveJournal.fields.old_cwd]
+type = "nullable"
+required = true
+description = "The directory the session belonged to before the move, as Claude Code read it then. Null when its transcript recorded none."
+[types.SessionMoveJournal.fields.old_cwd.inner]
+type = "string"
+non_empty = true
+
+[types.SessionMoveJournal.fields.transcript_atime_ns]
+type = "integer"
+required = true
+description = "The transcript's access time before the move, in nanoseconds since the epoch; the move puts it back."
+
+[types.SessionMoveJournal.fields.transcript_mtime_ns]
+type = "integer"
+required = true
+description = "The transcript's modification time before the move, in nanoseconds since the epoch; the move puts it back."
+
+[types.SessionMoveJournal.fields.event_id]
+type = "string"
+required = true
+non_empty = true
+description = "The id of the lifecycle `moved` event the move records, chosen before the first change so a rerun can tell whether it was written."
+
+[types.SessionMoveJournal.fields.event_at]
+type = "datetime"
+required = true
+datetime_kind = "offset"
+description = "The `at` of that lifecycle event (RFC 3339 UTC, millisecond precision)."
+
+[types.SessionMoveJournal.fields.steps_done]
+type = "array"
+required = true
+description = "The steps of the move already done, in the order they were done."
+[types.SessionMoveJournal.fields.steps_done.item]
+type = "enum"
+values = ["transcript-moved", "folder-moved", "transcript-rewritten", "times-restored", "lifecycle-recorded", "source-removed"]

@@ -5,6 +5,7 @@ from __future__ import annotations
 import inspect
 import os
 import re
+import shlex
 import sys
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
@@ -878,6 +879,19 @@ def _handle_mv(ws: "Workspace", old: str, new: str, post_hoc: bool | None) -> in
             post_hoc=_absent(post_hoc, False),
         )
     except (ValueError, FileNotFoundError, FileExistsError, OSError) as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+    return 0
+
+
+def _handle_move_session(ws: "Workspace", session: str, directory: str) -> int:
+    """Move one session to another project directory's session store."""
+    from .lifecycle import LifecycleError
+    from .session_move import MoveSessionError, move_session
+
+    try:
+        move_session(ws, session, directory, dry_run=effects.previewing())
+    except (MoveSessionError, LifecycleError, OSError) as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
     return 0
@@ -1762,9 +1776,11 @@ def _check_resume_session(ws: "Workspace", session_id: str, directory: str) -> N
     # Step 3: Session found elsewhere -- check if it's a rename or wrong directory
     old_cwd = info.cwd
     if os.path.isdir(old_cwd):
+        here = os.path.abspath(directory)
         print(
             f"Session {session_id} belongs to {old_cwd} which still exists.\n"
-            f"Run from that directory instead.",
+            f"Run from that directory instead, or move it here with "
+            f"`claudewheel move-session {session_id} {shlex.quote(here)}`.",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -2704,6 +2720,34 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
             ),
         ],
     )(_bind(_handle_mv, ws))
+
+    app.command(
+        "move-session",
+        effect="mutating",
+        help=(
+            "move one Claude Code session, by its id, to another project "
+            "directory's session store, so Claude Code resumes it from that "
+            "directory: its transcript and folder move together, the paths "
+            "in its transcript that point into its own store folder follow "
+            "it, and Claude Code's relocated record is appended. Refuses a "
+            "session that is running or starting, one a background job or "
+            "another session's symlink refers to, and one that more than one "
+            "store dir holds. An interrupted move is finished by running the "
+            "same command again"
+        ),
+        args=[
+            Arg(
+                name="session",
+                presence="required",
+                help="the session id: a full lowercase UUID, as Claude Code records it; a prefix or any other spelling is refused",
+            ),
+            Arg(
+                name="directory",
+                presence="required",
+                help="the existing project directory the session moves to (absolute or relative)",
+            ),
+        ],
+    )(_bind(_handle_move_session, ws))
 
     app.command(
         "import",

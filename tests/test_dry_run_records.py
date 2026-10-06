@@ -97,6 +97,73 @@ class DryRunRecordsTests(unittest.TestCase):
         self.assertNotIn("write:", stdout)
 
 
+class MoveSessionDryRunTests(unittest.TestCase):
+    """A preview of move-session changes nothing and names every change."""
+
+    def setUp(self) -> None:
+        from claudewheel.shared_store import SharedStore
+        from tests.wheelhelpers import SymlinkedStoreLayout
+
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.layout = SymlinkedStoreLayout(Path(self._tmp.name))
+        self.session = "5e55a0e1-0000-4000-8000-00000000c0de"
+        self.alpha = self.layout.projects_root / "alpha"
+        self.beta = self.layout.projects_root / "beta"
+        self.alpha.mkdir()
+        self.beta.mkdir()
+        self.source = self.layout.store.resolve() / SharedStore.encode_path(
+            str(self.alpha)
+        )
+        self.target = self.layout.store.resolve() / SharedStore.encode_path(
+            str(self.beta)
+        )
+        (self.source / self.session / "tool-results").mkdir(parents=True)
+        (self.source / self.session / "tool-results" / "out.txt").write_text("x\n")
+        (self.source / f"{self.session}.jsonl").write_text(
+            json.dumps({"type": "user", "cwd": str(self.alpha)}) + "\n"
+        )
+        for patcher in (
+            mock.patch.object(Path, "home", return_value=self.layout.home),
+            mock.patch.dict(
+                "os.environ",
+                {
+                    "HOME": str(self.layout.home),
+                    "CLAUDEWHEEL_CONFIG_DIR": str(self.layout.ws.root),
+                },
+            ),
+        ):
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def _run(self, argv: list[str]) -> tuple[str, str]:
+        out, err = io.StringIO(), io.StringIO()
+        with mock.patch("sys.argv", argv), redirect_stdout(out), redirect_stderr(err):
+            try:
+                cli.main()
+            except SystemExit:
+                pass
+        return out.getvalue(), err.getvalue()
+
+    def test_preview_writes_nothing_and_names_the_renames_and_writes(self) -> None:
+        root = Path(self._tmp.name)
+        before = _tree(root)
+        stdout, stderr = self._run(
+            ["claudewheel", "move-session", self.session, str(self.beta), "--dry-run"]
+        )
+        self.assertEqual(_tree(root), before, stderr)
+        self.assertFalse(self.target.exists())
+        self.assertFalse(self.layout.ws.shared.session_moves_dir.exists())
+        self.assertIn("DRY RUN — no changes were made. Would do:", stdout)
+        s, src, dst = self.session, self.source, self.target
+        self.assertIn(f"rename: {src}/{s}.jsonl -> {dst}/{s}.jsonl", stdout)
+        self.assertIn(f"rename: {src}/{s} -> {dst}/{s}", stdout)
+        self.assertIn(f"write: {dst}/{s}.jsonl", stdout)
+        lifecycle_file = self.layout.ws.shared.lifecycle_dir / f"{s}.jsonl"
+        self.assertIn(f"write: {lifecycle_file}", stdout)
+        self.assertIn(f"Would move session {s}", stdout)
+
+
 class DryRunNarrationIsConditionalTests(SandboxHomeTestCase):
     """A preview must not narrate itself in the indicative past tense.
 
