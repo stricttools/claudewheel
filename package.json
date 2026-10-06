@@ -22,7 +22,6 @@
   "files": [
     "bin/",
     "claudewheel/**/*.py",
-    "c",
     "pyproject.toml"
   ],
   "repository": {
