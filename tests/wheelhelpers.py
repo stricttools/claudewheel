@@ -225,11 +225,13 @@ class FakeArchiver:
 
 
 #: The machine-envelope interface version saferm's framework speaks. A real
-#: answer carries 2, and `writes` -- the update-command write set, always null
-#: here because saferm's delete declares no update. claudewheel's parser reads
-#: `payload` and nothing else, deliberately; the version and the write set are
-#: in these doubles so they keep describing the document the real binary emits.
-SAFERM_INTERFACE_VERSION = 2
+#: answer carries 3, with `output` -- null, because saferm carries every line it
+#: prints in `diagnostics` -- and `writes` -- the update-command write set,
+#: always null here because saferm's delete declares no update. claudewheel's
+#: parser reads `payload` and nothing else, deliberately; the version, the
+#: output, and the write set are in these doubles so they keep describing the
+#: document the real binary emits.
+SAFERM_INTERFACE_VERSION = 3
 
 #: What saferm's stub answers as its own version. The real binary's is its
 #: release; nothing claudewheel does reads it.
@@ -257,6 +259,7 @@ def saferm_envelope_document(
         "command": command,
         "exit_code": exit_code,
         "payload": payload,
+        "output": None,
         "dry_run": False,
         "writes": None,
         "preview": [],
