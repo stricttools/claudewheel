@@ -1,8 +1,7 @@
 +++
 title = "claudewheel.strictspec_gen.probe_report_validator"
-description = "API reference for the claudewheel.strictspec_gen.probe_report_validator module — auto-generated documentation covering public functions, classes, and type signatures."
+description = "The generated validator for one queued report of an OOM kill to one session conversation: the format_version marker, every field type, and the rejection of unknown keys."
 generated = true
-seeded = true
 nav_group = "API Reference"
 nav_order = 58
 +++

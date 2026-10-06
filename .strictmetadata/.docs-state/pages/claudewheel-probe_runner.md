@@ -1,8 +1,7 @@
 +++
 title = "claudewheel.probe_runner"
-description = "The probe runner: the one process that hosts every probe (claudewheel-probe-runner.service)."
+description = "The one process that hosts every probe: it follows the user journal for OOM kills, attributes each to a Claude Code session, queues the reports, records the kill, and ends probes whose deadline passed or whose session ended."
 generated = true
-seeded = true
 nav_group = "API Reference"
 nav_order = 32
 +++

@@ -1,8 +1,7 @@
 +++
 title = "claudewheel.strictspec_gen.probe_event_validator"
-description = "API reference for the claudewheel.strictspec_gen.probe_event_validator module — auto-generated documentation covering public functions, classes, and type signatures."
+description = "The generated validator for one probe log line: the format_version marker, the created, subscribed, bound, unsubscribed, and ended arms, every field type, and the rejection of unknown keys."
 generated = true
-seeded = true
 nav_group = "API Reference"
 nav_order = 57
 +++

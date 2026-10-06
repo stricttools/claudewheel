@@ -1,8 +1,7 @@
 +++
 title = "claudewheel.strictspec_gen.oom_kill_event_validator"
-description = "API reference for the claudewheel.strictspec_gen.oom_kill_event_validator module — auto-generated documentation covering public functions, classes, and type signatures."
+description = "The generated validator for one OOM kill line: the format_version marker, the killed unit, where its reports went, every field type, and the rejection of unknown keys."
 generated = true
-seeded = true
 nav_group = "API Reference"
 nav_order = 56
 +++

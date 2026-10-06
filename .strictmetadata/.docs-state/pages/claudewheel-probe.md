@@ -1,8 +1,7 @@
 +++
 title = "claudewheel.probe"
-description = "Probes: watch Claude Code sessions for an event and report it to the sessions that asked."
+description = "How a probe watches Claude Code sessions for an OOM kill and reports it to the sessions that asked: the shared probe store under ~/.claudewheel/shared/probes/, the probe, kill, session, and report records it holds, and the per-session waiter that hands reports over."
 generated = true
-seeded = true
 nav_group = "API Reference"
 nav_order = 31
 +++
