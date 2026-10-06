@@ -118,7 +118,7 @@ class InjectLaunchTests(unittest.TestCase):
         # so a framework command a later strictcli adds fails here first.
         self.assertEqual(
             cli._FRAMEWORK_COMMANDS,
-            strictcli._FRAMEWORK_COMMAND_NAMES,  # type: ignore[attr-defined]
+            strictcli._FRAMEWORK_COMMAND_NAMES,
         )
 
     def test_help_json_reaches_strictcli_help(self) -> None:
