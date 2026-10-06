@@ -6356,25 +6356,25 @@
     },
     {
       "path": "cli-config.md",
-      "title": "c config",
+      "title": "claudewheel config",
       "type": "doc",
       "headings": [
         {
           "level": 1,
-          "text": "c config",
-          "anchor": "c-config"
+          "text": "claudewheel config",
+          "anchor": "claudewheel-config"
         }
       ]
     },
     {
       "path": "cli-deploy-hooks.md",
-      "title": "c deploy-hooks",
+      "title": "claudewheel deploy-hooks",
       "type": "doc",
       "headings": [
         {
           "level": 1,
-          "text": "c deploy-hooks",
-          "anchor": "c-deploy-hooks"
+          "text": "claudewheel deploy-hooks",
+          "anchor": "claudewheel-deploy-hooks"
         },
         {
           "level": 2,
@@ -6395,25 +6395,25 @@
     },
     {
       "path": "cli-health.md",
-      "title": "c health",
+      "title": "claudewheel health",
       "type": "doc",
       "headings": [
         {
           "level": 1,
-          "text": "c health",
-          "anchor": "c-health"
+          "text": "claudewheel health",
+          "anchor": "claudewheel-health"
         }
       ]
     },
     {
       "path": "cli-import.md",
-      "title": "c import",
+      "title": "claudewheel import",
       "type": "doc",
       "headings": [
         {
           "level": 1,
-          "text": "c import",
-          "anchor": "c-import"
+          "text": "claudewheel import",
+          "anchor": "claudewheel-import"
         },
         {
           "level": 2,
@@ -6434,13 +6434,13 @@
     },
     {
       "path": "cli-index.md",
-      "title": "c CLI Reference",
+      "title": "claudewheel CLI Reference",
       "type": "doc",
       "headings": [
         {
           "level": 1,
-          "text": "c CLI Reference",
-          "anchor": "c-cli-reference"
+          "text": "claudewheel CLI Reference",
+          "anchor": "claudewheel-cli-reference"
         },
         {
           "level": 2,
@@ -6466,13 +6466,13 @@
     },
     {
       "path": "cli-install.md",
-      "title": "c install",
+      "title": "claudewheel install",
       "type": "doc",
       "headings": [
         {
           "level": 1,
-          "text": "c install",
-          "anchor": "c-install"
+          "text": "claudewheel install",
+          "anchor": "claudewheel-install"
         },
         {
           "level": 2,
@@ -6488,13 +6488,13 @@
     },
     {
       "path": "cli-launch.md",
-      "title": "c launch",
+      "title": "claudewheel launch",
       "type": "doc",
       "headings": [
         {
           "level": 1,
-          "text": "c launch",
-          "anchor": "c-launch"
+          "text": "claudewheel launch",
+          "anchor": "claudewheel-launch"
         },
         {
           "level": 2,
@@ -6510,13 +6510,13 @@
     },
     {
       "path": "cli-migrate.md",
-      "title": "c migrate",
+      "title": "claudewheel migrate",
       "type": "doc",
       "headings": [
         {
           "level": 1,
-          "text": "c migrate",
-          "anchor": "c-migrate"
+          "text": "claudewheel migrate",
+          "anchor": "claudewheel-migrate"
         },
         {
           "level": 2,
@@ -6527,13 +6527,13 @@
     },
     {
       "path": "cli-mv.md",
-      "title": "c mv",
+      "title": "claudewheel mv",
       "type": "doc",
       "headings": [
         {
           "level": 1,
-          "text": "c mv",
-          "anchor": "c-mv"
+          "text": "claudewheel mv",
+          "anchor": "claudewheel-mv"
         },
         {
           "level": 2,
@@ -6549,25 +6549,25 @@
     },
     {
       "path": "cli-patch-profiles.md",
-      "title": "c patch-profiles",
+      "title": "claudewheel patch-profiles",
       "type": "doc",
       "headings": [
         {
           "level": 1,
-          "text": "c patch-profiles",
-          "anchor": "c-patch-profiles"
+          "text": "claudewheel patch-profiles",
+          "anchor": "claudewheel-patch-profiles"
         }
       ]
     },
     {
       "path": "cli-permission.md",
-      "title": "c permission",
+      "title": "claudewheel permission",
       "type": "doc",
       "headings": [
         {
           "level": 1,
-          "text": "c permission",
-          "anchor": "c-permission"
+          "text": "claudewheel permission",
+          "anchor": "claudewheel-permission"
         },
         {
           "level": 2,
@@ -6613,13 +6613,13 @@
     },
     {
       "path": "cli-probe.md",
-      "title": "c probe",
+      "title": "claudewheel probe",
       "type": "doc",
       "headings": [
         {
           "level": 1,
-          "text": "c probe",
-          "anchor": "c-probe"
+          "text": "claudewheel probe",
+          "anchor": "claudewheel-probe"
         },
         {
           "level": 2,
@@ -6675,13 +6675,13 @@
     },
     {
       "path": "cli-profile.md",
-      "title": "c profile",
+      "title": "claudewheel profile",
       "type": "doc",
       "headings": [
         {
           "level": 1,
-          "text": "c profile",
-          "anchor": "c-profile"
+          "text": "claudewheel profile",
+          "anchor": "claudewheel-profile"
         },
         {
           "level": 2,
@@ -6762,13 +6762,13 @@
     },
     {
       "path": "cli-purge-plugins.md",
-      "title": "c purge-plugins",
+      "title": "claudewheel purge-plugins",
       "type": "doc",
       "headings": [
         {
           "level": 1,
-          "text": "c purge-plugins",
-          "anchor": "c-purge-plugins"
+          "text": "claudewheel purge-plugins",
+          "anchor": "claudewheel-purge-plugins"
         },
         {
           "level": 2,
@@ -6779,13 +6779,13 @@
     },
     {
       "path": "cli-reconcile-permissions.md",
-      "title": "c reconcile-permissions",
+      "title": "claudewheel reconcile-permissions",
       "type": "doc",
       "headings": [
         {
           "level": 1,
-          "text": "c reconcile-permissions",
-          "anchor": "c-reconcile-permissions"
+          "text": "claudewheel reconcile-permissions",
+          "anchor": "claudewheel-reconcile-permissions"
         },
         {
           "level": 2,
@@ -6796,49 +6796,49 @@
     },
     {
       "path": "cli-reset-options.md",
-      "title": "c reset-options",
+      "title": "claudewheel reset-options",
       "type": "doc",
       "headings": [
         {
           "level": 1,
-          "text": "c reset-options",
-          "anchor": "c-reset-options"
+          "text": "claudewheel reset-options",
+          "anchor": "claudewheel-reset-options"
         }
       ]
     },
     {
       "path": "cli-show.md",
-      "title": "c show",
+      "title": "claudewheel show",
       "type": "doc",
       "headings": [
         {
           "level": 1,
-          "text": "c show",
-          "anchor": "c-show"
+          "text": "claudewheel show",
+          "anchor": "claudewheel-show"
         }
       ]
     },
     {
       "path": "cli-stats.md",
-      "title": "c stats",
+      "title": "claudewheel stats",
       "type": "doc",
       "headings": [
         {
           "level": 1,
-          "text": "c stats",
-          "anchor": "c-stats"
+          "text": "claudewheel stats",
+          "anchor": "claudewheel-stats"
         }
       ]
     },
     {
       "path": "cli-uninstall.md",
-      "title": "c uninstall",
+      "title": "claudewheel uninstall",
       "type": "doc",
       "headings": [
         {
           "level": 1,
-          "text": "c uninstall",
-          "anchor": "c-uninstall"
+          "text": "claudewheel uninstall",
+          "anchor": "claudewheel-uninstall"
         },
         {
           "level": 2,
@@ -6849,13 +6849,13 @@
     },
     {
       "path": "cli-versions.md",
-      "title": "c versions",
+      "title": "claudewheel versions",
       "type": "doc",
       "headings": [
         {
           "level": 1,
-          "text": "c versions",
-          "anchor": "c-versions"
+          "text": "claudewheel versions",
+          "anchor": "claudewheel-versions"
         }
       ]
     },
@@ -7689,7 +7689,7 @@
     }
   ],
   "posts": [],
-  "last_gen": "2026-09-30T16:05:13.875485+00:00",
+  "last_gen": "2026-10-06T22:03:31.556096+00:00",
   "theme": "minimal",
   "vocabulary": {
     "accepted": [
@@ -7723,6 +7723,10 @@
       },
       {
         "word": "unrouted",
+        "aliases": []
+      },
+      {
+        "word": "zram",
         "aliases": []
       }
     ],
