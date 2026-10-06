@@ -54,6 +54,7 @@ _PATH_INVOCATIONS: dict[str, tuple[_Invocation, ...]] = {
     "rmdir": (lambda m, r: effects.rmdir(m),),
     "rmtree": (lambda m, r: effects.rmtree(m),),
     "chmod": (lambda m, r: effects.chmod(m, 0o644),),
+    "set_times": (lambda m, r: effects.set_times(m, atime_ns=0, mtime_ns=0),),
     "rename": (
         lambda m, r: effects.rename(m, r / "dst"),
         lambda m, r: effects.rename(r / "src", m),

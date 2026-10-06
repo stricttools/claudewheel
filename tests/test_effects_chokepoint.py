@@ -61,6 +61,7 @@ _BANNED_CALLS = {
     "os.symlink",
     "os.link",
     "os.truncate",
+    "os.utime",
     "os.execv",
     "os.execve",
     "os.execvp",

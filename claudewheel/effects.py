@@ -686,6 +686,29 @@ def chmod(path: Any, mode: int) -> None:
     h.chmod(_p(path), mode)
 
 
+def _touch_time(ns: int) -> str:
+    """*ns* nanoseconds since the epoch as GNU ``touch -d`` reads it, exactly."""
+    seconds, fraction = divmod(ns, 1_000_000_000)
+    return f"@{seconds}.{fraction:09d}"
+
+
+def set_times(path: Any, *, atime_ns: int, mtime_ns: int) -> None:
+    """Set the access and modification times of the existing file *path*.
+
+    Live mode is ``os.utime`` to the nanosecond; a missing file raises
+    ``FileNotFoundError``.  The contract's closed method set has no utime, so a
+    preview records the two ``touch`` commands that perform it -- the same
+    treatment :func:`symlink` gets -- and changes nothing.
+    """
+    h = _handle()
+    if h is None:
+        os.utime(_path(path), ns=(atime_ns, mtime_ns))
+        return
+    target = _p(path)
+    h.run(["touch", "--no-create", "-a", "-d", _touch_time(atime_ns), target])
+    h.run(["touch", "--no-create", "-m", "-d", _touch_time(mtime_ns), target])
+
+
 def symlink(link: Any, target: Any) -> None:
     """Create *link* as a symbolic link pointing at *target*.
 
