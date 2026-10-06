@@ -776,6 +776,11 @@
         },
         {
           "level": 3,
+          "text": "`_handle_move_session`",
+          "anchor": "_handle_move_session"
+        },
+        {
+          "level": 3,
           "text": "`_handle_import`",
           "anchor": "_handle_import"
         },
@@ -928,6 +933,11 @@
           "level": 3,
           "text": "`_handle_launch`",
           "anchor": "_handle_launch"
+        },
+        {
+          "level": 3,
+          "text": "`_routing_names`",
+          "anchor": "_routing_names"
         },
         {
           "level": 3,
@@ -1485,6 +1495,16 @@
         },
         {
           "level": 3,
+          "text": "`_touch_time`",
+          "anchor": "_touch_time"
+        },
+        {
+          "level": 3,
+          "text": "`set_times`",
+          "anchor": "set_times"
+        },
+        {
+          "level": 3,
           "text": "`symlink`",
           "anchor": "symlink"
         },
@@ -1863,6 +1883,11 @@
         },
         {
           "level": 3,
+          "text": "`_with_session_uuid_re`",
+          "anchor": "_with_session_uuid_re"
+        },
+        {
+          "level": 3,
           "text": "`deploy_scripts`",
           "anchor": "deploy_scripts"
         },
@@ -2128,6 +2153,11 @@
         },
         {
           "level": 3,
+          "text": "`MovedEvent`",
+          "anchor": "movedevent"
+        },
+        {
+          "level": 3,
           "text": "`new_event_id`",
           "anchor": "new_event_id"
         },
@@ -2185,6 +2215,16 @@
           "level": 3,
           "text": "`SessionLifecycle`",
           "anchor": "sessionlifecycle"
+        },
+        {
+          "level": 4,
+          "text": "`cwd`",
+          "anchor": "cwd"
+        },
+        {
+          "level": 4,
+          "text": "`transcript`",
+          "anchor": "transcript"
         },
         {
           "level": 3,
@@ -2324,16 +2364,6 @@
           "level": 3,
           "text": "`MvResult`",
           "anchor": "mvresult"
-        },
-        {
-          "level": 3,
-          "text": "`_discover_profile_dirs`",
-          "anchor": "_discover_profile_dirs"
-        },
-        {
-          "level": 3,
-          "text": "`_distinct_store_dirs`",
-          "anchor": "_distinct_store_dirs"
         },
         {
           "level": 3,
@@ -4338,6 +4368,118 @@
       ]
     },
     {
+      "path": "claudewheel-session_move.md",
+      "title": "claudewheel.session_move",
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.session_move",
+          "anchor": "claudewheelsession_move"
+        },
+        {
+          "level": 2,
+          "text": "`claudewheel.session_move`",
+          "anchor": "claudewheelsession_move"
+        },
+        {
+          "level": 3,
+          "text": "`MoveSessionError`",
+          "anchor": "movesessionerror"
+        },
+        {
+          "level": 3,
+          "text": "`Journal`",
+          "anchor": "journal"
+        },
+        {
+          "level": 4,
+          "text": "`to_json`",
+          "anchor": "to_json"
+        },
+        {
+          "level": 3,
+          "text": "`MoveResult`",
+          "anchor": "moveresult"
+        },
+        {
+          "level": 3,
+          "text": "`journal_path`",
+          "anchor": "journal_path"
+        },
+        {
+          "level": 3,
+          "text": "`read_journal`",
+          "anchor": "read_journal"
+        },
+        {
+          "level": 3,
+          "text": "`_Holder`",
+          "anchor": "_holder"
+        },
+        {
+          "level": 4,
+          "text": "`describe`",
+          "anchor": "describe"
+        },
+        {
+          "level": 3,
+          "text": "`_holders`",
+          "anchor": "_holders"
+        },
+        {
+          "level": 3,
+          "text": "`_session_directory`",
+          "anchor": "_session_directory"
+        },
+        {
+          "level": 3,
+          "text": "`_relocated_line`",
+          "anchor": "_relocated_line"
+        },
+        {
+          "level": 3,
+          "text": "`_self_path_pattern`",
+          "anchor": "_self_path_pattern"
+        },
+        {
+          "level": 3,
+          "text": "`_moved_transcript`",
+          "anchor": "_moved_transcript"
+        },
+        {
+          "level": 3,
+          "text": "`_check_not_running`",
+          "anchor": "_check_not_running"
+        },
+        {
+          "level": 3,
+          "text": "`_check_no_jobs`",
+          "anchor": "_check_no_jobs"
+        },
+        {
+          "level": 3,
+          "text": "`_check_no_inbound_links`",
+          "anchor": "_check_no_inbound_links"
+        },
+        {
+          "level": 3,
+          "text": "`_locate_fresh`",
+          "anchor": "_locate_fresh"
+        },
+        {
+          "level": 3,
+          "text": "`_locate_journaled`",
+          "anchor": "_locate_journaled"
+        },
+        {
+          "level": 3,
+          "text": "`move_session`",
+          "anchor": "move_session"
+        }
+      ]
+    },
+    {
       "path": "claudewheel-session_registry.md",
       "title": "claudewheel.session_registry",
       "type": "doc",
@@ -4421,6 +4563,16 @@
           "level": 3,
           "text": "`has_live_interactive`",
           "anchor": "has_live_interactive"
+        },
+        {
+          "level": 3,
+          "text": "`read_profile_records`",
+          "anchor": "read_profile_records"
+        },
+        {
+          "level": 3,
+          "text": "`live_session_ids`",
+          "anchor": "live_session_ids"
         }
       ]
     },
@@ -4473,6 +4625,33 @@
           "level": 3,
           "text": "`format_row`",
           "anchor": "format_row"
+        }
+      ]
+    },
+    {
+      "path": "claudewheel-session_stores.md",
+      "title": "claudewheel.session_stores",
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.session_stores",
+          "anchor": "claudewheelsession_stores"
+        },
+        {
+          "level": 2,
+          "text": "`claudewheel.session_stores`",
+          "anchor": "claudewheelsession_stores"
+        },
+        {
+          "level": 3,
+          "text": "`discover_profile_dirs`",
+          "anchor": "discover_profile_dirs"
+        },
+        {
+          "level": 3,
+          "text": "`distinct_store_dirs`",
+          "anchor": "distinct_store_dirs"
         }
       ]
     },
@@ -4724,6 +4903,11 @@
           "level": 4,
           "text": "`probes_dir`",
           "anchor": "probes_dir"
+        },
+        {
+          "level": 4,
+          "text": "`session_moves_dir`",
+          "anchor": "session_moves_dir"
         },
         {
           "level": 4,
@@ -5095,6 +5279,61 @@
           "level": 4,
           "text": "`with_note`",
           "anchor": "with_note"
+        },
+        {
+          "level": 3,
+          "text": "`MovedEvent`",
+          "anchor": "movedevent"
+        },
+        {
+          "level": 4,
+          "text": "`with_format_version`",
+          "anchor": "with_format_version-4"
+        },
+        {
+          "level": 4,
+          "text": "`with_id`",
+          "anchor": "with_id-4"
+        },
+        {
+          "level": 4,
+          "text": "`with_at`",
+          "anchor": "with_at-4"
+        },
+        {
+          "level": 4,
+          "text": "`with_session`",
+          "anchor": "with_session-4"
+        },
+        {
+          "level": 4,
+          "text": "`with_source`",
+          "anchor": "with_source-4"
+        },
+        {
+          "level": 4,
+          "text": "`with_kind`",
+          "anchor": "with_kind-4"
+        },
+        {
+          "level": 4,
+          "text": "`with_old_cwd`",
+          "anchor": "with_old_cwd"
+        },
+        {
+          "level": 4,
+          "text": "`with_new_cwd`",
+          "anchor": "with_new_cwd"
+        },
+        {
+          "level": 4,
+          "text": "`with_old_transcript`",
+          "anchor": "with_old_transcript"
+        },
+        {
+          "level": 4,
+          "text": "`with_new_transcript`",
+          "anchor": "with_new_transcript"
         }
       ]
     },
@@ -5683,6 +5922,98 @@
           "level": 4,
           "text": "`with_agent`",
           "anchor": "with_agent-3"
+        }
+      ]
+    },
+    {
+      "path": "claudewheel-strictspec_gen-session_move_journal_validator.md",
+      "title": "claudewheel.strictspec_gen.session_move_journal_validator",
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel.strictspec_gen.session_move_journal_validator",
+          "anchor": "claudewheelstrictspec_gensession_move_journal_validator"
+        },
+        {
+          "level": 2,
+          "text": "`claudewheel.strictspec_gen.session_move_journal_validator`",
+          "anchor": "claudewheelstrictspec_gensession_move_journal_validator"
+        },
+        {
+          "level": 3,
+          "text": "`validate_bytes`",
+          "anchor": "validate_bytes"
+        },
+        {
+          "level": 3,
+          "text": "`validate_bytes_with_evidence`",
+          "anchor": "validate_bytes_with_evidence"
+        },
+        {
+          "level": 3,
+          "text": "`validate_value`",
+          "anchor": "validate_value"
+        },
+        {
+          "level": 3,
+          "text": "`SessionMoveJournal`",
+          "anchor": "sessionmovejournal"
+        },
+        {
+          "level": 4,
+          "text": "`with_format_version`",
+          "anchor": "with_format_version"
+        },
+        {
+          "level": 4,
+          "text": "`with_session`",
+          "anchor": "with_session"
+        },
+        {
+          "level": 4,
+          "text": "`with_source_store_dir`",
+          "anchor": "with_source_store_dir"
+        },
+        {
+          "level": 4,
+          "text": "`with_target_store_dir`",
+          "anchor": "with_target_store_dir"
+        },
+        {
+          "level": 4,
+          "text": "`with_target_cwd`",
+          "anchor": "with_target_cwd"
+        },
+        {
+          "level": 4,
+          "text": "`with_old_cwd`",
+          "anchor": "with_old_cwd"
+        },
+        {
+          "level": 4,
+          "text": "`with_transcript_atime_ns`",
+          "anchor": "with_transcript_atime_ns"
+        },
+        {
+          "level": 4,
+          "text": "`with_transcript_mtime_ns`",
+          "anchor": "with_transcript_mtime_ns"
+        },
+        {
+          "level": 4,
+          "text": "`with_event_id`",
+          "anchor": "with_event_id"
+        },
+        {
+          "level": 4,
+          "text": "`with_event_at`",
+          "anchor": "with_event_at"
+        },
+        {
+          "level": 4,
+          "text": "`with_steps_done`",
+          "anchor": "with_steps_done"
         }
       ]
     },
@@ -6517,6 +6848,23 @@
           "level": 1,
           "text": "claudewheel migrate",
           "anchor": "claudewheel-migrate"
+        },
+        {
+          "level": 2,
+          "text": "Arguments",
+          "anchor": "arguments"
+        }
+      ]
+    },
+    {
+      "path": "cli-move-session.md",
+      "title": "claudewheel move-session",
+      "type": "doc",
+      "headings": [
+        {
+          "level": 1,
+          "text": "claudewheel move-session",
+          "anchor": "claudewheel-move-session"
         },
         {
           "level": 2,
@@ -7689,7 +8037,7 @@
     }
   ],
   "posts": [],
-  "last_gen": "2026-10-06T22:03:31.556096+00:00",
+  "last_gen": "2026-10-06T22:27:52.696190+00:00",
   "theme": "minimal",
   "vocabulary": {
     "accepted": [

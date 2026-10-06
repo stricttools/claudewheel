@@ -19,7 +19,7 @@ start the interactive TUI launcher to select a profile, model, and directory
 | --- | --- | --- | --- | --- | --- |
 | `session` |  | choice | default: `{"choice": "new-session"}` |  | Selection (not typed as a flag). Elect exactly one of `--cont`, `--resume`, `--print-prompt`, `--picker`, `--new-session`. which session this launch starts in |
 | &nbsp;&nbsp;&nbsp;&nbsp;`--cont` |  |  | required |  | Elects `session` = `cont`. continue the most recent conversation in the current directory |
-| &nbsp;&nbsp;&nbsp;&nbsp;`--resume` |  | str | required |  | Elects `session` = `resume`. resume one specific session Its value: session to resume, by UUID or by title; an empty string opens Claude Code's own picker |
+| &nbsp;&nbsp;&nbsp;&nbsp;`--resume` |  | str | required |  | Elects `session` = `resume`. resume one specific session Its value: session to resume, by its session id (a lowercase UUID) or by title; an empty string opens Claude Code's own picker |
 | &nbsp;&nbsp;&nbsp;&nbsp;`--print-prompt` |  | str | required |  | Elects `session` = `print-prompt`. run one prompt in non-interactive print mode and exit Its value: the prompt to run non-interactively |
 | &nbsp;&nbsp;&nbsp;&nbsp;`--picker` |  |  | required |  | Elects `session` = `picker`. browse this profile's sessions and pick one to resume |
 | &nbsp;&nbsp;&nbsp;&nbsp;`--new-session` |  |  | required |  | Elects `session` = `new-session`. start a new session (what a bare launch does) |

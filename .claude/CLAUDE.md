@@ -63,8 +63,10 @@ This project uses [rlsbl](https://github.com/stricttools/rlsbl) for release orch
 - **claudewheel.segment** (`claudewheel/segment.py`): Segment and SegmentBar dataclasses, option discovery, and cross-segment constraints.
 - **claudewheel.session** (`claudewheel/session.py`): Session lookup: locate session JSONL files and extract metadata.
 - **claudewheel.session_list** (`claudewheel/session_list.py`): The scrolling column of session blocks the deletion checklist is drawn with.
+- **claudewheel.session_move** (`claudewheel/session_move.py`): Move one Claude Code session to another project directory's session store.
 - **claudewheel.session_registry** (`claudewheel/session_registry.py`): Read Claude Code's per-session registry into typed, liveness-checked records.
 - **claudewheel.session_rows** (`claudewheel/session_rows.py`): Render one session registry record as a block of lines, collapsed or expanded.
+- **claudewheel.session_stores** (`claudewheel/session_stores.py`): Find every Claude Code session store on this machine.
 - **claudewheel.sessions_overview** (`claudewheel/sessions_overview.py`): Every Claude Code session on this machine, on one framed scrolling table.
 - **claudewheel.sessions_table** (`claudewheel/sessions_table.py`): Lay every Claude Code session on this machine out as one framed table.
 - **claudewheel.shared_store** (`claudewheel/shared_store.py`): Thin path owner for the ~/.claudewheel/shared store layout.
@@ -76,6 +78,7 @@ This project uses [rlsbl](https://github.com/stricttools/rlsbl) for release orch
 - **claudewheel.strictspec_gen.probe_event_validator** (`claudewheel/strictspec_gen/probe_event_validator.py`)
 - **claudewheel.strictspec_gen.probe_report_validator** (`claudewheel/strictspec_gen/probe_report_validator.py`)
 - **claudewheel.strictspec_gen.probe_session_event_validator** (`claudewheel/strictspec_gen/probe_session_event_validator.py`)
+- **claudewheel.strictspec_gen.session_move_journal_validator** (`claudewheel/strictspec_gen/session_move_journal_validator.py`)
 - **claudewheel.terminal** (`claudewheel/terminal.py`): Raw terminal I/O: cbreak mode, escape sequence decoding, and alt screen.
 - **claudewheel.theme** (`claudewheel/theme.py`): Parse hex color themes into pre-computed ANSI escape sequences.
 - **claudewheel.tokens** (`claudewheel/tokens.py`): The OAuth token entry format: build one, date it, and read its tier fields.
@@ -98,6 +101,7 @@ This project uses [rlsbl](https://github.com/stricttools/rlsbl) for release orch
 | `migrate` | move session data files from one profile to another, optionally filtered by UUID |
 | `stats` | report shared-store stats and clean up legacy data |
 | `mv` | rename a project directory and migrate session data |
+| `move-session` | move one Claude Code session, by its id, to another project directory's session store, so Claude Code resumes it from that directory: its transcript and folder move together, the paths in its transcript that point into its own store folder follow it, and Claude Code's relocated record is appended. Refuses a session that is running or starting, one a background job or another session's symlink refers to, and one that more than one store dir holds. An interrupted move is finished by running the same command again |
 | `import` | import session data from an external Claude Code directory |
 | `deploy-hooks` | deploy built-in hook scripts, the heavy wrapper, and claudewheel-tool-scope (the shell prefix every launched session runs its commands through; a launch deploys it when it is missing) to the ~/.claudewheel/scripts/ directory, linking heavy into ~/.local/bin so it is on PATH, and install the probe runner's user service (claudewheel-probe-runner.service, in ~/.config/systemd/user), enabled and started; systemctl --user stop claudewheel-probe-runner.service stops it gracefully |
 | `patch-profiles` | reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask, canonical settings keys); prunes drift and user-added extras -- the old additive, extras-preserving behavior is gone. Deploys any missing guardrail hook scripts. The 'default' profile (~/.claude) is never touched. Preview with --dry-run; writing needs a terminal or --approve-consequential. |

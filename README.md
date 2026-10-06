@@ -141,6 +141,7 @@ Model discovers itself: claudewheel asks the Anthropic API which models your acc
 | `migrate` | move session data files from one profile to another, optionally filtered by UUID |
 | `stats` | report shared-store stats and clean up legacy data |
 | `mv` | rename a project directory and migrate session data |
+| `move-session` | move one Claude Code session, by its id, to another project directory's session store, so Claude Code resumes it from that directory: its transcript and folder move together, the paths in its transcript that point into its own store folder follow it, and Claude Code's relocated record is appended. Refuses a session that is running or starting, one a background job or another session's symlink refers to, and one that more than one store dir holds. An interrupted move is finished by running the same command again |
 | `import` | import session data from an external Claude Code directory |
 | `deploy-hooks` | deploy built-in hook scripts, the heavy wrapper, and claudewheel-tool-scope (the shell prefix every launched session runs its commands through; a launch deploys it when it is missing) to the ~/.claudewheel/scripts/ directory, linking heavy into ~/.local/bin so it is on PATH, and install the probe runner's user service (claudewheel-probe-runner.service, in ~/.config/systemd/user), enabled and started; systemctl --user stop claudewheel-probe-runner.service stops it gracefully |
 | `patch-profiles` | reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask, canonical settings keys); prunes drift and user-added extras -- the old additive, extras-preserving behavior is gone. Deploys any missing guardrail hook scripts. The 'default' profile (~/.claude) is never touched. Preview with --dry-run; writing needs a terminal or --approve-consequential. |
@@ -182,15 +183,15 @@ If the override set covers every *required* segment, the TUI is skipped entirely
 Which session a launch starts in is one selection with five alternatives, exactly one of which is elected per launch. Four of them forward to Claude Code; the fifth is the plain launch a bare `claudewheel` performs:
 
 ```bash
-claudewheel --cont                              # --continue: resume the most recent session
-claudewheel --resume 0123abcd                   # --resume <id>: jump to a specific session
-claudewheel --resume ""                         # --resume: open Claude Code's own session picker
-claudewheel --picker                            # browse this profile's sessions and pick one
-claudewheel --print-prompt "summarize this repo" # --print: non-interactive print mode
-claudewheel --new-session                       # start a new session -- what a bare `claudewheel` does
+claudewheel --cont                                        # --continue: resume the most recent session
+claudewheel --resume 0123abcd-0123-4567-89ab-0123456789ab # --resume <id>: jump to a specific session
+claudewheel --resume ""                                   # --resume: open Claude Code's own session picker
+claudewheel --picker                                      # browse this profile's sessions and pick one
+claudewheel --print-prompt "summarize this repo"          # --print: non-interactive print mode
+claudewheel --new-session                                 # start a new session -- what a bare `claudewheel` does
 ```
 
-Three of them carry a short form: `-c`, `-r <session>` and `-p <prompt>` are `--cont`, `--resume` and `--print-prompt`. A short takes its value as the next argument, so `-r 0123abcd` is the spelling and `-r=0123abcd` is not one.
+Three of them carry a short form: `-c`, `-r <session>`, and `-p <prompt>` are `--cont`, `--resume`, and `--print-prompt`. A short takes its value as the next argument, so `-r 0123abcd-0123-4567-89ab-0123456789ab` is the spelling and `-r=0123abcd-0123-4567-89ab-0123456789ab` is not one.
 
 Naming two of them is refused: `--cont --picker` is `--cont and --picker are mutually exclusive`, from the parser rather than from claudewheel.
 

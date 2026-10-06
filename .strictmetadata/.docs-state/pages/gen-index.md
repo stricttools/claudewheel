@@ -1,6 +1,6 @@
 +++
 title = "API Reference"
-description = "API reference index for claudewheel covering 66 modules"
+description = "API reference index for claudewheel covering 69 modules"
 generated = true
 seeded = true
 nav_group = "API Reference"
@@ -56,8 +56,10 @@ nav_order = 90
 - [claudewheel.segment](../claudewheel-segment/)
 - [claudewheel.session](../claudewheel-session/)
 - [claudewheel.session_list](../claudewheel-session_list/)
+- [claudewheel.session_move](../claudewheel-session_move/)
 - [claudewheel.session_registry](../claudewheel-session_registry/)
 - [claudewheel.session_rows](../claudewheel-session_rows/)
+- [claudewheel.session_stores](../claudewheel-session_stores/)
 - [claudewheel.sessions_overview](../claudewheel-sessions_overview/)
 - [claudewheel.sessions_table](../claudewheel-sessions_table/)
 - [claudewheel.shared_store](../claudewheel-shared_store/)
@@ -69,6 +71,7 @@ nav_order = 90
 - [claudewheel.strictspec_gen.probe_event_validator](../claudewheel-strictspec_gen-probe_event_validator/)
 - [claudewheel.strictspec_gen.probe_report_validator](../claudewheel-strictspec_gen-probe_report_validator/)
 - [claudewheel.strictspec_gen.probe_session_event_validator](../claudewheel-strictspec_gen-probe_session_event_validator/)
+- [claudewheel.strictspec_gen.session_move_journal_validator](../claudewheel-strictspec_gen-session_move_journal_validator/)
 - [claudewheel.terminal](../claudewheel-terminal/)
 - [claudewheel.theme](../claudewheel-theme/)
 - [claudewheel.tokens](../claudewheel-tokens/)
