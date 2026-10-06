@@ -186,7 +186,7 @@ class RoutineMutatingCommandsNeverPromptTests(_CliCase):
     def test_bare_launch_prompts_for_nothing(self) -> None:
         """`claudewheel` with no arguments is the invocation every session starts with.
 
-        _inject_launch turns it into `c launch`; the framework must then
+        _inject_launch turns it into `claudewheel launch`; the framework must then
         dispatch it with no prompt and no refusal, without claudewheel
         appending a skip flag to its own argv.
         """
@@ -204,9 +204,9 @@ class InjectLaunchStepsOverTheReservedQuartetTests(SandboxHomeTestCase):
     """_inject_launch must not swallow a framework-reserved flag.
 
     The quartet may appear before the command token, so the injection walks
-    past it -- otherwise `c --dry-run stats` would become
-    `c launch --dry-run stats` and preview the TUI instead of the stats
-    cleanup. Membership matters: the skip flag is --approve-consequential now,
+    past it -- otherwise `claudewheel --dry-run stats` would become
+    `claudewheel launch --dry-run stats` and preview the TUI instead of the
+    stats cleanup. Membership matters: the skip flag is --approve-consequential now,
     and --yes is not reserved by anything.
     """
 

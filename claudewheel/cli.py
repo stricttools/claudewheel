@@ -2306,8 +2306,8 @@ _SUBCOMMANDS = frozenset(
         "probe",
         "profile",
         # Deprecated top-level names kept here so main() doesn't rewrite
-        # e.g. "c new-profile" to "c launch new-profile" before the
-        # deprecation handler can fire.
+        # e.g. "claudewheel new-profile" to "claudewheel launch new-profile"
+        # before the deprecation handler can fire.
         "new-profile",
         "delete-profile",
         "show-profile",
@@ -2322,8 +2322,9 @@ _APP_LEVEL_FLAGS = frozenset({"--help", "-h", "--version", "-v", "--dump-schema"
 # strictcli owns these four names and strips them from argv before any command
 # parsing (the effects contract, §7). They may appear anywhere, including in
 # front of the command token, so the launch injection has to step over them --
-# otherwise `c --dry-run stats` would be rewritten to `c launch --dry-run stats`
-# and preview the TUI instead of the stats cleanup.
+# otherwise `claudewheel --dry-run stats` would be rewritten to
+# `claudewheel launch --dry-run stats` and preview the TUI instead of the stats
+# cleanup.
 _RESERVED_QUARTET = frozenset(
     {"--dry-run", "--approve-consequential", "--quiet", "--verbose"}
 )
@@ -2436,7 +2437,7 @@ def _bind(handler: Callable[..., int], *pre: Any) -> Callable[..., int]:
 def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
     """Build the strictcli App with all subcommands registered."""
     app = App(
-        name="c",
+        name="claudewheel",
         version=__version__,
         help="A TUI Claude Code Launcher that lets you have more than one profile, manage sessions lifecycle, pick the exact CC version, model to use (even older unlisted ones), pick which GitHub account to use, etc.",
     )
@@ -2598,10 +2599,10 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
     # the plan fields of a profile's token entry -- but an update command's
     # properties must be FLAGS declaring `optional`, where absence means
     # untouched. This command's plan is a required POSITIONAL, and the whole of
-    # what it does is write it: converting it would respell `c profile set-plan
-    # work pro` as `--plan pro`, and would turn a mandatory value into an
-    # optional one that the framework's at-least-one-property rule then refuses
-    # at parse time. The declaration would publish a write set nothing here
+    # what it does is write it: converting it would respell `claudewheel
+    # profile set-plan work pro` as `--plan pro`, and would turn a mandatory
+    # value into an optional one that the framework's at-least-one-property
+    # rule then refuses at parse time. The declaration would publish a write set nothing here
     # reads, at the cost of the argv and of a value that cannot be omitted.
     profile_grp.command(
         "set-plan",

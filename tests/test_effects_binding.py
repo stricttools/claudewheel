@@ -125,7 +125,7 @@ EFFECTS = {
 # safegit reached the opposite conclusion on `doctor --uninstall` and kept a
 # flag-granular seam inside the handler instead, so the harmless invocation
 # stays quiet. That precedent does not transfer: `safegit doctor` on its own
-# is a diagnosis, whereas there is no harmless `c profile delete`.
+# is a diagnosis, whereas there is no harmless `claudewheel profile delete`.
 # --force-delete-data only widens the blast radius from "credentials and
 # settings" to "credentials, settings and conversation history" -- both sides
 # of the flag destroy something unrecoverable, so the command is the right
