@@ -124,7 +124,9 @@ class MoveSessionDryRunTests(unittest.TestCase):
             json.dumps({"type": "user", "cwd": str(self.alpha)}) + "\n"
         )
         for patcher in (
-            mock.patch.object(Path, "home", return_value=self.layout.home),
+            mock.patch.object(
+                Path, "home", autospec=True, return_value=self.layout.home
+            ),
             mock.patch.dict(
                 "os.environ",
                 {

@@ -661,7 +661,9 @@ class InterruptedMoveTests(unittest.TestCase):
 class CommandTests(MoveCase):
     def setUp(self) -> None:
         super().setUp()
-        patcher = mock.patch.object(Path, "home", return_value=self.layout.home)
+        patcher = mock.patch.object(
+            Path, "home", autospec=True, return_value=self.layout.home
+        )
         patcher.start()
         self.addCleanup(patcher.stop)
         env = mock.patch.dict(
