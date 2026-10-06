@@ -233,7 +233,8 @@
   "en/claudewheel-session_move.md": {
     "content": "cbb72635bf8bb4bced29577266cc3050333610bd8b32fb5132747d32f42dccc8",
     "description": "cd327c90b71f30812acf0d74965e2c7fe1046ec8b7f2536ab2fbb3b412c24025",
-    "seed_hash": "cd327c90b71f30812acf0d74965e2c7fe1046ec8b7f2536ab2fbb3b412c24025"
+    "seed_hash": "cd327c90b71f30812acf0d74965e2c7fe1046ec8b7f2536ab2fbb3b412c24025",
+    "source_docstring": "b3c07b3495331c8fe0a665dece7bb26da647bf83c4932336227af3898448865d"
   },
   "en/claudewheel-session_registry.md": {
     "content": "0486585a854d87b39e3a73f4deac0a57b70ed7d977aaf51efe9c4059cd228a3e",
@@ -248,7 +249,8 @@
   "en/claudewheel-session_stores.md": {
     "content": "522ef7c729a44f18110da0f8452f38a41528be1945235d7aa1a740a61bd63c59",
     "description": "4ed1b455710aeca84ff937c0ff6f6425d94d7ac1eacb24b7b26dd0b56a95d9f4",
-    "seed_hash": "4ed1b455710aeca84ff937c0ff6f6425d94d7ac1eacb24b7b26dd0b56a95d9f4"
+    "seed_hash": "4ed1b455710aeca84ff937c0ff6f6425d94d7ac1eacb24b7b26dd0b56a95d9f4",
+    "source_docstring": "4a6930927ad68781406e6d9d996fbc8a9493bf29508a517e7da3ee135d7f0858"
   },
   "en/claudewheel-sessions_overview.md": {
     "content": "80c5f61cf0fc2702ecea5d34e9d4654dc8cb69c71bf727034eb1bc90923c47ac",
@@ -387,6 +389,7 @@
   "en/cli-move-session.md": {
     "content": "360e33e95f20a075d835c298c188d5a7f9f4d6c709611852bbff6dc733835b0a",
     "description": "b5fd2789fea98d66f5f544820521726114fa7edd8b1e51dfbd0b8fd272966b18",
+    "schema_hash": "d5532834b3f7d212cd47007b6d030b5e59d6925997f5e4463f86a11203db8144",
     "seed_hash": "b5fd2789fea98d66f5f544820521726114fa7edd8b1e51dfbd0b8fd272966b18"
   },
   "en/cli-mv.md": {
