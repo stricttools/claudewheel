@@ -2,17 +2,16 @@
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from . import effects
+from .lifecycle import SESSION_UUID_RE
 
 if TYPE_CHECKING:
     from .workspace import Workspace
 
-UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 # Dirs whose direct children are keyed by UUID
 SIMPLE_DIRS = ("session-env", "file-history", "tasks")
 
@@ -34,7 +33,7 @@ def _log(msg: str) -> None:
 
 
 def _is_uuid(name: str) -> bool:
-    return UUID_RE.match(name) is not None
+    return SESSION_UUID_RE.match(name) is not None
 
 
 def _resolve_symlink_target(p: Path) -> Path | None:

@@ -11,7 +11,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from claudewheel import guardrail, probe
+from claudewheel import guardrail, lifecycle, probe
 
 from . import effects
 
@@ -51,7 +51,7 @@ command -v jq >/dev/null 2>&1 || fail 'jq not found'
 input=$(cat 2>/dev/null || true)
 
 session=$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null)
-[[ "$session" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]] ||
+[[ "$session" =~ @SESSION_UUID_RE@ ]] ||
     fail "payload carries no Claude Code session uuid: '$session'"
 
 # Where the store is: claudewheel says so outright when it launched the session;
@@ -242,7 +242,7 @@ command -v jq >/dev/null 2>&1 || fail 'jq not found'
 input=$(cat 2>/dev/null || true)
 
 session=$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null)
-[[ "$session" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]] ||
+[[ "$session" =~ @SESSION_UUID_RE@ ]] ||
     fail "payload carries no Claude Code session uuid: '$session'"
 
 # Where the store is: claudewheel says so outright when it launched the session;
@@ -1038,7 +1038,7 @@ command -v flock >/dev/null 2>&1 || fail 'flock not found'
 
 input=$(cat 2>/dev/null || true)
 session=$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null)
-[[ "$session" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]] ||
+[[ "$session" =~ @SESSION_UUID_RE@ ]] ||
     fail "payload carries no Claude Code session uuid: '$session'"
 
 client="${CLAUDE_PID:-}"
@@ -1156,7 +1156,7 @@ input=$(cat 2>/dev/null || true)
 fields=$(printf '%s' "$input" | jq -r '[.hook_event_name // "", .session_id // "", .agent_id // "", .tool_name // "", .tool_use_id // ""] | map(tostring) | join("\u001f")' 2>/dev/null) ||
     fail 'payload is not JSON'
 IFS=$'\x1f' read -r event session agent tool call <<<"$fields"
-[[ "$session" =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]] ||
+[[ "$session" =~ @SESSION_UUID_RE@ ]] ||
     fail "payload carries no Claude Code session uuid: '$session'"
 [[ -z "$agent" || "$agent" =~ ^[0-9a-zA-Z_-]+$ ]] || fail "unexpected agent_id: '$agent'"
 
@@ -1379,6 +1379,11 @@ EXIT_2_HOOKS: dict[str, str] = {
 }
 
 
+def _with_session_uuid_re(script: str) -> str:
+    """*script* with its session-uuid test spelled as lifecycle's one pattern."""
+    return script.replace("@SESSION_UUID_RE@", lifecycle.SESSION_UUID_RE.pattern)
+
+
 HOOK_SCRIPTS: dict[str, str] = {
     "hook-timestamp": """\
 #!/usr/bin/env bash
@@ -1412,16 +1417,17 @@ reason="Worktree isolation is blocked by policy."
 jq -cn --arg reason "$reason" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: $reason}}'
 exit 0
 """,
-    "hook-session-start": _SESSION_START_SCRIPT,
-    "hook-session-end": _SESSION_END_SCRIPT,
+    "hook-session-start": _with_session_uuid_re(_SESSION_START_SCRIPT),
+    "hook-session-end": _with_session_uuid_re(_SESSION_END_SCRIPT),
     # Generated from the canonical guardrail model. See claudewheel/guardrail.py.
     "hook-block-unsafe-commands": guardrail.generate_blocker_script(),
     "hook-advise-commands": guardrail.generate_advise_script(),
     # The kill message's fix is the one text every OOM report shares.
-    "hook-wait-for-probe-reports": _WAIT_FOR_PROBE_REPORTS_SCRIPT,
-    "hook-deliver-probe-reports": _DELIVER_PROBE_REPORTS_SCRIPT.replace(
-        "@OVERLAP_SENTENCE@", probe.OVERLAP_SENTENCE.replace("'", "'\\''")
-    )
+    "hook-wait-for-probe-reports": _with_session_uuid_re(
+        _WAIT_FOR_PROBE_REPORTS_SCRIPT
+    ),
+    "hook-deliver-probe-reports": _with_session_uuid_re(_DELIVER_PROBE_REPORTS_SCRIPT)
+    .replace("@OVERLAP_SENTENCE@", probe.OVERLAP_SENTENCE.replace("'", "'\\''"))
     .replace("@HOOK_WAIT_SECONDS@", str(probe.HOOK_WAIT_SECONDS))
     .replace("@BIND_RE@", probe.BIND_LINE_RE.pattern),
     "heavy": _HEAVY_SCRIPT.replace(

@@ -9,11 +9,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from . import effects
+from .lifecycle import SESSION_UUID_RE
 from .effects import write_text_atomic
 from .session import store_dir_path
 from .shared_store import SharedStore
 
-UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 
 # Directories whose children are keyed by session UUID.
 SIMPLE_DIRS = ("todos", "session-env", "file-history", "tasks")
@@ -56,7 +56,7 @@ def _skip_dangling(path: Path) -> bool:
 
 
 def _is_uuid(name: str) -> bool:
-    return UUID_RE.match(name) is not None
+    return SESSION_UUID_RE.match(name) is not None
 
 
 def _normalize_cwd(cwd: str) -> str:
