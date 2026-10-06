@@ -5,3 +5,9 @@ id = "rlsbl:type-check"
 current = "error"
 ideal = "error"
 reason = "claudewheel is type-annotated and mypy-clean; releases keep it so"
+
+[[entry]]
+id = "rlsbl:lint"
+current = "error"
+ideal = "error"
+reason = "claudewheel is ruff-clean; releases keep it so"
