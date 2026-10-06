@@ -1,6 +1,6 @@
 +++
 title = "claudewheel.strictspec_gen.probe_event_validator"
-description = "The generated validator for one probe log line: the format_version marker, the created, subscribed, bound, unsubscribed, and ended arms, every field type, and the rejection of unknown keys."
+description = "The generated validator for one probe log line: the format_version marker, the created, subscribed, bound, unsubscribed, and ended line shapes, every field type, and the rejection of unknown keys."
 generated = true
 nav_group = "API Reference"
 nav_order = 57

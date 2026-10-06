@@ -1,6 +1,6 @@
 +++
 title = "claudewheel.strictspec_gen.probe_session_event_validator"
-description = "The generated validator for one probe session line: the format_version marker, the Bash call started and ended and subagent launched and finished arms, every field type, and the rejection of unknown keys."
+description = "The generated validator for one probe session line: the format_version marker, the shapes of a Bash call starting or ending and of a subagent launched or finished, every field type, and the rejection of unknown keys."
 generated = true
 nav_group = "API Reference"
 nav_order = 59
