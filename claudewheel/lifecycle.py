@@ -10,12 +10,12 @@ remains -- an append-only JSONL file per session, under
 
     <lifecycle_dir>/<session-uuid>.jsonl   one line per event, append-only
 
-Four kinds of line, discriminated by ``kind``: ``started`` (a session began),
-``ended`` (it stopped, by exiting or by dying), ``named`` (it carried a display
-name) and ``mark`` (the user marked it, or cleared the mark).  Events are never
-edited or deleted -- a mark is removed by appending one whose ``state`` is
-``null``, and a session that starts again after exiting simply gets a second
-``started``.
+Lines are discriminated by ``kind``: ``started`` (a session began), ``ended``
+(it stopped, by exiting or by dying), ``named`` (it carried a display name),
+``mark`` (the user marked it, or cleared the mark), and ``moved`` (the user moved
+it to another directory's session store).  Events are never edited or deleted
+-- a mark is removed by appending one whose ``state`` is ``null``, and a session
+that starts again after exiting simply gets a second ``started``.
 
 The line shape is NOT this module's to define
 -------------------------------------------------
@@ -31,7 +31,9 @@ this module keeps is what strictspec cannot see:
   fixed-width RFC 3339 UTC (:func:`now_timestamp`);
 * the latest-wins reading of a file (:func:`summarize`), including the
   cross-event rules: an ``ended`` older than the newest ``started`` belongs to a
-  previous run, and a ``mark`` with a null ``state`` clears the one before it;
+  previous run, a ``moved`` older than the newest ``started`` no longer places
+  the session (the newer ``started`` does), and a ``mark`` with a null
+  ``state`` clears the one before it;
 * the state a reader derives from a lifecycle plus what it can observe about the
   process right now (:func:`derive_state`).
 
@@ -79,6 +81,7 @@ __all__ = [
     "Event",
     "LifecycleError",
     "MarkEvent",
+    "MovedEvent",
     "NamedEvent",
     "SessionLifecycle",
     "StartedEvent",
@@ -230,14 +233,31 @@ class MarkEvent:
     note: str | None
 
 
-Event = StartedEvent | EndedEvent | NamedEvent | MarkEvent
+@dataclass(frozen=True, kw_only=True)
+class MovedEvent:
+    """The user moved the session to another directory's session store."""
+
+    KIND: ClassVar[str] = "moved"
+
+    id: str = ""
+    at: str = ""
+    session: str
+    source: str
+    old_cwd: str | None
+    new_cwd: str
+    old_transcript: str
+    new_transcript: str
+
+
+Event = StartedEvent | EndedEvent | NamedEvent | MarkEvent | MovedEvent
 
 # append_event returns the same arm it was handed, so a caller that appended an
 # EndedEvent gets an EndedEvent back rather than the union.
 EventT = TypeVar("EventT", bound=Event)
 
 _ARMS: dict[str, type[Event]] = {
-    cls.KIND: cls for cls in (StartedEvent, EndedEvent, NamedEvent, MarkEvent)
+    cls.KIND: cls
+    for cls in (StartedEvent, EndedEvent, NamedEvent, MarkEvent, MovedEvent)
 }
 
 
@@ -487,7 +507,9 @@ class SessionLifecycle:
     than its newest ``started``, which belongs to the previous run and is
     dropped here -- otherwise a resumed session would read as dead.  ``mark``
     is likewise the mark in force: the newest ``mark`` line governs, and a null
-    ``state`` on it means the user cleared the mark.
+    ``state`` on it means the user cleared the mark.  ``moved`` is the newest
+    move when no ``started`` is newer than it; a newer ``started`` records
+    where the session runs now.
     """
 
     session: str
@@ -495,7 +517,22 @@ class SessionLifecycle:
     ended: EndedEvent | None
     name: NamedEvent | None
     mark: MarkEvent | None
+    moved: MovedEvent | None
     last_at: str
+
+    @property
+    def cwd(self) -> str | None:
+        """The session's directory: where it was moved, else where it started."""
+        if self.moved is not None:
+            return self.moved.new_cwd
+        return self.started.cwd if self.started is not None else None
+
+    @property
+    def transcript(self) -> str | None:
+        """The session's transcript path: where it was moved, else where it started."""
+        if self.moved is not None:
+            return self.moved.new_transcript
+        return self.started.transcript if self.started is not None else None
 
 
 def summarize(events: Sequence[Event], *, session: str) -> SessionLifecycle:
@@ -513,6 +550,8 @@ def summarize(events: Sequence[Event], *, session: str) -> SessionLifecycle:
     name_key = ("", -1)
     marked: MarkEvent | None = None
     mark_key = ("", -1)
+    moved: MovedEvent | None = None
+    moved_key = ("", -1)
     last_at = ""
 
     for index, event in enumerate(events):
@@ -526,11 +565,15 @@ def summarize(events: Sequence[Event], *, session: str) -> SessionLifecycle:
             name, name_key = event, key
         elif isinstance(event, MarkEvent) and key > mark_key:
             marked, mark_key = event, key
+        elif isinstance(event, MovedEvent) and key > moved_key:
+            moved, moved_key = event, key
 
     if ended is not None and started is not None and ended_key < started_key:
         ended = None
     if marked is not None and marked.state is None:
         marked = None
+    if moved is not None and started is not None and moved_key < started_key:
+        moved = None
 
     return SessionLifecycle(
         session=session,
@@ -538,6 +581,7 @@ def summarize(events: Sequence[Event], *, session: str) -> SessionLifecycle:
         ended=ended,
         name=name,
         mark=marked,
+        moved=moved,
         last_at=last_at,
     )
 

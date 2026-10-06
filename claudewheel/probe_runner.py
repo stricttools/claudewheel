@@ -332,7 +332,7 @@ def _session_state(
         and started.pid is not None
         and Path(f"/proc/{started.pid}").exists()
     )
-    return live, started.transcript
+    return live, life.transcript
 
 
 def _transcripts(transcript: str | None) -> list[Path]:

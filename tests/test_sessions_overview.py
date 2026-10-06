@@ -31,6 +31,7 @@ from claudewheel.lifecycle import (
     STATES,
     SWEEP_GRACE_MS,
     MarkEvent,
+    MovedEvent,
     NamedEvent,
     StartedEvent,
     now_timestamp,
@@ -182,6 +183,20 @@ class WorkspaceCase(unittest.TestCase):
                 source="user",
                 state=state,
                 note=None,
+            ),
+        )
+
+    def moved(self, session: str, *, at_ms: int = NOW_MS) -> MovedEvent:
+        return lifecycle.append_event(
+            self.lifecycle_dir,
+            MovedEvent(
+                at=now_timestamp(at_ms),
+                session=session,
+                source="user",
+                old_cwd="/home/m/Projects/claudewheel",
+                new_cwd="/home/m/Projects/elsewhere",
+                old_transcript="/home/m/.claude/projects/p/s.jsonl",
+                new_transcript="/home/m/.claude/projects/q/s.jsonl",
             ),
         )
 
@@ -340,6 +355,22 @@ class GatherTests(WorkspaceCase):
         self.assertEqual(row.transcript, "/home/m/.claude/projects/p/s.jsonl")
         self.assertEqual(row.pid, os.getpid())
         self.assertEqual(row.version, "2.1.226")
+
+    def test_a_moved_store_only_session_shows_its_new_place(self) -> None:
+        self.started(STORE_SESSION, at_ms=NOW_MS - 2000)
+        self.moved(STORE_SESSION, at_ms=NOW_MS - 1000)
+        rows, _swept, _named = self.gather()
+        self.assertEqual(rows[0].cwd, "/home/m/Projects/elsewhere")
+        self.assertEqual(rows[0].transcript, "/home/m/.claude/projects/q/s.jsonl")
+
+    def test_a_moved_session_with_a_dead_record_shows_its_new_place(self) -> None:
+        """The dead process's registry file still names the old directory."""
+        stale_record(self.sessions_dir("work"), extra={"sessionId": STALE_SESSION})
+        self.started(STALE_SESSION, at_ms=NOW_MS - 2000)
+        self.moved(STALE_SESSION, at_ms=NOW_MS - 1000)
+        rows, _swept, _named = self.gather()
+        self.assertEqual(rows[0].cwd, "/home/m/Projects/elsewhere")
+        self.assertEqual(rows[0].transcript, "/home/m/.claude/projects/q/s.jsonl")
 
     def test_a_record_with_no_name_anywhere_reads_as_unnamed(self) -> None:
         stale_record(

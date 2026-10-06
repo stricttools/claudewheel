@@ -5,7 +5,7 @@
 # WHAT THE STORE IS: an append-only log, one file per Claude Code session
 # (`~/.claudewheel/shared/lifecycle/<session-uuid>.jsonl`), recording what
 # happened to that session -- that it started, that it was named, that the user
-# marked it, that it ended. Claude Code's own per-session registry is written
+# marked it, that it was moved to another directory, that it ended. Claude Code's own per-session registry is written
 # only while a process lives and says nothing once it is gone; this store is
 # what remains afterwards, and it is the only place a dead session's fate is
 # recorded.
@@ -14,8 +14,8 @@
 # marker, the `kind` discriminator and its arm set, field types, enums, required
 # fields, and unknown-key rejection. claudewheel keeps what strictspec cannot
 # see: ordering events by `at`, latest-wins reading of a file, the cross-event
-# rule that an `ended` older than the newest `started` is a previous run's, and
-# the state a reader derives from all of it together.
+# rules that an `ended` or a `moved` older than the newest `started` belongs to
+# a previous run, and the state a reader derives from all of it together.
 #
 # EVERY FIELD IS PRESENT ON EVERY LINE IT BELONGS TO. A fact that is not known
 # is written as `null`, never omitted: absence would be a second spelling of
@@ -71,7 +71,7 @@ description = "The Claude Code session uuid. Also the name of the file this line
 type = "enum"
 required = true
 values = ["hook", "user", "sweep"]
-description = "Who wrote the line: a Claude Code hook script, a user keypress in claudewheel, or claudewheel's own observation pass."
+description = "Who wrote the line: a Claude Code hook script, a deliberate user action (a keypress in claudewheel's TUI or a claudewheel command the user ran), or claudewheel's own observation pass."
 
 [types.StartedEvent.fields.kind]
 type = "literal"
@@ -174,7 +174,7 @@ description = "The Claude Code session uuid. Also the name of the file this line
 type = "enum"
 required = true
 values = ["hook", "user", "sweep"]
-description = "Who wrote the line: a Claude Code hook script, a user keypress in claudewheel, or claudewheel's own observation pass."
+description = "Who wrote the line: a Claude Code hook script, a deliberate user action (a keypress in claudewheel's TUI or a claudewheel command the user ran), or claudewheel's own observation pass."
 
 [types.EndedEvent.fields.kind]
 type = "literal"
@@ -234,7 +234,7 @@ description = "The Claude Code session uuid. Also the name of the file this line
 type = "enum"
 required = true
 values = ["hook", "user", "sweep"]
-description = "Who wrote the line: a Claude Code hook script, a user keypress in claudewheel, or claudewheel's own observation pass."
+description = "Who wrote the line: a Claude Code hook script, a deliberate user action (a keypress in claudewheel's TUI or a claudewheel command the user ran), or claudewheel's own observation pass."
 
 [types.NamedEvent.fields.kind]
 type = "literal"
@@ -257,7 +257,7 @@ non_empty = true
 
 [types.MarkEvent]
 type = "record"
-description = "The user marked the session, or cleared a previous mark. The one kind a person authors directly."
+description = "The user marked the session, or cleared a previous mark."
 
 [types.MarkEvent.fields.format_version]
 type = "integer"
@@ -286,7 +286,7 @@ description = "The Claude Code session uuid. Also the name of the file this line
 type = "enum"
 required = true
 values = ["hook", "user", "sweep"]
-description = "Who wrote the line: a Claude Code hook script, a user keypress in claudewheel, or claudewheel's own observation pass."
+description = "Who wrote the line: a Claude Code hook script, a deliberate user action (a keypress in claudewheel's TUI or a claudewheel command the user ran), or claudewheel's own observation pass."
 
 [types.MarkEvent.fields.kind]
 type = "literal"
@@ -309,6 +309,70 @@ description = "The user's own note about the mark. Free text, never dispatched o
 type = "string"
 non_empty = true
 
+[types.MovedEvent]
+type = "record"
+description = "The user moved the session to another directory's session store (`claudewheel move-session`). Claude Code reads the session in its new directory from then on."
+
+[types.MovedEvent.fields.format_version]
+type = "integer"
+required = true
+description = "Per-line format_version marker. Every line claudewheel writes carries 1."
+
+[types.MovedEvent.fields.id]
+type = "string"
+required = true
+non_empty = true
+description = "Stable identifier for this event, unique within the file."
+
+[types.MovedEvent.fields.at]
+type = "datetime"
+required = true
+datetime_kind = "offset"
+description = "When the event happened (RFC 3339 UTC, millisecond precision)."
+
+[types.MovedEvent.fields.session]
+type = "string"
+required = true
+regex = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+description = "The Claude Code session uuid. Also the name of the file this line is in."
+
+[types.MovedEvent.fields.source]
+type = "enum"
+required = true
+values = ["hook", "user", "sweep"]
+description = "Who wrote the line: a Claude Code hook script, a deliberate user action (a keypress in claudewheel's TUI or a claudewheel command the user ran), or claudewheel's own observation pass."
+
+[types.MovedEvent.fields.kind]
+type = "literal"
+value = "moved"
+required = true
+
+[types.MovedEvent.fields.old_cwd]
+type = "nullable"
+required = true
+description = "The directory the session belonged to before the move, read as Claude Code reads it: the transcript's last `relocated` record, else the first `cwd` it recorded. Null when the transcript recorded neither."
+[types.MovedEvent.fields.old_cwd.inner]
+type = "string"
+non_empty = true
+
+[types.MovedEvent.fields.new_cwd]
+type = "string"
+required = true
+non_empty = true
+description = "The directory the session belongs to after the move."
+
+[types.MovedEvent.fields.old_transcript]
+type = "string"
+required = true
+non_empty = true
+description = "Path to the session's transcript JSONL before the move."
+
+[types.MovedEvent.fields.new_transcript]
+type = "string"
+required = true
+non_empty = true
+description = "Path to the session's transcript JSONL after the move."
+
 # ---------------------------------------------------------------------------
 # The document root: one line is exactly one event, selected by `kind`.
 # ---------------------------------------------------------------------------
@@ -329,3 +393,6 @@ type = "NamedEvent"
 
 [types.LifecycleEvent.arms.mark]
 type = "MarkEvent"
+
+[types.LifecycleEvent.arms.moved]
+type = "MovedEvent"

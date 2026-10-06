@@ -36,6 +36,7 @@ from claudewheel.lifecycle import (
     Event,
     LifecycleError,
     MarkEvent,
+    MovedEvent,
     NamedEvent,
     SessionLifecycle,
     StartedEvent,
@@ -126,6 +127,21 @@ def mark(**overrides: object) -> MarkEvent:
     }
     fields.update(overrides)
     return MarkEvent(**fields)  # type: ignore[arg-type]
+
+
+def moved(**overrides: object) -> MovedEvent:
+    fields: dict[str, object] = {
+        "id": "e-moved",
+        "at": _at(2000),
+        "session": SESSION,
+        "source": "user",
+        "old_cwd": "/home/m/Projects/claudewheel",
+        "new_cwd": "/home/m/Projects/elsewhere",
+        "old_transcript": f"/home/m/.claudewheel/shared/projects/-home-m-Projects-claudewheel/{SESSION}.jsonl",
+        "new_transcript": f"/home/m/.claudewheel/shared/projects/-home-m-Projects-elsewhere/{SESSION}.jsonl",
+    }
+    fields.update(overrides)
+    return MovedEvent(**fields)  # type: ignore[arg-type]
 
 
 class TempDirCase(unittest.TestCase):
@@ -232,7 +248,14 @@ class RoundTripTests(unittest.TestCase):
     """Every kind survives event_to_json -> parse_event unchanged."""
 
     def test_each_kind(self) -> None:
-        for event in (started(), ended(), named(), mark()):
+        for event in (
+            started(),
+            ended(),
+            named(),
+            mark(),
+            moved(),
+            moved(old_cwd=None),
+        ):
             with self.subTest(kind=type(event).__name__):
                 line = event_to_json(event)
                 self.assertEqual(
@@ -261,6 +284,25 @@ class RoundTripTests(unittest.TestCase):
                 "detail",
             ],
         )
+
+    def test_moved_key_order_is_schema_order(self) -> None:
+        data = json.loads(event_to_json(moved()))
+        self.assertEqual(
+            list(data),
+            [
+                "format_version",
+                "id",
+                "at",
+                "session",
+                "source",
+                "kind",
+                "old_cwd",
+                "new_cwd",
+                "old_transcript",
+                "new_transcript",
+            ],
+        )
+        self.assertEqual(data["kind"], "moved")
 
     def test_format_version_and_kind(self) -> None:
         data = json.loads(event_to_json(named()))
@@ -531,9 +573,37 @@ class SummarizeTests(unittest.TestCase):
                 ended=None,
                 name=None,
                 mark=None,
+                moved=None,
                 last_at="",
             ),
         )
+        self.assertIsNone(summary.cwd)
+        self.assertIsNone(summary.transcript)
+
+    def test_a_move_after_the_start_is_where_the_session_is(self) -> None:
+        move = moved()
+        summary = summarize([started(), move], session=SESSION)
+        self.assertEqual(summary.moved, move)
+        self.assertEqual(summary.cwd, move.new_cwd)
+        self.assertEqual(summary.transcript, move.new_transcript)
+
+    def test_the_latest_of_several_moves_wins(self) -> None:
+        first = moved(id="a", at=_at(2000), new_cwd="/a")
+        second = moved(id="b", at=_at(3000), new_cwd="/b")
+        summary = summarize([second, started(), first], session=SESSION)
+        self.assertEqual(summary.cwd, "/b")
+
+    def test_a_start_after_the_move_is_where_the_session_is(self) -> None:
+        # Resumed from its new directory: the newer `started` records it.
+        rerun = started(id="again", at=_at(5000), cwd="/home/m/Projects/elsewhere/x")
+        summary = summarize([started(), moved(), rerun], session=SESSION)
+        self.assertIsNone(summary.moved)
+        self.assertEqual(summary.cwd, "/home/m/Projects/elsewhere/x")
+        self.assertEqual(summary.transcript, rerun.transcript)
+
+    def test_a_move_with_no_start_recorded_still_places_the_session(self) -> None:
+        summary = summarize([moved()], session=SESSION)
+        self.assertEqual(summary.cwd, "/home/m/Projects/elsewhere")
 
     def test_latest_started_wins(self) -> None:
         # The newest `at` wins whatever order the lines came in.

@@ -241,6 +241,9 @@ def _row_for_record(
     """
     started = life.started if life is not None else None
     named = life.name if life is not None else None
+    # A dead process's registry file names the directory it ran in; a move
+    # recorded since then is where the session is now.
+    moved_to = life.moved.new_cwd if life is not None and life.moved else None
     state = lifecycle.derive_state(
         life,
         live=record.live,
@@ -258,7 +261,9 @@ def _row_for_record(
         name_source=named.name_source if named is not None else None,
         state=state,
         kind=_kind_label(record.kind),
-        cwd=record.cwd or (started.cwd if started is not None else None),
+        cwd=(None if record.live else moved_to)
+        or record.cwd
+        or (life.cwd if life is not None else None),
         profile=profile,
         version=record.version
         or (started.claude_version if started is not None else None),
@@ -268,7 +273,7 @@ def _row_for_record(
         pid=record.pid,
         current=is_current(record, identity),
         config_dir=str(config_dir),
-        transcript=started.transcript if started is not None else None,
+        transcript=life.transcript if life is not None else None,
         record=record,
         lifecycle=life,
         undelivered=undelivered,
@@ -306,7 +311,7 @@ def _row_for_lifecycle(
             now_ms=now_ms,
         ),
         kind=sessions_table.KIND_UNKNOWN,
-        cwd=started.cwd if started is not None else None,
+        cwd=life.cwd,
         profile=profile,
         version=started.claude_version if started is not None else None,
         model=started.model if started is not None else None,
@@ -317,7 +322,7 @@ def _row_for_lifecycle(
         pid=started.pid if started is not None else None,
         current=False,
         config_dir=config_dir,
-        transcript=started.transcript if started is not None else None,
+        transcript=life.transcript,
         record=None,
         lifecycle=life,
         undelivered=undelivered,
