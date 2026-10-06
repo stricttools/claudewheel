@@ -26,7 +26,11 @@ from claudewheel.guardrail import DISALLOWED_TOOL_ENTRIES
 # isolation floor chdirs each test into its own temp directory).
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 _DIRECTIVE_PATH = (
-    _REPO_ROOT / "stricttools" / "docs" / "_directives" / "disallowed_tools_table.py"
+    _REPO_ROOT
+    / ".strictmetadata"
+    / "docs"
+    / "_directives"
+    / "disallowed_tools_table.py"
 )
 
 # selfdoc renders a failed custom directive as a visible blockquote sentinel
