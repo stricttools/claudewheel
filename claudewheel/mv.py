@@ -173,6 +173,7 @@ _PATH_FIELDS = frozenset(
         "persistedOutputPath",
         "planFilePath",
         "realParentDir",
+        "relocatedCwd",
         "workingDirectory",
     }
 )

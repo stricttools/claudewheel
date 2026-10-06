@@ -224,6 +224,15 @@ class RewriteJsonlFileTests(unittest.TestCase):
             },
         )
 
+    def test_relocated_cwd_is_a_path_field(self) -> None:
+        """Claude Code's relocated record names one directory: a sibling stays."""
+        moved = self._rewrite_one({"type": "relocated", "relocatedCwd": "/x/foo"})
+        self.assertEqual(moved, {"type": "relocated", "relocatedCwd": "/y/moved"})
+        sibling = self._rewrite_one(
+            {"type": "relocated", "relocatedCwd": "/x/foo.bak"}
+        )
+        self.assertEqual(sibling, {"type": "relocated", "relocatedCwd": "/x/foo.bak"})
+
     def test_tracked_file_backup_keys_are_path_fields(self) -> None:
         record = {
             "type": "file-history-snapshot",

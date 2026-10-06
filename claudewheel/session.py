@@ -18,6 +18,11 @@ MAX_CWD_SCAN_LINES = 10
 # matched by this marker (it is the exact ``custom-title`` type string).
 CUSTOM_TITLE_MARKER = "custom-title"
 
+# The ``type`` of the record Claude Code appends to a transcript it moved to
+# another directory's store: ``{"type":"relocated","sessionId":...,
+# "relocatedCwd":<new directory>}``.
+RELOCATED_RECORD_TYPE = "relocated"
+
 
 @dataclass
 class SessionInfo:
@@ -50,14 +55,19 @@ class OrphanedProject:
 
 
 def recorded_store_cwds(store_dir: Path) -> set[str]:
-    """Every ``cwd`` a store dir's own sessions recorded that encodes to its name.
+    """Every directory a store dir's own sessions recorded that encodes to its name.
 
     A store dir is named by encoding the path its sessions were started in;
     its transcripts record that path as the top-level ``cwd`` of their lines.
-    Reads every top-level ``*.jsonl`` in *store_dir*, whole, and keeps only
-    the ``cwd`` values whose encoding equals the dir's name: a ``cwd`` that
-    encodes to something else is a directory change during the session, not
-    the path the dir was created for.  Nested transcripts
+    A session Claude Code's ``/cd`` moved here keeps its old ``cwd`` values
+    and ends with a ``relocated`` record naming its new directory
+    (``relocatedCwd``), which Claude Code then reads as the session's
+    directory; so does this function: a transcript holding a ``relocated``
+    record contributes the ``relocatedCwd`` of its last one, and none of its
+    ``cwd`` values.  Reads every top-level ``*.jsonl`` in *store_dir*, whole,
+    and keeps only the directories whose encoding equals the dir's name: a
+    ``cwd`` that encodes to something else is a directory change during the
+    session, not the path the dir was created for.  Nested transcripts
     (``<session>/subagents/*.jsonl``) are never read: they record the cwds of
     other projects.
 
@@ -74,8 +84,10 @@ def recorded_store_cwds(store_dir: Path) -> set[str]:
             text = jsonl_path.read_text(encoding="utf-8", errors="surrogateescape")
         except OSError as e:
             raise OSError(f"cannot read {jsonl_path}: {e}") from e
+        cwds: set[str] = set()
+        relocated: str | None = None
         for line in text.splitlines():
-            if '"cwd"' not in line:
+            if '"cwd"' not in line and '"relocatedCwd"' not in line:
                 continue
             try:
                 obj = json.loads(line)
@@ -83,9 +95,16 @@ def recorded_store_cwds(store_dir: Path) -> set[str]:
                 continue
             if not isinstance(obj, dict):
                 continue
+            if obj.get("type") == RELOCATED_RECORD_TYPE:
+                moved_to = obj.get("relocatedCwd")
+                if isinstance(moved_to, str):
+                    relocated = moved_to
+                continue
             cwd = obj.get("cwd")
-            if isinstance(cwd, str) and SharedStore.encode_path(cwd) == store_dir.name:
-                found.add(cwd)
+            if isinstance(cwd, str):
+                cwds.add(cwd)
+        recorded = {relocated} if relocated is not None else cwds
+        found.update(d for d in recorded if SharedStore.encode_path(d) == store_dir.name)
     return found
 
 

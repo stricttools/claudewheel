@@ -174,6 +174,29 @@ class RecordedStoreCwdsTests(unittest.TestCase):
         self.assertIn("/home/m/Projects/demo", str(ctx.exception))
         self.assertIn("/home/m/Projects.demo", str(ctx.exception))
 
+    def _relocated(self, cwd: str) -> str:
+        # Claude Code's /cd appends this record, in this field order.
+        return json.dumps(
+            {"type": "relocated", "sessionId": "s", "relocatedCwd": cwd},
+            separators=(",", ":"),
+        )
+
+    def test_relocated_record_is_the_session_directory(self) -> None:
+        """A session /cd moved here recorded its old cwd and one relocated record."""
+        p = self._write("a.jsonl", ["/home/m/old", "/home/m/old"])
+        with p.open("a") as fh:
+            fh.write(self._relocated("/home/m/Projects/demo") + "\n")
+        self.assertEqual(recorded_store_cwds(self.store_dir), {"/home/m/Projects/demo"})
+        self.assertEqual(store_dir_path(self.store_dir), "/home/m/Projects/demo")
+
+    def test_last_relocated_record_wins_over_cwd_fields(self) -> None:
+        """A transcript's last relocated record replaces every cwd it recorded."""
+        p = self._write("a.jsonl", ["/home/m/Projects/demo"])
+        with p.open("a") as fh:
+            fh.write(self._relocated("/home/m/elsewhere") + "\n")
+            fh.write(self._relocated("/home/m/Projects.demo") + "\n")
+        self.assertEqual(recorded_store_cwds(self.store_dir), {"/home/m/Projects.demo"})
+
     def test_unreadable_file_raises_naming_it(self) -> None:
         p = self._write("a.jsonl", ["/home/m/Projects/demo"])
         p.chmod(0)
