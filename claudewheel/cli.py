@@ -2326,7 +2326,8 @@ def _routing_names(app: App) -> frozenset[str]:
 
 # Flags that must be handled at the app level rather than routed to the
 # "launch" subcommand. --help/--version show the app-wide help/version, and
-# --dump-schema is a strictcli reserved flag that dumps the CLI schema.
+# --dump-schema is a strictcli reserved flag that strictcli refuses, naming
+# `claudewheel help --json` as the command that prints the help document.
 _APP_LEVEL_FLAGS = frozenset({"--help", "-h", "--version", "-v", "--dump-schema"})
 
 # strictcli owns these four names and strips them from argv before any command
@@ -2450,8 +2451,6 @@ def _build_app(ws: "Workspace", locator: "BinaryLocator") -> App:
     app = App(
         name="claudewheel",
         version=__version__,
-        # Relative to the cwd at construction; selfdoc reads the schema here.
-        schema_path=".strictmetadata/.cli-schema/schema.json",
         help="A TUI Claude Code Launcher that lets you have more than one profile, manage sessions lifecycle, pick the exact CC version, model to use (even older unlisted ones), pick which GitHub account to use, etc.",
     )
 
@@ -3129,7 +3128,7 @@ def main() -> None:
     # binary locator, which is separate from the workspace by design) into every
     # handler via `_bind`. `Workspace.default()` is pure value construction (the
     # sole reader of the config-dir override env var); no filesystem or terminal
-    # I/O happens here, so `--dump-schema` stays hermetic.
+    # I/O happens here, so `help --json` stays hermetic.
     from .workspace import Workspace
     from .binaries import BinaryLocator
 

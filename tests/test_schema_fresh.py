@@ -1,17 +1,15 @@
 """Schema-freshness guard: the committed .strictmetadata/.cli-schema/schema.json
-must match the
-live CLI structure, modulo the non-structural version/project_id fields.
+must match the live CLI structure, modulo the non-structural version field.
 
 The strictcli schema is checked into the repo and consumed by selfdoc. If the
 CLI surface (commands, groups, flags, args, help text) drifts from the committed
-schema, this test fails so the schema gets re-dumped.
+schema, this test fails so the schema gets rewritten.
 
-The fresh schema is obtained in-process via ``App.dump_schema_dict()`` (strictcli
->= 0.27.0): no subprocess, no throwaway temp cwd, no filesystem access. The
-returned dict is byte-identical to the written schema file with
-the ``project_id`` field removed, so the comparison normalizes out both
-``project_id`` (absent from the in-process dump, present in the committed file)
-and ``version`` (changes every release, not structural).
+The committed file is the stdout of ``claudewheel help --json``, which rlsbl's
+release step writes there. The fresh document is the same stdout, obtained
+in-process through ``App.test(["help", "--json"])``: no subprocess and no
+filesystem access. The comparison normalizes out ``version``, which the release
+stamps with the version it ships.
 """
 
 from __future__ import annotations
@@ -31,24 +29,23 @@ _COMMITTED_SCHEMA = _REPO_ROOT / _SCHEMA_RELPATH
 
 
 def _normalize(schema: dict[str, object]) -> dict[str, object]:
-    """Drop the non-structural fields (version + project_id) for comparison.
-
-    ``version`` changes every release; ``project_id`` is added only by the
-    ``--dump-schema`` writer path (from pyproject.toml) and is absent from the
-    in-process ``dump_schema_dict()`` result.
-    """
+    """Drop the non-structural ``version`` field for comparison: the release
+    stamps the committed document with the version it ships."""
     stripped = dict(schema)
     stripped.pop("version", None)
-    stripped.pop("project_id", None)
     return stripped
 
 
 def _fresh_schema() -> dict[str, object]:
-    """Return the live CLI schema in-process. ``Workspace.default()`` and
-    ``BinaryLocator.default()`` are pure value construction (no filesystem or
-    terminal I/O), matching how ``main()`` builds the app."""
+    """Return the live help document, as ``claudewheel help --json`` prints it
+    on stdout. ``Workspace.default()`` and ``BinaryLocator.default()`` are pure
+    value construction (no filesystem or terminal I/O), matching how ``main()``
+    builds the app."""
     app = _build_app(Workspace.default(), BinaryLocator.default())
-    return app.dump_schema_dict()
+    result = app.test(["help", "--json"])
+    assert result.exit_code == 0, result.stderr
+    document: dict[str, object] = json.loads(result.stdout)
+    return document
 
 
 class SchemaFreshnessTests(unittest.TestCase):
@@ -57,8 +54,8 @@ class SchemaFreshnessTests(unittest.TestCase):
         self.assertEqual(
             _normalize(_fresh_schema()),
             _normalize(committed),
-            "committed .strictmetadata/.cli-schema/schema.json is stale -- re-run "
-            "`claudewheel --dump-schema` from the repo root and commit it",
+            "committed .strictmetadata/.cli-schema/schema.json is stale -- "
+            "write the stdout of `claudewheel help --json` to it and commit it",
         )
 
     def test_guard_detects_structural_drift(self) -> None:
@@ -88,20 +85,6 @@ class SchemaFreshnessTests(unittest.TestCase):
             _normalize(mutated),
             _normalize(committed),
         )
-
-
-def test_dump_schema_writes_where_selfdoc_reads(tmp_path, monkeypatch) -> None:
-    # `--dump-schema` writes under the construction-time cwd, at the path the
-    # selfdoc layout migration moved the committed schema to.
-    monkeypatch.chdir(tmp_path)
-    # The writer stamps project_id from the cwd's pyproject.toml.
-    (tmp_path / "pyproject.toml").write_text('[project]\nname = "claudewheel"\n')
-    app = _build_app(Workspace.default(), BinaryLocator.default())
-    result = app.test(["--dump-schema"])
-    assert result.exit_code == 0, result.stderr
-    written = json.loads((tmp_path / _SCHEMA_RELPATH).read_text())
-    assert _normalize(written) == _normalize(_fresh_schema())
-    assert not (tmp_path / ".strictcli").exists()
 
 
 if __name__ == "__main__":

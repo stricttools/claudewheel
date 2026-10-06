@@ -54,7 +54,7 @@ class RenderingsNameTheCommandTests(unittest.TestCase):
         lines = out.strip().splitlines()
         self.assertTrue(lines[0].startswith("claudewheel v"), lines[0])
         self.assertEqual(
-            lines[-1], "Use 'claudewheel <command> --help' for more information."
+            lines[-1], "Use 'claudewheel help <command>' for more information."
         )
 
     def test_command_help_names_claudewheel(self) -> None:

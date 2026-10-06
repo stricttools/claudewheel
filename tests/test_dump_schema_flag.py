@@ -2,9 +2,10 @@
 
 main() injects the "launch" subcommand when the leading argv token is neither a
 known subcommand nor an app-level flag. --dump-schema is a strictcli reserved
-flag that must be handled at the app level -- if it were routed to "launch" the
-schema dump would never fire. These tests assert all four routing cases by
-inspecting how the injection logic rewrites argv.
+flag that must be handled at the app level -- strictcli refuses it there, naming
+`claudewheel help --json`, while routed to "launch" it would only be reported as
+an unknown launch flag. These tests assert all four routing cases by inspecting
+how the injection logic rewrites argv.
 """
 
 from __future__ import annotations

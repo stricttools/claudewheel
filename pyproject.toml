@@ -34,7 +34,7 @@ classifiers = [
     "Topic :: Software Development :: User Interfaces",
 ]
 dependencies = [
-    "strictcli>=0.41.1",
+    "strictcli>=0.45.0",
     "strictspec>=0.4.0",
 ]
 
