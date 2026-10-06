@@ -102,7 +102,7 @@ class _StubCfg(AppConfigStore):
                 browser = on_disk.get("auth_browser")
                 if browser is not None:
                     self.state["auth_browser"] = browser
-        except (OSError, json.JSONDecodeError, ValueError):
+        except OSError, json.JSONDecodeError, ValueError:
             pass
         self._state_file.write_text(json.dumps(self.state, indent=2) + "\n")
 

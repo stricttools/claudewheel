@@ -289,7 +289,7 @@ class Saferm:
         raw_size = record.get("size", 0) or 0
         try:
             size = int(raw_size)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             raise _unreadable(
                 path,
                 f"named a size that is not a number ({raw_size!r})",
@@ -426,7 +426,7 @@ def probe(binary: Path) -> frozenset[str] | None:
             timeout=PROBE_TIMEOUT,
             read=True,
         )
-    except (OSError, subprocess.SubprocessError):
+    except OSError, subprocess.SubprocessError:
         return None
     if result.returncode != 0:
         return None
@@ -598,7 +598,7 @@ def _payload(stdout: Any) -> dict[str, Any] | None:
         return None
     try:
         envelope = json.loads(stdout)
-    except (json.JSONDecodeError, ValueError):
+    except json.JSONDecodeError, ValueError:
         return None
     if not isinstance(envelope, dict):
         return None

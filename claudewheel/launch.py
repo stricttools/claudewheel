@@ -32,7 +32,7 @@ def fetch_gh_token(account: str) -> str | None:
         if result.returncode == 0:
             out: str = result.stdout
             return out.strip()
-    except (subprocess.TimeoutExpired, FileNotFoundError):
+    except subprocess.TimeoutExpired, FileNotFoundError:
         pass
     return None
 

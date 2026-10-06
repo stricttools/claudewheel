@@ -151,7 +151,7 @@ def record_inode(shared: "SharedStore", directory: str) -> None:
     if inodes_file.exists():
         try:
             data = json.loads(inodes_file.read_text())
-        except (json.JSONDecodeError, OSError):
+        except json.JSONDecodeError, OSError:
             pass
 
     # If this path already has this inode, nothing to do

@@ -110,7 +110,7 @@ def _read_settings(
     """Summarize settings.json; tolerate a missing/corrupt file and keys."""
     try:
         settings = json.loads((config_dir / "settings.json").read_text())
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
+    except FileNotFoundError, json.JSONDecodeError, OSError:
         return False, {}, None, None, None
     perms = settings.get("permissions", {})
     counts = {cat: len(perms.get(cat, []) or []) for cat in ("allow", "deny", "ask")}
@@ -151,7 +151,7 @@ def detect_auth_shadow(ws: "Workspace", name: str) -> bool:
         return False
     try:
         creds = json.loads(creds_path.read_text())
-    except (json.JSONDecodeError, OSError):
+    except json.JSONDecodeError, OSError:
         return False
     return "claudeAiOauth" in creds
 

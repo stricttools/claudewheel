@@ -216,19 +216,19 @@ def entry_expiry(entry: dict[str, Any], today: date | None = None) -> TokenExpir
     if entry.get("expires_at"):
         try:
             expires = date.fromisoformat(entry["expires_at"])
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             return TokenExpiry(None, None, TOKEN_TTL_DAYS)
         created: date | None = None
         if entry.get("created"):
             try:
                 created = date.fromisoformat(entry["created"])
-            except (ValueError, TypeError):
+            except ValueError, TypeError:
                 created = None
         return TokenExpiry(created, expires, (expires - today).days)
     if entry.get("created"):
         try:
             created = date.fromisoformat(entry["created"])
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             return TokenExpiry(None, None, TOKEN_TTL_DAYS)
         expires = created + timedelta(days=TOKEN_TTL_DAYS)
         return TokenExpiry(created, expires, TOKEN_TTL_DAYS - (today - created).days)

@@ -205,7 +205,7 @@ def _load_shared_settings(ws: "Workspace") -> dict[str, Any]:
         try:
             data: dict[str, Any] = json.loads(ws.shared_settings_file.read_text())
             return data
-        except (json.JSONDecodeError, OSError):
+        except json.JSONDecodeError, OSError:
             pass
     return build_canonical_shared_settings(ws.scripts_dir)
 
@@ -229,7 +229,7 @@ def _set_onboarding_flag(config_dir: str) -> None:
     if path.exists():
         try:
             data = json.loads(path.read_text())
-        except (json.JSONDecodeError, OSError):
+        except json.JSONDecodeError, OSError:
             data = {}
     data["hasCompletedOnboarding"] = True
     write_json_atomic(path, data)
@@ -265,7 +265,7 @@ def create_profile(
         if source_settings.exists():
             try:
                 settings = json.loads(source_settings.read_text())
-            except (json.JSONDecodeError, OSError):
+            except json.JSONDecodeError, OSError:
                 pass
     else:
         # Use profileDefaults from shared-settings.json, otherwise minimal

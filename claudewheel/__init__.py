@@ -34,7 +34,7 @@ def _detect_version(
     if package_json.exists():
         try:
             return str(_json.loads(package_json.read_text())["version"])
-        except (OSError, KeyError, _json.JSONDecodeError):
+        except OSError, KeyError, _json.JSONDecodeError:
             pass
 
     try:

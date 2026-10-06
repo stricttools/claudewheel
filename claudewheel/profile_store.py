@@ -492,7 +492,7 @@ class ProfileStore:
         if path.exists():
             try:
                 data = json.loads(path.read_text())
-            except (json.JSONDecodeError, OSError):
+            except json.JSONDecodeError, OSError:
                 data = {}
         data["hasCompletedOnboarding"] = True
         write_json_atomic(path, data)
@@ -904,7 +904,7 @@ class ProfileStore:
                 continue
             try:
                 data = json.loads(pending.read_text())
-            except (json.JSONDecodeError, OSError):
+            except json.JSONDecodeError, OSError:
                 actions.append(
                     {
                         "action": "skipped",

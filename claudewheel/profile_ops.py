@@ -65,7 +65,7 @@ def fix_auth_shadow(ws: "Workspace", name: str) -> FixAuthResult:
         return FixAuthResult(ok=False, reason="no-shadow")
     try:
         creds = json.loads(creds_path.read_text())
-    except (json.JSONDecodeError, OSError):
+    except json.JSONDecodeError, OSError:
         return FixAuthResult(ok=False, reason="unreadable-creds")
 
     if "claudeAiOauth" not in creds:

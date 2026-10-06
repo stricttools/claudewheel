@@ -235,7 +235,7 @@ def check_hooks_wired(
             continue
         try:
             settings = json.loads(settings_file.read_text())
-        except (json.JSONDecodeError, OSError):
+        except json.JSONDecodeError, OSError:
             missing.append(f"{p.name}: unreadable settings.json")
             continue
 
@@ -270,7 +270,7 @@ def check_settings_defaults(
             continue
         try:
             s = json.loads(settings_file.read_text())
-        except (json.JSONDecodeError, OSError):
+        except json.JSONDecodeError, OSError:
             issues.append(f"{p.name}: unreadable settings.json")
             continue
 
@@ -373,7 +373,7 @@ def check_shared_settings_drift(
             continue
         try:
             settings = json.loads(settings_file.read_text())
-        except (json.JSONDecodeError, OSError):
+        except json.JSONDecodeError, OSError:
             all_diffs.append(f"{p.name}: unreadable settings.json")
             continue
 
@@ -462,7 +462,7 @@ def check_canonical_permissions_drift(
             continue
         try:
             settings = json.loads(settings_file.read_text())
-        except (json.JSONDecodeError, OSError):
+        except json.JSONDecodeError, OSError:
             all_diffs.append(f"{p.name}: unreadable settings.json")
             continue
         perms = settings.get("permissions", {})
@@ -678,7 +678,7 @@ def check_inode_renames(ws: "Workspace") -> HealthResult:
 
     try:
         data = json.loads(inodes_file.read_text())
-    except (json.JSONDecodeError, OSError):
+    except json.JSONDecodeError, OSError:
         return HealthResult(False, "inode-renames", "unreadable inodes.json")
 
     # Build reverse map: inode -> [paths]
@@ -836,7 +836,7 @@ def check_relocated_hook_paths(
     if shared_settings_file.exists():
         try:
             shared = json.loads(shared_settings_file.read_text())
-        except (json.JSONDecodeError, OSError):
+        except json.JSONDecodeError, OSError:
             shared = None
         if isinstance(shared, dict):
             for cmd in _stale_hook_command_paths(shared.get("hooks", {}), scripts_dir):
@@ -848,7 +848,7 @@ def check_relocated_hook_paths(
             continue
         try:
             settings = json.loads(settings_file.read_text())
-        except (json.JSONDecodeError, OSError):
+        except json.JSONDecodeError, OSError:
             continue
         for cmd in _stale_hook_command_paths(settings.get("hooks", {}), scripts_dir):
             issues.append(f"{p.name}: {cmd}")
@@ -902,7 +902,9 @@ def check_probe_runner(ws: "Workspace") -> HealthResult:
                 read=True,
             ).stdout.strip()
         except (OSError, TimeoutError) as exc:
-            return HealthResult(False, "probe-runner", f"systemctl {verb} failed: {exc}")
+            return HealthResult(
+                False, "probe-runner", f"systemctl {verb} failed: {exc}"
+            )
         states.append(answer or "unknown")
     enabled, active = states
     if enabled != "enabled":
@@ -913,7 +915,9 @@ def check_probe_runner(ws: "Workspace") -> HealthResult:
         return HealthResult(
             False, "probe-runner", f"{SERVICE_NAME} is {active}, not running -- {fix}"
         )
-    return HealthResult(True, "probe-runner", f"{SERVICE_NAME} installed, enabled, and running")
+    return HealthResult(
+        True, "probe-runner", f"{SERVICE_NAME} installed, enabled, and running"
+    )
 
 
 def run_health_check(ws: "Workspace") -> list[HealthResult]:

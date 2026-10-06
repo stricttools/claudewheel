@@ -530,7 +530,7 @@ def fetch_npm_versions(state: dict[str, Any], count: int = 15) -> list[str]:
                 "versions": all_versions,
             }
             return all_versions[-count:]
-    except (Exception, KeyboardInterrupt):
+    except Exception, KeyboardInterrupt:
         pass
 
     # On failure (or Ctrl-C), use cache even if stale
@@ -554,7 +554,7 @@ def _candidate_token_profiles(state: dict[str, Any], ws: "Workspace") -> list[st
     """
     try:
         discovered = [p.name for p in ws.profiles.enumerate() if p.has_token]
-    except (TokenStoreError, OSError):
+    except TokenStoreError, OSError:
         return []
     last = state.get("last_config", {}).get("profile")
     if isinstance(last, str) and last in discovered:
@@ -639,7 +639,7 @@ def fetch_available_models(
         for name in _candidate_token_profiles(state, ws):
             try:
                 token = ws.profiles.data_for(name).token()
-            except (TokenStoreError, OSError):
+            except TokenStoreError, OSError:
                 continue
             if not token:
                 continue
@@ -652,14 +652,14 @@ def fetch_available_models(
                     # another profile's token may still answer.
                     continue
                 break  # server error: this refresh is over
-            except (urllib.error.URLError, TimeoutError, OSError):
+            except urllib.error.URLError, TimeoutError, OSError:
                 break  # offline: no other token would fare better
             state[MODEL_LIST_CACHE_KEY] = {
                 "fetched_at": time.time(),
                 "models": models,
             }
             return models
-    except (Exception, KeyboardInterrupt):
+    except Exception, KeyboardInterrupt:
         pass
 
     return cached_models
@@ -861,7 +861,7 @@ def _discover_gh_accounts(
                 if acct not in seen_accts:
                     seen_accts.add(acct)
                     values.append(acct)
-    except (FileNotFoundError, subprocess.TimeoutExpired):
+    except FileNotFoundError, subprocess.TimeoutExpired:
         pass
     return DiscoveryResult(values=values)
 

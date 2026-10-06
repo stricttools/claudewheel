@@ -31,7 +31,7 @@ class OptionsFile:
             with open(self.path) as f:
                 data: dict[str, Any] = json.load(f)
                 return data
-        except (FileNotFoundError, json.JSONDecodeError):
+        except FileNotFoundError, json.JSONDecodeError:
             return copy.deepcopy(default)
 
     def add_pinned(
@@ -202,7 +202,7 @@ class StateFile:
             with open(self.path) as f:
                 data: dict[str, Any] = json.load(f)
                 return data
-        except (FileNotFoundError, json.JSONDecodeError):
+        except FileNotFoundError, json.JSONDecodeError:
             return copy.deepcopy(default)
 
     def save(
@@ -224,7 +224,7 @@ class StateFile:
                     disk_val = on_disk.get(key)
                     if disk_val is not None:
                         state[key] = disk_val
-        except (OSError, json.JSONDecodeError, ValueError):
+        except OSError, json.JSONDecodeError, ValueError:
             pass
         write_json_atomic(self.path, state)
 
@@ -234,7 +234,7 @@ class StateFile:
             return default
         try:
             data = json.loads(self.path.read_text())
-        except (json.JSONDecodeError, OSError):
+        except json.JSONDecodeError, OSError:
             return default
         if not isinstance(data, dict):
             return default
@@ -248,7 +248,7 @@ class StateFile:
                 loaded = json.loads(self.path.read_text())
                 if isinstance(loaded, dict):
                     data = loaded
-            except (json.JSONDecodeError, OSError):
+            except json.JSONDecodeError, OSError:
                 pass
         data[key] = value
         effects.mkdir(self.path.parent, parents=True, exist_ok=True)

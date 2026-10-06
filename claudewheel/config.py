@@ -503,7 +503,7 @@ class AppConfigStore:
         try:
             with open(path) as f:
                 return json.load(f)
-        except (FileNotFoundError, json.JSONDecodeError):
+        except FileNotFoundError, json.JSONDecodeError:
             return copy.deepcopy(default)
 
     def _migrate(self) -> None:

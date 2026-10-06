@@ -83,7 +83,7 @@ def validate_token(token: str, timeout: float = 5.0) -> str:
         if exc.code == 401:
             return INVALID
         return INDETERMINATE
-    except (urllib.error.URLError, TimeoutError, OSError):
+    except urllib.error.URLError, TimeoutError, OSError:
         # URLError covers DNS failures and connection errors; TimeoutError
         # covers socket timeouts raised directly.
         return UNREACHABLE

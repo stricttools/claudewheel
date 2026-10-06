@@ -57,13 +57,13 @@ def _capable() -> bool:
             text=True,
             timeout=30,
         )
-    except (OSError, subprocess.SubprocessError):
+    except OSError, subprocess.SubprocessError:
         return False
     if proc.returncode != 0:
         return False
     try:
         features = json.loads(proc.stdout)["payload"]["features"]
-    except (ValueError, KeyError, TypeError):
+    except ValueError, KeyError, TypeError:
         return False
     return archiver.REQUIRED_FEATURES <= set(features)
 

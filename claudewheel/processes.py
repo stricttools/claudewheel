@@ -93,7 +93,7 @@ def resident_memory(pids: Iterable[int]) -> dict[int, int]:
             timeout=PROBE_TIMEOUT_S,
             read=True,
         )
-    except (OSError, subprocess.SubprocessError):
+    except OSError, subprocess.SubprocessError:
         return {}
     if effects.unsettled(result):
         return {}
@@ -130,7 +130,7 @@ def stop_daemon(binary: Path, config_dir: Path, *, env: Mapping[str, str]) -> bo
             text=True,
             timeout=PROBE_TIMEOUT_S,
         )
-    except (OSError, subprocess.SubprocessError):
+    except OSError, subprocess.SubprocessError:
         return False
     if effects.unsettled(result):
         # A preview recorded the stop; nothing ran, so nothing was stopped.

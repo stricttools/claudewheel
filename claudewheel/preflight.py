@@ -154,7 +154,7 @@ def ensure_vanilla_guardrails(ws: "Workspace") -> bool:
     if settings_path.exists():
         try:
             settings = load_settings(settings_path)
-        except (json.JSONDecodeError, OSError):
+        except json.JSONDecodeError, OSError:
             settings = {}
     else:
         settings = {}
@@ -189,7 +189,7 @@ def remove_vanilla_guardrails(ws: "Workspace") -> bool:
         return False
     try:
         settings = load_settings(settings_path)
-    except (json.JSONDecodeError, OSError):
+    except json.JSONDecodeError, OSError:
         return False
     hooks = settings.get("hooks")
     if not isinstance(hooks, dict):
@@ -713,7 +713,7 @@ def _scratchpad_cleanup_run(ctx: PreflightContext) -> StepResult:
     if snooze:
         try:
             until = datetime.fromisoformat(snooze)
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             until = None
         if until is not None:
             # A naive stored value (no tzinfo) would raise TypeError when compared

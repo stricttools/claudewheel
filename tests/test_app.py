@@ -1394,7 +1394,7 @@ class ApplySlowDiscoverySaveStateTests(unittest.TestCase):
                         browser = on_disk.get("auth_browser")
                         if browser is not None:
                             self.state["auth_browser"] = browser
-                except (OSError, json.JSONDecodeError, ValueError):
+                except OSError, json.JSONDecodeError, ValueError:
                     pass
                 state_file.write_text(json.dumps(self.state, indent=2) + "\n")
 

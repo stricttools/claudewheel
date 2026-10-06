@@ -126,7 +126,7 @@ def _load_hooks_section(path: Path) -> Any:
         return None
     try:
         data = json.loads(text)
-    except (json.JSONDecodeError, ValueError):
+    except json.JSONDecodeError, ValueError:
         raise MalformedProjectHooksError(path.name) from None
     if not isinstance(data, dict):
         return None
