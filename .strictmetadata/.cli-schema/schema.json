@@ -425,7 +425,7 @@
               "flags": [
                 {
                   "name": "value",
-                  "help": "session to resume, by UUID or by title; an empty string opens Claude Code's own picker",
+                  "help": "session to resume, by its session id (a lowercase UUID) or by title; an empty string opens Claude Code's own picker",
                   "value_schema": {
                     "type": "string"
                   },
