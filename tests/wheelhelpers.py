@@ -1046,3 +1046,11 @@ def install_stub_systemctl(case: unittest.TestCase, base: Path) -> tuple[Path, P
     env.start()
     case.addCleanup(env.stop)
     return Path(values["STUB_SYSTEMCTL_LOG"]), Path(values["STUB_SYSTEMCTL_STATE"])
+
+
+def inject_launch(argv: list[str]) -> list[str]:
+    """``cli._inject_launch`` over the names the real app registers, as main() runs it."""
+    from claudewheel import cli
+
+    app = cli._build_app(Workspace.default(), BinaryLocator.default())
+    return cli._inject_launch(argv, cli._routing_names(app))

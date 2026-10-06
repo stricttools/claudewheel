@@ -24,6 +24,7 @@ from claudewheel.config import AppConfigStore
 from tests.wheelhelpers import (
     build_profile_dir,
     fake_saferm,
+    inject_launch,
     no_saferm,
     write_token_entry,
 )
@@ -2137,13 +2138,13 @@ class ShowProfileCommandTests(unittest.TestCase):
 
     def test_profile_in_subcommands(self) -> None:
         """'profile' group must be routed as a subcommand, not launch args."""
-        self.assertIn("profile", cli._SUBCOMMANDS)
+        self.assertEqual(inject_launch(["c", "profile"]), ["c", "profile"])
 
     def test_deprecated_names_in_subcommands(self) -> None:
-        """Deprecated top-level names must remain in _SUBCOMMANDS so main()
+        """Deprecated top-level names are routed as themselves so main()
         doesn't rewrite them to 'launch <name>' before the deprecation fires."""
         for name in ("new-profile", "delete-profile", "show-profile"):
-            self.assertIn(name, cli._SUBCOMMANDS)
+            self.assertEqual(inject_launch(["c", name]), ["c", name])
 
     def _report(self, **overrides: Any) -> "ProfileReport":
         from claudewheel.profile_info import ProfileReport

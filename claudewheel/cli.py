@@ -2292,35 +2292,21 @@ def _handle_launch(
 # ---------------------------------------------------------------------------
 # Subcommand names for routing
 # ---------------------------------------------------------------------------
-_SUBCOMMANDS = frozenset(
-    {
-        "health",
-        "config",
-        "versions",
-        "install",
-        "uninstall",
-        "reset-options",
-        "show",
-        "migrate",
-        "stats",
-        "mv",
-        "import",
-        "deploy-hooks",
-        "patch-profiles",
-        "reconcile-permissions",
-        "purge-plugins",
-        "launch",
-        "permission",
-        "probe",
-        "profile",
-        # Deprecated top-level names kept here so main() doesn't rewrite
-        # e.g. "claudewheel new-profile" to "claudewheel launch new-profile"
-        # before the deprecation handler can fire.
-        "new-profile",
-        "delete-profile",
-        "show-profile",
-    }
-)
+
+
+def _routing_names(app: App) -> frozenset[str]:
+    """Every top-level name *app* dispatches: its commands, groups, and deprecated names.
+
+    Read off the registered app, so a command is routed as itself the moment
+    it is registered. Deprecated names are included so ``claudewheel
+    new-profile`` reaches its deprecation message instead of being rewritten to
+    ``claudewheel launch new-profile``.
+    """
+    schema = app.dump_schema_dict()
+    return frozenset(
+        [*schema["commands"], *schema["groups"], *schema.get("deprecated", {})]
+    )
+
 
 # Flags that must be handled at the app level rather than routed to the
 # "launch" subcommand. --help/--version show the app-wide help/version, and
@@ -2338,10 +2324,11 @@ _RESERVED_QUARTET = frozenset(
 )
 
 
-def _inject_launch(argv: list[str]) -> list[str]:
+def _inject_launch(argv: list[str], subcommands: frozenset[str]) -> list[str]:
     """Return argv with the "launch" subcommand injected when appropriate.
 
-    argv includes argv[0] (the program name). When no subcommand is given, or
+    argv includes argv[0] (the program name); *subcommands* is the app's
+    :func:`_routing_names`. When no subcommand is given, or
     the first token that is not a framework-reserved global flag is neither a
     known subcommand nor an app-level flag, the "launch" subcommand is injected
     at that position so the interactive TUI starts. App-level flags (see
@@ -2352,7 +2339,7 @@ def _inject_launch(argv: list[str]) -> list[str]:
     while lead < len(rest) and rest[lead] in _RESERVED_QUARTET:
         lead += 1
     tail = rest[lead:]
-    if not tail or (tail[0] not in _SUBCOMMANDS and tail[0] not in _APP_LEVEL_FLAGS):
+    if not tail or (tail[0] not in subcommands and tail[0] not in _APP_LEVEL_FLAGS):
         return [argv[0]] + rest[:lead] + ["launch"] + tail
     return list(argv)
 
@@ -3094,11 +3081,6 @@ def main() -> None:
     else:
         _passthrough = []
 
-    # If no subcommand given, inject "launch" so the TUI starts.
-    # Exception: app-level flags (--help/-h/--version/-v/--dump-schema) are
-    # handled at the app level, not routed to the launch command.
-    sys.argv = _inject_launch(sys.argv)
-
     # Open the workspace ONCE at the dispatch boundary and thread it (plus the
     # binary locator, which is separate from the workspace by design) into every
     # handler via `_bind`. `Workspace.default()` is pure value construction (the
@@ -3107,7 +3089,11 @@ def main() -> None:
     from .workspace import Workspace
     from .binaries import BinaryLocator
 
-    ws = Workspace.default()
-    locator = BinaryLocator.default()
+    app = _build_app(Workspace.default(), BinaryLocator.default())
 
-    _build_app(ws, locator).run()
+    # If no subcommand given, inject "launch" so the TUI starts.
+    # Exception: app-level flags (--help/-h/--version/-v/--dump-schema) are
+    # handled at the app level, not routed to the launch command.
+    sys.argv = _inject_launch(sys.argv, _routing_names(app))
+
+    app.run()

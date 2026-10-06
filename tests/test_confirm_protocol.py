@@ -34,7 +34,7 @@ from unittest import mock
 from claudewheel import cli
 from claudewheel.tokens import TokenExpiryDisposition, plan_by_key
 from claudewheel.workspace import Workspace
-from tests.wheelhelpers import SandboxHomeTestCase, write_stub_saferm
+from tests.wheelhelpers import SandboxHomeTestCase, inject_launch, write_stub_saferm
 
 # Contract §12.6. Pinned verbatim: a consumer that stops matching this string
 # has stopped being refused for the reason it thinks it is.
@@ -214,9 +214,9 @@ class InjectLaunchStepsOverTheReservedQuartetTests(SandboxHomeTestCase):
         for flag in ("--dry-run", "--approve-consequential", "--quiet", "--verbose"):
             with self.subTest(flag=flag):
                 self.assertEqual(
-                    cli._inject_launch(["c", flag, "stats"]), ["c", flag, "stats"]
+                    inject_launch(["c", flag, "stats"]), ["c", flag, "stats"]
                 )
-                self.assertEqual(cli._inject_launch(["c", flag]), ["c", flag, "launch"])
+                self.assertEqual(inject_launch(["c", flag]), ["c", flag, "launch"])
 
     def test_yes_is_not_a_reserved_name(self) -> None:
         """--yes owns no framework flag any more, so it routes like any token.
@@ -228,6 +228,6 @@ class InjectLaunchStepsOverTheReservedQuartetTests(SandboxHomeTestCase):
         the framework were going to consume it.
         """
         self.assertEqual(
-            cli._inject_launch(["c", "--yes", "stats"]),
+            inject_launch(["c", "--yes", "stats"]),
             ["c", "launch", "--yes", "stats"],
         )
