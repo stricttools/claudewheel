@@ -125,10 +125,9 @@ func DefaultOptions() Options {
 			Pinned: []string{},
 		},
 		SegmentKeyPermissions: {
-			// "plan" and "auto" are accepted once pinned, but not offered:
-			// Claude Code's own Shift+Tab cycle reaches plan mode from inside
-			// any session.
-			Values: []string{"bypass", "default"},
+			// The bar offers this list from the code, not from options.json,
+			// so a value added here is offered in every workspace.
+			Values: []string{"bypass", "default", "plan", "auto"},
 			Pinned: []string{},
 		},
 	}
