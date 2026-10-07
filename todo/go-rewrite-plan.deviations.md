@@ -116,3 +116,12 @@ The unit writes `ExecStart="<executable>" probe run-service`, double-quoted as t
 - The staging file is removed after any failure from the download on (Python kept it after a mid-stream `OSError`). The binary is requested only after `mkdir` of the versions directory, since `fx.Download` opens the request and the file together.
 - The platform comes from `runtime.GOARCH`/`GOOS` (the binary's own platform) instead of `platform.machine()` (the kernel's); they differ only for a 32-bit binary on a 64-bit kernel.
 - `SymlinkTarget` keeps Python's non-strict resolve: a dangling `claude` link still names its target's version.
+
+## lifecycle: validation and the event model
+
+- The generated `ValidateBytes` runs strictspec's format_version check first and stops there when it fails, so the Python's separate `version_gate` call before validation is not ported; the diagnostics are the same.
+- Events are value types (`StartedEvent`, `EndedEvent`, `NamedEvent`, `MarkEvent`, `MovedEvent`) embedding a `Header` (id, at, session, source) behind a sealed `Event` interface. `AppendEvent[E Event]` returns the stamped copy as the same type, as the Python returned the same dataclass.
+- `States()` returns the ordered list; the three partitions are `LiveStates()`, `LooseEndStates()`, and `HiddenByDefaultStates()`, each a fresh set (the guardrail's functions-not-variables shape).
+- `ParseTimestampMS` accepts RFC 3339 only (Python's `fromisoformat` accepted more ISO 8601 forms); a timestamp without an offset is reported as not RFC 3339. The schema allows only offset datetimes, so no stored line differs.
+- Error messages quote values as `'value'`; Python's `repr` escaping of quotes and control characters inside them is not reproduced.
+- `AppendLine` (the separator-aware JSONL append) is exported and shared with the probe store, which appended the same way in a second copy.
