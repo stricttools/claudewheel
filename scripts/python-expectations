@@ -621,6 +621,61 @@ def tui_calls():
     )
 
 
+def _snapshot_modes(root):
+    """_snapshot with each file's and directory's permission bits."""
+    out = _snapshot(root)
+    for e in out:
+        if e["type"] in ("file", "dir"):
+            e["mode"] = stat.S_IMODE((Path(root) / e["path"]).lstat().st_mode)
+    return out
+
+
+def health_calls():
+    """Every check_* call of the Python's health tests that reads only the
+    workspace, with the home directory before the call and its result."""
+    import datetime
+    import importlib
+    import unittest
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from claudewheel import health
+
+    names = ["check_shared_symlinks", "check_hooks_wired", "check_settings_defaults",
+             "check_shared_settings_drift", "check_canonical_permissions_drift",
+             "check_deployed_hook_drift", "check_relocated_hook_paths", "check_tokens",
+             "check_token_expiry", "check_auth_shadow", "check_orphan_profiles",
+             "check_file_permissions"]
+    module = importlib.import_module("tests.test_health")
+    calls = []
+    restore = []
+    for name in names:
+        real = getattr(health, name)
+
+        def wrapper(ws, *args, _name=name, _real=real, **kwargs):
+            home = ws.root.parent
+            before = json.loads(json.dumps(_snapshot_modes(home)).replace(str(home), "@ROOT@"))
+            result = _real(ws, *args, **kwargs)
+            calls.append({
+                "fn": _name, "today": datetime.date.today().isoformat(), "before": before,
+                "label": result.label, "ok": result.ok,
+                "detail": result.detail.replace(str(home), "@ROOT@"),
+                "extra_args": len(args) + len(kwargs),
+            })
+            return result
+
+        for m in (health, module):
+            if getattr(m, name, None) is real:
+                setattr(m, name, wrapper)
+                restore.append((m, name, real))
+    try:
+        suite = unittest.defaultTestLoader.loadTestsFromModule(module)
+        unittest.TextTestRunner(stream=sys.stderr, verbosity=0).run(suite)
+    finally:
+        for m, name, real in restore:
+            setattr(m, name, real)
+    return calls
+
+
 # Generators that write a directory tree themselves rather than return data.
 TREE_GENERATORS = {
     "python-workspace": python_workspace,
@@ -636,6 +691,7 @@ GENERATORS = {
     "hook-cases": hook_cases,
     "probe-runner-calls": probe_runner_calls,
     "tui-calls": tui_calls,
+    "health-calls": health_calls,
 }
 
 # Generators that take the output path.
