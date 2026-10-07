@@ -78,3 +78,12 @@ The templates' placeholders are filled from the packages that own the values, wh
 ## hookscripts: the unit's ExecStart path stays quoted (orchestrating session)
 
 The unit writes `ExecStart="<executable>" probe run-service`, double-quoted as the Python wrote its path, so an executable path may hold spaces. A relative path, or one holding a control character, `"`, `\`, `%`, or `$`, is refused. This overrides the unquoted form recorded earlier.
+
+## sessions: shapes and transcript reading
+
+- `DiscoverProfileDirs(profileDirs, sharedDir)` takes the enumerated profile directories from its caller: the profile store lives in `profiles`, a layer above `sessions`.
+- `SessionRecord` text fields are empty when absent or not strings (Python's `None`); only `StartedAt` is a pointer. Python's `kind` field is `Category`, with `CategoryInteractive` and `BackgroundCategories()`. `ReadProfileRecords` takes an ordered slice of `ProfileConfigDir` instead of a mapping.
+- `Prune(fx, records)` returns an error wrapping `effects.ErrReadOnly` when given a read-only FX, instead of skipping every file silently; other removal errors are still skipped as in Python.
+- `PIDExists` sends signal 0 with `syscall.Kill` directly, outside `effects`: it probes and delivers nothing (the Python's exemption).
+- Transcripts are split on `\n` only (Python's `splitlines` also split inside lines on U+2028 and other separators, dropping such lines), and each line is decoded with `jsonfile.Decode`, so a line holding invalid UTF-8 is skipped (Python read `recorded_store_cwds` with `surrogateescape` and parsed it; its other readers crashed on it).
+- `FindSession` looks up `<store dir>/<id>.jsonl` by exact name in each non-hidden store directory, in name order, instead of a glob that would interpret metacharacters in the id.
