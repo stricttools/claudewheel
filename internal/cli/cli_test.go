@@ -249,3 +249,96 @@ func TestProfileCommands(t *testing.T) {
 		t.Fatalf("second fix-auth: %s", r.Stdout)
 	}
 }
+
+const sessionA = "11111111-1111-4111-8111-111111111111"
+
+func TestSessionCommands(t *testing.T) {
+	e := newEnv(t)
+	e.setUp("p1", "p2")
+	home := filepath.Dir(e.ws.Root())
+	old := filepath.Join(home, "work", "a")
+	testkit.WriteFile(t, filepath.Join(old, "f"), "x")
+	store := filepath.Join(e.ws.SharedDir(), "projects", workspace.EncodePath(old))
+	testkit.WriteFile(t, filepath.Join(store, sessionA+".jsonl"), `{"type":"user","sessionId":"`+sessionA+`","cwd":"`+old+`"}`+"\n")
+	for _, p := range []string{"p1", "p2"} {
+		if err := os.Symlink(filepath.Join(e.ws.SharedDir(), "projects"), filepath.Join(e.ws.ProfilesDir(), p, "projects")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	renamed := filepath.Join(home, "work", "b")
+	e.ok("mv", old, renamed, "--dry-run")
+	if _, err := os.Stat(old); err != nil {
+		t.Fatal("mv --dry-run renamed the directory")
+	}
+	e.ok("mv", old, renamed)
+	moved := filepath.Join(e.ws.SharedDir(), "projects", workspace.EncodePath(renamed), sessionA+".jsonl")
+	if !strings.Contains(testkit.ReadFile(t, moved), `"cwd":"`+renamed+`"`) {
+		t.Fatalf("transcript after mv:\n%s", testkit.ReadFile(t, moved))
+	}
+	other := filepath.Join(home, "work", "c")
+	testkit.WriteFile(t, filepath.Join(other, "f"), "x")
+	e.fails("move-session", "1111", other)
+	e.ok("move-session", sessionA, other)
+	if _, err := os.Stat(filepath.Join(e.ws.SharedDir(), "projects", workspace.EncodePath(other), sessionA+".jsonl")); err != nil {
+		t.Fatalf("move-session: %v", err)
+	}
+	e.fails("migrate", "p1", "p2", "--session", "1111")
+	e.fails("migrate", "p1", "nobody", "--all-sessions")
+	e.fails("import", filepath.Join(home, "nowhere"))
+	e.fails("import", filepath.Join(home, "nowhere"), "--from", "/a")
+}
+
+func TestVersionsAndUninstall(t *testing.T) {
+	e := newEnv(t)
+	versions := filepath.Join(filepath.Dir(e.ws.Root()), ".local", "share", "claude", "versions")
+	for _, v := range []string{"2.1.9", "2.1.10", "2.0.1"} {
+		testkit.WriteFile(t, filepath.Join(versions, v), "binary")
+	}
+	if err := os.MkdirAll(e.ws.BinDir(), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(versions, "2.1.10"), filepath.Join(e.ws.BinDir(), "claude")); err != nil {
+		t.Fatal(err)
+	}
+	r := e.ok("versions")
+	if !strings.Contains(r.Stdout, "2.1.10") || strings.Index(r.Stdout, "2.1.10") > strings.Index(r.Stdout, "2.1.9") {
+		t.Fatalf("versions (newest first expected):\n%s", r.Stdout)
+	}
+	e.fails("uninstall", "2.1.10")
+	e.fails("uninstall", "../x")
+	e.ok("uninstall", "2.1.9")
+	if _, err := os.Stat(filepath.Join(versions, "2.1.9")); !os.IsNotExist(err) {
+		t.Fatal("not uninstalled")
+	}
+	e.fails("uninstall", "2.1.9")
+}
+
+func TestPurgePlugins(t *testing.T) {
+	e := newEnv(t)
+	e.setUp("work")
+	plugins := filepath.Join(e.ws.ProfilesDir(), "work", "plugins")
+	testkit.WriteFile(t, filepath.Join(plugins, "marketplaces", "official", "x.json"), "{}")
+	e.fails("purge-plugins")
+	r := e.ok("purge-plugins", "--profile", "work", "--dry-run")
+	if _, err := os.Stat(plugins); err != nil {
+		t.Fatalf("dry run removed the tree: %s", r.Stdout)
+	}
+	e.ok("purge-plugins", "--all-profiles")
+	if _, err := os.Stat(plugins); !os.IsNotExist(err) {
+		t.Fatal("plugins not purged")
+	}
+	e.fails("purge-plugins", "--profile", "default")
+}
+
+func TestProbeCommandsOutsideASession(t *testing.T) {
+	e := newEnv(t)
+	e.setUp()
+	e.ok("probe", "list")
+	r := e.fails("probe", "create", "oom-kill", "--all-sessions", "--deadline", "1h")
+	if !strings.Contains(r.Stderr, "session") {
+		t.Fatalf("create outside a session: %s", r.Stderr)
+	}
+	e.fails("probe", "create", "oom-kill", "--all-sessions", "--deadline", "soon")
+	e.fails("probe", "create", "oom-kill", "--all-sessions", "--deadline", "1h", "--", "sleep", "1")
+	e.fails("probe", "run-service", "--dry-run")
+}
