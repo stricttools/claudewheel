@@ -311,3 +311,17 @@ When the selected GitHub account's token cannot be fetched (`gh auth token` fail
 - config.json's `minimap` must be `auto` or `always` (the Python treated anything else as auto); a segment with no colors in the theme is an error.
 - A background discovery error ends the bar with that error (the Python's thread died and the bar went on without its results). A discovery's `RefreshError` is shown as the flash ("Refresh failed: …") on the draw after the results arrive.
 - Background results are taken after each key and each resize, as the Python took them after each key; the bar does not redraw on its own when they arrive.
+
+## cli: profile delete at a terminal
+
+- At a terminal (`/dev/tty` opens, as `terminal.HasControllingTerminal` defines it) and outside `--dry-run`, `profile delete` shows the deletion checklist over the profile's holders before anything is removed, then, when saferm is missing, offers its install through `widgets.Confirm` on the same alternate-screen session (the Python asked a typed `[y/N]` line on stdin and stopped nothing from the CLI). Checklist first, offer second, as the bar orders them.
+- The live-interactive-session refusal without `--force-delete` applies to what still holds the profile after the checklist, so ticking that session stops it and the deletion proceeds. Without a terminal or under `--dry-run` it applies to every live holder, read before anything else, as in the Python.
+- Cancelling the checklist, declining the offer, a failed install, and an installed saferm still lacking a feature each end with exit 1 and nothing deleted; stop failures are printed once the screen closes.
+- The offer's text is wrapped by a copy of the bar's `wrapText` (in `internal/cli/profiledelete.go`); both should become one exported widgets helper.
+
+## cli: answers, reports, and the workspace
+
+- `permission list`'s human lines are the command's answer (`ctx.Out`, kept under `--quiet`); the Python wrote them as info lines. The `--json` payload is unchanged.
+- `patch-profiles` prints the report of what was done before a failed write, then the error; a selection refused before anything ran prints no report.
+- `profile rename` rerun after an interruption reports that it finished the interrupted rename. It is the one profile command that does not refuse a leftover breadcrumb up front.
+- `profile exec` opens the app config (`Ensure`) like every mutating command, so an unconverted workspace is refused before the exec.
