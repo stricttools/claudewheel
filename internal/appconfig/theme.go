@@ -256,19 +256,6 @@ func mergeMissing(target, defaults *jsonfile.Object) []string {
 	return added
 }
 
-// fileExists reports whether path exists, without following a final
-// symbolic link. An error other than absence is returned.
-func fileExists(path string) (bool, error) {
-	_, err := os.Lstat(path)
-	if err == nil {
-		return true, nil
-	}
-	if os.IsNotExist(err) {
-		return false, nil
-	}
-	return false, err
-}
-
 func defaultDarkTheme() Theme {
 	return Theme{
 		Name: ThemeDark,

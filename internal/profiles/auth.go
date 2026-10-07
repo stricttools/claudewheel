@@ -9,6 +9,7 @@ import (
 
 	"github.com/stricttools/claudewheel/internal/effects"
 	"github.com/stricttools/claudewheel/internal/jsonfile"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/tokens"
 )
 
@@ -58,7 +59,7 @@ func (s Store) FixAuth(fx *effects.FX, name string) (FixAuthOutcome, error) {
 		return "", err
 	}
 	dir := s.PathFor(name)
-	isDirectory, err := isDir(dir)
+	isDirectory, err := pathstat.IsDir(dir)
 	if err != nil {
 		return "", err
 	}
@@ -113,7 +114,7 @@ func (s Store) SetPlan(fx *effects.FX, name, planKey string) (tokens.PlanTier, e
 	if err := s.CheckPendingRenames(); err != nil {
 		return tokens.PlanTier{}, err
 	}
-	isDirectory, err := isDir(s.PathFor(name))
+	isDirectory, err := pathstat.IsDir(s.PathFor(name))
 	if err != nil {
 		return tokens.PlanTier{}, err
 	}

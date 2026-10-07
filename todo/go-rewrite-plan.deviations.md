@@ -387,3 +387,11 @@ The file-permissions check reads the token file's expected mode from `tokens.Tok
 ## tui/widgets: the text helpers are shared
 
 The character-counting helpers the bar, the sessions view, and the wizard each declared (`runeLen`, `runePrefix`, `runeSuffixFrom`, `centeredCol`, the 60-column entry area) and the page prose wrapping the bar and the CLI each declared (`wrapText` at width 56) are `widgets.RuneCount`, `RunePrefix`, `RuneSuffix`, `CenteredColumn`, `FieldAreaWidth`, `WrapText`, and `PageTextWidth`. `sessionsview.CurrentIdentity` checks the pid with `sessions.AllDigits`.
+
+## pathstat: one home for the path-existence helpers that agree on absence
+
+`internal/pathstat` (base layer) holds `Exists` (stat, following links), `Lexists` (lstat), and `IsDir` (stat), each counting only `fs.ErrNotExist` as absent and returning every other stat error. It replaces the identical private copies in `hookscripts` (`exists`), `profiles` (`exists`, `lexists`, `isDir`), and `appconfig` (`fileExists`, an lstat). It is a separate package rather than part of `realpath`, which only resolves links. The helpers that also treat a non-directory parent (ENOTDIR) as absent stay private where they are: `discover` (`absent`, `isDir`, `isFile`), `proberunner` (`exists`), and `health` (`pathState`); so do `sessionmove`'s, which also treat a link loop (ELOOP) as absent. Whether all of these should agree on one definition of absence is a behavior question, not settled here.
+
+## jsonfile, lifecycle, and sessions: shared helpers replace private copies
+
+`health` uses `jsonfile.StringArray`; `reconcile` and `install` use `jsonfile.Describe` (the copies differed from it only in the text for a non-JSON Go value, which a decoded tree never holds); `sessionmove` uses `lifecycle.JoinDiagnostics` and `workspace.ProjectsDirName`; `profiles` uses `sessions.AllDigits`; `proberunner` splits journalctl output with `lifecycle.SplitLines`, which differs from its copy only for empty output (one empty line, which the JSON decode skips). `probe`'s cgroup line splitter stays: it also folds "\r\n". `sessions`' byte splitter stays: it keeps the empty text after a final newline.

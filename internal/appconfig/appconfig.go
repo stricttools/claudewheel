@@ -30,6 +30,7 @@ import (
 	"github.com/stricttools/claudewheel/internal/effects"
 	"github.com/stricttools/claudewheel/internal/guardrail"
 	"github.com/stricttools/claudewheel/internal/jsonfile"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/workspace"
 )
 
@@ -153,7 +154,7 @@ func open(fx *effects.FX, ws workspace.Workspace) (*Store, error) {
 // missing and fx is set, it writes def() there and returns that value.
 func loadOrCreate[T any](fx *effects.FX, path string, plan planner, def func() T) (T, error) {
 	if fx != nil {
-		exists, err := fileExists(path)
+		exists, err := pathstat.Lexists(path)
 		if err != nil {
 			var zero T
 			return zero, err
@@ -168,7 +169,7 @@ func loadOrCreate[T any](fx *effects.FX, path string, plan planner, def func() T
 
 // createIfMissing writes v to path when nothing is there.
 func createIfMissing(fx *effects.FX, path string, v any) error {
-	exists, err := fileExists(path)
+	exists, err := pathstat.Lexists(path)
 	if err != nil || exists {
 		return err
 	}

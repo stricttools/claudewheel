@@ -25,6 +25,7 @@ import (
 	"github.com/stricttools/claudewheel/internal/archiver"
 	"github.com/stricttools/claudewheel/internal/effects"
 	"github.com/stricttools/claudewheel/internal/jsonfile"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/realpath"
 	"github.com/stricttools/claudewheel/internal/tokens"
 	"github.com/stricttools/claudewheel/internal/workspace"
@@ -135,12 +136,12 @@ func (s Store) records() ([]record, error) {
 	}
 	var out []record
 	claudeDir := s.ws.ClaudeDir()
-	isDefault, err := isDir(claudeDir)
+	isDefault, err := pathstat.IsDir(claudeDir)
 	if err != nil {
 		return nil, err
 	}
 	if isDefault {
-		creds, err := exists(filepath.Join(claudeDir, CredentialsFileName))
+		creds, err := pathstat.Exists(filepath.Join(claudeDir, CredentialsFileName))
 		if err != nil {
 			return nil, err
 		}
@@ -152,22 +153,22 @@ func (s Store) records() ([]record, error) {
 	}
 	for _, e := range entries {
 		path := filepath.Join(s.ws.ProfilesDir(), e.Name())
-		dir, err := isDir(path)
+		dir, err := pathstat.IsDir(path)
 		if err != nil {
 			return nil, err
 		}
 		if !dir {
 			continue
 		}
-		creds, err := exists(filepath.Join(path, CredentialsFileName))
+		creds, err := pathstat.Exists(filepath.Join(path, CredentialsFileName))
 		if err != nil {
 			return nil, err
 		}
-		settings, err := exists(filepath.Join(path, SettingsFileName))
+		settings, err := pathstat.Exists(filepath.Join(path, SettingsFileName))
 		if err != nil {
 			return nil, err
 		}
-		data, err := isDir(filepath.Join(path, tokens.DataDirName))
+		data, err := pathstat.IsDir(filepath.Join(path, tokens.DataDirName))
 		if err != nil {
 			return nil, err
 		}
@@ -343,7 +344,7 @@ type DirSurvey struct {
 // nothing. A missing directory holds nothing.
 func (s Store) SurveyProfileDir(name string) (DirSurvey, error) {
 	dir := s.PathFor(name)
-	isDirectory, err := isDir(dir)
+	isDirectory, err := pathstat.IsDir(dir)
 	if err != nil || !isDirectory {
 		return DirSurvey{}, err
 	}
@@ -388,7 +389,7 @@ func (s Store) Create(fx *effects.FX, name string, settings *jsonfile.Object, op
 		return Profile{}, err
 	}
 	target := s.PathFor(name)
-	present, err := lexists(target)
+	present, err := pathstat.Lexists(target)
 	if err != nil {
 		return Profile{}, err
 	}
@@ -433,7 +434,7 @@ func (s Store) fill(fx *effects.FX, name, target string, settings *jsonfile.Obje
 		shared := s.ws.Shared()
 		for _, sub := range workspace.SharedSubdirs() {
 			link := filepath.Join(target, sub)
-			present, err := lexists(link)
+			present, err := pathstat.Lexists(link)
 			if err != nil {
 				return Profile{}, err
 			}
@@ -448,11 +449,11 @@ func (s Store) fill(fx *effects.FX, name, target string, settings *jsonfile.Obje
 			}
 		}
 		skillsLink := filepath.Join(target, SkillsLinkName)
-		skills, err := isDir(shared.SkillsDir())
+		skills, err := pathstat.IsDir(shared.SkillsDir())
 		if err != nil {
 			return Profile{}, err
 		}
-		linked, err := lexists(skillsLink)
+		linked, err := pathstat.Lexists(skillsLink)
 		if err != nil {
 			return Profile{}, err
 		}
@@ -465,7 +466,7 @@ func (s Store) fill(fx *effects.FX, name, target string, settings *jsonfile.Obje
 	if _, err := appconfig.AddPinned(fx, s.ws, Segment, name); err != nil {
 		return Profile{}, err
 	}
-	creds, err := exists(filepath.Join(target, CredentialsFileName))
+	creds, err := pathstat.Exists(filepath.Join(target, CredentialsFileName))
 	if err != nil {
 		return Profile{}, err
 	}
@@ -480,7 +481,7 @@ func (s Store) fill(fx *effects.FX, name, target string, settings *jsonfile.Obje
 // unlinked without being followed, so a shared-store link made a moment ago
 // cannot take the store with it.
 func discardPartialDir(fx *effects.FX, dir string) error {
-	isDirectory, err := isDir(dir)
+	isDirectory, err := pathstat.IsDir(dir)
 	if err != nil || !isDirectory {
 		return err
 	}
@@ -571,7 +572,7 @@ func (s Store) Delete(fx *effects.FX, name string, arch Archiver, allowDataDestr
 	seg := opts[Segment]
 	registered := slices.Contains(seg.Values, name) || slices.Contains(seg.Pinned, name)
 	dir := s.PathFor(name)
-	dirExists, err := isDir(dir)
+	dirExists, err := pathstat.IsDir(dir)
 	if err != nil {
 		return DeletionResult{}, err
 	}
@@ -643,7 +644,7 @@ func (s Store) Delete(fx *effects.FX, name string, arch Archiver, allowDataDestr
 // checkGone refuses a directory still standing after a reportedly
 // successful archival, naming what is left in it.
 func checkGone(dir string) error {
-	present, err := lexists(dir)
+	present, err := pathstat.Lexists(dir)
 	if err != nil || !present {
 		return err
 	}
@@ -674,38 +675,6 @@ func (s Store) clearLastConfig(fx *effects.FX, name string) (bool, error) {
 		delete(st.LastConfig, Segment)
 		return nil
 	})
-}
-
-// isDir reports whether path is a directory, following links. A missing
-// path or a broken link is not one.
-func isDir(path string) (bool, error) {
-	info, err := os.Stat(path)
-	if errors.Is(err, fs.ErrNotExist) {
-		return false, nil
-	}
-	if err != nil {
-		return false, err
-	}
-	return info.IsDir(), nil
-}
-
-// exists reports whether path exists, following links: a broken link does
-// not.
-func exists(path string) (bool, error) {
-	_, err := os.Stat(path)
-	if errors.Is(err, fs.ErrNotExist) {
-		return false, nil
-	}
-	return err == nil, err
-}
-
-// lexists reports whether anything, a broken link included, is at path.
-func lexists(path string) (bool, error) {
-	_, err := os.Lstat(path)
-	if errors.Is(err, fs.ErrNotExist) {
-		return false, nil
-	}
-	return err == nil, err
 }
 
 // readDirIfExists lists dir sorted by name; a missing dir lists nothing.

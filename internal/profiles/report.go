@@ -13,6 +13,7 @@ import (
 
 	"github.com/stricttools/claudewheel/internal/appconfig"
 	"github.com/stricttools/claudewheel/internal/jsonfile"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/sessions"
 	"github.com/stricttools/claudewheel/internal/tokens"
 )
@@ -67,7 +68,7 @@ func (s Store) GatherReport(name string, today time.Time) (Report, error) {
 	}
 	r := Report{Name: name, ConfigDir: s.PathFor(name)}
 	var err error
-	if r.Exists, err = isDir(r.ConfigDir); err != nil {
+	if r.Exists, err = pathstat.IsDir(r.ConfigDir); err != nil {
 		return Report{}, err
 	}
 	opts, err := appconfig.ReadOptions(s.ws)
@@ -91,7 +92,7 @@ func (s Store) GatherReport(name string, today time.Time) (Report, error) {
 		r.TokenExpiry = &exp
 	}
 	r.RateLimitTier, r.SubscriptionType = entry.Tier()
-	if r.HasCredentials, err = exists(filepath.Join(r.ConfigDir, CredentialsFileName)); err != nil {
+	if r.HasCredentials, err = pathstat.Exists(filepath.Join(r.ConfigDir, CredentialsFileName)); err != nil {
 		return Report{}, err
 	}
 

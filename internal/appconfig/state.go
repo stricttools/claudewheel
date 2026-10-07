@@ -12,6 +12,7 @@ import (
 
 	"github.com/stricttools/claudewheel/internal/effects"
 	"github.com/stricttools/claudewheel/internal/jsonfile"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/workspace"
 )
 
@@ -96,7 +97,7 @@ func UpdateState(fx *effects.FX, ws workspace.Workspace, change func(*State) err
 // value written there while this store held its copy is kept. A missing
 // state.json is simply written.
 func (s *Store) SaveState(fx *effects.FX) error {
-	exists, err := fileExists(s.ws.StateFile())
+	exists, err := pathstat.Lexists(s.ws.StateFile())
 	if err != nil {
 		return err
 	}

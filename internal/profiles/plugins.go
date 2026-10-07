@@ -9,6 +9,7 @@ import (
 	"sort"
 
 	"github.com/stricttools/claudewheel/internal/effects"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 )
 
 // Claude Code's plugin tree inside a config directory, as observed:
@@ -62,7 +63,7 @@ func subdirNames(dir string) ([]string, error) {
 	}
 	var names []string
 	for _, e := range entries {
-		ok, err := isDir(filepath.Join(dir, e.Name()))
+		ok, err := pathstat.IsDir(filepath.Join(dir, e.Name()))
 		if err != nil {
 			return nil, err
 		}

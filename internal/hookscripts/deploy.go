@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/stricttools/claudewheel/internal/effects"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 )
 
 // Action is what deploying one script, link, or unit did. The values are the
@@ -47,19 +48,6 @@ type LinkResult struct {
 	Action Action
 }
 
-// exists reports whether path names something, following a symbolic link: a
-// dangling link is absent.
-func exists(path string) (bool, error) {
-	_, err := os.Stat(path)
-	if err == nil {
-		return true, nil
-	}
-	if errors.Is(err, fs.ErrNotExist) {
-		return false, nil
-	}
-	return false, err
-}
-
 // DeployScripts writes the named scripts into scriptsDir, mode 0755. A
 // script already there is left alone (Exists) unless forceOverwrite is set.
 // Every name is checked before anything is written: an unknown name is an
@@ -79,7 +67,7 @@ func DeployScripts(fx *effects.FX, names []string, scriptsDir string, forceOverw
 	results := make([]ScriptResult, 0, len(names))
 	for i, name := range names {
 		dest := filepath.Join(scriptsDir, name)
-		present, err := exists(dest)
+		present, err := pathstat.Exists(dest)
 		if err != nil {
 			return results, err
 		}
@@ -113,7 +101,7 @@ func MissingScripts(names []string, scriptsDir string) ([]string, error) {
 		if !IsScript(name) {
 			continue
 		}
-		present, err := exists(filepath.Join(scriptsDir, name))
+		present, err := pathstat.Exists(filepath.Join(scriptsDir, name))
 		if err != nil {
 			return nil, err
 		}
@@ -213,7 +201,7 @@ func CheckDeployed(scriptsDir string) ([]DeployedScript, error) {
 			return nil, err
 		}
 		path := filepath.Join(scriptsDir, name)
-		present, err := exists(path)
+		present, err := pathstat.Exists(path)
 		if err != nil {
 			states = append(states, DeployedScript{Name: name, State: DeployedUnreadable, Err: err})
 			continue

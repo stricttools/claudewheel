@@ -9,6 +9,7 @@ import (
 	"github.com/stricttools/claudewheel/internal/appconfig"
 	"github.com/stricttools/claudewheel/internal/effects"
 	"github.com/stricttools/claudewheel/internal/jsonfile"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/sessions"
 )
 
@@ -58,7 +59,7 @@ func (s Store) pendingRenames() ([]pendingRename, error) {
 	var out []pendingRename
 	for _, e := range entries {
 		dir := filepath.Join(s.ws.ProfilesDir(), e.Name())
-		isDirectory, err := isDir(dir)
+		isDirectory, err := pathstat.IsDir(dir)
 		if err != nil {
 			return nil, err
 		}
@@ -66,7 +67,7 @@ func (s Store) pendingRenames() ([]pendingRename, error) {
 			continue
 		}
 		path := filepath.Join(dir, RenamePendingFile)
-		present, err := exists(path)
+		present, err := pathstat.Exists(path)
 		if err != nil {
 			return nil, err
 		}
@@ -150,7 +151,7 @@ func (s Store) Rename(fx *effects.FX, oldName, newName string) (resumed bool, er
 	}
 	seg := opts[Segment]
 	oldDir, newDir := s.PathFor(oldName), s.PathFor(newName)
-	oldExists, err := isDir(oldDir)
+	oldExists, err := pathstat.IsDir(oldDir)
 	if err != nil {
 		return false, err
 	}
@@ -161,7 +162,7 @@ func (s Store) Rename(fx *effects.FX, oldName, newName string) (resumed bool, er
 	if !oldExists {
 		return false, fmt.Errorf("profile directory does not exist: %s", oldDir)
 	}
-	taken, err := lexists(newDir)
+	taken, err := pathstat.Lexists(newDir)
 	if err != nil {
 		return false, err
 	}

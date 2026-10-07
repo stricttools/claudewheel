@@ -7,6 +7,7 @@ import (
 	"unicode"
 
 	"github.com/stricttools/claudewheel/internal/effects"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/probe"
 )
 
@@ -59,7 +60,7 @@ func DeployService(fx *effects.FX, unitDir, executable string, forceOverwrite bo
 		return "", "", err
 	}
 	path := filepath.Join(unitDir, probe.ServiceName)
-	present, err := exists(path)
+	present, err := pathstat.Exists(path)
 	if err != nil {
 		return "", "", err
 	}
