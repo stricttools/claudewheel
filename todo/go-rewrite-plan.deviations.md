@@ -159,3 +159,12 @@ The unit writes `ExecStart="<executable>" probe run-service`, double-quoted as t
 
 - `Entry` is a strict struct whose fields are all optional, since an entry written only to declare a plan holds no token. A date that does not parse is an error, where the Python assumed a fresh token. An entry with no dates at all still reports `TokenTTLDays` remaining, as in the Python.
 - `BuildEntry` refuses an empty token. The zero `ExpiryDisposition` is invalid, so every writer chooses one. `PlanTier`'s validation when a tier was constructed is not ported, because the plan list is static data.
+
+## proberunner: the entry point and its departures
+
+- `Run(ctx, fx, ws, log)` follows the journal until ctx is cancelled (the CLI cancels it on SIGTERM and SIGINT) and then returns nil; signal handling is the CLI's. Progress lines go to `log` (the CLI passes stderr) with the service-name prefix the Python printed. journalctl stopping on its own returns `ErrJournalEnded` (the Python printed the same line and exited 1). Any store error ends the run with that error, as an exception ended the Python's; systemd's `Restart=on-failure` restarts it.
+- journalctl's lines are read by a goroutine from `effects.Follower.ReadLine`; the store is kept moving after every entry and whenever no line arrives within `TickInterval`, as the Python's select loop did. The first pass checks pending reports for expiry at once (the Python's monotonic-clock start made that true on any machine up longer than a minute).
+- A journal line that is JSON but not an object is logged as unreadable and skipped (the Python crashed on it). A missing or non-integer `__REALTIME_TIMESTAMP` on an OOM entry is an error, as it was.
+- `--until-file` and `/proc/<pid>` are checked with a stat where only a missing path (or a non-directory parent) means absent; any other stat error is returned (pathlib's `exists()` swallowed some).
+- `SettleReports` expires only reports in the pending state; the Python treated every non-handed state it was given as pending. Its unused `now` parameter is not ported.
+- The duplicate-report check reads each state directory for `<report-id>.*.json` instead of a glob.
