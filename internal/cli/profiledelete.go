@@ -8,7 +8,6 @@ import (
 	"slices"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/stricttools/strictcli/go/strictcli"
 
@@ -22,9 +21,6 @@ import (
 	"github.com/stricttools/claudewheel/internal/tui/sessionsview"
 	"github.com/stricttools/claudewheel/internal/tui/widgets"
 )
-
-// pageTextWidth is the width the install offer's text is wrapped to.
-const pageTextWidth = 56
 
 // registerProfileDelete adds profile delete. It is consequential: the
 // archival makes the deletion recoverable, not harmless, since the profile
@@ -176,6 +172,8 @@ func askBeforeDeleting(c *call, cfg *appconfig.Store, name, configDir string, ho
 	if err != nil {
 		return deletionAnswers{}, err
 	}
+	// Close is idempotent: the deferred one restores the terminal on a panic.
+	defer t.Close()
 	answers, err := askOnScreen(ctx, c, t, colors, name, configDir, holders, missing, forceDelete)
 	return answers, errors.Join(err, t.Close())
 }
@@ -208,9 +206,9 @@ func askOnScreen(ctx context.Context, c *call, t *terminal.Terminal, colors widg
 	if missing == nil {
 		return answers, nil
 	}
-	lines := wrapText(missing.Diagnosis(), pageTextWidth)
+	lines := widgets.WrapText(missing.Diagnosis(), widgets.PageTextWidth)
 	lines = append(lines, "")
-	lines = append(lines, wrapText(missing.Stakes(name), pageTextWidth)...)
+	lines = append(lines, widgets.WrapText(missing.Stakes(name), widgets.PageTextWidth)...)
 	answer, err := widgets.Confirm(ctx, t, colors, widgets.Confirmation{
 		Title:   fmt.Sprintf("Cannot delete '%s' without saferm", name),
 		Lines:   lines,
@@ -311,35 +309,4 @@ func stopFailureReason(f deletion.StopFailure) string {
 		return f.Err.Error()
 	}
 	return "it was still running when the stop ended"
-}
-
-// wrapText breaks text into lines of at most width characters at spaces; a
-// word longer than width is split.
-func wrapText(text string, width int) []string {
-	var lines []string
-	current := ""
-	for _, word := range strings.Fields(text) {
-		for utf8.RuneCountInString(word) > width {
-			if current != "" {
-				lines = append(lines, current)
-				current = ""
-			}
-			runes := []rune(word)
-			lines = append(lines, string(runes[:width]))
-			word = string(runes[width:])
-		}
-		switch {
-		case current == "":
-			current = word
-		case utf8.RuneCountInString(current)+1+utf8.RuneCountInString(word) <= width:
-			current += " " + word
-		default:
-			lines = append(lines, current)
-			current = word
-		}
-	}
-	if current != "" {
-		lines = append(lines, current)
-	}
-	return lines
 }

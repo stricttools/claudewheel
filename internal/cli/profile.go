@@ -114,6 +114,9 @@ func handleProfileCreate(c *call, kw map[string]interface{}) error {
 	if err != nil {
 		return err
 	}
+	// Close is idempotent: the deferred one restores the terminal when the
+	// wizard ends a --dry-run preview by panicking at the login's result.
+	defer t.Close()
 	summary, runErr := wizard.RunCreate(ctx, c.fx, t, colors, c.ws)
 	closeErr := t.Close()
 	if runErr == nil || len(summary.Lines) > 0 {
