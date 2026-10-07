@@ -561,6 +561,66 @@ def probe_runner_calls():
     return recorded
 
 
+def _plain(value):
+    """value as JSON-ready data: dataclasses become dicts, tuples lists."""
+    import dataclasses
+
+    if dataclasses.is_dataclass(value) and not isinstance(value, type):
+        return {f.name: _plain(getattr(value, f.name)) for f in dataclasses.fields(value)}
+    if isinstance(value, dict):
+        return {str(k): _plain(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_plain(v) for v in value]
+    return value
+
+
+def _record_calls(test_modules, targets):
+    """Run the unittest modules with each target (module, function name)
+    wrapped so every call's arguments and result are recorded."""
+    import importlib
+    import unittest
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    calls = []
+    modules = [importlib.import_module(m) for m in test_modules]
+    restore = []
+    for owner, name in targets:
+        mod = importlib.import_module(owner)
+        real = getattr(mod, name)
+
+        def wrapper(*args, _name=name, _real=real, **kwargs):
+            result = _real(*args, **kwargs)
+            calls.append({"fn": _name, "args": _plain(list(args)), "kwargs": _plain(kwargs), "result": _plain(result)})
+            return result
+
+        for m in [mod, *modules]:
+            if getattr(m, name, None) is real:
+                setattr(m, name, wrapper)
+                restore.append((m, name, real))
+    try:
+        suite = unittest.TestSuite()
+        for m in modules:
+            suite.addTests(unittest.defaultTestLoader.loadTestsFromModule(m))
+        unittest.TextTestRunner(stream=sys.stderr, verbosity=0).run(suite)
+    finally:
+        for m, name, real in restore:
+            setattr(m, name, real)
+    return calls
+
+
+def tui_calls():
+    """Every call of the TUI's pure functions the Python's tests make:
+    fuzzy matching, the vertical viewport, and the session row formats."""
+    return _record_calls(
+        ["tests.test_fuzzy", "tests.test_vertical_viewport", "tests.test_session_rows", "tests.test_sessions_table"],
+        [("claudewheel.fuzzy", "fuzzy_score"), ("claudewheel.fuzzy", "fuzzy_rank"),
+         ("claudewheel.fuzzy", "fuzzy_match_positions"),
+         ("claudewheel.vertical_viewport", "compute_viewport"),
+         ("claudewheel.session_rows", "format_uptime"), ("claudewheel.session_rows", "format_memory"),
+         ("claudewheel.sessions_table", "tildify")],
+    )
+
+
 # Generators that write a directory tree themselves rather than return data.
 TREE_GENERATORS = {
     "python-workspace": python_workspace,
@@ -575,6 +635,7 @@ GENERATORS = {
     "reconcile-cases": reconcile_cases,
     "hook-cases": hook_cases,
     "probe-runner-calls": probe_runner_calls,
+    "tui-calls": tui_calls,
 }
 
 # Generators that take the output path.
