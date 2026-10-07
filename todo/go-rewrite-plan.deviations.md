@@ -349,3 +349,9 @@ The miniclaude client adapter always passes `--model <id>` and `--permission-mod
 
 - `launch` declares the session choice as the member selector `session` (`--cont`/`-c`, `--resume`/`-r`, `--print-prompt`/`-p`, `--picker`, `--new-session`, the default), the repeatable `-s/--set`, `--client` with its choices and their help from `launch.Adapters()`, and the optional variadic positional `client-args`. It declares the grants `exec-client` and `auth-login`.
 - strictcli puts every positional token in `client-args`, before `--` as well as after it, so the handler refuses client arguments that did not come after the `--` in the command line: `claudewheel typo` is an "unexpected argument" error saying the word is not a command, never a word handed to Claude Code. main's launch insertion needed no change: a bare `claudewheel`, `claudewheel -c`, and `claudewheel -- --foo` become `launch`, `launch -c`, and `launch -- --foo`.
+
+## tui/bar: a command-line value a segment does not offer is taken for the launch (orchestrating session)
+
+- A `-s KEY=VALUE` whose value a segment that is not freeform does not offer (a GitHub account the slow background discovery has not produced yet, say) is taken as a launch-only option and selected, as a launch that skips the bar takes it, instead of the hard error recorded under "tui/bar: no silent fallbacks". It is drawn with the ephemeral mark.
+- Launching pins a selected launch-only option into options.json only on a freeform segment (a directory typed on the bar, as before); on any other segment it came from the command line and is not remembered as an option. Once discovery offers the value, it is an ordinary option.
+- An empty `-s KEY=` value is refused when the bar opens: a launch that skips the bar reads it as no value, but the bar would select the last launch's value again when discovery arrives.

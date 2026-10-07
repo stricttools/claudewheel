@@ -971,10 +971,14 @@ func (a *app) confirmCreate(seg *Segment) error {
 	return a.store.AddOption(a.fx, seg.Key, name)
 }
 
-// promoteEphemeral pins every selected launch-only option, on disk too,
-// before the launch.
+// promoteEphemeral pins every launch-only option selected on a freeform
+// segment, on disk too, before the launch. On any other segment a
+// launch-only option came from the command line and stays launch-only.
 func (a *app) promoteEphemeral() error {
 	for _, seg := range a.bar.Segments {
+		if !seg.Freeform {
+			continue
+		}
 		v, ok := seg.Selected()
 		if !ok {
 			continue

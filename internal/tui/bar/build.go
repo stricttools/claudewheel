@@ -198,10 +198,12 @@ func BuildBar(fx *effects.FX, env discover.Env, store *appconfig.Store) (Built, 
 }
 
 // ApplyOverrides selects each segment's value given on the command line
-// (segment key -> value). A freeform segment takes a value it does not list
-// as a launch-only option. A value a segment that is not freeform does not
-// list, and a key no segment on the bar has, are errors naming what the bar
-// holds.
+// (segment key -> value). A value a segment does not list is taken as a
+// launch-only option, as a launch that skips the bar takes it: a GitHub
+// account the background discovery has not produced yet, say. An empty value,
+// which a launch that skips the bar reads as no value, is an error here: the
+// bar would select the last launch's value again when discovery arrives. A
+// key no segment on the bar has is an error naming the segments.
 func ApplyOverrides(b *Bar, overrides map[string]string) error {
 	names := slices.Sorted(maps.Keys(overrides))
 	for _, key := range names {
@@ -214,11 +216,11 @@ func ApplyOverrides(b *Bar, overrides map[string]string) error {
 			}
 			return fmt.Errorf("unknown segment %q (the bar has: %v)", key, held)
 		}
+		if value == "" {
+			return fmt.Errorf("-s %s= gives the %s segment no value, which only a launch that skips the bar takes; clear it on the bar instead", key, key)
+		}
 		if seg.SelectValue(value) {
 			continue
-		}
-		if !seg.Freeform {
-			return fmt.Errorf("the %s segment has no option %q (it offers: %v)", key, value, seg.Options())
 		}
 		seg.State.AddEphemeral(value)
 		seg.SelectValue(value)
