@@ -24,6 +24,9 @@ type PTY struct {
 	out    bytes.Buffer
 	done   chan struct{}
 	exit   error
+	// drained is closed once the reader saw the terminal's end, after the
+	// child exited.
+	drained chan struct{}
 }
 
 // StartPTY starts cmd on a new pseudo-terminal of rows by cols.
@@ -54,8 +57,9 @@ func StartPTY(t *testing.T, cmd *exec.Cmd, rows, cols uint16) *PTY {
 		t.Fatal(err)
 	}
 	slave.Close()
-	p := &PTY{t: t, master: master, cmd: cmd, done: make(chan struct{})}
+	p := &PTY{t: t, master: master, cmd: cmd, done: make(chan struct{}), drained: make(chan struct{})}
 	go func() {
+		defer close(p.drained)
 		buf := make([]byte, 4096)
 		for {
 			n, err := master.Read(buf)
@@ -125,6 +129,12 @@ func (p *PTY) Wait(timeout time.Duration) int {
 	case <-p.done:
 	case <-time.After(timeout):
 		p.t.Fatalf("the child did not exit within %v; output:\n%q", timeout, p.Output())
+	}
+	// What the child wrote before it exited may still be in the terminal.
+	select {
+	case <-p.drained:
+	case <-time.After(timeout):
+		p.t.Fatalf("the terminal was not drained within %v", timeout)
 	}
 	if exitErr, ok := p.exit.(*exec.ExitError); ok {
 		return exitErr.ExitCode()
