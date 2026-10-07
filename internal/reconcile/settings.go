@@ -1,7 +1,6 @@
 package reconcile
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/stricttools/claudewheel/internal/guardrail"
@@ -18,25 +17,6 @@ type MalformedSettingsError struct {
 
 func (e *MalformedSettingsError) Error() string { return e.Detail }
 
-// jsonTypeName names v's JSON type the way a settings file spells it.
-func jsonTypeName(v jsonfile.Value) string {
-	switch v.(type) {
-	case nil:
-		return "null"
-	case bool:
-		return "a boolean"
-	case json.Number:
-		return "a number"
-	case string:
-		return "a string"
-	case []jsonfile.Value:
-		return "an array"
-	case *jsonfile.Object:
-		return "an object"
-	}
-	return fmt.Sprintf("a %T", v)
-}
-
 // objectAt returns container[key] as an object. A missing key is created
 // empty (ordinary bootstrap); a present value that is not an object is a
 // *MalformedSettingsError, and container is left as it was.
@@ -49,7 +29,7 @@ func objectAt(container *jsonfile.Object, key string) (*jsonfile.Object, error) 
 	}
 	o, ok := v.(*jsonfile.Object)
 	if !ok {
-		return nil, &MalformedSettingsError{Detail: fmt.Sprintf("%q is %s, expected an object", key, jsonTypeName(v))}
+		return nil, &MalformedSettingsError{Detail: fmt.Sprintf("%q is %s, expected an object", key, jsonfile.Describe(v))}
 	}
 	return o, nil
 }
@@ -66,7 +46,7 @@ func listAt(container *jsonfile.Object, key string) ([]jsonfile.Value, error) {
 	}
 	list, ok := v.([]jsonfile.Value)
 	if !ok {
-		return nil, &MalformedSettingsError{Detail: fmt.Sprintf("%q is %s, expected an array", key, jsonTypeName(v))}
+		return nil, &MalformedSettingsError{Detail: fmt.Sprintf("%q is %s, expected an array", key, jsonfile.Describe(v))}
 	}
 	return list, nil
 }
@@ -81,13 +61,13 @@ func ruleList(perms *jsonfile.Object, category string) ([]string, error) {
 	}
 	list, ok := v.([]jsonfile.Value)
 	if !ok {
-		return nil, &MalformedSettingsError{Detail: fmt.Sprintf(`"permissions.%s" is %s, expected an array`, category, jsonTypeName(v))}
+		return nil, &MalformedSettingsError{Detail: fmt.Sprintf(`"permissions.%s" is %s, expected an array`, category, jsonfile.Describe(v))}
 	}
 	out := make([]string, 0, len(list))
 	for _, item := range list {
 		s, ok := item.(string)
 		if !ok {
-			return nil, &MalformedSettingsError{Detail: fmt.Sprintf(`"permissions.%s" holds %s, expected only strings`, category, jsonTypeName(item))}
+			return nil, &MalformedSettingsError{Detail: fmt.Sprintf(`"permissions.%s" holds %s, expected only strings`, category, jsonfile.Describe(item))}
 		}
 		out = append(out, s)
 	}

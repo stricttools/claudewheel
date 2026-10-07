@@ -97,12 +97,12 @@ func FetchManifest(fx *effects.FX, version string) (Manifest, error) {
 	}
 	top, ok := tree.(*jsonfile.Object)
 	if !ok {
-		return Manifest{}, fmt.Errorf("manifest for %s is malformed: expected a JSON object, got %s", version, typeName(tree))
+		return Manifest{}, fmt.Errorf("manifest for %s is malformed: expected a JSON object, got %s", version, jsonfile.Describe(tree))
 	}
 	platforms := jsonfile.NewObject()
 	if v, present := top.Get("platforms"); present {
 		if platforms, ok = v.(*jsonfile.Object); !ok {
-			return Manifest{}, fmt.Errorf(`manifest for %s is malformed: "platforms" must be a JSON object, got %s`, version, typeName(v))
+			return Manifest{}, fmt.Errorf(`manifest for %s is malformed: "platforms" must be a JSON object, got %s`, version, jsonfile.Describe(v))
 		}
 	}
 	return Manifest{Version: version, Platforms: platforms}, nil
@@ -123,7 +123,7 @@ func (m Manifest) Entry(platform string) (PlatformEntry, error) {
 	entry, ok := v.(*jsonfile.Object)
 	if !ok {
 		return PlatformEntry{}, fmt.Errorf("manifest entry for %s in %s is malformed: expected a JSON object, got %s",
-			platform, m.Version, typeName(v))
+			platform, m.Version, jsonfile.Describe(v))
 	}
 	malformed := func(what string) error {
 		return fmt.Errorf("manifest entry for %s in %s is malformed: %s", platform, m.Version, what)
@@ -151,25 +151,6 @@ func (m Manifest) Entry(platform string) (PlatformEntry, error) {
 		out.Size = size
 	}
 	return out, nil
-}
-
-// typeName names a tree value's JSON type, for error messages.
-func typeName(v jsonfile.Value) string {
-	switch v.(type) {
-	case nil:
-		return "null"
-	case bool:
-		return "a boolean"
-	case json.Number:
-		return "a number"
-	case string:
-		return "a string"
-	case []jsonfile.Value:
-		return "an array"
-	case *jsonfile.Object:
-		return "an object"
-	}
-	return fmt.Sprintf("%T", v)
 }
 
 // stagingPath is where a download is written before it is renamed onto dest:

@@ -384,8 +384,8 @@ func canonicalPermissionDiffs(label string, perms jsonfile.Value) []string {
 		block = jsonfile.NewObject()
 	}
 	var diffs []string
-	diffs = append(diffs, diffJSON(label+".deny", stringValues(guardrail.CanonicalDenyRules()), valueOr(block, "deny", []jsonfile.Value{}))...)
-	diffs = append(diffs, diffJSON(label+".ask", stringValues(guardrail.CanonicalAskRules()), valueOr(block, "ask", []jsonfile.Value{}))...)
+	diffs = append(diffs, diffJSON(label+".deny", jsonfile.StringArray(guardrail.CanonicalDenyRules()), valueOr(block, "deny", []jsonfile.Value{}))...)
+	diffs = append(diffs, diffJSON(label+".ask", jsonfile.StringArray(guardrail.CanonicalAskRules()), valueOr(block, "ask", []jsonfile.Value{}))...)
 	allow, _ := block.Get("allow")
 	list, _ := allow.([]jsonfile.Value)
 	var conflicting []string

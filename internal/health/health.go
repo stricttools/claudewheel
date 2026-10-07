@@ -190,15 +190,6 @@ func settingsPath(p profiles.Profile) string {
 	return filepath.Join(p.Path, profiles.SettingsFileName)
 }
 
-// stringValues turns strings into a JSON array.
-func stringValues(items []string) []jsonfile.Value {
-	out := make([]jsonfile.Value, len(items))
-	for i, s := range items {
-		out[i] = s
-	}
-	return out
-}
-
 // numberValue reads v as a JSON number, reporting false for anything else.
 func numberValue(v jsonfile.Value) (float64, bool) {
 	n, isNumber := v.(json.Number)

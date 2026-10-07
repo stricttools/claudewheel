@@ -190,12 +190,12 @@ func checkCanonicalHooks(canonical *jsonfile.Object) error {
 		v, _ := canonical.Get(event)
 		entries, ok := v.([]jsonfile.Value)
 		if !ok {
-			return &MalformedSettingsError{Detail: fmt.Sprintf("hooks %q is %s, expected an array", event, jsonTypeName(v))}
+			return &MalformedSettingsError{Detail: fmt.Sprintf("hooks %q is %s, expected an array", event, jsonfile.Describe(v))}
 		}
 		for _, e := range entries {
 			entry, ok := e.(*jsonfile.Object)
 			if !ok {
-				return &MalformedSettingsError{Detail: fmt.Sprintf("a hooks %q entry is %s, expected an object", event, jsonTypeName(e))}
+				return &MalformedSettingsError{Detail: fmt.Sprintf("a hooks %q entry is %s, expected an object", event, jsonfile.Describe(e))}
 			}
 			hv, present := entry.Get("hooks")
 			if !present {
@@ -203,11 +203,11 @@ func checkCanonicalHooks(canonical *jsonfile.Object) error {
 			}
 			hooks, ok := hv.([]jsonfile.Value)
 			if !ok {
-				return &MalformedSettingsError{Detail: fmt.Sprintf("a hooks %q entry's hooks is %s, expected an array", event, jsonTypeName(hv))}
+				return &MalformedSettingsError{Detail: fmt.Sprintf("a hooks %q entry's hooks is %s, expected an array", event, jsonfile.Describe(hv))}
 			}
 			for _, h := range hooks {
 				if _, ok := h.(*jsonfile.Object); !ok {
-					return &MalformedSettingsError{Detail: fmt.Sprintf("a hook in a hooks %q entry is %s, expected an object", event, jsonTypeName(h))}
+					return &MalformedSettingsError{Detail: fmt.Sprintf("a hook in a hooks %q entry is %s, expected an object", event, jsonfile.Describe(h))}
 				}
 			}
 		}
