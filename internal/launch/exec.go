@@ -213,20 +213,6 @@ func SweepEndedSessions(fx *effects.FX, now time.Time) ([]string, error) {
 	return stopped, nil
 }
 
-// defaultExecPath is the search list execvp uses when PATH is unset.
-const defaultExecPath = "/bin:/usr/bin"
-
-// envValue is key's value in env (os.Environ form), the last entry winning.
-func envValue(env []string, key string) (string, bool) {
-	value, found := "", false
-	for _, kv := range env {
-		if k, v, ok := strings.Cut(kv, "="); ok && k == key {
-			value, found = v, true
-		}
-	}
-	return value, found
-}
-
 // setEnv returns env with key set to value, replacing every entry of key.
 func setEnv(env []string, key, value string) []string {
 	return append(unsetEnv(env, key), key+"="+value)
@@ -258,9 +244,9 @@ func unsetEnv(env []string, key string) []string {
 // from its answer on stdout. secrets are redacted from the dry-run record
 // and from every error.
 func Exec(fx *effects.FX, cwd string, argv, env []string, toolCap ToolCap, scriptsDir string, stderr io.Writer, secrets []string) error {
-	search, ok := envValue(env, "PATH")
+	search, ok := effects.EnvValue(env, "PATH")
 	if !ok {
-		search = defaultExecPath
+		search = effects.DefaultExecPath
 	}
 	systemdRun, found, err := lookPath("systemd-run", search)
 	if err != nil {

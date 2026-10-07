@@ -418,3 +418,7 @@ The character-counting helpers the bar, the sessions view, and the wizard each d
 ## appconfig: the segment keys have one spelling
 
 `appconfig.SegmentKey*` is the only spelling of the default segments' keys: `DefaultConfig`, `DefaultSegments`, `DefaultOptions`, the default themes' segment colors, the options upgrade, and `RecordLaunch` use the constants, and `profiles.Segment`, `discover.VersionSegmentKey`, and the bar's `keyProfile`, `keyModel`, and `keyDirectory` are gone. This completes the "deletion and appconfig" entry, which listed them as still separate.
+
+## effects: the environment lookup and the default search path are shared
+
+`effects.EnvValue` (an `os.Environ`-form lookup, the last entry winning) and `effects.DefaultExecPath` (`/bin:/usr/bin`) replace launch's identical copies. The PATH searches stay separate because they differ in behavior: `effects`' execvpe search reads an empty entry as `.`, skips every stat error, and tests the mode's execute bits; launch's does the same but returns stat errors other than a missing file, a permission error, or a non-directory; the wizard's and archiver's skip empty and relative entries and test with access(2), the wizard also reading a non-directory as absent where archiver returns it as an error. Choosing one search for all of them is a behavior question.

@@ -250,9 +250,9 @@ func exitCode(state *os.ProcessState) int {
 	return state.ExitCode()
 }
 
-// defaultExecPath is the search path when the environment sets no PATH, the
+// DefaultExecPath is the search path when the environment sets no PATH, the
 // same one Python's os.defpath gives on POSIX.
-const defaultExecPath = "/bin:/usr/bin"
+const DefaultExecPath = "/bin:/usr/bin"
 
 // lookPath resolves a program the way execvpe does: a name holding a slash is
 // used as is, and any other name is searched on the PATH of env (of this
@@ -266,10 +266,10 @@ func lookPath(name string, env []string) (string, error) {
 	if env == nil {
 		search, ok = os.LookupEnv("PATH")
 	} else {
-		search, ok = envValue(env, "PATH")
+		search, ok = EnvValue(env, "PATH")
 	}
 	if !ok {
-		search = defaultExecPath
+		search = DefaultExecPath
 	}
 	for _, dir := range filepath.SplitList(search) {
 		if dir == "" {
@@ -284,9 +284,9 @@ func lookPath(name string, env []string) (string, error) {
 	return "", &exec.Error{Name: name, Err: exec.ErrNotFound}
 }
 
-// envValue is the value of key in env, the last entry winning as it does for
+// EnvValue is the value of key in env, the last entry winning as it does for
 // a child.
-func envValue(env []string, key string) (string, bool) {
+func EnvValue(env []string, key string) (string, bool) {
 	value, found := "", false
 	for _, entry := range env {
 		if k, v, ok := strings.Cut(entry, "="); ok && k == key {
