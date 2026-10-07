@@ -538,3 +538,7 @@ These override every earlier entry they touch.
 - This carries the orchestrating session's fourteenth ruling to the inline checks the entry "pathstat: a path under a file is absent" left alone: every check outside `effects` that asks whether a path is absent after a stat, lstat, open, read, readdir, or readlink now uses `pathstat.NotFoundOrParentNotDirectory`, in place of `errors.Is(err, fs.ErrNotExist)`, `errors.Is(err, os.ErrNotExist)`, `os.IsNotExist`, or a comparison with `syscall.ENOENT` (the probe waiter's FIFO open).
 - Left as they are, in `effects`' own write paths: the atomic write's stat of its target (its staging file was just created in the same directory, so the parent is a directory) and the unlink of its staging file, and `RemoveIfExists`, whose missing-path case is the result of the unlink itself.
 - `scratchpad.ScanTree` returns `(size int64, newest time.Time, found bool, err error)`, found being false when nothing is at the root. `ScanDirs` skips a project directory that vanished before it was scanned, which a zero time would have shown as stale, and health's `/tmp/claude` check reports a root that vanished after its existence check as not present.
+
+## effects: RemoveIfExists reads a path under a file as absent (orchestrating session)
+
+Under ruling 14, `RemoveIfExists` on a path whose parent is a file returns nil like a missing path: its unlink tests `pathstat.NotFoundOrParentNotDirectory`.

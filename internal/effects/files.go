@@ -186,7 +186,7 @@ func (fx *FX) unlink(path string, missingOK bool) error {
 		return err
 	}
 	if err := syscall.Unlink(path); err != nil {
-		if missingOK && err == syscall.ENOENT {
+		if missingOK && pathstat.NotFoundOrParentNotDirectory(err) {
 			return nil
 		}
 		return &os.PathError{Op: "unlink", Path: path, Err: err}
