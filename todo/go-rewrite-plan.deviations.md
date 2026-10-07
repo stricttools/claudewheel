@@ -434,3 +434,7 @@ The character-counting helpers the bar, the sessions view, and the wizard each d
 ## tui/widgets: the screen opener is shared
 
 `widgets.RequireTerminal(what)` (the refusal when nobody is at a terminal), `widgets.OpenRawScreen()` (open the terminal, enter cbreak mode on the alternate screen, close it again when that fails), and `widgets.OpenScreen(ctx, ws, theme, what)` (the two with the theme's colors loaded between them) replace the cli's `requireTerminal` and `openScreen` and launch's copies. Launch still resolves the colors once per launch rather than per prompt, so it composes `RequireTerminal`, `LoadColors`, and `OpenRawScreen` itself.
+
+## profiles: the session operations' profile list
+
+`profiles.Store.ConfigDirs()` (every profile's name and config directory, sorted by name, no token file read) replaces the cli's `profileDirs` and the copy in launch's session mover. The sessions overview the bar opens still builds its list from `Enumerate`, which also reads every token file and refuses a corrupt one; switching it is a behavior change.

@@ -27,6 +27,7 @@ import (
 	"github.com/stricttools/claudewheel/internal/jsonfile"
 	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/realpath"
+	"github.com/stricttools/claudewheel/internal/sessions"
 	"github.com/stricttools/claudewheel/internal/tokens"
 	"github.com/stricttools/claudewheel/internal/workspace"
 )
@@ -205,6 +206,20 @@ func (s Store) Names() ([]string, error) {
 	}
 	sort.Strings(names)
 	return names, nil
+}
+
+// ConfigDirs returns every profile's name and config directory, sorted by
+// name, reading no token file: what the session operations scan.
+func (s Store) ConfigDirs() ([]sessions.ProfileConfigDir, error) {
+	names, err := s.Names()
+	if err != nil {
+		return nil, err
+	}
+	dirs := make([]sessions.ProfileConfigDir, len(names))
+	for i, name := range names {
+		dirs[i] = sessions.ProfileConfigDir{Name: name, ConfigDir: s.PathFor(name)}
+	}
+	return dirs, nil
 }
 
 // CorruptTokenPolicy says what enumeration does with a token file that

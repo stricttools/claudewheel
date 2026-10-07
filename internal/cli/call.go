@@ -35,7 +35,6 @@ import (
 	"github.com/stricttools/claudewheel/internal/appconfig"
 	"github.com/stricttools/claudewheel/internal/effects"
 	"github.com/stricttools/claudewheel/internal/profiles"
-	"github.com/stricttools/claudewheel/internal/sessions"
 	"github.com/stricttools/claudewheel/internal/terminal"
 	"github.com/stricttools/claudewheel/internal/workspace"
 )
@@ -182,24 +181,6 @@ func (c *call) profileStore() (profiles.Store, error) {
 		return profiles.Store{}, err
 	}
 	return store, nil
-}
-
-// profileDirs returns every profile's name and config directory, sorted by
-// name, reading no token file: what the session operations scan.
-func (c *call) profileDirs() ([]sessions.ProfileConfigDir, error) {
-	store, err := c.profileStore()
-	if err != nil {
-		return nil, err
-	}
-	names, err := store.Names()
-	if err != nil {
-		return nil, err
-	}
-	dirs := make([]sessions.ProfileConfigDir, len(names))
-	for i, name := range names {
-		dirs[i] = sessions.ProfileConfigDir{Name: name, ConfigDir: store.PathFor(name)}
-	}
-	return dirs, nil
 }
 
 // signalContext returns a context cancelled on SIGINT (cause

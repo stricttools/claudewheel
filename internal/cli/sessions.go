@@ -7,6 +7,7 @@ import (
 
 	"github.com/stricttools/strictcli/go/strictcli"
 
+	"github.com/stricttools/claudewheel/internal/profiles"
 	"github.com/stricttools/claudewheel/internal/sessionmove"
 	"github.com/stricttools/claudewheel/internal/sessions"
 )
@@ -88,7 +89,7 @@ func migrate(c *call, srcName, dstName string, choice sessionmove.SessionChoice)
 	if _, err := c.appConfig(); err != nil {
 		return err
 	}
-	dirs, err := c.profileDirs()
+	dirs, err := profiles.New(c.ws).ConfigDirs()
 	if err != nil {
 		return err
 	}
@@ -121,7 +122,7 @@ func handleMv(c *call, kw map[string]interface{}) error {
 	if _, err := c.appConfig(); err != nil {
 		return err
 	}
-	dirs, err := c.profileDirs()
+	dirs, err := profiles.New(c.ws).ConfigDirs()
 	if err != nil {
 		return err
 	}
@@ -134,7 +135,7 @@ func handleMoveSession(c *call, kw map[string]interface{}) error {
 	if _, err := c.appConfig(); err != nil {
 		return err
 	}
-	dirs, err := c.profileDirs()
+	dirs, err := profiles.New(c.ws).ConfigDirs()
 	if err != nil {
 		return err
 	}

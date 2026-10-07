@@ -27,7 +27,6 @@ import (
 	"github.com/stricttools/claudewheel/internal/install"
 	"github.com/stricttools/claudewheel/internal/profiles"
 	"github.com/stricttools/claudewheel/internal/projecthooks"
-	"github.com/stricttools/claudewheel/internal/sessions"
 	"github.com/stricttools/claudewheel/internal/tui/bar"
 	"github.com/stricttools/claudewheel/internal/tui/widgets"
 	"github.com/stricttools/claudewheel/internal/workspace"
@@ -405,17 +404,9 @@ func (l *launcher) healthCheck() error {
 
 // sessionMover builds the mover of renamed projects' sessions.
 func (l *launcher) sessionMover(interactive bool) (*sessionMover, error) {
-	store := profiles.New(l.ws)
-	if err := store.CheckPendingRenames(); err != nil {
-		return nil, err
-	}
-	names, err := store.Names()
+	dirs, err := profiles.New(l.ws).ConfigDirs()
 	if err != nil {
 		return nil, err
-	}
-	dirs := make([]sessions.ProfileConfigDir, len(names))
-	for i, name := range names {
-		dirs[i] = sessions.ProfileConfigDir{Name: name, ConfigDir: store.PathFor(name)}
 	}
 	return &sessionMover{
 		ctx:         l.env.Ctx,
