@@ -29,3 +29,24 @@ A new command `claudewheel profile exec --name <profile> -- <argv...>`, needed b
 - `ReadMaskedLine` reports Escape, Ctrl-D, and a Ctrl-C byte as `terminal.ErrEntryCancelled` (the Python raised KeyboardInterrupt); the mask is a required argument.
 - Multi-byte UTF-8 keys decode to one character; the Python decoded each byte alone and produced replacement characters.
 - No silent fallbacks: a failed size ioctl, a tty read of zero bytes, and I/O errors in the OSC 11 and mode 2031 queries are errors (the Python fell back to `shutil.get_terminal_size`, looped, or returned None). A query the terminal does not answer, or a TERM known not to support it, is `SchemeUnknown` with no error; the theme resolver decides what unknown means. `EnterRaw` while already raw is an error (the Python overwrote the saved attributes). Writes are unbuffered, so there is no Flush.
+
+## jsonfile: number text, NaN, and equality
+
+- Numbers keep their original text through a read and a rewrite. The Python re-serialized floats through `repr` (`1e5` became `100000.0`, `1.50` became `1.5`); the Go writer leaves them as written. Integers were already exact in both.
+- `NaN`, `Infinity`, and `-Infinity`, which Python's `json.loads` accepts, are refused as invalid JSON.
+- `Equal` compares numbers by value as Python does (`1 == 1.0`) and ignores object key order (Python dict equality), but keeps booleans and numbers apart (Python has `True == 1`).
+- A lone UTF-16 surrogate from a `\uXXXX` escape is held in a Go string as its three-byte generalized UTF-8 form, and every writer escapes it back, so a transcript line round-trips as it did in Python. In strictly decoded struct fields it becomes U+FFFD (encoding/json).
+- Go float fields marshal in encoding/json's format, not Python's `repr`; claudewheel's own files hold no floats.
+
+## jsonfile: the writers
+
+The Python writes JSON in these layouts, each now a function: `MarshalIndented` (`json.dumps(x, indent=2) + "\n"`, every owned file), `MarshalCompactASCII` (`separators=(",", ":")`, the probe and lifecycle JSONL lines), `MarshalSortedCompactASCII` (`sort_keys=True` compact, the project hooks fingerprint), `MarshalSpacedASCII` (bare `json.dumps(x)`, health and reconcile messages), and `MarshalTranscriptLine` (`mv._dump_record`: `ensure_ascii=False` compact with lone surrogates escaped). Each takes a tree or any Go value; non-tree values go through encoding/json first, so struct fields keep declaration order.
+
+## jsonfile: strict decoding
+
+`DecodeStrict` refuses duplicate keys (the Python owned-file readers accepted them, last wins), unknown keys, and any document that writing the decoded value back would not reproduce key for key: a missing key, a null in a non-pointer field, or an optional key present with the value its writer omits. An optional key is a pointer field tagged `omitempty`; a required pointer field accepts null.
+
+## workspace: HOME and path encoding
+
+- `Default()` refuses an unset, empty, or relative `HOME`. `FromHome(home)` builds every path from one home directory and replaces `Workspace.open`'s per-directory overrides, which only tests used.
+- `EncodePath` and its hash treat each byte that is not valid UTF-8 as U+DC00 plus the byte, as Python's `surrogateescape` decoding of a filesystem path does.
