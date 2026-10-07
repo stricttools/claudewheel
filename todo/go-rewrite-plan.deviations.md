@@ -355,3 +355,15 @@ The miniclaude client adapter always passes `--model <id>` and `--permission-mod
 - A `-s KEY=VALUE` whose value a segment that is not freeform does not offer (a GitHub account the slow background discovery has not produced yet, say) is taken as a launch-only option and selected, as a launch that skips the bar takes it, instead of the hard error recorded under "tui/bar: no silent fallbacks". It is drawn with the ephemeral mark.
 - Launching pins a selected launch-only option into options.json only on a freeform segment (a directory typed on the bar, as before); on any other segment it came from the command line and is not remembered as an option. Once discovery offers the value, it is an ordinary option.
 - An empty `-s KEY=` value is refused when the bar opens: a launch that skips the bar reads it as no value, but the bar would select the last launch's value again when discovery arrives.
+
+## realpath: one resolver for Python's non-strict resolve
+
+`internal/realpath` (base layer) holds the one port of Python's non-strict `os.path.realpath`, which pathlib's non-strict `Path.resolve` wraps: `Resolve(p)` and `Join` (`posixpath.join`). It replaces sessionmove's private copy and the two lenient resolvers in `profiles` (`ClassifySharedDirs`) and `install` (`Locator.SymlinkTarget`), which could not share code because `profiles` may not import `install`. Behavior those two callers gain: `..` applies to the path resolved so far, as in Python, and a link loop leaves the rest of the path unresolved instead of failing (install's `SymlinkTarget` reported false, profiles returned an error). A link that cannot be read is still an error, which `SymlinkTarget` reports as false.
+
+## pyrepr: one rendering of Python's repr
+
+`internal/pyrepr` (base layer) holds the one rendering of decoded JSON values as Python's `repr` and `str` (`Repr`, `Str`, `StringList`), used by health's details and projecthooks' approval listing; each package had its own copy. The projecthooks listing now escapes control characters in a non-string matcher or command as Python's `repr` does (its copy did not).
+
+## reconcile: MergeHooks refuses malformed canonical hooks
+
+`MergeHooks` checks the canonical hooks before changing anything: an event value or an entry's `hooks` that is not an array, or an entry or hook that is not an object, is a `*MalformedSettingsError` (the wizard passes `shared-settings.json`'s hand-editable hooks as canonical; such a value panicked). The signature is unchanged.
