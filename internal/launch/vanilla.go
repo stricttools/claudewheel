@@ -23,7 +23,7 @@ import (
 
 // vanillaSettingsPath is ~/.claude/settings.json.
 func vanillaSettingsPath(ws workspace.Workspace) string {
-	return filepath.Join(ws.ClaudeDir(), "settings.json")
+	return filepath.Join(ws.ClaudeDir(), profiles.SettingsFileName)
 }
 
 // loadVanillaSettings reads ~/.claude/settings.json; a missing file reads as
@@ -163,7 +163,7 @@ func isClaudewheelHook(hook jsonfile.Value) bool {
 	}
 	cv, _ := h.Get("command")
 	command, ok := cv.(string)
-	return ok && command != "" && hookscripts.IsScript(filepath.Base(command))
+	return ok && hookscripts.IsScript(reconcile.ScriptBasename(command))
 }
 
 // SetVanillaGuardrails adds (enable) or removes claudewheel's guardrail
