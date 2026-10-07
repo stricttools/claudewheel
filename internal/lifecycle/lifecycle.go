@@ -327,12 +327,14 @@ func where(path string, lineno int) string {
 func validateLine(line []byte, at string) error {
 	_, diags := lifecycleevent.ValidateBytes(line, "jsonl")
 	if len(diags) > 0 {
-		return errorf("%s: %s", at, joinDiagnostics(diags))
+		return errorf("%s: %s", at, JoinDiagnostics(diags))
 	}
 	return nil
 }
 
-func joinDiagnostics(diags []strictspec.Diagnostic) string {
+// JoinDiagnostics joins the messages of a generated validator's diagnostics
+// with "; ", the form every schema-checked store reports them in.
+func JoinDiagnostics(diags []strictspec.Diagnostic) string {
 	messages := make([]string, len(diags))
 	for i, d := range diags {
 		messages[i] = d.Message
@@ -386,9 +388,10 @@ func decodeAs[E Event](line []byte) (Event, error) {
 	return e, nil
 }
 
-// splitLines splits text as the Python readers did: on "\n", dropping the
-// empty string after a final newline. complete reports that final newline.
-func splitLines(text string) (lines []string, complete bool) {
+// SplitLines splits JSONL text as the Python readers did: on "\n", dropping
+// the empty string after a final newline. complete reports that final
+// newline. The probe store's JSONL files are split the same way.
+func SplitLines(text string) (lines []string, complete bool) {
 	lines = strings.Split(text, "\n")
 	complete = strings.HasSuffix(text, "\n")
 	if complete {
@@ -413,7 +416,7 @@ func ReadSession(path string) ([]Event, error) {
 	if len(data) == 0 {
 		return nil, nil
 	}
-	lines, complete := splitLines(string(data))
+	lines, complete := SplitLines(string(data))
 	var events []Event
 	for i, raw := range lines {
 		lineno := i + 1

@@ -279,11 +279,7 @@ func validate(v validator, data []byte, syntax, where string) error {
 	if len(diags) == 0 {
 		return nil
 	}
-	messages := make([]string, len(diags))
-	for i, d := range diags {
-		messages[i] = d.Message
-	}
-	return errorf("%s: %s", where, strings.Join(messages, "; "))
+	return errorf("%s: %s", where, lifecycle.JoinDiagnostics(diags))
 }
 
 // jsonLine is one validated line of a JSONL file and its 1-based number.
@@ -305,12 +301,7 @@ func readJSONL(path string, v validator) ([]jsonLine, error) {
 	if !utf8.Valid(data) {
 		return nil, errorf("%s: cannot be read: not valid UTF-8", path)
 	}
-	text := string(data)
-	lines := strings.Split(text, "\n")
-	complete := strings.HasSuffix(text, "\n")
-	if complete {
-		lines = lines[:len(lines)-1]
-	}
+	lines, complete := lifecycle.SplitLines(string(data))
 	var out []jsonLine
 	for i, raw := range lines {
 		lineno := i + 1
