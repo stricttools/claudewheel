@@ -18,6 +18,26 @@ func NewApp(version string) *strictcli.App {
 	return app
 }
 
+// anywhereSwitches are the framework-owned flags strictcli takes anywhere
+// before a bare "--", in front of the command or after it, and removes from
+// the command line: the effects quartet and --json. None takes a value.
+var anywhereSwitches = map[string]bool{
+	"--dry-run":               true,
+	"--approve-consequential": true,
+	"--quiet":                 true,
+	"--verbose":               true,
+	"--json":                  true,
+}
+
+// FrameworkSwitch reports whether tok is a framework-owned flag that takes
+// no value and that strictcli accepts in front of the command: one of
+// anywhereSwitches, or --hermetic, which it takes only there. main steps
+// over them when it inserts the launch command, so `claudewheel --dry-run
+// stats` previews stats rather than a launch.
+func FrameworkSwitch(tok string) bool {
+	return anywhereSwitches[tok] || tok == "--hermetic"
+}
+
 // register adds every command group to app. Each group lives in its own file
 // and exposes one function taking the app; a new group is one more call here.
 func register(app *strictcli.App) {

@@ -37,18 +37,6 @@ var passThroughFlags = map[string]bool{
 	"--lint-framework-use": true,
 }
 
-// reservedFlags are the flags strictcli owns and strips from the argument
-// list wherever they stand in front of the command, so the insertion passes
-// over them: `claudewheel --dry-run stats` previews stats, not a launch.
-var reservedFlags = map[string]bool{
-	"--dry-run":               true,
-	"--approve-consequential": true,
-	"--quiet":                 true,
-	"--verbose":               true,
-	"--json":                  true,
-	"--hermetic":              true,
-}
-
 func main() {
 	if version == "" {
 		fmt.Fprintln(os.Stderr, "error: this claudewheel binary carries no version: build it with scripts/build, which stamps the version recorded in package.json")
@@ -83,12 +71,12 @@ func routingNames(app *strictcli.App) map[string]bool {
 }
 
 // injectLaunch returns args (without the program name) with the launch
-// command inserted when no command is named: after the leading reserved
-// flags, unless the first other token is a routed name or a flag strictcli
-// answers at the app level.
+// command inserted when no command is named: after the leading framework
+// switches (cli.FrameworkSwitch), unless the first other token is a routed
+// name or a flag strictcli answers at the app level.
 func injectLaunch(args []string, routed map[string]bool) []string {
 	lead := 0
-	for lead < len(args) && reservedFlags[args[lead]] {
+	for lead < len(args) && cli.FrameworkSwitch(args[lead]) {
 		lead++
 	}
 	if lead < len(args) && (routed[args[lead]] || passThroughFlags[args[lead]]) {

@@ -395,3 +395,22 @@ The character-counting helpers the bar, the sessions view, and the wizard each d
 ## jsonfile, lifecycle, and sessions: shared helpers replace private copies
 
 `health` uses `jsonfile.StringArray`; `reconcile` and `install` use `jsonfile.Describe` (the copies differed from it only in the text for a non-JSON Go value, which a decoded tree never holds); `sessionmove` uses `lifecycle.JoinDiagnostics` and `workspace.ProjectsDirName`; `profiles` uses `sessions.AllDigits`; `proberunner` splits journalctl output with `lifecycle.SplitLines`, which differs from its copy only for empty output (one empty line, which the JSON decode skips). `probe`'s cgroup line splitter stays: it also folds "\r\n". `sessions`' byte splitter stays: it keeps the empty text after a final newline.
+
+## terminal: who is at a terminal (orchestrating session)
+
+`terminal.HasControllingTerminal` now requires both that stdin is a terminal and that `/dev/tty` opens: a process an agent started can keep a controlling terminal while its stdin is a pipe, and a prompt there would wait for keys nobody presses. Every interactive surface asks it before opening the terminal: profile create (before the workspace is opened), profile delete's checklist and saferm offer, the launch bar, and every launch prompt. Nobody at a terminal is an error naming the screen; the launch bar's says it is skipped when -s presets every required segment or --print-prompt runs one prompt. This overrides the "/dev/tty opens" definition in the "cli: profile delete at a terminal" entry.
+
+## archiver: the install commands method is Fix
+
+`Unavailable.Remedy()` is renamed `Unavailable.Fix()` (the old word is banned in this project's files). This overrides the name in the "archiver: detection, the delegation, and the install" entry.
+
+## deletion and appconfig: single authorities for the saferm offer and the segment keys
+
+- The saferm install confirmation and its explanation lines are built once, by `deletion.SafermInstallOffer` and `deletion.SafermExplanation` (internal/tui/deletion/saferm.go); the bar and profile delete both use them.
+- The default segments' keys are named once, as `appconfig.SegmentKey*` (internal/appconfig/segment_keys.go). The launch reads them; `profiles.Segment`, `discover.VersionSegmentKey`, the bar's `keyModel`/`keyDirectory`, and the key literals of `appconfig.DefaultSegments` still spell them separately.
+
+## cli: the launch command's grants and its client arguments
+
+- `launch` also declares the grants `download` (NetMutate, the bar's version install) and `archive-delegation` (ProcMutate, the bar's profile delete): under `--dry-run` an undeclared grant is an error.
+- strictcli has no declaration for "the tokens after `--` only" (`WithPassthrough` skips parsing altogether), so the handler still refuses client arguments that did not follow `--` by reading `os.Args`. It splits the command line as strictcli's tokenizer does: the framework switches before the first `--` are dropped (`anywhereSwitches`), and a `--` that is the value of a value-taking flag (`-p --`) is that flag's value, the spellings read off the launch command's own declarations. A programmatic door (`App.Test`, the MCP server) carries no command line in `os.Args`, so there the check reads the wrong argv; a strictcli rest-after-separator option would remove it.
+- `cli.FrameworkSwitch` is the one list of the framework flags main steps over when it inserts `launch`; main's own copy is gone.
