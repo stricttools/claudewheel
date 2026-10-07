@@ -342,3 +342,58 @@ func TestProbeCommandsOutsideASession(t *testing.T) {
 	e.fails("probe", "create", "oom-kill", "--all-sessions", "--deadline", "1h", "--", "sleep", "1")
 	e.fails("probe", "run-service", "--dry-run")
 }
+
+// fakeSaferm answers `capabilities --json` with the features given and
+// `delete ... --json <path>` by moving the path aside and answering with an
+// archived record, as saferm's machine mode does.
+func fakeSaferm(features string) string {
+	return `case "$1" in
+capabilities) printf '{"payload":{"features":[%s]}}\n' '` + features + `' ;;
+delete)
+  for last; do :; done
+  mv "$last" "$last.archived" || exit 1
+  printf '{"payload":{"group_id":"g1","archived":[{"uuid":"11111111-2222-4333-8444-555555555555","size":3,"path":"%s"}]}}\n' "$last" ;;
+*) exit 2 ;;
+esac`
+}
+
+func TestProfileDeleteDelegatesToSaferm(t *testing.T) {
+	e := newEnv(t)
+	e.setUp("doomed", "kept")
+	dir := filepath.Join(e.ws.ProfilesDir(), "doomed")
+	e.fails("profile", "delete", "doomed", "--force-delete", "--force-delete-data", "--approve-consequential")
+	if _, err := os.Stat(dir); err != nil {
+		t.Fatal("the profile was deleted without saferm")
+	}
+	testkit.Stub(t, e.stubs, "saferm", fakeSaferm(`"machine-payloads","on-error-modes"`))
+	// The refusal names the missing features on the process's stderr, which
+	// the in-process door does not capture.
+	e.fails("profile", "delete", "doomed", "--force-delete", "--force-delete-data", "--approve-consequential")
+	if _, err := os.Stat(dir); err != nil {
+		t.Fatal("the profile was deleted by a saferm missing features")
+	}
+	testkit.Stub(t, e.stubs, "saferm", fakeSaferm(`"git-index-switches","machine-payloads","on-error-modes","uuid-handles"`))
+	testkit.WriteFile(t, filepath.Join(dir, "projects", "-p", "s.jsonl"), "{}\n")
+	e.fails("profile", "delete", "doomed", "--force-delete", "--no-force-delete-data", "--approve-consequential")
+	if _, err := os.Stat(dir); err != nil {
+		t.Fatal("a profile holding real session data was deleted without --force-delete-data")
+	}
+	e.fails("profile", "delete", "default", "--force-delete", "--force-delete-data", "--approve-consequential")
+	r := e.ok("profile", "delete", "doomed", "--force-delete", "--force-delete-data", "--approve-consequential")
+	if !strings.Contains(r.Stdout, "saferm undelete --no-update-git-index 11111111-2222-4333-8444-555555555555") {
+		t.Fatalf("no restore command:\n%s", r.Stdout)
+	}
+	if _, err := os.Stat(dir); !os.IsNotExist(err) {
+		t.Fatal("the profile directory is still there")
+	}
+	calls := testkit.Calls(t, e.stubs, "saferm")
+	last := calls[len(calls)-1]
+	for _, want := range []string{"delete", "--on-error abort", "--no-update-git-index", "--description", "--json", dir} {
+		if !strings.Contains(last, want) {
+			t.Errorf("saferm was called as %q, without %s", last, want)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(e.ws.ProfilesDir(), "kept")); err != nil {
+		t.Fatal("another profile was touched")
+	}
+}
