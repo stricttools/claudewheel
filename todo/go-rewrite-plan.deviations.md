@@ -93,3 +93,10 @@ The unit writes `ExecStart="<executable>" probe run-service`, double-quoted as t
 - `TargetDirectory(directorySelection)` takes the directory selection itself ("" when unset) rather than the whole selections mapping.
 - `~` expansion and path printing reproduce `str(Path(d).expanduser())` (repeated and trailing slashes and `.` parts dropped, `..` kept), because `project_hook_approvals` in `state.json` is keyed by that string. An unset `HOME` with a `~` directory is an error (Python fell back to the password database).
 - `Fingerprint()` returns an error from the writer instead of being a property; it equals the Python's stored fingerprints unless the hooks hold a float Python re-wrote through `repr` (see the jsonfile number-text entry).
+
+## scratchpad: API
+
+- `SCRATCHPAD_SNOOZE_DAYS` is not ported: the plan replaces the snooze with per-directory dismissal (`scratchpad_dismissed`), which the launch applies to `ScanDirs`' result.
+- `Remove(fx, dirs)` attempts every directory and returns the failures joined, each naming its directory; the plan makes a non-nil result abort the launch.
+- `ScanTree(root)` is exported so `health`'s `/tmp/claude` size check uses the same walk instead of a second copy (`_real_disk_usage`); its size counts the same files.
+- Ages use `time.Time`; a root whose lstat fails has the zero time (Python used epoch 0), so it reads as stale either way.
