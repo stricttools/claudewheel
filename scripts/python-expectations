@@ -156,6 +156,73 @@ def lifecycle_lines():
     return [lc.event_to_json(e) for e in events]
 
 
+RECONCILE_PROFILE_INPUTS = [
+    {},
+    {"model": "opus", "env": {"A": "1"}},
+    {
+        "permissions": {
+            "allow": ["Bash(git add -A)", "Read(//home/**)", "Bash(git stash)"],
+            "deny": ["Bash(made up:*)", "Bash(rm:*)"],
+            "ask": [],
+            "defaultMode": "bypassPermissions",
+        },
+        "claudewheel": {"disallowedTools": ["Artifact", "Extra"], "other": 1},
+        "remoteControlAtStartup": True,
+        "spinnerTipsEnabled": False,
+        "hooks": {
+            "PreToolUse": [
+                {"matcher": "Bash", "hooks": [
+                    {"type": "command", "command": "/home/u/.claudewheel/scripts/hook-block-unsafe-commands"},
+                    {"type": "command", "command": "/usr/local/bin/my-own-hook"},
+                ]},
+                {"matcher": "Edit", "hooks": [{"type": "command", "command": "/x/edit-hook", "timeout": 5}]},
+            ],
+            "Notification": [{"matcher": "", "hooks": [{"type": "command", "command": "/home/u/.claudewheel/scripts/hook-notification-ding"}]}],
+        },
+        "statusLine": {"type": "command", "command": "x"},
+    },
+]
+
+RECONCILE_SHARED_INPUTS = [
+    {"hooks": {}, "disallowedTools": [], "profileDefaults": {}},
+    {
+        "hooks": {"Stop": [{"matcher": "", "hooks": [{"type": "command", "command": "/old/scripts/hook-wait-for-probe-reports"}]}]},
+        "disallowedTools": ["Artifact"],
+        "profileDefaults": {
+            "awaySummaryEnabled": True,
+            "cleanupPeriodDays": 30,
+            "permissions": {"deny": ["Bash(rm:*)", "Bash(rm:*)"], "allow": ["Bash(git add .)"], "defaultMode": "default"},
+            "theme": "dark",
+        },
+        "custom": {"kept": True},
+    },
+]
+
+
+def reconcile_cases():
+    import copy
+
+    from claudewheel import defaults, reconcile
+
+    scripts = Path("/home/u/.claudewheel/scripts")
+    canonical = defaults.build_canonical_shared_settings(scripts)
+    cases = []
+    for target, inputs, fn in (
+        ("profile", RECONCILE_PROFILE_INPUTS, reconcile.reconcile_profile_dict),
+        ("shared", RECONCILE_SHARED_INPUTS, reconcile.reconcile_shared_dict),
+    ):
+        for value in inputs:
+            work = copy.deepcopy(value)
+            changes = fn(work, canonical)
+            cases.append({
+                "target": target,
+                "input": json.dumps(value, indent=2) + "\n",
+                "output": json.dumps(work, indent=2) + "\n",
+                "changes": changes,
+            })
+    return {"scripts_dir": str(scripts), "cases": cases}
+
+
 # Generators that write a directory tree themselves rather than return data.
 TREE_GENERATORS = {
     "python-workspace": python_workspace,
@@ -167,6 +234,7 @@ GENERATORS = {
     "guardrail-model": guardrail_model,
     "app-defaults": app_defaults,
     "lifecycle-lines": lifecycle_lines,
+    "reconcile-cases": reconcile_cases,
 }
 
 if len(sys.argv) != 3 or sys.argv[1] not in {**GENERATORS, **TREE_GENERATORS}:
