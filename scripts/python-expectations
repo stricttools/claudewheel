@@ -1,0 +1,136 @@
+#!/usr/bin/env python3
+"""Write what the Python claudewheel computes for a fixed set of inputs, as
+JSON test data for the Go port's differential tests. Run it with the
+interpreter that imports this checkout's claudewheel package (the uv tool
+install's python): scripts/python-expectations <generator> <output-file>.
+The generators are listed in GENERATORS below."""
+import base64
+import json
+import os
+import sys
+from pathlib import Path
+
+PATHS = [
+    "/home/m/Projects/claudewheel",
+    "/home/m/Projects/my_project.v2",
+    "/tmp/claude-1000/x y",
+    "relative/path",
+    "/",
+    "",
+    "/home/m/Données/été",
+    "/home/m/emoji-\U0001F600/dir",
+    "/home/m/" + "a" * 250,
+    "/home/m/" + "ü" * 120,
+    "/home/m/" + "\U0001F600" * 80,
+    "/home/m/Projects/" + "x" * 183,
+    "/home/m/Projects/" + "x" * 184,
+]
+RAW_PATHS = [b"/home/m/caf\xe9/dir", b"/tmp/\xff\xfe" + b"z" * 220]
+
+
+def encode_path():
+    from claudewheel.shared_store import SharedStore
+
+    cases = []
+    for p in PATHS:
+        cases.append({
+            "path_b64": base64.b64encode(os.fsencode(p)).decode(),
+            "untruncated": SharedStore.encode_path_untruncated(p),
+            "encoded": SharedStore.encode_path(p),
+        })
+    for raw in RAW_PATHS:
+        p = os.fsdecode(raw)
+        cases.append({
+            "path_b64": base64.b64encode(raw).decode(),
+            "untruncated": SharedStore.encode_path_untruncated(p),
+            "encoded": SharedStore.encode_path(p),
+        })
+    return cases
+
+
+JSON_DOCUMENTS = [
+    '{"a": 1, "b": [1, 2, {"c": null}], "d": "text", "e": true, "f": false}',
+    '{"unicode": "caf\\u00e9 \\u2028 \\ud83d\\ude00", "ctl": "\\u0001\\t\\n\\r\\b\\f\\"\\\\/"}',
+    '{"empty_object": {}, "empty_list": [], "nested": {"x": {"y": []}}}',
+    '[1, -2, 3.5, 1e5, 0.1, -0.0, 12345678901234567890]',
+    '{"lone": "\\ud800 and \\udfff"}',
+    '{"z": 1, "a": 2, "m": {"b": 1, "a": 2}}',
+    '"just a string"',
+    '{"del": "\\u007f", "nbsp": "\\u00a0", "bom": "\\ufeff"}',
+]
+
+
+def json_writers():
+    from claudewheel.mv import _dump_record
+
+    cases = []
+    for doc in JSON_DOCUMENTS:
+        value = json.loads(doc)
+        cases.append({
+            "input": doc,
+            "indented": json.dumps(value, indent=2) + "\n",
+            "compact_ascii": json.dumps(value, separators=(",", ":")),
+            "sorted_compact_ascii": json.dumps(value, sort_keys=True, separators=(",", ":")),
+            "spaced_ascii": json.dumps(value),
+            "transcript_line": _dump_record(value),
+        })
+    return cases
+
+
+def guardrail_model():
+    from claudewheel import defaults, guardrail
+
+    scripts = Path("/home/u/.claudewheel/scripts")
+    rules = []
+    for r in guardrail.rules():
+        rules.append({
+            "key": r.key,
+            "tier": r.tier.name,
+            "hook_patterns": list(r.hook_patterns),
+            "deny_rules": list(r.deny_rules),
+            "ask_rules": list(r.ask_rules),
+            "main_advice": r.main_advice or "",
+            "subagent_advice": r.subagent_advice or "",
+            "settings_coverage": r.settings_coverage.name if r.settings_coverage else "",
+            "coverage_reason": r.coverage_reason,
+        })
+    return {
+        "rules": rules,
+        "canonical_deny_rules": guardrail.canonical_deny_rules(),
+        "canonical_ask_rules": guardrail.canonical_ask_rules(),
+        "allow_conflicts": list(guardrail.ALLOW_CONFLICTS),
+        "disallowed_tool_names": guardrail.disallowed_tool_names(),
+        "canonical_profile_settings": defaults.CANONICAL_PROFILE_SETTINGS,
+        "scripts_dir": str(scripts),
+        "canonical_shared_settings_text": json.dumps(
+            defaults.build_canonical_shared_settings(scripts), indent=2) + "\n",
+    }
+
+
+def app_defaults():
+    from claudewheel import defaults
+
+    out = {}
+    for name in dir(defaults):
+        if name.startswith("DEFAULT_"):
+            value = getattr(defaults, name)
+            try:
+                out[name] = json.loads(json.dumps(value))
+            except TypeError:
+                continue
+    return out
+
+
+GENERATORS = {
+    "encode-path": encode_path,
+    "json-writers": json_writers,
+    "guardrail-model": guardrail_model,
+    "app-defaults": app_defaults,
+}
+
+if len(sys.argv) != 3 or sys.argv[1] not in GENERATORS:
+    sys.exit("usage: scripts/python-expectations <%s> <output-file>" % "|".join(GENERATORS))
+out = Path(sys.argv[2])
+out.parent.mkdir(parents=True, exist_ok=True)
+out.write_text(json.dumps(GENERATORS[sys.argv[1]](), indent=2, ensure_ascii=True) + "\n")
+print(out)
