@@ -287,3 +287,12 @@ When the selected GitHub account's token cannot be fetched (`gh auth token` fail
 - `permissions.deny` or `permissions.ask` holding null, a non-array, or a non-string entry is malformed and the target skipped (the Python crashed on the first two and on an array or object entry, and removed number entries). `permissions.allow` is only read, as before.
 - A wrong-type message says "an object" where the Python said "a dict".
 - `merge_hooks` is `MergeHooks` here, beside `ReferencedScripts` and `ScriptBasename`, which the default profile's opt-in wiring and health share. The `deploy_hook_scripts` parameter is not ported: every caller passed true.
+
+## health: read-only, failed checks, and the fix commands
+
+- Health writes nothing. The Python pruned stale entries from `shared/inodes.json` during the inode check; that write is dropped, and the entries naming directories that no longer exist are counted in the check's OK detail. Nothing else prunes them.
+- A check that cannot be carried out is not OK, detail "check failed: <error>": df failing, exiting nonzero, or printing no percentage (the Python reported OK "check failed" or "unknown"), a stat error other than a missing path, an unreadable options.json in the orphan check, and a failed profile enumeration (such as a leftover rename breadcrumb), which fails every check that needs the profiles. Profiles are enumerated once per run, an unreadable token file read as no token.
+- The fix the drift checks name is `claudewheel patch-profiles --all-profiles` in the aggregated details and `claudewheel patch-profiles --profile <name>` in the per-profile ones, since the bare command is now refused.
+- `Run(Inputs{FX, Workspace, Executable, Today})`: the probe runner's expected unit is built for `Executable` (the CLI passes `os.Executable()`), and its detail no longer names the workspace root (the unit has no `Environment` line). A token date that does not parse makes the expiry check report that profile's entry as unreadable (see the tokens entry).
+- A settings container of the wrong type (`"permissions": []`, `"claudewheel": null`) reads as empty, where the Python crashed. Python `repr` spellings in details (`None`, `'text'`, `[...]`) are reproduced; numbers keep their text.
+- The token file mode 0600 is a local constant: `tokens` exports none.
