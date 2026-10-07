@@ -296,3 +296,18 @@ When the selected GitHub account's token cannot be fetched (`gh auth token` fail
 - `Run(Inputs{FX, Workspace, Executable, Today})`: the probe runner's expected unit is built for `Executable` (the CLI passes `os.Executable()`), and its detail no longer names the workspace root (the unit has no `Environment` line). A token date that does not parse makes the expiry check report that profile's entry as unreadable (see the tokens entry).
 - A settings container of the wrong type (`"permissions": []`, `"claudewheel": null`) reads as empty, where the Python crashed. Python `repr` spellings in details (`None`, `'text'`, `[...]`) are reproduced; numbers keep their text.
 - The token file mode 0600 is a local constant: `tokens` exports none.
+
+## tui/bar: entry point, terminal, and the flows above it
+
+- `bar.Run(ctx, fx, t, colors, store, bar.Input)` takes a terminal that is open and not yet in cbreak mode: it asks about mode 2031, enters cbreak mode on the alternate screen, and leaves it (`ExitRaw`) when the user launches or quits. On any error, Ctrl-C's `terminal.ErrInterrupted` among them, it returns at once and the opener's deferred `Close` restores the terminal. It returns `bar.Outcome` (launch or quit, the selections with a value, the client, per-segment value metadata for the model id lookup). The session choice and print mode stay the launch command's; the bar never produces either.
+- The screens that live above the bar (the create-profile wizard with its authentication, the pre-launch authentication offer, the deletion checklist, and adding or removing the guardrails on ~/.claude) are `bar.Flows` callbacks the launch fills; every field is required. The client registry arrives as `bar.Clients` (each `bar.Client` with its hidden segments and rejected values), so the bar does not import `launch`.
+- A rejected value is drawn in the unavailable color and Enter refuses it with "<label>: <value> does not apply to <client>". A command-line value for a segment the chosen client hides, or one it rejects, is an error when the client is chosen.
+- The install offer, the delete confirmation, and the saferm install offer use `widgets.Confirm` (y accepts; Enter does nothing). Every install error is shown on the "Install failed" page (the Python showed OSError and crashed on the rest).
+- The "finish the deletion" instruction names `claudewheel profile delete <name> --no-force-delete --no-force-delete-data`: both flags are required, so the bare command the Python printed was refused.
+
+## tui/bar: no silent fallbacks
+
+- A command-line value a segment that is not freeform does not offer is an error naming the options (the Python ignored it, so the last launch's value stayed selected).
+- config.json's `minimap` must be `auto` or `always` (the Python treated anything else as auto); a segment with no colors in the theme is an error.
+- A background discovery error ends the bar with that error (the Python's thread died and the bar went on without its results). A discovery's `RefreshError` is shown as the flash ("Refresh failed: …") on the draw after the results arrive.
+- Background results are taken after each key and each resize, as the Python took them after each key; the bar does not redraw on its own when they arrive.
