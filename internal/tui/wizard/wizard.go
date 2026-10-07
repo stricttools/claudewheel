@@ -70,7 +70,7 @@ func (s Summary) Report() []string {
 }
 
 // RunCreate is the profile create flow in one alternate-screen session: the
-// form, the profile written (CreateProfile, wiring hooks with merge), the
+// form, the profile written (CreateProfile), the
 // auth flow, and a page showing what was created and how auth ended. The
 // terminal must be in cbreak mode on the alternate screen; restoring it is
 // the caller's.
@@ -79,7 +79,7 @@ func (s Summary) Report() []string {
 // not undo it. An error after the profile was created comes with the
 // summary so far, so the caller can still print it. When ctx is done the
 // error is its cancellation cause.
-func RunCreate(ctx context.Context, fx *effects.FX, t *terminal.Terminal, c widgets.Colors, ws workspace.Workspace, merge HookMerge) (Summary, error) {
+func RunCreate(ctx context.Context, fx *effects.FX, t *terminal.Terminal, c widgets.Colors, ws workspace.Workspace) (Summary, error) {
 	summary := Summary{Previewing: fx.Previewing()}
 	existing, err := profiles.New(ws).Enumerate()
 	if err != nil {
@@ -98,7 +98,7 @@ func RunCreate(ctx context.Context, fx *effects.FX, t *terminal.Terminal, c widg
 		return summary, nil
 	}
 	summary.Profile = choices.Name
-	summary.Lines, err = CreateProfile(fx, ws, choices, merge)
+	summary.Lines, err = CreateProfile(fx, ws, choices)
 	if err != nil {
 		return summary, err
 	}

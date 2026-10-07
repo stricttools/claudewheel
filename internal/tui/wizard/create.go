@@ -10,14 +10,9 @@ import (
 	"github.com/stricttools/claudewheel/internal/guardrail"
 	"github.com/stricttools/claudewheel/internal/jsonfile"
 	"github.com/stricttools/claudewheel/internal/profiles"
+	"github.com/stricttools/claudewheel/internal/reconcile"
 	"github.com/stricttools/claudewheel/internal/workspace"
 )
-
-// HookMerge merges the canonical hooks section into a profile's existing
-// one, in place: a canonical entry or hook missing from existing is added, a
-// wired one is brought to the canonical command and options, and hooks that
-// are not claudewheel's are kept. The reconcile package provides it.
-type HookMerge func(existing, canonical *jsonfile.Object) error
 
 // loadSharedSettings reads shared-settings.json. A missing file is the
 // canonical shared settings, which is what the workspace setup writes there;
@@ -88,7 +83,7 @@ func childObject(o *jsonfile.Object, key, where string) (*jsonfile.Object, error
 // profileDefaults, the checkbox overrides, the canonical profile settings,
 // auto mode disabled, the managed tool list, and the canonical hooks when
 // they are to be wired.
-func BuildSettings(ws workspace.Workspace, choices Choices, merge HookMerge) (*jsonfile.Object, error) {
+func BuildSettings(ws workspace.Workspace, choices Choices) (*jsonfile.Object, error) {
 	shared, err := loadSharedSettings(ws)
 	if err != nil {
 		return nil, err
@@ -174,7 +169,7 @@ func BuildSettings(ws workspace.Workspace, choices Choices, merge HookMerge) (*j
 			return nil, err
 		}
 		if ok && existing.Len() > 0 {
-			if err := merge(existing, canonicalHooks); err != nil {
+			if _, err := reconcile.MergeHooks(existing, canonicalHooks); err != nil {
 				return nil, err
 			}
 		} else {
@@ -196,8 +191,8 @@ func pyBool(b bool) string {
 // (BuildSettings), the onboarding flag, the shared-store links when chosen,
 // and its pinned registration. It returns the summary lines; their verb is
 // conditional under --dry-run, where the writes are recorded instead.
-func CreateProfile(fx *effects.FX, ws workspace.Workspace, choices Choices, merge HookMerge) ([]string, error) {
-	settings, err := BuildSettings(ws, choices, merge)
+func CreateProfile(fx *effects.FX, ws workspace.Workspace, choices Choices) ([]string, error) {
+	settings, err := BuildSettings(ws, choices)
 	if err != nil {
 		return nil, err
 	}

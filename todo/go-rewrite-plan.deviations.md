@@ -264,3 +264,7 @@ When the selected GitHub account's token cannot be fetched (`gh auth token` fail
 - Hard errors where the Python fell back silently: a corrupt shared-settings.json, a corrupt settings.json of the profile being cloned, a corrupt `.claude.json` when setting the onboarding flag, a `profileDefaults`, `hooks`, `permissions`, or `claudewheel` value that is not an object, and an unreadable state.json for the remembered browser. A missing shared-settings.json is still the canonical shared settings (what the workspace setup writes there), and a cloned profile without settings.json still clones empty settings.
 - The Claude Code binary is the managed `~/.local/bin/claude` link's target when the link exists, and `claude` on PATH only when it does not: a link that leads to no regular file fails the auth attempt with a note instead of falling through to PATH.
 - The form's charset and reserved-name messages come from `profiles.CheckNewName`, so they read as the CLI's do. A failed token save is still a failed auth with a note (the token redacted), as in the Python; other workspace errors end the flow with an error.
+
+## tui/wizard: the hook merge comes from reconcile
+
+`internal/reconcile` was committed while the wizard was being built, so `BuildSettings`, `CreateProfile`, and `RunCreate` call `reconcile.MergeHooks` directly and the `HookMerge` parameter is gone: `RunCreate(ctx, fx, t, colors, ws)`. This overrides the parameter recorded in the wizard entry above.
