@@ -94,7 +94,7 @@ func (w Workspace) SharedSettingsFile() string {
 }
 
 // InodesFile is the project inode map, shared/inodes.json.
-func (w Workspace) InodesFile() string { return filepath.Join(w.SharedDir(), "inodes.json") }
+func (w Workspace) InodesFile() string { return w.Shared().InodesFile() }
 
 // Shared is the shared-store layout of this workspace.
 func (w Workspace) Shared() SharedStore {

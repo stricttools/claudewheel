@@ -6,6 +6,10 @@ import (
 )
 
 const (
+	// ProjectsDirName is Claude Code's session store inside a config
+	// directory, and its shared counterpart under shared/: one store
+	// directory per project path (see EncodePath).
+	ProjectsDirName = "projects"
 	// LifecycleDirName is the machine-wide per-session lifecycle store under
 	// shared/. It is not symlinked into profiles: a session's record outlives
 	// the profile that launched it.
@@ -25,7 +29,7 @@ const (
 // SharedSubdirs returns the directories inside each profile that are
 // symlinked to the shared store, in order.
 func SharedSubdirs() []string {
-	return []string{"projects", "session-env", "file-history", "tasks", "todos", "paste-cache"}
+	return []string{ProjectsDirName, "session-env", "file-history", "tasks", "todos", "paste-cache"}
 }
 
 // SharedStore computes paths in the shared store. It reads and writes nothing.
@@ -41,7 +45,7 @@ func (s SharedStore) Dir() string { return s.sharedDir }
 func (s SharedStore) SkillsDir() string { return s.skillsDir }
 
 // ProjectsDir holds the per-project session stores, shared/projects.
-func (s SharedStore) ProjectsDir() string { return filepath.Join(s.sharedDir, "projects") }
+func (s SharedStore) ProjectsDir() string { return filepath.Join(s.sharedDir, ProjectsDirName) }
 
 // LifecycleDir holds the per-session lifecycle files, shared/lifecycle.
 func (s SharedStore) LifecycleDir() string { return filepath.Join(s.sharedDir, LifecycleDirName) }

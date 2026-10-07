@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+
+	"github.com/stricttools/claudewheel/internal/workspace"
 )
 
 // A session store is a projects directory: one per profile directory, and
@@ -42,7 +44,7 @@ func DistinctStoreDirs(profileDirs []string) ([]string, error) {
 	seen := map[string]bool{}
 	var dirs []string
 	for _, pdir := range profileDirs {
-		projects := filepath.Join(pdir, "projects")
+		projects := filepath.Join(pdir, workspace.ProjectsDirName)
 		if info, err := os.Stat(projects); err != nil || !info.IsDir() {
 			continue
 		}
