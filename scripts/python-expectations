@@ -433,6 +433,45 @@ def run_session_scenarios(out):
     return scenarios
 
 
+def hook_cases():
+    """Every hook run the Python's hook execution tests make, with what the
+    hook printed and exited with, recorded while those tests run."""
+    import importlib
+    import subprocess
+    import unittest
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from claudewheel.hook_scripts import HOOK_SCRIPTS
+
+    by_text = {text: name for name, text in HOOK_SCRIPTS.items()}
+    recorded = []
+    real_run = subprocess.run
+
+    def recording_run(args, *a, **kw):
+        proc = real_run(args, *a, **kw)
+        if isinstance(args, list) and len(args) == 2 and args[0] == "bash":
+            name = by_text.get(Path(args[1]).read_text()) if Path(args[1]).exists() else None
+            if name is None:
+                raise RuntimeError("a hook test ran an unknown script")
+            if name != "hook-timestamp":
+                recorded.append({"script": name, "stdin": kw.get("input", ""),
+                                 "exit": proc.returncode, "stdout": proc.stdout})
+        return proc
+
+    subprocess.run = recording_run
+    try:
+        suite = unittest.TestSuite()
+        for module in ("tests.test_hook_unsafe_exec", "tests.test_hook_advise_exec", "tests.test_hook_worktree_exec"):
+            suite.addTests(unittest.defaultTestLoader.loadTestsFromModule(importlib.import_module(module)))
+        # The outputs are recorded whether or not a test's own assertion
+        # holds: they are what the hooks do (the heavy-unwrapped tests fail
+        # since that rule was removed from the model).
+        unittest.TextTestRunner(stream=sys.stderr, verbosity=0).run(suite)
+    finally:
+        subprocess.run = real_run
+    return recorded
+
+
 # Generators that write a directory tree themselves rather than return data.
 TREE_GENERATORS = {
     "python-workspace": python_workspace,
@@ -445,6 +484,7 @@ GENERATORS = {
     "app-defaults": app_defaults,
     "lifecycle-lines": lifecycle_lines,
     "reconcile-cases": reconcile_cases,
+    "hook-cases": hook_cases,
 }
 
 # Generators that take the output path.

@@ -1,0 +1,2348 @@
+[
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"npm install\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"rmdir foo\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"grep rm file\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git rm file\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"ls /home/norm/\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"saferm delete --description \\\"x\\\" f\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git switch main\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git add file.txt\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"rlsbl release run\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"echo hello\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git stashed x\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git stash-like\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git restored x\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git restore-all x\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"safegit rewrite-author foo\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"npm install\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"rmdir foo\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"grep rm file\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git rm file\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"ls /home/norm/\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"saferm delete --description \\\"x\\\" f\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git switch main\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git add file.txt\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"rlsbl release run\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"echo hello\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git stashed x\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git stash-like\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git restored x\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git restore-all x\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"safegit rewrite-author foo\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"echo rm foo\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"echo git add -A\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"echo git stash\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"echo git restore file.txt\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"echo git checkout -- file.txt\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"echo git checkout main\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"echo git push origin --delete foo\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"echo sleep 5\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"echo go test ./...\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"echo git push\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"echo git reset --hard\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"echo git switch -f other\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"echo gh workflow run ci.yml\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"echo saferm purge\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"echo git rebase main\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"echo safegit author rewrite --all\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"somescript rm foo\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"somescript git add -A\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"somescript git stash\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"somescript git restore file.txt\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"somescript git checkout -- file.txt\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"somescript git checkout main\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"somescript git push origin --delete foo\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"somescript sleep 5\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"somescript go test ./...\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"somescript git push\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"somescript git reset --hard\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"somescript git switch -f other\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"somescript gh workflow run ci.yml\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"somescript saferm purge\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"somescript git rebase main\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"somescript safegit author rewrite --all\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git add -A\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Use 'safegit commit -m \\\"msg\\\" -- file1 file2' instead of 'git add'.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git add .\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Use 'safegit commit -m \\\"msg\\\" -- file1 file2' instead of 'git add'.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git checkout -- file.txt\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Use the Edit tool to revert specific lines instead of 'git checkout -- file'.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git restore file.txt\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Use the Edit tool to revert specific lines instead of 'git restore'.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git stash\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Never 'git stash'. Commit the work in progress on the current branch with 'safegit commit' instead.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"rm foo.txt\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Use 'saferm delete --description \\\"why\\\" file1 file2' instead of 'rm'.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git reset --hard\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git switch -f other\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"gh workflow run ci.yml\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"saferm purge\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git rebase main\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"safegit author rewrite --all\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Pushes happen only via rlsbl release run. Only your parent agent may run this command (the user will be asked to approve it). Explain in detail to your parent agent why you wanted to run this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git reset --hard\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"git reset is destructive in shared worktrees. Only your parent agent may run this command (the user will be asked to approve it). Explain in detail to your parent agent why you wanted to run this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git switch -f other\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Forced switch destroys uncommitted work in shared worktrees. Only your parent agent may run this command (the user will be asked to approve it). Explain in detail to your parent agent why you wanted to run this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"gh workflow run ci.yml\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Triggering CI workflows is an outward-facing action. Only your parent agent may run this command (the user will be asked to approve it). Explain in detail to your parent agent why you wanted to run this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"saferm purge\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"saferm purge permanently destroys archived files. Only your parent agent may run this command (the user will be asked to approve it). Explain in detail to your parent agent why you wanted to run this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git rebase main\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Rebase rewrites history in shared worktrees. Only your parent agent may run this command (the user will be asked to approve it). Explain in detail to your parent agent why you wanted to run this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"safegit author rewrite --all\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Author rewriting is history rewriting. Only your parent agent may run this command (the user will be asked to approve it). Explain in detail to your parent agent why you wanted to run this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push origin :b\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Deleting remote branches is destructive; ask the user to do this deliberately.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push origin +:b\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Deleting remote branches is destructive; ask the user to do this deliberately.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push origin :refs/heads/b\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Deleting remote branches is destructive; ask the user to do this deliberately.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push origin -d b\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Deleting remote branches is destructive; ask the user to do this deliberately.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push origin --delete b\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Deleting remote branches is destructive; ask the user to do this deliberately.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push --delete origin b\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Deleting remote branches is destructive; ask the user to do this deliberately.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push upstream :b\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Deleting remote branches is destructive; ask the user to do this deliberately.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push upstream +:b\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Deleting remote branches is destructive; ask the user to do this deliberately.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push upstream :refs/heads/b\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Deleting remote branches is destructive; ask the user to do this deliberately.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push upstream -d b\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Deleting remote branches is destructive; ask the user to do this deliberately.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push upstream --delete b\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Deleting remote branches is destructive; ask the user to do this deliberately.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push --delete upstream b\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Deleting remote branches is destructive; ask the user to do this deliberately.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push git@host:repo.git :b\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Deleting remote branches is destructive; ask the user to do this deliberately.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push git@host:repo.git +:b\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Deleting remote branches is destructive; ask the user to do this deliberately.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push git@host:repo.git :refs/heads/b\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Deleting remote branches is destructive; ask the user to do this deliberately.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push git@host:repo.git -d b\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Deleting remote branches is destructive; ask the user to do this deliberately.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push git@host:repo.git --delete b\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Deleting remote branches is destructive; ask the user to do this deliberately.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push --delete git@host:repo.git b\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Deleting remote branches is destructive; ask the user to do this deliberately.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push origin :b\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Deleting remote branches is destructive; ask the user to do this deliberately. You are a subagent: report to your parent agent why you attempted this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push origin +:b\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Deleting remote branches is destructive; ask the user to do this deliberately. You are a subagent: report to your parent agent why you attempted this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push origin :refs/heads/b\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Deleting remote branches is destructive; ask the user to do this deliberately. You are a subagent: report to your parent agent why you attempted this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push origin -d b\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Deleting remote branches is destructive; ask the user to do this deliberately. You are a subagent: report to your parent agent why you attempted this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push origin --delete b\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Deleting remote branches is destructive; ask the user to do this deliberately. You are a subagent: report to your parent agent why you attempted this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push --delete origin b\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Deleting remote branches is destructive; ask the user to do this deliberately. You are a subagent: report to your parent agent why you attempted this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push upstream :b\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Deleting remote branches is destructive; ask the user to do this deliberately. You are a subagent: report to your parent agent why you attempted this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push upstream +:b\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Deleting remote branches is destructive; ask the user to do this deliberately. You are a subagent: report to your parent agent why you attempted this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push upstream :refs/heads/b\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Deleting remote branches is destructive; ask the user to do this deliberately. You are a subagent: report to your parent agent why you attempted this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push upstream -d b\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Deleting remote branches is destructive; ask the user to do this deliberately. You are a subagent: report to your parent agent why you attempted this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push upstream --delete b\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Deleting remote branches is destructive; ask the user to do this deliberately. You are a subagent: report to your parent agent why you attempted this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push --delete upstream b\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Deleting remote branches is destructive; ask the user to do this deliberately. You are a subagent: report to your parent agent why you attempted this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push git@host:repo.git :b\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Deleting remote branches is destructive; ask the user to do this deliberately. You are a subagent: report to your parent agent why you attempted this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push git@host:repo.git +:b\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Deleting remote branches is destructive; ask the user to do this deliberately. You are a subagent: report to your parent agent why you attempted this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push git@host:repo.git :refs/heads/b\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Deleting remote branches is destructive; ask the user to do this deliberately. You are a subagent: report to your parent agent why you attempted this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push git@host:repo.git -d b\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Deleting remote branches is destructive; ask the user to do this deliberately. You are a subagent: report to your parent agent why you attempted this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push git@host:repo.git --delete b\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Deleting remote branches is destructive; ask the user to do this deliberately. You are a subagent: report to your parent agent why you attempted this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push --delete git@host:repo.git b\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Deleting remote branches is destructive; ask the user to do this deliberately. You are a subagent: report to your parent agent why you attempted this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push origin main && echo ' :done'\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push origin main && echo ' :done'\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Pushes happen only via rlsbl release run. Only your parent agent may run this command (the user will be asked to approve it). Explain in detail to your parent agent why you wanted to run this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push origin main; grep ' :' f\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push origin main; grep ' :' f\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Pushes happen only via rlsbl release run. Only your parent agent may run this command (the user will be asked to approve it). Explain in detail to your parent agent why you wanted to run this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push origin main && git branch -d oldbranch\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push origin main && git branch -d oldbranch\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Pushes happen only via rlsbl release run. Only your parent agent may run this command (the user will be asked to approve it). Explain in detail to your parent agent why you wanted to run this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push origin b\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push origin b\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Pushes happen only via rlsbl release run. Only your parent agent may run this command (the user will be asked to approve it). Explain in detail to your parent agent why you wanted to run this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push origin HEAD:main\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push origin HEAD:main\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Pushes happen only via rlsbl release run. Only your parent agent may run this command (the user will be asked to approve it). Explain in detail to your parent agent why you wanted to run this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push origin main:main\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push origin main:main\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Pushes happen only via rlsbl release run. Only your parent agent may run this command (the user will be asked to approve it). Explain in detail to your parent agent why you wanted to run this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push -u origin b\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push -u origin b\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Pushes happen only via rlsbl release run. Only your parent agent may run this command (the user will be asked to approve it). Explain in detail to your parent agent why you wanted to run this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push origin +HEAD:main\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push origin +HEAD:main\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Pushes happen only via rlsbl release run. Only your parent agent may run this command (the user will be asked to approve it). Explain in detail to your parent agent why you wanted to run this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push git@host:repo.git main\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push git@host:repo.git main\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Pushes happen only via rlsbl release run. Only your parent agent may run this command (the user will be asked to approve it). Explain in detail to your parent agent why you wanted to run this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"rm foo\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Use 'saferm delete --description \\\"why\\\" file1 file2' instead of 'rm'.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git add -A\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Use 'safegit commit -m \\\"msg\\\" -- file1 file2' instead of 'git add'.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git stash\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Never 'git stash'. Commit the work in progress on the current branch with 'safegit commit' instead.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git restore file.txt\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Use the Edit tool to revert specific lines instead of 'git restore'.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git checkout -- file.txt\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Use the Edit tool to revert specific lines instead of 'git checkout -- file'.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git checkout main\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"'git checkout' is deprecated here; use 'git switch' for branches (plain git switch is allowed) or the Edit tool to revert files.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push origin --delete foo\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Deleting remote branches is destructive; ask the user to do this deliberately.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"sleep 5\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Never 'sleep' to wait: the harness notifies you when background work finishes, so read the state you are waiting on or do other work instead of padding the turn with a wait.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"rm foo\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Use 'saferm delete --description \\\"why\\\" file1 file2' instead of 'rm'. You are a subagent: report to your parent agent why you attempted this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git add -A\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Use 'safegit commit -m \\\"msg\\\" -- file1 file2' instead of 'git add'. You are a subagent: report to your parent agent why you attempted this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git stash\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Never 'git stash'. Commit the work in progress on the current branch with 'safegit commit' instead. You are a subagent: report to your parent agent why you attempted this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git restore file.txt\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Use the Edit tool to revert specific lines instead of 'git restore'. You are a subagent: report to your parent agent why you attempted this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git checkout -- file.txt\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Use the Edit tool to revert specific lines instead of 'git checkout -- file'. You are a subagent: report to your parent agent why you attempted this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git checkout main\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"'git checkout' is deprecated here; use 'git switch' for branches (plain git switch is allowed) or the Edit tool to revert files. You are a subagent: report to your parent agent why you attempted this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push origin --delete foo\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Deleting remote branches is destructive; ask the user to do this deliberately. You are a subagent: report to your parent agent why you attempted this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"sleep 5\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Never 'sleep' to wait: the harness notifies you when background work finishes, so read the state you are waiting on or do other work instead of padding the turn with a wait. You are a subagent: report to your parent agent why you attempted this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"cd x && go test ./...\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"go test ./...\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"go build ./cmd/x\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"go vet ./...\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"go install ./cmd/x\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"pytest\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"pytest -x tests/\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"python -m pytest\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"python3 -m pytest -q\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"python3.14 -m pytest\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \".venv/bin/pytest tests\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"uv run pytest\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"uv run --frozen pytest -x\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"uv run python -m pytest\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"uv run python3 -m pytest\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"npm test\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"npm t\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"npm run test\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"npm run test:unit\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"npm ci\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"cargo test\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"cargo build --release\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"scripts/test.sh\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"./scripts/full-suite.sh\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"bash scripts/run-tests.sh\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"sh ./scripts/e2e-test.sh --fast\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"/home/x/proj/scripts/test_all.sh\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"cgofree generate\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"cgofree verify ./...\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"cd x && go test ./...\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"cd x; pytest\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"make fmt || go vet ./...\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"ls | go test ./...\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"(cd x && go test ./...)\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"echo $(go build ./...)\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"cd x\\ngo test ./...\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"for p in a b; do go test $p; done\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"if true; then cargo test; fi\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"GOFLAGS=-p=2 go test ./...\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"CGO_ENABLED=0 GOOS=linux go build ./...\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"timeout 600 go test ./...\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"timeout -k 5 600 pytest\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"env CGO_ENABLED=0 go build ./...\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"nice -n 10 cargo build\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"time npm test\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"exec pytest\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"heavy -- go vet ./... && go test ./...\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"./make.bash\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"./all.bash\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"./run.bash --no-rebuild\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"bash make.bash\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"bash ./all.bash\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"sh run.bash\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"src/all.bash\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"cd go/src && ./make.bash\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"cd src; ./all.bash\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"(cd src && ./all.bash)\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"GOROOT_BOOTSTRAP=/opt/go ./make.bash\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"make\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"make -j8\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"make test\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"cd x && make build\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"(cd x && make)\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"/usr/bin/make install\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"time make all\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"heavy -- ./all.bash && make\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"heavy -- go test ./...\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"heavy -- go test ./...\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"heavy go test\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"heavy go test\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"cd x && heavy -- pytest\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"cd x && heavy -- pytest\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"heavy --mem 8G -- cargo build\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"heavy --mem 8G -- cargo build\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"heavy --mem=8G go build ./...\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"heavy --mem=8G go build ./...\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"heavy -- uv run pytest\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"heavy -- uv run pytest\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"heavy -- python3 -m pytest\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"heavy -- python3 -m pytest\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"heavy -- npm ci\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"heavy -- npm ci\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"heavy -- scripts/full-suite.sh\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"heavy -- scripts/full-suite.sh\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"heavy -- ./scripts/test.sh\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"heavy -- ./scripts/test.sh\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"heavy -- cgofree verify\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"heavy -- cgofree verify\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"GOFLAGS=-p=1 heavy -- go test ./...\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"GOFLAGS=-p=1 heavy -- go test ./...\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"cd x && heavy -- go test ./... && heavy -- go vet ./...\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"cd x && heavy -- go test ./... && heavy -- go vet ./...\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"heavy -- ./all.bash\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"heavy -- ./all.bash\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"heavy -- ./make.bash\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"heavy -- ./make.bash\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"cd go/src && heavy -- ./run.bash\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"cd go/src && heavy -- ./run.bash\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"heavy -- bash make.bash\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"heavy -- bash make.bash\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"heavy --mem 8G -- ./all.bash\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"heavy --mem 8G -- ./all.bash\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"heavy -- make test\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"heavy -- make test\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"heavy --mem=8G make -j4\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"heavy --mem=8G make -j4\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"cat ./make.bash\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"cat ./make.bash\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"vim src/all.bash\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"vim src/all.bash\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"echo make\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"echo make\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"grep -n make Makefile\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"grep -n make Makefile\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"cmake ..\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"cmake ..\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"automake\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"automake\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"makepkg -si\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"makepkg -si\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"make.bash.orig\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"make.bash.orig\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"echo go test\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"echo go test\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"grep -rn pytest tests/\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"grep -rn pytest tests/\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"go version\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"go version\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"go mod tidy\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"go mod tidy\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"go tester\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"go tester\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"gofmt -l .\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"gofmt -l .\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"npm install\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"npm install\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"npm run build\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"npm run build\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"npm run lint\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"npm run lint\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"cargo check\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"cargo check\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"cat scripts/test.sh\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"cat scripts/test.sh\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"vim scripts/full-suite.sh\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"vim scripts/full-suite.sh\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"scripts/deploy.sh\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"scripts/deploy.sh\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"myscripts/test.sh\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"myscripts/test.sh\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"mypytest\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"mypytest\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"cgofree version\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"cgofree version\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"uv run ruff check\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"uv run ruff check\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Read\", \"tool_input\": {\"command\": \"rm -rf /\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Read\", \"tool_input\": {\"command\": \"rm -rf /\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git checkout -- file.txt\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Use the Edit tool to revert specific lines instead of 'git checkout -- file'.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Pushes happen only via rlsbl release run. Only your parent agent may run this command (the user will be asked to approve it). Explain in detail to your parent agent why you wanted to run this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git push origin --delete foo\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Deleting remote branches is destructive; ask the user to do this deliberately.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"env rm x\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Use 'saferm delete --description \\\"why\\\" file1 file2' instead of 'rm'.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"find . -name '*.tmp' -exec rm {} \\\\;\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Use 'saferm delete --description \\\"why\\\" file1 file2' instead of 'rm'.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"find . -ok rm {} \\\\;\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Use 'saferm delete --description \\\"why\\\" file1 file2' instead of 'rm'.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"rm foo\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Use 'saferm delete --description \\\"why\\\" file1 file2' instead of 'rm'.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"a && rm b\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Use 'saferm delete --description \\\"why\\\" file1 file2' instead of 'rm'.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"a | rm\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Use 'saferm delete --description \\\"why\\\" file1 file2' instead of 'rm'.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"a; rm b\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Use 'saferm delete --description \\\"why\\\" file1 file2' instead of 'rm'.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"rm -rf x\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Use 'saferm delete --description \\\"why\\\" file1 file2' instead of 'rm'.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"sudo rm x\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Use 'saferm delete --description \\\"why\\\" file1 file2' instead of 'rm'.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"xargs -0 rm\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Use 'saferm delete --description \\\"why\\\" file1 file2' instead of 'rm'.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"ls | xargs rm\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Use 'saferm delete --description \\\"why\\\" file1 file2' instead of 'rm'.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"safegit rewrite-author --all\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"safegit rewrite-author --all\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"./safegit author rewrite --all\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Author rewriting is history rewriting. Only your parent agent may run this command (the user will be asked to approve it). Explain in detail to your parent agent why you wanted to run this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"./safegit author rewrite --all\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"sleep 5\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Never 'sleep' to wait: the harness notifies you when background work finishes, so read the state you are waiting on or do other work instead of padding the turn with a wait.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"nosleep\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"nosleep\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"./sleepwalker\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"./sleepwalker\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"echo sleep\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"echo sleep\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"grep sleep file\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"grep sleep file\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"sleep 5\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Never 'sleep' to wait: the harness notifies you when background work finishes, so read the state you are waiting on or do other work instead of padding the turn with a wait.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"sleep 5\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Never 'sleep' to wait: the harness notifies you when background work finishes, so read the state you are waiting on or do other work instead of padding the turn with a wait. You are a subagent: report to your parent agent why you attempted this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"sleep 580; tail x\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Never 'sleep' to wait: the harness notifies you when background work finishes, so read the state you are waiting on or do other work instead of padding the turn with a wait.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"sleep 580; tail x\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Never 'sleep' to wait: the harness notifies you when background work finishes, so read the state you are waiting on or do other work instead of padding the turn with a wait. You are a subagent: report to your parent agent why you attempted this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"cmd && sleep 3\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Never 'sleep' to wait: the harness notifies you when background work finishes, so read the state you are waiting on or do other work instead of padding the turn with a wait.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"cmd && sleep 3\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Never 'sleep' to wait: the harness notifies you when background work finishes, so read the state you are waiting on or do other work instead of padding the turn with a wait. You are a subagent: report to your parent agent why you attempted this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"(sleep 1)\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Never 'sleep' to wait: the harness notifies you when background work finishes, so read the state you are waiting on or do other work instead of padding the turn with a wait.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"(sleep 1)\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Never 'sleep' to wait: the harness notifies you when background work finishes, so read the state you are waiting on or do other work instead of padding the turn with a wait. You are a subagent: report to your parent agent why you attempted this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"foo | sleep 2\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Never 'sleep' to wait: the harness notifies you when background work finishes, so read the state you are waiting on or do other work instead of padding the turn with a wait.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"foo | sleep 2\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Never 'sleep' to wait: the harness notifies you when background work finishes, so read the state you are waiting on or do other work instead of padding the turn with a wait. You are a subagent: report to your parent agent why you attempted this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git stashed x\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git stashed x\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git stash-like\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git stash-like\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git restored x\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git restored x\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git stash\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Never 'git stash'. Commit the work in progress on the current branch with 'safegit commit' instead.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git stash\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Never 'git stash'. Commit the work in progress on the current branch with 'safegit commit' instead. You are a subagent: report to your parent agent why you attempted this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git stash pop\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Never 'git stash'. Commit the work in progress on the current branch with 'safegit commit' instead.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git stash pop\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Never 'git stash'. Commit the work in progress on the current branch with 'safegit commit' instead. You are a subagent: report to your parent agent why you attempted this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git stash push -m x\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Never 'git stash'. Commit the work in progress on the current branch with 'safegit commit' instead.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git stash push -m x\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Never 'git stash'. Commit the work in progress on the current branch with 'safegit commit' instead. You are a subagent: report to your parent agent why you attempted this command.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git restore f\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Use the Edit tool to revert specific lines instead of 'git restore'.\"}}\n"
+  },
+  {
+    "script": "hook-block-unsafe-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"git restore f\"}, \"agent_id\": \"sub-1\", \"agent_type\": \"claude\"}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Use the Edit tool to revert specific lines instead of 'git restore'. You are a subagent: report to your parent agent why you attempted this command.\"}}\n"
+  },
+  {
+    "script": "hook-advise-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"build.sh && kill $(cat app.pid)\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"This kill/pkill ran, but prefer building graceful stop commands or PID-file-based stop scripts into your tooling instead of killing processes directly.\"}}\n"
+  },
+  {
+    "script": "hook-advise-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"kill 123\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"This kill/pkill ran, but prefer building graceful stop commands or PID-file-based stop scripts into your tooling instead of killing processes directly.\"}}\n"
+  },
+  {
+    "script": "hook-advise-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"pkill -f name\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"This kill/pkill ran, but prefer building graceful stop commands or PID-file-based stop scripts into your tooling instead of killing processes directly.\"}}\n"
+  },
+  {
+    "script": "hook-advise-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"echo hello\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-advise-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"killall x\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-advise-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"npm install\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-advise-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"skills\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-advise-commands",
+    "stdin": "{\"tool_name\": \"Read\", \"tool_input\": {\"command\": \"kill 123\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-advise-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"npm run kill\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-advise-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"yarn kill\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-advise-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"make kill\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-advise-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"pnpm kill\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-advise-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"killall x\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-advise-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"kill 123\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"This kill/pkill ran, but prefer building graceful stop commands or PID-file-based stop scripts into your tooling instead of killing processes directly.\"}}\n"
+  },
+  {
+    "script": "hook-advise-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"kill -9 123\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"This kill/pkill ran, but prefer building graceful stop commands or PID-file-based stop scripts into your tooling instead of killing processes directly.\"}}\n"
+  },
+  {
+    "script": "hook-advise-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"pkill -f x\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"This kill/pkill ran, but prefer building graceful stop commands or PID-file-based stop scripts into your tooling instead of killing processes directly.\"}}\n"
+  },
+  {
+    "script": "hook-advise-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"build.sh && kill $(cat app.pid)\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"This kill/pkill ran, but prefer building graceful stop commands or PID-file-based stop scripts into your tooling instead of killing processes directly.\"}}\n"
+  },
+  {
+    "script": "hook-advise-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"sudo kill 123\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"This kill/pkill ran, but prefer building graceful stop commands or PID-file-based stop scripts into your tooling instead of killing processes directly.\"}}\n"
+  },
+  {
+    "script": "hook-advise-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"xargs -0 kill\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"This kill/pkill ran, but prefer building graceful stop commands or PID-file-based stop scripts into your tooling instead of killing processes directly.\"}}\n"
+  },
+  {
+    "script": "hook-advise-commands",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"find . -exec kill {} \\\\;\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"This kill/pkill ran, but prefer building graceful stop commands or PID-file-based stop scripts into your tooling instead of killing processes directly.\"}}\n"
+  },
+  {
+    "script": "hook-block-worktree",
+    "stdin": "{\"tool_name\": \"Agent\", \"tool_input\": {\"description\": \"plain agent\", \"prompt\": \"do it\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-worktree",
+    "stdin": "",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-worktree",
+    "stdin": "{\"tool_name\": \"Agent\", \"tool_input\": {\"isolation\": \"none\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-worktree",
+    "stdin": "{\"tool_name\": \"Bash\", \"tool_input\": {\"command\": \"ls\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-worktree",
+    "stdin": "{\"tool_name\": \"Read\", \"tool_input\": {\"file_path\": \"/home/m/Projects/worktree/notes.md\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-worktree",
+    "stdin": "{\"tool_name\": \"Agent\", \"tool_input\": {\"isolation\": \"Worktree\"}}",
+    "exit": 0,
+    "stdout": ""
+  },
+  {
+    "script": "hook-block-worktree",
+    "stdin": "{\"tool_name\": \"Agent\", \"tool_input\": {\"isolation\": \"worktree\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Worktree isolation is blocked by policy.\"}}\n"
+  },
+  {
+    "script": "hook-block-worktree",
+    "stdin": "{\"tool_name\": \"Agent\", \"tool_input\": {\"isolation\": \"worktree\", \"description\": \"do a thing\", \"prompt\": \"run the task\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Worktree isolation is blocked by policy.\"}}\n"
+  },
+  {
+    "script": "hook-block-worktree",
+    "stdin": "{\"tool_name\": \"Agent\", \"tool_input\": {\"isolation\": \"worktree\"}}",
+    "exit": 0,
+    "stdout": "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Worktree isolation is blocked by policy.\"}}\n"
+  }
+]
