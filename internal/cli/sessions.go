@@ -22,7 +22,9 @@ func registerSessions(app registrar) {
 		strictcli.BoolFlag("all-sessions", "move every session the source profile holds", strictcli.Required()),
 		"move every session the source profile holds")
 	mutatingCommand(app, "migrate",
-		"move session data files from one profile to another: one session (--session) or every session (--all-sessions)",
+		"move session data files from one profile to another: one session (--session) or every session (--all-sessions). "+
+			"Every destination is checked before anything moves: a file or folder already there in the destination profile "+
+			"refuses the whole migration, listing every collision, and nothing is moved",
 		func(c *call, kw map[string]interface{}) error {
 			choice := sessionmove.SessionChoice{}
 			chosen := strictcli.GetElected(kw, "sessions")

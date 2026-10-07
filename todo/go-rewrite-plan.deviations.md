@@ -469,3 +469,6 @@ These override every earlier entry they touch.
 
 ## proberunner: a waiter path that is not a FIFO
 Following the ruling on stray files in `shared/probes/waiters/`: `probe.WakeWaiter` returns a typed `*probe.NotFIFOError` (path in `Path`) for a waiter path that is not a FIFO. `ProcessEntry`, `SettleReports`, and `Tick` take the runner's `log io.Writer`, and the runner's `wake` helper writes that error there (`claudewheel-probe-runner: cannot wake session <id>: <path> is not a FIFO: ...`) and carries on, so the other sessions in the same pass are still woken. Every other wake error still ends the runner.
+
+## sessionmove: migrate refuses on collisions
+Following the ruling on `migrate` collisions: `Migrate` plans every artifact move of the chosen sessions first, then checks each destination with `lexists` (a dangling link at the destination counts as taken, so nothing is ever overwritten), and refuses before moving anything with an error listing every colliding destination and its source. `MigrateResult.Collisions` and the collision log lines are gone. The `migrate` help text says so.

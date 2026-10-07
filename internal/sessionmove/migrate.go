@@ -40,7 +40,6 @@ func (c SessionChoice) validate() error {
 // MigrateResult counts what a migration did, or would do.
 type MigrateResult struct {
 	Moved      int
-	Collisions int
 	UUIDsFound int
 }
 
@@ -159,86 +158,102 @@ func (m *migrator) log(msg string) {
 	m.fx.Info("[migrate] " + msg)
 }
 
-// moveArtifact moves src to dst, refusing to overwrite: a dst already there
-// is counted as a collision and src stays.
-func (m *migrator) moveArtifact(src, dst string) error {
-	there, err := exists(src)
-	if err != nil || !there {
-		return err
-	}
-	taken, err := exists(dst)
-	if err != nil {
-		return err
-	}
-	if taken {
-		m.log(fmt.Sprintf("COLLISION: %s already exists, leaving %s in place", dst, src))
-		m.result.Collisions++
-		return nil
-	}
-	m.result.Moved++
-	if m.fx.Previewing() {
-		m.log("MOVE  " + src)
-		m.log("  ->  " + dst)
-	}
-	if err := m.fx.MkdirAll(filepath.Dir(dst)); err != nil {
-		return err
-	}
-	return m.fx.Move(src, dst)
+// artifactMove is one artifact a migration moves.
+type artifactMove struct {
+	src, dst string
 }
 
-// moveSession moves every artifact of one session from src to dst.
-func (m *migrator) moveSession(src, dst, uuid string) error {
+// planSession appends to moves every artifact of one session in src, each
+// with its place in dst.
+func planSession(moves []artifactMove, src, dst, uuid string) ([]artifactMove, error) {
+	add := func(from, to string) error {
+		there, err := exists(from)
+		if err == nil && there {
+			moves = append(moves, artifactMove{src: from, dst: to})
+		}
+		return err
+	}
 	projects := filepath.Join(src, workspace.ProjectsDirName)
 	ok, err := isDir(projects)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if ok {
 		storeDirs, err := subdirs(projects)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		for _, storeDir := range storeDirs {
 			name := filepath.Base(storeDir)
-			if err := m.moveArtifact(filepath.Join(storeDir, uuid+".jsonl"), filepath.Join(dst, workspace.ProjectsDirName, name, uuid+".jsonl")); err != nil {
-				return err
+			if err := add(filepath.Join(storeDir, uuid+".jsonl"), filepath.Join(dst, workspace.ProjectsDirName, name, uuid+".jsonl")); err != nil {
+				return nil, err
 			}
 			folder := filepath.Join(storeDir, uuid)
 			isFolder, err := isDir(folder)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			if isFolder {
-				if err := m.moveArtifact(folder, filepath.Join(dst, workspace.ProjectsDirName, name, uuid)); err != nil {
-					return err
+				if err := add(folder, filepath.Join(dst, workspace.ProjectsDirName, name, uuid)); err != nil {
+					return nil, err
 				}
 			}
 		}
 	}
 	for _, d := range migrateSimpleDirs {
-		if err := m.moveArtifact(filepath.Join(src, d, uuid), filepath.Join(dst, d, uuid)); err != nil {
-			return err
+		if err := add(filepath.Join(src, d, uuid), filepath.Join(dst, d, uuid)); err != nil {
+			return nil, err
 		}
 	}
 	names, err := namesIfDir(filepath.Join(src, "todos"))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	for _, name := range names {
 		if strings.HasPrefix(name, uuid+"-agent-") && strings.HasSuffix(name, ".json") {
-			if err := m.moveArtifact(filepath.Join(src, "todos", name), filepath.Join(dst, "todos", name)); err != nil {
-				return err
+			if err := add(filepath.Join(src, "todos", name), filepath.Join(dst, "todos", name)); err != nil {
+				return nil, err
 			}
 		}
 	}
-	return nil
+	return moves, nil
+}
+
+// collisions returns a line for every move whose destination already holds
+// something (a dangling symbolic link included).
+func collisions(moves []artifactMove) ([]string, error) {
+	var out []string
+	for _, mv := range moves {
+		taken, err := lexists(mv.dst)
+		if err != nil {
+			return nil, err
+		}
+		if taken {
+			out = append(out, fmt.Sprintf("  %s (from %s)", mv.dst, mv.src))
+		}
+	}
+	return out, nil
+}
+
+// move moves one artifact, its destination checked free beforehand.
+func (m *migrator) move(mv artifactMove) error {
+	m.result.Moved++
+	if m.fx.Previewing() {
+		m.log("MOVE  " + mv.src)
+		m.log("  ->  " + mv.dst)
+	}
+	if err := m.fx.MkdirAll(filepath.Dir(mv.dst)); err != nil {
+		return err
+	}
+	return m.fx.Move(mv.src, mv.dst)
 }
 
 // Migrate moves the chosen sessions' artifacts from the profile src to the
 // profile dst, each given with its config directory (the default profile's
-// is Claude Code's own ~/.claude). An artifact whose destination already
-// exists stays where it is and is counted as a collision. When both
-// profiles' projects entries link to one shared store, nothing moves. A
+// is Claude Code's own ~/.claude). Every artifact is found and every
+// destination checked before anything moves: a destination that already
+// exists is an error listing every such collision, and nothing moves. When
+// both profiles' projects entries link to one shared store, nothing moves. A
 // chosen session the source does not hold is an error.
 func Migrate(fx *effects.FX, src, dst sessions.ProfileConfigDir, choice SessionChoice) (MigrateResult, error) {
 	m := &migrator{fx: fx}
@@ -277,6 +292,21 @@ func Migrate(fx *effects.FX, src, dst sessions.ProfileConfigDir, choice SessionC
 	if err != nil {
 		return m.result, err
 	}
+	var moves []artifactMove
+	if !skipMove {
+		for _, uuid := range uuids {
+			if moves, err = planSession(moves, src.ConfigDir, dst.ConfigDir, uuid); err != nil {
+				return m.result, err
+			}
+		}
+		taken, err := collisions(moves)
+		if err != nil {
+			return m.result, err
+		}
+		if len(taken) > 0 {
+			return m.result, fmt.Errorf("cannot migrate, nothing was moved: these destinations already exist in profile %s:\n%s", dst.Name, strings.Join(taken, "\n"))
+		}
+	}
 
 	m.log(fmt.Sprintf("%s -> %s", src.Name, dst.Name))
 	m.log(fmt.Sprintf("discovered %d session UUIDs in source", m.result.UUIDsFound))
@@ -287,17 +317,14 @@ func Migrate(fx *effects.FX, src, dst sessions.ProfileConfigDir, choice SessionC
 		m.log("DRY RUN — no changes will be made")
 	}
 
-	if !skipMove {
-		for _, uuid := range uuids {
-			if err := m.moveSession(src.ConfigDir, dst.ConfigDir, uuid); err != nil {
-				return m.result, err
-			}
+	for _, mv := range moves {
+		if err := m.move(mv); err != nil {
+			return m.result, err
 		}
 	}
 
 	m.log("summary")
 	m.log(fmt.Sprintf("  moved:      %d", m.result.Moved))
-	m.log(fmt.Sprintf("  collisions: %d", m.result.Collisions))
 	if fx.Previewing() {
 		m.log("  (dry run — nothing written)")
 	}
