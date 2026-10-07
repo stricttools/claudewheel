@@ -192,7 +192,17 @@ func LoadTheme(ws workspace.Workspace, name string) (Theme, error) {
 	if err != nil {
 		return theme, err
 	}
-	data, err := readOwnedFile(path)
+	var data []byte
+	if name == ThemeDark || name == ThemeLight {
+		data, err = readOwnedFile(path)
+	} else {
+		// A workspace setup creates only the built-in theme files, so a
+		// missing custom one is not repaired by `claudewheel launch`.
+		data, err = os.ReadFile(path)
+		if os.IsNotExist(err) {
+			err = fmt.Errorf("config.json selects the theme %q, and its file %s does not exist: create it, or select another theme in config.json: %w", name, path, err)
+		}
+	}
 	if err != nil {
 		return theme, err
 	}
