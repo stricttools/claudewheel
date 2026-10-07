@@ -168,7 +168,7 @@ func interactiveRefusal(name string) error {
 func askBeforeDeleting(c *call, cfg *appconfig.Store, name, configDir string, holders []deletion.Holder, missing *archiver.Unavailable, forceDelete bool) (deletionAnswers, error) {
 	ctx, stop := c.signalContext()
 	defer stop()
-	t, colors, err := c.openScreen(ctx, cfg, "the deletion checklist and the saferm install offer of profile delete")
+	t, colors, err := widgets.OpenScreen(ctx, c.ws, cfg.Config.Theme, "the deletion checklist and the saferm install offer of profile delete")
 	if err != nil {
 		return deletionAnswers{}, err
 	}

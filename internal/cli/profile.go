@@ -13,6 +13,7 @@ import (
 	"github.com/stricttools/claudewheel/internal/effects"
 	"github.com/stricttools/claudewheel/internal/profiles"
 	"github.com/stricttools/claudewheel/internal/tokens"
+	"github.com/stricttools/claudewheel/internal/tui/widgets"
 	"github.com/stricttools/claudewheel/internal/tui/wizard"
 )
 
@@ -105,7 +106,7 @@ func planFields(plan tokens.PlanTier) string {
 // made still prints the summary so far.
 func handleProfileCreate(c *call, kw map[string]interface{}) error {
 	// Refused before the workspace is opened, which may write first-run files.
-	if err := requireTerminal("profile create"); err != nil {
+	if err := widgets.RequireTerminal("profile create"); err != nil {
 		return err
 	}
 	cfg, err := c.appConfig()
@@ -114,7 +115,7 @@ func handleProfileCreate(c *call, kw map[string]interface{}) error {
 	}
 	ctx, stop := c.signalContext()
 	defer stop()
-	t, colors, err := c.openScreen(ctx, cfg, "profile create")
+	t, colors, err := widgets.OpenScreen(ctx, c.ws, cfg.Config.Theme, "profile create")
 	if err != nil {
 		return err
 	}

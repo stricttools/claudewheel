@@ -3,9 +3,7 @@ package launch
 import (
 	"context"
 	"errors"
-	"fmt"
 
-	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/terminal"
 	"github.com/stricttools/claudewheel/internal/tui/widgets"
 	"github.com/stricttools/claudewheel/internal/workspace"
@@ -23,35 +21,39 @@ type screens struct {
 	resolved bool
 }
 
-// openTerminal opens the terminal, not yet in cbreak mode, refusing when
-// nobody is at it to answer (terminal.HasControllingTerminal); what names
-// the screen for that refusal. The caller defers Close, which restores the
-// terminal.
-func (s *screens) openTerminal(ctx context.Context, what string) (*terminal.Terminal, error) {
-	if !terminal.HasControllingTerminal() {
-		return nil, fmt.Errorf("%s needs someone at a terminal, and stdin is not a terminal or /dev/tty does not open", what)
+// prepare refuses when nobody is at a terminal to answer
+// (widgets.RequireTerminal; what names the screen for that refusal), and
+// resolves the colors on the first call.
+func (s *screens) prepare(ctx context.Context, what string) error {
+	if err := widgets.RequireTerminal(what); err != nil {
+		return err
 	}
 	if !s.resolved {
 		c, err := widgets.LoadColors(ctx, s.ws, s.theme)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		s.colors, s.resolved = c, true
+	}
+	return nil
+}
+
+// openTerminal opens the terminal, not yet in cbreak mode, after prepare.
+// The caller defers Close, which restores the terminal.
+func (s *screens) openTerminal(ctx context.Context, what string) (*terminal.Terminal, error) {
+	if err := s.prepare(ctx, what); err != nil {
+		return nil, err
 	}
 	return terminal.Open()
 }
 
 // open opens the terminal in cbreak mode on the alternate screen for a
-// prompt. The caller defers Close, which restores it.
+// prompt, after prepare. The caller defers Close, which restores it.
 func (s *screens) open(ctx context.Context) (*terminal.Terminal, error) {
-	t, err := s.openTerminal(ctx, "this launch's prompt")
-	if err != nil {
+	if err := s.prepare(ctx, "this launch's prompt"); err != nil {
 		return nil, err
 	}
-	if err := t.EnterRaw(true); err != nil {
-		return nil, errors.Join(err, t.Close())
-	}
-	return t, nil
+	return widgets.OpenRawScreen()
 }
 
 // confirm asks one confirmation on its own screen.

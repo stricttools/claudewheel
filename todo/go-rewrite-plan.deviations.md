@@ -430,3 +430,7 @@ The character-counting helpers the bar, the sessions view, and the wizard each d
 ## tui/widgets: one authentication outcome
 
 `widgets.AuthOutcome` (`AuthAuthenticated`, `AuthUnverified`, `AuthSkipped`, `AuthCancelled`, `AuthFailed`) replaces `wizard.AuthOutcome` and `bar.AuthOutcome`, which held the same five values under two sets of names, and launch's mapping between them. It lives in `tui/widgets` because the wizard sits above the bar (the bar reaches it only through `bar.Flows`), so neither may import the other for it.
+
+## tui/widgets: the screen opener is shared
+
+`widgets.RequireTerminal(what)` (the refusal when nobody is at a terminal), `widgets.OpenRawScreen()` (open the terminal, enter cbreak mode on the alternate screen, close it again when that fails), and `widgets.OpenScreen(ctx, ws, theme, what)` (the two with the theme's colors loaded between them) replace the cli's `requireTerminal` and `openScreen` and launch's copies. Launch still resolves the colors once per launch rather than per prompt, so it composes `RequireTerminal`, `LoadColors`, and `OpenRawScreen` itself.
