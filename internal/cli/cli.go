@@ -26,4 +26,7 @@ func register(app *strictcli.App) {
 	registerSessions(app)
 	registerHooks(app)
 	registerProbe(app)
+	registerMaintenance(app)
+	registerProfile(app)
+	registerPermission(app)
 }
