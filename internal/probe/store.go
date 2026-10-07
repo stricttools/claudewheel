@@ -132,7 +132,7 @@ func appendProbeLine(fx *effects.FX, store Store, probe string, line any) error 
 	if err != nil {
 		return err
 	}
-	return appendJSONL(fx, path, line, probeevent.ValidateBytes)
+	return appendJSONL(fx, path, line, diagnosticsOf(probeevent.ValidateBytes))
 }
 
 // AppendEnded appends the line ending probe for reason (one of the Ended
@@ -148,7 +148,7 @@ func ReadProbe(store Store, probe string) (*ProbeState, error) {
 	if err != nil {
 		return nil, err
 	}
-	lines, err := readJSONL(path, probeevent.ValidateBytes)
+	lines, err := readJSONL(path, diagnosticsOf(probeevent.ValidateBytes))
 	if err != nil {
 		return nil, err
 	}
@@ -280,13 +280,13 @@ func AppendKill(fx *effects.FX, store Store, kill Kill) error {
 	if kill.Probes == nil {
 		kill.Probes = []string{}
 	}
-	return appendJSONL(fx, store.KillsFile(), kill, oomkillevent.ValidateBytes)
+	return appendJSONL(fx, store.KillsFile(), kill, diagnosticsOf(oomkillevent.ValidateBytes))
 }
 
 // ReadKills returns every kill recorded, in file order.
 func ReadKills(store Store) ([]Kill, error) {
 	path := store.KillsFile()
-	lines, err := readJSONL(path, oomkillevent.ValidateBytes)
+	lines, err := readJSONL(path, diagnosticsOf(oomkillevent.ValidateBytes))
 	if err != nil {
 		return nil, err
 	}
@@ -321,7 +321,7 @@ func ReadSessionAgents(store Store, session string) (map[string]*AgentInfo, erro
 	if err != nil {
 		return nil, err
 	}
-	lines, err := readJSONL(path, probesessionevent.ValidateBytes)
+	lines, err := readJSONL(path, diagnosticsOf(probesessionevent.ValidateBytes))
 	if err != nil {
 		return nil, err
 	}
@@ -391,7 +391,7 @@ func WriteReport(fx *effects.FX, store Store, report Report, recipient string) (
 	if err != nil {
 		return "", err
 	}
-	if err := validate(probereport.ValidateBytes, text, "json", "report "+report.ID); err != nil {
+	if err := validate(diagnosticsOf(probereport.ValidateBytes), text, "json", "report "+report.ID); err != nil {
 		return "", err
 	}
 	dir, err := store.ReportDir(ReportPending, report.Session)
@@ -414,7 +414,7 @@ func ReadReport(path string) (Report, error) {
 	if err != nil {
 		return Report{}, errorf("%s: cannot be read: %v", path, err)
 	}
-	if err := validate(probereport.ValidateBytes, data, "json", path); err != nil {
+	if err := validate(diagnosticsOf(probereport.ValidateBytes), data, "json", path); err != nil {
 		return Report{}, err
 	}
 	var doc reportDocument

@@ -278,13 +278,23 @@ func isReportState(state string) bool {
 	return false
 }
 
-// validator is the ValidateBytes function of one generated schema package.
-type validator func(input []byte, syntax string) (strictspec.Value, []strictspec.Diagnostic)
+// validator runs one generated schema package's validation and returns its
+// diagnostics.
+type validator func(input []byte, syntax string) []strictspec.Diagnostic
+
+// diagnosticsOf turns a generated package's ValidateBytes, whose first result
+// is that package's own root type, into a validator.
+func diagnosticsOf[T any](validateBytes func(input []byte, syntax string) (T, []strictspec.Diagnostic)) validator {
+	return func(input []byte, syntax string) []strictspec.Diagnostic {
+		_, diags := validateBytes(input, syntax)
+		return diags
+	}
+}
 
 // validate runs one schema's validation, the format_version check first, and
 // names where in every diagnostic.
 func validate(v validator, data []byte, syntax, where string) error {
-	_, diags := v(data, syntax)
+	diags := v(data, syntax)
 	if len(diags) == 0 {
 		return nil
 	}
