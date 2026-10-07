@@ -329,3 +329,18 @@ When the selected GitHub account's token cannot be fetched (`gh auth token` fail
 ## launch: the miniclaude adapter always passes model and permission mode (orchestrating session)
 
 The miniclaude client adapter always passes `--model <id>` and `--permission-mode <mode>` to `miniclaude repl`; the Go miniclaude requires both. When the model or permissions segment has no value for a miniclaude launch, the launch is refused with an error naming the segment, instead of omitting the flag.
+
+## launch: the adapter record and the preflight's clients
+
+- `launch.Adapters()` is the client registry: each `Adapter` carries `HiddenSegments` (miniclaude: `version`), `RejectedValues` (miniclaude: `mcp=strict`), its availability check, and its argv builder. The bar's `bar.Clients` (`BarClients`), the command line's check of `-s` values (`CheckExplicit`), and the dropping of remembered values that do not apply (`DropInapplicable`, hidden segments and rejected values alike) all read it; `--client`'s choices are `AdapterNames()`.
+- The required segments that decide whether the bar is skipped, and print mode's required segments, leave out the segments the planned client (the `--client` value, else `default_client`) hides, so a miniclaude launch never needs a version it would refuse.
+- Preflight steps declare their clients: vanilla-choice, reconcile-guardrails, model-version-guard, release-notes-seen, and plan-declaration apply to claude only; approved-hooks and scratchpad-cleanup to every client.
+- The session choice is a typed `launch.Session` (new, continue, resume, picker, print) that each adapter turns into its own flags, instead of the Python's claude-form flag list that the miniclaude adapter parsed back. An empty `--resume` value is the picker, as before.
+- The claude adapter refuses an `mcp` value other than default or strict and a `permissions` value other than bypass, default, plan, or auto (the Python passed nothing for them, silently). A missing version's message names `claudewheel install <v>` (the Python's named `python3 -m claudewheel --install`).
+
+## launch: prompts, errors, and the launch sequence
+
+- Every prompt is a `widgets.Confirm` page or a selection list on its own alternate-screen session: the vanilla choice (y enables the guardrails, n stays vanilla and is remembered, Escape stays vanilla for this launch and asks again), the health warnings (y launches anyway; n and Escape abort), the hook approval (y approves; n and Escape abort), the scratchpad cleanup (one page per stale directory: y deletes, n dismisses it for good, Escape keeps it for now), and the session-move offers of `--resume` and `--cont` (the multiple-candidate number entry is a selection list). Without a terminal, `--resume` of a session whose directory was renamed is refused naming `claudewheel mv <old> <new> --post-hoc`; `--cont`'s offer is skipped, as before.
+- Hard errors where the Python went on: a pre-launch hook's failure, a reconcile error, a scratchpad deletion error, a `.claude.json` that cannot be read, parsed, or written while marking release notes seen (the Python printed one line and launched), a failing `systemctl` list, show, or stop while sweeping ended sessions (the Python ignored the stop's exit status), and a `~/.claude/settings.json` that is not valid JSON when the guardrails are added or removed (the Python treated it as empty and overwrote it, or skipped it).
+- The bar's authentication intercept shows the auth flow's notes on a page before returning to the bar, since nothing prints while the bar is on screen.
+- The directory recorded in `shared/inodes.json` is the launch directory with `~` expanded (the Python passed the selection unexpanded, so a `~` directory was never recorded).
