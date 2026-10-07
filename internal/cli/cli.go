@@ -21,4 +21,9 @@ func NewApp(version string) *strictcli.App {
 // register adds every command group to app. Each group lives in its own file
 // and exposes one function taking the app; a new group is one more call here.
 func register(app *strictcli.App) {
+	registerVersions(app)
+	registerWorkspace(app)
+	registerSessions(app)
+	registerHooks(app)
+	registerProbe(app)
 }

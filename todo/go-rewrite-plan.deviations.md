@@ -268,3 +268,14 @@ When the selected GitHub account's token cannot be fetched (`gh auth token` fail
 ## tui/wizard: the hook merge comes from reconcile
 
 `internal/reconcile` was committed while the wizard was being built, so `BuildSettings`, `CreateProfile`, and `RunCreate` call `reconcile.MergeHooks` directly and the `HookMerge` parameter is gone: `RunCreate(ctx, fx, t, colors, ws)`. This overrides the parameter recorded in the wizard entry above.
+
+## cli: the command foundation, opening the workspace, and exit statuses
+
+- Commands are registered through `readOnlyCommand` and `mutatingCommand` (internal/cli/call.go), which fix the effect and hand the handler a `*call` (context, FX for that effect, workspace). A handler returns an error: exit 1 with the message, `exitStatus(n)` after the handler reported itself, and an error wrapping `terminal.ErrInterrupted` exits 130 with no message.
+- A command acting on the workspace opens the app config first (`Load` read-only, `Ensure` mutating), so an unconverted or missing workspace is refused before anything else. `versions`, `install`, and `uninstall` act only outside the workspace and do not open it; `config` does not either, so a workspace that needs converting can still be edited by hand; `reset-options` does not, because replacing options.json is how a corrupt one is repaired (it refuses when the workspace root does not exist).
+- strictcli handles SIGINT and SIGTERM during a handler and replaces the exit status with 128 + the signal's number. `probe run-service` therefore ends with 143 on systemd's SIGTERM (the unit's `SuccessExitStatus=143`) and 130 on SIGINT, although the runner itself returns cleanly; only SIGHUP, which `terminal.WithSignals` adds, ends it with 0.
+- Answers go to stdout through `ctx.Out` (kept under `--quiet`); install's "Downloading" line is an info line, and its progress is redrawn in place on stderr and hidden under `--quiet` (the Python wrote both to stdout).
+- `migrate` resolves its two profile names against the profile store's names and refuses an unknown one, listing the profiles; the Python joined any name under `profiles/`.
+- `probe create` followed by `-- <command>` is refused by strictcli's own "unexpected argument" parse error; the Python's message listing the probe kinds needed the deleted `_passthrough` global.
+- `stats` counts each top-level entry of the shared store as the Python did (a directory by its regular files, links not followed; a file or a link to one as one file); an entry that cannot be read is an error.
+- `deploy-hooks` takes the unit's executable from `os.Executable()` with symbolic links resolved.
