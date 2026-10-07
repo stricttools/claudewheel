@@ -126,3 +126,13 @@ func CopyTree(t *testing.T, src, dst string) {
 		t.Fatal(err)
 	}
 }
+
+// Stat returns the file information of path.
+func Stat(t *testing.T, path string) os.FileInfo {
+	t.Helper()
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return info
+}
