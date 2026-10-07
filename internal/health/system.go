@@ -11,6 +11,7 @@ import (
 	"github.com/stricttools/claudewheel/internal/appconfig"
 	"github.com/stricttools/claudewheel/internal/effects"
 	"github.com/stricttools/claudewheel/internal/hookscripts"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/probe"
 	"github.com/stricttools/claudewheel/internal/scratchpad"
 )
@@ -50,7 +51,7 @@ func (c *checker) tmpfsQuota() Result {
 func (c *checker) tmpClaudeSize() Result {
 	const label = "/tmp/claude"
 	root := scratchpad.TmpClaudeDir()
-	exists, _, err := pathState(root)
+	exists, err := pathstat.Exists(root)
 	if err != nil {
 		return failed(label, err)
 	}
@@ -72,7 +73,7 @@ func (c *checker) probeRunner() Result {
 	const label = "probe-runner"
 	fix := fmt.Sprintf("run 'claudewheel deploy-hooks %s --force-overwrite'", probe.ServiceName)
 	unit := filepath.Join(c.in.Workspace.SystemdUserDir(), probe.ServiceName)
-	exists, _, err := pathState(unit)
+	exists, err := pathstat.Exists(unit)
 	if err != nil {
 		return failed(label, err)
 	}

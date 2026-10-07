@@ -19,16 +19,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"time"
 
-	"golang.org/x/sys/unix"
-
 	"github.com/stricttools/claudewheel/internal/effects"
 	"github.com/stricttools/claudewheel/internal/jsonfile"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 )
 
 // Saferm is the program claudewheel delegates deletion to.
@@ -341,44 +339,18 @@ func MayOfferInstall(previewing, interactive bool) bool {
 // there is none.
 func Locate(root string) (string, bool, error) {
 	own := filepath.Join(BinDir(root), Saferm)
-	ok, err := isExecutableFile(own)
+	ok, err := pathstat.IsExecutableFile(own)
 	if err != nil {
 		return "", false, err
 	}
 	if ok {
 		return own, true, nil
 	}
-	for _, dir := range filepath.SplitList(os.Getenv("PATH")) {
-		if dir == "" || !filepath.IsAbs(dir) {
-			continue
-		}
-		candidate := filepath.Join(dir, Saferm)
-		ok, err := isExecutableFile(candidate)
-		if err != nil {
-			return "", false, err
-		}
-		if ok {
-			return candidate, true, nil
-		}
-	}
-	return "", false, nil
-}
-
-// isExecutableFile reports whether path is a regular file (following links)
-// this process may execute. A path that does not exist, or a broken link,
-// is no file.
-func isExecutableFile(path string) (bool, error) {
-	info, err := os.Stat(path)
-	if errors.Is(err, os.ErrNotExist) {
-		return false, nil
-	}
+	path, ok, err := effects.LookPath(Saferm, effects.SearchPath(nil))
 	if err != nil {
-		return false, err
+		return "", false, fmt.Errorf("cannot search PATH for %s: %w", Saferm, err)
 	}
-	if !info.Mode().IsRegular() {
-		return false, nil
-	}
-	return unix.Access(path, unix.X_OK) == nil, nil
+	return path, ok, nil
 }
 
 // Probe asks binary which features it ships, through `capabilities --json`,

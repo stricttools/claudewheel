@@ -23,7 +23,6 @@ import (
 
 	"github.com/stricttools/claudewheel/internal/effects"
 	"github.com/stricttools/claudewheel/internal/jsonfile"
-	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/profiles"
 	"github.com/stricttools/claudewheel/internal/workspace"
 )
@@ -169,20 +168,6 @@ func dumps(v jsonfile.Value) string {
 		panic(fmt.Sprintf("health: a decoded JSON value did not encode: %v", err))
 	}
 	return string(text)
-}
-
-// pathState stats path, following links: whether it exists, and whether it
-// is a directory. A missing path, or a parent that is not a directory, is
-// absent; any other stat error is returned.
-func pathState(path string) (exists, isDir bool, err error) {
-	info, err := os.Stat(path)
-	if err == nil {
-		return true, info.IsDir(), nil
-	}
-	if pathstat.NotFoundOrNotDirectory(err) {
-		return false, false, nil
-	}
-	return false, false, err
 }
 
 // settingsPath is a profile's settings.json.

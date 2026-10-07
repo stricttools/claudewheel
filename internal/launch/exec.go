@@ -15,11 +15,10 @@ import (
 	"time"
 	"unicode"
 
-	"golang.org/x/sys/unix"
-
 	"github.com/stricttools/claudewheel/internal/appconfig"
 	"github.com/stricttools/claudewheel/internal/effects"
 	"github.com/stricttools/claudewheel/internal/hookscripts"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 )
 
 // sizeRE is a size as systemd reads it for MemoryMax and MemorySwapMax,
@@ -244,13 +243,9 @@ func unsetEnv(env []string, key string) []string {
 // from its answer on stdout. secrets are redacted from the dry-run record
 // and from every error.
 func Exec(fx *effects.FX, cwd string, argv, env []string, toolCap ToolCap, scriptsDir string, stderr io.Writer, secrets []string) error {
-	search, ok := effects.EnvValue(env, "PATH")
-	if !ok {
-		search = effects.DefaultExecPath
-	}
-	systemdRun, found, err := lookPath("systemd-run", search)
+	systemdRun, found, err := effects.LookPath("systemd-run", effects.SearchPath(env))
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot search PATH for systemd-run: %w", err)
 	}
 	if !found {
 		return fmt.Errorf("systemd-run is not on PATH; claudewheel starts every session in systemd user units, its Bash commands capped together at tool_memory_max from config.json")
@@ -268,8 +263,14 @@ func Exec(fx *effects.FX, cwd string, argv, env []string, toolCap ToolCap, scrip
 			return err
 		}
 	}
-	if !fx.Previewing() && unix.Access(prefix, unix.X_OK) != nil {
-		return fmt.Errorf("%s is not executable; it is the shell prefix every command of the session runs through: redeploy it with `claudewheel deploy-hooks %s --force-overwrite`", prefix, hookscripts.ToolScopeScript)
+	if !fx.Previewing() {
+		executable, err := pathstat.IsExecutableFile(prefix)
+		if err != nil {
+			return err
+		}
+		if !executable {
+			return fmt.Errorf("%s is not executable; it is the shell prefix every command of the session runs through: redeploy it with `claudewheel deploy-hooks %s --force-overwrite`", prefix, hookscripts.ToolScopeScript)
+		}
 	}
 	now := time.Now()
 	if _, err := SweepEndedSessions(fx, now); err != nil {

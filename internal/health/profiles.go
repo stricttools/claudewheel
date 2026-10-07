@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/stricttools/claudewheel/internal/appconfig"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/profiles"
 	"github.com/stricttools/claudewheel/internal/tokens"
 )
@@ -116,7 +117,7 @@ func (c *checker) authShadow() Result {
 func (c *checker) orphanProfiles() Result {
 	const label = "orphan-profiles"
 	dir := c.in.Workspace.ProfilesDir()
-	_, isDir, err := pathState(dir)
+	isDir, err := pathstat.IsDir(dir)
 	if err != nil {
 		return failed(label, err)
 	}
@@ -149,7 +150,7 @@ func (c *checker) orphanProfiles() Result {
 	var orphans []string
 	for _, e := range entries {
 		path := filepath.Join(dir, e.Name())
-		_, entryIsDir, err := pathState(path)
+		entryIsDir, err := pathstat.IsDir(path)
 		if err != nil {
 			return failed(label, err)
 		}
@@ -184,7 +185,7 @@ func brokenLinks(dir string) ([]string, error) {
 		if e.Type()&fs.ModeSymlink == 0 {
 			continue
 		}
-		exists, _, err := pathState(filepath.Join(dir, e.Name()))
+		exists, err := pathstat.Exists(filepath.Join(dir, e.Name()))
 		if err != nil {
 			return nil, err
 		}
@@ -222,7 +223,7 @@ func (c *checker) filePermissions() Result {
 	var issues []string
 	for _, p := range c.all {
 		data := c.store.Data(p.Name)
-		_, dataIsDir, err := pathState(data.DataDir())
+		dataIsDir, err := pathstat.IsDir(data.DataDir())
 		if err != nil {
 			return failed(label, err)
 		}

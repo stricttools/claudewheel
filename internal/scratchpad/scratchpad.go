@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/stricttools/claudewheel/internal/effects"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 )
 
 // StaleDays is how long a project directory's tree must have gone
@@ -102,7 +103,11 @@ func ScanTree(root string) (int64, time.Time) {
 // name, skipping other entries and top-level symbolic links. A missing root,
 // or one that is not a directory, has none.
 func ScanDirs(root string) ([]Dir, error) {
-	if info, err := os.Stat(root); err != nil || !info.IsDir() {
+	isDir, err := pathstat.IsDir(root)
+	if err != nil {
+		return nil, err
+	}
+	if !isDir {
 		return nil, nil
 	}
 	entries, err := os.ReadDir(root)

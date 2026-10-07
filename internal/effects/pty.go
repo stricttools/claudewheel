@@ -101,7 +101,7 @@ func runPTY(c Cmd, p PTY) (int, []byte, error) {
 		closeTTY()
 		return 0, nil, err
 	}
-	path, err := lookPath(c.Argv[0], c.Env)
+	path, err := resolveProgram(c.Argv[0], c.Env)
 	if err != nil {
 		master.Close()
 		slave.Close()

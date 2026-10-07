@@ -7,6 +7,7 @@ import (
 
 	"github.com/stricttools/strictcli/go/strictcli"
 
+	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/profiles"
 	"github.com/stricttools/claudewheel/internal/sessionmove"
 	"github.com/stricttools/claudewheel/internal/sessions"
@@ -162,8 +163,11 @@ func handleImport(c *call, kw map[string]interface{}) error {
 		if err != nil {
 			return err
 		}
-		info, err := os.Stat(resolved)
-		if err != nil || !info.IsDir() {
+		isDir, err := pathstat.IsDir(resolved)
+		if err != nil {
+			return fmt.Errorf("cannot check --to path %s: %w", to[i], err)
+		}
+		if !isDir {
 			return fmt.Errorf("--to path does not exist or is not a directory: %s", to[i])
 		}
 		mappings[i] = sessionmove.PathMapping{From: from[i], To: resolved}

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/stricttools/claudewheel/internal/effects"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/realpath"
 	"github.com/stricttools/claudewheel/internal/workspace"
 )
@@ -47,7 +48,11 @@ func (l Locator) Fallback() string {
 // VersionSortKey: the regular files (or links to them) in VersionsDir. A
 // missing VersionsDir has none.
 func (l Locator) InstalledVersions() ([]string, error) {
-	if info, err := os.Stat(l.VersionsDir); err != nil || !info.IsDir() {
+	isDir, err := pathstat.IsDir(l.VersionsDir)
+	if err != nil {
+		return nil, err
+	}
+	if !isDir {
 		return nil, nil
 	}
 	entries, err := os.ReadDir(l.VersionsDir)
@@ -56,8 +61,11 @@ func (l Locator) InstalledVersions() ([]string, error) {
 	}
 	var versions []string
 	for _, e := range entries {
-		info, err := os.Stat(filepath.Join(l.VersionsDir, e.Name()))
-		if err != nil || !info.Mode().IsRegular() {
+		file, err := pathstat.IsFile(filepath.Join(l.VersionsDir, e.Name()))
+		if err != nil {
+			return nil, err
+		}
+		if !file {
 			continue
 		}
 		versions = append(versions, e.Name())
@@ -136,7 +144,11 @@ func Uninstall(fx *effects.FX, l Locator, version string) (string, error) {
 		return "", err
 	}
 	target := l.BinaryFor(version)
-	if _, err := os.Stat(target); err != nil {
+	installed, err := pathstat.Exists(target)
+	if err != nil {
+		return "", err
+	}
+	if !installed {
 		return "", fmt.Errorf("version %s is not installed at %s", version, target)
 	}
 	if resolved, ok := l.SymlinkTarget(); ok && filepath.Base(resolved) == version {

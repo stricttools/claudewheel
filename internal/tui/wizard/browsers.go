@@ -1,11 +1,10 @@
 package wizard
 
 import (
-	"os"
 	"path/filepath"
 
+	"github.com/stricttools/claudewheel/internal/effects"
 	"github.com/stricttools/claudewheel/internal/pathstat"
-	"golang.org/x/sys/unix"
 )
 
 // Browser is one installed web browser: the executable the auth URL is
@@ -70,7 +69,8 @@ func snapBrowsers() []browserSource {
 
 // BrowserDirs are the directories browser detection looks in besides PATH.
 type BrowserDirs struct {
-	// PathList is the PATH value searched for native browsers.
+	// PathList is the search list native browsers are looked up on
+	// (effects.LookPath).
 	PathList string
 	// FlatpakExports are the flatpak export directories, system first.
 	FlatpakExports []string
@@ -83,7 +83,7 @@ type BrowserDirs struct {
 // ~/.local/share/flatpak/exports/bin, and /snap/bin.
 func SystemBrowserDirs(home string) BrowserDirs {
 	return BrowserDirs{
-		PathList: os.Getenv("PATH"),
+		PathList: effects.SearchPath(nil),
 		FlatpakExports: []string{
 			"/var/lib/flatpak/exports/bin",
 			filepath.Join(home, ".local", "share", "flatpak", "exports", "bin"),
@@ -108,7 +108,7 @@ func DetectBrowsers(dirs BrowserDirs) ([]Browser, error) {
 		if seen[b.name] {
 			continue
 		}
-		path, ok, err := lookPath(dirs.PathList, b.file)
+		path, ok, err := effects.LookPath(b.file, dirs.PathList)
 		if err != nil {
 			return nil, err
 		}
@@ -123,7 +123,7 @@ func DetectBrowsers(dirs BrowserDirs) ([]Browser, error) {
 		}
 		for _, dir := range dirs.FlatpakExports {
 			candidate := filepath.Join(dir, b.file)
-			ok, err := pathExists(candidate)
+			ok, err := pathstat.Exists(candidate)
 			if err != nil {
 				return nil, err
 			}
@@ -139,7 +139,7 @@ func DetectBrowsers(dirs BrowserDirs) ([]Browser, error) {
 			continue
 		}
 		candidate := filepath.Join(dirs.SnapBin, b.file)
-		ok, err := pathExists(candidate)
+		ok, err := pathstat.Exists(candidate)
 		if err != nil {
 			return nil, err
 		}
@@ -148,53 +148,4 @@ func DetectBrowsers(dirs BrowserDirs) ([]Browser, error) {
 		}
 	}
 	return found, nil
-}
-
-// lookPath returns the first executable regular file named file in the
-// directories of pathList. Empty and relative entries are skipped: they
-// would name a file relative to whatever directory this runs in.
-func lookPath(pathList, file string) (string, bool, error) {
-	for _, dir := range filepath.SplitList(pathList) {
-		if dir == "" || !filepath.IsAbs(dir) {
-			continue
-		}
-		candidate := filepath.Join(dir, file)
-		ok, err := isExecutableFile(candidate)
-		if err != nil {
-			return "", false, err
-		}
-		if ok {
-			return candidate, true, nil
-		}
-	}
-	return "", false, nil
-}
-
-// isExecutableFile reports whether path is a regular file (links followed)
-// this process may execute.
-func isExecutableFile(path string) (bool, error) {
-	info, err := os.Stat(path)
-	if pathstat.NotFoundOrNotDirectory(err) {
-		return false, nil
-	}
-	if err != nil {
-		return false, err
-	}
-	if !info.Mode().IsRegular() {
-		return false, nil
-	}
-	return unix.Access(path, unix.X_OK) == nil, nil
-}
-
-// pathExists reports whether path exists, links followed, so a dangling
-// export link is no browser.
-func pathExists(path string) (bool, error) {
-	_, err := os.Stat(path)
-	if pathstat.NotFoundOrNotDirectory(err) {
-		return false, nil
-	}
-	if err != nil {
-		return false, err
-	}
-	return true, nil
 }

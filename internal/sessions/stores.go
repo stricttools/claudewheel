@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"sort"
 
+	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/workspace"
 )
 
@@ -45,7 +46,11 @@ func DistinctStoreDirs(profileDirs []string) ([]string, error) {
 	var dirs []string
 	for _, pdir := range profileDirs {
 		projects := filepath.Join(pdir, workspace.ProjectsDirName)
-		if info, err := os.Stat(projects); err != nil || !info.IsDir() {
+		isDir, err := pathstat.IsDir(projects)
+		if err != nil {
+			return nil, err
+		}
+		if !isDir {
 			continue
 		}
 		resolved, err := filepath.EvalSymlinks(projects)

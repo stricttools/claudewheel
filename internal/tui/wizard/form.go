@@ -3,7 +3,6 @@ package wizard
 import (
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -93,12 +92,12 @@ func validateName(store profiles.Store, home, name string, existing []string) st
 		return err.Error()
 	}
 	path := store.PathFor(name)
-	_, err := os.Lstat(path)
-	if err == nil {
-		return displayConfigDir(store, home, name) + " already exists"
-	}
-	if !pathstat.NotFoundOrNotDirectory(err) {
+	taken, err := pathstat.Lexists(path)
+	if err != nil {
 		return fmt.Sprintf("cannot check %s: %v", path, err)
+	}
+	if taken {
+		return displayConfigDir(store, home, name) + " already exists"
 	}
 	if slices.Contains(existing, name) {
 		return fmt.Sprintf("Profile '%s' already registered", name)

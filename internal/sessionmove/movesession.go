@@ -14,6 +14,7 @@ import (
 	"github.com/stricttools/claudewheel/internal/effects"
 	"github.com/stricttools/claudewheel/internal/jsonfile"
 	"github.com/stricttools/claudewheel/internal/lifecycle"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/realpath"
 	"github.com/stricttools/claudewheel/internal/schema/sessionmovejournal"
 	"github.com/stricttools/claudewheel/internal/sessions"
@@ -180,11 +181,11 @@ func holders(stores []string, session string) ([]holder, error) {
 			return nil, err
 		}
 		for _, storeDir := range dirs {
-			transcript, err := lexists(filepath.Join(storeDir, session+".jsonl"))
+			transcript, err := pathstat.Lexists(filepath.Join(storeDir, session+".jsonl"))
 			if err != nil {
 				return nil, err
 			}
-			folder, err := lexists(filepath.Join(storeDir, session))
+			folder, err := pathstat.Lexists(filepath.Join(storeDir, session))
 			if err != nil {
 				return nil, err
 			}
@@ -356,7 +357,7 @@ func checkNoJobs(session string, profiles []sessions.ProfileConfigDir) error {
 		}
 		for _, name := range names {
 			state := filepath.Join(jobs, name, "state.json")
-			if there, err := lexists(state); err != nil {
+			if there, err := pathstat.Lexists(state); err != nil {
 				return err
 			} else if !there {
 				continue
@@ -436,7 +437,7 @@ func linksInto(dir, inside string, links []string) ([]string, error) {
 // checkNoInboundLinks refuses when a symbolic link in another session's
 // folder points into folder.
 func checkNoInboundLinks(stores []string, session, folder string) error {
-	ok, err := isDir(folder)
+	ok, err := pathstat.IsDir(folder)
 	if err != nil || !ok {
 		return err
 	}
@@ -460,11 +461,19 @@ func checkNoInboundLinks(stores []string, session, folder string) error {
 					continue
 				}
 				other := filepath.Join(storeDir, name)
-				info, err := statPath(other, false)
+				// A link to a directory is not another session's folder.
+				link, err := pathstat.IsSymlink(other)
 				if err != nil {
 					return err
 				}
-				if info == nil || !info.IsDir() {
+				if link {
+					continue
+				}
+				otherIsDir, err := pathstat.IsDir(other)
+				if err != nil {
+					return err
+				}
+				if !otherIsDir {
 					continue
 				}
 				if links, err = linksInto(other, inside, links); err != nil {
@@ -484,7 +493,7 @@ func resolveTarget(directory string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	ok, err := isDir(target)
+	ok, err := pathstat.IsDir(target)
 	if err != nil {
 		return "", err
 	}
@@ -622,7 +631,7 @@ func MoveSession(fx *effects.FX, ws workspace.Workspace, profiles []sessions.Pro
 		return MoveResult{}, err
 	}
 	folder := filepath.Join(targetStore, session)
-	if ok, err := exists(filepath.Join(source, session)); err != nil {
+	if ok, err := pathstat.Exists(filepath.Join(source, session)); err != nil {
 		return MoveResult{}, err
 	} else if ok {
 		folder = filepath.Join(source, session)
@@ -634,7 +643,7 @@ func MoveSession(fx *effects.FX, ws workspace.Workspace, profiles []sessions.Pro
 	// Read everything the steps need, before the first change.
 	oldTranscript := filepath.Join(source, session+".jsonl")
 	newTranscript := filepath.Join(targetStore, session+".jsonl")
-	atSource, err := exists(oldTranscript)
+	atSource, err := pathstat.Exists(oldTranscript)
 	if err != nil {
 		return MoveResult{}, err
 	}
@@ -691,7 +700,7 @@ func MoveSession(fx *effects.FX, ws workspace.Workspace, profiles []sessions.Pro
 			recorded = true
 		}
 	}
-	sourceExists, err := isDir(source)
+	sourceExists, err := pathstat.IsDir(source)
 	if err != nil {
 		return MoveResult{}, err
 	}
@@ -746,7 +755,7 @@ func MoveSession(fx *effects.FX, ws workspace.Workspace, profiles []sessions.Pro
 			return fx.Rename(oldTranscript, newTranscript)
 		}},
 		{StepFolderMoved, func() error {
-			there, err := lexists(filepath.Join(source, session))
+			there, err := pathstat.Lexists(filepath.Join(source, session))
 			if err != nil || !there {
 				return err
 			}

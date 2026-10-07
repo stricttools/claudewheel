@@ -53,14 +53,14 @@ func verifyFileIn(env Env, d appconfig.Discovery) (func(string) (bool, error), e
 		return nil, err
 	}
 	return func(value string) (bool, error) {
-		return isFile(filepath.Join(dir, value))
+		return pathstat.IsFile(filepath.Join(dir, value))
 	}, nil
 }
 
 // verifyDirectory keeps a value that still names a directory.
 func verifyDirectory(env Env, _ appconfig.Discovery) (func(string) (bool, error), error) {
 	return func(value string) (bool, error) {
-		return isDir(ExpandUser(env.Home, value))
+		return pathstat.IsDir(ExpandUser(env.Home, value))
 	}, nil
 }
 
@@ -79,7 +79,7 @@ func directoryScan(env Env, seg appconfig.OptionSegment) (Result, error) {
 	var found []string
 	for _, parent := range *d.Parents {
 		parentPath := ExpandUser(env.Home, parent)
-		ok, err := isDir(parentPath)
+		ok, err := pathstat.IsDir(parentPath)
 		if err != nil {
 			return Result{}, err
 		}
@@ -95,7 +95,7 @@ func directoryScan(env Env, seg appconfig.OptionSegment) (Result, error) {
 				continue
 			}
 			entry := filepath.Join(parentPath, e.Name())
-			ok, err := isDir(entry)
+			ok, err := pathstat.IsDir(entry)
 			if err != nil {
 				return Result{}, err
 			}
@@ -119,7 +119,7 @@ func directoryScan(env Env, seg appconfig.OptionSegment) (Result, error) {
 		}
 		recent = []string{}
 		for _, p := range list {
-			ok, err := isDir(ExpandUser(env.Home, p))
+			ok, err := pathstat.IsDir(ExpandUser(env.Home, p))
 			if err != nil {
 				return Result{}, err
 			}
@@ -187,7 +187,7 @@ func stateList(st appconfig.State, field string) ([]string, error) {
 // filesIn returns the names of the regular files (or links to them) in dir,
 // in name order; a dir that is missing or not a directory holds none.
 func filesIn(dir string) ([]string, error) {
-	ok, err := isDir(dir)
+	ok, err := pathstat.IsDir(dir)
 	if err != nil || !ok {
 		return []string{}, err
 	}
@@ -197,7 +197,7 @@ func filesIn(dir string) ([]string, error) {
 	}
 	names := []string{}
 	for _, e := range entries {
-		ok, err := isFile(filepath.Join(dir, e.Name()))
+		ok, err := pathstat.IsFile(filepath.Join(dir, e.Name()))
 		if err != nil {
 			return nil, err
 		}
@@ -206,32 +206,6 @@ func filesIn(dir string) ([]string, error) {
 		}
 	}
 	return names, nil
-}
-
-// isDir reports whether p is a directory, following links. Any stat error
-// other than the path being absent is an error.
-func isDir(p string) (bool, error) {
-	info, err := os.Stat(p)
-	if err != nil {
-		if pathstat.NotFoundOrNotDirectory(err) {
-			return false, nil
-		}
-		return false, err
-	}
-	return info.IsDir(), nil
-}
-
-// isFile reports whether p is a regular file, following links. Any stat
-// error other than the path being absent is an error.
-func isFile(p string) (bool, error) {
-	info, err := os.Stat(p)
-	if err != nil {
-		if pathstat.NotFoundOrNotDirectory(err) {
-			return false, nil
-		}
-		return false, err
-	}
-	return info.Mode().IsRegular(), nil
 }
 
 // sortNewestFirst orders versions newest first by install.CompareVersions,

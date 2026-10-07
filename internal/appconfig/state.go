@@ -314,8 +314,9 @@ type InodeAnalysis struct {
 }
 
 // AnalyzeInodes reads the directory renames and the stale entries out of
-// an inode map. A path counts as gone when it does not exist or a parent is
-// not a directory; any other stat error is returned. An inode recorded
+// an inode map. A path counts as gone only when it does not exist; any
+// other stat error (a parent that is not a directory included) is returned,
+// naming the path. An inode recorded
 // under several paths none of which exists is neither.
 func AnalyzeInodes(inodes *jsonfile.Object) (InodeAnalysis, error) {
 	var order []string
@@ -337,14 +338,14 @@ func AnalyzeInodes(inodes *jsonfile.Object) (InodeAnalysis, error) {
 		paths := byInode[key]
 		var existing, missing []string
 		for _, p := range paths {
-			_, err := os.Stat(p)
-			switch {
-			case err == nil:
+			there, err := pathstat.Exists(p)
+			if err != nil {
+				return InodeAnalysis{}, fmt.Errorf("the inode map records %s, which cannot be checked: %w", p, err)
+			}
+			if there {
 				existing = append(existing, p)
-			case pathstat.NotFoundOrNotDirectory(err):
+			} else {
 				missing = append(missing, p)
-			default:
-				return InodeAnalysis{}, err
 			}
 		}
 		if len(paths) < 2 {

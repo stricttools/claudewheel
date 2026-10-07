@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/stricttools/strictcli/go/strictcli"
+
+	"github.com/stricttools/claudewheel/internal/pathstat"
 )
 
 // Fresh files and directories are created with these modes, narrowed by the
@@ -258,17 +260,29 @@ func (fx *FX) Move(src, dst string) error {
 		return err
 	}
 	target := dst
-	if info, err := os.Stat(dst); err == nil && info.IsDir() {
+	dstIsDir, err := pathstat.IsDir(dst)
+	if err != nil {
+		return err
+	}
+	if dstIsDir {
+		info, err := os.Stat(dst)
+		if err != nil {
+			return err
+		}
 		srcInfo, srcErr := os.Lstat(src)
 		if srcErr == nil && srcInfo.Mode()&os.ModeSymlink == 0 && os.SameFile(srcInfo, info) {
 			return os.Rename(src, dst)
 		}
 		target = filepath.Join(dst, filepath.Base(filepath.Clean(src)))
-		if _, err := os.Lstat(target); err == nil {
+		taken, err := pathstat.Lexists(target)
+		if err != nil {
+			return err
+		}
+		if taken {
 			return fmt.Errorf("cannot move %s: destination path %s already exists", src, target)
 		}
 	}
-	err := os.Rename(src, target)
+	err = os.Rename(src, target)
 	var linkErr *os.LinkError
 	if err == nil || !errors.As(err, &linkErr) || linkErr.Err != syscall.EXDEV {
 		return err
@@ -370,7 +384,11 @@ func (fx *FX) Symlink(link, target string) error {
 // existing directory the copy goes inside it under src's name. Under
 // --dry-run it reads src and records the write of dst.
 func (fx *FX) CopyFile(src, dst string) error {
-	if info, err := os.Stat(dst); err == nil && info.IsDir() {
+	dstIsDir, err := pathstat.IsDir(dst)
+	if err != nil {
+		return err
+	}
+	if dstIsDir {
 		dst = filepath.Join(dst, filepath.Base(src))
 	}
 	if err := fx.admit("copy "+src+" -> "+dst, nil); err != nil {

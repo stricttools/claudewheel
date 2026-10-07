@@ -14,6 +14,7 @@ import (
 
 	"github.com/stricttools/claudewheel/internal/effects"
 	"github.com/stricttools/claudewheel/internal/lifecycle"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/sessions"
 	"github.com/stricttools/claudewheel/internal/workspace"
 )
@@ -137,7 +138,7 @@ func brokenLinks(source string) ([]string, error) {
 			if bad {
 				continue
 			}
-			folder, err := isDir(companion)
+			folder, err := pathstat.IsDir(companion)
 			if err != nil {
 				return nil, err
 			}
@@ -185,7 +186,7 @@ func brokenLinks(source string) ([]string, error) {
 			if bad {
 				continue
 			}
-			dir, err := isDir(artifact)
+			dir, err := pathstat.IsDir(artifact)
 			if err != nil {
 				return nil, err
 			}
@@ -234,7 +235,7 @@ func checkTree(root string, check func(string) (bool, error), seen map[string]bo
 		if bad {
 			continue
 		}
-		dir, err := isDir(path)
+		dir, err := pathstat.IsDir(path)
 		if err != nil {
 			return err
 		}
@@ -473,7 +474,7 @@ func (im *importer) scanSource(source string) ([]sessionBundle, error) {
 				}
 			}
 			companion := filepath.Join(dir, stem)
-			folder, err := isDir(companion)
+			folder, err := pathstat.IsDir(companion)
 			if err != nil {
 				return nil, err
 			}
@@ -487,12 +488,14 @@ func (im *importer) scanSource(source string) ([]sessionBundle, error) {
 	return bundles, nil
 }
 
+// isDanglingLink reports whether path is a symbolic link whose target does
+// not exist. A link whose resolution loops is an error naming it.
 func isDanglingLink(path string) (bool, error) {
-	link, err := isSymlink(path)
+	link, err := pathstat.IsSymlink(path)
 	if err != nil || !link {
 		return false, err
 	}
-	there, err := exists(path)
+	there, err := pathstat.Exists(path)
 	return !there, err
 }
 
@@ -523,7 +526,7 @@ func Import(fx *effects.FX, store workspace.SharedStore, source string, mappings
 	}
 	im := &importer{fx: fx, store: store, warn: opts.Warnings}
 
-	ok, err := isDir(filepath.Join(source, workspace.ProjectsDirName))
+	ok, err := pathstat.IsDir(filepath.Join(source, workspace.ProjectsDirName))
 	if err != nil {
 		return im.result, err
 	}
@@ -584,11 +587,11 @@ func Import(fx *effects.FX, store workspace.SharedStore, source string, mappings
 	targets := make([]bundleTarget, len(bundles))
 	for i, b := range bundles {
 		dir := filepath.Join(store.ProjectsDir(), workspace.EncodePath(toPath[normalizeCwd(b.cwd)]))
-		jsonlTaken, err := exists(filepath.Join(dir, b.uuid+".jsonl"))
+		jsonlTaken, err := pathstat.Exists(filepath.Join(dir, b.uuid+".jsonl"))
 		if err != nil {
 			return im.result, err
 		}
-		folderTaken, err := exists(filepath.Join(dir, b.uuid))
+		folderTaken, err := pathstat.Exists(filepath.Join(dir, b.uuid))
 		if err != nil {
 			return im.result, err
 		}
@@ -663,7 +666,7 @@ func (im *importer) copyBundle(source string, b sessionBundle, t bundleTarget, r
 			return err
 		}
 		for _, item := range items {
-			file, err := isFile(item)
+			file, err := pathstat.IsFile(item)
 			if err != nil {
 				return err
 			}
@@ -711,7 +714,7 @@ func (im *importer) copyBundle(source string, b sessionBundle, t bundleTarget, r
 // it is.
 func (im *importer) copySimpleArtifacts(source, dirname, oldUUID, effective string) error {
 	srcDir := filepath.Join(source, dirname)
-	ok, err := isDir(srcDir)
+	ok, err := pathstat.IsDir(srcDir)
 	if err != nil || !ok {
 		return err
 	}
@@ -727,7 +730,7 @@ func (im *importer) copySimpleArtifacts(source, dirname, oldUUID, effective stri
 				continue
 			}
 			item := filepath.Join(srcDir, name)
-			file, err := isFile(item)
+			file, err := pathstat.IsFile(item)
 			if err != nil {
 				return err
 			}
@@ -739,7 +742,7 @@ func (im *importer) copySimpleArtifacts(source, dirname, oldUUID, effective stri
 				newName = strings.ReplaceAll(name, oldUUID, effective)
 			}
 			dst := filepath.Join(dstBase, newName)
-			taken, err := exists(dst)
+			taken, err := pathstat.Exists(dst)
 			if err != nil {
 				return err
 			}
@@ -759,19 +762,19 @@ func (im *importer) copySimpleArtifacts(source, dirname, oldUUID, effective stri
 	}
 
 	artifact := filepath.Join(srcDir, oldUUID)
-	there, err := exists(artifact)
+	there, err := pathstat.Exists(artifact)
 	if err != nil || !there {
 		return err
 	}
 	dst := filepath.Join(dstBase, effective)
-	taken, err := exists(dst)
+	taken, err := pathstat.Exists(dst)
 	if err != nil || taken {
 		return err
 	}
 	if err := im.fx.MkdirAll(filepath.Dir(dst)); err != nil {
 		return err
 	}
-	dir, err := isDir(artifact)
+	dir, err := pathstat.IsDir(artifact)
 	if err != nil {
 		return err
 	}
@@ -793,7 +796,7 @@ func (im *importer) copySimpleArtifacts(source, dirname, oldUUID, effective stri
 // there is the same file.
 func (im *importer) copyPasteCache(source string) error {
 	pasteSrc := filepath.Join(source, "paste-cache")
-	ok, err := isDir(pasteSrc)
+	ok, err := pathstat.IsDir(pasteSrc)
 	if err != nil || !ok {
 		return err
 	}
@@ -807,7 +810,7 @@ func (im *importer) copyPasteCache(source string) error {
 	}
 	for _, name := range names {
 		item := filepath.Join(pasteSrc, name)
-		file, err := isFile(item)
+		file, err := pathstat.IsFile(item)
 		if err != nil {
 			return err
 		}
@@ -815,7 +818,7 @@ func (im *importer) copyPasteCache(source string) error {
 			continue
 		}
 		dst := filepath.Join(pasteDst, name)
-		taken, err := exists(dst)
+		taken, err := pathstat.Exists(dst)
 		if err != nil {
 			return err
 		}

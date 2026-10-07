@@ -11,9 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/sys/unix"
-
 	"github.com/stricttools/claudewheel/internal/effects"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 )
 
 // preLaunchStage is the name prefix of the user's pre-launch hook scripts.
@@ -38,7 +37,11 @@ func userHooks(hooksDir, stage string) ([]string, error) {
 			continue
 		}
 		path := filepath.Join(hooksDir, e.Name())
-		if unix.Access(path, unix.X_OK) == nil {
+		executable, err := pathstat.IsExecutableFile(path)
+		if err != nil {
+			return nil, err
+		}
+		if executable {
 			hooks = append(hooks, path)
 		}
 	}

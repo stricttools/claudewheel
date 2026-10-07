@@ -210,20 +210,25 @@ func (a *authRun) chooseBrowser() (string, bool, error) {
 // that leads to no regular file is reported, not stepped over.
 func claudeBinary(ws workspace.Workspace) (string, string) {
 	link := install.LocatorFor(ws).Fallback()
-	if _, err := os.Lstat(link); err == nil {
+	linked, err := pathstat.Lexists(link)
+	if err != nil {
+		return "", fmt.Sprintf("Error: cannot check %s: %v", link, err)
+	}
+	if linked {
 		resolved, err := filepath.EvalSymlinks(link)
 		if err != nil {
 			return "", fmt.Sprintf("Error: %s does not lead to a Claude Code binary: %v", link, err)
 		}
-		info, err := os.Stat(resolved)
-		if err != nil || !info.Mode().IsRegular() {
+		file, err := pathstat.IsFile(resolved)
+		if err != nil {
+			return "", fmt.Sprintf("Error: cannot check %s: %v", resolved, err)
+		}
+		if !file {
 			return "", fmt.Sprintf("Error: %s does not lead to a Claude Code binary file (%s).", link, resolved)
 		}
 		return resolved, ""
-	} else if !pathstat.NotFoundOrNotDirectory(err) {
-		return "", fmt.Sprintf("Error: cannot check %s: %v", link, err)
 	}
-	path, ok, err := lookPath(os.Getenv("PATH"), "claude")
+	path, ok, err := effects.LookPath("claude", effects.SearchPath(nil))
 	if err != nil {
 		return "", fmt.Sprintf("Error: cannot search PATH for claude: %v", err)
 	}
@@ -289,16 +294,16 @@ func (a *authRun) sessionLogin(browser string) (widgets.AuthOutcome, error) {
 		a.note("Auth login exited with an error.")
 		return widgets.AuthFailed, nil
 	}
-	_, statErr := os.Stat(filepath.Join(a.configDir, profiles.CredentialsFileName))
-	switch {
-	case statErr == nil:
-		a.note("Authentication successful.")
-		return widgets.AuthAuthenticated, nil
-	case pathstat.NotFoundOrNotDirectory(statErr):
+	stored, err := pathstat.Exists(filepath.Join(a.configDir, profiles.CredentialsFileName))
+	if err != nil {
+		return widgets.AuthFailed, err
+	}
+	if !stored {
 		a.note("Authentication did not complete (.credentials.json not found).")
 		return widgets.AuthFailed, nil
 	}
-	return widgets.AuthFailed, statErr
+	a.note("Authentication successful.")
+	return widgets.AuthAuthenticated, nil
 }
 
 // entryTitle is the title of the token entry pages.

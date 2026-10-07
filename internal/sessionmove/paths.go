@@ -17,7 +17,6 @@
 package sessionmove
 
 import (
-	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -25,7 +24,6 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-	"syscall"
 	"unicode"
 	"unicode/utf8"
 
@@ -75,60 +73,6 @@ func expandUser(p string) (string, error) {
 	return out, nil
 }
 
-// absent reports whether a stat error means the path is not there: missing,
-// under a non-directory, or behind a link loop. Any other error is real.
-func absent(err error) bool {
-	return pathstat.NotFoundOrNotDirectory(err) || errors.Is(err, syscall.ELOOP)
-}
-
-// statPath returns path's information, following symbolic links when follow
-// is set, and nil when the path is not there.
-func statPath(path string, follow bool) (fs.FileInfo, error) {
-	var info fs.FileInfo
-	var err error
-	if follow {
-		info, err = os.Stat(path)
-	} else {
-		info, err = os.Lstat(path)
-	}
-	if err != nil {
-		if absent(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return info, nil
-}
-
-// exists follows symbolic links, so a dangling link does not exist.
-func exists(path string) (bool, error) {
-	info, err := statPath(path, true)
-	return info != nil, err
-}
-
-// lexists does not follow a final symbolic link, so a dangling link exists.
-func lexists(path string) (bool, error) {
-	info, err := statPath(path, false)
-	return info != nil, err
-}
-
-// isDir follows symbolic links.
-func isDir(path string) (bool, error) {
-	info, err := statPath(path, true)
-	return info != nil && info.IsDir(), err
-}
-
-// isFile follows symbolic links.
-func isFile(path string) (bool, error) {
-	info, err := statPath(path, true)
-	return info != nil && info.Mode().IsRegular(), err
-}
-
-func isSymlink(path string) (bool, error) {
-	info, err := statPath(path, false)
-	return info != nil && info.Mode()&fs.ModeSymlink != 0, err
-}
-
 // dirNames returns the names in dir, sorted.
 func dirNames(dir string) ([]string, error) {
 	entries, err := os.ReadDir(dir)
@@ -152,7 +96,7 @@ func subdirs(dir string) ([]string, error) {
 	var out []string
 	for _, name := range names {
 		p := filepath.Join(dir, name)
-		ok, err := isDir(p)
+		ok, err := pathstat.IsDir(p)
 		if err != nil {
 			return nil, err
 		}

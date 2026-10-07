@@ -14,6 +14,7 @@ import (
 
 	"github.com/stricttools/claudewheel/internal/effects"
 	"github.com/stricttools/claudewheel/internal/lifecycle"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/sessionmove"
 	"github.com/stricttools/claudewheel/internal/sessions"
 	"github.com/stricttools/claudewheel/internal/terminal"
@@ -233,7 +234,11 @@ func (m *sessionMover) checkResume(sessionID, directory string) error {
 	if info == nil {
 		return fmt.Errorf("session %s was not found in any project directory; --picker browses the sessions", sessionID)
 	}
-	if st, err := os.Stat(info.Cwd); err == nil && st.IsDir() {
+	cwdExists, err := pathstat.IsDir(info.Cwd)
+	if err != nil {
+		return err
+	}
+	if cwdExists {
 		return fmt.Errorf("session %s belongs to %s, which still exists: launch from that directory instead, or move the session here with `claudewheel move-session %s %s`", sessionID, info.Cwd, sessionID, shellQuote(here))
 	}
 	if !m.interactive {

@@ -2,7 +2,9 @@ package wizard
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 
@@ -21,7 +23,7 @@ import (
 func loadSharedSettings(ws workspace.Workspace) (*jsonfile.Object, error) {
 	path := ws.SharedSettingsFile()
 	data, err := os.ReadFile(path)
-	if pathstat.NotFoundOrNotDirectory(err) {
+	if errors.Is(err, fs.ErrNotExist) {
 		return guardrail.CanonicalSharedSettings(ws.ScriptsDir()), nil
 	}
 	if err != nil {
@@ -38,7 +40,7 @@ func loadSharedSettings(ws workspace.Workspace) (*jsonfile.Object, error) {
 // without one has empty settings.
 func readSettings(path string) (*jsonfile.Object, error) {
 	data, err := os.ReadFile(path)
-	if pathstat.NotFoundOrNotDirectory(err) {
+	if errors.Is(err, fs.ErrNotExist) {
 		return jsonfile.NewObject(), nil
 	}
 	if err != nil {
@@ -232,14 +234,11 @@ func CreateProfile(fx *effects.FX, ws workspace.Workspace, choices Choices) ([]s
 // created nothing) is left alone; a .claude.json that is not a JSON object is
 // an error.
 func setOnboardingFlag(fx *effects.FX, configDir string) error {
-	info, err := os.Stat(configDir)
-	if pathstat.NotFoundOrNotDirectory(err) {
-		return nil
-	}
+	isDir, err := pathstat.IsDir(configDir)
 	if err != nil {
 		return err
 	}
-	if !info.IsDir() {
+	if !isDir {
 		return nil
 	}
 	path := filepath.Join(configDir, profiles.GlobalConfigName)
@@ -250,7 +249,7 @@ func setOnboardingFlag(fx *effects.FX, configDir string) error {
 		if global, err = jsonfile.DecodeObject(data); err != nil {
 			return fmt.Errorf("%s: %w", path, err)
 		}
-	case !pathstat.NotFoundOrNotDirectory(err):
+	case !errors.Is(err, fs.ErrNotExist):
 		return err
 	}
 	global.Set("hasCompletedOnboarding", true)

@@ -11,6 +11,7 @@ import (
 
 	"github.com/stricttools/claudewheel/internal/effects"
 	"github.com/stricttools/claudewheel/internal/jsonfile"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/profiles"
 	"github.com/stricttools/claudewheel/internal/sessions"
 	"github.com/stricttools/claudewheel/internal/workspace"
@@ -87,7 +88,7 @@ func checkTranscriptsReadable(stores []string, migrations []migration) error {
 		for _, mg := range migrations {
 			for _, name := range []string{workspace.EncodePath(mg.from), workspace.EncodePath(mg.to)} {
 				scanDir := filepath.Join(projects, name)
-				ok, err := isDir(scanDir)
+				ok, err := pathstat.IsDir(scanDir)
 				if err != nil {
 					return err
 				}
@@ -122,11 +123,11 @@ func checkMergesComplete(stores []string, migrations []migration) error {
 		for _, mg := range migrations {
 			oldProject := filepath.Join(projects, workspace.EncodePath(mg.from))
 			newProject := filepath.Join(projects, workspace.EncodePath(mg.to))
-			oldIsDir, err := isDir(oldProject)
+			oldIsDir, err := pathstat.IsDir(oldProject)
 			if err != nil {
 				return err
 			}
-			newExists, err := exists(newProject)
+			newExists, err := pathstat.Exists(newProject)
 			if err != nil {
 				return err
 			}
@@ -139,7 +140,7 @@ func checkMergesComplete(stores []string, migrations []migration) error {
 			}
 			var shared []string
 			for _, name := range names {
-				both, err := exists(filepath.Join(newProject, name))
+				both, err := pathstat.Exists(filepath.Join(newProject, name))
 				if err != nil {
 					return err
 				}
@@ -347,7 +348,7 @@ func claudeJSONFiles(profileDirs []string, sharedDir string) ([]string, error) {
 			continue
 		}
 		path := filepath.Join(pdir, profiles.GlobalConfigName)
-		ok, err := isFile(path)
+		ok, err := pathstat.IsFile(path)
 		if err != nil {
 			return nil, err
 		}
@@ -476,11 +477,11 @@ func discoverDescendants(stores []string, oldResolved, sourceRoot string, knownK
 // renameProjectDir renames oldProject to newProject, merging into it when it
 // exists, and reports whether a rename or merge happened (or would).
 func (m *mover) renameProjectDir(oldProject, newProject string) (bool, error) {
-	ok, err := isDir(oldProject)
+	ok, err := pathstat.IsDir(oldProject)
 	if err != nil || !ok {
 		return false, err
 	}
-	merge, err := exists(newProject)
+	merge, err := pathstat.Exists(newProject)
 	if err != nil {
 		return false, err
 	}
@@ -633,11 +634,11 @@ func Mv(fx *effects.FX, ws workspace.Workspace, profiles []sessions.ProfileConfi
 	if oldResolved == newResolved {
 		return result, fmt.Errorf("source and target are the same: %s", oldResolved)
 	}
-	oldIsDir, err := isDir(oldResolved)
+	oldIsDir, err := pathstat.IsDir(oldResolved)
 	if err != nil {
 		return result, err
 	}
-	newIsDir, err := isDir(newResolved)
+	newIsDir, err := pathstat.IsDir(newResolved)
 	if err != nil {
 		return result, err
 	}
@@ -645,7 +646,7 @@ func Mv(fx *effects.FX, ws workspace.Workspace, profiles []sessions.ProfileConfi
 		if !newIsDir {
 			return result, fmt.Errorf("target does not exist as a directory: %s", newResolved)
 		}
-		oldExists, err := exists(oldResolved)
+		oldExists, err := pathstat.Exists(oldResolved)
 		if err != nil {
 			return result, err
 		}
@@ -663,7 +664,7 @@ func Mv(fx *effects.FX, ws workspace.Workspace, profiles []sessions.ProfileConfi
 			}
 			return result, fmt.Errorf("source does not exist as a directory: %s", oldResolved)
 		}
-		newExists, err := exists(newResolved)
+		newExists, err := pathstat.Exists(newResolved)
 		if err != nil {
 			return result, err
 		}
@@ -754,7 +755,7 @@ func Mv(fx *effects.FX, ws workspace.Workspace, profiles []sessions.ProfileConfi
 				if dir == oldProject && !m.conditional() {
 					continue
 				}
-				ok, err := isDir(dir)
+				ok, err := pathstat.IsDir(dir)
 				if err != nil {
 					return result, err
 				}

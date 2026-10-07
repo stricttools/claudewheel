@@ -5,13 +5,12 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 
 	"github.com/stricttools/claudewheel/internal/appconfig"
+	"github.com/stricttools/claudewheel/internal/effects"
 	"github.com/stricttools/claudewheel/internal/install"
-	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/tui/bar"
 )
 
@@ -279,9 +278,12 @@ func miniclaudeBinary(b Binaries) (string, error) {
 	if b.Clients != nil && b.Clients.Miniclaude != nil && b.Clients.Miniclaude.Binary != nil {
 		return *b.Clients.Miniclaude.Binary, nil
 	}
-	path, ok, err := lookPath("miniclaude", os.Getenv("PATH"))
-	if err != nil || !ok {
-		return "", err
+	path, ok, err := effects.LookPath("miniclaude", effects.SearchPath(nil))
+	if err != nil {
+		return "", fmt.Errorf("cannot search PATH for miniclaude: %w", err)
+	}
+	if !ok {
+		return "", nil
 	}
 	return path, nil
 }
@@ -348,27 +350,4 @@ func miniclaudeArgv(ctx ClientContext) ([]string, error) {
 		return nil, fmt.Errorf("unknown session mode %d", ctx.Session.Mode)
 	}
 	return argv, nil
-}
-
-// lookPath finds an executable regular file called name on the
-// colon-separated search list, as execvp does; an empty entry is the current
-// directory. It reports false when there is none.
-func lookPath(name, search string) (string, bool, error) {
-	for _, dir := range filepath.SplitList(search) {
-		if dir == "" {
-			dir = "."
-		}
-		candidate := filepath.Join(dir, name)
-		info, err := os.Stat(candidate)
-		if err != nil {
-			if pathstat.NotFoundOrNotDirectory(err) || errors.Is(err, fs.ErrPermission) {
-				continue
-			}
-			return "", false, err
-		}
-		if info.Mode().IsRegular() && info.Mode().Perm()&0o111 != 0 {
-			return candidate, true, nil
-		}
-	}
-	return "", false, nil
 }

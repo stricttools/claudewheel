@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/stricttools/claudewheel/internal/jsonfile"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/workspace"
 )
 
@@ -254,7 +255,11 @@ func FindSession(sessionID, sharedProjectsDir string) (*SessionInfo, error) {
 		}
 		storeDir := filepath.Join(sharedProjectsDir, e.Name())
 		jsonlPath := filepath.Join(storeDir, sessionID+".jsonl")
-		if _, err := os.Lstat(jsonlPath); err != nil {
+		there, err := pathstat.Lexists(jsonlPath)
+		if err != nil {
+			return nil, err
+		}
+		if !there {
 			continue
 		}
 		cwd, err := StoreDirPath(storeDir)
@@ -310,7 +315,11 @@ func findTitleInFile(jsonlPath, title string) (string, bool) {
 func FindSessionsByTitle(title string, projectDirs []string) ([]TitleMatch, error) {
 	var results []TitleMatch
 	for _, dir := range projectDirs {
-		if info, err := os.Stat(dir); err != nil || !info.IsDir() {
+		isDir, err := pathstat.IsDir(dir)
+		if err != nil {
+			return nil, err
+		}
+		if !isDir {
 			continue
 		}
 		paths, err := topLevelJSONL(dir)
@@ -338,7 +347,11 @@ func FindSessionsByTitle(title string, projectDirs []string) ([]TitleMatch, erro
 // newest transcript records no cwd, is skipped. A missing sharedProjectsDir
 // has none.
 func FindOrphanedProjectDirs(sharedProjectsDir string) ([]OrphanedProject, error) {
-	if info, err := os.Stat(sharedProjectsDir); err != nil || !info.IsDir() {
+	isDir, err := pathstat.IsDir(sharedProjectsDir)
+	if err != nil {
+		return nil, err
+	}
+	if !isDir {
 		return nil, nil
 	}
 	entries, err := os.ReadDir(sharedProjectsDir)
@@ -348,7 +361,11 @@ func FindOrphanedProjectDirs(sharedProjectsDir string) ([]OrphanedProject, error
 	var results []OrphanedProject
 	for _, e := range entries {
 		dir := filepath.Join(sharedProjectsDir, e.Name())
-		if info, err := os.Stat(dir); err != nil || !info.IsDir() {
+		isDir, err := pathstat.IsDir(dir)
+		if err != nil {
+			return nil, err
+		}
+		if !isDir {
 			continue
 		}
 		paths, err := topLevelJSONL(dir)
@@ -374,7 +391,11 @@ func FindOrphanedProjectDirs(sharedProjectsDir string) ([]OrphanedProject, error
 		if !ok {
 			continue
 		}
-		if info, err := os.Stat(cwd); err == nil && info.IsDir() {
+		cwdIsDir, err := pathstat.IsDir(cwd)
+		if err != nil {
+			return nil, err
+		}
+		if cwdIsDir {
 			continue
 		}
 		var total int64

@@ -9,6 +9,7 @@ import (
 
 	"github.com/stricttools/claudewheel/internal/effects"
 	"github.com/stricttools/claudewheel/internal/lifecycle"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/realpath"
 	"github.com/stricttools/claudewheel/internal/sessions"
 	"github.com/stricttools/claudewheel/internal/workspace"
@@ -53,7 +54,7 @@ func isUUID(name string) bool {
 func discoverUUIDs(src string) (map[string]bool, error) {
 	uuids := map[string]bool{}
 	projects := filepath.Join(src, workspace.ProjectsDirName)
-	ok, err := isDir(projects)
+	ok, err := pathstat.IsDir(projects)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +78,7 @@ func discoverUUIDs(src string) (map[string]bool, error) {
 				if !isUUID(name) {
 					continue
 				}
-				dir, err := isDir(filepath.Join(storeDir, name))
+				dir, err := pathstat.IsDir(filepath.Join(storeDir, name))
 				if err != nil {
 					return nil, err
 				}
@@ -114,7 +115,7 @@ func discoverUUIDs(src string) (map[string]bool, error) {
 // namesIfDir returns the sorted names in dir, or none when dir is not a
 // directory.
 func namesIfDir(dir string) ([]string, error) {
-	ok, err := isDir(dir)
+	ok, err := pathstat.IsDir(dir)
 	if err != nil || !ok {
 		return nil, err
 	}
@@ -123,7 +124,7 @@ func namesIfDir(dir string) ([]string, error) {
 
 // symlinkTarget returns the resolved target of p when p is a symbolic link.
 func symlinkTarget(p string) (string, bool, error) {
-	link, err := isSymlink(p)
+	link, err := pathstat.IsSymlink(p)
 	if err != nil || !link {
 		return "", false, err
 	}
@@ -167,14 +168,14 @@ type artifactMove struct {
 // with its place in dst.
 func planSession(moves []artifactMove, src, dst, uuid string) ([]artifactMove, error) {
 	add := func(from, to string) error {
-		there, err := exists(from)
+		there, err := pathstat.Exists(from)
 		if err == nil && there {
 			moves = append(moves, artifactMove{src: from, dst: to})
 		}
 		return err
 	}
 	projects := filepath.Join(src, workspace.ProjectsDirName)
-	ok, err := isDir(projects)
+	ok, err := pathstat.IsDir(projects)
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +190,7 @@ func planSession(moves []artifactMove, src, dst, uuid string) ([]artifactMove, e
 				return nil, err
 			}
 			folder := filepath.Join(storeDir, uuid)
-			isFolder, err := isDir(folder)
+			isFolder, err := pathstat.IsDir(folder)
 			if err != nil {
 				return nil, err
 			}
@@ -224,7 +225,7 @@ func planSession(moves []artifactMove, src, dst, uuid string) ([]artifactMove, e
 func collisions(moves []artifactMove) ([]string, error) {
 	var out []string
 	for _, mv := range moves {
-		taken, err := lexists(mv.dst)
+		taken, err := pathstat.Lexists(mv.dst)
 		if err != nil {
 			return nil, err
 		}
@@ -261,7 +262,7 @@ func Migrate(fx *effects.FX, src, dst sessions.ProfileConfigDir, choice SessionC
 		return m.result, err
 	}
 	for _, p := range []struct{ what, dir string }{{"source", src.ConfigDir}, {"dest", dst.ConfigDir}} {
-		ok, err := isDir(p.dir)
+		ok, err := pathstat.IsDir(p.dir)
 		if err != nil {
 			return m.result, err
 		}

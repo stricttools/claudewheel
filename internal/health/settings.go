@@ -9,6 +9,7 @@ import (
 	"github.com/stricttools/claudewheel/internal/guardrail"
 	"github.com/stricttools/claudewheel/internal/hookscripts"
 	"github.com/stricttools/claudewheel/internal/jsonfile"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/profiles"
 	"github.com/stricttools/claudewheel/internal/pyrepr"
 	"github.com/stricttools/claudewheel/internal/reconcile"
@@ -32,7 +33,7 @@ func (c *checker) sharedSymlinks() Result {
 	if len(managed) == 0 {
 		return ok(label, "no profiles found")
 	}
-	_, skillsStore, err := pathState(c.in.Workspace.SkillsDir())
+	skillsStore, err := pathstat.IsDir(c.in.Workspace.SkillsDir())
 	if err != nil {
 		return failed(label, err)
 	}
@@ -519,7 +520,7 @@ func (c *checker) relocatedHookPaths() Result {
 func (c *checker) deployedHookDrift() Result {
 	const label = "hook-drift"
 	scriptsDir := c.in.Workspace.ScriptsDir()
-	_, isDir, err := pathState(scriptsDir)
+	isDir, err := pathstat.IsDir(scriptsDir)
 	if err != nil {
 		return failed(label, err)
 	}

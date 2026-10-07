@@ -17,6 +17,8 @@ import (
 	"time"
 
 	"github.com/stricttools/strictcli/go/strictcli"
+
+	"github.com/stricttools/claudewheel/internal/pathstat"
 )
 
 // ErrTimedOut is wrapped by the error a Run, an HTTPRead, or a Download
@@ -188,7 +190,7 @@ func (fx *FX) Run(c Cmd) (Result, error) {
 
 // runDirect performs c with the full process semantics.
 func runDirect(c Cmd) (Result, error) {
-	path, err := lookPath(c.Argv[0], c.Env)
+	path, err := resolveProgram(c.Argv[0], c.Env)
 	if err != nil {
 		return Result{}, RedactError(err, c.Redact...)
 	}
@@ -254,13 +256,9 @@ func exitCode(state *os.ProcessState) int {
 // same one Python's os.defpath gives on POSIX.
 const DefaultExecPath = "/bin:/usr/bin"
 
-// lookPath resolves a program the way execvpe does: a name holding a slash is
-// used as is, and any other name is searched on the PATH of env (of this
-// process's environment when env is nil).
-func lookPath(name string, env []string) (string, error) {
-	if strings.Contains(name, "/") {
-		return name, nil
-	}
+// SearchPath is the PATH of env (of this process's environment when env is
+// nil), or DefaultExecPath when it sets none.
+func SearchPath(env []string) string {
 	var search string
 	var ok bool
 	if env == nil {
@@ -269,19 +267,53 @@ func lookPath(name string, env []string) (string, error) {
 		search, ok = EnvValue(env, "PATH")
 	}
 	if !ok {
-		search = DefaultExecPath
+		return DefaultExecPath
+	}
+	return search
+}
+
+// LookPath returns the first executable regular file (pathstat.IsExecutableFile)
+// called name in the directories of the colon-separated search list, and
+// false when there is none. Empty and relative entries are skipped, so the
+// search never looks in the current directory. A candidate that does not
+// exist is stepped over; any other error checking one (a parent that is not
+// a directory, a link loop, a directory that cannot be searched) is
+// returned. name is a bare program name: one holding a slash is an error.
+func LookPath(name, search string) (string, bool, error) {
+	if name == "" || strings.Contains(name, "/") {
+		return "", false, fmt.Errorf("cannot search PATH for %q: not a bare program name", name)
 	}
 	for _, dir := range filepath.SplitList(search) {
-		if dir == "" {
-			dir = "."
+		if !filepath.IsAbs(dir) {
+			continue
 		}
-		candidate := dir + "/" + name
-		info, err := os.Stat(candidate)
-		if err == nil && info.Mode().IsRegular() && info.Mode().Perm()&0o111 != 0 {
-			return candidate, nil
+		candidate := filepath.Join(dir, name)
+		ok, err := pathstat.IsExecutableFile(candidate)
+		if err != nil {
+			return "", false, err
+		}
+		if ok {
+			return candidate, true, nil
 		}
 	}
-	return "", &exec.Error{Name: name, Err: exec.ErrNotFound}
+	return "", false, nil
+}
+
+// resolveProgram resolves a program as execvpe does, but with LookPath's
+// search: a name holding a slash is used as is, and any other name is
+// searched on SearchPath(env).
+func resolveProgram(name string, env []string) (string, error) {
+	if strings.Contains(name, "/") {
+		return name, nil
+	}
+	path, found, err := LookPath(name, SearchPath(env))
+	if err != nil {
+		return "", fmt.Errorf("cannot search PATH for %s: %w", name, err)
+	}
+	if !found {
+		return "", &exec.Error{Name: name, Err: exec.ErrNotFound}
+	}
+	return path, nil
 }
 
 // EnvValue is the value of key in env, the last entry winning as it does for
@@ -319,7 +351,7 @@ func (fx *FX) Exec(c Cmd) error {
 	if err := os.Chdir(c.Dir); err != nil {
 		return RedactError(err, c.Redact...)
 	}
-	path, err := lookPath(c.Argv[0], c.Env)
+	path, err := resolveProgram(c.Argv[0], c.Env)
 	if err != nil {
 		return RedactError(err, c.Redact...)
 	}
@@ -363,7 +395,7 @@ func (fx *FX) Follow(argv []string) (*Follower, error) {
 	if err := c.validate("Follow"); err != nil {
 		return nil, err
 	}
-	path, err := lookPath(argv[0], nil)
+	path, err := resolveProgram(argv[0], nil)
 	if err != nil {
 		return nil, err
 	}

@@ -23,20 +23,6 @@ import (
 // way and is queued again.
 const LostAfter = 60 * time.Second
 
-// exists reports whether path exists, following symbolic links. A missing
-// path, or one under a non-directory, is absent; any other stat error is
-// returned.
-func exists(path string) (bool, error) {
-	_, err := os.Stat(path)
-	if err == nil {
-		return true, nil
-	}
-	if pathstat.NotFoundOrNotDirectory(err) {
-		return false, nil
-	}
-	return false, err
-}
-
 // Ended is one probe EndProbes ended, and why (one of probe's Ended
 // constants).
 type Ended struct {
@@ -120,7 +106,7 @@ func stopReason(state *probe.ProbeState, nowMS int64, kills []probe.Kill, lifecy
 		}
 	}
 	if state.UntilFile != nil {
-		found, err := exists(*state.UntilFile)
+		found, err := pathstat.Exists(*state.UntilFile)
 		if err != nil {
 			return "", err
 		}
@@ -148,7 +134,7 @@ func sessionState(lifecycles map[string]*lifecycle.SessionLifecycle, session str
 	if life.Ended != nil || pid == nil {
 		return false, transcript, nil
 	}
-	running, err := exists("/proc/" + strconv.FormatInt(*pid, 10))
+	running, err := pathstat.Exists("/proc/" + strconv.FormatInt(*pid, 10))
 	if err != nil {
 		return false, "", err
 	}
@@ -175,14 +161,11 @@ func transcripts(transcript string) ([]string, error) {
 	}
 	out := []string{transcript}
 	subagents := filepath.Join(withoutSuffix(transcript), "subagents")
-	info, err := os.Stat(subagents)
-	if pathstat.NotFoundOrNotDirectory(err) {
-		return out, nil
-	}
+	isDir, err := pathstat.IsDir(subagents)
 	if err != nil {
 		return nil, err
 	}
-	if !info.IsDir() {
+	if !isDir {
 		return out, nil
 	}
 	entries, err := os.ReadDir(subagents)
