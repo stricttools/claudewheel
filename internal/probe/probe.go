@@ -181,6 +181,16 @@ func errorf(format string, args ...any) error {
 	return &Error{msg: fmt.Sprintf(format, args...)}
 }
 
+// NotFIFOError is a session's waiter path holding something other than a
+// FIFO, so that session's waiter cannot be woken.
+type NotFIFOError struct {
+	Path string
+}
+
+func (e *NotFIFOError) Error() string {
+	return fmt.Sprintf("%s is not a FIFO: the hook-wait-for-probe-reports hook creates it as one", e.Path)
+}
+
 // NewID returns a fresh 16-hex-digit id: the first half of a uuid4's hex.
 func NewID() string {
 	return lifecycle.NewUUID4Hex()[:16]

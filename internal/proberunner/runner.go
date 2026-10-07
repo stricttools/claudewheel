@@ -90,7 +90,8 @@ type followed struct {
 
 // Run follows the journal and keeps the probe store moving until ctx is
 // cancelled, then stops journalctl and returns nil. Progress lines go to
-// log. It returns ErrJournalEnded when journalctl stops on its own, and any
+// log, and so do the wakes that fail because a waiter path is not a FIFO:
+// those fail one session's wake, never the runner. It returns ErrJournalEnded when journalctl stops on its own, and any
 // error reading or writing the store.
 func Run(ctx context.Context, fx *effects.FX, ws workspace.Workspace, log io.Writer) (err error) {
 	store := probe.NewStore(ws.Shared().ProbesDir())
@@ -137,7 +138,7 @@ func Run(ctx context.Context, fx *effects.FX, ws workspace.Workspace, log io.Wri
 	var lastExpiry time.Time
 	keepMoving := func() error {
 		expire := lastExpiry.IsZero() || time.Since(lastExpiry) >= ExpiryEvery
-		if err := Tick(fx, ws, expire); err != nil {
+		if err := Tick(fx, ws, expire, log); err != nil {
 			return err
 		}
 		if expire {
@@ -176,7 +177,7 @@ func Run(ctx context.Context, fx *effects.FX, ws workspace.Workspace, log io.Wri
 			logf(log, "unreadable journal line: %s", strconv.Quote(shown))
 			continue
 		}
-		kill, err := ProcessEntry(fx, ws, entry, describe)
+		kill, err := ProcessEntry(fx, ws, entry, describe, log)
 		if err != nil {
 			return err
 		}
@@ -196,6 +197,20 @@ func Run(ctx context.Context, fx *effects.FX, ws workspace.Workspace, log io.Wri
 			return err
 		}
 	}
+}
+
+// wake wakes session's waiter. A stray file in the waiters directory that is
+// not a FIFO fails that wake only: the error goes to log, naming the path,
+// and nil is returned so the runner keeps serving. Every other error is
+// returned.
+func wake(fx *effects.FX, store probe.Store, session string, log io.Writer) error {
+	err := probe.WakeWaiter(fx, store, session)
+	var notFIFO *probe.NotFIFOError
+	if errors.As(err, &notFIFO) {
+		logf(log, "cannot wake session %s: %v", session, err)
+		return nil
+	}
+	return err
 }
 
 // logf writes one progress line naming the service, as systemd's journal

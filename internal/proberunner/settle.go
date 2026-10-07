@@ -3,6 +3,7 @@ package proberunner
 import (
 	"bytes"
 	"errors"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -245,10 +246,11 @@ type Settled struct {
 //
 // A handed report whose id is in its session's transcript is delivered. One
 // whose session no longer runs, or whose transcript moved on LostAfter past
-// the hand-off without it, is queued again and its waiter woken. A pending
+// the hand-off without it, is queued again and its waiter woken (a waiter
+// path that is not a FIFO fails only that wake, written to log). A pending
 // report a probe produced expires once that probe ended and its session no
 // longer runs; a report no probe produced never expires.
-func SettleReports(fx *effects.FX, ws workspace.Workspace, states []string) (Settled, error) {
+func SettleReports(fx *effects.FX, ws workspace.Workspace, states []string, log io.Writer) (Settled, error) {
 	var counts Settled
 	store := probe.NewStore(ws.Shared().ProbesDir())
 	reports, err := probe.ListReports(store, states)
@@ -305,7 +307,7 @@ func SettleReports(fx *effects.FX, ws workspace.Workspace, states []string) (Set
 				if _, err := probe.MoveReport(fx, store, item, probe.ReportPending); err != nil {
 					return counts, err
 				}
-				if err := probe.WakeWaiter(fx, store, report.Session); err != nil {
+				if err := wake(fx, store, report.Session, log); err != nil {
 					return counts, err
 				}
 				counts.Requeued++
@@ -327,8 +329,9 @@ func SettleReports(fx *effects.FX, ws workspace.Workspace, states []string) (Set
 
 // Tick is one pass of keeping the store moving: it ends the probes that
 // should end and settles the handed reports; expire also checks the pending
-// reports for expiry.
-func Tick(fx *effects.FX, ws workspace.Workspace, expire bool) error {
+// reports for expiry. Wakes that fail for a waiter path that is not a FIFO
+// are written to log.
+func Tick(fx *effects.FX, ws workspace.Workspace, expire bool, log io.Writer) error {
 	if _, err := EndProbes(fx, ws, lifecycle.NowMS()); err != nil {
 		return err
 	}
@@ -336,6 +339,6 @@ func Tick(fx *effects.FX, ws workspace.Workspace, expire bool) error {
 	if expire {
 		states = []string{probe.ReportPending, probe.ReportHanded}
 	}
-	_, err := SettleReports(fx, ws, states)
+	_, err := SettleReports(fx, ws, states, log)
 	return err
 }

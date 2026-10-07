@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"sort"
 	"strconv"
@@ -263,8 +264,10 @@ func watches(state *probe.ProbeState, session *string, killedAtMS int64) (bool, 
 // ProcessEntry turns one journal entry into its reports and its kill record,
 // then wakes the waiter of every session given a new report. It returns the
 // kill record, or nil when the entry is not an OOM kill of a unit or was
-// already recorded (a restarted runner may read it twice).
-func ProcessEntry(fx *effects.FX, ws workspace.Workspace, entry Entry, describe Describer) (*probe.Kill, error) {
+// already recorded (a restarted runner may read it twice). A wake that fails
+// for a waiter path that is not a FIFO is written to log, and the other
+// sessions are still woken.
+func ProcessEntry(fx *effects.FX, ws workspace.Workspace, entry Entry, describe Describer, log io.Writer) (*probe.Kill, error) {
 	if id, _ := entry.String("MESSAGE_ID"); id != OOMKillMessageID {
 		return nil, nil
 	}
@@ -408,7 +411,7 @@ func ProcessEntry(fx *effects.FX, ws workspace.Workspace, entry Entry, describe 
 	}
 	sort.Strings(sessions)
 	for _, session := range sessions {
-		if err := probe.WakeWaiter(fx, store, session); err != nil {
+		if err := wake(fx, store, session, log); err != nil {
 			return nil, err
 		}
 	}

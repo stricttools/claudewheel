@@ -466,3 +466,6 @@ These override every earlier entry they touch.
 9. The probe runner never exits for a stray file in `shared/probes/waiters/` that is not a FIFO: that wake fails as an error written to the runner's own error output, naming the path, and the runner keeps serving.
 10. `migrate` colliding files and `import` broken symlinks are hard errors: each command checks everything first and refuses before writing anything, listing every collision or broken link.
 11. One PATH lookup and one set of stat helpers, with one behavior: an empty PATH entry does not search the current directory, a parent that is a file is an error, and a symlink loop is an error. Every caller uses them.
+
+## proberunner: a waiter path that is not a FIFO
+Following the ruling on stray files in `shared/probes/waiters/`: `probe.WakeWaiter` returns a typed `*probe.NotFIFOError` (path in `Path`) for a waiter path that is not a FIFO. `ProcessEntry`, `SettleReports`, and `Tick` take the runner's `log io.Writer`, and the runner's `wake` helper writes that error there (`claudewheel-probe-runner: cannot wake session <id>: <path> is not a FIFO: ...`) and carries on, so the other sessions in the same pass are still woken. Every other wake error still ends the runner.

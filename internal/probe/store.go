@@ -520,7 +520,8 @@ func MoveReport(fx *effects.FX, store Store, item ReportFile, state string) (str
 // changed, by writing one byte to its FIFO without blocking. No FIFO, or no
 // reader on it, means no waiter and nothing to wake; a full pipe already
 // holds wake-ups. Under --dry-run nothing is woken: the reports it would
-// announce were only recorded.
+// announce were only recorded. A path that is not a FIFO is a
+// *NotFIFOError.
 func WakeWaiter(fx *effects.FX, store Store, session string) error {
 	fifo, err := store.FIFO(session)
 	if err != nil {
@@ -534,7 +535,7 @@ func WakeWaiter(fx *effects.FX, store Store, session string) error {
 		return err
 	}
 	if info.Mode()&fs.ModeNamedPipe == 0 {
-		return errorf("%s is not a FIFO: the hook-wait-for-probe-reports hook creates it as one", fifo)
+		return &NotFIFOError{Path: fifo}
 	}
 	if fx.Previewing() {
 		return nil
