@@ -4,7 +4,7 @@
 // Claude Code sessions write scratchpad data under
 // /tmp/claude-<uid>/<encoded-project>/<session-uuid>/..., one top-level
 // subdirectory per project. A project directory is stale when nothing
-// anywhere in its tree was modified within StaleDays. Sizes are real tmpfs
+// anywhere in its tree was modified within StaleDays. Sizes are allocated tmpfs
 // block usage (st_blocks * 512) of regular files; symbolic links are never
 // followed, so link targets outside /tmp are never charged to it. This
 // package never writes under /tmp itself; deletion goes through effects.
@@ -38,7 +38,7 @@ func TmpClaudeDir() string {
 type Dir struct {
 	Path string
 	Name string
-	// SizeBytes is the real block usage of the regular files in the tree.
+	// SizeBytes is the allocated block usage of the regular files in the tree.
 	SizeBytes int64
 	// NewestMtime is the newest modification time (lstat, never followed)
 	// of any entry in the tree, the directory itself included.
@@ -61,7 +61,7 @@ func (d Dir) IsStale(now time.Time, staleDays int) bool {
 	return d.AgeDays(now) > float64(staleDays)
 }
 
-// ScanTree returns the real block usage of the regular files under root and
+// ScanTree returns the allocated block usage of the regular files under root and
 // the newest lstat modification time of root and every entry under it. It
 // never descends into a symbolic link. Entries that vanish or cannot be read
 // during the walk are skipped (Claude Code changes the tree concurrently).

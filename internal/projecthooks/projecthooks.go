@@ -297,7 +297,7 @@ func normalizedPath(p string) (string, error) {
 }
 
 // pathlibString writes p as str(PurePosixPath(p)): empty and "." parts
-// dropped, no trailing slash, exactly two leading slashes kept, "." for an
+// dropped, no trailing slash, a leading pair of slashes kept, "." for an
 // empty path. ".." parts stay.
 func pathlibString(p string) string {
 	prefix := ""

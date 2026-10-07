@@ -184,7 +184,7 @@ func stagingPath(dest string) string {
 // l.BinaryFor(version), whose path it returns. progress, when not nil, is
 // called after every chunk with the bytes so far and the manifest's size (0
 // when unknown). The staging file is removed on any failure. Under --dry-run
-// every step is recorded (the request with resource claude-binary:<version>
+// every operation is recorded (the request with resource claude-binary:<version>
 // and grant download) and nothing is transferred or checked.
 func Install(fx *effects.FX, l Locator, version string, progress func(downloaded, total int64)) (string, error) {
 	if err := CheckVersionName(version); err != nil {

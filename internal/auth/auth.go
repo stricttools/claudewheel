@@ -53,7 +53,7 @@ var ansiPattern = regexp.MustCompile(
 
 // tokenPattern matches a token in captured output. Only the stable "sk-ant-"
 // prefix is required, not the current "oat01" infix: the live validation is
-// the real check.
+// what decides.
 var tokenPattern = regexp.MustCompile(`sk-ant-[A-Za-z0-9_-]{30,}`)
 
 // tokenFormatPattern is the offline shape of a pasted token: the "sk-ant-"
