@@ -8,6 +8,8 @@ github.com/stricttools/strictcli/go v0.38.0 h1:ehbZjD704EGmw5gebpnAV5VTktNQ5kHV/
 github.com/stricttools/strictcli/go v0.38.0/go.mod h1:HkNzHaH9J5uWOVcklbDmifc5MqwiFOOs9T8bP2504iw=
 github.com/stricttools/strictspec/go v0.5.0 h1:OKFJNvdlO1k7HDnzJ1t+cGop1pU/MS9wEnUDlWc348c=
 github.com/stricttools/strictspec/go v0.5.0/go.mod h1:b1kuRp6mjIWQ2tseODT9hJcscYPi7lK7q3P4IBmvZy0=
+github.com/stricttools/testisolation/go v0.3.1 h1:XZ4J1zWA1LY0S1veOXewrj/yp9dqC5Dsu44BbmKbncI=
+github.com/stricttools/testisolation/go v0.3.1/go.mod h1:Msq2nI3vbl4+ehyZeMbouhquAni1GQrX6Q6UYAyh8AE=
 github.com/toml-lang/toml-test/v2 v2.2.0 h1:q3ELZu7oPnpl9TClC6OOcAccXwj+jwAyFP8WvzBdK1M=
 github.com/toml-lang/toml-test/v2 v2.2.0/go.mod h1:TQdjhQItoZ0R+OODNiHUuxxxErtaE0Xsod2ENZbMvxI=
 golang.org/x/sys v0.47.0 h1:o7XGOvZQCADBQQ4Y7VNq2dRWQR7JmOUW8Kxx4ZsNgWs=

@@ -7,6 +7,7 @@ toolchain go1.26.8
 require (
 	github.com/stricttools/strictcli/go v0.38.0
 	github.com/stricttools/strictspec/go v0.5.0
+	github.com/stricttools/testisolation/go v0.3.1
 	golang.org/x/sys v0.47.0
 )
 
