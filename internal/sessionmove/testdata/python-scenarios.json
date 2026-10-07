@@ -1,0 +1,1709 @@
+[
+  {
+    "name": "mv renames a project and its nested project",
+    "tree": [
+      {
+        "path": ".claudewheel/shared/projects",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/todos",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/session-env",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/file-history",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/tasks",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/paste-cache",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/settings.json",
+        "type": "file",
+        "content": "{}\n"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/projects",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/projects"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/todos",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/todos"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/session-env",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/session-env"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/file-history",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/file-history"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/tasks",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/tasks"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/settings.json",
+        "type": "file",
+        "content": "{}\n"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/projects",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/projects"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/todos",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/todos"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/session-env",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/session-env"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/file-history",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/file-history"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/tasks",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/tasks"
+      },
+      {
+        "path": "work/a/file.txt",
+        "type": "file",
+        "content": "x"
+      },
+      {
+        "path": "work/a/sub/f",
+        "type": "file",
+        "content": "y"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/.claude.json",
+        "type": "file",
+        "content": "{\n  \"numStartups\": 3,\n  \"projects\": {\n    \"@ROOT@/work/a\": {\n      \"allowedTools\": [],\n      \"hasTrustDialogAccepted\": true\n    },\n    \"@ROOT@/work/a/sub\": {\n      \"allowedTools\": [],\n      \"hasTrustDialogAccepted\": true\n    },\n    \"@ROOT@/work/ab\": {\n      \"allowedTools\": [],\n      \"hasTrustDialogAccepted\": true\n    }\n  },\n  \"githubRepoPaths\": {\n    \"me/repo\": [\n      \"@ROOT@/work/a\",\n      \"@ROOT@/work/a/sub\",\n      \"@ROOT@/work/ab\"\n    ]\n  }\n}\n"
+      },
+      {
+        "path": ".claudewheel/shared/projects/@EROOT@-work-a/11111111-1111-4111-8111-111111111111.jsonl",
+        "type": "file",
+        "content": "{\"type\":\"user\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\",\"cwd\":\"@ROOT@/work/a\",\"message\":{\"content\":\"hi from @ROOT@/work/a caf\u00e9\"}}\n{\"type\":\"assistant\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\",\"cwd\":\"@ROOT@/work/a\",\"toolUseResult\":{\"filePath\":\"@ROOT@/work/a/src/main.go\"}}\n"
+      },
+      {
+        "path": ".claudewheel/shared/projects/@EROOT@-work-a-sub/22222222-2222-4222-8222-222222222222.jsonl",
+        "type": "file",
+        "content": "{\"type\":\"user\",\"sessionId\":\"22222222-2222-4222-8222-222222222222\",\"cwd\":\"@ROOT@/work/a/sub\",\"message\":{\"content\":\"hi from @ROOT@/work/a/sub caf\u00e9\"}}\n{\"type\":\"assistant\",\"sessionId\":\"22222222-2222-4222-8222-222222222222\",\"cwd\":\"@ROOT@/work/a/sub\",\"toolUseResult\":{\"filePath\":\"@ROOT@/work/a/sub/src/main.go\"}}\n"
+      },
+      {
+        "path": ".claudewheel/shared/projects/@EROOT@-work-ab/33333333-3333-4333-8333-333333333333.jsonl",
+        "type": "file",
+        "content": "{\"type\":\"user\",\"sessionId\":\"33333333-3333-4333-8333-333333333333\",\"cwd\":\"@ROOT@/work/ab\",\"message\":{\"content\":\"hi from @ROOT@/work/ab caf\u00e9\"}}\n{\"type\":\"assistant\",\"sessionId\":\"33333333-3333-4333-8333-333333333333\",\"cwd\":\"@ROOT@/work/ab\",\"toolUseResult\":{\"filePath\":\"@ROOT@/work/ab/src/main.go\"}}\n"
+      }
+    ],
+    "op": {
+      "name": "mv",
+      "old": "@ROOT@/work/a",
+      "new": "@ROOT@/work/b",
+      "post_hoc": false
+    },
+    "error": null,
+    "result": [
+      {
+        "path": ".claudewheel/profiles/p1/.claude.json",
+        "type": "file",
+        "content": "{\n  \"numStartups\": 3,\n  \"projects\": {\n    \"@ROOT@/work/ab\": {\n      \"allowedTools\": [],\n      \"hasTrustDialogAccepted\": true\n    },\n    \"@ROOT@/work/b/sub\": {\n      \"allowedTools\": [],\n      \"hasTrustDialogAccepted\": true\n    },\n    \"@ROOT@/work/b\": {\n      \"allowedTools\": [],\n      \"hasTrustDialogAccepted\": true\n    }\n  },\n  \"githubRepoPaths\": {\n    \"me/repo\": [\n      \"@ROOT@/work/b\",\n      \"@ROOT@/work/b/sub\",\n      \"@ROOT@/work/ab\"\n    ]\n  }\n}\n"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/file-history",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/file-history"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/projects",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/projects"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/session-env",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/session-env"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/settings.json",
+        "type": "file",
+        "content": "{}\n"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/tasks",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/tasks"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/todos",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/todos"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/file-history",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/file-history"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/projects",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/projects"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/session-env",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/session-env"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/settings.json",
+        "type": "file",
+        "content": "{}\n"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/tasks",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/tasks"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/todos",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/todos"
+      },
+      {
+        "path": ".claudewheel/shared/file-history",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/paste-cache",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/projects/@EROOT@-work-ab/33333333-3333-4333-8333-333333333333.jsonl",
+        "type": "file",
+        "content": "{\"type\":\"user\",\"sessionId\":\"33333333-3333-4333-8333-333333333333\",\"cwd\":\"@ROOT@/work/ab\",\"message\":{\"content\":\"hi from @ROOT@/work/ab caf\u00e9\"}}\n{\"type\":\"assistant\",\"sessionId\":\"33333333-3333-4333-8333-333333333333\",\"cwd\":\"@ROOT@/work/ab\",\"toolUseResult\":{\"filePath\":\"@ROOT@/work/ab/src/main.go\"}}\n"
+      },
+      {
+        "path": ".claudewheel/shared/projects/@EROOT@-work-b-sub/22222222-2222-4222-8222-222222222222.jsonl",
+        "type": "file",
+        "content": "{\"type\":\"user\",\"sessionId\":\"22222222-2222-4222-8222-222222222222\",\"cwd\":\"@ROOT@/work/b/sub\",\"message\":{\"content\":\"hi from @ROOT@/work/b/sub caf\u00e9\"}}\n{\"type\":\"assistant\",\"sessionId\":\"22222222-2222-4222-8222-222222222222\",\"cwd\":\"@ROOT@/work/b/sub\",\"toolUseResult\":{\"filePath\":\"@ROOT@/work/b/sub/src/main.go\"}}\n"
+      },
+      {
+        "path": ".claudewheel/shared/projects/@EROOT@-work-b/11111111-1111-4111-8111-111111111111.jsonl",
+        "type": "file",
+        "content": "{\"type\":\"user\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\",\"cwd\":\"@ROOT@/work/b\",\"message\":{\"content\":\"hi from @ROOT@/work/b caf\u00e9\"}}\n{\"type\":\"assistant\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\",\"cwd\":\"@ROOT@/work/b\",\"toolUseResult\":{\"filePath\":\"@ROOT@/work/b/src/main.go\"}}\n"
+      },
+      {
+        "path": ".claudewheel/shared/session-env",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/tasks",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/todos",
+        "type": "dir"
+      },
+      {
+        "path": "work/b/file.txt",
+        "type": "file",
+        "content": "x"
+      },
+      {
+        "path": "work/b/sub/f",
+        "type": "file",
+        "content": "y"
+      }
+    ]
+  },
+  {
+    "name": "mv after the directory was renamed",
+    "tree": [
+      {
+        "path": ".claudewheel/shared/projects",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/todos",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/session-env",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/file-history",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/tasks",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/paste-cache",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/settings.json",
+        "type": "file",
+        "content": "{}\n"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/projects",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/projects"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/todos",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/todos"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/session-env",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/session-env"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/file-history",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/file-history"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/tasks",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/tasks"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/settings.json",
+        "type": "file",
+        "content": "{}\n"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/projects",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/projects"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/todos",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/todos"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/session-env",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/session-env"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/file-history",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/file-history"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/tasks",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/tasks"
+      },
+      {
+        "path": "work/b/file.txt",
+        "type": "file",
+        "content": "x"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/.claude.json",
+        "type": "file",
+        "content": "{\n  \"numStartups\": 3,\n  \"projects\": {\n    \"@ROOT@/work/a\": {\n      \"allowedTools\": [],\n      \"hasTrustDialogAccepted\": true\n    }\n  },\n  \"githubRepoPaths\": {\n    \"me/repo\": [\n      \"@ROOT@/work/a\"\n    ]\n  }\n}\n"
+      },
+      {
+        "path": ".claudewheel/shared/projects/@EROOT@-work-a/11111111-1111-4111-8111-111111111111.jsonl",
+        "type": "file",
+        "content": "{\"type\":\"user\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\",\"cwd\":\"@ROOT@/work/a\",\"message\":{\"content\":\"hi from @ROOT@/work/a caf\u00e9\"}}\n{\"type\":\"assistant\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\",\"cwd\":\"@ROOT@/work/a\",\"toolUseResult\":{\"filePath\":\"@ROOT@/work/a/src/main.go\"}}\n"
+      }
+    ],
+    "op": {
+      "name": "mv",
+      "old": "@ROOT@/work/a",
+      "new": "@ROOT@/work/b",
+      "post_hoc": true
+    },
+    "error": null,
+    "result": [
+      {
+        "path": ".claudewheel/profiles/p1/file-history",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/file-history"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/projects",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/projects"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/session-env",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/session-env"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/settings.json",
+        "type": "file",
+        "content": "{}\n"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/tasks",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/tasks"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/todos",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/todos"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/.claude.json",
+        "type": "file",
+        "content": "{\n  \"numStartups\": 3,\n  \"projects\": {\n    \"@ROOT@/work/b\": {\n      \"allowedTools\": [],\n      \"hasTrustDialogAccepted\": true\n    }\n  },\n  \"githubRepoPaths\": {\n    \"me/repo\": [\n      \"@ROOT@/work/b\"\n    ]\n  }\n}\n"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/file-history",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/file-history"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/projects",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/projects"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/session-env",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/session-env"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/settings.json",
+        "type": "file",
+        "content": "{}\n"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/tasks",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/tasks"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/todos",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/todos"
+      },
+      {
+        "path": ".claudewheel/shared/file-history",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/paste-cache",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/projects/@EROOT@-work-b/11111111-1111-4111-8111-111111111111.jsonl",
+        "type": "file",
+        "content": "{\"type\":\"user\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\",\"cwd\":\"@ROOT@/work/b\",\"message\":{\"content\":\"hi from @ROOT@/work/b caf\u00e9\"}}\n{\"type\":\"assistant\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\",\"cwd\":\"@ROOT@/work/b\",\"toolUseResult\":{\"filePath\":\"@ROOT@/work/b/src/main.go\"}}\n"
+      },
+      {
+        "path": ".claudewheel/shared/session-env",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/tasks",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/todos",
+        "type": "dir"
+      },
+      {
+        "path": "work/b/file.txt",
+        "type": "file",
+        "content": "x"
+      }
+    ]
+  },
+  {
+    "name": "mv refuses an existing target",
+    "tree": [
+      {
+        "path": ".claudewheel/shared/projects",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/todos",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/session-env",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/file-history",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/tasks",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/paste-cache",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/settings.json",
+        "type": "file",
+        "content": "{}\n"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/projects",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/projects"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/todos",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/todos"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/session-env",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/session-env"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/file-history",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/file-history"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/tasks",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/tasks"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/settings.json",
+        "type": "file",
+        "content": "{}\n"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/projects",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/projects"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/todos",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/todos"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/session-env",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/session-env"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/file-history",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/file-history"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/tasks",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/tasks"
+      },
+      {
+        "path": "work/a/file.txt",
+        "type": "file",
+        "content": "x"
+      },
+      {
+        "path": "work/b/file.txt",
+        "type": "file",
+        "content": "y"
+      },
+      {
+        "path": ".claudewheel/shared/projects/@EROOT@-work-a/11111111-1111-4111-8111-111111111111.jsonl",
+        "type": "file",
+        "content": "{\"type\":\"user\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\",\"cwd\":\"@ROOT@/work/a\",\"message\":{\"content\":\"hi from @ROOT@/work/a caf\u00e9\"}}\n{\"type\":\"assistant\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\",\"cwd\":\"@ROOT@/work/a\",\"toolUseResult\":{\"filePath\":\"@ROOT@/work/a/src/main.go\"}}\n"
+      }
+    ],
+    "op": {
+      "name": "mv",
+      "old": "@ROOT@/work/a",
+      "new": "@ROOT@/work/b",
+      "post_hoc": false
+    },
+    "error": "FileExistsError",
+    "result": [
+      {
+        "path": ".claudewheel/profiles/p1/file-history",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/file-history"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/projects",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/projects"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/session-env",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/session-env"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/settings.json",
+        "type": "file",
+        "content": "{}\n"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/tasks",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/tasks"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/todos",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/todos"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/file-history",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/file-history"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/projects",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/projects"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/session-env",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/session-env"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/settings.json",
+        "type": "file",
+        "content": "{}\n"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/tasks",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/tasks"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/todos",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/todos"
+      },
+      {
+        "path": ".claudewheel/shared/file-history",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/paste-cache",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/projects/@EROOT@-work-a/11111111-1111-4111-8111-111111111111.jsonl",
+        "type": "file",
+        "content": "{\"type\":\"user\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\",\"cwd\":\"@ROOT@/work/a\",\"message\":{\"content\":\"hi from @ROOT@/work/a caf\u00e9\"}}\n{\"type\":\"assistant\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\",\"cwd\":\"@ROOT@/work/a\",\"toolUseResult\":{\"filePath\":\"@ROOT@/work/a/src/main.go\"}}\n"
+      },
+      {
+        "path": ".claudewheel/shared/session-env",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/tasks",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/todos",
+        "type": "dir"
+      },
+      {
+        "path": "work/a/file.txt",
+        "type": "file",
+        "content": "x"
+      },
+      {
+        "path": "work/b/file.txt",
+        "type": "file",
+        "content": "y"
+      }
+    ]
+  },
+  {
+    "name": "move-session moves a transcript and its folder",
+    "tree": [
+      {
+        "path": ".claudewheel/shared/projects",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/todos",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/session-env",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/file-history",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/tasks",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/paste-cache",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/settings.json",
+        "type": "file",
+        "content": "{}\n"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/projects",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/projects"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/todos",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/todos"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/session-env",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/session-env"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/file-history",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/file-history"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/tasks",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/tasks"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/settings.json",
+        "type": "file",
+        "content": "{}\n"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/projects",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/projects"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/todos",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/todos"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/session-env",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/session-env"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/file-history",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/file-history"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/tasks",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/tasks"
+      },
+      {
+        "path": "work/a/f",
+        "type": "file",
+        "content": "x"
+      },
+      {
+        "path": "work/c/f",
+        "type": "file",
+        "content": "x"
+      },
+      {
+        "path": ".claudewheel/shared/projects/@EROOT@-work-a/11111111-1111-4111-8111-111111111111/tool-results/x.txt",
+        "type": "file",
+        "content": "result"
+      },
+      {
+        "path": ".claudewheel/shared/projects/@EROOT@-work-a/11111111-1111-4111-8111-111111111111.jsonl",
+        "type": "file",
+        "content": "{\"type\":\"user\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\",\"cwd\":\"@ROOT@/work/a\",\"message\":{\"content\":\"hi from @ROOT@/work/a caf\u00e9\"}}\n{\"type\":\"assistant\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\",\"cwd\":\"@ROOT@/work/a\",\"toolUseResult\":{\"filePath\":\"@ROOT@/work/a/src/main.go\"}}\n{\"type\":\"user\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\",\"toolUseResult\":{\"path\":\"@ROOT@/.claudewheel/shared/projects/@EROOT@-work-a/11111111-1111-4111-8111-111111111111/tool-results/x.txt\"}}\n"
+      },
+      {
+        "path": ".claudewheel/shared/projects/@EROOT@-work-a/22222222-2222-4222-8222-222222222222.jsonl",
+        "type": "file",
+        "content": "{\"type\":\"user\",\"sessionId\":\"22222222-2222-4222-8222-222222222222\",\"cwd\":\"@ROOT@/work/a\",\"message\":{\"content\":\"hi from @ROOT@/work/a caf\u00e9\"}}\n{\"type\":\"assistant\",\"sessionId\":\"22222222-2222-4222-8222-222222222222\",\"cwd\":\"@ROOT@/work/a\",\"toolUseResult\":{\"filePath\":\"@ROOT@/work/a/src/main.go\"}}\n"
+      }
+    ],
+    "op": {
+      "name": "move-session",
+      "session": "11111111-1111-4111-8111-111111111111",
+      "directory": "@ROOT@/work/c"
+    },
+    "error": null,
+    "result": [
+      {
+        "path": ".claudewheel/profiles/p1/file-history",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/file-history"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/projects",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/projects"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/session-env",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/session-env"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/settings.json",
+        "type": "file",
+        "content": "{}\n"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/tasks",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/tasks"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/todos",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/todos"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/file-history",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/file-history"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/projects",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/projects"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/session-env",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/session-env"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/settings.json",
+        "type": "file",
+        "content": "{}\n"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/tasks",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/tasks"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/todos",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/todos"
+      },
+      {
+        "path": ".claudewheel/shared/file-history",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/lifecycle/11111111-1111-4111-8111-111111111111.jsonl",
+        "type": "file",
+        "content": "{\"format_version\":1,\"id\":\"18dc525447e971bab5ab2783125d40d7ad43c1f58a622c56\",\"at\":\"2026-10-07T18:21:13.723Z\",\"session\":\"11111111-1111-4111-8111-111111111111\",\"source\":\"user\",\"kind\":\"moved\",\"old_cwd\":\"@ROOT@/work/a\",\"new_cwd\":\"@ROOT@/work/c\",\"old_transcript\":\"@ROOT@/.claudewheel/shared/projects/@EROOT@-work-a/11111111-1111-4111-8111-111111111111.jsonl\",\"new_transcript\":\"@ROOT@/.claudewheel/shared/projects/@EROOT@-work-c/11111111-1111-4111-8111-111111111111.jsonl\"}\n"
+      },
+      {
+        "path": ".claudewheel/shared/paste-cache",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/projects/@EROOT@-work-a/22222222-2222-4222-8222-222222222222.jsonl",
+        "type": "file",
+        "content": "{\"type\":\"user\",\"sessionId\":\"22222222-2222-4222-8222-222222222222\",\"cwd\":\"@ROOT@/work/a\",\"message\":{\"content\":\"hi from @ROOT@/work/a caf\u00e9\"}}\n{\"type\":\"assistant\",\"sessionId\":\"22222222-2222-4222-8222-222222222222\",\"cwd\":\"@ROOT@/work/a\",\"toolUseResult\":{\"filePath\":\"@ROOT@/work/a/src/main.go\"}}\n"
+      },
+      {
+        "path": ".claudewheel/shared/projects/@EROOT@-work-c/11111111-1111-4111-8111-111111111111.jsonl",
+        "type": "file",
+        "content": "{\"type\":\"user\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\",\"cwd\":\"@ROOT@/work/a\",\"message\":{\"content\":\"hi from @ROOT@/work/a caf\u00e9\"}}\n{\"type\":\"assistant\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\",\"cwd\":\"@ROOT@/work/a\",\"toolUseResult\":{\"filePath\":\"@ROOT@/work/a/src/main.go\"}}\n{\"type\":\"user\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\",\"toolUseResult\":{\"path\":\"@ROOT@/.claudewheel/shared/projects/@EROOT@-work-c/11111111-1111-4111-8111-111111111111/tool-results/x.txt\"}}\n{\"type\":\"relocated\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\",\"relocatedCwd\":\"@ROOT@/work/c\"}\n"
+      },
+      {
+        "path": ".claudewheel/shared/projects/@EROOT@-work-c/11111111-1111-4111-8111-111111111111/tool-results/x.txt",
+        "type": "file",
+        "content": "result"
+      },
+      {
+        "path": ".claudewheel/shared/session-env",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/session-moves",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/tasks",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/todos",
+        "type": "dir"
+      },
+      {
+        "path": "work/a/f",
+        "type": "file",
+        "content": "x"
+      },
+      {
+        "path": "work/c/f",
+        "type": "file",
+        "content": "x"
+      }
+    ]
+  },
+  {
+    "name": "move-session leaves no empty source store",
+    "tree": [
+      {
+        "path": ".claudewheel/shared/projects",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/todos",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/session-env",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/file-history",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/tasks",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/paste-cache",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/settings.json",
+        "type": "file",
+        "content": "{}\n"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/projects",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/projects"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/todos",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/todos"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/session-env",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/session-env"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/file-history",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/file-history"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/tasks",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/tasks"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/settings.json",
+        "type": "file",
+        "content": "{}\n"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/projects",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/projects"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/todos",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/todos"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/session-env",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/session-env"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/file-history",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/file-history"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/tasks",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/tasks"
+      },
+      {
+        "path": "work/c/f",
+        "type": "file",
+        "content": "x"
+      },
+      {
+        "path": ".claudewheel/shared/projects/@EROOT@-work-a/11111111-1111-4111-8111-111111111111.jsonl",
+        "type": "file",
+        "content": "{\"type\":\"user\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\",\"cwd\":\"@ROOT@/work/a\",\"message\":{\"content\":\"hi from @ROOT@/work/a caf\u00e9\"}}\n{\"type\":\"assistant\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\",\"cwd\":\"@ROOT@/work/a\",\"toolUseResult\":{\"filePath\":\"@ROOT@/work/a/src/main.go\"}}\n"
+      }
+    ],
+    "op": {
+      "name": "move-session",
+      "session": "11111111-1111-4111-8111-111111111111",
+      "directory": "@ROOT@/work/c"
+    },
+    "error": null,
+    "result": [
+      {
+        "path": ".claudewheel/profiles/p1/file-history",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/file-history"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/projects",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/projects"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/session-env",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/session-env"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/settings.json",
+        "type": "file",
+        "content": "{}\n"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/tasks",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/tasks"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/todos",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/todos"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/file-history",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/file-history"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/projects",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/projects"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/session-env",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/session-env"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/settings.json",
+        "type": "file",
+        "content": "{}\n"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/tasks",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/tasks"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/todos",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/todos"
+      },
+      {
+        "path": ".claudewheel/shared/file-history",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/lifecycle/11111111-1111-4111-8111-111111111111.jsonl",
+        "type": "file",
+        "content": "{\"format_version\":1,\"id\":\"18dc52544e76d4a7bd5cdf688e92458490260dca3ea326e0\",\"at\":\"2026-10-07T18:21:13.833Z\",\"session\":\"11111111-1111-4111-8111-111111111111\",\"source\":\"user\",\"kind\":\"moved\",\"old_cwd\":\"@ROOT@/work/a\",\"new_cwd\":\"@ROOT@/work/c\",\"old_transcript\":\"@ROOT@/.claudewheel/shared/projects/@EROOT@-work-a/11111111-1111-4111-8111-111111111111.jsonl\",\"new_transcript\":\"@ROOT@/.claudewheel/shared/projects/@EROOT@-work-c/11111111-1111-4111-8111-111111111111.jsonl\"}\n"
+      },
+      {
+        "path": ".claudewheel/shared/paste-cache",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/projects/@EROOT@-work-c/11111111-1111-4111-8111-111111111111.jsonl",
+        "type": "file",
+        "content": "{\"type\":\"user\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\",\"cwd\":\"@ROOT@/work/a\",\"message\":{\"content\":\"hi from @ROOT@/work/a caf\u00e9\"}}\n{\"type\":\"assistant\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\",\"cwd\":\"@ROOT@/work/a\",\"toolUseResult\":{\"filePath\":\"@ROOT@/work/a/src/main.go\"}}\n{\"type\":\"relocated\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\",\"relocatedCwd\":\"@ROOT@/work/c\"}\n"
+      },
+      {
+        "path": ".claudewheel/shared/session-env",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/session-moves",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/tasks",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/todos",
+        "type": "dir"
+      },
+      {
+        "path": "work/c/f",
+        "type": "file",
+        "content": "x"
+      }
+    ]
+  },
+  {
+    "name": "import maps a foreign home",
+    "tree": [
+      {
+        "path": ".claudewheel/shared/projects",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/todos",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/session-env",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/file-history",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/tasks",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/paste-cache",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/settings.json",
+        "type": "file",
+        "content": "{}\n"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/projects",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/projects"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/todos",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/todos"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/session-env",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/session-env"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/file-history",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/file-history"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/tasks",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/tasks"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/settings.json",
+        "type": "file",
+        "content": "{}\n"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/projects",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/projects"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/todos",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/todos"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/session-env",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/session-env"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/file-history",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/file-history"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/tasks",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/tasks"
+      },
+      {
+        "path": "work/proj/f",
+        "type": "file",
+        "content": "x"
+      },
+      {
+        "path": "ext/projects/-home-olduser-proj/11111111-1111-4111-8111-111111111111.jsonl",
+        "type": "file",
+        "content": "{\"type\":\"user\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\",\"cwd\":\"/home/olduser/proj\",\"message\":{\"content\":\"hi from /home/olduser/proj caf\u00e9\"}}\n{\"type\":\"assistant\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\",\"cwd\":\"/home/olduser/proj\",\"toolUseResult\":{\"filePath\":\"/home/olduser/proj/src/main.go\"}}\n"
+      },
+      {
+        "path": "ext/projects/-home-olduser-proj/11111111-1111-4111-8111-111111111111/sub/agent.jsonl",
+        "type": "file",
+        "content": "{\"cwd\":\"/home/olduser/proj/x\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\"}\n"
+      },
+      {
+        "path": "ext/todos/11111111-1111-4111-8111-111111111111-agent-11111111-1111-4111-8111-111111111111.json",
+        "type": "file",
+        "content": "[]"
+      },
+      {
+        "path": "ext/file-history/11111111-1111-4111-8111-111111111111/v1",
+        "type": "file",
+        "content": "old"
+      },
+      {
+        "path": "ext/paste-cache/abc.txt",
+        "type": "file",
+        "content": "paste"
+      }
+    ],
+    "op": {
+      "name": "import",
+      "source": "@ROOT@/ext",
+      "mappings": [
+        [
+          "/home/olduser/proj",
+          "@ROOT@/work/proj"
+        ]
+      ]
+    },
+    "error": null,
+    "result": [
+      {
+        "path": ".claudewheel/profiles/p1/file-history",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/file-history"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/projects",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/projects"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/session-env",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/session-env"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/settings.json",
+        "type": "file",
+        "content": "{}\n"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/tasks",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/tasks"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/todos",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/todos"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/file-history",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/file-history"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/projects",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/projects"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/session-env",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/session-env"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/settings.json",
+        "type": "file",
+        "content": "{}\n"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/tasks",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/tasks"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/todos",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/todos"
+      },
+      {
+        "path": ".claudewheel/shared/file-history/11111111-1111-4111-8111-111111111111/v1",
+        "type": "file",
+        "content": "old"
+      },
+      {
+        "path": ".claudewheel/shared/paste-cache/abc.txt",
+        "type": "file",
+        "content": "paste"
+      },
+      {
+        "path": ".claudewheel/shared/projects/@EROOT@-work-proj/11111111-1111-4111-8111-111111111111.jsonl",
+        "type": "file",
+        "content": "{\"type\":\"user\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\",\"cwd\":\"@ROOT@/work/proj\",\"message\":{\"content\":\"hi from @ROOT@/work/proj caf\u00e9\"}}\n{\"type\":\"assistant\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\",\"cwd\":\"@ROOT@/work/proj\",\"toolUseResult\":{\"filePath\":\"@ROOT@/work/proj/src/main.go\"}}\n"
+      },
+      {
+        "path": ".claudewheel/shared/projects/@EROOT@-work-proj/11111111-1111-4111-8111-111111111111/sub/agent.jsonl",
+        "type": "file",
+        "content": "{\"cwd\":\"@ROOT@/work/proj/x\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\"}\n"
+      },
+      {
+        "path": ".claudewheel/shared/session-env",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/tasks",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/todos/11111111-1111-4111-8111-111111111111-agent-11111111-1111-4111-8111-111111111111.json",
+        "type": "file",
+        "content": "[]"
+      },
+      {
+        "path": "ext/file-history/11111111-1111-4111-8111-111111111111/v1",
+        "type": "file",
+        "content": "old"
+      },
+      {
+        "path": "ext/paste-cache/abc.txt",
+        "type": "file",
+        "content": "paste"
+      },
+      {
+        "path": "ext/projects/-home-olduser-proj/11111111-1111-4111-8111-111111111111.jsonl",
+        "type": "file",
+        "content": "{\"type\":\"user\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\",\"cwd\":\"/home/olduser/proj\",\"message\":{\"content\":\"hi from /home/olduser/proj caf\u00e9\"}}\n{\"type\":\"assistant\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\",\"cwd\":\"/home/olduser/proj\",\"toolUseResult\":{\"filePath\":\"/home/olduser/proj/src/main.go\"}}\n"
+      },
+      {
+        "path": "ext/projects/-home-olduser-proj/11111111-1111-4111-8111-111111111111/sub/agent.jsonl",
+        "type": "file",
+        "content": "{\"cwd\":\"/home/olduser/proj/x\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\"}\n"
+      },
+      {
+        "path": "ext/todos/11111111-1111-4111-8111-111111111111-agent-11111111-1111-4111-8111-111111111111.json",
+        "type": "file",
+        "content": "[]"
+      },
+      {
+        "path": "work/proj/f",
+        "type": "file",
+        "content": "x"
+      }
+    ]
+  },
+  {
+    "name": "import reports a colliding session",
+    "tree": [
+      {
+        "path": ".claudewheel/shared/projects",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/todos",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/session-env",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/file-history",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/tasks",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/paste-cache",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/settings.json",
+        "type": "file",
+        "content": "{}\n"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/projects",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/projects"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/todos",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/todos"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/session-env",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/session-env"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/file-history",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/file-history"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/tasks",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/tasks"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/settings.json",
+        "type": "file",
+        "content": "{}\n"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/projects",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/projects"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/todos",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/todos"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/session-env",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/session-env"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/file-history",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/file-history"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/tasks",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/tasks"
+      },
+      {
+        "path": "work/proj/f",
+        "type": "file",
+        "content": "x"
+      },
+      {
+        "path": "ext/projects/-home-olduser-proj/11111111-1111-4111-8111-111111111111.jsonl",
+        "type": "file",
+        "content": "{\"type\":\"user\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\",\"cwd\":\"/home/olduser/proj\",\"message\":{\"content\":\"hi from /home/olduser/proj caf\u00e9\"}}\n{\"type\":\"assistant\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\",\"cwd\":\"/home/olduser/proj\",\"toolUseResult\":{\"filePath\":\"/home/olduser/proj/src/main.go\"}}\n"
+      },
+      {
+        "path": ".claudewheel/shared/projects/@EROOT@-work-proj/11111111-1111-4111-8111-111111111111.jsonl",
+        "type": "file",
+        "content": "{\"type\":\"user\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\",\"cwd\":\"@ROOT@/work/proj\",\"message\":{\"content\":\"hi from @ROOT@/work/proj caf\u00e9\"}}\n{\"type\":\"assistant\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\",\"cwd\":\"@ROOT@/work/proj\",\"toolUseResult\":{\"filePath\":\"@ROOT@/work/proj/src/main.go\"}}\n"
+      }
+    ],
+    "op": {
+      "name": "import",
+      "source": "@ROOT@/ext",
+      "mappings": [
+        [
+          "/home/olduser/proj",
+          "@ROOT@/work/proj"
+        ]
+      ]
+    },
+    "error": "collisions",
+    "result": [
+      {
+        "path": ".claudewheel/profiles/p1/file-history",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/file-history"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/projects",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/projects"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/session-env",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/session-env"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/settings.json",
+        "type": "file",
+        "content": "{}\n"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/tasks",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/tasks"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/todos",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/todos"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/file-history",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/file-history"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/projects",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/projects"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/session-env",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/session-env"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/settings.json",
+        "type": "file",
+        "content": "{}\n"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/tasks",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/tasks"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/todos",
+        "type": "symlink",
+        "target": "@ROOT@/.claudewheel/shared/todos"
+      },
+      {
+        "path": ".claudewheel/shared/file-history",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/paste-cache",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/projects/@EROOT@-work-proj/11111111-1111-4111-8111-111111111111.jsonl",
+        "type": "file",
+        "content": "{\"type\":\"user\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\",\"cwd\":\"@ROOT@/work/proj\",\"message\":{\"content\":\"hi from @ROOT@/work/proj caf\u00e9\"}}\n{\"type\":\"assistant\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\",\"cwd\":\"@ROOT@/work/proj\",\"toolUseResult\":{\"filePath\":\"@ROOT@/work/proj/src/main.go\"}}\n"
+      },
+      {
+        "path": ".claudewheel/shared/session-env",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/tasks",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/todos",
+        "type": "dir"
+      },
+      {
+        "path": "ext/projects/-home-olduser-proj/11111111-1111-4111-8111-111111111111.jsonl",
+        "type": "file",
+        "content": "{\"type\":\"user\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\",\"cwd\":\"/home/olduser/proj\",\"message\":{\"content\":\"hi from /home/olduser/proj caf\u00e9\"}}\n{\"type\":\"assistant\",\"sessionId\":\"11111111-1111-4111-8111-111111111111\",\"cwd\":\"/home/olduser/proj\",\"toolUseResult\":{\"filePath\":\"/home/olduser/proj/src/main.go\"}}\n"
+      },
+      {
+        "path": "work/proj/f",
+        "type": "file",
+        "content": "x"
+      }
+    ]
+  },
+  {
+    "name": "migrate moves one session between profiles",
+    "tree": [
+      {
+        "path": ".claudewheel/shared/projects",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/todos",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/session-env",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/file-history",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/tasks",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/paste-cache",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/settings.json",
+        "type": "file",
+        "content": "{}\n"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/settings.json",
+        "type": "file",
+        "content": "{}\n"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/projects/-x/11111111-1111-4111-8111-111111111111.jsonl",
+        "type": "file",
+        "content": "{}\n"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/projects/-x/11111111-1111-4111-8111-111111111111/a.txt",
+        "type": "file",
+        "content": "a"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/projects/-x/22222222-2222-4222-8222-222222222222.jsonl",
+        "type": "file",
+        "content": "{}\n"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/todos/11111111-1111-4111-8111-111111111111-agent-11111111-1111-4111-8111-111111111111.json",
+        "type": "file",
+        "content": "[]"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/session-env/11111111-1111-4111-8111-111111111111/e",
+        "type": "file",
+        "content": "e"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/projects",
+        "type": "dir"
+      }
+    ],
+    "op": {
+      "name": "migrate",
+      "src": "p1",
+      "dst": "p2",
+      "session": "11111111-1111-4111-8111-111111111111"
+    },
+    "error": null,
+    "result": [
+      {
+        "path": ".claudewheel/profiles/p1/projects/-x/22222222-2222-4222-8222-222222222222.jsonl",
+        "type": "file",
+        "content": "{}\n"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/session-env",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/settings.json",
+        "type": "file",
+        "content": "{}\n"
+      },
+      {
+        "path": ".claudewheel/profiles/p1/todos",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/projects/-x/11111111-1111-4111-8111-111111111111.jsonl",
+        "type": "file",
+        "content": "{}\n"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/projects/-x/11111111-1111-4111-8111-111111111111/a.txt",
+        "type": "file",
+        "content": "a"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/session-env/11111111-1111-4111-8111-111111111111/e",
+        "type": "file",
+        "content": "e"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/settings.json",
+        "type": "file",
+        "content": "{}\n"
+      },
+      {
+        "path": ".claudewheel/profiles/p2/todos/11111111-1111-4111-8111-111111111111-agent-11111111-1111-4111-8111-111111111111.json",
+        "type": "file",
+        "content": "[]"
+      },
+      {
+        "path": ".claudewheel/shared/file-history",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/paste-cache",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/projects",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/session-env",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/tasks",
+        "type": "dir"
+      },
+      {
+        "path": ".claudewheel/shared/todos",
+        "type": "dir"
+      }
+    ]
+  }
+]

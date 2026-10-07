@@ -223,6 +223,216 @@ def reconcile_cases():
     return {"scripts_dir": str(scripts), "cases": cases}
 
 
+# Session-operation scenarios. A tree is a list of entries; "@ROOT@" in a path,
+# a content, or a link target stands for the scenario's root directory, and
+# "@EROOT@" for Claude Code's store-dir encoding of it.
+U1 = "11111111-1111-4111-8111-111111111111"
+U2 = "22222222-2222-4222-8222-222222222222"
+
+
+def _line(**fields):
+    return json.dumps(fields, ensure_ascii=False, separators=(",", ":"))
+
+
+def _transcript(session, cwd, extra=()):
+    lines = [
+        _line(type="user", sessionId=session, cwd=cwd, message={"content": "hi from " + cwd + " caf\u00e9"}),
+        _line(type="assistant", sessionId=session, cwd=cwd, toolUseResult={"filePath": cwd + "/src/main.go"}),
+    ]
+    lines += list(extra)
+    return "\n".join(lines) + "\n"
+
+
+def _profile(name, shared_links=True):
+    entries = [{"path": ".claudewheel/profiles/" + name + "/settings.json", "type": "file", "content": "{}\n"}]
+    if shared_links:
+        for d in ("projects", "todos", "session-env", "file-history", "tasks"):
+            entries.append({"path": ".claudewheel/profiles/" + name + "/" + d, "type": "symlink",
+                            "target": "@ROOT@/.claudewheel/shared/" + d})
+    return entries
+
+
+def _shared_dirs():
+    return [{"path": ".claudewheel/shared/" + d, "type": "dir"} for d in
+            ("projects", "todos", "session-env", "file-history", "tasks", "paste-cache")]
+
+
+def _store(cwd_rel, session, cwd=None, extra=()):
+    cwd = cwd or "@ROOT@/" + cwd_rel
+    enc = "@EROOT@-" + cwd_rel.replace("/", "-")
+    return [{"path": ".claudewheel/shared/projects/" + enc + "/" + session + ".jsonl", "type": "file",
+             "content": _transcript(session, cwd, extra)}]
+
+
+def _claude_json(name, keys):
+    doc = {"numStartups": 3, "projects": {k: {"allowedTools": [], "hasTrustDialogAccepted": True} for k in keys},
+           "githubRepoPaths": {"me/repo": keys}}
+    return {"path": ".claudewheel/profiles/" + name + "/.claude.json", "type": "file",
+            "content": json.dumps(doc, indent=2) + "\n"}
+
+
+def session_scenarios():
+    folder_line = _line(type="user", sessionId=U1, toolUseResult={
+        "path": "@ROOT@/.claudewheel/shared/projects/@EROOT@-work-a/" + U1 + "/tool-results/x.txt"})
+    base = _shared_dirs() + _profile("p1") + _profile("p2")
+    return [
+        {
+            "name": "mv renames a project and its nested project",
+            "tree": base + [
+                {"path": "work/a/file.txt", "type": "file", "content": "x"},
+                {"path": "work/a/sub/f", "type": "file", "content": "y"},
+                _claude_json("p1", ["@ROOT@/work/a", "@ROOT@/work/a/sub", "@ROOT@/work/ab"]),
+            ] + _store("work/a", U1) + _store("work/a/sub", U2) + _store("work/ab", "33333333-3333-4333-8333-333333333333"),
+            "op": {"name": "mv", "old": "@ROOT@/work/a", "new": "@ROOT@/work/b", "post_hoc": False},
+        },
+        {
+            "name": "mv after the directory was renamed",
+            "tree": base + [
+                {"path": "work/b/file.txt", "type": "file", "content": "x"},
+                _claude_json("p2", ["@ROOT@/work/a"]),
+            ] + _store("work/a", U1),
+            "op": {"name": "mv", "old": "@ROOT@/work/a", "new": "@ROOT@/work/b", "post_hoc": True},
+        },
+        {
+            "name": "mv refuses an existing target",
+            "tree": base + [
+                {"path": "work/a/file.txt", "type": "file", "content": "x"},
+                {"path": "work/b/file.txt", "type": "file", "content": "y"},
+            ] + _store("work/a", U1),
+            "op": {"name": "mv", "old": "@ROOT@/work/a", "new": "@ROOT@/work/b", "post_hoc": False},
+        },
+        {
+            "name": "move-session moves a transcript and its folder",
+            "tree": base + [
+                {"path": "work/a/f", "type": "file", "content": "x"},
+                {"path": "work/c/f", "type": "file", "content": "x"},
+                {"path": ".claudewheel/shared/projects/@EROOT@-work-a/" + U1 + "/tool-results/x.txt", "type": "file", "content": "result"},
+            ] + _store("work/a", U1, extra=[folder_line]) + _store("work/a", U2),
+            "op": {"name": "move-session", "session": U1, "directory": "@ROOT@/work/c"},
+        },
+        {
+            "name": "move-session leaves no empty source store",
+            "tree": base + [
+                {"path": "work/c/f", "type": "file", "content": "x"},
+            ] + _store("work/a", U1),
+            "op": {"name": "move-session", "session": U1, "directory": "@ROOT@/work/c"},
+        },
+        {
+            "name": "import maps a foreign home",
+            "tree": base + [
+                {"path": "work/proj/f", "type": "file", "content": "x"},
+                {"path": "ext/projects/-home-olduser-proj/" + U1 + ".jsonl", "type": "file",
+                 "content": _transcript(U1, "/home/olduser/proj")},
+                {"path": "ext/projects/-home-olduser-proj/" + U1 + "/sub/agent.jsonl", "type": "file",
+                 "content": _line(cwd="/home/olduser/proj/x", sessionId=U1) + "\n"},
+                {"path": "ext/todos/" + U1 + "-agent-" + U1 + ".json", "type": "file", "content": "[]"},
+                {"path": "ext/file-history/" + U1 + "/v1", "type": "file", "content": "old"},
+                {"path": "ext/paste-cache/abc.txt", "type": "file", "content": "paste"},
+            ],
+            "op": {"name": "import", "source": "@ROOT@/ext", "mappings": [["/home/olduser/proj", "@ROOT@/work/proj"]]},
+        },
+        {
+            "name": "import reports a colliding session",
+            "tree": base + [
+                {"path": "work/proj/f", "type": "file", "content": "x"},
+                {"path": "ext/projects/-home-olduser-proj/" + U1 + ".jsonl", "type": "file",
+                 "content": _transcript(U1, "/home/olduser/proj")},
+            ] + _store("work/proj", U1),
+            "op": {"name": "import", "source": "@ROOT@/ext", "mappings": [["/home/olduser/proj", "@ROOT@/work/proj"]]},
+        },
+        {
+            "name": "migrate moves one session between profiles",
+            "tree": _shared_dirs() + _profile("p1", shared_links=False) + _profile("p2", shared_links=False) + [
+                {"path": ".claudewheel/profiles/p1/projects/-x/" + U1 + ".jsonl", "type": "file", "content": "{}\n"},
+                {"path": ".claudewheel/profiles/p1/projects/-x/" + U1 + "/a.txt", "type": "file", "content": "a"},
+                {"path": ".claudewheel/profiles/p1/projects/-x/" + U2 + ".jsonl", "type": "file", "content": "{}\n"},
+                {"path": ".claudewheel/profiles/p1/todos/" + U1 + "-agent-" + U1 + ".json", "type": "file", "content": "[]"},
+                {"path": ".claudewheel/profiles/p1/session-env/" + U1 + "/e", "type": "file", "content": "e"},
+                {"path": ".claudewheel/profiles/p2/projects", "type": "dir"},
+            ],
+            "op": {"name": "migrate", "src": "p1", "dst": "p2", "session": U1},
+        },
+    ]
+
+
+def _encode_root(root):
+    from claudewheel.shared_store import SharedStore
+
+    return SharedStore.encode_path_untruncated(root)
+
+
+def _materialize(root, tree):
+    eroot = _encode_root(str(root))
+    for e in tree:
+        path = root / e["path"].replace("@EROOT@", eroot)
+        if e["type"] == "dir":
+            path.mkdir(parents=True, exist_ok=True)
+            continue
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if e["type"] == "file":
+            path.write_bytes(e["content"].replace("@ROOT@", str(root)).replace("@EROOT@", eroot).encode())
+        else:
+            path.symlink_to(e["target"].replace("@ROOT@", str(root)))
+
+
+def _dump(root):
+    eroot = _encode_root(str(root))
+
+    def norm(text):
+        return text.replace(str(root), "@ROOT@").replace(eroot, "@EROOT@")
+
+    out = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        for name in sorted(dirnames + filenames):
+            full = Path(dirpath) / name
+            rel = norm(str(full.relative_to(root)))
+            if full.is_symlink():
+                out.append({"path": rel, "type": "symlink", "target": norm(os.readlink(full))})
+            elif full.is_dir():
+                if not any(full.iterdir()):
+                    out.append({"path": rel, "type": "dir"})
+            else:
+                out.append({"path": rel, "type": "file", "content": norm(full.read_bytes().decode())})
+        dirnames[:] = [d for d in dirnames if not (Path(dirpath) / d).is_symlink()]
+    return sorted(out, key=lambda e: e["path"])
+
+
+def run_session_scenarios(out):
+    import tempfile
+
+    from claudewheel import import_, migrate, mv, session_move
+    from claudewheel.workspace import Workspace
+
+    scenarios = session_scenarios()
+    base = Path(out).resolve().parent / "python-session-scenarios.work"
+    for sc in scenarios:
+        root = Path(tempfile.mkdtemp(prefix="sc-", dir=str(Path.cwd() / "experiments")))
+        _materialize(root, sc["tree"])
+        os.environ["HOME"] = str(root)
+        ws = Workspace.open(root / ".claudewheel", claude_dir=root / ".claude",
+                            bin_dir=root / ".local" / "bin",
+                            systemd_user_dir=root / ".config" / "systemd" / "user")
+        op = sc["op"]
+        sub = lambda v: v.replace("@ROOT@", str(root))
+        error = None
+        try:
+            if op["name"] == "mv":
+                mv.run_mv(ws, sub(op["old"]), sub(op["new"]), post_hoc=op["post_hoc"], quiet=True)
+            elif op["name"] == "move-session":
+                session_move.move_session(ws, op["session"], sub(op["directory"]), dry_run=False)
+            elif op["name"] == "import":
+                res = import_.run_import(ws.shared, sub(op["source"]), [(sub(a), sub(b)) for a, b in op["mappings"]])
+                if res.collisions:
+                    error = "collisions"
+            elif op["name"] == "migrate":
+                migrate.migrate_sessions(ws, op["src"], op["dst"], uuid_filter=op["session"])
+        except Exception as exc:  # noqa: BLE001 -- the scenario records any refusal
+            error = type(exc).__name__
+        sc["error"] = error
+        sc["result"] = _dump(root)
+    return scenarios
+
+
 # Generators that write a directory tree themselves rather than return data.
 TREE_GENERATORS = {
     "python-workspace": python_workspace,
@@ -237,10 +447,21 @@ GENERATORS = {
     "reconcile-cases": reconcile_cases,
 }
 
-if len(sys.argv) != 3 or sys.argv[1] not in {**GENERATORS, **TREE_GENERATORS}:
-    sys.exit("usage: scripts/python-expectations <%s> <output-path>"
-             % "|".join([*GENERATORS, *TREE_GENERATORS]))
+# Generators that take the output path.
+PATH_GENERATORS = {
+    "session-scenarios": run_session_scenarios,
+}
+
+ALL = [*GENERATORS, *TREE_GENERATORS, *PATH_GENERATORS]
+if len(sys.argv) != 3 or sys.argv[1] not in ALL:
+    sys.exit("usage: scripts/python-expectations <%s> <output-path>" % "|".join(ALL))
 out = Path(sys.argv[2])
+if sys.argv[1] in PATH_GENERATORS:
+    data = PATH_GENERATORS[sys.argv[1]](out)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(data, indent=2, ensure_ascii=True) + "\n")
+    print(out)
+    sys.exit(0)
 if sys.argv[1] in TREE_GENERATORS:
     if out.exists():
         sys.exit(f"{out} already exists")
