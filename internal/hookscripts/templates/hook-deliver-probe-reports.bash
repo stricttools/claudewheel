@@ -1,0 +1,249 @@
+#!/usr/bin/env bash
+# hook-deliver-probe-reports: the probe reports' way into tool calls, and the
+# record the reports need of a session's tool calls and subagents. Wired on
+# PreToolUse for Bash, and on PostToolUse, PostToolUseFailure, and
+# SubagentStop for every tool.
+#
+# - PreToolUse (Bash): records that the call started.
+# - PostToolUse / PostToolUseFailure (Bash): records that it ended. After a
+#   call that ran `claudewheel probe create` or `probe subscribe`, binds the
+#   subscription the command printed to the conversation that made the call:
+#   the payload's agent_id, or the main conversation when it has none.
+# - PostToolUseFailure (Bash, exit 137): when the probe runner recorded an OOM
+#   kill in this session during the call, labels the failure for the calling
+#   conversation, and says so when other Bash calls were running at the kill.
+# - PostToolUse (Agent): records the subagent the call launched and its task.
+# - PostToolUse / PostToolUseFailure of a subagent's call: hands the
+#   subagent the reports queued for it, as additionalContext.
+# - SubagentStop: records that the subagent finished and sends its queued
+#   reports to the main conversation, which gets them labeled with the
+#   subagent and its task.
+#
+# The hook never blocks a session. Every failure prints one line to stderr and
+# exits 1 -- never 2, which Claude Code reads as "block this event".
+
+set -uo pipefail
+
+fail() {
+    printf 'hook-deliver-probe-reports: %s\n' "$1" >&2
+    exit 1
+}
+
+command -v jq >/dev/null 2>&1 || fail 'jq not found'
+
+input=$(cat 2>/dev/null || true)
+# One jq for the five fields, joined by the unit separator: a tab is IFS
+# whitespace, so an empty field between two tabs would vanish.
+fields=$(printf '%s' "$input" | jq -r '[.hook_event_name // "", .session_id // "", .agent_id // "", .tool_name // "", .tool_use_id // ""] | map(tostring) | join("\u001f")' 2>/dev/null) ||
+    fail 'payload is not JSON'
+IFS=$'\x1f' read -r event session agent tool call <<<"$fields"
+[[ "$session" =~ @SESSION_UUID_RE@ ]] ||
+    fail "payload carries no Claude Code session uuid: '$session'"
+[[ -z "$agent" || "$agent" =~ ^[0-9a-zA-Z_-]+$ ]] || fail "unexpected agent_id: '$agent'"
+
+root="${CLAUDEWHEEL_CONFIG_DIR:-${HOME:+${HOME}/.claudewheel}}"
+[[ -n "$root" ]] || fail 'cannot resolve the store: set CLAUDEWHEEL_CONFIG_DIR or HOME'
+probes="$root/shared/probes"
+record="$probes/sessions/$session.jsonl"
+pending="$probes/reports/pending/$session"
+handed="$probes/reports/handed/$session"
+
+now_ms() {
+    local us=${EPOCHREALTIME/[.,]/}
+    REPLY=$((10#$us / 1000))
+}
+
+agent_json() {
+    if [[ -n "$agent" ]]; then REPLY="\"$agent\""; else REPLY=null; fi
+}
+
+append() {
+    mkdir -p "${record%/*}" 2>/dev/null || fail "cannot create ${record%/*}"
+    printf '%s\n' "$1" >>"$record" || fail "cannot append to $record"
+}
+
+record_call() {
+    # $1: call-started or call-ended.
+    [[ "$call" =~ ^[0-9A-Za-z_-]+$ ]] || return 0
+    now_ms
+    local at=$REPLY
+    agent_json
+    if [[ "$1" == call-started ]]; then
+        local timeout
+        timeout=$(printf '%s' "$input" | jq -r '(.tool_input.timeout // 120000) | floor' 2>/dev/null)
+        [[ "$timeout" =~ ^[0-9]+$ ]] || timeout=120000
+        append "{\"format_version\":1,\"at_ms\":$at,\"kind\":\"call-started\",\"call\":\"$call\",\"agent\":$REPLY,\"timeout_ms\":$timeout}"
+    else
+        append "{\"format_version\":1,\"at_ms\":$at,\"kind\":\"call-ended\",\"call\":\"$call\",\"agent\":$REPLY}"
+    fi
+}
+
+wake_waiter() {
+    local fifo="$probes/waiters/$session.fifo"
+    [[ -p "$fifo" ]] || return 0
+    # Opened for reading and writing, so it never blocks for a reader.
+    { exec 4<>"$fifo" && printf x >&4 && exec 4>&-; } 2>/dev/null || true
+}
+
+mint() {
+    local rand
+    rand=$(od -An -N16 -tx1 /dev/urandom 2>/dev/null | tr -d ' \n')
+    [[ ${#rand} -eq 32 ]] || fail 'cannot read 16 random bytes from /dev/urandom'
+    event_id=$(printf '%016x%s' "$(date +%s%N)" "$rand")
+    event_at=$(date -u +%Y-%m-%dT%H:%M:%S.%3NZ)
+}
+
+# Bind a subscription this session created in this call to this conversation.
+bind() {
+    local sub=$1 probe_id=$2 file="$probes/probes/$2.jsonl" state target f moved task
+    [[ -f "$file" ]] || return 0
+    state=$(jq -rs --arg sub "$sub" --arg s "$session" '
+        (map(select(.kind == "subscribed" and .subscription == $sub and .session == $s)) | length) as $mine
+        | (map(select(.kind == "bound" and .subscription == $sub)) | length) as $bound
+        | if $mine == 1 and $bound == 0 then "unbound" else "no" end' "$file" 2>/dev/null)
+    [[ "$state" == unbound ]] || return 0
+    mint
+    agent_json
+    printf '%s\n' "{\"format_version\":1,\"id\":\"$event_id\",\"at\":\"$event_at\",\"probe\":\"$probe_id\",\"kind\":\"bound\",\"subscription\":\"$sub\",\"agent\":$REPLY}" >>"$file" ||
+        fail "cannot append to $file"
+    # Reports queued before the binding go to the conversation now known.
+    if [[ -n "$agent" ]]; then target="agent-$agent"; else target=main; fi
+    task=null
+    if [[ -n "$agent" && -f "$record" ]]; then
+        task=$(jq -cs --arg a "$agent" 'map(select(.kind == "agent-launched" and .agent == $a)) | (last | .task) // null' "$record" 2>/dev/null)
+        [[ -n "$task" ]] || task=null
+    fi
+    agent_json
+    for f in "$pending"/*".unbound-$sub.json"; do
+        [[ -e "$f" ]] || continue
+        # The content gains the conversation in place, then the name does.
+        jq --argjson a "$REPLY" --argjson t "$task" '.agent = $a | .task = $t' "$f" >"$f.new" &&
+            mv "$f.new" "$f" &&
+            mv "$f" "${f%.unbound-$sub.json}.$target.json"
+    done
+    wake_waiter
+}
+
+# The reports queued for this subagent, moved to handed/, as text in REPLY.
+take_agent_reports() {
+    local f name
+    local -a files=()
+    REPLY=""
+    [[ -n "$agent" ]] || return 0
+    for f in "$pending"/*".agent-$agent.json"; do
+        [[ -e "$f" ]] || continue
+        mkdir -p "$handed" || fail "cannot create $handed"
+        name=${f##*/}
+        mv "$f" "$handed/$name" 2>/dev/null || continue
+        touch "$handed/$name"
+        files+=("$handed/$name")
+    done
+    ((${#files[@]} > 0)) || return 0
+    REPLY=$(jq -rs '[.[] | .text] | join("\n\n")' "${files[@]}") || fail "cannot read ${files[*]}"
+}
+
+overlap_sentence='@OVERLAP_SENTENCE@'
+
+# The label of a Bash call that ended with status 137 while the runner recorded
+# an OOM kill in this session, in REPLY.
+label_oom_kill() {
+    local duration now start_ms end_ms kills="$probes/kills.jsonl" labels calls tries
+    REPLY=""
+    duration=$(printf '%s' "$input" | jq -r '(.duration_ms // 0) | floor' 2>/dev/null)
+    [[ "$duration" =~ ^[0-9]+$ ]] || duration=0
+    now_ms
+    now=$REPLY
+    REPLY=""
+    start_ms=$((now - duration - 1000))
+    # The runner records a kill from the journal a moment after it happens,
+    # so a kill during the call may be recorded after the call returned.
+    end_ms=$((now + @HOOK_WAIT_SECONDS@ * 1000))
+    labels=""
+    for ((tries = 0; tries < @HOOK_WAIT_SECONDS@ * 5; tries++)); do
+        if [[ -f "$kills" ]]; then
+            labels=$(jq -rs --arg s "$session" --argjson a "$((start_ms * 1000))" --argjson b "$((end_ms * 1000))" '
+                map(select(.session == $s and .killed_at_us >= $a and .killed_at_us <= $b)) | map(.label) | join(" ")' "$kills" 2>/dev/null)
+        fi
+        [[ -z "$labels" ]] || break
+        sleep 0.2
+    done
+    [[ -n "$labels" ]] || return 0
+    calls=""
+    if [[ -f "$record" && -f "$kills" ]]; then
+        calls=$(jq -rn --arg s "$session" --arg me "$call" --argjson a "$((start_ms * 1000))" --argjson b "$((end_ms * 1000))" \
+            --slurpfile k "$kills" --slurpfile r "$record" '
+            [$k[] | select(.session == $s and .killed_at_us >= $a and .killed_at_us <= $b) | .killed_at_us / 1000] as $times
+            | ($r | map(select(.kind == "call-ended")) | map({key: .call, value: .at_ms}) | from_entries) as $ends
+            | [$r[] | select(.kind == "call-started" and .call != $me)
+                | . as $c
+                | select(any($times[]; . >= $c.at_ms and . <= ($ends[$c.call] // ($c.at_ms + $c.timeout_ms))))
+                | "\(.call) (" + (if .agent == null then "main conversation" else "subagent \(.agent)" end) + ")"]
+            | unique | join(", ")' 2>/dev/null)
+    fi
+    REPLY=$labels
+    if [[ -n "$calls" ]]; then
+        REPLY+=${overlap_sentence//\{calls\}/$calls}
+    fi
+}
+
+emit() {
+    # $1: the additionalContext text; nothing is printed when it is empty.
+    [[ -n "$1" ]] || return 0
+    jq -cn --arg e "$event" --arg c "$1" '{hookSpecificOutput: {hookEventName: $e, additionalContext: $c}}'
+}
+
+bind_re='@BIND_RE@'
+
+case "$event" in
+    PreToolUse)
+        [[ "$tool" == Bash ]] && record_call call-started
+        exit 0
+        ;;
+    PostToolUse | PostToolUseFailure)
+        context=""
+        if [[ "$tool" == Bash ]]; then
+            record_call call-ended
+            if [[ "$event" == PostToolUse ]]; then
+                stdout=$(printf '%s' "$input" | jq -r '.tool_response.stdout // ""' 2>/dev/null)
+                while [[ "$stdout" =~ $bind_re ]]; do
+                    bind "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
+                    stdout=${stdout#*"${BASH_REMATCH[0]}"}
+                done
+            else
+                error=$(printf '%s' "$input" | jq -r '.error // ""' 2>/dev/null)
+                if [[ "$error" == "Exit code 137"* ]]; then
+                    label_oom_kill
+                    context=$REPLY
+                fi
+            fi
+        elif [[ "$tool" == Agent && "$event" == PostToolUse ]]; then
+            launched_agent=$(printf '%s' "$input" | jq -r '.tool_response.agentId // ""' 2>/dev/null)
+            launched_task=$(printf '%s' "$input" | jq -r '.tool_input.description // ""' 2>/dev/null)
+            if [[ "$launched_agent" =~ ^[0-9a-zA-Z_-]+$ ]]; then
+                now_ms
+                line=$(jq -cn --argjson at "$REPLY" --arg a "$launched_agent" --arg t "$launched_task" \
+                    '{format_version: 1, at_ms: $at, kind: "agent-launched", agent: $a, task: (if $t == "" then null else $t end)}')
+                append "$line"
+            fi
+        fi
+        take_agent_reports
+        if [[ -n "$REPLY" ]]; then
+            context+=${context:+$'\n\n'}$REPLY
+        fi
+        emit "$context"
+        exit 0
+        ;;
+    SubagentStop)
+        [[ -n "$agent" ]] || exit 0
+        now_ms
+        append "{\"format_version\":1,\"at_ms\":$REPLY,\"kind\":\"agent-finished\",\"agent\":\"$agent\"}"
+        moved=0
+        for f in "$pending"/*".agent-$agent.json"; do
+            [[ -e "$f" ]] || continue
+            mv "$f" "${f%.agent-$agent.json}.main.json" && moved=1
+        done
+        ((moved)) && wake_waiter
+        exit 0
+        ;;
+esac
+exit 0

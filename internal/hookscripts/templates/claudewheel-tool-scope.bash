@@ -1,0 +1,169 @@
+#!/usr/bin/env bash
+# claudewheel-tool-scope: the CLAUDE_CODE_SHELL_PREFIX of every Claude Code
+# session claudewheel launches.
+#
+# Claude Code runs every shell command it spawns through this prefix, as
+# `claudewheel-tool-scope '<command line>'`: Bash tool calls, hooks, the status
+# line, and stdio MCP servers. The command line arrives as one argument and is
+# re-evaluated with bash.
+#
+# A Bash tool call runs in a systemd user scope of its own,
+# claudewheel-tool-<pid>-<time>-<n>.scope (the session scope's Claude Code pid
+# and launch time, then this wrapper's pid), inside the session's tools slice,
+# CLAUDEWHEEL_TOOL_SLICE. The slice caps the session's Bash commands and
+# everything they start, together, at CLAUDEWHEEL_TOOL_MEMORY_MAX of memory and
+# CLAUDEWHEEL_TOOL_MEMORY_SWAP_MAX of swap. Claude Code itself runs outside the
+# slice, uncapped, so a runaway command is killed while the session goes on.
+# The session's first Bash call creates the slice with its cap; when the slice
+# cannot carry the cap, the command is refused rather than run uncapped.
+#
+# When the kernel's OOM killer kills a process of the command, the wrapper says
+# so on stderr once the command returns, naming the cap; the exit status is the
+# command's own. Nothing is retried.
+#
+# Everything else Claude Code runs through the prefix (hooks, the status line,
+# MCP servers) runs directly, outside the cap: a guardrail hook killed at the
+# cap would let its tool call through unchecked.
+
+set -u
+
+# The size a K, M, G, or T suffix (or a bare 0) names, in bytes.
+bytes() {
+    local n=${1%[KMGT]}
+    [[ "$1" == 0 ]] && { echo 0; return 0; }
+    [[ "$n" =~ ^[1-9][0-9]*$ && "$1" != "$n" ]] || return 1
+    case "${1: -1}" in
+        K) echo $((n << 10)) ;;
+        M) echo $((n << 20)) ;;
+        G) echo $((n << 30)) ;;
+        T) echo $((n << 40)) ;;
+    esac
+}
+
+# A byte count as heavy prints a peak: tenths of a gigabyte from a gigabyte on,
+# whole megabytes below, both rounded up.
+peak_size() {
+    awk -v b="$1" 'BEGIN {
+        g = 1073741824; m = 1048576
+        if (b >= g) { t = int(b * 10 / g); if (t * g < b * 10) t++; printf "%.1fG", t / 10 }
+        else { n = int(b / m); if (n * m < b) n++; printf "%dM", n }
+    }'
+}
+
+# The value of KEY in a memory.events file, 0 when it cannot be read.
+event() {
+    local key value
+    if [[ -r "$2" ]]; then
+        while read -r key value; do
+            if [[ "$key" == "$1" ]]; then
+                echo "$value"
+                return 0
+            fi
+        done <"$2"
+    fi
+    echo 0
+}
+
+# Inside the scope: run the command, then report an OOM kill of any of its
+# processes. The scope's cgroup lives until this process exits, so its
+# counters are read here; the tools slice's own count of the times it hit its
+# limit tells a kill at the cap from one when the machine ran out of memory.
+if [[ $# -eq 2 && "$1" == --claudewheel-in-tool-scope ]]; then
+    cg=""
+    while IFS= read -r line; do
+        case "$line" in 0::*) cg=${line#0::} ;; esac
+    done <"/proc/$$/cgroup"
+    tools=${cg%/*}
+    at_limit_before=$(event oom "/sys/fs/cgroup$tools/memory.events")
+    # bash reports a child killed by a signal with a "line N: PID Killed" line
+    # on its own stderr, which is /dev/null while the command runs; the
+    # command keeps the real stderr through fd 3.
+    status=0
+    { bash -c "$2" 2>&3 3>&-; } 3>&2 2>/dev/null || status=$?
+    killed=$(event oom_kill "/sys/fs/cgroup$cg/memory.events")
+    if [[ "$killed" =~ ^[1-9][0-9]*$ ]]; then
+        at_limit_after=$(event oom "/sys/fs/cgroup$tools/memory.events")
+        cap="the ${CLAUDEWHEEL_TOOL_MEMORY_MAX:-} memory cap they share (${tools##*/}, MemoryMax=${CLAUDEWHEEL_TOOL_MEMORY_MAX:-}, MemorySwapMax=${CLAUDEWHEEL_TOOL_MEMORY_SWAP_MAX:-})"
+        if ((at_limit_after > at_limit_before)); then
+            when="when this session's Bash commands reached $cap"
+        else
+            when="when this machine ran out of memory, with this session's Bash commands under $cap"
+        fi
+        where="The command ran in ${cg##*/}"
+        peak=$(cat "/sys/fs/cgroup$cg/memory.peak" 2>/dev/null || true)
+        if [[ "$peak" =~ ^[0-9]+$ ]]; then
+            where+=", which peaked at $(peak_size "$peak") (page cache included)"
+        fi
+        echo "claudewheel: this command was OOM-killed: the kernel's OOM killer killed $killed of its processes $when. $where. Claude Code itself is not capped and keeps running. Fix the memory at its source, do not rerun it: @OOM_KILL_FIX@." >&2
+    fi
+    exit "$status"
+fi
+
+command_line=${1-}
+slice=${CLAUDEWHEEL_TOOL_SLICE:-}
+
+# Claude Code assembles each Bash tool call as one chain that ends by writing
+# the shell's working directory to a file (`&& pwd -P >| <file>`); nothing
+# else it runs through the prefix does.
+if [[ $# -ne 1 || "$command_line" != *" && pwd -P >| "* ]]; then
+    exec bash -c "$command_line"
+fi
+
+refuse() {
+    echo "claudewheel: refused to run this command: $1. claudewheel runs a session's Bash commands only in the session's tools slice, under the memory cap they share" >&2
+    exit 1
+}
+
+[[ -n "$slice" ]] ||
+    refuse "CLAUDEWHEEL_TOOL_SLICE is empty, and claudewheel launches every session with it set beside this prefix"
+
+session_scope=${CLAUDEWHEEL_SESSION_SCOPE:-}
+max=${CLAUDEWHEEL_TOOL_MEMORY_MAX:-}
+swap=${CLAUDEWHEEL_TOOL_MEMORY_SWAP_MAX:-}
+[[ "$session_scope" =~ ^claudewheel-session-([0-9]+)-([0-9]+)\.scope$ ]] ||
+    refuse "CLAUDEWHEEL_SESSION_SCOPE is not a claudewheel session scope: '$session_scope'"
+unit="claudewheel-tool-${BASH_REMATCH[1]}-${BASH_REMATCH[2]}-$$.scope"
+max_bytes=$(bytes "$max") || refuse "CLAUDEWHEEL_TOOL_MEMORY_MAX is not a size: '$max'"
+swap_bytes=$(bytes "$swap") || refuse "CLAUDEWHEEL_TOOL_MEMORY_SWAP_MAX is not a size: '$swap'"
+
+# Reads the slice's state and caps as systemd reports them.
+read_slice() {
+    local out
+    out=$(systemctl --user show -p ActiveState -p MemoryMax -p MemorySwapMax "$slice" 2>/dev/null || true)
+    state=$(sed -n 's/^ActiveState=//p' <<<"$out")
+    slice_max=$(sed -n 's/^MemoryMax=//p' <<<"$out")
+    slice_swap=$(sed -n 's/^MemorySwapMax=//p' <<<"$out")
+}
+capped() {
+    [[ "$state" == active && "$slice_max" == "$max_bytes" && "$slice_swap" == "$swap_bytes" ]]
+}
+
+read_slice
+if ! capped; then
+    created=""
+    if [[ "$state" != active ]]; then
+        # A transient slice holds its caps from the moment it exists. Two first
+        # commands may race to create it: the second creation fails, and the
+        # slice the first made is read again below.
+        created=$(busctl --user call org.freedesktop.systemd1 /org/freedesktop/systemd1 \
+            org.freedesktop.systemd1.Manager StartTransientUnit 'ssa(sv)a(sa(sv))' \
+            "$slice" fail 3 MemoryMax t "$max_bytes" MemorySwapMax t "$swap_bytes" \
+            Description s "claudewheel Bash tools of $session_scope, capped together" \
+            0 2>&1 >/dev/null) || created="could not create it: ${created:-busctl failed}"
+        read_slice
+    fi
+    if ! capped; then
+        if [[ -n "$created" ]]; then
+            refuse "$slice, capped at $max of memory and $swap of swap, $created"
+        fi
+        refuse "$slice has no $max memory cap (ActiveState=${state:-unknown}, MemoryMax=${slice_max:-unknown}, MemorySwapMax=${slice_swap:-unknown})"
+    fi
+fi
+
+# --expand-environment=no: systemd-run would otherwise expand $VAR and $$ in
+# the command line. OOMPolicy=continue: a kill of one process leaves the rest
+# of the command, and this wrapper, to finish and report it.
+exec systemd-run --user --scope --quiet --collect --expand-environment=no \
+    --slice="$slice" --unit="$unit" --description="Bash tool command of $session_scope" \
+    -p OOMPolicy=continue \
+    -- "${BASH_SOURCE[0]}" --claudewheel-in-tool-scope "$command_line"

@@ -63,3 +63,14 @@ The Python writes JSON in these layouts, each now a function: `MarshalIndented` 
 - `RunPTY` returns an error when the program cannot be started; the Python's forked child exited 127 instead.
 - Install's streaming download is one operation, `fx.Download(req, path, onChunk)`: live, it streams into `path` calling `onChunk` per 1 MiB chunk (hashing and progress); under `--dry-run` it records the `net` request and the write of `path` from its output, which is what the Python's preview branch recorded. Its `Timeout` restarts with every chunk, the closest match to urllib's per-socket-operation timeout.
 - Every HTTP request requires a positive `Timeout` (urllib allowed none).
+
+## hookscripts: the constants it fills placeholders from
+
+The templates' placeholders are filled from the packages that own the values, which do not exist yet; they must export these names: `lifecycle.SessionUUIDRE` (a `*regexp.Regexp`), `probe.BindLineRE` (a `*regexp.Regexp`), `probe.OOMKillFix` and `probe.OverlapSentence` (strings), `probe.HookWaitSeconds` (an int), and `probe.ServiceName` (a string). The bash hooks embed the two patterns through `String()`, so their source text must stay the Python pattern text byte for byte. `probe` must never import `hookscripts` (both are in the stores layer).
+
+## hookscripts: registry and deploy
+
+- The registry is functions (`Names`, `IsScript`, `Script`, `PathCommands`, `Exit2Hooks`), built per call; a script's text is generated only when `Script` is called. A declared placeholder missing from its template is an error.
+- `DeployScripts` checks every name before writing anything (the Python raised KeyError mid-loop). `MissingScripts` is the shared "registered and not deployed" filter of the reconcile, the vanilla opt-in, and the launch; `CheckDeployed` returns per-script states for the drift health check.
+- A stat error other than "does not exist" is an error (pathlib's `exists()` swallowed some).
+- `ServiceUnit(executable)` writes `ExecStart=<executable> probe run-service` unquoted, as the plan states, followed by `SuccessExitStatus=143`; it refuses a relative path and one holding whitespace, a control character, or any of `"'\%$;`, which systemd would not take literally.
