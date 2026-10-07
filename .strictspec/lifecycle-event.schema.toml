@@ -28,7 +28,7 @@ format_version = 1
 document_syntax = "jsonl"
 role = "schema"
 root = "LifecycleEvent"
-targets = ["python"]
+targets = ["python", "go"]
 description = "One JSONL session lifecycle line: a single fact about one Claude Code session, discriminated by `kind`."
 
 # ---------------------------------------------------------------------------

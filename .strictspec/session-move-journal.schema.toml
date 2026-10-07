@@ -17,7 +17,7 @@ format_version = 1
 document_syntax = "json"
 role = "schema"
 root = "SessionMoveJournal"
-targets = ["python"]
+targets = ["python", "go"]
 description = "One session move that has not finished: where the session moves, what it was before, and which steps are done."
 
 [types.SessionMoveJournal]

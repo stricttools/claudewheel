@@ -19,7 +19,7 @@ format_version = 1
 document_syntax = "json"
 role = "schema"
 root = "ProbeReport"
-targets = ["python"]
+targets = ["python", "go"]
 description = "One report of one OOM kill to one conversation of one Claude Code session."
 
 [types.ProbeReport]

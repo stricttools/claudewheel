@@ -23,7 +23,7 @@ format_version = 1
 document_syntax = "jsonl"
 role = "schema"
 root = "ProbeSessionEvent"
-targets = ["python"]
+targets = ["python", "go"]
 description = "One JSONL probe session line: a Bash call starting or ending, or a subagent launched or finished."
 
 [types.CallStartedEvent]

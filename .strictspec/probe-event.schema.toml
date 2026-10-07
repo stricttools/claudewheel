@@ -24,7 +24,7 @@ format_version = 1
 document_syntax = "jsonl"
 role = "schema"
 root = "ProbeEvent"
-targets = ["python"]
+targets = ["python", "go"]
 description = "One JSONL probe line: a single fact about one probe, discriminated by `kind`."
 
 [types.CreatedEvent]

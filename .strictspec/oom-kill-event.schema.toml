@@ -19,7 +19,7 @@ format_version = 1
 document_syntax = "jsonl"
 role = "schema"
 root = "OomKillEvent"
-targets = ["python"]
+targets = ["python", "go"]
 description = "One JSONL OOM kill line: a kill systemd reported for one unit, and where its reports went."
 
 [types.OomKillEvent]
