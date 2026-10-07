@@ -24,9 +24,9 @@ func renderPage(t *terminal.Terminal, c Colors, p Page) error {
 	startRow := max(1, (rows-(2+len(p.Lines)))/2)
 	var buf strings.Builder
 	buf.WriteString(terminal.ClearScreen)
-	buf.WriteString(terminal.MoveTo(startRow, centered(cols, textWidth(p.Title))))
+	buf.WriteString(terminal.MoveTo(startRow, CenteredColumn(cols, RuneCount(p.Title))))
 	buf.WriteString(terminal.Bold + c.FormsTitleFg + p.Title + terminal.Reset)
-	leftCol := centered(cols, fieldAreaWidth)
+	leftCol := CenteredColumn(cols, FieldAreaWidth)
 	for i, line := range p.Lines {
 		buf.WriteString(terminal.MoveTo(startRow+2+i, leftCol) + c.FormsFieldFg + line + terminal.Reset)
 	}

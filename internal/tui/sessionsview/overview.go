@@ -121,7 +121,7 @@ func Draw(t *terminal.Terminal, c widgets.Colors, frame Frame, footer string, me
 		if message {
 			color = c.SessionsMessageFg
 		}
-		buf.WriteString(terminal.MoveTo(rows, 1) + color + runePrefix(footer, cols-1) + terminal.Reset)
+		buf.WriteString(terminal.MoveTo(rows, 1) + color + widgets.RunePrefix(footer, cols-1) + terminal.Reset)
 	}
 	return t.Write(buf.String())
 }

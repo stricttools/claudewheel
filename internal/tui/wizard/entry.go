@@ -5,7 +5,6 @@ import (
 	"errors"
 	"strings"
 	"unicode"
-	"unicode/utf8"
 
 	"github.com/stricttools/claudewheel/internal/terminal"
 	"github.com/stricttools/claudewheel/internal/tui/widgets"
@@ -13,9 +12,6 @@ import (
 
 // tokenMask is drawn for every character of a token being entered.
 const tokenMask = "*"
-
-// entryAreaWidth matches the widgets' centered field area.
-const entryAreaWidth = 60
 
 // hintEntry is the token entry page's hint.
 const hintEntry = "paste or type the token   enter: submit (empty aborts)   esc: cancel"
@@ -28,26 +24,22 @@ type tokenEntry struct {
 	errMsg string
 }
 
-func centeredCol(cols, width int) int {
-	return max(1, (cols-width)/2)
-}
-
 func (e tokenEntry) render(t *terminal.Terminal, c widgets.Colors, typed int) error {
 	rows, cols := t.Rows, t.Cols
 	startRow := max(1, (rows-4)/2)
-	left := centeredCol(cols, entryAreaWidth)
+	left := widgets.CenteredColumn(cols, widgets.FieldAreaWidth)
 	var buf strings.Builder
 	buf.WriteString(terminal.ClearScreen)
-	buf.WriteString(terminal.MoveTo(startRow, centeredCol(cols, utf8.RuneCountInString(e.title))))
+	buf.WriteString(terminal.MoveTo(startRow, widgets.CenteredColumn(cols, widgets.RuneCount(e.title))))
 	buf.WriteString(terminal.Bold + c.FormsTitleFg + e.title + terminal.Reset)
 	buf.WriteString(terminal.MoveTo(startRow+2, left) + c.FormsFieldFg + e.prompt + terminal.Reset)
 	// The mask line shows how many characters were taken, never the
 	// characters; a long token is shown by its count past the area.
-	shown := min(typed, entryAreaWidth-2)
+	shown := min(typed, widgets.FieldAreaWidth-2)
 	mask := "[" + strings.Repeat(tokenMask, shown) + terminal.Reset + c.FormsCursorFg + "_" + terminal.Reset + c.FormsFieldFg + "]"
 	buf.WriteString(terminal.MoveTo(startRow+3, left) + c.FormsFieldFg + mask + terminal.Reset)
 	if e.errMsg != "" {
-		buf.WriteString(terminal.MoveTo(rows-1, centeredCol(cols, utf8.RuneCountInString(e.errMsg))))
+		buf.WriteString(terminal.MoveTo(rows-1, widgets.CenteredColumn(cols, widgets.RuneCount(e.errMsg))))
 		buf.WriteString(terminal.Bold + c.FormsErrorFg + e.errMsg + terminal.Reset)
 	}
 	buf.WriteString(terminal.MoveTo(rows, 2) + c.FormsHintFg + hintEntry + terminal.Reset)

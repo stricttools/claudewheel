@@ -7,14 +7,13 @@ import (
 	"slices"
 	"strings"
 	"unicode"
-	"unicode/utf8"
 
 	"github.com/stricttools/claudewheel/internal/terminal"
 )
 
-// fieldAreaWidth is the width of the left-aligned field area, which is
+// FieldAreaWidth is the width of the left-aligned field area, which is
 // centered on the screen.
-const fieldAreaWidth = 60
+const FieldAreaWidth = 60
 
 // FieldType is what a form field is and how it takes keys.
 type FieldType int
@@ -216,16 +215,6 @@ func fieldLines(f *Field, focused bool, c Colors) []string {
 	return []string{labelStyle + f.Label + reset}
 }
 
-// centered returns the 1-based column that centers text of width w on a
-// screen cols wide, at least column 1.
-func centered(cols, w int) int {
-	return max(1, (cols-w)/2)
-}
-
-func textWidth(s string) int {
-	return utf8.RuneCountInString(s)
-}
-
 // renderForm draws the form centered on the whole screen.
 func renderForm(t *terminal.Terminal, c Colors, form Form, focus int, errMsg string) error {
 	rows, cols := t.Rows, t.Cols
@@ -246,10 +235,10 @@ func renderForm(t *terminal.Terminal, c Colors, form Form, focus int, errMsg str
 	startRow := max(1, (rows-(2+lineCount))/2)
 	var buf strings.Builder
 	buf.WriteString(terminal.ClearScreen)
-	buf.WriteString(terminal.MoveTo(startRow, centered(cols, textWidth(form.Title))))
+	buf.WriteString(terminal.MoveTo(startRow, CenteredColumn(cols, RuneCount(form.Title))))
 	buf.WriteString(terminal.Bold + c.FormsTitleFg + form.Title + terminal.Reset)
 
-	leftCol := centered(cols, fieldAreaWidth)
+	leftCol := CenteredColumn(cols, FieldAreaWidth)
 	row := startRow + 2
 	for i, f := range form.Fields {
 		if !visible[i] {
@@ -257,7 +246,7 @@ func renderForm(t *terminal.Terminal, c Colors, form Form, focus int, errMsg str
 		}
 		col := leftCol
 		if f.Type == FieldButton {
-			col = centered(cols, textWidth(f.Label)+4)
+			col = CenteredColumn(cols, RuneCount(f.Label)+4)
 		}
 		for _, line := range fieldLines(f, i == focus, c) {
 			buf.WriteString(terminal.MoveTo(row, col) + line)
@@ -266,7 +255,7 @@ func renderForm(t *terminal.Terminal, c Colors, form Form, focus int, errMsg str
 	}
 
 	if errMsg != "" {
-		buf.WriteString(terminal.MoveTo(rows-1, centered(cols, textWidth(errMsg))))
+		buf.WriteString(terminal.MoveTo(rows-1, CenteredColumn(cols, RuneCount(errMsg))))
 		buf.WriteString(terminal.Bold + c.FormsErrorFg + errMsg + terminal.Reset)
 	}
 	buf.WriteString(terminal.MoveTo(rows, 2) + c.FormsHintFg + hintsFor(form.Fields[focus]) + terminal.Reset)

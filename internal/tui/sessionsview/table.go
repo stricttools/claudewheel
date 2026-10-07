@@ -8,6 +8,7 @@ import (
 
 	"github.com/stricttools/claudewheel/internal/lifecycle"
 	"github.com/stricttools/claudewheel/internal/sessions"
+	"github.com/stricttools/claudewheel/internal/tui/widgets"
 )
 
 // CategoryLabels is what a registry session category reads as in the table's
@@ -162,7 +163,7 @@ type columnSpec struct {
 func longestState() int {
 	longest := 0
 	for _, s := range lifecycle.States() {
-		longest = max(longest, runeLen(s))
+		longest = max(longest, widgets.RuneCount(s))
 	}
 	return longest
 }
@@ -339,9 +340,9 @@ func columnWidths(specs []columnSpec, table [][]string) []int {
 			widths[i] = spec.fixed
 			continue
 		}
-		natural := runeLen(spec.label)
+		natural := widgets.RuneCount(spec.label)
 		for _, row := range table {
-			natural = max(natural, runeLen(row[i]))
+			natural = max(natural, widgets.RuneCount(row[i]))
 		}
 		width := max(spec.minimum, natural)
 		if spec.maximum > 0 {
@@ -355,7 +356,7 @@ func columnWidths(specs []columnSpec, table [][]string) []int {
 // pad fits text to width: truncated if long, aligned if short.
 func pad(text string, width int, spec columnSpec) string {
 	cut := truncate(text, width, spec.truncateLeft)
-	fill := strings.Repeat(" ", max(0, width-runeLen(cut)))
+	fill := strings.Repeat(" ", max(0, width-widgets.RuneCount(cut)))
 	if spec.alignRight {
 		return fill + cut
 	}
@@ -422,9 +423,9 @@ func cutLine(line Line, width int) Line {
 		if room <= 0 {
 			break
 		}
-		text := runePrefix(span.Text, room)
+		text := widgets.RunePrefix(span.Text, room)
 		out = append(out, Span{text, span.Style})
-		room -= runeLen(text)
+		room -= widgets.RuneCount(text)
 	}
 	return out
 }

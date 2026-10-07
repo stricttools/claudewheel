@@ -136,13 +136,13 @@ type ListSpec struct {
 // short for it would otherwise show nothing at all.
 func BuildFrame(spec ListSpec) ([]FrameLine, error) {
 	frame := []FrameLine{
-		{runePrefix(spec.Title, spec.Width), ListTitle},
+		{widgets.RunePrefix(spec.Title, spec.Width), ListTitle},
 		{"", ListBlank},
 	}
 	window := max(0, spec.Height-listChromeLines)
 
 	if len(spec.Blocks) == 0 {
-		frame = append(frame, FrameLine{runePrefix(spec.EmptyText, spec.Width), ListEmpty})
+		frame = append(frame, FrameLine{widgets.RunePrefix(spec.EmptyText, spec.Width), ListEmpty})
 	} else {
 		heights, err := BlockHeights(spec.Blocks, spec.Focus, spec.NowMS, spec.Identity)
 		if err != nil {
@@ -180,12 +180,12 @@ func BuildFrame(spec ListSpec) ([]FrameLine, error) {
 				case highlighted:
 					style = ListFocus
 				}
-				frame = append(frame, FrameLine{runePrefix(text, spec.Width), style})
+				frame = append(frame, FrameLine{widgets.RunePrefix(text, spec.Width), style})
 			}
 		}
 	}
 
-	frame = append(frame, FrameLine{"", ListBlank}, FrameLine{runePrefix(spec.Hint, spec.Width), ListHint})
+	frame = append(frame, FrameLine{"", ListBlank}, FrameLine{widgets.RunePrefix(spec.Hint, spec.Width), ListHint})
 	if spec.Height >= 0 && len(frame) > spec.Height {
 		frame = frame[:spec.Height]
 	}

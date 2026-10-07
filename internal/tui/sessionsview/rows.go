@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/stricttools/claudewheel/internal/sessions"
+	"github.com/stricttools/claudewheel/internal/tui/widgets"
 )
 
 // SessionIDEnv is the environment variable carrying Claude Code's own
@@ -44,13 +45,8 @@ func CurrentIdentity(lookup func(string) (string, bool)) *Identity {
 	rawPID, _ := lookup(PIDEnv)
 	sessionID = strings.TrimSpace(sessionID)
 	rawPID = strings.TrimSpace(rawPID)
-	if sessionID == "" || rawPID == "" {
+	if sessionID == "" || !sessions.AllDigits(rawPID) {
 		return nil
-	}
-	for _, r := range rawPID {
-		if r < '0' || r > '9' {
-			return nil
-		}
 	}
 	pid, err := strconv.Atoi(rawPID)
 	if err != nil || pid <= 0 {
@@ -155,7 +151,7 @@ func FormatRow(record sessions.SessionRecord, opts BlockOptions) ([]string, erro
 	if opts.Selector != "" {
 		prefix = opts.Selector + " "
 	}
-	indent := strings.Repeat(" ", runeLen(prefix)+len(CurrentMark)+1)
+	indent := strings.Repeat(" ", widgets.RuneCount(prefix)+len(CurrentMark)+1)
 	memory := ""
 	if opts.RSSKiB != nil {
 		m, err := FormatMemory(*opts.RSSKiB)
@@ -211,21 +207,4 @@ func FormatRow(record sessions.SessionRecord, opts BlockOptions) ([]string, erro
 		indent + strings.Join(resources, clauseSep),
 		stateLine,
 	}, nil
-}
-
-// runeLen counts code points, the unit every width here is measured in.
-func runeLen(s string) int {
-	return len([]rune(s))
-}
-
-// runePrefix is the first n code points of s; n <= 0 is empty.
-func runePrefix(s string, n int) string {
-	if n <= 0 {
-		return ""
-	}
-	r := []rune(s)
-	if len(r) <= n {
-		return s
-	}
-	return string(r[:n])
 }

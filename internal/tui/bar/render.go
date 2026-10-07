@@ -5,7 +5,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/stricttools/claudewheel/internal/terminal"
 	"github.com/stricttools/claudewheel/internal/tui/widgets"
@@ -151,7 +150,7 @@ func (r *Renderer) hintLineCount(hints []string) int {
 	if len(hints) == 0 {
 		return 1
 	}
-	if runeLen(strings.Join(hints, hintSeparator)) <= r.cols-4 {
+	if widgets.RuneCount(strings.Join(hints, hintSeparator)) <= r.cols-4 {
 		return 1
 	}
 	return 2
@@ -160,9 +159,9 @@ func (r *Renderer) hintLineCount(hints []string) int {
 // fitValue cuts value to maxW characters with an ellipsis, or pads it with
 // spaces to minW.
 func fitValue(value string, minW, maxW int) string {
-	n := runeLen(value)
+	n := widgets.RuneCount(value)
 	if n > maxW {
-		return runePrefix(value, maxW-1) + ellipsis
+		return widgets.RunePrefix(value, maxW-1) + ellipsis
 	}
 	if n < minW {
 		return value + strings.Repeat(" ", minW-n)
@@ -173,7 +172,7 @@ func fitValue(value string, minW, maxW int) string {
 // computeLayout places every segment on the bar.
 func (r *Renderer) computeLayout(b *Bar) {
 	col := 2
-	sepWidth := runeLen(r.Colors.SeparatorChar)
+	sepWidth := widgets.RuneCount(r.Colors.SeparatorChar)
 	r.layout = r.layout[:0]
 	for i, seg := range b.Segments {
 		focused := i == b.Focus
@@ -201,8 +200,8 @@ func (r *Renderer) computeLayout(b *Bar) {
 			value:        value,
 			hasCursor:    focused && (seg.Creating || (seg.Searchable && seg.SearchBuffer != "")),
 			focused:      focused,
-			labelWidth:   runeLen(label),
-			valueWidth:   runeLen(value),
+			labelWidth:   widgets.RuneCount(label),
+			valueWidth:   widgets.RuneCount(value),
 			segmentIndex: i,
 		}
 		r.layout = append(r.layout, item)
@@ -241,7 +240,7 @@ func (r *Renderer) computeViewport() int {
 func (r *Renderer) drawBar(buf *strings.Builder, b *Bar, center int) {
 	c := r.Colors
 	sep := c.SeparatorChar
-	sepWidth := runeLen(sep)
+	sepWidth := widgets.RuneCount(sep)
 	r.computeLayout(b)
 	r.viewportStart = r.computeViewport()
 	r.scrolling = r.totalWidth > r.cols
@@ -263,32 +262,32 @@ func (r *Renderer) drawBar(buf *strings.Builder, b *Bar, center int) {
 				if maxChars <= 0 {
 					continue
 				}
-				if maxChars < runeLen(label) {
-					label = runePrefix(label, maxChars)
+				if maxChars < widgets.RuneCount(label) {
+					label = widgets.RunePrefix(label, maxChars)
 					value = ""
 				} else {
-					value = runePrefix(value, maxChars-runeLen(label))
+					value = widgets.RunePrefix(value, maxChars-widgets.RuneCount(label))
 				}
 				hasCursor = false
 			}
 			// Skip what falls left of the left margin.
 			if renderCol < ArrowMargin {
 				skip := ArrowMargin - renderCol
-				if skip >= runeLen(label)+runeLen(value) {
+				if skip >= widgets.RuneCount(label)+widgets.RuneCount(value) {
 					continue
 				}
-				if skip >= runeLen(label) {
-					value = runeSuffixFrom(value, skip-runeLen(label))
+				if skip >= widgets.RuneCount(label) {
+					value = widgets.RuneSuffix(value, skip-widgets.RuneCount(label))
 					label = ""
 				} else {
-					label = runeSuffixFrom(label, skip)
+					label = widgets.RuneSuffix(label, skip)
 				}
 				renderCol = ArrowMargin
 				hasCursor = false
 			}
 		}
 
-		r.valueCols[seg.Key] = renderCol + runeLen(label)
+		r.valueCols[seg.Key] = renderCol + widgets.RuneCount(label)
 		buf.WriteString(terminal.MoveTo(center, renderCol))
 		sc := r.segColors(seg.Key)
 		if li.focused {
@@ -319,7 +318,7 @@ func (r *Renderer) drawBar(buf *strings.Builder, b *Bar, center int) {
 		if li.segmentIndex == len(b.Segments)-1 {
 			continue
 		}
-		sepCol := renderCol + runeLen(label) + runeLen(value)
+		sepCol := renderCol + widgets.RuneCount(label) + widgets.RuneCount(value)
 		if hasCursor {
 			sepCol++
 		}
@@ -442,12 +441,12 @@ func (r *Renderer) drawFanOut(buf *strings.Builder, b *Bar, center, reservedBott
 			if col < 1 {
 				return
 			}
-			if col+runeLen(display) > r.cols {
+			if col+widgets.RuneCount(display) > r.cols {
 				avail := r.cols - col
 				if avail <= 0 {
 					return
 				}
-				display = runePrefix(display, avail)
+				display = widgets.RunePrefix(display, avail)
 			}
 		}
 		buf.WriteString(terminal.MoveTo(row, col))
@@ -485,7 +484,7 @@ func (r *Renderer) drawOption(buf *strings.Builder, seg *Segment, opt, display s
 			glyph = provenanceGlyphs()[src]
 		}
 		prefix = glyph + " "
-		display = runePrefix(display, max(0, runeLen(display)-2))
+		display = widgets.RunePrefix(display, max(0, widgets.RuneCount(display)-2))
 	}
 	switch {
 	case opt == c.EmptyValueText:
@@ -519,7 +518,7 @@ func (r *Renderer) drawHighlighted(buf *strings.Builder, query, opt, display, ba
 	}
 	displayRunes := []rune(display)
 	limit := len(displayRunes)
-	if runeLen(opt) > limit && strings.HasSuffix(display, ellipsis) {
+	if widgets.RuneCount(opt) > limit && strings.HasSuffix(display, ellipsis) {
 		limit--
 	}
 	matched := map[int]bool{}
@@ -577,7 +576,7 @@ func (r *Renderer) drawStatus(buf *strings.Builder, f Frame) {
 	maxWidth := r.cols - 4
 	line := func(row int, style, text string) {
 		buf.WriteString(terminal.MoveTo(row, 2))
-		buf.WriteString(style + runePrefix(text, maxWidth) + terminal.Reset)
+		buf.WriteString(style + widgets.RunePrefix(text, maxWidth) + terminal.Reset)
 	}
 	switch {
 	case f.Flash != "":
@@ -593,7 +592,7 @@ func (r *Renderer) drawStatus(buf *strings.Builder, f Frame) {
 		return
 	}
 	joined := strings.Join(f.Hints, hintSeparator)
-	if runeLen(joined) <= maxWidth {
+	if widgets.RuneCount(joined) <= maxWidth {
 		line(r.rows, terminal.Dim, joined)
 		return
 	}
@@ -607,7 +606,7 @@ func (r *Renderer) drawStatus(buf *strings.Builder, f Frame) {
 func splitHints(hints []string, maxWidth int) (string, string) {
 	used, split := 0, 0
 	for i, h := range hints {
-		need := runeLen(h)
+		need := widgets.RuneCount(h)
 		if i > 0 {
 			need += len(hintSeparator)
 		}
@@ -621,28 +620,4 @@ func splitHints(hints []string, maxWidth int) (string, string) {
 		split = 1
 	}
 	return strings.Join(hints[:split], hintSeparator), strings.Join(hints[split:], hintSeparator)
-}
-
-func runeLen(s string) int { return utf8.RuneCountInString(s) }
-
-// runePrefix returns the first n characters of s (all of it when shorter;
-// none when n is not positive).
-func runePrefix(s string, n int) string {
-	if n <= 0 {
-		return ""
-	}
-	r := []rune(s)
-	if n >= len(r) {
-		return s
-	}
-	return string(r[:n])
-}
-
-// runeSuffixFrom returns s without its first n characters.
-func runeSuffixFrom(s string, n int) string {
-	r := []rune(s)
-	if n >= len(r) {
-		return ""
-	}
-	return string(r[max(0, n):])
 }
