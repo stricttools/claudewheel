@@ -137,3 +137,25 @@ The unit writes `ExecStart="<executable>" probe run-service`, double-quoted as t
 ## probe: waking a waiter
 
 `WakeWaiter(fx, store, session)` writes its one byte with raw `syscall.Open`/`Write` on the FIFO, outside `effects`: it changes no file, and an `*os.File` would turn a write to a full pipe into a wait (the runtime poller) instead of EAGAIN. Under `--dry-run` it wakes nothing. Departures from the Python, which swallowed every OSError: a path that is not a FIFO is an error, and only ENXIO (no reader) and ENOENT (removed after the check) mean "nothing to wake"; any other open or write error except EAGAIN is returned.
+
+## appconfig: Load, Ensure, and Upgrade
+
+- Load, Ensure, and every single-file reader (`ReadOptions`, `ReadState`, the option and state mutators) refuse a file that Upgrade would change, naming `claudewheel upgrade-workspace` (`ErrUpgradeNeeded`). That covers the retired keys and also a key the defaults declare that the file lacks, since the strict decode would refuse that file anyway and the error should name the fix. A missing file is an error naming `claudewheel launch` (`ErrNotSetUp`); a corrupt file is an error. The Python fell back to the defaults silently in both cases.
+- Upgrade: config.json loses `_schema_version` and gains missing top-level keys; segments.json completes each listed default segment; options.json gains `values` and `pinned` on each listed default segment, plus the `model` entry and its `discovery` when absent (the Python added exactly those two); state.json loses `scratchpad_snooze_until` and a non-boolean `vanilla_guardrails_opt_in` (the Python read null and the old per-project object as "not chosen", which absence now means) and gains missing `DEFAULT_STATE` keys; both theme files gain missing keys. Every converted file is checked to decode before any file is written. Leftovers of the deleted migrations (such as `session_memory_max` from a workspace below schema 8) are not removed: Upgrade reports such a file as still unreadable.
+- Not ported: appending the default model seed to an existing `model.values` on every start. The seed is the first-run list, and model discovery accumulates new models.
+- Ensure also creates `shared-settings.json` when missing, as the Python store's construction did. Under `--dry-run`, the store holds the defaults the missing files would get.
+- `LoadTheme` still fills a theme file's missing keys from the default theme for that read only, as the Python `load_theme` did, so a partial custom theme still works. A missing or corrupt theme file, custom names included, is an error, where the Python used the default theme. A theme name must be a plain file name.
+- "auto" is resolved by `ResolveThemeName(name, background func() (string, error))`: the caller passes the terminal query, `""` (no answer) resolves to dark, and a query error is returned.
+
+## appconfig: map order, floats, and state keys
+
+- options.json's segments and metadata, `last_config`, `project_hook_approvals`, and the theme segments are Go maps, so the first Go write sorts their keys (the Python kept insertion order); contents do not change. `shared/inodes.json` stays an ordered tree.
+- state.json does hold floats (`npm_versions_cache.fetched_at`, `model_list_cache.fetched_at`), unlike the jsonfile note says. They are `float64` and are written in encoding/json's shortest form, the same digits as Python's `repr` except that an integral value loses its `.0`.
+- `scratchpad_dismissed` is an optional list of the absolute paths of the `/tmp/claude-<uid>/<project>` directories the user declined to delete, in the order they were declined. Like the other out-of-band keys, `SaveState` lets the copy on disk win.
+- `ProjectKey` resolves symbolic links with `filepath.EvalSymlinks`, so a directory that does not exist is an error (Python's `realpath` resolved whatever part existed). `RecordInode` returns errors where the Python returned silently (a failed stat, a corrupt inodes.json).
+- `OptionsFile.set_metadata` had no callers and is not ported. The state and option mutators require the file to exist; the Python created it from the defaults.
+
+## tokens: the entry and its store
+
+- `Entry` is a strict struct whose fields are all optional, since an entry written only to declare a plan holds no token. A date that does not parse is an error, where the Python assumed a fresh token. An entry with no dates at all still reports `TokenTTLDays` remaining, as in the Python.
+- `BuildEntry` refuses an empty token. The zero `ExpiryDisposition` is invalid, so every writer chooses one. `PlanTier`'s validation when a tier was constructed is not ported, because the plan list is static data.
