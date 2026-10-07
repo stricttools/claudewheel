@@ -168,7 +168,7 @@ func interactiveRefusal(name string) error {
 func askBeforeDeleting(c *call, cfg *appconfig.Store, name, configDir string, holders []deletion.Holder, missing *archiver.Unavailable, forceDelete bool) (deletionAnswers, error) {
 	ctx, stop := c.signalContext()
 	defer stop()
-	t, colors, err := c.openScreen(ctx, cfg)
+	t, colors, err := c.openScreen(ctx, cfg, "the deletion checklist and the saferm install offer of profile delete")
 	if err != nil {
 		return deletionAnswers{}, err
 	}
@@ -206,16 +206,7 @@ func askOnScreen(ctx context.Context, c *call, t *terminal.Terminal, colors widg
 	if missing == nil {
 		return answers, nil
 	}
-	lines := widgets.WrapText(missing.Diagnosis(), widgets.PageTextWidth)
-	lines = append(lines, "")
-	lines = append(lines, widgets.WrapText(missing.Stakes(name), widgets.PageTextWidth)...)
-	answer, err := widgets.Confirm(ctx, t, colors, widgets.Confirmation{
-		Title:   fmt.Sprintf("Cannot delete '%s' without saferm", name),
-		Lines:   lines,
-		Accept:  strings.ToLower(missing.Verb()) + " saferm from its published release",
-		Decline: "cancel the deletion",
-		Skip:    "cancel the deletion",
-	})
+	answer, err := widgets.Confirm(ctx, t, colors, deletion.SafermInstallOffer(missing, name))
 	if err != nil {
 		return answers, err
 	}

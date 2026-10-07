@@ -266,12 +266,25 @@ func kwBool(kw map[string]interface{}, name string) bool {
 	return strictcli.Get[bool](kw, name)
 }
 
+// requireTerminal refuses a command that prompts when nobody is at a
+// terminal to answer (terminal.HasControllingTerminal), so it never waits
+// for keys; what names the command for the refusal.
+func requireTerminal(what string) error {
+	if !terminal.HasControllingTerminal() {
+		return fmt.Errorf("%s needs someone at a terminal, and stdin is not a terminal or /dev/tty does not open", what)
+	}
+	return nil
+}
+
 // openScreen loads the colors of the configured theme (asking the terminal
 // for its background first when the theme is "auto"), then opens the
 // terminal in cbreak mode on the alternate screen. The caller defers
-// t.Close, which restores the terminal. No terminal to open (no /dev/tty)
-// is an error.
-func (c *call) openScreen(ctx context.Context, cfg *appconfig.Store) (*terminal.Terminal, widgets.Colors, error) {
+// t.Close, which restores the terminal. Nobody at a terminal is an error;
+// what names the command for it.
+func (c *call) openScreen(ctx context.Context, cfg *appconfig.Store, what string) (*terminal.Terminal, widgets.Colors, error) {
+	if err := requireTerminal(what); err != nil {
+		return nil, widgets.Colors{}, err
+	}
 	colors, err := widgets.LoadColors(ctx, c.ws, cfg.Config.Theme)
 	if err != nil {
 		return nil, widgets.Colors{}, err

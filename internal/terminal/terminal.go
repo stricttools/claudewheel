@@ -3,8 +3,10 @@
 // terminal size and its changes, the OSC 11 background and mode 2031
 // color-scheme queries, and the ANSI sequences the TUI draws with.
 //
-// The terminal is opened through /dev/tty rather than stdin, so a piped stdin
-// does not disable the TUI. A Terminal is used from one goroutine.
+// The terminal is opened through /dev/tty rather than stdin, so the TUI draws
+// there even with stdout redirected; whether anyone is at it to answer is
+// HasControllingTerminal's question, asked before opening. A Terminal is used
+// from one goroutine.
 //
 // Every key read takes a context and returns its cancellation cause as soon
 // as it is done. The intended shape of a caller:
@@ -105,11 +107,16 @@ func Open() (*Terminal, error) {
 	return t, nil
 }
 
-// HasControllingTerminal reports whether this process has a terminal it can
-// prompt at: whether /dev/tty opens. Every interactive surface reaches the
-// user through /dev/tty, so an isatty check on stdin or stdout would answer a
-// different question. Nothing is read, written, or left open.
+// HasControllingTerminal reports whether someone is at a terminal to prompt:
+// stdin is a terminal and /dev/tty opens. Every interactive surface asks it
+// before opening the terminal. /dev/tty alone is not enough: a process an
+// agent started can still have a controlling terminal while its stdin is a
+// pipe, and a prompt there would wait for keys nobody presses. Nothing is
+// read, written, or left open.
 func HasControllingTerminal() bool {
+	if _, err := unix.IoctlGetTermios(unix.Stdin, unix.TCGETS); err != nil {
+		return false
+	}
 	fd, err := unix.Open(ttyPath, unix.O_RDWR|unix.O_CLOEXEC, 0)
 	if err != nil {
 		return false

@@ -104,13 +104,17 @@ func planFields(plan tokens.PlanTier) string {
 // what it did once the terminal is restored. An error after the profile was
 // made still prints the summary so far.
 func handleProfileCreate(c *call, kw map[string]interface{}) error {
+	// Refused before the workspace is opened, which may write first-run files.
+	if err := requireTerminal("profile create"); err != nil {
+		return err
+	}
 	cfg, err := c.appConfig()
 	if err != nil {
 		return err
 	}
 	ctx, stop := c.signalContext()
 	defer stop()
-	t, colors, err := c.openScreen(ctx, cfg)
+	t, colors, err := c.openScreen(ctx, cfg, "profile create")
 	if err != nil {
 		return err
 	}

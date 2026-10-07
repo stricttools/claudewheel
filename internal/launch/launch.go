@@ -28,7 +28,6 @@ import (
 	"github.com/stricttools/claudewheel/internal/profiles"
 	"github.com/stricttools/claudewheel/internal/projecthooks"
 	"github.com/stricttools/claudewheel/internal/sessions"
-	"github.com/stricttools/claudewheel/internal/terminal"
 	"github.com/stricttools/claudewheel/internal/tui/bar"
 	"github.com/stricttools/claudewheel/internal/tui/widgets"
 	"github.com/stricttools/claudewheel/internal/workspace"
@@ -210,14 +209,14 @@ func (l *launcher) launchFromBar(explicitClient, defaultClient string, presets m
 	if err != nil {
 		return err
 	}
-	colors, err := widgets.LoadColors(ctx, l.ws, l.store.Config.Theme)
+	t, err := l.screens.openTerminal(ctx, "the launch bar (shown unless -s presets every required segment or --print-prompt runs one prompt)")
 	if err != nil {
 		return err
 	}
-	t, err := terminal.Open()
-	if err != nil {
-		return err
-	}
+	// Close is idempotent: the deferred one restores the terminal when the
+	// bar ends by a panic, such as a --dry-run reaching a recorded result.
+	defer t.Close()
+	colors := l.screens.colors
 	out, err := bar.Run(ctx, l.env.FX, t, colors, l.store, bar.Input{
 		Locator:   l.binaries.Locator,
 		Home:      filepath.Dir(l.ws.Root()),

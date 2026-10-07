@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"slices"
-	"strings"
 
 	"github.com/stricttools/claudewheel/internal/appconfig"
 	"github.com/stricttools/claudewheel/internal/archiver"
@@ -14,6 +13,7 @@ import (
 	"github.com/stricttools/claudewheel/internal/profiles"
 	"github.com/stricttools/claudewheel/internal/sessions"
 	"github.com/stricttools/claudewheel/internal/tokens"
+	"github.com/stricttools/claudewheel/internal/tui/deletion"
 	"github.com/stricttools/claudewheel/internal/tui/sessionsview"
 	"github.com/stricttools/claudewheel/internal/tui/widgets"
 )
@@ -378,11 +378,7 @@ func (a *app) resolveArchiver(ctx context.Context, name string) (*archiver.Tool,
 		return tool, err
 	}
 	notDeleted := fmt.Sprintf("'%s' was not deleted", name)
-	explain := func() []string {
-		lines := widgets.WrapText(missing.Diagnosis(), widgets.PageTextWidth)
-		lines = append(lines, "")
-		return append(lines, widgets.WrapText(missing.Stakes(name), widgets.PageTextWidth)...)
-	}
+	explain := func() []string { return deletion.SafermExplanation(missing, name) }
 
 	if !archiver.MayOfferInstall(a.fx.Previewing(), true) {
 		lines := append(explain(), "",
@@ -391,13 +387,7 @@ func (a *app) resolveArchiver(ctx context.Context, name string) (*archiver.Tool,
 		return nil, a.page(ctx, notDeleted, append(lines, installCommandLines()...))
 	}
 
-	answer, err := widgets.Confirm(ctx, a.t, a.renderer.Colors, widgets.Confirmation{
-		Title:   fmt.Sprintf("Cannot delete '%s' without saferm", name),
-		Lines:   explain(),
-		Accept:  strings.ToLower(missing.Verb()) + " saferm from its published release",
-		Decline: "cancel the deletion",
-		Skip:    "cancel the deletion",
-	})
+	answer, err := widgets.Confirm(ctx, a.t, a.renderer.Colors, deletion.SafermInstallOffer(missing, name))
 	if err != nil {
 		return nil, err
 	}

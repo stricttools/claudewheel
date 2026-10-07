@@ -3,6 +3,7 @@ package launch
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io/fs"
 	"syscall"
 
@@ -23,9 +24,14 @@ type screens struct {
 	resolved bool
 }
 
-// open opens the terminal in cbreak mode on the alternate screen. The caller
-// defers Close, which restores it.
-func (s *screens) open(ctx context.Context) (*terminal.Terminal, error) {
+// openTerminal opens the terminal, not yet in cbreak mode, refusing when
+// nobody is at it to answer (terminal.HasControllingTerminal); what names
+// the screen for that refusal. The caller defers Close, which restores the
+// terminal.
+func (s *screens) openTerminal(ctx context.Context, what string) (*terminal.Terminal, error) {
+	if !terminal.HasControllingTerminal() {
+		return nil, fmt.Errorf("%s needs someone at a terminal, and stdin is not a terminal or /dev/tty does not open", what)
+	}
 	if !s.resolved {
 		c, err := widgets.LoadColors(ctx, s.ws, s.theme)
 		if err != nil {
@@ -33,7 +39,13 @@ func (s *screens) open(ctx context.Context) (*terminal.Terminal, error) {
 		}
 		s.colors, s.resolved = c, true
 	}
-	t, err := terminal.Open()
+	return terminal.Open()
+}
+
+// open opens the terminal in cbreak mode on the alternate screen for a
+// prompt. The caller defers Close, which restores it.
+func (s *screens) open(ctx context.Context) (*terminal.Terminal, error) {
+	t, err := s.openTerminal(ctx, "this launch's prompt")
 	if err != nil {
 		return nil, err
 	}
