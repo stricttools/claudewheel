@@ -150,13 +150,18 @@ func Run(env Env, req Request) error {
 }
 
 // launchWithoutBar launches with the values given on the command line over
-// those of the last launch. Print mode takes only the segments that apply to
-// it, and every one of those that is required must have a value.
+// those of the last launch; a value of a segment that is not freeform must be
+// one the segment offers once its discovery has run (checkOffered). Print
+// mode takes only the segments that apply to it, and every one of those that
+// is required must have a value.
 func (l *launcher) launchWithoutBar(adapter Adapter, presets map[string]string, enabled []appconfig.Segment, session Session, clientArgs []string, interactive bool) error {
 	for _, key := range slices.Sorted(maps.Keys(presets)) {
 		if err := adapter.CheckExplicit(key, presets[key]); err != nil {
 			return err
 		}
+	}
+	if err := l.checkOffered(enabled, presets); err != nil {
+		return err
 	}
 	selections := maps.Clone(l.store.State.LastConfig)
 	if selections == nil {
@@ -200,6 +205,31 @@ func (l *launcher) launchWithoutBar(adapter Adapter, presets map[string]string, 
 	})
 }
 
+// checkOffered runs to completion the discovery of each segment given a
+// value with -s that is not freeform, and refuses a value the segment does
+// not offer (bar.CheckPreset). An empty value reads as no value and is not
+// checked; a freeform segment takes any value.
+func (l *launcher) checkOffered(enabled []appconfig.Segment, presets map[string]string) error {
+	env := discover.Env{FX: l.env.FX, Home: l.home(), Now: time.Now, State: l.store.State, Profiles: profiles.New(l.ws)}
+	for _, def := range enabled {
+		value, given := presets[def.Key]
+		if !given || value == "" || (def.Freeform != nil && *def.Freeform) {
+			continue
+		}
+		offered, err := bar.OfferedOptions(env, l.store, def)
+		if err != nil {
+			return err
+		}
+		if err := bar.CheckPreset(def.Key, value, offered); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// home is the user's home directory, the workspace root's parent.
+func (l *launcher) home() string { return filepath.Dir(l.ws.Root()) }
+
 // launchFromBar shows the launch bar, preset with the command line's values,
 // and launches what the user chose there.
 func (l *launcher) launchFromBar(explicitClient, defaultClient string, presets map[string]string, session Session, clientArgs []string) error {
@@ -218,7 +248,7 @@ func (l *launcher) launchFromBar(explicitClient, defaultClient string, presets m
 	colors := l.screens.colors
 	out, err := bar.Run(ctx, l.env.FX, t, colors, l.store, bar.Input{
 		Locator:   l.binaries.Locator,
-		Home:      filepath.Dir(l.ws.Root()),
+		Home:      l.home(),
 		Now:       time.Now,
 		Overrides: presets,
 		Clients:   clients,

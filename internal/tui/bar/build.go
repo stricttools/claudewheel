@@ -1,10 +1,12 @@
 package bar
 
 import (
+	"errors"
 	"fmt"
 	"maps"
 	"os"
 	"slices"
+	"strings"
 
 	"github.com/stricttools/claudewheel/internal/appconfig"
 	"github.com/stricttools/claudewheel/internal/discover"
@@ -103,6 +105,22 @@ func newSegment(def appconfig.Segment) (*Segment, error) {
 	return seg, nil
 }
 
+// seededSegment builds the segment one segments.json entry describes with
+// what options.json holds for it (opt): its defaults, its pinned options,
+// and the recorded metadata. Discovery has not run on it.
+func seededSegment(def appconfig.Segment, opt appconfig.OptionSegment) (*Segment, error) {
+	seg, err := newSegment(def)
+	if err != nil {
+		return nil, err
+	}
+	seg.State.SetDefaults(defaultsFor(def.Key, opt))
+	for _, v := range opt.Pinned {
+		seg.State.AddPinned(v)
+	}
+	seg.State.SetMetadata(recordedMetadata(opt))
+	return seg, nil
+}
+
 // Built is a freshly built bar and the refresh failures its startup
 // discovery reported, for the bar to show.
 type Built struct {
@@ -126,15 +144,10 @@ func BuildBar(fx *effects.FX, env discover.Env, store *appconfig.Store) (Built, 
 			continue
 		}
 		opt := store.Options[def.Key]
-		seg, err := newSegment(def)
+		seg, err := seededSegment(def, opt)
 		if err != nil {
 			return Built{}, err
 		}
-		seg.State.SetDefaults(defaultsFor(def.Key, opt))
-		for _, v := range opt.Pinned {
-			seg.State.AddPinned(v)
-		}
-		seg.State.SetMetadata(recordedMetadata(opt))
 
 		result, ran, err := discover.Startup(env, opt)
 		if err != nil {
@@ -190,14 +203,119 @@ func BuildBar(fx *effects.FX, env discover.Env, store *appconfig.Store) (Built, 
 	return built, nil
 }
 
+// Offered is what a segment lists once its discovery has run to completion.
+type Offered struct {
+	Values []string
+	// RefreshError is the network or subprocess failure the discovery
+	// reported; Values then come from a cache or the segment's own values.
+	RefreshError error
+}
+
+// CheckPreset refuses value, given for segment key with -s, when offered
+// (what the segment lists once its discovery ran to completion) does not
+// hold it. The refusal names the values the segment does list, and the
+// discovery's refresh failure, which may be why value is missing.
+func CheckPreset(key, value string, offered Offered) error {
+	if slices.Contains(offered.Values, value) {
+		return nil
+	}
+	listed := "nothing"
+	if len(offered.Values) > 0 {
+		listed = strings.Join(offered.Values, ", ")
+	}
+	msg := fmt.Sprintf("-s %s=%s: the %s segment does not offer %q; it offers: %s", key, value, key, value, listed)
+	if offered.RefreshError != nil {
+		msg += fmt.Sprintf(" (its discovery could not refresh: %v)", offered.RefreshError)
+	}
+	return errors.New(msg)
+}
+
+// OfferedOptions returns what segment def offers once its discovery has run
+// to completion, network and subprocesses included, merged and ordered as
+// the bar merges them, for checking a command-line value when the bar is
+// skipped. It writes nothing.
+func OfferedOptions(env discover.Env, store *appconfig.Store, def appconfig.Segment) (Offered, error) {
+	opt := store.Options[def.Key]
+	seg, err := seededSegment(def, opt)
+	if err != nil {
+		return Offered{}, err
+	}
+	if opt.Discovery == nil {
+		return Offered{Values: slices.Clone(seg.Options())}, nil
+	}
+	result, err := discover.Run(env, opt)
+	if err != nil {
+		return Offered{}, fmt.Errorf("discovering the %s segment's options: %w", def.Key, err)
+	}
+	if err := seg.State.applyResult(result, nil); err != nil {
+		return Offered{}, fmt.Errorf("discovering the %s segment's options: %w", def.Key, err)
+	}
+	return Offered{Values: slices.Clone(seg.Options()), RefreshError: result.RefreshError}, nil
+}
+
+// discoverPresets runs to completion the slow discovery of each segment on
+// b that is not freeform and is given a value on the command line, so
+// ApplyOverrides checks that value against everything the segment offers (a
+// GitHub account appears only once gh has answered). The results are kept
+// as the background discovery's are: merged into the segment, models
+// recorded in options.json, and the caches saved to state.json. It returns
+// the keys it ran, which the background discovery then skips, each with
+// its refresh failure (nil when the refresh succeeded).
+func discoverPresets(fx *effects.FX, env discover.Env, store *appconfig.Store, b *Bar, overrides map[string]string) (map[string]error, error) {
+	ran := map[string]error{}
+	for _, key := range slices.Sorted(maps.Keys(overrides)) {
+		seg, ok := b.Segment(key)
+		if !ok || seg.Freeform || overrides[key] == "" {
+			continue
+		}
+		opt := store.Options[key]
+		if opt.Discovery == nil {
+			continue
+		}
+		slow, err := discover.IsSlow(opt.Discovery.Type)
+		if err != nil {
+			return nil, err
+		}
+		if !slow {
+			// Startup discovery already ran it in full.
+			continue
+		}
+		result, err := discover.Run(env, opt)
+		if err != nil {
+			return nil, fmt.Errorf("discovering the %s segment's options: %w", key, err)
+		}
+		verify, err := verifierFor(env, opt)
+		if err != nil {
+			return nil, err
+		}
+		if err := seg.State.applyResult(result, verify); err != nil {
+			return nil, fmt.Errorf("discovering the %s segment's options: %w", key, err)
+		}
+		result.ApplyToState(&store.State)
+		if key == appconfig.SegmentKeyModel {
+			if err := store.RecordDiscoveredModels(fx, result.Values, result.ModelRecord()); err != nil {
+				return nil, err
+			}
+		}
+		ran[key] = result.RefreshError
+	}
+	if len(ran) > 0 {
+		if err := store.SaveState(fx); err != nil {
+			return nil, err
+		}
+	}
+	return ran, nil
+}
+
 // ApplyOverrides selects each segment's value given on the command line
-// (segment key -> value). A value a segment does not list is taken as a
-// launch-only option, as a launch that skips the bar takes it: a GitHub
-// account the background discovery has not produced yet, say. An empty value,
-// which a launch that skips the bar reads as no value, is an error here: the
-// bar would select the last launch's value again when discovery arrives. A
-// key no segment on the bar has is an error naming the segments.
-func ApplyOverrides(b *Bar, overrides map[string]string) error {
+// (segment key -> value). A freeform segment takes a value it does not list
+// as a launch-only option. On any other segment a value it does not list is
+// refused by CheckPreset, naming the refresh failure refreshFailures holds
+// for that segment (see discoverPresets). An empty value, which a launch
+// that skips the bar reads as no value, is an error here: the bar would
+// select the last launch's value again when discovery arrives. A key no
+// segment on the bar has is an error naming the segments.
+func ApplyOverrides(b *Bar, overrides map[string]string, refreshFailures map[string]error) error {
 	names := slices.Sorted(maps.Keys(overrides))
 	for _, key := range names {
 		value := overrides[key]
@@ -214,6 +332,9 @@ func ApplyOverrides(b *Bar, overrides map[string]string) error {
 		}
 		if seg.SelectValue(value) {
 			continue
+		}
+		if !seg.Freeform {
+			return CheckPreset(key, value, Offered{Values: seg.Options(), RefreshError: refreshFailures[key]})
 		}
 		seg.State.AddEphemeral(value)
 		seg.SelectValue(value)

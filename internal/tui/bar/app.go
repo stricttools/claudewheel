@@ -236,11 +236,14 @@ type app struct {
 // Ctrl-C (terminal.ErrInterrupted) among them, it returns at once and
 // leaves restoring the terminal to its opener's Close.
 //
-// Before drawing, Run builds the bar from store (BuildBar), applies
-// in.Overrides, and starts the slow discoveries (discover.RunSlow) on a
-// copy of the state; their results are merged as they arrive, except the
-// focused segment's, which wait until it loses the focus. The client is
-// chosen first: in.Clients.Explicit, or the client picker.
+// Before drawing, Run builds the bar from store (BuildBar), runs to
+// completion the slow discovery of each segment in.Overrides gives a value
+// that is not freeform, applies in.Overrides (a value such a segment does
+// not offer is refused), and starts the other slow discoveries
+// (discover.RunSlow) on a copy of the state; their results are merged as
+// they arrive, except the focused segment's, which wait until it loses the
+// focus. The client is chosen first: in.Clients.Explicit, or the client
+// picker.
 //
 // The session to start in (new, continued, resumed, or picked) is the
 // launch command's choice and never the bar's; a print-prompt launch does
@@ -274,8 +277,20 @@ func Run(ctx context.Context, fx *effects.FX, t *terminal.Terminal, colors widge
 	if err != nil {
 		return Outcome{}, err
 	}
-	if err := ApplyOverrides(built.Bar, in.Overrides); err != nil {
+	// A preset segment's slow discovery runs to completion before its value
+	// is checked, so nothing launches with a value it does not offer.
+	discoveredPresets, err := discoverPresets(fx, env, store, built.Bar, in.Overrides)
+	if err != nil {
 		return Outcome{}, err
+	}
+	if err := ApplyOverrides(built.Bar, in.Overrides, discoveredPresets); err != nil {
+		return Outcome{}, err
+	}
+	flashes := built.RefreshErrors
+	for _, key := range slices.Sorted(maps.Keys(discoveredPresets)) {
+		if seg, ok := built.Bar.Segment(key); ok && discoveredPresets[key] != nil {
+			flashes = append(flashes, fmt.Sprintf("%s: %v", seg.Label, discoveredPresets[key]))
+		}
 	}
 
 	a := &app{
@@ -287,7 +302,7 @@ func Run(ctx context.Context, fx *effects.FX, t *terminal.Terminal, colors widge
 		profiles: ps,
 		bar:      built.Bar,
 		renderer: &Renderer{Colors: colors, Minimap: minimap},
-		flash:    strings.Join(built.RefreshErrors, "; "),
+		flash:    strings.Join(flashes, "; "),
 		slow:     make(chan slowResult, 1),
 		pending:  map[string]discover.Result{},
 	}
@@ -298,6 +313,9 @@ func Run(ctx context.Context, fx *effects.FX, t *terminal.Terminal, colors widge
 	bgEnv := env
 	bgEnv.State = cloneState(store.State)
 	opts := maps.Clone(store.Options)
+	for key := range discoveredPresets {
+		delete(opts, key)
+	}
 	go func() {
 		results, err := discover.RunSlow(bgEnv, opts)
 		a.slow <- slowResult{results, err}
@@ -955,14 +973,10 @@ func (a *app) confirmCreate(seg *Segment) error {
 	return a.store.AddOption(a.fx, seg.Key, name)
 }
 
-// promoteEphemeral pins every launch-only option selected on a freeform
-// segment, on disk too, before the launch. On any other segment a
-// launch-only option came from the command line and stays launch-only.
+// promoteEphemeral pins every selected launch-only option, on disk too,
+// before the launch.
 func (a *app) promoteEphemeral() error {
 	for _, seg := range a.bar.Segments {
-		if !seg.Freeform {
-			continue
-		}
 		v, ok := seg.Selected()
 		if !ok {
 			continue

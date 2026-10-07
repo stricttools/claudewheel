@@ -125,9 +125,9 @@ func DefaultOptions() Options {
 			Pinned: []string{},
 		},
 		SegmentKeyPermissions: {
-			// "plan" and "auto" are accepted (pinned or passed with --set) but
-			// not offered: Claude Code's own Shift+Tab cycle reaches plan mode
-			// from inside any session.
+			// "plan" and "auto" are accepted once pinned, but not offered:
+			// Claude Code's own Shift+Tab cycle reaches plan mode from inside
+			// any session.
 			Values: []string{"bypass", "default"},
 			Pinned: []string{},
 		},

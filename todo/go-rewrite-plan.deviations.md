@@ -472,3 +472,10 @@ Following the ruling on stray files in `shared/probes/waiters/`: `probe.WakeWait
 
 ## sessionmove: migrate refuses on collisions
 Following the ruling on `migrate` collisions: `Migrate` plans every artifact move of the chosen sessions first, then checks each destination with `lexists` (a dangling link at the destination counts as taken, so nothing is ever overwritten), and refuses before moving anything with an error listing every colliding destination and its source. `MigrateResult.Collisions` and the collision log lines are gone. The `migrate` help text says so.
+
+## tui/bar and launch: a preset value is checked after its segment's discovery has run
+
+- This builds the orchestrating session's first ruling and removes the launch-only values the entry "tui/bar: a command-line value a segment does not offer is taken for the launch" added: a `-s` value a segment that is not freeform does not offer is refused by `bar.CheckPreset`, whose error names the values the segment offers and, when the discovery could not refresh, that failure. Freeform segments still take any value as a launch-only option, which launching pins as before.
+- When the bar opens, each such preset segment whose discovery is slow (GitHub accounts, versions, models) runs that discovery to completion before the bar draws; its results are kept as the background discovery's are (models recorded, caches saved), its refresh failure is shown as the flash, and the background discovery skips it. The bar opens later by the time that discovery takes.
+- The path that skips the bar, print mode included, checks each non-empty preset of a segment that is not freeform against `bar.OfferedOptions` (the segment seeded from options.json, then its discovery run in full, merged as the bar merges), after the client's own checks. It writes nothing. An empty value still reads as no value there.
+- A consequence: `-s permissions=plan` and `-s permissions=auto` are refused unless the value is pinned in options.json, since the permissions segment does not offer them; the comment in `appconfig.DefaultOptions` says so.
