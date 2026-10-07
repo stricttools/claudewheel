@@ -93,6 +93,7 @@ func PreflightSteps() []PreflightStep {
 		// Every client runs the project's hooks, so every client reviews them.
 		{Name: "approved-hooks", Clients: AdapterNames(), NonInteractive: true, Run: approvedHooks},
 		{Name: "scratchpad-cleanup", Clients: AdapterNames(), NonInteractive: false, Run: scratchpadCleanup},
+		{Name: "prune-stale-inodes", Clients: AdapterNames(), NonInteractive: true, Run: pruneStaleInodes},
 	}
 }
 
@@ -425,6 +426,20 @@ func scratchpadCleanup(pc PreflightContext) error {
 	}
 	if err := scratchpad.Remove(pc.FX, remove); err != nil {
 		return fmt.Errorf("could not delete scratchpad directories: %w", err)
+	}
+	return nil
+}
+
+// pruneStaleInodes removes from the shared store's inode map the entries
+// of directories deleted rather than renamed (appconfig.PruneStaleInodes),
+// and prints a line naming them when it removed any.
+func pruneStaleInodes(pc PreflightContext) error {
+	pruned, err := appconfig.PruneStaleInodes(pc.FX, pc.Workspace.Shared())
+	if err != nil {
+		return err
+	}
+	if len(pruned) > 0 {
+		fmt.Fprintf(pc.Stderr, "claudewheel: removed %d entries of directories that no longer exist from %s: %s\n", len(pruned), pc.Workspace.InodesFile(), strings.Join(pruned, ", "))
 	}
 	return nil
 }

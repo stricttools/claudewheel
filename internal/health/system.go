@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/stricttools/claudewheel/internal/appconfig"
 	"github.com/stricttools/claudewheel/internal/effects"
 	"github.com/stricttools/claudewheel/internal/hookscripts"
 	"github.com/stricttools/claudewheel/internal/probe"
@@ -116,10 +117,10 @@ func (c *checker) probeRunner() Result {
 	return ok(label, probe.ServiceName+" installed, enabled, and running")
 }
 
-// inodeRenames finds directory renames in the project inode map: an inode
-// recorded under several paths of which some exist and some do not. Entries
-// for directories that are gone are counted and left in place: health
-// changes nothing.
+// inodeRenames finds directory renames in the project inode map
+// (appconfig.AnalyzeInodes). Stale entries, for directories deleted rather
+// than renamed, are counted and left in place: health changes nothing, and
+// the launch preflight prunes them.
 func (c *checker) inodeRenames() Result {
 	const label = "inode-renames"
 	data, found, err := readObject(c.in.Workspace.InodesFile())
@@ -129,48 +130,20 @@ func (c *checker) inodeRenames() Result {
 	if !found {
 		return ok(label, "no inode data yet")
 	}
-	// Paths grouped by inode, groups in order of first appearance.
-	var order []string
-	byInode := map[string][]string{}
-	for _, path := range data.Keys() {
-		v, _ := data.Get(path)
-		key := dumps(v)
-		if _, seen := byInode[key]; !seen {
-			order = append(order, key)
-		}
-		byInode[key] = append(byInode[key], path)
+	analysis, err := appconfig.AnalyzeInodes(data)
+	if err != nil {
+		return failed(label, err)
 	}
 	var renames []string
-	stale := 0
-	for _, key := range order {
-		paths := byInode[key]
-		var existing, missing []string
-		for _, p := range paths {
-			exists, _, err := pathState(p)
-			if err != nil {
-				return failed(label, err)
-			}
-			if exists {
-				existing = append(existing, p)
-			} else {
-				missing = append(missing, p)
-			}
-		}
-		if len(paths) < 2 {
-			stale += len(missing)
-			continue
-		}
-		if len(existing) > 0 {
-			for _, old := range missing {
-				renames = append(renames, fmt.Sprintf("%s -> %s. Run: claudewheel mv --post-hoc %s %s", old, existing[0], old, existing[0]))
-			}
-		}
+	for _, r := range analysis.Renames {
+		renames = append(renames, fmt.Sprintf("%s -> %s. Run: claudewheel mv --post-hoc %s %s", r.Old, r.New, r.Old, r.New))
 	}
+	stale := len(analysis.Stale)
 	if len(renames) > 0 {
 		return warn(label, strings.Join(renames, "; "))
 	}
 	if stale > 0 {
-		return ok(label, fmt.Sprintf("no renames detected; %d entries name directories that no longer exist", stale))
+		return ok(label, fmt.Sprintf("no renames detected; %d entries name directories that no longer exist, which the next launch removes", stale))
 	}
 	return ok(label, "no renames detected")
 }

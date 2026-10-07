@@ -263,16 +263,9 @@ func RecordInode(fx *effects.FX, shared workspace.SharedStore, dir string) error
 
 	inodeText := json.Number(strconv.FormatUint(inode, 10))
 
-	// The map is kept as an ordered tree, so entries keep their order.
 	file := shared.InodesFile()
-	inodes := jsonfile.NewObject()
-	data, err := os.ReadFile(file)
-	switch {
-	case err == nil:
-		if inodes, err = jsonfile.DecodeObject(data); err != nil {
-			return fmt.Errorf("%s: %w", file, err)
-		}
-	case !errors.Is(err, os.ErrNotExist):
+	inodes, _, err := readInodes(file)
+	if err != nil {
 		return err
 	}
 	if old, ok := inodes.Get(path); ok && jsonfile.Equal(old, inodeText) {
@@ -283,4 +276,111 @@ func RecordInode(fx *effects.FX, shared workspace.SharedStore, dir string) error
 		return err
 	}
 	return writeJSON(fx, file, inodes)
+}
+
+// readInodes reads the inode map at file as an ordered tree, so entries
+// keep their order when it is written back. A missing file is an empty map
+// and found false.
+func readInodes(file string) (inodes *jsonfile.Object, found bool, err error) {
+	data, err := os.ReadFile(file)
+	if errors.Is(err, os.ErrNotExist) {
+		return jsonfile.NewObject(), false, nil
+	}
+	if err != nil {
+		return nil, false, err
+	}
+	if inodes, err = jsonfile.DecodeObject(data); err != nil {
+		return nil, false, fmt.Errorf("%s: %w", file, err)
+	}
+	return inodes, true, nil
+}
+
+// InodeRename is a directory rename the inode map shows: Old no longer
+// exists, and New, recorded with the same inode, does.
+type InodeRename struct {
+	Old string
+	New string
+}
+
+// InodeAnalysis is what the inode map says about the directories it names.
+type InodeAnalysis struct {
+	// Renames pair each missing path of an inode recorded under several
+	// paths, some of which exist, with the first existing one; inodes in
+	// the order of their first entry.
+	Renames []InodeRename
+	// Stale are the paths recorded alone under their inode that no longer
+	// exist: directories deleted rather than renamed, in the map's order.
+	Stale []string
+}
+
+// AnalyzeInodes reads the directory renames and the stale entries out of
+// an inode map. A path counts as gone when it does not exist or a parent is
+// not a directory; any other stat error is returned. An inode recorded
+// under several paths none of which exists is neither.
+func AnalyzeInodes(inodes *jsonfile.Object) (InodeAnalysis, error) {
+	var order []string
+	byInode := map[string][]string{}
+	for _, path := range inodes.Keys() {
+		v, _ := inodes.Get(path)
+		text, err := jsonfile.MarshalCompactASCII(v)
+		if err != nil {
+			return InodeAnalysis{}, fmt.Errorf("the inode recorded for %s: %w", path, err)
+		}
+		key := string(text)
+		if _, seen := byInode[key]; !seen {
+			order = append(order, key)
+		}
+		byInode[key] = append(byInode[key], path)
+	}
+	var out InodeAnalysis
+	for _, key := range order {
+		paths := byInode[key]
+		var existing, missing []string
+		for _, p := range paths {
+			_, err := os.Stat(p)
+			switch {
+			case err == nil:
+				existing = append(existing, p)
+			case pathstat.NotFoundOrNotDirectory(err):
+				missing = append(missing, p)
+			default:
+				return InodeAnalysis{}, err
+			}
+		}
+		if len(paths) < 2 {
+			out.Stale = append(out.Stale, missing...)
+			continue
+		}
+		if len(existing) > 0 {
+			for _, old := range missing {
+				out.Renames = append(out.Renames, InodeRename{Old: old, New: existing[0]})
+			}
+		}
+	}
+	return out, nil
+}
+
+// PruneStaleInodes removes the stale entries (InodeAnalysis.Stale) from the
+// shared store's inode map and returns their paths. The file is written
+// only when there is something to remove; a missing file has nothing.
+func PruneStaleInodes(fx *effects.FX, shared workspace.SharedStore) ([]string, error) {
+	file := shared.InodesFile()
+	inodes, found, err := readInodes(file)
+	if err != nil || !found {
+		return nil, err
+	}
+	analysis, err := AnalyzeInodes(inodes)
+	if err != nil {
+		return nil, err
+	}
+	if len(analysis.Stale) == 0 {
+		return nil, nil
+	}
+	for _, p := range analysis.Stale {
+		inodes.Delete(p)
+	}
+	if err := writeJSON(fx, file, inodes); err != nil {
+		return nil, err
+	}
+	return analysis.Stale, nil
 }
