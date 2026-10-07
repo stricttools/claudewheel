@@ -232,3 +232,18 @@ When the selected GitHub account's token cannot be fetched (`gh auth token` fail
 ## profiles: a named profile's launch environment removes what it does not set (orchestrating session)
 
 `LaunchEnv` for a named profile removes every `ProfileEnvKeys` variable the profile does not set (an OAuth token or plan tier it has none of), so a launch or `profile exec` started inside another profile's session never inherits that profile's token or tier. The Python left inherited values in place.
+
+## sessionmove: inputs and modes
+
+- Every operation takes the profiles from its caller as `[]sessions.ProfileConfigDir` (name and config directory); `Migrate` takes the source and destination profiles already resolved the same way, so the package never imports `profiles`.
+- `Migrate` takes a `SessionChoice`: one session by full lowercase uuid, or `All`. Both, neither, or a value that is not a full lowercase uuid is refused, and a chosen session the source holds no artifact of is an error (the Python substring filter reported zero sessions and succeeded).
+- The launch's rename prompt counted a move by calling `run_mv(dry_run=True)` inside a live dispatch, which issued nothing. That is now the explicit `MvOptions.CountOnly`. Under `--dry-run` (`fx.Previewing()`), `Mv` records every change it would make, the transcript rewrites and the `.claude.json` writes included; the Python narrated those two but left them out of the would-do log.
+- Progress lines go through `fx.Info` (the Python printed them); import's dangling-link warnings go to the required `ImportOptions.Warnings` writer (stderr in the Python). Import collisions without `Reid` come back in `ImportResult.Collisions` with a nil error, as in the Python; the CLI exits 1 on them.
+
+## sessionmove: departures
+
+- Transcripts are read and written as bytes. The Python's `read_text` translated `\r\n` and `\r` to `\n` in every transcript it rewrote or imported; Go keeps line endings.
+- A stat error other than "missing", ENOTDIR, or ELOOP is an error (pathlib swallowed some); move-session's inbound-link walk refuses an unreadable directory (os.walk skipped it); migrate's shared-store check returns a failed symlink resolution as an error (the Python read it as "not a link"). `mv`'s directory decoding still skips a directory it cannot list: it is one of three proofs, and a name no proof resolves is refused anyway.
+- Import: an unreadable transcript is an error (the Python logged it, skipped the file, and counted the session as imported); the unmapped-cwd error asks for a `--from` and `--to` pair (the Python named a `--map` flag that does not exist); targets are kept per scanned transcript, not per uuid (the Python sent two source store dirs holding one uuid to the later one's target); a mapping whose source path has no component is refused. The path patterns with lookaheads are hand-written matchers (RE2 has none), with `\w` as Unicode letters, numbers, and `_`.
+- `ResolveUserPath` (Python's `Path(p).expanduser().resolve()`) refuses an unknown `~name` (Python left it unexpanded) and a `~` with HOME unset or empty.
+- The move journal is decoded with `jsonfile.DecodeStrict` after the schema validation; log lines quote values as `'value'` without Python's repr escaping, as lifecycle's messages do.
