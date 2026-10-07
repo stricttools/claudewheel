@@ -25,6 +25,7 @@ import (
 	"github.com/stricttools/claudewheel/internal/archiver"
 	"github.com/stricttools/claudewheel/internal/effects"
 	"github.com/stricttools/claudewheel/internal/jsonfile"
+	"github.com/stricttools/claudewheel/internal/realpath"
 	"github.com/stricttools/claudewheel/internal/tokens"
 	"github.com/stricttools/claudewheel/internal/workspace"
 )
@@ -313,11 +314,11 @@ func (s Store) ClassifySharedDirs(name string) ([]SharedEntry, error) {
 			out = append(out, SharedEntry{p.name, SharedRealDir})
 			continue
 		}
-		got, err := resolveLenient(link)
+		got, err := realpath.Resolve(link)
 		if err != nil {
 			return nil, err
 		}
-		want, err := resolveLenient(p.target)
+		want, err := realpath.Resolve(p.target)
 		if err != nil {
 			return nil, err
 		}
@@ -539,7 +540,7 @@ func (e *DeletionBookkeepingError) Error() string {
 		restore = fmt.Sprintf(" Restore it with: %s.", e.Archive.RestoreCommand())
 	}
 	return fmt.Sprintf("Profile '%s' was %s, but claudewheel could not update its own registration: %v. "+
-		"options.json and state.json may still name it -- run `claudewheel profile delete %s` again to finish the cleanup, "+
+		"options.json and state.json may still name it -- run `claudewheel profile delete %s --no-force-delete --no-force-delete-data` again to finish the cleanup, "+
 		"which archives nothing because the directory is already gone.%s", e.Name, archived, e.Reason, e.Name, restore)
 }
 
@@ -714,37 +715,4 @@ func readDirIfExists(dir string) ([]os.DirEntry, error) {
 		return nil, nil
 	}
 	return entries, err
-}
-
-// maxLinkHops bounds link chains, as the kernel's ELOOP limit does.
-const maxLinkHops = 40
-
-// resolveLenient resolves every link in p; when the chain ends at a missing
-// path, that path (absolute and clean) is the answer, as Python's
-// non-strict Path.resolve gives.
-func resolveLenient(p string) (string, error) {
-	p, err := filepath.Abs(p)
-	if err != nil {
-		return "", err
-	}
-	for hop := 0; hop < maxLinkHops; hop++ {
-		resolved, err := filepath.EvalSymlinks(p)
-		if err == nil {
-			return resolved, nil
-		}
-		if !errors.Is(err, fs.ErrNotExist) {
-			return "", err
-		}
-		target, err := os.Readlink(p)
-		if err != nil {
-			// p is missing, or is no link while a component above it is
-			// missing: the chain ends here.
-			return filepath.Clean(p), nil
-		}
-		if !filepath.IsAbs(target) {
-			target = filepath.Join(filepath.Dir(p), target)
-		}
-		p = target
-	}
-	return "", fmt.Errorf("too many levels of symbolic links resolving %s", p)
 }

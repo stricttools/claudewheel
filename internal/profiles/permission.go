@@ -229,7 +229,7 @@ func AddAllowRule(fx *effects.FX, targets []PermissionTarget, rule string) ([]Ru
 		return nil, err
 	}
 	if guardrail.IsAllowConflict(rule) {
-		return nil, fmt.Errorf("%s conflicts with the guardrail's deny and ask rules (it is one of its allow conflicts), so `claudewheel patch-profiles` would remove it again; it cannot be allowed", rule)
+		return nil, fmt.Errorf("%s conflicts with the guardrail's deny and ask rules (it is one of its allow conflicts), so the reconcile (every launch, and `claudewheel patch-profiles --all-profiles`) would remove it again; it cannot be allowed", rule)
 	}
 	return editAllow(fx, targets, func(settings *jsonfile.Object) (bool, error) {
 		return AddRule(settings, "allow", rule)
