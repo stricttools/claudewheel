@@ -66,7 +66,8 @@ func HeavyDescription(fx *effects.FX, unit string) (string, bool, error) {
 	}
 	prefix := "Started " + unit + " - "
 	description, found := "", false
-	for _, line := range splitLines(result.Stdout()) {
+	lines, _ := lifecycle.SplitLines(result.Stdout())
+	for _, line := range lines {
 		var fields map[string]json.RawMessage
 		if err := json.Unmarshal([]byte(line), &fields); err != nil {
 			continue
@@ -80,16 +81,6 @@ func HeavyDescription(fx *effects.FX, unit string) (string, bool, error) {
 		}
 	}
 	return description, found, nil
-}
-
-// splitLines splits captured output at newlines, dropping the empty text
-// after a final one.
-func splitLines(text string) []string {
-	lines := strings.Split(text, "\n")
-	if len(lines) > 0 && lines[len(lines)-1] == "" {
-		lines = lines[:len(lines)-1]
-	}
-	return lines
 }
 
 // Attribution is which session's command a kill hit, or why none can be
