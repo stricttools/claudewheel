@@ -51,7 +51,7 @@ func ResidentMemory(fx *effects.FX, pids []int) (map[int]int, error) {
 	}
 	for _, line := range strings.Split(result.Stdout(), "\n") {
 		fields := strings.Fields(line)
-		if len(fields) != 2 || !allDigits(fields[0]) || !allDigits(fields[1]) {
+		if len(fields) != 2 || !sessions.AllDigits(fields[0]) || !sessions.AllDigits(fields[1]) {
 			continue
 		}
 		pid, err1 := strconv.Atoi(fields[0])
@@ -62,15 +62,6 @@ func ResidentMemory(fx *effects.FX, pids []int) (map[int]int, error) {
 		measured[pid] = rss
 	}
 	return measured, nil
-}
-
-func allDigits(s string) bool {
-	for _, r := range s {
-		if r < '0' || r > '9' {
-			return false
-		}
-	}
-	return s != ""
 }
 
 // StopDaemon stops the Claude Code daemon of configDir with `<binary> daemon

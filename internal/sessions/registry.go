@@ -145,7 +145,7 @@ func parseRecord(path string) (SessionRecord, bool) {
 	if !ok {
 		// The file name is the PID; a record missing the field is still a claim.
 		stem := strings.TrimSuffix(filepath.Base(path), ".json")
-		if !allDigits(stem) {
+		if !AllDigits(stem) {
 			return SessionRecord{}, false
 		}
 		n, err := strconv.ParseInt(stem, 10, 0)
@@ -199,7 +199,8 @@ func integerField(o *jsonfile.Object, key string) (int64, bool) {
 	return i, true
 }
 
-func allDigits(s string) bool {
+// AllDigits reports whether s is non-empty and made only of ASCII digits.
+func AllDigits(s string) bool {
 	if s == "" {
 		return false
 	}
