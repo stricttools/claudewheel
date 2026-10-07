@@ -371,3 +371,11 @@ The miniclaude client adapter always passes `--model <id>` and `--permission-mod
 ## health: the token file mode comes from tokens
 
 The file-permissions check reads the token file's expected mode from `tokens.TokenFileMode` (which is `effects.SecretFileMode`, the mode `WriteSecretAtomic` leaves), replacing health's local 0600 constant. This overrides the health entry saying `tokens` exports none.
+
+## jsonfile, effects, lifecycle, workspace: single authorities from the read pass
+
+- `effects.SecretFileMode` (0600) is the mode `WriteSecretAtomic` leaves; `tokens.TokenFileMode` is defined from it. This overrides the health entry saying `tokens` exports no token file mode.
+- `jsonfile.Describe` names a tree value's JSON type and `jsonfile.StringArray` turns strings into a JSON array; appconfig and guardrail use them instead of their own copies.
+- `lifecycle.SplitLines` and `lifecycle.JoinDiagnostics` are shared with the probe store, which split its JSONL files and joined validator diagnostics in second copies.
+- `workspace.ProjectsDirName` names the `projects` store directory for the shared store and for `sessions`.
+- The jsonfile entry saying claudewheel's own files hold no floats is wrong, as the appconfig entry records: state.json's cache fetch times are floats, written in encoding/json's shortest form and read back by `DecodeStrict` into float64 fields.
