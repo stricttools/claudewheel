@@ -224,3 +224,7 @@ The unit writes `ExecStart="<executable>" probe run-service`, double-quoted as t
 - `permission add` and `remove` write settings.json only when the rule list changed (the Python rewrote it on "already present" too). `AddRule` and `RemoveRule` keep a category argument for the reconcile; the command functions `AddAllowRule` and `RemoveAllowRule` edit allow only. A permissions block or category that is not an object or a list of strings is an error.
 - The plugin inventory returns listing and size errors instead of skipping them. `PluginTargets` holds purge-plugins' target policy (default excluded).
 - `ResidentMemory` returns an error when ps cannot run (the Python returned no measurements); `Terminate` returns the kill error except ESRCH (the Python returned false); `StopDaemon` returns an error when the command cannot run or times out, and false for a nonzero exit or a preview.
+
+## launch: an unfetchable GitHub token refuses the launch (orchestrating session)
+
+When the selected GitHub account's token cannot be fetched (`gh auth token` fails), the launch is refused with an error naming the account. The Python silently started without `GH_TOKEN`; a configured selection must work or fail, never degrade silently.
