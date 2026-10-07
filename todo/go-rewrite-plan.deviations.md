@@ -542,3 +542,7 @@ These override every earlier entry they touch.
 ## effects: RemoveIfExists reads a path under a file as absent (orchestrating session)
 
 Under ruling 14, `RemoveIfExists` on a path whose parent is a file returns nil like a missing path: its unlink tests `pathstat.NotFoundOrParentNotDirectory`.
+
+## Revision of ruling 12 by the orchestrating session: plan mode is not offered
+
+This supersedes ruling 12. Because the guardrail disallows `EnterPlanMode` (accepting a plan wipes the session's history), the permissions segment offers `bypass`, `default`, and `auto`, and never `plan`. `-s permissions=plan` is refused with an error saying plan mode is not offered because accepting a plan wipes the session's history, naming the offered values (`bar.CheckPreset`, from `appconfig.PermissionPlan` and `appconfig.PermissionPlanWithheld`). A pinned `plan` in `options.json` is not offered either, both client adapters refuse `plan`, and the `launch --set` help says so.

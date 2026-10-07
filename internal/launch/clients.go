@@ -244,10 +244,10 @@ func claudeArgv(ctx ClientContext) ([]string, error) {
 	case "":
 	case "bypass":
 		argv = append(argv, "--dangerously-skip-permissions")
-	case "default", "plan", "auto":
+	case "default", "auto":
 		argv = append(argv, "--permission-mode="+perm)
 	default:
-		return nil, fmt.Errorf("permissions value %q is not one the claude client takes (bypass, default, plan, auto)", perm)
+		return nil, fmt.Errorf("permissions value %q is not one the claude client takes (bypass, default, auto)", perm)
 	}
 	if ctx.ModelID != "" {
 		argv = append(argv, "--model", ctx.ModelID)
@@ -299,7 +299,6 @@ func miniclaudePermissions() map[string]string {
 	return map[string]string{
 		"bypass":  "bypassPermissions",
 		"default": "default",
-		"plan":    "plan",
 		"auto":    "auto",
 	}
 }
@@ -333,7 +332,7 @@ func miniclaudeArgv(ctx ClientContext) ([]string, error) {
 	}
 	mapped, ok := miniclaudePermissions()[perm]
 	if !ok {
-		return nil, fmt.Errorf("permission mode %q is not supported by the miniclaude client (supported: bypass, default, plan, auto)", perm)
+		return nil, fmt.Errorf("permission mode %q is not supported by the miniclaude client (supported: bypass, default, auto)", perm)
 	}
 	argv := []string{binary, "repl", "--profile", profile, "--model", ctx.ModelID, "--permission-mode", mapped}
 	switch ctx.Session.Mode {

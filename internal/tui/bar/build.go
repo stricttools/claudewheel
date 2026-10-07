@@ -115,6 +115,9 @@ func seededSegment(def appconfig.Segment, opt appconfig.OptionSegment) (*Segment
 	}
 	seg.State.SetDefaults(defaultsFor(def.Key, opt))
 	for _, v := range opt.Pinned {
+		if def.Key == appconfig.SegmentKeyPermissions && v == appconfig.PermissionPlan {
+			continue
+		}
 		seg.State.AddPinned(v)
 	}
 	seg.State.SetMetadata(recordedMetadata(opt))
@@ -216,12 +219,15 @@ type Offered struct {
 // hold it. The refusal names the values the segment does list, and the
 // discovery's refresh failure, which may be why value is missing.
 func CheckPreset(key, value string, offered Offered) error {
-	if slices.Contains(offered.Values, value) {
-		return nil
-	}
 	listed := "nothing"
 	if len(offered.Values) > 0 {
 		listed = strings.Join(offered.Values, ", ")
+	}
+	if key == appconfig.SegmentKeyPermissions && value == appconfig.PermissionPlan {
+		return fmt.Errorf("-s %s=%s: plan mode is not offered, because %s; the %s segment offers: %s", key, value, appconfig.PermissionPlanWithheld, key, listed)
+	}
+	if slices.Contains(offered.Values, value) {
+		return nil
 	}
 	msg := fmt.Sprintf("-s %s=%s: the %s segment does not offer %q; it offers: %s", key, value, key, value, listed)
 	if offered.RefreshError != nil {

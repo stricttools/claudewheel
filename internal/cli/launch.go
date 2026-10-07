@@ -37,7 +37,7 @@ func registerLaunch(app registrar) {
 		clientChoices[i] = strictcli.Ch(a.Name, a.Help)
 	}
 	set := strictcli.StringFlag("set",
-		"preset a segment as KEY=VALUE (e.g. -s version=2.1.119, -s profile=work); repeatable, one per segment. A value a fixed-choice segment does not offer, once its discovery has run, is refused, naming the values it offers; a freeform segment such as directory takes any value",
+		"preset a segment as KEY=VALUE (e.g. -s version=2.1.119, -s profile=work); repeatable, one per segment. A value a fixed-choice segment does not offer, once its discovery has run, is refused, naming the values it offers; a freeform segment such as directory takes any value. permissions=plan is never offered, because accepting a plan wipes the session's history",
 		strictcli.Short("s"), strictcli.Repeatable(), strictcli.Unique(false), strictcli.Default([]interface{}{}))
 	client := strictcli.StringFlag("client",
 		"the client to launch; when omitted, the launch bar asks (focused on config.json's default_client), and a launch that skips the bar uses default_client. Given, it skips that question",

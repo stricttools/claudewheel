@@ -127,7 +127,8 @@ func DefaultOptions() Options {
 		SegmentKeyPermissions: {
 			// The bar offers this list from the code, not from options.json,
 			// so a value added here is offered in every workspace.
-			Values: []string{"bypass", "default", "plan", "auto"},
+			// PermissionPlan is withheld on purpose.
+			Values: []string{"bypass", "default", "auto"},
 			Pinned: []string{},
 		},
 	}
@@ -151,3 +152,12 @@ func ModelMinCLIVersion() map[string]string {
 		"claude-opus-5": "2.1.219",
 	}
 }
+
+// PermissionPlan is the permission mode the permissions segment never
+// offers, nor accepts from -s or a pinned value, for the reason in
+// PermissionPlanWithheld (the guardrail disallows EnterPlanMode for the
+// same reason).
+const PermissionPlan = "plan"
+
+// PermissionPlanWithheld is why PermissionPlan is not offered.
+const PermissionPlanWithheld = "accepting a plan wipes the session's history"
