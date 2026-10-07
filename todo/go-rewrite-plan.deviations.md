@@ -177,3 +177,13 @@ The unit writes `ExecStart="<executable>" probe run-service`, double-quoted as t
 - Mode 2031 color-scheme notifications are ignored by every widget loop; `show_page` returned them as a keypress, which closed the page without the user pressing anything.
 - `RunForm` returns whether the form was submitted; answers are read from the fields (`Value` for text, readonly, radio, and select, `Checked` for checkboxes). `Get` panics on an unknown key (Python `KeyError`). A visibility change leaving no focusable field is an error. `RunSelection` with no options is an error (Python returned None); an `initialKey` no option has still focuses the first option, which the wizard's browser picker relies on.
 - `ShowPage` requires a hint (`HintAnyKey` is the old default text). `Confirm` takes the meaning of each answer and builds the hint itself (`ConfirmHint`, `y: … n: … esc: …`), so the key letters are spelled in one place; `ConfirmAnswer(key)` is the shared mapping for surfaces with their own key loop (the deletion checklist). A Ctrl-C byte maps to Skip as the todo specifies; under cbreak Ctrl-C arrives as SIGINT instead and every loop returns `terminal.ErrInterrupted`.
+
+## tui/sessionsview: inputs, the prune confirmation, and errors
+
+- The overview takes its inputs as `Sources`: the workspace, the enumerated profiles as `[]sessions.ProfileConfigDir` (the profile store is in `profiles`), a `MemoryReader` (processes.resident_memory, which `profiles` ports), a clock, the identity, and the home directory.
+- Prune asks first through `widgets.Confirm`, listing the crashed rows' registry files (as many as fit, then "… and N more"). Accept prunes and reports "Pruned N crashed record(s)"; Decline reports "Pruned nothing"; Escape returns to the table silently. With no crashed row on screen it asks nothing and reports "No crashed records to prune" (the Python pruned an empty list and reported "Pruned 0").
+- A resize or a mode 2031 notification redraws without clearing the footer message or leaving mark mode (in the Python any key left mark mode).
+- An unknown style, or a state style naming no lifecycle state, is an error (the Python drew an unknown state in no color; the list renderer drew an unknown style in the field color). A negative resident memory and a state line with no style are errors that propagate from `FormatRow` and `BuildFrame`.
+- `CurrentIdentity` takes a lookup function (`os.LookupEnv`) and accepts ASCII digits only for the pid (Python's `isdigit` also took other Unicode digits).
+- Every width, truncation, and clip counts code points, as Python's `len` and slicing did.
+- `ListRow`'s optional tick is a `Selection` (`NoSelector`, `Selected`, `Unselected`) on `SessionBlock`; an expanded row of `None` is `-1`.
