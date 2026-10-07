@@ -134,7 +134,7 @@ func (s *Store) RecordLaunch(fx *effects.FX, selections map[string]string) error
 	}
 	s.State.LastConfig = last
 	s.State.LaunchCount++
-	if dir := selections["directory"]; dir != "" {
+	if dir := selections[SegmentKeyDirectory]; dir != "" {
 		recent := slices.DeleteFunc(slices.Clone(s.State.RecentDirs), func(d string) bool { return d == dir })
 		recent = append([]string{dir}, recent...)
 		if len(recent) > RecentDirsLimit {

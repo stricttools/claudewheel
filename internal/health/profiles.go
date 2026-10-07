@@ -134,7 +134,7 @@ func (c *checker) orphanProfiles() Result {
 	if err != nil {
 		return failed(label, err)
 	}
-	if seg, present := options[profiles.Segment]; present {
+	if seg, present := options[appconfig.SegmentKeyProfile]; present {
 		for _, name := range seg.Values {
 			known[name] = true
 		}

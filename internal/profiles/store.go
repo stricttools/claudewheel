@@ -35,8 +35,6 @@ const (
 	// DefaultName is Claude Code's built-in ~/.claude, inspectable like any
 	// profile but never created, renamed, or deleted by claudewheel.
 	DefaultName = "default"
-	// Segment is the options.json segment profiles are registered under.
-	Segment = "profile"
 	// CredentialsFileName is Claude Code's credentials file in a profile.
 	CredentialsFileName = ".credentials.json"
 	// SettingsFileName is Claude Code's settings file in a profile.
@@ -463,7 +461,7 @@ func (s Store) fill(fx *effects.FX, name, target string, settings *jsonfile.Obje
 			}
 		}
 	}
-	if _, err := appconfig.AddPinned(fx, s.ws, Segment, name); err != nil {
+	if _, err := appconfig.AddPinned(fx, s.ws, appconfig.SegmentKeyProfile, name); err != nil {
 		return Profile{}, err
 	}
 	creds, err := pathstat.Exists(filepath.Join(target, CredentialsFileName))
@@ -569,7 +567,7 @@ func (s Store) Delete(fx *effects.FX, name string, arch Archiver, allowDataDestr
 	if err != nil {
 		return DeletionResult{}, err
 	}
-	seg := opts[Segment]
+	seg := opts[appconfig.SegmentKeyProfile]
 	registered := slices.Contains(seg.Values, name) || slices.Contains(seg.Pinned, name)
 	dir := s.PathFor(name)
 	dirExists, err := pathstat.IsDir(dir)
@@ -625,7 +623,7 @@ func (s Store) Delete(fx *effects.FX, name string, arch Archiver, allowDataDestr
 		}
 	}
 
-	if _, err := appconfig.RemoveOptionValue(fx, s.ws, Segment, name); err != nil {
+	if _, err := appconfig.RemoveOptionValue(fx, s.ws, appconfig.SegmentKeyProfile, name); err != nil {
 		return DeletionResult{}, &DeletionBookkeepingError{Name: name, Archive: handle, Reason: err}
 	}
 	purged, err := s.clearLastConfig(fx, name)
@@ -668,11 +666,11 @@ func (s Store) clearLastConfig(fx *effects.FX, name string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if st.LastConfig[Segment] != name {
+	if st.LastConfig[appconfig.SegmentKeyProfile] != name {
 		return false, nil
 	}
 	return true, appconfig.UpdateState(fx, s.ws, func(st *appconfig.State) error {
-		delete(st.LastConfig, Segment)
+		delete(st.LastConfig, appconfig.SegmentKeyProfile)
 		return nil
 	})
 }

@@ -13,7 +13,6 @@ import (
 	"github.com/stricttools/claudewheel/internal/appconfig"
 	"github.com/stricttools/claudewheel/internal/auth"
 	"github.com/stricttools/claudewheel/internal/effects"
-	"github.com/stricttools/claudewheel/internal/profiles"
 )
 
 // The npm version list and the model list are cached in state.json for an
@@ -230,7 +229,7 @@ func tokenCandidates(env Env) ([]string, error) {
 			names = append(names, p.Name)
 		}
 	}
-	last := env.State.LastConfig[profiles.Segment]
+	last := env.State.LastConfig[appconfig.SegmentKeyProfile]
 	if i := slices.Index(names, last); i > 0 {
 		names = append([]string{last}, slices.Delete(names, i, i+1)...)
 	}

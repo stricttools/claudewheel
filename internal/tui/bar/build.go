@@ -13,26 +13,19 @@ import (
 	"github.com/stricttools/claudewheel/internal/profiles"
 )
 
-// The segment keys the bar treats specially.
-const (
-	keyProfile   = profiles.Segment
-	keyModel     = "model"
-	keyDirectory = "directory"
-)
-
 // mergeSpec returns how segment key merges and orders its collections.
 // The model list accumulates every model ever seen (options.json feeds the
 // defaults collection) next to what the API serves now, newest release
 // first.
 func mergeSpec(key string) ([]Source, OptionSort) {
 	switch key {
-	case discover.VersionSegmentKey:
+	case appconfig.SegmentKeyVersion:
 		return DefaultOrder(), SortVersionDesc
-	case keyProfile, "github":
+	case appconfig.SegmentKeyProfile, appconfig.SegmentKeyGitHub:
 		return []Source{SourcePinned, SourceDiscovered}, SortNone
-	case keyModel:
+	case appconfig.SegmentKeyModel:
 		return []Source{SourcePinned, SourceDiscovered, SourceDefaults}, SortReleaseDateDesc
-	case "mcp", "permissions":
+	case appconfig.SegmentKeyMCP, appconfig.SegmentKeyPermissions:
 		return []Source{SourcePinned, SourceDefaults}, SortNone
 	}
 	return DefaultOrder(), SortNone
@@ -43,7 +36,7 @@ func mergeSpec(key string) ([]Source, OptionSort) {
 // list shows an empty picker, never another list); for every other segment
 // the shipped default values.
 func defaultsFor(key string, opt appconfig.OptionSegment) []string {
-	if key == keyModel {
+	if key == appconfig.SegmentKeyModel {
 		return slices.Clone(opt.Values)
 	}
 	def, ok := appconfig.DefaultOptions()[key]
@@ -104,7 +97,7 @@ func newSegment(def appconfig.Segment) (*Segment, error) {
 		Unavailable: map[string]bool{},
 		Rejected:    map[string]string{},
 	}
-	if def.Key == keyModel {
+	if def.Key == appconfig.SegmentKeyModel {
 		seg.OptionRequires = discover.ModelOptionRequires()
 	}
 	return seg, nil
@@ -159,7 +152,7 @@ func BuildBar(fx *effects.FX, env discover.Env, store *appconfig.Store) (Built, 
 			if result.RefreshError != nil {
 				built.RefreshErrors = append(built.RefreshErrors, fmt.Sprintf("%s: %v", def.Label, result.RefreshError))
 			}
-			if def.Key == keyModel {
+			if def.Key == appconfig.SegmentKeyModel {
 				if err := store.RecordDiscoveredModels(fx, result.Values, result.ModelRecord()); err != nil {
 					return Built{}, err
 				}
@@ -183,7 +176,7 @@ func BuildBar(fx *effects.FX, env discover.Env, store *appconfig.Store) (Built, 
 	}
 	if tilde, ok := discover.TildePath(env.Home, cwd); ok {
 		for _, seg := range segments {
-			if seg.Key == keyDirectory && seg.SelectedIndex() < 0 {
+			if seg.Key == appconfig.SegmentKeyDirectory && seg.SelectedIndex() < 0 {
 				seg.SelectValue(tilde)
 			}
 		}

@@ -414,3 +414,7 @@ The character-counting helpers the bar, the sessions view, and the wizard each d
 - `launch` also declares the grants `download` (NetMutate, the bar's version install) and `archive-delegation` (ProcMutate, the bar's profile delete): under `--dry-run` an undeclared grant is an error.
 - strictcli has no declaration for "the tokens after `--` only" (`WithPassthrough` skips parsing altogether), so the handler still refuses client arguments that did not follow `--` by reading `os.Args`. It splits the command line as strictcli's tokenizer does: the framework switches before the first `--` are dropped (`anywhereSwitches`), and a `--` that is the value of a value-taking flag (`-p --`) is that flag's value, the spellings read off the launch command's own declarations. A programmatic door (`App.Test`, the MCP server) carries no command line in `os.Args`, so there the check reads the wrong argv; a strictcli rest-after-separator option would remove it.
 - `cli.FrameworkSwitch` is the one list of the framework flags main steps over when it inserts `launch`; main's own copy is gone.
+
+## appconfig: the segment keys have one spelling
+
+`appconfig.SegmentKey*` is the only spelling of the default segments' keys: `DefaultConfig`, `DefaultSegments`, `DefaultOptions`, the default themes' segment colors, the options upgrade, and `RecordLaunch` use the constants, and `profiles.Segment`, `discover.VersionSegmentKey`, and the bar's `keyProfile`, `keyModel`, and `keyDirectory` are gone. This completes the "deletion and appconfig" entry, which listed them as still separate.

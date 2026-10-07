@@ -210,9 +210,9 @@ func planOptions(tree jsonfile.Value) []Change {
 	}
 	defaults := defaultTree(DefaultOptions()).(*jsonfile.Object)
 	var changes []Change
-	if _, present := obj.Get("model"); !present {
-		obj.Set("model", jsonfile.NewObject())
-		changes = append(changes, Change{Description: `added the segment "model"`})
+	if _, present := obj.Get(SegmentKeyModel); !present {
+		obj.Set(SegmentKeyModel, jsonfile.NewObject())
+		changes = append(changes, Change{Description: fmt.Sprintf("added the segment %q", SegmentKeyModel)})
 	}
 	for _, key := range defaults.Keys() {
 		item, present := obj.Get(key)
@@ -230,7 +230,7 @@ func planOptions(tree jsonfile.Value) []Change {
 			v, _ := def.Get(field)
 			wanted.Set(field, v)
 		}
-		if key == "model" {
+		if key == SegmentKeyModel {
 			if v, ok := def.Get("discovery"); ok {
 				wanted.Set("discovery", v)
 			}

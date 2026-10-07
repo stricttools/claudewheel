@@ -475,7 +475,7 @@ func (a *app) applySlow(res slowResult) error {
 	if res.err != nil {
 		return fmt.Errorf("background discovery: %w", res.err)
 	}
-	if r, ok := res.results[keyModel]; ok {
+	if r, ok := res.results[appconfig.SegmentKeyModel]; ok {
 		if err := a.store.RecordDiscoveredModels(a.fx, r.Values, r.ModelRecord()); err != nil {
 			return err
 		}
@@ -600,7 +600,7 @@ func keys(k ...terminal.Key) []terminal.Key { return k }
 
 // onProfileWithValue: the profile segment with a value and nothing typed.
 func onProfileWithValue(kc keyContext) bool {
-	return kc.segKey == keyProfile && kc.searchBuffer == "" && kc.hasValue
+	return kc.segKey == appconfig.SegmentKeyProfile && kc.searchBuffer == "" && kc.hasValue
 }
 
 // bindings is the key map. Order decides which binding takes a key: the
@@ -701,7 +701,7 @@ func (a *app) mainDown(context.Context, terminal.Key) (action, error) { return a
 // startCreating handles Enter or Tab on PlusEntry: the profile segment opens
 // the create-profile wizard, any other segment starts typing a new option.
 func (a *app) startCreating(ctx context.Context, f *Segment) (action, error) {
-	if f.Key == keyProfile {
+	if f.Key == appconfig.SegmentKeyProfile {
 		return actNone, a.profileWizard(ctx, f)
 	}
 	f.Creating = true
@@ -750,7 +750,7 @@ func (a *app) mainEnter(ctx context.Context, _ terminal.Key) (action, error) {
 			return actNone, nil
 		}
 	}
-	if s, ok := a.bar.Segment(keyProfile); ok {
+	if s, ok := a.bar.Segment(appconfig.SegmentKeyProfile); ok {
 		if v, has := s.Value(); has && s.State.Unauthenticated(v) {
 			outcome, err := a.interceptUnauthenticated(ctx, s, v)
 			if err != nil {

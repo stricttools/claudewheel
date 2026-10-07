@@ -324,8 +324,8 @@ func (a *app) deleteProfile(ctx context.Context, seg *Segment) error {
 
 	// The store removed the profile from state.json's last_config on disk;
 	// drop it from the bar's copy too, so the next save keeps it removed.
-	if a.store.State.LastConfig[keyProfile] == name {
-		delete(a.store.State.LastConfig, keyProfile)
+	if a.store.State.LastConfig[appconfig.SegmentKeyProfile] == name {
+		delete(a.store.State.LastConfig, appconfig.SegmentKeyProfile)
 	}
 	seg.State.RemovePinned(name)
 	seg.State.DeleteMetadata(name)

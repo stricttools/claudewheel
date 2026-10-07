@@ -225,7 +225,7 @@ func (s *Store) RecordDiscoveredModels(fx *effects.FX, values []string, metadata
 	if len(values) == 0 && len(metadata) == 0 {
 		return nil
 	}
-	opts, err := RecordDiscovered(fx, s.ws, "model", values, metadata)
+	opts, err := RecordDiscovered(fx, s.ws, SegmentKeyModel, values, metadata)
 	if err != nil {
 		return err
 	}

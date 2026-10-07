@@ -7,11 +7,6 @@ import (
 	"github.com/stricttools/claudewheel/internal/install"
 )
 
-// VersionSegmentKey is the segment naming the Claude Code version. A
-// requirement on it is checked against the version a launch would run,
-// which with no selection is the claude link's target.
-const VersionSegmentKey = "version"
-
 // Context1MSuffix is claudewheel's suffix on a model id selecting the 1M
 // token context window. No id the API serves carries it, so a suffixed
 // entry takes its release date and its version requirement from the base
@@ -37,8 +32,8 @@ type Requires map[string]map[string]string
 func ModelOptionRequires() Requires {
 	requires := Requires{}
 	for model, minVersion := range appconfig.ModelMinCLIVersion() {
-		requires[model] = map[string]string{VersionSegmentKey: ">=" + minVersion}
-		requires[model+Context1MSuffix] = map[string]string{VersionSegmentKey: ">=" + minVersion}
+		requires[model] = map[string]string{appconfig.SegmentKeyVersion: ">=" + minVersion}
+		requires[model+Context1MSuffix] = map[string]string{appconfig.SegmentKeyVersion: ">=" + minVersion}
 	}
 	return requires
 }
@@ -46,7 +41,7 @@ func ModelOptionRequires() Requires {
 // EvaluateRequires returns, for each segment key in requires, the set of its
 // options whose requirements the selections do not satisfy. selections maps
 // a segment key to its selected value; a segment without a selection is
-// absent. A requirement on VersionSegmentKey is checked against
+// absent. A requirement on appconfig.SegmentKeyVersion is checked against
 // install.EffectiveCLIVersion (the selection, else the claude link's
 // target), resolved at most once and only when some option needs it; when
 // that version is unknown, the requirement restricts nothing, as the
@@ -63,7 +58,7 @@ func EvaluateRequires(requires map[string]Requires, selections map[string]string
 			return a.value, a.ok
 		}
 		value, ok := selections[segment]
-		if segment == VersionSegmentKey {
+		if segment == appconfig.SegmentKeyVersion {
 			value, ok = install.EffectiveCLIVersion(value, locator)
 		}
 		resolved[segment] = answer{value, ok}
@@ -76,7 +71,7 @@ func EvaluateRequires(requires map[string]Requires, selections map[string]string
 		for option, reqs := range segRequires {
 			for segment, constraint := range reqs {
 				value, ok := resolve(segment)
-				if !ok && segment == VersionSegmentKey {
+				if !ok && segment == appconfig.SegmentKeyVersion {
 					continue
 				}
 				if !ok || !SatisfiesConstraint(value, constraint) {

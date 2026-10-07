@@ -149,7 +149,7 @@ func (s Store) Rename(fx *effects.FX, oldName, newName string) (resumed bool, er
 	if err != nil {
 		return false, err
 	}
-	seg := opts[Segment]
+	seg := opts[appconfig.SegmentKeyProfile]
 	oldDir, newDir := s.PathFor(oldName), s.PathFor(newName)
 	oldExists, err := pathstat.IsDir(oldDir)
 	if err != nil {
@@ -195,19 +195,19 @@ func (s Store) Rename(fx *effects.FX, oldName, newName string) (resumed bool, er
 // renameInStores swaps oldName for newName in options.json (values, pinned, and
 // metadata) and in state.json's last_config. Both are idempotent.
 func (s Store) renameInStores(fx *effects.FX, oldName, newName string) error {
-	if _, err := appconfig.RenameOptionValue(fx, s.ws, Segment, oldName, newName); err != nil {
+	if _, err := appconfig.RenameOptionValue(fx, s.ws, appconfig.SegmentKeyProfile, oldName, newName); err != nil {
 		return err
 	}
 	st, err := appconfig.ReadState(s.ws)
 	if err != nil {
 		return err
 	}
-	if st.LastConfig[Segment] != oldName {
+	if st.LastConfig[appconfig.SegmentKeyProfile] != oldName {
 		return nil
 	}
 	return appconfig.UpdateState(fx, s.ws, func(st *appconfig.State) error {
-		if st.LastConfig[Segment] == oldName {
-			st.LastConfig[Segment] = newName
+		if st.LastConfig[appconfig.SegmentKeyProfile] == oldName {
+			st.LastConfig[appconfig.SegmentKeyProfile] = newName
 		}
 		return nil
 	})

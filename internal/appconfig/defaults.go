@@ -9,13 +9,13 @@ func DefaultConfig() Config {
 	return Config{
 		Theme: ThemeAuto,
 		EnabledSegments: []string{
-			"profile",
-			"github",
-			"version",
-			"model",
-			"directory",
-			"mcp",
-			"permissions",
+			SegmentKeyProfile,
+			SegmentKeyGitHub,
+			SegmentKeyVersion,
+			SegmentKeyModel,
+			SegmentKeyDirectory,
+			SegmentKeyMCP,
+			SegmentKeyPermissions,
 		},
 		DefaultFlags:        []string{"--dangerously-skip-permissions"},
 		HealthCheckOnLaunch: true,
@@ -40,13 +40,13 @@ func intPtr(i int) *int { return &i }
 // bar order.
 func DefaultSegments() []Segment {
 	return []Segment{
-		{Key: "profile", Label: "Profile", ShowOptions: true, Wrap: true, MinWidth: 8, MaxWidth: 16, Required: true, PrintMode: true, Searchable: false, TabAdvances: true, Creatable: boolPtr(true)},
-		{Key: "github", Label: "GH", ShowOptions: true, Wrap: true, MinWidth: 4, MaxWidth: 12, Required: false, PrintMode: false, Searchable: false, TabAdvances: true, Creatable: boolPtr(true)},
-		{Key: "version", Label: "Ver", ShowOptions: true, Wrap: true, MinWidth: 6, MaxWidth: 10, Required: true, PrintMode: true, Searchable: false, TabAdvances: true},
-		{Key: "model", Label: "Model", ShowOptions: true, Wrap: true, MinWidth: 10, MaxWidth: 24, Required: false, PrintMode: true, Searchable: true, TabAdvances: true, Creatable: boolPtr(true)},
-		{Key: "directory", Label: "Dir", ShowOptions: true, Wrap: false, MinWidth: 10, MaxWidth: 40, Required: true, PrintMode: true, Searchable: true, Freeform: boolPtr(true), TabAdvances: true},
-		{Key: "mcp", Label: "MCP", ShowOptions: true, Wrap: true, MinWidth: 6, MaxWidth: 12, Required: false, PrintMode: false, Searchable: false, TabAdvances: true},
-		{Key: "permissions", Label: "Perms", ShowOptions: true, Wrap: true, MinWidth: 6, MaxWidth: 12, Required: false, PrintMode: false, Searchable: false, TabAdvances: true},
+		{Key: SegmentKeyProfile, Label: "Profile", ShowOptions: true, Wrap: true, MinWidth: 8, MaxWidth: 16, Required: true, PrintMode: true, Searchable: false, TabAdvances: true, Creatable: boolPtr(true)},
+		{Key: SegmentKeyGitHub, Label: "GH", ShowOptions: true, Wrap: true, MinWidth: 4, MaxWidth: 12, Required: false, PrintMode: false, Searchable: false, TabAdvances: true, Creatable: boolPtr(true)},
+		{Key: SegmentKeyVersion, Label: "Ver", ShowOptions: true, Wrap: true, MinWidth: 6, MaxWidth: 10, Required: true, PrintMode: true, Searchable: false, TabAdvances: true},
+		{Key: SegmentKeyModel, Label: "Model", ShowOptions: true, Wrap: true, MinWidth: 10, MaxWidth: 24, Required: false, PrintMode: true, Searchable: true, TabAdvances: true, Creatable: boolPtr(true)},
+		{Key: SegmentKeyDirectory, Label: "Dir", ShowOptions: true, Wrap: false, MinWidth: 10, MaxWidth: 40, Required: true, PrintMode: true, Searchable: true, Freeform: boolPtr(true), TabAdvances: true},
+		{Key: SegmentKeyMCP, Label: "MCP", ShowOptions: true, Wrap: true, MinWidth: 6, MaxWidth: 12, Required: false, PrintMode: false, Searchable: false, TabAdvances: true},
+		{Key: SegmentKeyPermissions, Label: "Perms", ShowOptions: true, Wrap: true, MinWidth: 6, MaxWidth: 12, Required: false, PrintMode: false, Searchable: false, TabAdvances: true},
 	}
 }
 
@@ -54,7 +54,7 @@ func DefaultSegments() []Segment {
 // the one `reset-options` writes.
 func DefaultOptions() Options {
 	return Options{
-		"profile": {
+		SegmentKeyProfile: {
 			Values: []string{},
 			Pinned: []string{},
 			Discovery: &Discovery{
@@ -62,12 +62,12 @@ func DefaultOptions() Options {
 				BaseDir: strPtr("~"),
 			},
 		},
-		"github": {
+		SegmentKeyGitHub: {
 			Values:    []string{},
 			Pinned:    []string{},
 			Discovery: &Discovery{Type: "gh_auth"},
 		},
-		"version": {
+		SegmentKeyVersion: {
 			Values: []string{},
 			Pinned: []string{},
 			Discovery: &Discovery{
@@ -76,7 +76,7 @@ func DefaultOptions() Options {
 				Count: intPtr(15),
 			},
 		},
-		"directory": {
+		SegmentKeyDirectory: {
 			Values: []string{},
 			Pinned: []string{},
 			Discovery: &Discovery{
@@ -93,7 +93,7 @@ func DefaultOptions() Options {
 				StateField: strPtr("recent_dirs"),
 			},
 		},
-		"model": {
+		SegmentKeyModel: {
 			// The first-run seed. options.json then accumulates every model
 			// the Anthropic models endpoint reports, each with its release
 			// date, and never drops one; a model shipped after this list was
@@ -120,11 +120,11 @@ func DefaultOptions() Options {
 			Pinned:    []string{},
 			Discovery: &Discovery{Type: "anthropic_models"},
 		},
-		"mcp": {
+		SegmentKeyMCP: {
 			Values: []string{"default", "strict"},
 			Pinned: []string{},
 		},
-		"permissions": {
+		SegmentKeyPermissions: {
 			// "plan" and "auto" are accepted (pinned or passed with --set) but
 			// not offered: Claude Code's own Shift+Tab cycle reaches plan mode
 			// from inside any session.

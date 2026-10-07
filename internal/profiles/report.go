@@ -75,7 +75,7 @@ func (s Store) GatherReport(name string, today time.Time) (Report, error) {
 	if err != nil {
 		return Report{}, err
 	}
-	seg := opts[Segment]
+	seg := opts[appconfig.SegmentKeyProfile]
 	r.Registered = slices.Contains(seg.Values, name)
 	r.Pinned = slices.Contains(seg.Pinned, name)
 
