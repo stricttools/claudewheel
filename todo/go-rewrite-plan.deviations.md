@@ -247,3 +247,10 @@ When the selected GitHub account's token cannot be fetched (`gh auth token` fail
 - Import: an unreadable transcript is an error (the Python logged it, skipped the file, and counted the session as imported); the unmapped-cwd error asks for a `--from` and `--to` pair (the Python named a `--map` flag that does not exist); targets are kept per scanned transcript, not per uuid (the Python sent two source store dirs holding one uuid to the later one's target); a mapping whose source path has no component is refused. The path patterns with lookaheads are hand-written matchers (RE2 has none), with `\w` as Unicode letters, numbers, and `_`.
 - `ResolveUserPath` (Python's `Path(p).expanduser().resolve()`) refuses an unknown `~name` (Python left it unexpanded) and a `~` with HOME unset or empty.
 - The move journal is decoded with `jsonfile.DecodeStrict` after the schema validation; log lines quote values as `'value'` without Python's repr escaping, as lifecycle's messages do.
+
+## tui/deletion: the answer keys, stop errors, and Ctrl-C
+
+- The selecting screen answers through `widgets.ConfirmAnswer`: `y` stops the ticked rows, `n` and Escape both cancel the deletion and stop nothing, Enter does nothing. `Outcome.Answer` keeps the answer so the caller can tell a decline from a skip; `Outcome.Confirmed()` is Accept. The finished screen still closes on any key (it is not a confirmation).
+- A daemon-stop or SIGTERM that returns an error (the Python swallowed both as "not stopped") leaves the row running and is reported in `Outcome.Failed` with its error; the run goes on to the next row.
+- The exit wait polls `sessions.IsLive` with the record's start token (the Python's identity-aware probe) in the package itself, because `profiles.WaitForExit` checks the pid alone and takes no context; it returns the cancellation cause when ctx is done.
+- Ctrl-C (ctx cancelled) returns the cancellation cause; once stopping has begun it also returns the outcome so far, `StillHolding` probed. The Python returned "not confirmed" on Ctrl-C while selecting and ignored it on the finished screen.
