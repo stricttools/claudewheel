@@ -21,7 +21,11 @@
 //
 // Reads are never effects: a Cmd with Read set, HTTPRead, and Follow run in
 // every mode, read-only included, and are never recorded. File reads use os
-// directly and need no FX.
+// directly and need no FX. Two system calls outside this package are not
+// effects either: signal 0 sent to learn whether a process exists, which
+// delivers nothing, and the wake-up byte written without blocking to a probe
+// waiter's FIFO, which changes no file (its caller asks Previewing first, so
+// a dry run wakes nothing). Terminal I/O belongs to the terminal package.
 package effects
 
 import (

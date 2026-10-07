@@ -20,12 +20,12 @@ const (
 	newDirMode  = 0o777
 )
 
-// Atomic writes give a fresh target this mode, and a secret target always
-// this one.
-const (
-	freshAtomicMode = 0o644
-	secretMode      = 0o600
-)
+// freshAtomicMode is the mode an atomic write gives a fresh target.
+const freshAtomicMode = 0o644
+
+// SecretFileMode is the mode WriteSecretAtomic always leaves its target with:
+// owner read and write only.
+const SecretFileMode = 0o600
 
 // WriteFile writes data to path, creating it or truncating what is there.
 func (fx *FX) WriteFile(path string, data []byte) error {
@@ -63,7 +63,7 @@ func (fx *FX) WriteSecretAtomic(path string, data []byte) error {
 		return err
 	}
 	if fx.handle != nil {
-		_, err := fx.handle.Write(path, data, strictcli.Mode(secretMode))
+		_, err := fx.handle.Write(path, data, strictcli.Mode(SecretFileMode))
 		return err
 	}
 	return stageAndReplace(path, data, true)
@@ -95,7 +95,7 @@ func stageAndReplace(target string, data []byte, secret bool) (err error) {
 	if err = tmp.Close(); err != nil {
 		return err
 	}
-	mode := os.FileMode(secretMode)
+	mode := os.FileMode(SecretFileMode)
 	if !secret {
 		info, statErr := os.Stat(target)
 		switch {

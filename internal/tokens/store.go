@@ -21,9 +21,11 @@ const (
 	// owner only, so the listing does not reveal the token file's name,
 	// size, or modification time.
 	DataDirMode = 0o700
-	// TokenFileName is the token entry file inside the data directory,
-	// always written 0600.
+	// TokenFileName is the token entry file inside the data directory.
 	TokenFileName = "token.json"
+	// TokenFileMode is the mode the token file is always written with, as a
+	// secret: owner read and write only.
+	TokenFileMode = effects.SecretFileMode
 )
 
 // StoreError reports a token file that exists but cannot be used. Reason
