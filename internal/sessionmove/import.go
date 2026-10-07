@@ -35,8 +35,8 @@ type ImportOptions struct {
 	// Reid gives a session that collides with one in the shared store a new
 	// uuid; without it any collision stops the import before it copies.
 	Reid bool
-	// Warnings receives the lines about entries skipped as dangling
-	// symbolic links (the CLI passes stderr). Required.
+	// Warnings receives the lines about transcripts skipped because they
+	// disappeared during the scan (the CLI passes stderr). Required.
 	Warnings io.Writer
 }
 
@@ -70,20 +70,181 @@ func (im *importer) would(would, did string) string {
 	return did
 }
 
-// skipDangling reports, and warns about, a path that is a symbolic link
-// whose target does not exist: a store archived on another machine carries
-// that machine's absolute links.
-func (im *importer) skipDangling(path string) (bool, error) {
-	link, err := isSymlink(path)
-	if err != nil || !link {
-		return false, err
+// brokenLinks returns a line for every symbolic link in the source whose
+// target does not exist, among the entries the import reads: every
+// transcript; for each session it imports, its folder and every entry under
+// it, its todos files, its session-env, file-history, and tasks entries (with
+// the trees under them, whose links are followed when copied); and every
+// paste-cache entry. A store archived on another machine carries that
+// machine's absolute links. A transcript that is an empty file is not
+// imported, so its session's entries are not checked.
+func brokenLinks(source string) ([]string, error) {
+	var broken []string
+	check := func(path string) (bool, error) {
+		bad, err := isDanglingLink(path)
+		if err != nil || !bad {
+			return false, err
+		}
+		target, err := os.Readlink(path)
+		if err != nil {
+			return false, err
+		}
+		broken = append(broken, fmt.Sprintf("  %s: dangling symlink (its target %s does not exist)", path, target))
+		return true, nil
 	}
-	there, err := exists(path)
-	if err != nil || there {
-		return false, err
+
+	encodedDirs, err := subdirs(filepath.Join(source, workspace.ProjectsDirName))
+	if err != nil {
+		return nil, err
 	}
-	fmt.Fprintf(im.warn, "[import] WARNING: skipping %s: dangling symlink (its target does not exist)\n", path)
-	return true, nil
+	imported := map[string]bool{}
+	for _, dir := range encodedDirs {
+		names, err := dirNames(dir)
+		if err != nil {
+			return nil, err
+		}
+		for _, name := range names {
+			stem, ok := strings.CutSuffix(name, ".jsonl")
+			if !ok {
+				continue
+			}
+			entry := filepath.Join(dir, name)
+			bad, err := check(entry)
+			if err != nil {
+				return nil, err
+			}
+			if !isUUID(stem) {
+				continue
+			}
+			if !bad {
+				info, err := os.Stat(entry)
+				if errors.Is(err, os.ErrNotExist) {
+					continue
+				}
+				if err != nil {
+					return nil, err
+				}
+				if info.Size() == 0 {
+					continue
+				}
+			}
+			imported[stem] = true
+			companion := filepath.Join(dir, stem)
+			bad, err = check(companion)
+			if err != nil {
+				return nil, err
+			}
+			if bad {
+				continue
+			}
+			folder, err := isDir(companion)
+			if err != nil {
+				return nil, err
+			}
+			if !folder {
+				continue
+			}
+			items, err := walkMatching(companion, func(string) bool { return true })
+			if err != nil {
+				return nil, err
+			}
+			for _, item := range items {
+				if _, err := check(item); err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
+
+	uuids := make([]string, 0, len(imported))
+	for u := range imported {
+		uuids = append(uuids, u)
+	}
+	sort.Strings(uuids)
+	todos, err := namesIfDir(filepath.Join(source, "todos"))
+	if err != nil {
+		return nil, err
+	}
+	for _, uuid := range uuids {
+		for _, name := range todos {
+			if strings.HasPrefix(name, uuid+"-agent-") && strings.HasSuffix(name, ".json") {
+				if _, err := check(filepath.Join(source, "todos", name)); err != nil {
+					return nil, err
+				}
+			}
+		}
+		for _, d := range importSimpleDirs {
+			if d == "todos" {
+				continue
+			}
+			artifact := filepath.Join(source, d, uuid)
+			bad, err := check(artifact)
+			if err != nil {
+				return nil, err
+			}
+			if bad {
+				continue
+			}
+			dir, err := isDir(artifact)
+			if err != nil {
+				return nil, err
+			}
+			if dir {
+				if err := checkTree(artifact, check, map[string]bool{}); err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
+
+	pastes, err := namesIfDir(filepath.Join(source, "paste-cache"))
+	if err != nil {
+		return nil, err
+	}
+	for _, name := range pastes {
+		if _, err := check(filepath.Join(source, "paste-cache", name)); err != nil {
+			return nil, err
+		}
+	}
+	return broken, nil
+}
+
+// checkTree runs check on every entry under the directory root, following
+// symbolic links to directories as a tree copy does; a directory already
+// seen (by its resolved path) is not walked again.
+func checkTree(root string, check func(string) (bool, error), seen map[string]bool) error {
+	resolved, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return err
+	}
+	if seen[resolved] {
+		return nil
+	}
+	seen[resolved] = true
+	names, err := dirNames(root)
+	if err != nil {
+		return err
+	}
+	for _, name := range names {
+		path := filepath.Join(root, name)
+		bad, err := check(path)
+		if err != nil {
+			return err
+		}
+		if bad {
+			continue
+		}
+		dir, err := isDir(path)
+		if err != nil {
+			return err
+		}
+		if dir {
+			if err := checkTree(path, check, seen); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // normalizeCwd folds a cwd for comparison: trailing '/' and '\' stripped,
@@ -272,42 +433,14 @@ type sessionBundle struct {
 	cwd string
 }
 
-// scanSource collects the session bundles under <source>/projects/*/. A
-// store dir whose sessions do not record one matching path is an error, and
-// so is a transcript that is a dangling symbolic link (all of them named);
-// both are found before the import writes anything.
+// scanSource collects the session bundles under <source>/projects/*/, which
+// brokenLinks found free of dangling symbolic links. A store dir whose
+// sessions do not record one matching path is an error, found before the
+// import writes anything.
 func (im *importer) scanSource(source string) ([]sessionBundle, error) {
 	encodedDirs, err := subdirs(filepath.Join(source, workspace.ProjectsDirName))
 	if err != nil {
 		return nil, err
-	}
-
-	var dangling []string
-	for _, dir := range encodedDirs {
-		names, err := dirNames(dir)
-		if err != nil {
-			return nil, err
-		}
-		for _, name := range names {
-			if !strings.HasSuffix(name, ".jsonl") {
-				continue
-			}
-			entry := filepath.Join(dir, name)
-			bad, err := isDanglingLink(entry)
-			if err != nil {
-				return nil, err
-			}
-			if bad {
-				target, err := os.Readlink(entry)
-				if err != nil {
-					return nil, err
-				}
-				dangling = append(dangling, fmt.Sprintf("  %s: dangling symlink (its target %s does not exist)", entry, target))
-			}
-		}
-	}
-	if len(dangling) > 0 {
-		return nil, fmt.Errorf("cannot import, nothing was changed: session transcripts in the source are symlinks whose target does not exist:\n%s", strings.Join(dangling, "\n"))
 	}
 
 	var bundles []sessionBundle
@@ -340,15 +473,9 @@ func (im *importer) scanSource(source string) ([]sessionBundle, error) {
 				}
 			}
 			companion := filepath.Join(dir, stem)
-			skip, err := im.skipDangling(companion)
+			folder, err := isDir(companion)
 			if err != nil {
 				return nil, err
-			}
-			folder := false
-			if !skip {
-				if folder, err = isDir(companion); err != nil {
-					return nil, err
-				}
 			}
 			b := sessionBundle{uuid: stem, jsonlPath: entry, cwd: cwd}
 			if folder {
@@ -387,7 +514,9 @@ type bundleTarget struct {
 // every transcript. Every cwd the source's sessions recorded needs a
 // mapping. A session already in the shared store is a collision: without
 // Reid the import copies nothing and returns the collisions in the result;
-// with it the session gets a new uuid.
+// with it the session gets a new uuid. A symbolic link the import would read
+// whose target does not exist is an error listing every such link (see
+// brokenLinks), and nothing is copied.
 func Import(fx *effects.FX, store workspace.SharedStore, source string, mappings []PathMapping, opts ImportOptions) (ImportResult, error) {
 	if opts.Warnings == nil {
 		return ImportResult{}, errors.New("import needs a writer for its warnings")
@@ -406,6 +535,13 @@ func Import(fx *effects.FX, store workspace.SharedStore, source string, mappings
 	}
 
 	im.log("scanning " + source)
+	broken, err := brokenLinks(source)
+	if err != nil {
+		return im.result, err
+	}
+	if len(broken) > 0 {
+		return im.result, fmt.Errorf("cannot import, nothing was changed: these symlinks in the source have no target:\n%s", strings.Join(broken, "\n"))
+	}
 	bundles, err := im.scanSource(source)
 	if err != nil {
 		return im.result, err
@@ -527,13 +663,6 @@ func (im *importer) copyBundle(source string, b sessionBundle, t bundleTarget, r
 			return err
 		}
 		for _, item := range items {
-			skip, err := im.skipDangling(item)
-			if err != nil {
-				return err
-			}
-			if skip {
-				continue
-			}
 			file, err := isFile(item)
 			if err != nil {
 				return err
@@ -594,19 +723,10 @@ func (im *importer) copySimpleArtifacts(source, dirname, oldUUID, effective stri
 			return err
 		}
 		for _, name := range names {
-			// Name first: this directory is walked once per session, so an
-			// unrelated broken entry must not be reported once per session.
 			if !strings.HasPrefix(name, oldUUID+"-agent-") || !strings.HasSuffix(name, ".json") {
 				continue
 			}
 			item := filepath.Join(srcDir, name)
-			skip, err := im.skipDangling(item)
-			if err != nil {
-				return err
-			}
-			if skip {
-				continue
-			}
 			file, err := isFile(item)
 			if err != nil {
 				return err
@@ -639,10 +759,6 @@ func (im *importer) copySimpleArtifacts(source, dirname, oldUUID, effective stri
 	}
 
 	artifact := filepath.Join(srcDir, oldUUID)
-	skip, err := im.skipDangling(artifact)
-	if err != nil || skip {
-		return err
-	}
 	there, err := exists(artifact)
 	if err != nil || !there {
 		return err
@@ -691,13 +807,6 @@ func (im *importer) copyPasteCache(source string) error {
 	}
 	for _, name := range names {
 		item := filepath.Join(pasteSrc, name)
-		skip, err := im.skipDangling(item)
-		if err != nil {
-			return err
-		}
-		if skip {
-			continue
-		}
 		file, err := isFile(item)
 		if err != nil {
 			return err

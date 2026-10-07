@@ -70,7 +70,10 @@ func registerSessions(app registrar) {
 	// defaults declare no element, so nothing the invocation did not state
 	// reaches a write; the handler pairs the two lists by position.
 	mutatingCommand(app, "import",
-		"import session data from an external Claude Code directory",
+		"import session data from an external Claude Code directory. "+
+			"The source is checked before anything is copied: a symlink the import would read whose target does not exist "+
+			"(a transcript, a session's folder or anything in it, its todos, session-env, file-history, or tasks entries, a paste-cache file) "+
+			"refuses the whole import, listing every broken link, and nothing is copied",
 		handleImport,
 		strictcli.WithArgs(strictcli.NewArg("source", "path to the source directory (e.g., /path/to/backup/.claude)", strictcli.ArgRequired())),
 		strictcli.WithFlagSets(strictcli.FlagSet{Name: "mapping", Flags: []strictcli.Flag{
