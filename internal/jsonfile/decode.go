@@ -28,7 +28,7 @@ func DecodeObject(data []byte) (*Object, error) {
 	}
 	o, ok := v.(*Object)
 	if !ok {
-		return nil, fmt.Errorf("JSON top level is %s, not an object", describe(v))
+		return nil, fmt.Errorf("JSON top level is %s, not an object", Describe(v))
 	}
 	return o, nil
 }
@@ -59,8 +59,9 @@ func decodeDocument(data []byte, refuseDuplicates bool) (Value, error) {
 	return v, nil
 }
 
-// describe names the JSON type of a tree value, for error messages.
-func describe(v Value) string {
+// Describe names the JSON type of a tree value for error messages: "null",
+// "a boolean", "a number", "a string", "an array", or "an object".
+func Describe(v Value) string {
 	switch v.(type) {
 	case nil:
 		return "null"

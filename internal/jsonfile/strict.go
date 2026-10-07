@@ -64,7 +64,7 @@ func compareKeys(input, output Value, path string) error {
 			inItem, _ := in.Get(key)
 			outItem, present := out.Get(key)
 			if !present {
-				return fmt.Errorf("%s: key %q holds %s, which is never written: omit the key instead", path, key, describe(inItem))
+				return fmt.Errorf("%s: key %q holds %s, which is never written: omit the key instead", path, key, Describe(inItem))
 			}
 			if err := compareKeys(inItem, outItem, path+"."+key); err != nil {
 				return err

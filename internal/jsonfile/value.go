@@ -87,6 +87,15 @@ func (o *Object) Len() int {
 	return len(o.keys)
 }
 
+// StringArray returns items as a JSON array tree value.
+func StringArray(items []string) []Value {
+	out := make([]Value, len(items))
+	for i, s := range items {
+		out[i] = s
+	}
+	return out
+}
+
 // MarshalJSON writes the object in compact form, so an *Object can sit inside
 // a struct handed to encoding/json or to the Marshal functions of this package.
 func (o *Object) MarshalJSON() ([]byte, error) {
@@ -108,7 +117,10 @@ func (o *Object) UnmarshalJSON(data []byte) error {
 // json.Number, string, []Value, *Object) are kept as they are, recursively;
 // any other value is marshaled with encoding/json and decoded back, so a
 // struct's fields keep their declaration order. A Go float is written in
-// encoding/json's format, not Python's: claudewheel's own files hold no floats.
+// encoding/json's shortest form, which has the significant digits of
+// Python's repr but not always its spelling (an integral value loses its
+// ".0"); state.json's cache fetch times are such floats. DecodeStrict reads
+// either spelling into a float64 field.
 func Normalize(v any) (Value, error) {
 	switch t := v.(type) {
 	case nil, bool, string:

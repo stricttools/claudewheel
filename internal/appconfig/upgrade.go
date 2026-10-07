@@ -255,7 +255,7 @@ func planState(tree jsonfile.Value) []Change {
 	if v, present := obj.Get(optIn); present {
 		if _, isBool := v.(bool); !isBool {
 			obj.Delete(optIn)
-			changes = append(changes, Change{Description: fmt.Sprintf("removed %q, which held %s rather than a boolean (the choice is asked again)", optIn, jsonTypeName(v))})
+			changes = append(changes, Change{Description: fmt.Sprintf("removed %q, which held %s rather than a boolean (the choice is asked again)", optIn, jsonfile.Describe(v))})
 		}
 	}
 	return append(changes, addMissingKeys(obj, defaultTree(DefaultState()).(*jsonfile.Object), "")...)
@@ -274,21 +274,4 @@ func planTheme(name string) planner {
 		}
 		return changes
 	}
-}
-
-// jsonTypeName names the JSON type of a tree value for messages.
-func jsonTypeName(v jsonfile.Value) string {
-	switch v.(type) {
-	case nil:
-		return "null"
-	case bool:
-		return "a boolean"
-	case string:
-		return "a string"
-	case []jsonfile.Value:
-		return "an array"
-	case *jsonfile.Object:
-		return "an object"
-	}
-	return "a number"
 }

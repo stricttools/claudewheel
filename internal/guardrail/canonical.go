@@ -89,22 +89,14 @@ func canonicalHooks(scriptsDir string) *jsonfile.Object {
 	return hooks
 }
 
-func stringValues(items []string) []jsonfile.Value {
-	out := make([]jsonfile.Value, 0, len(items))
-	for _, s := range items {
-		out = append(out, s)
-	}
-	return out
-}
-
 // CanonicalSharedSettings returns the canonical shared-settings.json tree,
 // built fresh: the hooks from ExpectedHookWirings, the stripped tool names,
 // and profileDefaults (the canonical profile settings, the wizard's default
 // keys, and the deny and ask arrays).
 func CanonicalSharedSettings(scriptsDir string) *jsonfile.Object {
 	perms := jsonfile.NewObject()
-	perms.Set("deny", stringValues(CanonicalDenyRules()))
-	perms.Set("ask", stringValues(CanonicalAskRules()))
+	perms.Set("deny", jsonfile.StringArray(CanonicalDenyRules()))
+	perms.Set("ask", jsonfile.StringArray(CanonicalAskRules()))
 	perms.Set("defaultMode", "default")
 
 	defaults := CanonicalProfileSettings()
@@ -116,7 +108,7 @@ func CanonicalSharedSettings(scriptsDir string) *jsonfile.Object {
 
 	shared := jsonfile.NewObject()
 	shared.Set("hooks", canonicalHooks(scriptsDir))
-	shared.Set("disallowedTools", stringValues(DisallowedToolNames()))
+	shared.Set("disallowedTools", jsonfile.StringArray(DisallowedToolNames()))
 	shared.Set("profileDefaults", defaults)
 	return shared
 }
