@@ -450,3 +450,19 @@ The character-counting helpers the bar, the sessions view, and the wizard each d
 ## projecthooks and scratchpad: their layer
 
 The layering table places neither `projecthooks` nor `scratchpad`. Both import only base packages (`jsonfile` and `pyrepr`, `effects`) and are imported by `health` and `launch`, so they sit in the operations layer, beside `auth`, `install`, and `discover`, with which the plan's package table groups them. A whole-module check of the imports finds no upward import and no cycle.
+
+## Rulings by the orchestrating session on the build's open decisions
+
+These override every earlier entry they touch.
+
+1. `-s` values a fixed-choice segment does not list: no launch-only values. For a segment preset with `-s`, that segment's discovery runs to completion before the value is validated, and a value it does not list is refused with an error naming the values it does list (in the bar and on the path that skips the bar).
+2. An unfetchable GitHub token refuses the launch: confirmed.
+3. A named profile's launch environment removes inherited token and plan-tier variables it does not set: confirmed.
+4. The probe runner unit's quoted `ExecStart` path: confirmed.
+5. Strict decoding, with a missing key refusing every command until `upgrade-workspace`: confirmed. Every release that adds a key to an owned file adds its conversion to `upgrade-workspace` in the same change.
+6. On the deletion checklist, `n` cancels the deletion, like Escape: confirmed.
+7. Stale `inodes.json` entries are pruned by the launch preflight (a mutating path), which reports when it prunes anything.
+8. Arguments after `--`: strictcli's Go library gains a declared way for a command to receive the arguments after `--` through its context; `launch` uses it, and its reading of `os.Args` is deleted.
+9. The probe runner never exits for a stray file in `shared/probes/waiters/` that is not a FIFO: that wake fails as an error written to the runner's own error output, naming the path, and the runner keeps serving.
+10. `migrate` colliding files and `import` broken symlinks are hard errors: each command checks everything first and refuses before writing anything, listing every collision or broken link.
+11. One PATH lookup and one set of stat helpers, with one behavior: an empty PATH entry does not search the current directory, a parent that is a file is an error, and a symlink loop is an error. Every caller uses them.
