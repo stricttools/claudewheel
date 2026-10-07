@@ -277,7 +277,7 @@ type sessionBundle struct {
 // so is a transcript that is a dangling symbolic link (all of them named);
 // both are found before the import writes anything.
 func (im *importer) scanSource(source string) ([]sessionBundle, error) {
-	encodedDirs, err := subdirs(filepath.Join(source, "projects"))
+	encodedDirs, err := subdirs(filepath.Join(source, workspace.ProjectsDirName))
 	if err != nil {
 		return nil, err
 	}
@@ -394,7 +394,7 @@ func Import(fx *effects.FX, store workspace.SharedStore, source string, mappings
 	}
 	im := &importer{fx: fx, store: store, warn: opts.Warnings}
 
-	ok, err := isDir(filepath.Join(source, "projects"))
+	ok, err := isDir(filepath.Join(source, workspace.ProjectsDirName))
 	if err != nil {
 		return im.result, err
 	}

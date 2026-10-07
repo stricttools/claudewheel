@@ -11,6 +11,7 @@ import (
 	"github.com/stricttools/claudewheel/internal/lifecycle"
 	"github.com/stricttools/claudewheel/internal/realpath"
 	"github.com/stricttools/claudewheel/internal/sessions"
+	"github.com/stricttools/claudewheel/internal/workspace"
 )
 
 // migrateSimpleDirs are the profile directories whose entries are named by
@@ -52,7 +53,7 @@ func isUUID(name string) bool {
 // the simple directories, and todos/<uuid>-agent-*.json.
 func discoverUUIDs(src string) (map[string]bool, error) {
 	uuids := map[string]bool{}
-	projects := filepath.Join(src, "projects")
+	projects := filepath.Join(src, workspace.ProjectsDirName)
 	ok, err := isDir(projects)
 	if err != nil {
 		return nil, err
@@ -137,11 +138,11 @@ func symlinkTarget(p string) (string, bool, error) {
 // sharedProjects reports whether both profiles' projects entries are
 // symbolic links to the same directory, so their files are already together.
 func sharedProjects(src, dst string) (bool, error) {
-	srcTarget, srcLink, err := symlinkTarget(filepath.Join(src, "projects"))
+	srcTarget, srcLink, err := symlinkTarget(filepath.Join(src, workspace.ProjectsDirName))
 	if err != nil {
 		return false, err
 	}
-	dstTarget, dstLink, err := symlinkTarget(filepath.Join(dst, "projects"))
+	dstTarget, dstLink, err := symlinkTarget(filepath.Join(dst, workspace.ProjectsDirName))
 	if err != nil {
 		return false, err
 	}
@@ -187,7 +188,7 @@ func (m *migrator) moveArtifact(src, dst string) error {
 
 // moveSession moves every artifact of one session from src to dst.
 func (m *migrator) moveSession(src, dst, uuid string) error {
-	projects := filepath.Join(src, "projects")
+	projects := filepath.Join(src, workspace.ProjectsDirName)
 	ok, err := isDir(projects)
 	if err != nil {
 		return err
@@ -199,7 +200,7 @@ func (m *migrator) moveSession(src, dst, uuid string) error {
 		}
 		for _, storeDir := range storeDirs {
 			name := filepath.Base(storeDir)
-			if err := m.moveArtifact(filepath.Join(storeDir, uuid+".jsonl"), filepath.Join(dst, "projects", name, uuid+".jsonl")); err != nil {
+			if err := m.moveArtifact(filepath.Join(storeDir, uuid+".jsonl"), filepath.Join(dst, workspace.ProjectsDirName, name, uuid+".jsonl")); err != nil {
 				return err
 			}
 			folder := filepath.Join(storeDir, uuid)
@@ -208,7 +209,7 @@ func (m *migrator) moveSession(src, dst, uuid string) error {
 				return err
 			}
 			if isFolder {
-				if err := m.moveArtifact(folder, filepath.Join(dst, "projects", name, uuid)); err != nil {
+				if err := m.moveArtifact(folder, filepath.Join(dst, workspace.ProjectsDirName, name, uuid)); err != nil {
 					return err
 				}
 			}

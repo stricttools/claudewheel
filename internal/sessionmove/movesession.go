@@ -11,8 +11,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/stricttools/strictspec/go/strictspec"
-
 	"github.com/stricttools/claudewheel/internal/effects"
 	"github.com/stricttools/claudewheel/internal/jsonfile"
 	"github.com/stricttools/claudewheel/internal/lifecycle"
@@ -114,19 +112,11 @@ func JournalPath(ws workspace.Workspace, session string) string {
 	return filepath.Join(ws.Shared().SessionMovesDir(), session+".json")
 }
 
-func joinDiagnostics(diags []strictspec.Diagnostic) string {
-	messages := make([]string, len(diags))
-	for i, d := range diags {
-		messages[i] = d.Message
-	}
-	return strings.Join(messages, "; ")
-}
-
 // validateJournal runs the schema validation, the format_version check first.
 func validateJournal(data []byte, where string) error {
 	_, diags := sessionmovejournal.ValidateBytes(data, "json")
 	if len(diags) > 0 {
-		return refuse("%s: %s", where, joinDiagnostics(diags))
+		return refuse("%s: %s", where, lifecycle.JoinDiagnostics(diags))
 	}
 	return nil
 }
