@@ -11,14 +11,10 @@ import (
 
 	"github.com/stricttools/claudewheel/internal/effects"
 	"github.com/stricttools/claudewheel/internal/jsonfile"
+	"github.com/stricttools/claudewheel/internal/profiles"
 	"github.com/stricttools/claudewheel/internal/sessions"
 	"github.com/stricttools/claudewheel/internal/workspace"
 )
-
-// ClaudeGlobalConfigName is the file in a profile's config directory where
-// Claude Code keeps its per-project registry (projects{}) and
-// githubRepoPaths.
-const ClaudeGlobalConfigName = ".claude.json"
 
 // MvOptions are the choices of one Mv run.
 type MvOptions struct {
@@ -350,7 +346,7 @@ func claudeJSONFiles(profileDirs []string, sharedDir string) ([]string, error) {
 		if pdir == sharedDir {
 			continue
 		}
-		path := filepath.Join(pdir, ClaudeGlobalConfigName)
+		path := filepath.Join(pdir, profiles.GlobalConfigName)
 		ok, err := isFile(path)
 		if err != nil {
 			return nil, err
