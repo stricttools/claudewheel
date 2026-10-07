@@ -663,7 +663,7 @@ func (o *overview) prune(ctx context.Context) error {
 // far; any other error also returns what changed so far.
 func RunOverview(ctx context.Context, fx *effects.FX, t *terminal.Terminal, c widgets.Colors, src Sources) (Outcome, error) {
 	if !t.Raw() {
-		return Outcome{}, errors.New("the terminal is not in cbreak mode: enter it (terminal.EnterRaw) before showing the sessions overview")
+		return Outcome{}, errors.New("the terminal is not in cbreak mode: enter it (Terminal.EnterRaw) before showing the sessions overview")
 	}
 	if src.Clock == nil || src.Memory == nil {
 		return Outcome{}, errors.New("the sessions overview needs a clock and a memory reader")

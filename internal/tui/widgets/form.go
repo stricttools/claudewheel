@@ -265,7 +265,7 @@ func renderForm(t *terminal.Terminal, c Colors, form Form, focus int, errMsg str
 // requireRaw refuses a terminal its caller has not put in cbreak mode.
 func requireRaw(t *terminal.Terminal) error {
 	if !t.Raw() {
-		return errors.New("the terminal is not in cbreak mode: enter it (terminal.EnterRaw) before drawing a widget")
+		return errors.New("the terminal is not in cbreak mode: enter it (Terminal.EnterRaw) before drawing a widget")
 	}
 	return nil
 }

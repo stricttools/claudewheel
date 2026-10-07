@@ -446,3 +446,7 @@ The character-counting helpers the bar, the sessions view, and the wizard each d
 ## cli: probe create's positional argument is probe-type
 
 `probe create`'s positional argument is named `probe-type` (the constant `probeTypeArg`), where the Python named it `kind`; the name appears only in help and errors, so `claudewheel probe create oom-kill` is unchanged. The command's help sentence ("create a probe of one kind") and probe's "no probe kind" error, carried from the Python, keep their words, as do the JSON keys `kind` and `probe_kind` of the stored formats.
+
+## projecthooks and scratchpad: their layer
+
+The layering table places neither `projecthooks` nor `scratchpad`. Both import only base packages (`jsonfile` and `pyrepr`, `effects`) and are imported by `health` and `launch`, so they sit in the operations layer, beside `auth`, `install`, and `discover`, with which the plan's package table groups them. A whole-module check of the imports finds no upward import and no cycle.

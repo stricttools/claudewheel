@@ -4,7 +4,7 @@
 // component that is the one authority for confirmation keys.
 //
 // Every widget draws on a terminal its caller opened and put in cbreak mode
-// (terminal.EnterRaw), and leaves restoring it to the caller's deferred
+// (Terminal.EnterRaw), and leaves restoring it to the caller's deferred
 // Close. Every key loop takes a context and returns the terminal's
 // cancellation cause as soon as it is done, and redraws on KeyResize.
 package widgets

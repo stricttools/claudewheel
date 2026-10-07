@@ -314,7 +314,7 @@ func (s *screen) render() error {
 // row goes back to running and the error is in Outcome.Failed.
 func Run(ctx context.Context, fx *effects.FX, t *terminal.Terminal, c widgets.Colors, holders []Holder, spec Checklist) (Outcome, error) {
 	if !t.Raw() {
-		return Outcome{}, errors.New("the terminal is not in cbreak mode: enter it (terminal.EnterRaw) before showing the deletion checklist")
+		return Outcome{}, errors.New("the terminal is not in cbreak mode: enter it (Terminal.EnterRaw) before showing the deletion checklist")
 	}
 	s := &screen{t: t, colors: c, spec: spec, holders: holders, focus: -1, hint: hintSelect()}
 	if len(holders) > 0 {
