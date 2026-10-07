@@ -325,3 +325,7 @@ When the selected GitHub account's token cannot be fetched (`gh auth token` fail
 - `patch-profiles` prints the report of what was done before a failed write, then the error; a selection refused before anything ran prints no report.
 - `profile rename` rerun after an interruption reports that it finished the interrupted rename. It is the one profile command that does not refuse a leftover breadcrumb up front.
 - `profile exec` opens the app config (`Ensure`) like every mutating command, so an unconverted workspace is refused before the exec.
+
+## launch: the miniclaude adapter always passes model and permission mode (orchestrating session)
+
+The miniclaude client adapter always passes `--model <id>` and `--permission-mode <mode>` to `miniclaude repl`; the Go miniclaude requires both. When the model or permissions segment has no value for a miniclaude launch, the launch is refused with an error naming the segment, instead of omitting the flag.
