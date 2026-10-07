@@ -15,7 +15,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -24,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/stricttools/claudewheel/internal/jsonfile"
+	"github.com/stricttools/claudewheel/internal/pyrepr"
 )
 
 // settingsFiles are the per-project settings files that may carry a hooks
@@ -118,14 +118,14 @@ func entryLines(event string, entry jsonfile.Value) []string {
 	}
 	prefix := event
 	if s, isString := matcher.(string); matcher != nil && !(isString && s == "") {
-		prefix += "  [matcher: " + pythonStr(matcher) + "]"
+		prefix += "  [matcher: " + pyrepr.Str(matcher) + "]"
 	}
 	var commands []string
 	if list, ok := inner.([]jsonfile.Value); ok {
 		for _, h := range list {
 			if o, ok := h.(*jsonfile.Object); ok {
 				if cmd, ok := o.Get("command"); ok {
-					commands = append(commands, pythonStr(cmd))
+					commands = append(commands, pyrepr.Str(cmd))
 				}
 			}
 		}
@@ -138,52 +138,6 @@ func entryLines(event string, entry jsonfile.Value) []string {
 		lines[i] = prefix + "  ->  " + cmd
 	}
 	return lines
-}
-
-// pythonStr renders a tree value as Python's str() renders the decoded
-// value, so a matcher or command that is not a string is shown as the
-// Python implementation showed it.
-func pythonStr(v jsonfile.Value) string {
-	if s, ok := v.(string); ok {
-		return s
-	}
-	return pythonRepr(v)
-}
-
-func pythonRepr(v jsonfile.Value) string {
-	switch t := v.(type) {
-	case nil:
-		return "None"
-	case bool:
-		if t {
-			return "True"
-		}
-		return "False"
-	case json.Number:
-		return string(t)
-	case string:
-		quote := "'"
-		if strings.Contains(t, "'") && !strings.Contains(t, `"`) {
-			quote = `"`
-		}
-		escaped := strings.ReplaceAll(t, `\`, `\\`)
-		escaped = strings.ReplaceAll(escaped, quote, `\`+quote)
-		return quote + escaped + quote
-	case []jsonfile.Value:
-		parts := make([]string, len(t))
-		for i, item := range t {
-			parts[i] = pythonRepr(item)
-		}
-		return "[" + strings.Join(parts, ", ") + "]"
-	case *jsonfile.Object:
-		parts := make([]string, 0, t.Len())
-		for _, k := range t.Keys() {
-			item, _ := t.Get(k)
-			parts = append(parts, pythonRepr(k)+": "+pythonRepr(item))
-		}
-		return "{" + strings.Join(parts, ", ") + "}"
-	}
-	return fmt.Sprint(v)
 }
 
 // truthy reports Python truthiness of a tree value.

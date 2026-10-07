@@ -1,9 +1,7 @@
 package install
 
 import (
-	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
@@ -12,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/stricttools/claudewheel/internal/effects"
+	"github.com/stricttools/claudewheel/internal/realpath"
 	"github.com/stricttools/claudewheel/internal/workspace"
 )
 
@@ -77,41 +76,11 @@ func (l Locator) SymlinkTarget() (string, bool) {
 	if _, err := os.Lstat(l.ClaudeSymlink); err != nil {
 		return "", false
 	}
-	return resolveLenient(l.ClaudeSymlink)
-}
-
-// maxLinkHops bounds symbolic link chains, as the kernel's ELOOP limit does.
-const maxLinkHops = 40
-
-// resolveLenient resolves every symbolic link in p; when the chain ends at a
-// missing path, that path (absolute and clean) is the answer.
-func resolveLenient(p string) (string, bool) {
-	p, err := filepath.Abs(p)
+	target, err := realpath.Resolve(l.ClaudeSymlink)
 	if err != nil {
 		return "", false
 	}
-	for hop := 0; hop < maxLinkHops; hop++ {
-		resolved, err := filepath.EvalSymlinks(p)
-		if err == nil {
-			return resolved, true
-		}
-		if !errors.Is(err, fs.ErrNotExist) {
-			return "", false
-		}
-		target, err := os.Readlink(p)
-		if err != nil {
-			// p itself is missing: the chain ends here.
-			if errors.Is(err, fs.ErrNotExist) {
-				return filepath.Clean(p), true
-			}
-			return "", false
-		}
-		if !filepath.IsAbs(target) {
-			target = filepath.Join(filepath.Dir(p), target)
-		}
-		p = target
-	}
-	return "", false
+	return target, true
 }
 
 // EffectiveCLIVersion resolves the Claude Code version a launch runs: the

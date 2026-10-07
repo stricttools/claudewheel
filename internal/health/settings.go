@@ -10,6 +10,7 @@ import (
 	"github.com/stricttools/claudewheel/internal/hookscripts"
 	"github.com/stricttools/claudewheel/internal/jsonfile"
 	"github.com/stricttools/claudewheel/internal/profiles"
+	"github.com/stricttools/claudewheel/internal/pyrepr"
 	"github.com/stricttools/claudewheel/internal/reconcile"
 )
 
@@ -175,7 +176,7 @@ func (c *checker) settingsDefaults() Result {
 		}
 		cpd, _ := s.Get("cleanupPeriodDays")
 		if days, isNumber := numberValue(cpd); !isNumber || days < 365 {
-			issues = append(issues, fmt.Sprintf("%s: cleanupPeriodDays < 365 (%s)", p.Name, pyRepr(cpd)))
+			issues = append(issues, fmt.Sprintf("%s: cleanupPeriodDays < 365 (%s)", p.Name, pyrepr.Repr(cpd)))
 		}
 		if v, _ := s.Get("autoMemoryEnabled"); v != false {
 			issues = append(issues, p.Name+": autoMemoryEnabled != false")
@@ -184,7 +185,7 @@ func (c *checker) settingsDefaults() Result {
 			want, _ := canonical.Get(key)
 			have, present := s.Get(key)
 			if !present || !jsonfile.Equal(have, want) {
-				issues = append(issues, fmt.Sprintf("%s: %s != %s (run '%s')", p.Name, key, pyRepr(want), fix))
+				issues = append(issues, fmt.Sprintf("%s: %s != %s (run '%s')", p.Name, key, pyrepr.Repr(want), fix))
 			}
 		}
 		if v, _ := objectOr(s, "permissions").Get("disableAutoMode"); v != "disable" {
@@ -319,10 +320,10 @@ func diffJSON(label string, canonical, actual jsonfile.Value) []string {
 			}
 		}
 		if len(missing) > 0 {
-			diffs = append(diffs, fmt.Sprintf("%s: missing %s", label, pyRepr(missing)))
+			diffs = append(diffs, fmt.Sprintf("%s: missing %s", label, pyrepr.Repr(missing)))
 		}
 		if len(extra) > 0 {
-			diffs = append(diffs, fmt.Sprintf("%s: extra %s", label, pyRepr(extra)))
+			diffs = append(diffs, fmt.Sprintf("%s: extra %s", label, pyrepr.Repr(extra)))
 		}
 		return diffs
 	}
@@ -394,7 +395,7 @@ func canonicalPermissionDiffs(label string, perms jsonfile.Value) []string {
 		}
 	}
 	if len(conflicting) > 0 {
-		diffs = append(diffs, fmt.Sprintf("%s.allow: dead/conflicting %s", label, pyStringListRepr(conflicting)))
+		diffs = append(diffs, fmt.Sprintf("%s.allow: dead/conflicting %s", label, pyrepr.StringList(conflicting)))
 	}
 	return diffs
 }

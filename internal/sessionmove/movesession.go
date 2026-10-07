@@ -16,6 +16,7 @@ import (
 	"github.com/stricttools/claudewheel/internal/effects"
 	"github.com/stricttools/claudewheel/internal/jsonfile"
 	"github.com/stricttools/claudewheel/internal/lifecycle"
+	"github.com/stricttools/claudewheel/internal/realpath"
 	"github.com/stricttools/claudewheel/internal/schema/sessionmovejournal"
 	"github.com/stricttools/claudewheel/internal/sessions"
 	"github.com/stricttools/claudewheel/internal/workspace"
@@ -370,14 +371,14 @@ func checkNoJobs(session string, profiles []sessions.ProfileConfigDir) error {
 			} else if !there {
 				continue
 			}
-			real, err := realPath(state)
+			resolved, err := realpath.Resolve(state)
 			if err != nil {
 				return err
 			}
-			if seen[real] {
+			if seen[resolved] {
 				continue
 			}
-			seen[real] = true
+			seen[resolved] = true
 			raw, err := os.ReadFile(state)
 			var record jsonfile.Value
 			if err == nil {
@@ -421,11 +422,11 @@ func linksInto(dir, inside string, links []string) ([]string, error) {
 			if err != nil {
 				return nil, err
 			}
-			real, err := realPath(pyJoin(dir, target))
+			resolved, err := realpath.Resolve(realpath.Join(dir, target))
 			if err != nil {
 				return nil, err
 			}
-			if real == inside || strings.HasPrefix(real, inside+"/") {
+			if resolved == inside || strings.HasPrefix(resolved, inside+"/") {
 				links = append(links, fmt.Sprintf("  %s -> %s", p, target))
 			}
 			continue
@@ -449,7 +450,7 @@ func checkNoInboundLinks(stores []string, session, folder string) error {
 	if err != nil || !ok {
 		return err
 	}
-	inside, err := realPath(folder)
+	inside, err := realpath.Resolve(folder)
 	if err != nil {
 		return err
 	}

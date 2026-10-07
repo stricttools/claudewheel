@@ -9,6 +9,7 @@ import (
 
 	"github.com/stricttools/claudewheel/internal/effects"
 	"github.com/stricttools/claudewheel/internal/lifecycle"
+	"github.com/stricttools/claudewheel/internal/realpath"
 	"github.com/stricttools/claudewheel/internal/sessions"
 )
 
@@ -126,7 +127,7 @@ func symlinkTarget(p string) (string, bool, error) {
 	if err != nil || !link {
 		return "", false, err
 	}
-	target, err := realPath(p)
+	target, err := realpath.Resolve(p)
 	if err != nil {
 		return "", false, err
 	}

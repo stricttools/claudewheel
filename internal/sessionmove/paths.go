@@ -28,6 +28,8 @@ import (
 	"syscall"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/stricttools/claudewheel/internal/realpath"
 )
 
 // ResolveUserPath expands a leading ~ or ~name in p and returns it absolute,
@@ -39,7 +41,7 @@ func ResolveUserPath(p string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return realPath(expanded)
+	return realpath.Resolve(expanded)
 }
 
 // expandUser is Python's posixpath.expanduser, refusing what it would leave
@@ -70,99 +72,6 @@ func expandUser(p string) (string, error) {
 		return "/", nil
 	}
 	return out, nil
-}
-
-// realPath is Python's non-strict os.path.realpath: symbolic links are
-// resolved component by component, ".." applies to the path resolved so
-// far, a component that cannot be examined is taken as it is, and a link
-// loop leaves the rest unresolved.
-func realPath(p string) (string, error) {
-	resolved, _, err := joinRealPath("", p, map[string]*string{})
-	if err != nil {
-		return "", err
-	}
-	return filepath.Abs(resolved)
-}
-
-func joinRealPath(path, rest string, seen map[string]*string) (string, bool, error) {
-	if strings.HasPrefix(rest, "/") {
-		rest = rest[1:]
-		path = "/"
-	}
-	for rest != "" {
-		var name string
-		name, rest, _ = strings.Cut(rest, "/")
-		if name == "" || name == "." {
-			continue
-		}
-		if name == ".." {
-			if path == "" {
-				path = ".."
-				continue
-			}
-			var base string
-			path, base = pySplit(path)
-			if base == ".." {
-				path = pyJoin(path, "..", "..")
-			}
-			continue
-		}
-		next := pyJoin(path, name)
-		info, err := os.Lstat(next)
-		if err != nil || info.Mode()&fs.ModeSymlink == 0 {
-			path = next
-			continue
-		}
-		if prior, ok := seen[next]; ok {
-			if prior != nil {
-				path = *prior
-				continue
-			}
-			return pyJoin(next, rest), false, nil
-		}
-		seen[next] = nil
-		target, err := os.Readlink(next)
-		if err != nil {
-			return "", false, err
-		}
-		var ok bool
-		path, ok, err = joinRealPath(path, target, seen)
-		if err != nil {
-			return "", false, err
-		}
-		if !ok {
-			return pyJoin(path, rest), false, nil
-		}
-		done := path
-		seen[next] = &done
-	}
-	return path, true, nil
-}
-
-// pySplit is posixpath.split.
-func pySplit(p string) (head, tail string) {
-	i := strings.LastIndexByte(p, '/') + 1
-	head, tail = p[:i], p[i:]
-	if head != "" && strings.Trim(head, "/") != "" {
-		head = strings.TrimRight(head, "/")
-	}
-	return head, tail
-}
-
-// pyJoin is posixpath.join.
-func pyJoin(base string, parts ...string) string {
-	out := base
-	for _, b := range parts {
-		switch {
-		case strings.HasPrefix(b, "/"):
-			out = b
-		case out == "" || strings.HasSuffix(out, "/"):
-			out += b
-		default:
-			out += "/" + b
-		}
-	}
-	return out
 }
 
 // absent reports whether a stat error means the path is not there: missing,
