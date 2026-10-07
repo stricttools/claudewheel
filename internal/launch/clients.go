@@ -64,6 +64,8 @@ type ClientContext struct {
 // preflight) reads it from here.
 type Adapter struct {
 	Name string
+	// Help describes the client, for the --client choices.
+	Help string
 	// HiddenSegments are the segments that do not apply to the client at
 	// all: the bar hides them, an explicit value is refused, and a
 	// remembered value is dropped.
@@ -82,11 +84,13 @@ func Adapters() []Adapter {
 	return []Adapter{
 		{
 			Name:      ClientClaude,
+			Help:      "the official Claude Code CLI, the version selected on the bar or the claude link",
 			available: claudeAvailable,
 			argv:      claudeArgv,
 		},
 		{
 			Name: ClientMiniclaude,
+			Help: "the miniclaude REPL (clients.miniclaude.binary in config.json, else miniclaude on PATH); the version segment, strict MCP, config.json default_flags, and the disallowed tools do not apply to it",
 			// A version names a Claude Code binary claudewheel manages, which
 			// miniclaude never runs; strict MCP is Claude Code's
 			// --strict-mcp-config, which miniclaude has no equivalent of.

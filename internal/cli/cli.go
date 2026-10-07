@@ -29,4 +29,5 @@ func register(app *strictcli.App) {
 	registerMaintenance(app)
 	registerProfile(app)
 	registerPermission(app)
+	registerLaunch(app)
 }
