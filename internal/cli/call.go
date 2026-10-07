@@ -27,6 +27,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/stricttools/strictcli/go/strictcli"
 
@@ -35,6 +37,7 @@ import (
 	"github.com/stricttools/claudewheel/internal/profiles"
 	"github.com/stricttools/claudewheel/internal/sessions"
 	"github.com/stricttools/claudewheel/internal/terminal"
+	"github.com/stricttools/claudewheel/internal/tui/widgets"
 	"github.com/stricttools/claudewheel/internal/workspace"
 )
 
@@ -255,4 +258,45 @@ func kwStrings(kw map[string]interface{}, name string) []string {
 		out[i] = v.(string)
 	}
 	return out
+}
+
+// kwBool is a required bool flag's value (the caller passed --flag or
+// --no-flag).
+func kwBool(kw map[string]interface{}, name string) bool {
+	return strictcli.Get[bool](kw, name)
+}
+
+// openScreen loads the colors of the configured theme (asking the terminal
+// for its background first when the theme is "auto"), then opens the
+// terminal in cbreak mode on the alternate screen. The caller defers
+// t.Close, which restores the terminal. No terminal to open (no /dev/tty)
+// is an error.
+func (c *call) openScreen(ctx context.Context, cfg *appconfig.Store) (*terminal.Terminal, widgets.Colors, error) {
+	colors, err := widgets.LoadColors(ctx, c.ws, cfg.Config.Theme)
+	if err != nil {
+		return nil, widgets.Colors{}, err
+	}
+	t, err := terminal.Open()
+	if err != nil {
+		return nil, widgets.Colors{}, err
+	}
+	if err := t.EnterRaw(true); err != nil {
+		return nil, widgets.Colors{}, errors.Join(err, t.Close())
+	}
+	return t, colors, nil
+}
+
+// ownExecutable is the path of the claudewheel binary running now, with
+// symbolic links resolved: what the probe runner's unit and its health
+// check name.
+func ownExecutable() (string, error) {
+	executable, err := os.Executable()
+	if err != nil {
+		return "", fmt.Errorf("cannot find this claudewheel binary: %w", err)
+	}
+	resolved, err := filepath.EvalSymlinks(executable)
+	if err != nil {
+		return "", fmt.Errorf("cannot resolve this claudewheel binary: %w", err)
+	}
+	return resolved, nil
 }

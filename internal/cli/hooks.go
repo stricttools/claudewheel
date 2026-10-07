@@ -3,8 +3,6 @@ package cli
 import (
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/stricttools/strictcli/go/strictcli"
@@ -118,13 +116,9 @@ func handleDeployHooks(c *call, kw map[string]interface{}) error {
 // deployService installs the probe runner's unit, which runs the binary
 // executing now.
 func deployService(c *call, force bool) error {
-	executable, err := os.Executable()
+	executable, err := ownExecutable()
 	if err != nil {
-		return fmt.Errorf("cannot find this claudewheel binary for the probe runner's unit: %w", err)
-	}
-	executable, err = filepath.EvalSymlinks(executable)
-	if err != nil {
-		return fmt.Errorf("cannot resolve this claudewheel binary for the probe runner's unit: %w", err)
+		return fmt.Errorf("%w (the probe runner's unit runs it)", err)
 	}
 	unit, action, err := hookscripts.DeployService(c.fx, c.ws.SystemdUserDir(), executable, force)
 	var exitErr *effects.ExitError
