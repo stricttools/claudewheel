@@ -87,3 +87,9 @@ The unit writes `ExecStart="<executable>" probe run-service`, double-quoted as t
 - `PIDExists` sends signal 0 with `syscall.Kill` directly, outside `effects`: it probes and delivers nothing (the Python's exemption).
 - Transcripts are split on `\n` only (Python's `splitlines` also split inside lines on U+2028 and other separators, dropping such lines), and each line is decoded with `jsonfile.Decode`, so a line holding invalid UTF-8 is skipped (Python read `recorded_store_cwds` with `surrogateescape` and parsed it; its other readers crashed on it).
 - `FindSession` looks up `<store dir>/<id>.jsonl` by exact name in each non-hidden store directory, in name order, instead of a glob that would interpret metacharacters in the id.
+
+## projecthooks: inputs and paths
+
+- `TargetDirectory(directorySelection)` takes the directory selection itself ("" when unset) rather than the whole selections mapping.
+- `~` expansion and path printing reproduce `str(Path(d).expanduser())` (repeated and trailing slashes and `.` parts dropped, `..` kept), because `project_hook_approvals` in `state.json` is keyed by that string. An unset `HOME` with a `~` directory is an error (Python fell back to the password database).
+- `Fingerprint()` returns an error from the writer instead of being a property; it equals the Python's stored fingerprints unless the hooks hold a float Python re-wrote through `repr` (see the jsonfile number-text entry).
