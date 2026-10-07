@@ -125,3 +125,15 @@ The unit writes `ExecStart="<executable>" probe run-service`, double-quoted as t
 - `ParseTimestampMS` accepts RFC 3339 only (Python's `fromisoformat` accepted more ISO 8601 forms); a timestamp without an offset is reported as not RFC 3339. The schema allows only offset datetimes, so no stored line differs.
 - Error messages quote values as `'value'`; Python's `repr` escaping of quotes and control characters inside them is not reproduced.
 - `AppendLine` (the separator-aware JSONL append) is exported and shared with the probe store, which appended the same way in a second copy.
+
+## probe: store shapes
+
+- A subscription carries `Bound bool` and `Agent *string` (nil is the main conversation) instead of the Python's `"unbound"` sentinel in the agent field.
+- `LoadProbes` returns the probes as a slice sorted by id (the Python dict's order, which decides the order of a kill's `probes` list and of report writes); a probe's subscriptions are a slice in log order.
+- Kills are a typed `Kill` struct in schema order; `AppendKill` writes nil `reports` and `probes` as empty arrays.
+- `ListReports` refuses an unknown state name (the Python iterated any name given), skips a session entry that vanished or is a broken link, and reports an unreadable report file as a `*probe.Error`.
+- `NowMS` and the timestamp helpers come from `lifecycle`; the probe package does not repeat them.
+
+## probe: waking a waiter
+
+`WakeWaiter(fx, store, session)` writes its one byte with raw `syscall.Open`/`Write` on the FIFO, outside `effects`: it changes no file, and an `*os.File` would turn a write to a full pipe into a wait (the runtime poller) instead of EAGAIN. Under `--dry-run` it wakes nothing. Departures from the Python, which swallowed every OSError: a path that is not a FIFO is an error, and only ENXIO (no reader) and ENOENT (removed after the check) mean "nothing to wake"; any other open or write error except EAGAIN is returned.
