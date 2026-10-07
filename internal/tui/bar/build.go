@@ -203,8 +203,8 @@ func BuildBar(fx *effects.FX, env discover.Env, store *appconfig.Store) (Built, 
 // list, and a key no segment on the bar has, are errors naming what the bar
 // holds.
 func ApplyOverrides(b *Bar, overrides map[string]string) error {
-	keys := slices.Sorted(maps.Keys(overrides))
-	for _, key := range keys {
+	names := slices.Sorted(maps.Keys(overrides))
+	for _, key := range names {
 		value := overrides[key]
 		seg, ok := b.Segment(key)
 		if !ok {
