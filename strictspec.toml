@@ -1,6 +1,7 @@
 # strictspec manifest for claudewheel. Generation is file-driven: declare each
 # schema and its targets, then run `strictspec gen`. Generated validators land
-# under claudewheel/strictspec_gen/ (committed, read-only 0444).
+# under claudewheel/strictspec_gen/ (Python) and internal/schema/<package>/ (Go)
+# (committed, read-only 0444).
 # `strictspec check` verifies schema authoring validity and generated-code
 # freshness.
 format_version = 1
@@ -13,6 +14,11 @@ path = ".strictspec/lifecycle-event.schema.toml"
   output  = "claudewheel/strictspec_gen/lifecycle_event_validator.py"
   package = "claudewheel.strictspec_gen"
 
+  [[schemas.targets]]
+  lang    = "go"
+  output  = "internal/schema/lifecycleevent/lifecycle_event_gen.go"
+  package = "lifecycleevent"
+
 [[schemas]]
 path = ".strictspec/probe-event.schema.toml"
 
@@ -20,6 +26,11 @@ path = ".strictspec/probe-event.schema.toml"
   lang    = "python"
   output  = "claudewheel/strictspec_gen/probe_event_validator.py"
   package = "claudewheel.strictspec_gen"
+
+  [[schemas.targets]]
+  lang    = "go"
+  output  = "internal/schema/probeevent/probe_event_gen.go"
+  package = "probeevent"
 
 [[schemas]]
 path = ".strictspec/probe-report.schema.toml"
@@ -29,6 +40,11 @@ path = ".strictspec/probe-report.schema.toml"
   output  = "claudewheel/strictspec_gen/probe_report_validator.py"
   package = "claudewheel.strictspec_gen"
 
+  [[schemas.targets]]
+  lang    = "go"
+  output  = "internal/schema/probereport/probe_report_gen.go"
+  package = "probereport"
+
 [[schemas]]
 path = ".strictspec/oom-kill-event.schema.toml"
 
@@ -36,6 +52,11 @@ path = ".strictspec/oom-kill-event.schema.toml"
   lang    = "python"
   output  = "claudewheel/strictspec_gen/oom_kill_event_validator.py"
   package = "claudewheel.strictspec_gen"
+
+  [[schemas.targets]]
+  lang    = "go"
+  output  = "internal/schema/oomkillevent/oom_kill_event_gen.go"
+  package = "oomkillevent"
 
 [[schemas]]
 path = ".strictspec/probe-session-event.schema.toml"
@@ -45,6 +66,11 @@ path = ".strictspec/probe-session-event.schema.toml"
   output  = "claudewheel/strictspec_gen/probe_session_event_validator.py"
   package = "claudewheel.strictspec_gen"
 
+  [[schemas.targets]]
+  lang    = "go"
+  output  = "internal/schema/probesessionevent/probe_session_event_gen.go"
+  package = "probesessionevent"
+
 [[schemas]]
 path = ".strictspec/session-move-journal.schema.toml"
 
@@ -52,3 +78,8 @@ path = ".strictspec/session-move-journal.schema.toml"
   lang    = "python"
   output  = "claudewheel/strictspec_gen/session_move_journal_validator.py"
   package = "claudewheel.strictspec_gen"
+
+  [[schemas.targets]]
+  lang    = "go"
+  output  = "internal/schema/sessionmovejournal/session_move_journal_gen.go"
+  package = "sessionmovejournal"

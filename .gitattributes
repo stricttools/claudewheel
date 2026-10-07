@@ -4,3 +4,9 @@ claudewheel/strictspec_gen/probe_report_validator.py text eol=lf linguist-genera
 claudewheel/strictspec_gen/oom_kill_event_validator.py text eol=lf linguist-generated=true
 claudewheel/strictspec_gen/probe_session_event_validator.py text eol=lf linguist-generated=true
 claudewheel/strictspec_gen/session_move_journal_validator.py text eol=lf linguist-generated=true
+internal/schema/lifecycleevent/lifecycle_event_gen.go text eol=lf linguist-generated=true
+internal/schema/probeevent/probe_event_gen.go text eol=lf linguist-generated=true
+internal/schema/probereport/probe_report_gen.go text eol=lf linguist-generated=true
+internal/schema/oomkillevent/oom_kill_event_gen.go text eol=lf linguist-generated=true
+internal/schema/probesessionevent/probe_session_event_gen.go text eol=lf linguist-generated=true
+internal/schema/sessionmovejournal/session_move_journal_gen.go text eol=lf linguist-generated=true
