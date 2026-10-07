@@ -279,3 +279,11 @@ When the selected GitHub account's token cannot be fetched (`gh auth token` fail
 - `probe create` followed by `-- <command>` is refused by strictcli's own "unexpected argument" parse error; the Python's message listing the probe kinds needed the deleted `_passthrough` global.
 - `stats` counts each top-level entry of the shared store as the Python did (a directory by its regular files, links not followed; a file or a link to one as one file); an entry that cannot be read is an error.
 - `deploy-hooks` takes the unit's executable from `os.Executable()` with symbolic links resolved.
+
+## reconcile: the selection, errors, and malformed permission lists
+
+- `Run(fx, ws, sel)` takes a `Selection` built by `OneProfile(name)` or `AllProfiles()`; the zero value is refused. Only `AllProfiles` adds shared-settings.json. `OneProfile("default")` is refused naming why, and an unknown name is refused listing the managed profiles; both are checked before any hook script is deployed (the Python deployed first, then reported "not found").
+- A failed write is an error that stops the run, the report holding what was done before it (the Python recorded a `write-error` skip and went on). A missing, unreadable, or malformed file is still a per-target skip; `Report.Skipped()` lists them so the launch can show them.
+- `permissions.deny` or `permissions.ask` holding null, a non-array, or a non-string entry is malformed and the target skipped (the Python crashed on the first two and on an array or object entry, and removed number entries). `permissions.allow` is only read, as before.
+- A wrong-type message says "an object" where the Python said "a dict".
+- `merge_hooks` is `MergeHooks` here, beside `ReferencedScripts` and `ScriptBasename`, which the default profile's opt-in wiring and health share. The `deploy_hook_scripts` parameter is not ported: every caller passed true.
