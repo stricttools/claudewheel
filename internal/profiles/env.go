@@ -112,7 +112,8 @@ func (e *UnknownProfileError) Error() string {
 // nothing is set and every ProfileEnvKeys variable is removed. A named
 // profile sets its config directory, its stored OAuth token when there is
 // one, its declared plan tier (validated: an unrecognized value is an
-// error), and the off-switches. Only name's own token file is read, so a
+// error), and the off-switches, and removes every other ProfileEnvKeys
+// variable. Only name's own token file is read, so a
 // corrupt token file elsewhere cannot break this; an unknown name is an
 // *UnknownProfileError listing the profiles.
 func (s Store) LaunchEnv(name string) (LaunchEnv, error) {
@@ -155,6 +156,13 @@ func (s Store) LaunchEnv(name string) (LaunchEnv, error) {
 	}
 	for k, v := range plan {
 		env.Set[k] = v
+	}
+	// A variable this profile does not set is removed, so a token or tier
+	// inherited from another profile's session never reaches this one.
+	for _, k := range ProfileEnvKeys() {
+		if _, set := env.Set[k]; !set {
+			env.Unset = append(env.Unset, k)
+		}
 	}
 	return env, nil
 }

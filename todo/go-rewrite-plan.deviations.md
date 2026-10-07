@@ -228,3 +228,7 @@ The unit writes `ExecStart="<executable>" probe run-service`, double-quoted as t
 ## launch: an unfetchable GitHub token refuses the launch (orchestrating session)
 
 When the selected GitHub account's token cannot be fetched (`gh auth token` fails), the launch is refused with an error naming the account. The Python silently started without `GH_TOKEN`; a configured selection must work or fail, never degrade silently.
+
+## profiles: a named profile's launch environment removes what it does not set (orchestrating session)
+
+`LaunchEnv` for a named profile removes every `ProfileEnvKeys` variable the profile does not set (an OAuth token or plan tier it has none of), so a launch or `profile exec` started inside another profile's session never inherits that profile's token or tier. The Python left inherited values in place.
