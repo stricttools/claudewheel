@@ -7,6 +7,7 @@ The generators are listed in GENERATORS below."""
 import base64
 import json
 import os
+import stat
 import sys
 from pathlib import Path
 
@@ -472,6 +473,94 @@ def hook_cases():
     return recorded
 
 
+def _snapshot(root):
+    """Every entry under root, with file contents and modification times."""
+    out = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        for name in sorted(dirnames + filenames):
+            full = Path(dirpath) / name
+            rel = str(full.relative_to(root))
+            st = full.lstat()
+            if full.is_symlink():
+                out.append({"path": rel, "type": "symlink", "target": os.readlink(full)})
+            elif full.is_dir():
+                out.append({"path": rel, "type": "dir"})
+            elif stat.S_ISFIFO(st.st_mode):
+                out.append({"path": rel, "type": "fifo"})
+            else:
+                out.append({"path": rel, "type": "file", "content": full.read_bytes().decode(),
+                            "mtime_ns": st.st_mtime_ns})
+        dirnames[:] = [d for d in dirnames if not (Path(dirpath) / d).is_symlink()]
+    return sorted(out, key=lambda e: e["path"])
+
+
+def probe_runner_calls():
+    """Every call the Python's probe runner tests make to process_entry,
+    end_probes, settle_reports, and tick, with the workspace before and after
+    each call, recorded while those tests run."""
+    import importlib
+    import unittest
+
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from claudewheel import probe_runner
+
+    recorded = []
+
+    import re
+
+    # The tests stand this process in for a live client; the replay puts its
+    # own process id where this one's appears.
+    pid = str(os.getpid())
+    pid_spots = re.compile(r'(\\"pid\\": ?)' + pid + r'\b|(session-)' + pid + r'(-)')
+
+    def norm(root, value):
+        text = json.dumps(value).replace(str(root), "@ROOT@")
+        return json.loads(pid_spots.sub(lambda m: (m.group(1) or m.group(2)) + "@PID@" + (m.group(3) or ""), text))
+
+    def wrap(name):
+        real = getattr(probe_runner, name)
+
+        def recording(ws, *args, **kwargs):
+            root = ws.root.parent
+            call = {"fn": name, "before": norm(root, _snapshot(root)), "kwargs": {}}
+            if name == "process_entry":
+                call["entry"] = norm(root, args[0])
+                described = {}
+                describe = kwargs.get("describe", probe_runner.heavy_description)
+
+                def recording_describe(unit):
+                    described[unit] = describe(unit)
+                    return described[unit]
+
+                kwargs["describe"] = recording_describe
+                call["described"] = described
+            for k, v in kwargs.items():
+                if k in ("now_ms", "expire", "states"):
+                    call["kwargs"][k] = list(v) if isinstance(v, tuple) else v
+            try:
+                result = real(ws, *args, **kwargs)
+                call["error"] = None
+            except Exception as exc:  # noqa: BLE001 -- the recording keeps any refusal
+                result = None
+                call["error"] = type(exc).__name__
+            call["after"] = norm(root, _snapshot(root))
+            recorded.append(call)
+            return result
+
+        setattr(probe_runner, name, recording)
+        return real
+
+    reals = {n: wrap(n) for n in ("process_entry", "end_probes", "settle_reports", "tick")}
+    try:
+        module = importlib.import_module("tests.test_probe_runner")
+        suite = unittest.defaultTestLoader.loadTestsFromModule(module)
+        unittest.TextTestRunner(stream=sys.stderr, verbosity=0).run(suite)
+    finally:
+        for n, real in reals.items():
+            setattr(probe_runner, n, real)
+    return recorded
+
+
 # Generators that write a directory tree themselves rather than return data.
 TREE_GENERATORS = {
     "python-workspace": python_workspace,
@@ -485,6 +574,7 @@ GENERATORS = {
     "lifecycle-lines": lifecycle_lines,
     "reconcile-cases": reconcile_cases,
     "hook-cases": hook_cases,
+    "probe-runner-calls": probe_runner_calls,
 }
 
 # Generators that take the output path.
