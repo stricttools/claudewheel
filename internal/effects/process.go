@@ -276,9 +276,9 @@ func SearchPath(env []string) string {
 // called name in the directories of the colon-separated search list, and
 // false when there is none. Empty and relative entries are skipped, so the
 // search never looks in the current directory. A candidate that does not
-// exist is stepped over; any other error checking one (a parent that is not
-// a directory, a link loop, a directory that cannot be searched) is
-// returned. name is a bare program name: one holding a slash is an error.
+// exist is stepped over, and so is one under an entry that is a file, which
+// contains nothing; any other error checking one (a link loop, a directory
+// that cannot be searched) is returned. name is a bare program name: one holding a slash is an error.
 func LookPath(name, search string) (string, bool, error) {
 	if name == "" || strings.Contains(name, "/") {
 		return "", false, fmt.Errorf("cannot search PATH for %q: not a bare program name", name)

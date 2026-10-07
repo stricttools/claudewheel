@@ -23,7 +23,7 @@ import (
 func loadSharedSettings(ws workspace.Workspace) (*jsonfile.Object, error) {
 	path := ws.SharedSettingsFile()
 	data, err := os.ReadFile(path)
-	if errors.Is(err, fs.ErrNotExist) {
+	if pathstat.NotFoundOrParentNotDirectory(err) {
 		return guardrail.CanonicalSharedSettings(ws.ScriptsDir()), nil
 	}
 	if err != nil {
@@ -40,7 +40,7 @@ func loadSharedSettings(ws workspace.Workspace) (*jsonfile.Object, error) {
 // without one has empty settings.
 func readSettings(path string) (*jsonfile.Object, error) {
 	data, err := os.ReadFile(path)
-	if errors.Is(err, fs.ErrNotExist) {
+	if pathstat.NotFoundOrParentNotDirectory(err) {
 		return jsonfile.NewObject(), nil
 	}
 	if err != nil {

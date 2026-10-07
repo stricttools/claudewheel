@@ -1,7 +1,8 @@
 // Package pathstat answers whether something is at a path. Every helper
-// counts only a path that does not exist (fs.ErrNotExist) as absent: any
-// other stat error, a parent that is not a directory (ENOTDIR) or a link
-// loop (ELOOP) included, is returned. It only reads the filesystem.
+// counts a path as absent when it does not exist (fs.ErrNotExist) or when a
+// parent is not a directory (ENOTDIR), since nothing can be there; any
+// other stat error, a link loop (ELOOP) or a refused search (EACCES)
+// included, is returned. It only reads the filesystem.
 package pathstat
 
 import (
@@ -12,8 +13,16 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+// NotFoundOrParentNotDirectory reports whether a path lookup error means
+// nothing is at the path: it does not exist (fs.ErrNotExist), or a parent
+// is not a directory (ENOTDIR). It is false for a nil error. Callers that
+// open or read a path themselves use it to agree with the helpers here.
+func NotFoundOrParentNotDirectory(err error) bool {
+	return errors.Is(err, fs.ErrNotExist) || errors.Is(err, unix.ENOTDIR)
+}
+
 // stat is os.Stat, or os.Lstat when follow is false, with a nil
-// information and no error for a path that does not exist.
+// information and no error when nothing is at the path.
 func stat(path string, follow bool) (fs.FileInfo, error) {
 	var info fs.FileInfo
 	var err error
@@ -22,7 +31,7 @@ func stat(path string, follow bool) (fs.FileInfo, error) {
 	} else {
 		info, err = os.Lstat(path)
 	}
-	if errors.Is(err, fs.ErrNotExist) {
+	if NotFoundOrParentNotDirectory(err) {
 		return nil, nil
 	}
 	if err != nil {
@@ -69,8 +78,9 @@ func IsSymlink(path string) (bool, error) {
 // symbolic links, that this process may execute. The test is access(2) with
 // X_OK, which applies the process's user and groups, ACLs, and a noexec
 // mount, where the mode's execute bits alone would accept a file only
-// another user may run. A refused access (EACCES) is not executable; any
-// other access error is returned.
+// another user may run. A refused access (EACCES) is not executable, and a
+// path that went away between the two checks is absent; any other access
+// error is returned.
 func IsExecutableFile(path string) (bool, error) {
 	ok, err := IsFile(path)
 	if err != nil || !ok {
@@ -80,7 +90,7 @@ func IsExecutableFile(path string) (bool, error) {
 	switch {
 	case err == nil:
 		return true, nil
-	case errors.Is(err, unix.EACCES), errors.Is(err, fs.ErrNotExist):
+	case errors.Is(err, unix.EACCES), NotFoundOrParentNotDirectory(err):
 		return false, nil
 	}
 	return false, &fs.PathError{Op: "access", Path: path, Err: err}
