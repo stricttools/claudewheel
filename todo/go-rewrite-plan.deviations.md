@@ -442,3 +442,7 @@ The character-counting helpers the bar, the sessions view, and the wizard each d
 ## sessions: the registry's session categories are named once
 
 `sessions.CategoryInteractive`, `CategoryBackground`, `CategoryDaemon`, and `CategoryDaemonWorker` are the only spellings of Claude Code's registry categories: `BackgroundCategories`, the sessions view's `CategoryLabels`, and the deletion checklist's `PreTickedCategories` and daemon-stop test use them, and `deletion.CategoryDaemon` is gone.
+
+## cli: probe create's positional argument is probe-type
+
+`probe create`'s positional argument is named `probe-type` (the constant `probeTypeArg`), where the Python named it `kind`; the name appears only in help and errors, so `claudewheel probe create oom-kill` is unchanged. The command's help sentence ("create a probe of one kind") and probe's "no probe kind" error, carried from the Python, keep their words, as do the JSON keys `kind` and `probe_kind` of the stored formats.

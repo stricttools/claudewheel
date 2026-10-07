@@ -11,6 +11,10 @@ import (
 	"github.com/stricttools/claudewheel/internal/proberunner"
 )
 
+// probeTypeArg is probe create's positional argument naming what the probe
+// watches for (probe.ProbeTypes).
+const probeTypeArg = "probe-type"
+
 // registerProbe adds the probe group. Every command but list and
 // run-service acts for the Claude Code session it runs in, which it learns
 // from its own cgroup.
@@ -43,7 +47,7 @@ func registerProbe(app *strictcli.App) {
 			}
 			return probeCreate(c, kw, watch)
 		},
-		strictcli.WithArgs(strictcli.NewArg("kind", "what the probe watches for", strictcli.ArgRequired(),
+		strictcli.WithArgs(strictcli.NewArg(probeTypeArg, "what the probe watches for", strictcli.ArgRequired(),
 			strictcli.ArgChoices(strictcli.Ch(probe.ProbeOOMKill,
 				"a process in a systemd user unit killed by the kernel's OOM killer (systemd's result term)")))),
 		strictcli.WithFlags(
@@ -113,7 +117,7 @@ func probeSession(c *call) (string, error) {
 }
 
 func probeCreate(c *call, kw map[string]interface{}, watch *string) error {
-	probeType := kwString(kw, "kind")
+	probeType := kwString(kw, probeTypeArg)
 	session, err := probeSession(c)
 	if err != nil {
 		return err
