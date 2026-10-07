@@ -4,9 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/fs"
-	"syscall"
 
+	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/terminal"
 	"github.com/stricttools/claudewheel/internal/tui/widgets"
 	"github.com/stricttools/claudewheel/internal/workspace"
@@ -74,11 +73,4 @@ func (s *screens) selection(ctx context.Context, title string, options []widgets
 	}
 	defer func() { err = errors.Join(err, t.Close()) }()
 	return widgets.RunSelection(ctx, t, s.colors, title, options, "")
-}
-
-// isNotDir reports a path lookup that met a file where a directory was
-// expected.
-func isNotDir(err error) bool {
-	var pe *fs.PathError
-	return errors.As(err, &pe) && errors.Is(pe.Err, syscall.ENOTDIR)
 }

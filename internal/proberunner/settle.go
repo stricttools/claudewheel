@@ -8,11 +8,11 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/stricttools/claudewheel/internal/effects"
 	"github.com/stricttools/claudewheel/internal/lifecycle"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/probe"
 	"github.com/stricttools/claudewheel/internal/workspace"
 )
@@ -22,19 +22,15 @@ import (
 // way and is queued again.
 const LostAfter = 60 * time.Second
 
-// isNotDir reports a path one of whose parents is not a directory.
-func isNotDir(err error) bool {
-	return errors.Is(err, syscall.ENOTDIR)
-}
-
-// exists reports whether path exists, following symbolic links. Any stat
-// error but a missing path is returned.
+// exists reports whether path exists, following symbolic links. A missing
+// path, or one under a non-directory, is absent; any other stat error is
+// returned.
 func exists(path string) (bool, error) {
 	_, err := os.Stat(path)
 	if err == nil {
 		return true, nil
 	}
-	if errors.Is(err, fs.ErrNotExist) || isNotDir(err) {
+	if pathstat.NotFoundOrNotDirectory(err) {
 		return false, nil
 	}
 	return false, err
@@ -179,7 +175,7 @@ func transcripts(transcript string) ([]string, error) {
 	out := []string{transcript}
 	subagents := filepath.Join(withoutSuffix(transcript), "subagents")
 	info, err := os.Stat(subagents)
-	if errors.Is(err, fs.ErrNotExist) || isNotDir(err) {
+	if pathstat.NotFoundOrNotDirectory(err) {
 		return out, nil
 	}
 	if err != nil {

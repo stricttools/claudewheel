@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/profiles"
 	"github.com/stricttools/claudewheel/internal/terminal"
 	"github.com/stricttools/claudewheel/internal/tui/widgets"
@@ -96,7 +97,7 @@ func validateName(store profiles.Store, home, name string, existing []string) st
 	if err == nil {
 		return displayConfigDir(store, home, name) + " already exists"
 	}
-	if !absent(err) {
+	if !pathstat.NotFoundOrNotDirectory(err) {
 		return fmt.Sprintf("cannot check %s: %v", path, err)
 	}
 	if slices.Contains(existing, name) {

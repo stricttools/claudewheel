@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"sort"
 	"strconv"
@@ -15,6 +14,7 @@ import (
 
 	"github.com/stricttools/claudewheel/internal/effects"
 	"github.com/stricttools/claudewheel/internal/lifecycle"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/probe"
 	"github.com/stricttools/claudewheel/internal/workspace"
 )
@@ -218,7 +218,7 @@ func reportExists(store probe.Store, session, reportID string) (bool, error) {
 			return false, err
 		}
 		entries, err := os.ReadDir(dir)
-		if errors.Is(err, fs.ErrNotExist) || isNotDir(err) {
+		if pathstat.NotFoundOrNotDirectory(err) {
 			continue
 		}
 		if err != nil {

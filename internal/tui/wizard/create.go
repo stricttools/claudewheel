@@ -9,6 +9,7 @@ import (
 	"github.com/stricttools/claudewheel/internal/effects"
 	"github.com/stricttools/claudewheel/internal/guardrail"
 	"github.com/stricttools/claudewheel/internal/jsonfile"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/profiles"
 	"github.com/stricttools/claudewheel/internal/reconcile"
 	"github.com/stricttools/claudewheel/internal/workspace"
@@ -20,7 +21,7 @@ import (
 func loadSharedSettings(ws workspace.Workspace) (*jsonfile.Object, error) {
 	path := ws.SharedSettingsFile()
 	data, err := os.ReadFile(path)
-	if absent(err) {
+	if pathstat.NotFoundOrNotDirectory(err) {
 		return guardrail.CanonicalSharedSettings(ws.ScriptsDir()), nil
 	}
 	if err != nil {
@@ -37,7 +38,7 @@ func loadSharedSettings(ws workspace.Workspace) (*jsonfile.Object, error) {
 // without one has empty settings.
 func readSettings(path string) (*jsonfile.Object, error) {
 	data, err := os.ReadFile(path)
-	if absent(err) {
+	if pathstat.NotFoundOrNotDirectory(err) {
 		return jsonfile.NewObject(), nil
 	}
 	if err != nil {
@@ -232,7 +233,7 @@ func CreateProfile(fx *effects.FX, ws workspace.Workspace, choices Choices) ([]s
 // an error.
 func setOnboardingFlag(fx *effects.FX, configDir string) error {
 	info, err := os.Stat(configDir)
-	if absent(err) {
+	if pathstat.NotFoundOrNotDirectory(err) {
 		return nil
 	}
 	if err != nil {
@@ -249,7 +250,7 @@ func setOnboardingFlag(fx *effects.FX, configDir string) error {
 		if global, err = jsonfile.DecodeObject(data); err != nil {
 			return fmt.Errorf("%s: %w", path, err)
 		}
-	case !absent(err):
+	case !pathstat.NotFoundOrNotDirectory(err):
 		return err
 	}
 	global.Set("hasCompletedOnboarding", true)

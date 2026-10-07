@@ -19,11 +19,11 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"syscall"
 	"time"
 
 	"github.com/stricttools/claudewheel/internal/effects"
 	"github.com/stricttools/claudewheel/internal/jsonfile"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/profiles"
 	"github.com/stricttools/claudewheel/internal/workspace"
 )
@@ -179,7 +179,7 @@ func pathState(path string) (exists, isDir bool, err error) {
 	if err == nil {
 		return true, info.IsDir(), nil
 	}
-	if errors.Is(err, fs.ErrNotExist) || errors.Is(err, syscall.ENOTDIR) {
+	if pathstat.NotFoundOrNotDirectory(err) {
 		return false, false, nil
 	}
 	return false, false, err

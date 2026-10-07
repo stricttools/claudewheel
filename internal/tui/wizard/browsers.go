@@ -1,11 +1,10 @@
 package wizard
 
 import (
-	"errors"
 	"os"
 	"path/filepath"
-	"syscall"
 
+	"github.com/stricttools/claudewheel/internal/pathstat"
 	"golang.org/x/sys/unix"
 )
 
@@ -175,7 +174,7 @@ func lookPath(pathList, file string) (string, bool, error) {
 // this process may execute.
 func isExecutableFile(path string) (bool, error) {
 	info, err := os.Stat(path)
-	if absent(err) {
+	if pathstat.NotFoundOrNotDirectory(err) {
 		return false, nil
 	}
 	if err != nil {
@@ -191,17 +190,11 @@ func isExecutableFile(path string) (bool, error) {
 // export link is no browser.
 func pathExists(path string) (bool, error) {
 	_, err := os.Stat(path)
-	if absent(err) {
+	if pathstat.NotFoundOrNotDirectory(err) {
 		return false, nil
 	}
 	if err != nil {
 		return false, err
 	}
 	return true, nil
-}
-
-// absent reports a stat error meaning only that the path is not there: it
-// does not exist, or a parent is not a directory.
-func absent(err error) bool {
-	return errors.Is(err, os.ErrNotExist) || errors.Is(err, syscall.ENOTDIR)
 }

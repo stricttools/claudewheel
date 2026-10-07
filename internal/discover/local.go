@@ -1,18 +1,16 @@
 package discover
 
 import (
-	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"os/user"
 	"path/filepath"
 	"slices"
 	"strings"
-	"syscall"
 
 	"github.com/stricttools/claudewheel/internal/appconfig"
 	"github.com/stricttools/claudewheel/internal/install"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/profiles"
 )
 
@@ -210,18 +208,12 @@ func filesIn(dir string) ([]string, error) {
 	return names, nil
 }
 
-// absent reports whether a stat error means the path is not there: missing,
-// or under something that is not a directory.
-func absent(err error) bool {
-	return errors.Is(err, fs.ErrNotExist) || errors.Is(err, syscall.ENOTDIR)
-}
-
 // isDir reports whether p is a directory, following links. Any stat error
 // other than the path being absent is an error.
 func isDir(p string) (bool, error) {
 	info, err := os.Stat(p)
 	if err != nil {
-		if absent(err) {
+		if pathstat.NotFoundOrNotDirectory(err) {
 			return false, nil
 		}
 		return false, err
@@ -234,7 +226,7 @@ func isDir(p string) (bool, error) {
 func isFile(p string) (bool, error) {
 	info, err := os.Stat(p)
 	if err != nil {
-		if absent(err) {
+		if pathstat.NotFoundOrNotDirectory(err) {
 			return false, nil
 		}
 		return false, err

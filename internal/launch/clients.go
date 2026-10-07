@@ -11,6 +11,7 @@ import (
 
 	"github.com/stricttools/claudewheel/internal/appconfig"
 	"github.com/stricttools/claudewheel/internal/install"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/tui/bar"
 )
 
@@ -360,7 +361,7 @@ func lookPath(name, search string) (string, bool, error) {
 		candidate := filepath.Join(dir, name)
 		info, err := os.Stat(candidate)
 		if err != nil {
-			if errors.Is(err, fs.ErrNotExist) || errors.Is(err, fs.ErrPermission) || isNotDir(err) {
+			if pathstat.NotFoundOrNotDirectory(err) || errors.Is(err, fs.ErrPermission) {
 				continue
 			}
 			return "", false, err

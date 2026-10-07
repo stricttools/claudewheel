@@ -12,6 +12,7 @@ import (
 	"github.com/stricttools/claudewheel/internal/auth"
 	"github.com/stricttools/claudewheel/internal/effects"
 	"github.com/stricttools/claudewheel/internal/install"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/profiles"
 	"github.com/stricttools/claudewheel/internal/terminal"
 	"github.com/stricttools/claudewheel/internal/tokens"
@@ -237,7 +238,7 @@ func claudeBinary(ws workspace.Workspace) (string, string) {
 			return "", fmt.Sprintf("Error: %s does not lead to a Claude Code binary file (%s).", link, resolved)
 		}
 		return resolved, ""
-	} else if !absent(err) {
+	} else if !pathstat.NotFoundOrNotDirectory(err) {
 		return "", fmt.Sprintf("Error: cannot check %s: %v", link, err)
 	}
 	path, ok, err := lookPath(os.Getenv("PATH"), "claude")
@@ -311,7 +312,7 @@ func (a *authRun) sessionLogin(browser string) (AuthOutcome, error) {
 	case statErr == nil:
 		a.note("Authentication successful.")
 		return AuthAuthenticated, nil
-	case absent(statErr):
+	case pathstat.NotFoundOrNotDirectory(statErr):
 		a.note("Authentication did not complete (.credentials.json not found).")
 		return AuthFailed, nil
 	}

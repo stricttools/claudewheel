@@ -29,6 +29,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/realpath"
 )
 
@@ -77,7 +78,7 @@ func expandUser(p string) (string, error) {
 // absent reports whether a stat error means the path is not there: missing,
 // under a non-directory, or behind a link loop. Any other error is real.
 func absent(err error) bool {
-	return errors.Is(err, fs.ErrNotExist) || errors.Is(err, syscall.ENOTDIR) || errors.Is(err, syscall.ELOOP)
+	return pathstat.NotFoundOrNotDirectory(err) || errors.Is(err, syscall.ELOOP)
 }
 
 // statPath returns path's information, following symbolic links when follow
