@@ -39,15 +39,10 @@ import (
 	"github.com/stricttools/claudewheel/internal/tui/widgets"
 )
 
-// CategoryDaemon is the session category stopped through Claude Code's own
-// daemon-stop command. Only the supervisor: a worker is a process of its
-// own and gets a signal.
-const CategoryDaemon = "daemon"
-
 // PreTickedCategories returns the categories ticked when the checklist
 // opens: claudewheel's own daemon and the workers it supervises.
 func PreTickedCategories() []string {
-	return []string{"daemon", "daemon-worker"}
+	return []string{sessions.CategoryDaemon, sessions.CategoryDaemonWorker}
 }
 
 // The states a row's indicator reads.
@@ -168,7 +163,7 @@ func StopOrder(holders []Holder) []int {
 		if !h.Ticked {
 			continue
 		}
-		if h.Record.Category == CategoryDaemon {
+		if h.Record.Category == sessions.CategoryDaemon {
 			daemons = append(daemons, i)
 		} else {
 			others = append(others, i)
@@ -215,7 +210,7 @@ func (s *stopper) stop(ctx context.Context, h Holder) (bool, error) {
 	if !stillTheRegisteredProcess(h.Record) {
 		return true, nil
 	}
-	if h.Record.Category == CategoryDaemon {
+	if h.Record.Category == sessions.CategoryDaemon {
 		if !s.daemonDone {
 			s.daemonDone = true
 			s.daemonStopped, s.daemonErr = profiles.StopDaemon(s.fx, s.binary, s.configDir, s.environ)

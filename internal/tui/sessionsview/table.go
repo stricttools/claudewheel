@@ -15,10 +15,10 @@ import (
 // category column. A category not listed reads as itself.
 func CategoryLabels() map[string]string {
 	return map[string]string{
-		"interactive":   "interactive",
-		"bg":            "background",
-		"daemon":        "daemon",
-		"daemon-worker": "worker",
+		sessions.CategoryInteractive:  "interactive",
+		sessions.CategoryBackground:   "background",
+		sessions.CategoryDaemon:       "daemon",
+		sessions.CategoryDaemonWorker: "worker",
 	}
 }
 

@@ -438,3 +438,7 @@ The character-counting helpers the bar, the sessions view, and the wizard each d
 ## profiles: the session operations' profile list
 
 `profiles.Store.ConfigDirs()` (every profile's name and config directory, sorted by name, no token file read) replaces the cli's `profileDirs` and the copy in launch's session mover. The sessions overview the bar opens still builds its list from `Enumerate`, which also reads every token file and refuses a corrupt one; switching it is a behavior change.
+
+## sessions: the registry's session categories are named once
+
+`sessions.CategoryInteractive`, `CategoryBackground`, `CategoryDaemon`, and `CategoryDaemonWorker` are the only spellings of Claude Code's registry categories: `BackgroundCategories`, the sessions view's `CategoryLabels`, and the deletion checklist's `PreTickedCategories` and daemon-stop test use them, and `deletion.CategoryDaemon` is gone.

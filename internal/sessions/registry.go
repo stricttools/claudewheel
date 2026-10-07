@@ -28,16 +28,27 @@ import (
 // directory.
 const SessionsDirName = "sessions"
 
-// CategoryInteractive is the session category of a human's terminal session,
-// and the category of a record that names none.
-const CategoryInteractive = "interactive"
+// The session categories Claude Code writes in its registry records.
+const (
+	// CategoryInteractive is a human's terminal session, and the category
+	// of a record that names none.
+	CategoryInteractive = "interactive"
+	// CategoryBackground is a background session.
+	CategoryBackground = "bg"
+	// CategoryDaemon is Claude Code's daemon supervisor, which its own
+	// daemon-stop command stops.
+	CategoryDaemon = "daemon"
+	// CategoryDaemonWorker is a worker the daemon supervises, a process of
+	// its own.
+	CategoryDaemonWorker = "daemon-worker"
+)
 
 // BackgroundCategories returns the categories Claude Code writes for work
 // that is not a human's terminal. Every other category, including one this
 // package has never seen, is read as interactive, so nothing becomes
 // deletable by carrying an unknown name.
 func BackgroundCategories() []string {
-	return []string{"bg", "daemon", "daemon-worker"}
+	return []string{CategoryBackground, CategoryDaemon, CategoryDaemonWorker}
 }
 
 // SessionRecord is one parsed registry file with its liveness resolved.
