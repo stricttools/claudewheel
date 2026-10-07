@@ -18,44 +18,11 @@ import (
 	"github.com/stricttools/claudewheel/internal/tui/widgets"
 )
 
-// pageWidth is the width the bar's pages wrap their prose to.
-const pageWidth = 56
-
 // hintClose is the hint of an inspect page with no action of its own.
 const hintClose = "any key: close"
 
 // mebibyte is the unit the install progress counts in.
 const mebibyte = 1024 * 1024
-
-// wrapText breaks text into lines of at most width characters at spaces;
-// a word longer than width is split.
-func wrapText(text string, width int) []string {
-	var lines []string
-	current := ""
-	for _, word := range strings.Fields(text) {
-		for runeLen(word) > width {
-			if current != "" {
-				lines = append(lines, current)
-				current = ""
-			}
-			lines = append(lines, runePrefix(word, width))
-			word = runeSuffixFrom(word, width)
-		}
-		switch {
-		case current == "":
-			current = word
-		case runeLen(current)+1+runeLen(word) <= width:
-			current += " " + word
-		default:
-			lines = append(lines, current)
-			current = word
-		}
-	}
-	if current != "" {
-		lines = append(lines, current)
-	}
-	return lines
-}
 
 // page shows a fullscreen page any key closes.
 func (a *app) page(ctx context.Context, title string, lines []string) error {
@@ -93,12 +60,6 @@ func (a *app) installFlow(ctx context.Context, seg *Segment, version string) err
 	})
 	if err != nil {
 		return err
-	}
-	// Leaving cbreak mode ended the mode 2031 subscription.
-	if a.mode2031 {
-		if err := a.t.SubscribeMode2031(); err != nil {
-			return err
-		}
 	}
 	if installErr != nil {
 		return a.page(ctx, "Install failed", []string{
@@ -254,7 +215,7 @@ func (a *app) deleteProfile(ctx context.Context, seg *Segment) error {
 		return nil
 	}
 	if reason, reserved := profiles.ReservedReason(name); reserved {
-		return a.page(ctx, fmt.Sprintf("Cannot delete '%s'", name), wrapText(reason, pageWidth))
+		return a.page(ctx, fmt.Sprintf("Cannot delete '%s'", name), widgets.WrapText(reason, widgets.PageTextWidth))
 	}
 	report, err := a.profiles.GatherReport(name, a.in.Now())
 	if err != nil {
@@ -325,7 +286,7 @@ func (a *app) deleteProfile(ctx context.Context, seg *Segment) error {
 	case errors.As(err, &unreadable):
 		// The one archival failure after which the profile is gone: saferm
 		// succeeded and its answer could not be read.
-		lines := wrapText(unreadable.Error(), pageWidth)
+		lines := widgets.WrapText(unreadable.Error(), widgets.PageTextWidth)
 		lines = append(lines, "")
 		lines = append(lines, finishDeleteLines(name)...)
 		a.flash = fmt.Sprintf("'%s' was archived, but its handle is unknown", name)
@@ -339,7 +300,7 @@ func (a *app) deleteProfile(ctx context.Context, seg *Segment) error {
 			"claudewheel could not update its own records:",
 			"",
 		}
-		lines = append(lines, wrapText(bookkeeping.Reason.Error(), pageWidth)...)
+		lines = append(lines, widgets.WrapText(bookkeeping.Reason.Error(), widgets.PageTextWidth)...)
 		lines = append(lines, "")
 		if bookkeeping.Archive != nil {
 			lines = append(lines,
@@ -418,9 +379,9 @@ func (a *app) resolveArchiver(ctx context.Context, name string) (*archiver.Tool,
 	}
 	notDeleted := fmt.Sprintf("'%s' was not deleted", name)
 	explain := func() []string {
-		lines := wrapText(missing.Diagnosis(), pageWidth)
+		lines := widgets.WrapText(missing.Diagnosis(), widgets.PageTextWidth)
 		lines = append(lines, "")
-		return append(lines, wrapText(missing.Stakes(name), pageWidth)...)
+		return append(lines, widgets.WrapText(missing.Stakes(name), widgets.PageTextWidth)...)
 	}
 
 	if !archiver.MayOfferInstall(a.fx.Previewing(), true) {
@@ -447,7 +408,7 @@ func (a *app) resolveArchiver(ctx context.Context, name string) (*archiver.Tool,
 
 	binary, err := archiver.Install(a.fx, root, nil)
 	if err != nil {
-		lines := append(wrapText("The install failed: "+err.Error(), pageWidth), "", "Install it yourself with one of:")
+		lines := append(widgets.WrapText("The install failed: "+err.Error(), widgets.PageTextWidth), "", "Install it yourself with one of:")
 		return nil, a.page(ctx, notDeleted, append(lines, installCommandLines()...))
 	}
 	// Detect again: the deletion proceeds only against a saferm that
@@ -457,9 +418,9 @@ func (a *app) resolveArchiver(ctx context.Context, name string) (*archiver.Tool,
 		return nil, err
 	}
 	if stillMissing != nil {
-		lines := wrapText(fmt.Sprintf("saferm was installed at %s, but it still does not ship what claudewheel needs.", binary), pageWidth)
+		lines := widgets.WrapText(fmt.Sprintf("saferm was installed at %s, but it still does not ship what claudewheel needs.", binary), widgets.PageTextWidth)
 		lines = append(lines, "")
-		return nil, a.page(ctx, notDeleted, append(lines, wrapText(stillMissing.Diagnosis(), pageWidth)...))
+		return nil, a.page(ctx, notDeleted, append(lines, widgets.WrapText(stillMissing.Diagnosis(), widgets.PageTextWidth)...))
 	}
 	return fresh, nil
 }

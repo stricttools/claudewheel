@@ -192,18 +192,26 @@ func (t *Terminal) ExitRaw() error {
 }
 
 // Cooked runs fn with the terminal out of cbreak mode, re-entering it
-// afterwards with the same alternate-screen choice, also when fn fails. On a
-// terminal that is not raw it just runs fn, so nesting is safe.
+// afterwards with the same alternate-screen choice and the mode 2031
+// subscription it had, also when fn fails. On a terminal that is not raw it
+// just runs fn, so nesting is safe.
 func (t *Terminal) Cooked(fn func() error) error {
 	if !t.inRaw {
 		return fn()
 	}
 	altScreen := t.altScreen
+	subscribed := t.mode2031Requested
 	if err := t.ExitRaw(); err != nil {
 		return err
 	}
 	fnErr := fn()
-	return errors.Join(fnErr, t.EnterRaw(altScreen))
+	if err := t.EnterRaw(altScreen); err != nil {
+		return errors.Join(fnErr, err)
+	}
+	if subscribed {
+		return errors.Join(fnErr, t.SubscribeMode2031())
+	}
+	return fnErr
 }
 
 // Write writes text to the terminal.

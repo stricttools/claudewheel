@@ -379,3 +379,11 @@ The file-permissions check reads the token file's expected mode from `tokens.Tok
 - `lifecycle.SplitLines` and `lifecycle.JoinDiagnostics` are shared with the probe store, which split its JSONL files and joined validator diagnostics in second copies.
 - `workspace.ProjectsDirName` names the `projects` store directory for the shared store and for `sessions`.
 - The jsonfile entry saying claudewheel's own files hold no floats is wrong, as the appconfig entry records: state.json's cache fetch times are floats, written in encoding/json's shortest form and read back by `DecodeStrict` into float64 fields.
+
+## terminal: Cooked keeps the mode 2031 subscription
+
+`Terminal.Cooked` re-subscribes to mode 2031 notifications after re-entering cbreak mode when the terminal was subscribed before (ExitRaw ends the subscription). Callers no longer re-subscribe by hand: the bar did after its install download, but not after the create wizard's logins, which left theme switching dead after a profile was created from the bar.
+
+## tui/widgets: the text helpers are shared
+
+The character-counting helpers the bar, the sessions view, and the wizard each declared (`runeLen`, `runePrefix`, `runeSuffixFrom`, `centeredCol`, the 60-column entry area) and the page prose wrapping the bar and the CLI each declared (`wrapText` at width 56) are `widgets.RuneCount`, `RunePrefix`, `RuneSuffix`, `CenteredColumn`, `FieldAreaWidth`, `WrapText`, and `PageTextWidth`. `sessionsview.CurrentIdentity` checks the pid with `sessions.AllDigits`.
