@@ -59,33 +59,17 @@ func (c Clients) lookup(name string) (Client, error) {
 	return Client{}, fmt.Errorf("unknown client %q; known: %s", name, strings.Join(names, ", "))
 }
 
-// AuthOutcome is how an authentication offered before a launch ended.
-type AuthOutcome string
-
-const (
-	// AuthAuthenticated: a token was saved and validated.
-	AuthAuthenticated AuthOutcome = "authenticated"
-	// AuthUnverified: a token was saved without validation.
-	AuthUnverified AuthOutcome = "unverified"
-	// AuthSkip: the user chose to launch without authenticating.
-	AuthSkip AuthOutcome = "skip"
-	// AuthCancel: the user cancelled; nothing launches.
-	AuthCancel AuthOutcome = "cancel"
-	// AuthFailed: authentication failed; credentials may be partly written.
-	AuthFailed AuthOutcome = "failed"
-)
-
-// authFlash is the message each outcome other than AuthSkip leaves on the
+// authFlash is the message each outcome other than widgets.AuthSkipped leaves on the
 // bar, which stays open.
-func authFlash(o AuthOutcome) (string, error) {
+func authFlash(o widgets.AuthOutcome) (string, error) {
 	switch o {
-	case AuthAuthenticated:
+	case widgets.AuthAuthenticated:
 		return "Authenticated", nil
-	case AuthUnverified:
+	case widgets.AuthUnverified:
 		return "Saved unverified token", nil
-	case AuthCancel:
+	case widgets.AuthCancelled:
 		return "Auth cancelled", nil
-	case AuthFailed:
+	case widgets.AuthFailed:
 		return "Auth failed", nil
 	}
 	return "", fmt.Errorf("unknown authentication outcome %q", o)
@@ -109,8 +93,8 @@ type Flows struct {
 	// profile's name, or false when the wizard was cancelled.
 	CreateProfile func(ctx context.Context) (name string, created bool, err error)
 	// Authenticate offers to authenticate profile before a launch, with a
-	// choice to launch without it (AuthSkip).
-	Authenticate func(ctx context.Context, profile string) (AuthOutcome, error)
+	// choice to launch without it (widgets.AuthSkipped).
+	Authenticate func(ctx context.Context, profile string) (widgets.AuthOutcome, error)
 	// DeletionChecklist shows what holds profile and stops what the user
 	// ticks.
 	DeletionChecklist func(ctx context.Context, profile string) (ChecklistOutcome, error)
@@ -756,7 +740,7 @@ func (a *app) mainEnter(ctx context.Context, _ terminal.Key) (action, error) {
 			if err != nil {
 				return actNone, err
 			}
-			if outcome != AuthSkip {
+			if outcome != widgets.AuthSkipped {
 				msg, err := authFlash(outcome)
 				if err != nil {
 					return actNone, err

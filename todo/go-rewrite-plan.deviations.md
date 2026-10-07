@@ -426,3 +426,7 @@ The character-counting helpers the bar, the sessions view, and the wizard each d
 ## pathstat: the wider reading of absence is shared
 
 `pathstat.NotFoundOrNotDirectory(err)` (the path does not exist, or a parent is not a directory) replaces the private copies of that test in `discover` (`absent`), `tui/wizard` (`absent`), `proberunner` (`isNotDir` beside `fs.ErrNotExist`), `launch` (`isNotDir`, an `errors.As` on `*fs.PathError` that answers the same for the stat errors it was given), and `health`'s `pathState`; `sessionmove`'s `absent` is that test plus a link loop. The helpers built on it (`discover`'s `isDir` and `isFile`, the wizard's `pathExists` and `isExecutableFile`, `proberunner`'s `exists`, `health`'s `pathState`) stay private: they read a non-directory parent as absent, where `pathstat.Exists` and `IsDir` return it as an error.
+
+## tui/widgets: one authentication outcome
+
+`widgets.AuthOutcome` (`AuthAuthenticated`, `AuthUnverified`, `AuthSkipped`, `AuthCancelled`, `AuthFailed`) replaces `wizard.AuthOutcome` and `bar.AuthOutcome`, which held the same five values under two sets of names, and launch's mapping between them. It lives in `tui/widgets` because the wizard sits above the bar (the bar reaches it only through `bar.Flows`), so neither may import the other for it.

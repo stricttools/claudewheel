@@ -49,21 +49,21 @@ func (s Summary) Report() []string {
 	lines := append([]string{}, s.Lines...)
 	lines = append(lines, s.Auth.Notes...)
 	switch s.Auth.Outcome {
-	case AuthAuthenticated:
+	case widgets.AuthAuthenticated:
 		if s.Previewing {
 			lines = append(lines, "Profile would be authenticated.")
 		} else {
 			lines = append(lines, "Profile authenticated.")
 		}
-	case AuthUnverified:
+	case widgets.AuthUnverified:
 		if s.Previewing {
 			lines = append(lines, "Token would be saved without validation (API unreachable).")
 		} else {
 			lines = append(lines, "Token saved without validation (API unreachable).")
 		}
-	case AuthCancelled:
+	case widgets.AuthCancelled:
 		lines = append(lines, "Auth setup cancelled -- you can authenticate later by launching the profile.")
-	case AuthFailed:
+	case widgets.AuthFailed:
 		lines = append(lines, "Auth setup failed -- you can retry by launching the profile.")
 	}
 	return lines

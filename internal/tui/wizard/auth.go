@@ -20,29 +20,11 @@ import (
 	"github.com/stricttools/claudewheel/internal/workspace"
 )
 
-// AuthOutcome is how an auth flow ended.
-type AuthOutcome string
-
-const (
-	// AuthAuthenticated: the login completed, or a token was validated
-	// against the API and saved.
-	AuthAuthenticated AuthOutcome = "authenticated"
-	// AuthUnverified: the API could not be asked and the user chose to
-	// save the token without validation.
-	AuthUnverified AuthOutcome = "unverified"
-	// AuthSkipped: the user chose to skip.
-	AuthSkipped AuthOutcome = "skip"
-	// AuthCancelled: the user cancelled a choice with Escape.
-	AuthCancelled AuthOutcome = "cancel"
-	// AuthFailed: auth was attempted and did not complete.
-	AuthFailed AuthOutcome = "failed"
-)
-
 // AuthResult is an auth flow's outcome and the lines saying what happened,
 // in order, for the caller to show once the screen is gone. No line ever
 // holds a token.
 type AuthResult struct {
-	Outcome AuthOutcome
+	Outcome widgets.AuthOutcome
 	Notes   []string
 }
 
@@ -114,7 +96,7 @@ func (a *authRun) note(line string) {
 	a.notes = append(a.notes, line)
 }
 
-func (a *authRun) result(o AuthOutcome) AuthResult {
+func (a *authRun) result(o widgets.AuthOutcome) AuthResult {
 	return AuthResult{Outcome: o, Notes: a.notes}
 }
 
@@ -127,7 +109,7 @@ func (a *authRun) result(o AuthOutcome) AuthResult {
 //
 // Every token is checked for its shape before any network call and validated
 // against the API before it is saved; a token the API rejects is never
-// saved. A failed attempt is AuthFailed with notes saying why, never an
+// saved. A failed attempt is widgets.AuthFailed with notes saying why, never an
 // error: the profile already exists, and auth can be done later. The error
 // is for the terminal, the workspace files, and ctx being done (its
 // cancellation cause). The terminal must be in cbreak mode; the logins run in
@@ -146,10 +128,10 @@ func RunAuthFlow(ctx context.Context, fx *effects.FX, t *terminal.Terminal, c wi
 		return AuthResult{}, err
 	}
 	if !ok {
-		return a.result(AuthCancelled), nil
+		return a.result(widgets.AuthCancelled), nil
 	}
 	if method == methodSkip {
-		return a.result(AuthSkipped), nil
+		return a.result(widgets.AuthSkipped), nil
 	}
 
 	var plan tokens.PlanTier
@@ -159,11 +141,11 @@ func RunAuthFlow(ctx context.Context, fx *effects.FX, t *terminal.Terminal, c wi
 			return AuthResult{}, err
 		}
 		if !ok {
-			return a.result(AuthCancelled), nil
+			return a.result(widgets.AuthCancelled), nil
 		}
 	}
 
-	var outcome AuthOutcome
+	var outcome widgets.AuthOutcome
 	browser := ""
 	if method == methodPaste {
 		outcome, err = a.pasteToken(plan)
@@ -173,7 +155,7 @@ func RunAuthFlow(ctx context.Context, fx *effects.FX, t *terminal.Terminal, c wi
 			return AuthResult{}, err
 		}
 		if !ok {
-			return a.result(AuthCancelled), nil
+			return a.result(widgets.AuthCancelled), nil
 		}
 		if method == methodSession {
 			outcome, err = a.sessionLogin(browser)
@@ -185,7 +167,7 @@ func RunAuthFlow(ctx context.Context, fx *effects.FX, t *terminal.Terminal, c wi
 		return a.result(outcome), err
 	}
 
-	if outcome == AuthAuthenticated || outcome == AuthUnverified {
+	if outcome == widgets.AuthAuthenticated || outcome == widgets.AuthUnverified {
 		// The browser step worked, even when the token went unverified.
 		if method != methodPaste {
 			if err := appconfig.SetAuthBrowser(fx, ws, browser); err != nil {
@@ -287,36 +269,36 @@ func (a *authRun) runLogin(argv []string, browser, resource string) (result effe
 // sessionLogin runs `claude auth login`. Nothing of Claude Code's credential
 // file is copied into claudewheel's store: the profile launches on those
 // credentials, and Claude Code reads its tier from them.
-func (a *authRun) sessionLogin(browser string) (AuthOutcome, error) {
+func (a *authRun) sessionLogin(browser string) (widgets.AuthOutcome, error) {
 	binary, problem := claudeBinary(a.ws)
 	if problem != "" {
 		a.note(problem)
-		return AuthFailed, nil
+		return widgets.AuthFailed, nil
 	}
 	result, runErr, err := a.runLogin([]string{binary, "auth", "login"}, browser, "profile-credentials:"+a.configDir)
 	if err != nil {
-		return AuthFailed, err
+		return widgets.AuthFailed, err
 	}
 	if runErr != nil {
 		a.note("Error running claude auth login: " + runErr.Error())
-		return AuthFailed, nil
+		return widgets.AuthFailed, nil
 	}
 	// Under --dry-run nothing ran, and reading the exit code ends the
 	// preview here.
 	if result.ExitCode() != 0 {
 		a.note("Auth login exited with an error.")
-		return AuthFailed, nil
+		return widgets.AuthFailed, nil
 	}
 	_, statErr := os.Stat(filepath.Join(a.configDir, profiles.CredentialsFileName))
 	switch {
 	case statErr == nil:
 		a.note("Authentication successful.")
-		return AuthAuthenticated, nil
+		return widgets.AuthAuthenticated, nil
 	case pathstat.NotFoundOrNotDirectory(statErr):
 		a.note("Authentication did not complete (.credentials.json not found).")
-		return AuthFailed, nil
+		return widgets.AuthFailed, nil
 	}
-	return AuthFailed, statErr
+	return widgets.AuthFailed, statErr
 }
 
 // entryTitle is the title of the token entry pages.
@@ -398,10 +380,10 @@ func (a *authRun) captureSetupToken(browser string) (string, bool, error) {
 
 // longLivedToken runs setup-token, then checks, validates, and saves the
 // token it gave. A setup-token is valid for a year.
-func (a *authRun) longLivedToken(browser string, plan tokens.PlanTier) (AuthOutcome, error) {
+func (a *authRun) longLivedToken(browser string, plan tokens.PlanTier) (widgets.AuthOutcome, error) {
 	token, ok, err := a.captureSetupToken(browser)
 	if err != nil || !ok {
-		return AuthFailed, err
+		return widgets.AuthFailed, err
 	}
 	return a.checkAndSave(token, tokens.ExpiryTTL, plan, pasteManuallyPrompt,
 		rejectedMessage+" The captured token may be stale or truncated.")
@@ -409,13 +391,13 @@ func (a *authRun) longLivedToken(browser string, plan tokens.PlanTier) (AuthOutc
 
 // pasteToken takes a token the user already has. Its expiry is unknown, so
 // none is assumed.
-func (a *authRun) pasteToken(plan tokens.PlanTier) (AuthOutcome, error) {
+func (a *authRun) pasteToken(plan tokens.PlanTier) (widgets.AuthOutcome, error) {
 	token, err := a.askToken("Paste your API token", "")
 	if err != nil {
-		return AuthFailed, err
+		return widgets.AuthFailed, err
 	}
 	if token == "" {
-		return AuthCancelled, nil
+		return widgets.AuthCancelled, nil
 	}
 	return a.checkAndSave(token, tokens.ExpiryNotKnown, plan, pasteCorrectedPrompt, rejectedMessage)
 }
@@ -424,43 +406,43 @@ func (a *authRun) pasteToken(plan tokens.PlanTier) (AuthOutcome, error) {
 // it. A token the API rejects gets one re-entry (a scrape may have picked a
 // stale frame), then the attempt fails; one the API cannot judge is saved
 // only when the user chooses to.
-func (a *authRun) checkAndSave(token string, expiry tokens.ExpiryDisposition, plan tokens.PlanTier, retryPrompt, rejected string) (AuthOutcome, error) {
+func (a *authRun) checkAndSave(token string, expiry tokens.ExpiryDisposition, plan tokens.PlanTier, retryPrompt, rejected string) (widgets.AuthOutcome, error) {
 	token, ok, err := a.formatGate(token)
 	if err != nil || !ok {
-		return AuthFailed, err
+		return widgets.AuthFailed, err
 	}
 	status, err := auth.ValidateToken(a.fx, token)
 	if err != nil {
-		return AuthFailed, err
+		return widgets.AuthFailed, err
 	}
 	if status == auth.Invalid {
 		a.note(rejected)
 		retyped, err := a.askToken(retryPrompt, rejected)
 		if err != nil {
-			return AuthFailed, err
+			return widgets.AuthFailed, err
 		}
 		if retyped == "" {
 			a.note(noTokenProvided)
-			return AuthFailed, nil
+			return widgets.AuthFailed, nil
 		}
 		if token, ok, err = a.formatGate(retyped); err != nil || !ok {
-			return AuthFailed, err
+			return widgets.AuthFailed, err
 		}
 		if status, err = auth.ValidateToken(a.fx, token); err != nil {
-			return AuthFailed, err
+			return widgets.AuthFailed, err
 		}
 		if status == auth.Invalid {
 			a.note(rejectedAgainNote)
-			return AuthFailed, nil
+			return widgets.AuthFailed, nil
 		}
 	}
 
 	if status == auth.Valid {
 		if !a.save(token, expiry, plan) {
-			return AuthFailed, nil
+			return widgets.AuthFailed, nil
 		}
 		a.note(savedNote)
-		return AuthAuthenticated, nil
+		return widgets.AuthAuthenticated, nil
 	}
 
 	reason := "validation inconclusive"
@@ -472,16 +454,16 @@ func (a *authRun) checkAndSave(token string, expiry tokens.ExpiryDisposition, pl
 		{Key: "abort", Label: "Abort"},
 	}, "")
 	if err != nil {
-		return AuthFailed, err
+		return widgets.AuthFailed, err
 	}
 	if !ok || choice != "save" {
-		return AuthFailed, nil
+		return widgets.AuthFailed, nil
 	}
 	if !a.save(token, expiry, plan) {
-		return AuthFailed, nil
+		return widgets.AuthFailed, nil
 	}
 	a.note(savedUnverifiedNote)
-	return AuthUnverified, nil
+	return widgets.AuthUnverified, nil
 }
 
 // save writes the token into the profile's own store with its declared

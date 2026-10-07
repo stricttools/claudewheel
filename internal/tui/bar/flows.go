@@ -77,17 +77,17 @@ func (a *app) installFlow(ctx context.Context, seg *Segment, version string) err
 // interceptUnauthenticated offers to authenticate profile before the
 // launch. After an outcome that may have written credentials, profile
 // discovery runs again.
-func (a *app) interceptUnauthenticated(ctx context.Context, seg *Segment, profile string) (AuthOutcome, error) {
+func (a *app) interceptUnauthenticated(ctx context.Context, seg *Segment, profile string) (widgets.AuthOutcome, error) {
 	outcome, err := a.in.Flows.Authenticate(ctx, profile)
 	if err != nil {
 		return "", err
 	}
 	switch outcome {
-	case AuthAuthenticated, AuthUnverified, AuthFailed:
+	case widgets.AuthAuthenticated, widgets.AuthUnverified, widgets.AuthFailed:
 		if err := refreshProfiles(seg, a.profiles); err != nil {
 			return "", err
 		}
-	case AuthSkip, AuthCancel:
+	case widgets.AuthSkipped, widgets.AuthCancelled:
 	default:
 		return "", fmt.Errorf("unknown authentication outcome %q", outcome)
 	}

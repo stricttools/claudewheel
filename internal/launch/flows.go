@@ -38,7 +38,7 @@ func BarFlows(fx *effects.FX, ws workspace.Workspace, locator install.Locator, t
 			}
 			return summary.Profile, true, nil
 		},
-		Authenticate: func(ctx context.Context, profile string) (bar.AuthOutcome, error) {
+		Authenticate: func(ctx context.Context, profile string) (widgets.AuthOutcome, error) {
 			result, err := wizard.RunAuthFlow(ctx, fx, t, colors, ws, profile, authSkipLabel)
 			if err != nil {
 				return "", err
@@ -52,7 +52,7 @@ func BarFlows(fx *effects.FX, ws workspace.Workspace, locator install.Locator, t
 					return "", err
 				}
 			}
-			return barAuthOutcome(result.Outcome)
+			return result.Outcome, nil
 		},
 		DeletionChecklist: func(ctx context.Context, profile string) (bar.ChecklistOutcome, error) {
 			configDir := profiles.New(ws).PathFor(profile)
@@ -81,21 +81,4 @@ func BarFlows(fx *effects.FX, ws workspace.Workspace, locator install.Locator, t
 			return SetVanillaGuardrails(fx, ws, enable)
 		},
 	}
-}
-
-// barAuthOutcome maps the wizard's auth outcome to the bar's.
-func barAuthOutcome(o wizard.AuthOutcome) (bar.AuthOutcome, error) {
-	switch o {
-	case wizard.AuthAuthenticated:
-		return bar.AuthAuthenticated, nil
-	case wizard.AuthUnverified:
-		return bar.AuthUnverified, nil
-	case wizard.AuthSkipped:
-		return bar.AuthSkip, nil
-	case wizard.AuthCancelled:
-		return bar.AuthCancel, nil
-	case wizard.AuthFailed:
-		return bar.AuthFailed, nil
-	}
-	return "", fmt.Errorf("unknown authentication outcome %q", o)
 }
