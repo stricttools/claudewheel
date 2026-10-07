@@ -79,32 +79,38 @@ func (l Locator) InstalledVersions() ([]string, error) {
 // SymlinkTarget returns the path the claude link resolves to, resolving as
 // far as the links lead even when the final target is missing (Python's
 // non-strict Path.resolve). The current version is its base name. It
-// reports false when the link does not exist or cannot be resolved.
-func (l Locator) SymlinkTarget() (string, bool) {
-	if _, err := os.Lstat(l.ClaudeSymlink); err != nil {
-		return "", false
+// reports false when nothing is at the link's path (pathstat.Lexists); a
+// link that cannot be checked or resolved is an error.
+func (l Locator) SymlinkTarget() (string, bool, error) {
+	there, err := pathstat.Lexists(l.ClaudeSymlink)
+	if err != nil {
+		return "", false, fmt.Errorf("cannot check the claude link %s: %w", l.ClaudeSymlink, err)
+	}
+	if !there {
+		return "", false, nil
 	}
 	target, err := realpath.Resolve(l.ClaudeSymlink)
 	if err != nil {
-		return "", false
+		return "", false, fmt.Errorf("cannot resolve the claude link %s: %w", l.ClaudeSymlink, err)
 	}
-	return target, true
+	return target, true, nil
 }
 
 // EffectiveCLIVersion resolves the Claude Code version a launch runs: the
 // version selection when set, else the base name of the claude link's
-// target. It reports false when neither is available. Both the pre-launch
+// target. It reports false when neither is available, and returns the error
+// of a claude link that cannot be checked or resolved. Both the pre-launch
 // model-version guard and the model picker's dimming read it, so they cannot
 // disagree.
-func EffectiveCLIVersion(selected string, l Locator) (string, bool) {
+func EffectiveCLIVersion(selected string, l Locator) (string, bool, error) {
 	if selected != "" {
-		return selected, true
+		return selected, true, nil
 	}
-	target, ok := l.SymlinkTarget()
-	if !ok {
-		return "", false
+	target, ok, err := l.SymlinkTarget()
+	if err != nil || !ok {
+		return "", false, err
 	}
-	return filepath.Base(target), true
+	return filepath.Base(target), true, nil
 }
 
 // VersionSortKey splits a version on "." into integers for numeric
@@ -151,7 +157,11 @@ func Uninstall(fx *effects.FX, l Locator, version string) (string, error) {
 	if !installed {
 		return "", fmt.Errorf("version %s is not installed at %s", version, target)
 	}
-	if resolved, ok := l.SymlinkTarget(); ok && filepath.Base(resolved) == version {
+	resolved, linked, err := l.SymlinkTarget()
+	if err != nil {
+		return "", err
+	}
+	if linked && filepath.Base(resolved) == version {
 		return "", fmt.Errorf("refusing to uninstall %s: it is the current `claude` symlink target (%s); switch to another version first",
 			version, l.ClaudeSymlink)
 	}

@@ -400,7 +400,9 @@ func (a *app) outcome() Outcome {
 
 // redraw recomputes the unavailable options and draws the bar.
 func (a *app) redraw() error {
-	EvaluateRequires(a.bar, a.in.Locator)
+	if err := EvaluateRequires(a.bar, a.in.Locator); err != nil {
+		return err
+	}
 	return a.renderer.Render(a.t, a.bar, Frame{
 		Flash:          a.flash,
 		ShowProvenance: a.showProvenance,

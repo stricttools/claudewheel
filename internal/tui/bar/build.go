@@ -384,19 +384,24 @@ func refreshProfiles(seg *Segment, store profiles.Store) error {
 
 // EvaluateRequires recomputes every segment's unavailable options from the
 // cross-segment requirements and the current selections; see
-// discover.EvaluateRequires.
-func EvaluateRequires(b *Bar, locator install.Locator) {
+// discover.EvaluateRequires, whose error it returns, leaving the segments
+// as they were.
+func EvaluateRequires(b *Bar, locator install.Locator) error {
 	requires := map[string]discover.Requires{}
 	for _, seg := range b.Segments {
 		requires[seg.Key] = seg.OptionRequires
 	}
-	unavailable := discover.EvaluateRequires(requires, b.Selections(), locator)
+	unavailable, err := discover.EvaluateRequires(requires, b.Selections(), locator)
+	if err != nil {
+		return err
+	}
 	for _, seg := range b.Segments {
 		seg.Unavailable = unavailable[seg.Key]
 		if seg.Unavailable == nil {
 			seg.Unavailable = map[string]bool{}
 		}
 	}
+	return nil
 }
 
 // cloneState deep-copies a state, for the background discovery to read

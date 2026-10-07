@@ -207,7 +207,10 @@ func modelVersionGuard(pc PreflightContext) error {
 	if !ok {
 		return nil
 	}
-	version, ok := install.EffectiveCLIVersion(pc.Selections[segVersion], pc.Locator)
+	version, ok, err := install.EffectiveCLIVersion(pc.Selections[segVersion], pc.Locator)
+	if err != nil {
+		return err
+	}
 	if !ok || install.CompareVersions(version, minVersion) >= 0 {
 		return nil
 	}
@@ -239,7 +242,10 @@ func releaseNotesSeen(pc PreflightContext) error {
 	if isDefaultProfile(pc.Selections) {
 		return nil
 	}
-	version, ok := install.EffectiveCLIVersion(pc.Selections[segVersion], pc.Locator)
+	version, ok, err := install.EffectiveCLIVersion(pc.Selections[segVersion], pc.Locator)
+	if err != nil {
+		return err
+	}
 	if !ok || !releaseVersionRE.MatchString(version) {
 		return nil
 	}

@@ -125,7 +125,10 @@ func (o Outcome) Confirmed() bool {
 // GatherHolders returns every live process registered under configDir, with
 // its resident memory measured for all of them in one ps call.
 func GatherHolders(fx *effects.FX, configDir string) ([]Holder, error) {
-	records := sessions.LiveRecords(configDir)
+	records, err := sessions.LiveRecords(configDir)
+	if err != nil {
+		return nil, err
+	}
 	pids := make([]int, len(records))
 	for i, r := range records {
 		pids[i] = r.PID

@@ -339,7 +339,10 @@ func Gather(fx *effects.FX, src Sources, nowMS int64) (Gathered, error) {
 	for _, p := range src.Profiles {
 		profiles[p.ConfigDir] = p.Name
 	}
-	found := sessions.ReadProfileRecords(src.Profiles)
+	found, err := sessions.ReadProfileRecords(src.Profiles)
+	if err != nil {
+		return Gathered{}, err
+	}
 	records := make([]sessions.SessionRecord, len(found))
 	for i, pr := range found {
 		records[i] = pr.Record

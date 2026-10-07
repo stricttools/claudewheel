@@ -294,7 +294,10 @@ func endsWithRelocated(data []byte, session, targetCwd string) (bool, error) {
 // checkNotRunning refuses a session whose process runs, or whose lifecycle
 // says it is starting.
 func checkNotRunning(lifecycleDir, session string, profiles []sessions.ProfileConfigDir, nowMS int64) error {
-	found := sessions.ReadProfileRecords(profiles)
+	found, err := sessions.ReadProfileRecords(profiles)
+	if err != nil {
+		return err
+	}
 	present := false
 	for _, f := range found {
 		if f.Record.SessionID != session {
@@ -601,7 +604,11 @@ func MoveSession(fx *effects.FX, ws workspace.Workspace, profiles []sessions.Pro
 	for i, p := range profiles {
 		configDirs[i] = p.ConfigDir
 	}
-	stores, err := sessions.DistinctStoreDirs(sessions.DiscoverProfileDirs(configDirs, ws.SharedDir()))
+	profileDirs, err := sessions.DiscoverProfileDirs(configDirs, ws.SharedDir())
+	if err != nil {
+		return MoveResult{}, err
+	}
+	stores, err := sessions.DistinctStoreDirs(profileDirs)
 	if err != nil {
 		return MoveResult{}, err
 	}

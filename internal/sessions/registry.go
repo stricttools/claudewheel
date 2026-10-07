@@ -3,6 +3,7 @@ package sessions
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/stricttools/claudewheel/internal/effects"
 	"github.com/stricttools/claudewheel/internal/jsonfile"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 )
 
 // Claude Code registers every process it starts as <config dir>/sessions/<pid>.json,
@@ -235,13 +237,22 @@ func stillTheSameFile(record SessionRecord) bool {
 }
 
 // ReadRecords returns every parseable registry record under configDir, live
-// or not, sorted by PID. A missing or unreadable sessions directory is an
-// empty registry.
-func ReadRecords(configDir string) []SessionRecord {
+// or not, sorted by PID. A sessions directory that is not there, or is not
+// a directory, is an empty registry, and an entry that vanishes while it is
+// read is skipped; a directory or entry that cannot be checked or listed is
+// an error. A file that cannot be parsed is skipped (parseRecord).
+func ReadRecords(configDir string) ([]SessionRecord, error) {
 	dir := filepath.Join(configDir, SessionsDirName)
+	isDir, err := pathstat.IsDir(dir)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read the session registry %s: %w", dir, err)
+	}
+	if !isDir {
+		return nil, nil
+	}
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("cannot read the session registry %s: %w", dir, err)
 	}
 	var records []SessionRecord
 	for _, e := range entries {
@@ -249,7 +260,11 @@ func ReadRecords(configDir string) []SessionRecord {
 			continue
 		}
 		path := filepath.Join(dir, e.Name())
-		if info, err := os.Stat(path); err != nil || !info.Mode().IsRegular() {
+		file, err := pathstat.IsFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("cannot read the session registry %s: %w", dir, err)
+		}
+		if !file {
 			continue
 		}
 		if record, ok := parseRecord(path); ok {
@@ -257,19 +272,23 @@ func ReadRecords(configDir string) []SessionRecord {
 		}
 	}
 	sort.SliceStable(records, func(i, j int) bool { return records[i].PID < records[j].PID })
-	return records
+	return records, nil
 }
 
 // LiveRecords returns the records under configDir whose processes are
-// running.
-func LiveRecords(configDir string) []SessionRecord {
+// running; ReadRecords' error is returned.
+func LiveRecords(configDir string) ([]SessionRecord, error) {
+	records, err := ReadRecords(configDir)
+	if err != nil {
+		return nil, err
+	}
 	var live []SessionRecord
-	for _, r := range ReadRecords(configDir) {
+	for _, r := range records {
 		if r.Live {
 			live = append(live, r)
 		}
 	}
-	return live
+	return live, nil
 }
 
 // Prune deletes the registry files of the records that are provably dead and
@@ -308,13 +327,18 @@ func Prune(fx *effects.FX, records []SessionRecord) ([]SessionRecord, error) {
 
 // HasLiveInteractive reports whether a human's session is live in
 // configDir: the predicate of the profile delete and rename guards.
-func HasLiveInteractive(configDir string) bool {
-	for _, r := range ReadRecords(configDir) {
+// ReadRecords' error is returned.
+func HasLiveInteractive(configDir string) (bool, error) {
+	records, err := ReadRecords(configDir)
+	if err != nil {
+		return false, err
+	}
+	for _, r := range records {
 		if r.Interactive() && r.Live {
-			return true
+			return true, nil
 		}
 	}
-	return false
+	return false, nil
 }
 
 // ProfileConfigDir names one profile and its Claude Code config directory.
@@ -331,15 +355,20 @@ type ProfileRecord struct {
 }
 
 // ReadProfileRecords returns every registry record of every profile, in
-// profiles order and ReadRecords order within one.
-func ReadProfileRecords(profiles []ProfileConfigDir) []ProfileRecord {
+// profiles order and ReadRecords order within one. The first profile whose
+// registry cannot be read is an error.
+func ReadProfileRecords(profiles []ProfileConfigDir) ([]ProfileRecord, error) {
 	var out []ProfileRecord
 	for _, p := range profiles {
-		for _, r := range ReadRecords(p.ConfigDir) {
+		records, err := ReadRecords(p.ConfigDir)
+		if err != nil {
+			return nil, fmt.Errorf("profile %s: %w", p.Name, err)
+		}
+		for _, r := range records {
 			out = append(out, ProfileRecord{Profile: p.Name, ConfigDir: p.ConfigDir, Record: r})
 		}
 	}
-	return out
+	return out, nil
 }
 
 // LiveSessionIDs returns the session ids of the records whose processes are

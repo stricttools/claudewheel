@@ -88,7 +88,10 @@ func handleProfileDelete(c *call, kw map[string]interface{}) error {
 	// exists (it lives inside the directory this removes) and only named.
 	var holding []sessions.SessionRecord
 	if !onScreen {
-		holding = sessions.LiveRecords(configDir)
+		holding, err = sessions.LiveRecords(configDir)
+		if err != nil {
+			return err
+		}
 		if !forceDelete && slices.ContainsFunc(holding, sessions.SessionRecord.Interactive) {
 			return interactiveRefusal(name)
 		}

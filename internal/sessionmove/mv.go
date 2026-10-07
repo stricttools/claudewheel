@@ -684,7 +684,10 @@ func Mv(fx *effects.FX, ws workspace.Workspace, profiles []sessions.ProfileConfi
 		configDirs[i] = p.ConfigDir
 	}
 	sharedDir := ws.SharedDir()
-	profileDirs := sessions.DiscoverProfileDirs(configDirs, sharedDir)
+	profileDirs, err := sessions.DiscoverProfileDirs(configDirs, sharedDir)
+	if err != nil {
+		return result, err
+	}
 	result.ProfilesScanned = len(profileDirs)
 	m.log(fmt.Sprintf("found %d profile/shared dirs", len(profileDirs)))
 

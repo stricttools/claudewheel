@@ -64,27 +64,37 @@ func (d Dir) IsStale(now time.Time, staleDays int) bool {
 
 // ScanTree returns the allocated block usage of the regular files under root and
 // the newest lstat modification time of root and every entry under it. It
-// never descends into a symbolic link. Entries that vanish or cannot be read
-// during the walk are skipped (Claude Code changes the tree concurrently).
-func ScanTree(root string) (int64, time.Time) {
+// never descends into a symbolic link. A missing root has nothing, and an
+// entry that vanishes during the walk is skipped (Claude Code changes the
+// tree concurrently), absence read as pathstat reads it; any other error
+// reading the tree is returned.
+func ScanTree(root string) (int64, time.Time, error) {
 	var total int64
 	var newest time.Time
-	if info, err := os.Lstat(root); err == nil {
-		newest = info.ModTime()
+	info, err := os.Lstat(root)
+	if pathstat.NotFoundOrParentNotDirectory(err) {
+		return 0, time.Time{}, nil
 	}
-	filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+	if err != nil {
+		return 0, time.Time{}, fmt.Errorf("cannot scan %s: %w", root, err)
+	}
+	newest = info.ModTime()
+	err = filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
-			if entry != nil && entry.IsDir() && path != root {
-				return fs.SkipDir
+			if pathstat.NotFoundOrParentNotDirectory(err) {
+				return nil
 			}
-			return nil
+			return err
 		}
 		if path == root {
 			return nil
 		}
 		info, err := entry.Info()
-		if err != nil {
+		if pathstat.NotFoundOrParentNotDirectory(err) {
 			return nil
+		}
+		if err != nil {
+			return err
 		}
 		if info.ModTime().After(newest) {
 			newest = info.ModTime()
@@ -96,7 +106,10 @@ func ScanTree(root string) (int64, time.Time) {
 		}
 		return nil
 	})
-	return total, newest
+	if err != nil {
+		return 0, time.Time{}, fmt.Errorf("cannot scan %s: %w", root, err)
+	}
+	return total, newest, nil
 }
 
 // ScanDirs returns one Dir per immediate subdirectory of root, sorted by
@@ -120,7 +133,10 @@ func ScanDirs(root string) ([]Dir, error) {
 			continue
 		}
 		path := filepath.Join(root, e.Name())
-		size, newest := ScanTree(path)
+		size, newest, err := ScanTree(path)
+		if err != nil {
+			return nil, err
+		}
 		dirs = append(dirs, Dir{Path: path, Name: e.Name(), SizeBytes: size, NewestMtime: newest})
 	}
 	return dirs, nil

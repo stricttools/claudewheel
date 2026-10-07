@@ -172,7 +172,11 @@ func (s Store) Rename(fx *effects.FX, oldName, newName string) (resumed bool, er
 	if slices.Contains(seg.Values, newName) || slices.Contains(seg.Pinned, newName) {
 		return false, fmt.Errorf("Profile '%s' already registered in options", newName)
 	}
-	if sessions.HasLiveInteractive(oldDir) {
+	live, err := sessions.HasLiveInteractive(oldDir)
+	if err != nil {
+		return false, err
+	}
+	if live {
 		return false, fmt.Errorf("Profile '%s' has a live interactive session. Stop it before renaming", oldName)
 	}
 

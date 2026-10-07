@@ -1,7 +1,6 @@
 package sessions
 
 import (
-	"os"
 	"path/filepath"
 	"sort"
 
@@ -17,10 +16,14 @@ import (
 
 // DiscoverProfileDirs returns profileDirs (every profile's directory, as the
 // profile store enumerates them) plus sharedDir when it is a directory not
-// already listed, sorted.
-func DiscoverProfileDirs(profileDirs []string, sharedDir string) []string {
+// already listed, sorted. A sharedDir that cannot be checked is an error.
+func DiscoverProfileDirs(profileDirs []string, sharedDir string) ([]string, error) {
 	dirs := append([]string(nil), profileDirs...)
-	if info, err := os.Stat(sharedDir); err == nil && info.IsDir() {
+	shared, err := pathstat.IsDir(sharedDir)
+	if err != nil {
+		return nil, err
+	}
+	if shared {
 		listed := false
 		for _, d := range dirs {
 			if d == sharedDir {
@@ -33,7 +36,7 @@ func DiscoverProfileDirs(profileDirs []string, sharedDir string) []string {
 		}
 	}
 	sort.Strings(dirs)
-	return dirs
+	return dirs, nil
 }
 
 // DistinctStoreDirs returns the projects store directories of profileDirs,

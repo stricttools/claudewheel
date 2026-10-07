@@ -105,7 +105,10 @@ func (s Store) GatherReport(name string, today time.Time) (Report, error) {
 				r.Danger = true
 			}
 		}
-		live := sessions.LiveRecords(r.ConfigDir)
+		live, err := sessions.LiveRecords(r.ConfigDir)
+		if err != nil {
+			return Report{}, err
+		}
 		r.ActiveSessions = len(live)
 		for _, rec := range live {
 			if rec.Interactive() {

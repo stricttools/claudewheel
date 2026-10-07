@@ -46,23 +46,26 @@ func ModelOptionRequires() Requires {
 // target), resolved at most once and only when some option needs it; when
 // that version is unknown, the requirement restricts nothing, as the
 // pre-launch guard does. A requirement on any other segment with no
-// selection is unsatisfied.
-func EvaluateRequires(requires map[string]Requires, selections map[string]string, locator install.Locator) map[string]map[string]bool {
+// selection is unsatisfied. A claude link that cannot be checked or resolved
+// is an error.
+func EvaluateRequires(requires map[string]Requires, selections map[string]string, locator install.Locator) (map[string]map[string]bool, error) {
 	type answer struct {
 		value string
 		ok    bool
+		err   error
 	}
 	resolved := map[string]answer{}
-	resolve := func(segment string) (string, bool) {
+	resolve := func(segment string) (string, bool, error) {
 		if a, done := resolved[segment]; done {
-			return a.value, a.ok
+			return a.value, a.ok, a.err
 		}
 		value, ok := selections[segment]
+		var err error
 		if segment == appconfig.SegmentKeyVersion {
-			value, ok = install.EffectiveCLIVersion(value, locator)
+			value, ok, err = install.EffectiveCLIVersion(value, locator)
 		}
-		resolved[segment] = answer{value, ok}
-		return value, ok
+		resolved[segment] = answer{value, ok, err}
+		return value, ok, err
 	}
 
 	out := make(map[string]map[string]bool, len(requires))
@@ -70,7 +73,10 @@ func EvaluateRequires(requires map[string]Requires, selections map[string]string
 		unavailable := map[string]bool{}
 		for option, reqs := range segRequires {
 			for segment, constraint := range reqs {
-				value, ok := resolve(segment)
+				value, ok, err := resolve(segment)
+				if err != nil {
+					return nil, err
+				}
 				if !ok && segment == appconfig.SegmentKeyVersion {
 					continue
 				}
@@ -82,7 +88,7 @@ func EvaluateRequires(requires map[string]Requires, selections map[string]string
 		}
 		out[key] = unavailable
 	}
-	return out
+	return out, nil
 }
 
 // SatisfiesConstraint reports whether value meets constraint: a version

@@ -46,7 +46,11 @@ func handleVersions(c *call, kw map[string]interface{}) error {
 		return err
 	}
 	current := ""
-	if target, ok := locator.SymlinkTarget(); ok {
+	target, linked, err := locator.SymlinkTarget()
+	if err != nil {
+		return err
+	}
+	if linked {
 		current = filepath.Base(target)
 	}
 	if len(versions) == 0 {
