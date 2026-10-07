@@ -38,7 +38,7 @@ var passThroughFlags = map[string]bool{
 }
 
 // reservedFlags are the flags strictcli owns and strips from the argument
-// list wherever they stand in front of the command, so the insertion steps
+// list wherever they stand in front of the command, so the insertion passes
 // over them: `claudewheel --dry-run stats` previews stats, not a launch.
 var reservedFlags = map[string]bool{
 	"--dry-run":               true,

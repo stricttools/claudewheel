@@ -50,3 +50,16 @@ The Python writes JSON in these layouts, each now a function: `MarshalIndented` 
 
 - `Default()` refuses an unset, empty, or relative `HOME`. `FromHome(home)` builds every path from one home directory and replaces `Workspace.open`'s per-directory overrides, which only tests used.
 - `EncodePath` and its hash treat each byte that is not valid UTF-8 as U+DC00 plus the byte, as Python's `surrogateescape` decoding of a filesystem path does.
+
+## effects: how an FX is built, and the read-only refusal
+
+`effects.New(ctx)` serves mutating commands (records on `ctx.Effects()` under `--dry-run`, performs otherwise), `effects.ReadOnly(ctx)` serves read-only commands and refuses every mutation with an error wrapping `effects.ErrReadOnly` (the Python performed a mutation from a read-only command silently), and `effects.Standalone(out)` performs everything directly outside a dispatch (tests). Live mode records nothing on the strictcli handle, as in the Python. The Python `issue(dry_run)` predicate is not ported: Go has no unbound dry-run path, so `fx.Previewing()` is the one switch.
+
+## effects: departures in single operations
+
+- `WriteSecretAtomic` under `--dry-run` records one write carrying `mode: 0600` (strictcli's `Mode` option) instead of a write followed by a chmod.
+- `Move` falls back to copy-and-delete only when the rename fails with EXDEV (the Python fell back on any rename error, against its own documented intent).
+- `CopyTree` stops at the first error instead of collecting every error as `shutil.copytree` does.
+- `RunPTY` returns an error when the program cannot be started; the Python's forked child exited 127 instead.
+- Install's streaming download is one operation, `fx.Download(req, path, onChunk)`: live, it streams into `path` calling `onChunk` per 1 MiB chunk (hashing and progress); under `--dry-run` it records the `net` request and the write of `path` from its output, which is what the Python's preview branch recorded. Its `Timeout` restarts with every chunk, the closest match to urllib's per-socket-operation timeout.
+- Every HTTP request requires a positive `Timeout` (urllib allowed none).
