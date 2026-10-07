@@ -100,3 +100,9 @@ The unit writes `ExecStart="<executable>" probe run-service`, double-quoted as t
 - `Remove(fx, dirs)` attempts every directory and returns the failures joined, each naming its directory; the plan makes a non-nil result abort the launch.
 - `ScanTree(root)` is exported so `health`'s `/tmp/claude` size check uses the same walk instead of a second copy (`_real_disk_usage`); its size counts the same files.
 - Ages use `time.Time`; a root whose lstat fails has the zero time (Python used epoch 0), so it reads as stale either way.
+
+## auth: validation inputs and the token shape
+
+- `ValidateToken(fx, token)` uses the fixed `ValidateTimeout` (Python's default argument, which no caller changed) and returns `(Status, error)`: an empty token is an error instead of a request (`effects` refuses an empty redaction value). Every failed request is still `Unreachable`, never an error.
+- `LooksLikeToken` no longer accepts a trailing newline after the token (Python's `$` matched before one).
+- `ExtractToken` returns `(string, bool)` for Python's `str | None`.
