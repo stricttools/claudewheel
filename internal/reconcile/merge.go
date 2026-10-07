@@ -90,8 +90,13 @@ func ReferencedScripts(hooks *jsonfile.Object) []string {
 // Hooks that are not canonical are matched by neither and kept as they are.
 // It returns a description of every hook added, repathed, or given options.
 // An event value or a matched entry's hooks that is not an array is a
-// *MalformedSettingsError.
+// *MalformedSettingsError, and so is a canonical entry or hook that is not an
+// object (the wizard's canonical hooks come from the hand-editable
+// shared-settings.json); canonical is checked before existing is changed.
 func MergeHooks(existing, canonical *jsonfile.Object) ([]string, error) {
+	if err := checkCanonicalHooks(canonical); err != nil {
+		return nil, err
+	}
 	var added []string
 	for _, event := range canonical.Keys() {
 		cv, _ := canonical.Get(event)
@@ -175,4 +180,37 @@ func MergeHooks(existing, canonical *jsonfile.Object) ([]string, error) {
 		}
 	}
 	return added, nil
+}
+
+// checkCanonicalHooks refuses canonical hooks MergeHooks cannot walk: an
+// event value or an entry's hooks that is not an array, or an entry or hook
+// that is not an object. An entry without hooks has none.
+func checkCanonicalHooks(canonical *jsonfile.Object) error {
+	for _, event := range canonical.Keys() {
+		v, _ := canonical.Get(event)
+		entries, ok := v.([]jsonfile.Value)
+		if !ok {
+			return &MalformedSettingsError{Detail: fmt.Sprintf("hooks %q is %s, expected an array", event, jsonTypeName(v))}
+		}
+		for _, e := range entries {
+			entry, ok := e.(*jsonfile.Object)
+			if !ok {
+				return &MalformedSettingsError{Detail: fmt.Sprintf("a hooks %q entry is %s, expected an object", event, jsonTypeName(e))}
+			}
+			hv, present := entry.Get("hooks")
+			if !present {
+				continue
+			}
+			hooks, ok := hv.([]jsonfile.Value)
+			if !ok {
+				return &MalformedSettingsError{Detail: fmt.Sprintf("a hooks %q entry's hooks is %s, expected an array", event, jsonTypeName(hv))}
+			}
+			for _, h := range hooks {
+				if _, ok := h.(*jsonfile.Object); !ok {
+					return &MalformedSettingsError{Detail: fmt.Sprintf("a hook in a hooks %q entry is %s, expected an object", event, jsonTypeName(h))}
+				}
+			}
+		}
+	}
+	return nil
 }
