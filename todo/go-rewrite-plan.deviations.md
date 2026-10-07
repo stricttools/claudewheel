@@ -13,3 +13,11 @@ A new command `claudewheel profile exec --name <profile> -- <argv...>`, needed b
 - The token never appears in output, errors, or dry-run records (it is redacted).
 - Mutating, with `--dry-run` refused (it execs).
 - Built with the profile commands (`internal/profiles` provides the environment; `internal/cli` declares the command).
+
+## guardrail: model shape
+
+- The model is exposed as functions that build fresh values on every call (`Rules`, `AllowConflicts`, `ExpectedHookWirings`, `DisallowedToolEntries`, the canonical trees), not package variables, so a caller mutating a result cannot change the model.
+- `HookOptions` marks an unset option with its zero value (`Timeout` 0, empty rewake texts) instead of Python's `None`. The Python construction-time checks (rewake texts need `asyncRewake`, a positive timeout) are not ported: the wirings are static data inside the package.
+- `SettingsCoverage` has a zero value `CoverageNotApplicable` for the advise and ask tiers (Python's `None`); its `Name()` is then empty, and the docs table renders it as "n/a" itself.
+- `CanonicalHookCommand` uses `filepath.Join`, which also resolves `..` where pathlib would not; scripts directories never contain one.
+- The generated blocker and advise scripts keep their header comments naming `claudewheel.guardrail.generate_blocker_script()` and `guardrail.py`, so the Go output is byte-identical to what is deployed. Rewording them is a change to the deployed scripts, for after the switchover.
