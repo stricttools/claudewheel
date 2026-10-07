@@ -1,0 +1,327 @@
+{
+  "rules": [
+    {
+      "key": "rm",
+      "tier": "HARD_DENY",
+      "hook_patterns": [
+        "(^|[;&|]|&&|\\|\\|)\\s*rm(\\s|$)|(^|\\s)(sudo|env|xargs)\\s+(-\\S+\\s+)*rm(\\s|$)|(^|\\s)-(exec|execdir|ok|okdir)\\s+rm(\\s|$)"
+      ],
+      "deny_rules": [
+        "Bash(rm:*)"
+      ],
+      "ask_rules": [],
+      "main_advice": "Use 'saferm delete --description \"why\" file1 file2' instead of 'rm'.",
+      "subagent_advice": "Use 'saferm delete --description \"why\" file1 file2' instead of 'rm'. You are a subagent: report to your parent agent why you attempted this command.",
+      "settings_coverage": "PARTIAL",
+      "coverage_reason": "Bash(rm:*) matches only the bare 'rm' command; the hook also reaches rm via sudo/env/xargs and find -exec, which no deny glob covers."
+    },
+    {
+      "key": "git-add-bulk",
+      "tier": "HARD_DENY",
+      "hook_patterns": [
+        "(^|[;&|]|&&|\\|\\|)\\s*git\\s+add\\s+(-[AuU]|--all|\\.)"
+      ],
+      "deny_rules": [
+        "Bash(git add .)",
+        "Bash(git add -A*)",
+        "Bash(git add --all*)",
+        "Bash(git add -u*)"
+      ],
+      "ask_rules": [],
+      "main_advice": "Use 'safegit commit -m \"msg\" -- file1 file2' instead of 'git add'.",
+      "subagent_advice": "Use 'safegit commit -m \"msg\" -- file1 file2' instead of 'git add'. You are a subagent: report to your parent agent why you attempted this command.",
+      "settings_coverage": "PARTIAL",
+      "coverage_reason": "the hook's -[AuU] flag class also matches 'git add -U', which no deny glob covers (globs cover -A/-u/--all/. only)."
+    },
+    {
+      "key": "git-stash",
+      "tier": "HARD_DENY",
+      "hook_patterns": [
+        "(^|[;&|]|&&|\\|\\|)\\s*git\\s+stash(\\s|$)"
+      ],
+      "deny_rules": [
+        "Bash(git stash:*)"
+      ],
+      "ask_rules": [],
+      "main_advice": "Never 'git stash'. Commit the work in progress on the current branch with 'safegit commit' instead.",
+      "subagent_advice": "Never 'git stash'. Commit the work in progress on the current branch with 'safegit commit' instead. You are a subagent: report to your parent agent why you attempted this command.",
+      "settings_coverage": "FULL",
+      "coverage_reason": ""
+    },
+    {
+      "key": "git-restore",
+      "tier": "HARD_DENY",
+      "hook_patterns": [
+        "(^|[;&|]|&&|\\|\\|)\\s*git\\s+restore(\\s|$)"
+      ],
+      "deny_rules": [
+        "Bash(git restore:*)"
+      ],
+      "ask_rules": [],
+      "main_advice": "Use the Edit tool to revert specific lines instead of 'git restore'.",
+      "subagent_advice": "Use the Edit tool to revert specific lines instead of 'git restore'. You are a subagent: report to your parent agent why you attempted this command.",
+      "settings_coverage": "FULL",
+      "coverage_reason": ""
+    },
+    {
+      "key": "git-checkout-file",
+      "tier": "HARD_DENY",
+      "hook_patterns": [
+        "(^|[;&|]|&&|\\|\\|)\\s*git\\s+checkout\\s+--\\s"
+      ],
+      "deny_rules": [],
+      "ask_rules": [],
+      "main_advice": "Use the Edit tool to revert specific lines instead of 'git checkout -- file'.",
+      "subagent_advice": "Use the Edit tool to revert specific lines instead of 'git checkout -- file'. You are a subagent: report to your parent agent why you attempted this command.",
+      "settings_coverage": "NONE",
+      "coverage_reason": "owns no deny glob of its own; the sibling git-checkout rule's Bash(git checkout:*) is the settings backstop for this form."
+    },
+    {
+      "key": "git-checkout",
+      "tier": "HARD_DENY",
+      "hook_patterns": [
+        "(^|[;&|]|&&|\\|\\|)\\s*git\\s+checkout(\\s|$)"
+      ],
+      "deny_rules": [
+        "Bash(git checkout:*)"
+      ],
+      "ask_rules": [],
+      "main_advice": "'git checkout' is deprecated here; use 'git switch' for branches (plain git switch is allowed) or the Edit tool to revert files.",
+      "subagent_advice": "'git checkout' is deprecated here; use 'git switch' for branches (plain git switch is allowed) or the Edit tool to revert files. You are a subagent: report to your parent agent why you attempted this command.",
+      "settings_coverage": "FULL",
+      "coverage_reason": ""
+    },
+    {
+      "key": "git-push-delete",
+      "tier": "HARD_DENY",
+      "hook_patterns": [
+        "(^|[;&|]|&&|\\|\\|)\\s*git\\s+push\\b[^;&|]*(--delete|\\s-d(\\s|$)|\\s\\+?:)"
+      ],
+      "deny_rules": [
+        "Bash(git push origin --delete*)"
+      ],
+      "ask_rules": [],
+      "main_advice": "Deleting remote branches is destructive; ask the user to do this deliberately.",
+      "subagent_advice": "Deleting remote branches is destructive; ask the user to do this deliberately. You are a subagent: report to your parent agent why you attempted this command.",
+      "settings_coverage": "PARTIAL",
+      "coverage_reason": "the deny glob covers only origin + --delete; the hook also matches the empty-source colon refspec (:b / +:b), the -d short form, and any other remote."
+    },
+    {
+      "key": "sleep",
+      "tier": "HARD_DENY",
+      "hook_patterns": [
+        "(^|[;&|(]|&&|\\|\\|)\\s*sleep(\\s|$)"
+      ],
+      "deny_rules": [
+        "Bash(sleep:*)"
+      ],
+      "ask_rules": [],
+      "main_advice": "Never 'sleep' to wait: the harness notifies you when background work finishes, so read the state you are waiting on or do other work instead of padding the turn with a wait.",
+      "subagent_advice": "Never 'sleep' to wait: the harness notifies you when background work finishes, so read the state you are waiting on or do other work instead of padding the turn with a wait. You are a subagent: report to your parent agent why you attempted this command.",
+      "settings_coverage": "PARTIAL",
+      "coverage_reason": "Bash(sleep:*) matches only a command line that starts with 'sleep'; the hook also matches it after a separator and inside a subshell, which no deny glob covers."
+    },
+    {
+      "key": "push",
+      "tier": "ESCALATE",
+      "hook_patterns": [
+        "(^|[;&|]|&&|\\|\\|)\\s*(git|safegit|\\./safegit)\\s+push(\\s|$)"
+      ],
+      "deny_rules": [],
+      "ask_rules": [
+        "Bash(git push:*)",
+        "Bash(safegit push:*)",
+        "Bash(./safegit push:*)"
+      ],
+      "main_advice": "",
+      "subagent_advice": "Pushes happen only via rlsbl release run. Only your parent agent may run this command (the user will be asked to approve it). Explain in detail to your parent agent why you wanted to run this command.",
+      "settings_coverage": "FULL",
+      "coverage_reason": ""
+    },
+    {
+      "key": "git-reset",
+      "tier": "ESCALATE",
+      "hook_patterns": [
+        "(^|[;&|]|&&|\\|\\|)\\s*git\\s+reset(\\s|$)"
+      ],
+      "deny_rules": [],
+      "ask_rules": [
+        "Bash(git reset *)"
+      ],
+      "main_advice": "",
+      "subagent_advice": "git reset is destructive in shared worktrees. Only your parent agent may run this command (the user will be asked to approve it). Explain in detail to your parent agent why you wanted to run this command.",
+      "settings_coverage": "PARTIAL",
+      "coverage_reason": "ask glob Bash(git reset *) requires a trailing argument and misses the bare 'git reset' (no args) that the hook matches."
+    },
+    {
+      "key": "git-switch-force",
+      "tier": "ESCALATE",
+      "hook_patterns": [
+        "(^|[;&|]|&&|\\|\\|)\\s*git\\s+switch\\s+(-f|--force)(\\s|$)"
+      ],
+      "deny_rules": [],
+      "ask_rules": [
+        "Bash(git switch -f*)",
+        "Bash(git switch --force*)"
+      ],
+      "main_advice": "",
+      "subagent_advice": "Forced switch destroys uncommitted work in shared worktrees. Only your parent agent may run this command (the user will be asked to approve it). Explain in detail to your parent agent why you wanted to run this command.",
+      "settings_coverage": "FULL",
+      "coverage_reason": ""
+    },
+    {
+      "key": "gh-workflow-run",
+      "tier": "ESCALATE",
+      "hook_patterns": [
+        "(^|[;&|]|&&|\\|\\|)\\s*gh\\s+workflow\\s+run(\\s|$)"
+      ],
+      "deny_rules": [],
+      "ask_rules": [
+        "Bash(gh workflow run*)"
+      ],
+      "main_advice": "",
+      "subagent_advice": "Triggering CI workflows is an outward-facing action. Only your parent agent may run this command (the user will be asked to approve it). Explain in detail to your parent agent why you wanted to run this command.",
+      "settings_coverage": "FULL",
+      "coverage_reason": ""
+    },
+    {
+      "key": "saferm-purge",
+      "tier": "ESCALATE",
+      "hook_patterns": [
+        "(^|[;&|]|&&|\\|\\|)\\s*saferm\\s+purge(\\s|$)"
+      ],
+      "deny_rules": [],
+      "ask_rules": [
+        "Bash(saferm purge:*)"
+      ],
+      "main_advice": "",
+      "subagent_advice": "saferm purge permanently destroys archived files. Only your parent agent may run this command (the user will be asked to approve it). Explain in detail to your parent agent why you wanted to run this command.",
+      "settings_coverage": "FULL",
+      "coverage_reason": ""
+    },
+    {
+      "key": "git-rebase",
+      "tier": "ESCALATE",
+      "hook_patterns": [
+        "(^|[;&|]|&&|\\|\\|)\\s*git\\s+rebase(\\s|$)"
+      ],
+      "deny_rules": [],
+      "ask_rules": [
+        "Bash(git rebase *)"
+      ],
+      "main_advice": "",
+      "subagent_advice": "Rebase rewrites history in shared worktrees. Only your parent agent may run this command (the user will be asked to approve it). Explain in detail to your parent agent why you wanted to run this command.",
+      "settings_coverage": "PARTIAL",
+      "coverage_reason": "ask glob Bash(git rebase *) requires a trailing argument and misses the bare 'git rebase' (no args) that the hook matches."
+    },
+    {
+      "key": "safegit-author-rewrite",
+      "tier": "ESCALATE",
+      "hook_patterns": [
+        "(^|[;&|]|&&|\\|\\|)\\s*(safegit|\\./safegit)\\s+author\\s+rewrite(\\s|$)"
+      ],
+      "deny_rules": [],
+      "ask_rules": [
+        "Bash(safegit author rewrite:*)",
+        "Bash(./safegit author rewrite:*)"
+      ],
+      "main_advice": "",
+      "subagent_advice": "Author rewriting is history rewriting. Only your parent agent may run this command (the user will be asked to approve it). Explain in detail to your parent agent why you wanted to run this command.",
+      "settings_coverage": "FULL",
+      "coverage_reason": ""
+    },
+    {
+      "key": "kill",
+      "tier": "ADVISE",
+      "hook_patterns": [
+        "(^|[;&|]|&&|\\|\\|)\\s*p?kill(\\s|$)|(^|\\s)(sudo|env|xargs)\\s+(-\\S+\\s+)*p?kill(\\s|$)|(^|\\s)-(exec|execdir|ok|okdir)\\s+p?kill(\\s|$)"
+      ],
+      "deny_rules": [],
+      "ask_rules": [],
+      "main_advice": "This kill/pkill ran, but prefer building graceful stop commands or PID-file-based stop scripts into your tooling instead of killing processes directly.",
+      "subagent_advice": "This kill/pkill ran, but prefer building graceful stop commands or PID-file-based stop scripts into your tooling instead of killing processes directly.",
+      "settings_coverage": "",
+      "coverage_reason": ""
+    },
+    {
+      "key": "sudo",
+      "tier": "ASK",
+      "hook_patterns": [],
+      "deny_rules": [],
+      "ask_rules": [
+        "Bash(sudo:*)"
+      ],
+      "main_advice": "",
+      "subagent_advice": "",
+      "settings_coverage": "",
+      "coverage_reason": ""
+    }
+  ],
+  "canonical_deny_rules": [
+    "Bash(rm:*)",
+    "Bash(git add .)",
+    "Bash(git add -A*)",
+    "Bash(git add --all*)",
+    "Bash(git add -u*)",
+    "Bash(git stash:*)",
+    "Bash(git restore:*)",
+    "Bash(git checkout:*)",
+    "Bash(git push origin --delete*)",
+    "Bash(sleep:*)"
+  ],
+  "canonical_ask_rules": [
+    "Bash(git push:*)",
+    "Bash(safegit push:*)",
+    "Bash(./safegit push:*)",
+    "Bash(git reset *)",
+    "Bash(git switch -f*)",
+    "Bash(git switch --force*)",
+    "Bash(gh workflow run*)",
+    "Bash(saferm purge:*)",
+    "Bash(git rebase *)",
+    "Bash(safegit author rewrite:*)",
+    "Bash(./safegit author rewrite:*)",
+    "Bash(sudo:*)"
+  ],
+  "allow_conflicts": [
+    "Bash(git add:*)",
+    "Bash(git checkout:*)",
+    "Bash(git stash:*)",
+    "Bash(git stash push:*)",
+    "Bash(sudo npm install:*)",
+    "Bash(sudo -S npm install:*)",
+    "Bash(sudo -S dnf install:*)",
+    "Bash(sudo -S dnf install -y chromium)",
+    "Bash(sudo adb start-server:*)",
+    "Bash(sudo -n iptables -L INPUT -n)",
+    "Bash(sudo -n ufw status || echo \"\\(need sudo for ufw\\)\")",
+    "Skill(gsd:discuss-phase)"
+  ],
+  "disallowed_tool_names": [
+    "Artifact",
+    "DesignSync",
+    "EnterPlanMode",
+    "EnterWorktree",
+    "ExitPlanMode",
+    "ExitWorktree",
+    "LSP",
+    "NotebookEdit",
+    "PushNotification",
+    "RemoteTrigger",
+    "ReportFindings",
+    "Skill",
+    "TaskCreate",
+    "TaskGet",
+    "TaskList",
+    "TaskOutput",
+    "TaskStop",
+    "TaskUpdate"
+  ],
+  "canonical_profile_settings": {
+    "remoteControlAtStartup": false,
+    "spinnerTipsEnabled": false,
+    "disableAgentView": true
+  },
+  "scripts_dir": "/home/u/.claudewheel/scripts",
+  "canonical_shared_settings_text": "{\n  \"hooks\": {\n    \"UserPromptSubmit\": [\n      {\n        \"matcher\": \"\",\n        \"hooks\": [\n          {\n            \"type\": \"command\",\n            \"command\": \"/home/u/.claudewheel/scripts/hook-timestamp\"\n          }\n        ]\n      }\n    ],\n    \"PreToolUse\": [\n      {\n        \"matcher\": \"Agent\",\n        \"hooks\": [\n          {\n            \"type\": \"command\",\n            \"command\": \"/home/u/.claudewheel/scripts/hook-block-worktree\"\n          }\n        ]\n      },\n      {\n        \"matcher\": \"Bash\",\n        \"hooks\": [\n          {\n            \"type\": \"command\",\n            \"command\": \"/home/u/.claudewheel/scripts/hook-block-unsafe-commands\"\n          },\n          {\n            \"type\": \"command\",\n            \"command\": \"/home/u/.claudewheel/scripts/hook-deliver-probe-reports\"\n          }\n        ]\n      }\n    ],\n    \"PostToolUse\": [\n      {\n        \"matcher\": \"Bash\",\n        \"hooks\": [\n          {\n            \"type\": \"command\",\n            \"command\": \"/home/u/.claudewheel/scripts/hook-advise-commands\"\n          }\n        ]\n      },\n      {\n        \"matcher\": \"\",\n        \"hooks\": [\n          {\n            \"type\": \"command\",\n            \"command\": \"/home/u/.claudewheel/scripts/hook-deliver-probe-reports\"\n          }\n        ]\n      }\n    ],\n    \"SessionStart\": [\n      {\n        \"matcher\": \"\",\n        \"hooks\": [\n          {\n            \"type\": \"command\",\n            \"command\": \"/home/u/.claudewheel/scripts/hook-session-start\"\n          },\n          {\n            \"type\": \"command\",\n            \"command\": \"/home/u/.claudewheel/scripts/hook-wait-for-probe-reports\",\n            \"asyncRewake\": true,\n            \"timeout\": 604800,\n            \"rewakeMessage\": \"claudewheel probe report:\",\n            \"rewakeSummary\": \"claudewheel probe report\"\n          }\n        ]\n      }\n    ],\n    \"SessionEnd\": [\n      {\n        \"matcher\": \"\",\n        \"hooks\": [\n          {\n            \"type\": \"command\",\n            \"command\": \"/home/u/.claudewheel/scripts/hook-session-end\"\n          }\n        ]\n      }\n    ],\n    \"Stop\": [\n      {\n        \"matcher\": \"\",\n        \"hooks\": [\n          {\n            \"type\": \"command\",\n            \"command\": \"/home/u/.claudewheel/scripts/hook-wait-for-probe-reports\",\n            \"asyncRewake\": true,\n            \"timeout\": 604800,\n            \"rewakeMessage\": \"claudewheel probe report:\",\n            \"rewakeSummary\": \"claudewheel probe report\"\n          }\n        ]\n      }\n    ],\n    \"PostToolUseFailure\": [\n      {\n        \"matcher\": \"\",\n        \"hooks\": [\n          {\n            \"type\": \"command\",\n            \"command\": \"/home/u/.claudewheel/scripts/hook-deliver-probe-reports\"\n          }\n        ]\n      }\n    ],\n    \"SubagentStop\": [\n      {\n        \"matcher\": \"\",\n        \"hooks\": [\n          {\n            \"type\": \"command\",\n            \"command\": \"/home/u/.claudewheel/scripts/hook-deliver-probe-reports\"\n          }\n        ]\n      }\n    ]\n  },\n  \"disallowedTools\": [\n    \"Artifact\",\n    \"DesignSync\",\n    \"EnterPlanMode\",\n    \"EnterWorktree\",\n    \"ExitPlanMode\",\n    \"ExitWorktree\",\n    \"LSP\",\n    \"NotebookEdit\",\n    \"PushNotification\",\n    \"RemoteTrigger\",\n    \"ReportFindings\",\n    \"Skill\",\n    \"TaskCreate\",\n    \"TaskGet\",\n    \"TaskList\",\n    \"TaskOutput\",\n    \"TaskStop\",\n    \"TaskUpdate\"\n  ],\n  \"profileDefaults\": {\n    \"remoteControlAtStartup\": false,\n    \"spinnerTipsEnabled\": false,\n    \"disableAgentView\": true,\n    \"awaySummaryEnabled\": false,\n    \"cleanupPeriodDays\": 3650,\n    \"autoMemoryEnabled\": false,\n    \"includeGitInstructions\": false,\n    \"permissions\": {\n      \"deny\": [\n        \"Bash(rm:*)\",\n        \"Bash(git add .)\",\n        \"Bash(git add -A*)\",\n        \"Bash(git add --all*)\",\n        \"Bash(git add -u*)\",\n        \"Bash(git stash:*)\",\n        \"Bash(git restore:*)\",\n        \"Bash(git checkout:*)\",\n        \"Bash(git push origin --delete*)\",\n        \"Bash(sleep:*)\"\n      ],\n      \"ask\": [\n        \"Bash(git push:*)\",\n        \"Bash(safegit push:*)\",\n        \"Bash(./safegit push:*)\",\n        \"Bash(git reset *)\",\n        \"Bash(git switch -f*)\",\n        \"Bash(git switch --force*)\",\n        \"Bash(gh workflow run*)\",\n        \"Bash(saferm purge:*)\",\n        \"Bash(git rebase *)\",\n        \"Bash(safegit author rewrite:*)\",\n        \"Bash(./safegit author rewrite:*)\",\n        \"Bash(sudo:*)\"\n      ],\n      \"defaultMode\": \"default\"\n    }\n  }\n}\n"
+}

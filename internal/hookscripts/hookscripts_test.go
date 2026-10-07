@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"sort"
 	"testing"
+
+	"github.com/stricttools/claudewheel/internal/guardrail"
 )
 
 // pythonDir holds every script the Python claudewheel generates, written by
@@ -60,4 +62,20 @@ func firstDifference(a, b string) int {
 		}
 	}
 	return n
+}
+
+func TestEveryWiredScriptIsDeployed(t *testing.T) {
+	for _, w := range guardrail.ExpectedHookWirings() {
+		if !IsScript(w.Script) {
+			t.Errorf("wiring %s/%s names %s, which is not a deployed script", w.Event, w.Matcher, w.Script)
+		}
+	}
+}
+
+func TestExit2HooksAreDeployedScripts(t *testing.T) {
+	for name := range Exit2Hooks() {
+		if !IsScript(name) {
+			t.Errorf("%s is not a deployed script", name)
+		}
+	}
 }
