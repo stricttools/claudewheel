@@ -197,3 +197,30 @@ The unit writes `ExecStart="<executable>" probe run-service`, double-quoted as t
 - npm and gh run with an empty stdin, so a background child never reads the bar's keys. An npm answer that is not a JSON list of strings is a refresh failure.
 - `GitHubToken(fx, account)` (launch's `fetch_gh_token`) lives here with the other gh call and returns an error when gh is missing, times out, exits nonzero, or prints nothing; the Python returned None and the launch went ahead without `GH_TOKEN`.
 - `EvaluateRequires` takes the per-segment requirements and the selections and returns the unavailable sets, instead of mutating the bar's segments.
+
+## archiver: detection, the delegation, and the install
+
+- `Detect(fx, root)` returns `(*Tool, *Unavailable, error)`; the reason is `Unavailable.Reason` (`absent`, `no-verb`, `missing-features`). The install offer is not drawn here: `MayOfferInstall(previewing, interactive)`, `Verb`, `Diagnosis`, `Stakes`, `Remedy`, and `RefusalError` are the decision data, and `Install(fx, root, onProgress)` the install. The caller detects again after installing.
+- `ArchiveUnreadable` is its own type, `*ArchiveUnreadableError`, beside `*ArchiveError` (Python subclassed it); callers check it first.
+- The archive payload is read strictly: a `group_id` or `path` that is not a string, and a `size` that is not a whole number, are unreadable answers (Python stringified any value and truncated floats).
+- PATH lookup skips empty and relative PATH entries. The asset name uses `runtime.GOOS` and `runtime.GOARCH` (the binary's own platform; Python used the kernel's machine name and called every non-macOS, non-Windows system linux). The checksum comparison ignores the manifest digest's letter case.
+- The asset is fetched with `fx.HTTPRead` into memory, as the Python did, so nothing touches the disk before the SHA-256 matched; only a regular file named exactly `saferm` in the tarball is accepted.
+
+## profiles: store shape and entry points
+
+- `profiles.New(ws)` builds the store; every write goes through `appconfig`'s options and state functions, so the Python's optional write stores and their guards are gone. A missing options.json or state.json is `appconfig`'s error, where the Python fell back to an empty profile segment.
+- Every entry point (enumeration, `LaunchEnv`, create, delete, rename, fix-auth, set-plan, the report, the permission and plugin targets) refuses a leftover `.rename_pending` with a `*PendingRenameError` naming `claudewheel profile rename <from> <to>`; `CheckPendingRenames()` is exported for entry points outside this package. `Rename` rerun with the breadcrumb's names finishes the interrupted rename (store updates only when the directory already moved, the whole rename when it did not) and reports `resumed`. A breadcrumb that cannot be read, names no source or target, or sits in a directory named neither is an error describing the manual repair; the recovery that silently finished or dropped breadcrumbs is not ported.
+- `Rename` and `Create` also apply the CLI's name policy (`CheckNewName`: the charset and the reserved names); `Rename` also refuses a new name already registered and a profile with a live interactive session, as the Python CLI did, so the TUI and CLI share one check.
+- `Create` writes `.claude.json` as a fresh `{"hasCompletedOnboarding": true}`: the directory was just made, so there is nothing to merge (the Python merged, and replaced a corrupt file with `{}`). `CreateOptions` has no defaults; callers state both choices.
+- The data-destruction refusal names `--force-delete-data` instead of the Python's `allow_data_destruction=True`.
+
+## profiles: launch environment
+
+`Store.LaunchEnv(name)` returns `LaunchEnv{Set, Unset, Token}`, shared by the launch and `profile exec`; `Apply(environ)` applies it. `Token` is the OAuth token value for redaction (also present in `Set`). For `default` nothing is checked on disk (the launch never resolved `default` through the store): `Set` is empty and `Unset` is every `ProfileEnvKeys()` variable. A named profile keeps the Python's behavior of setting only what it has, so an inherited `CLAUDE_CODE_OAUTH_TOKEN` or plan variable is not removed for a named profile without a token or plan. `CLAUDE_CODE_DISABLE_TERMINAL_TITLE` is set as the Python sets it.
+
+## profiles: reports, permissions, plugins, and processes
+
+- The report's `HasToken` means the token entry holds a token (the Python reported any non-empty entry, so a plan-only entry printed "Token: present"). A corrupt settings.json is an error instead of "no settings.json"; disk usage still skips unreadable entries (a display estimate).
+- `permission add` and `remove` write settings.json only when the rule list changed (the Python rewrote it on "already present" too). `AddRule` and `RemoveRule` keep a category argument for the reconcile; the command functions `AddAllowRule` and `RemoveAllowRule` edit allow only. A permissions block or category that is not an object or a list of strings is an error.
+- The plugin inventory returns listing and size errors instead of skipping them. `PluginTargets` holds purge-plugins' target policy (default excluded).
+- `ResidentMemory` returns an error when ps cannot run (the Python returned no measurements); `Terminate` returns the kill error except ESRCH (the Python returned false); `StopDaemon` returns an error when the command cannot run or times out, and false for a nonzero exit or a preview.
