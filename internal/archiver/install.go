@@ -132,7 +132,7 @@ func Install(fx *effects.FX, root string, onProgress func(done, total int64)) (s
 	}
 	if strings.HasSuffix(asset, ".zip") {
 		return "", installErrorf("claudewheel cannot unpack %s; install %s with one of:\n%s",
-			asset, Saferm, (&Unavailable{}).Remedy())
+			asset, Saferm, (&Unavailable{}).Fix())
 	}
 
 	url := ReleaseBase + "/" + asset

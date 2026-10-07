@@ -132,7 +132,7 @@ func handleProfileDelete(c *call, kw map[string]interface{}) error {
 				if !answers.installAccepted {
 					c.sayf("Declined. Profile '%s' was not deleted.", name)
 					c.say("Install saferm yourself with one of:")
-					c.say(missing.Remedy())
+					c.say(missing.Fix())
 					return exitStatus(1)
 				}
 				if tool, err = installSaferm(c, name); err != nil {

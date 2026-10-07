@@ -306,8 +306,8 @@ func (u *Unavailable) Stakes(name string) string {
 		"its .credentials.json and its stored OAuth token would be gone for good.", name, Saferm)
 }
 
-// Remedy is the install commands, one per line, indented for a message body.
-func (u *Unavailable) Remedy() string {
+// Fix is the install commands, one per line, indented for a message body.
+func (u *Unavailable) Fix() string {
 	lines := make([]string, 0, len(InstallCommands()))
 	for _, c := range InstallCommands() {
 		lines = append(lines, "  "+c)
@@ -325,7 +325,7 @@ func (u *Unavailable) RefusalError(name string, previewing bool) string {
 		reason = "This is a preview (--dry-run), which installs nothing"
 	}
 	return fmt.Sprintf("error: %s\n%s\n%s, so nothing was deleted -- profile '%s' is untouched.\n%s %s and run this again:\n%s",
-		u.Diagnosis(), u.Stakes(name), reason, name, u.Verb(), Saferm, u.Remedy())
+		u.Diagnosis(), u.Stakes(name), reason, name, u.Verb(), Saferm, u.Fix())
 }
 
 // MayOfferInstall reports whether a deletion may offer to install saferm:
