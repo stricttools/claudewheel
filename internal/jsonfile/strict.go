@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"reflect"
+	"strings"
 )
 
 // DecodeStrict decodes a file claudewheel owns into dst, a non-nil pointer to
@@ -43,7 +45,104 @@ func DecodeStrict(data []byte, dst any) error {
 	if err != nil {
 		return fmt.Errorf("jsonfile: decoded %T was written back as invalid JSON: %w", dst, err)
 	}
+	if err := checkNulls(input, reflect.TypeOf(dst).Elem(), "top level"); err != nil {
+		return err
+	}
 	return compareKeys(input, output, "top level")
+}
+
+var unmarshalerType = reflect.TypeOf((*json.Unmarshaler)(nil)).Elem()
+
+// checkNulls refuses a null decoded into a Go type that is neither a pointer
+// nor an interface: encoding/json leaves such a field at its zero value, and
+// a nil slice or map is written back as null too, so compareKeys cannot see
+// it. Types that decode themselves (such as *Object) are not looked into.
+func checkNulls(input Value, t reflect.Type, path string) error {
+	if input == nil {
+		if t.Kind() != reflect.Pointer && t.Kind() != reflect.Interface {
+			return fmt.Errorf("%s: null is not allowed here", path)
+		}
+		return nil
+	}
+	if t.Implements(unmarshalerType) || reflect.PointerTo(t).Implements(unmarshalerType) {
+		return nil
+	}
+	for t.Kind() == reflect.Pointer {
+		t = t.Elem()
+		if t.Implements(unmarshalerType) || reflect.PointerTo(t).Implements(unmarshalerType) {
+			return nil
+		}
+	}
+	switch in := input.(type) {
+	case *Object:
+		switch t.Kind() {
+		case reflect.Map:
+			for _, key := range in.Keys() {
+				item, _ := in.Get(key)
+				if err := checkNulls(item, t.Elem(), path+"."+key); err != nil {
+					return err
+				}
+			}
+		case reflect.Struct:
+			fields := jsonFields(t)
+			for _, key := range in.Keys() {
+				ft, ok := fields[key]
+				if !ok {
+					continue
+				}
+				item, _ := in.Get(key)
+				if err := checkNulls(item, ft, path+"."+key); err != nil {
+					return err
+				}
+			}
+		}
+	case []Value:
+		if t.Kind() == reflect.Slice || t.Kind() == reflect.Array {
+			for i, item := range in {
+				if err := checkNulls(item, t.Elem(), fmt.Sprintf("%s[%d]", path, i)); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// jsonFields maps each JSON key of struct type t to its field's type, as
+// encoding/json names them (the tag's name, else the field name), with the
+// fields of embedded structs promoted.
+func jsonFields(t reflect.Type) map[string]reflect.Type {
+	fields := map[string]reflect.Type{}
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+		tag := f.Tag.Get("json")
+		if tag == "-" {
+			continue
+		}
+		name, _, _ := strings.Cut(tag, ",")
+		if f.Anonymous && name == "" {
+			et := f.Type
+			if et.Kind() == reflect.Pointer {
+				et = et.Elem()
+			}
+			if et.Kind() == reflect.Struct {
+				for k, v := range jsonFields(et) {
+					if _, taken := fields[k]; !taken {
+						fields[k] = v
+					}
+				}
+				continue
+			}
+		}
+		if !f.IsExported() {
+			continue
+		}
+		if name == "" {
+			name = f.Name
+		}
+		fields[name] = f.Type
+	}
+	return fields
 }
 
 // compareKeys checks that the decoded document input has the keys and nulls

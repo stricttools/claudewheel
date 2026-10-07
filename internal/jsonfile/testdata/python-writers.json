@@ -1,0 +1,66 @@
+[
+  {
+    "input": "{\"a\": 1, \"b\": [1, 2, {\"c\": null}], \"d\": \"text\", \"e\": true, \"f\": false}",
+    "indented": "{\n  \"a\": 1,\n  \"b\": [\n    1,\n    2,\n    {\n      \"c\": null\n    }\n  ],\n  \"d\": \"text\",\n  \"e\": true,\n  \"f\": false\n}\n",
+    "compact_ascii": "{\"a\":1,\"b\":[1,2,{\"c\":null}],\"d\":\"text\",\"e\":true,\"f\":false}",
+    "sorted_compact_ascii": "{\"a\":1,\"b\":[1,2,{\"c\":null}],\"d\":\"text\",\"e\":true,\"f\":false}",
+    "spaced_ascii": "{\"a\": 1, \"b\": [1, 2, {\"c\": null}], \"d\": \"text\", \"e\": true, \"f\": false}",
+    "transcript_line": "{\"a\":1,\"b\":[1,2,{\"c\":null}],\"d\":\"text\",\"e\":true,\"f\":false}"
+  },
+  {
+    "input": "{\"unicode\": \"caf\\u00e9 \\u2028 \\ud83d\\ude00\", \"ctl\": \"\\u0001\\t\\n\\r\\b\\f\\\"\\\\/\"}",
+    "indented": "{\n  \"unicode\": \"caf\\u00e9 \\u2028 \\ud83d\\ude00\",\n  \"ctl\": \"\\u0001\\t\\n\\r\\b\\f\\\"\\\\/\"\n}\n",
+    "compact_ascii": "{\"unicode\":\"caf\\u00e9 \\u2028 \\ud83d\\ude00\",\"ctl\":\"\\u0001\\t\\n\\r\\b\\f\\\"\\\\/\"}",
+    "sorted_compact_ascii": "{\"ctl\":\"\\u0001\\t\\n\\r\\b\\f\\\"\\\\/\",\"unicode\":\"caf\\u00e9 \\u2028 \\ud83d\\ude00\"}",
+    "spaced_ascii": "{\"unicode\": \"caf\\u00e9 \\u2028 \\ud83d\\ude00\", \"ctl\": \"\\u0001\\t\\n\\r\\b\\f\\\"\\\\/\"}",
+    "transcript_line": "{\"unicode\":\"caf\u00e9 \u2028 \ud83d\ude00\",\"ctl\":\"\\u0001\\t\\n\\r\\b\\f\\\"\\\\/\"}"
+  },
+  {
+    "input": "{\"empty_object\": {}, \"empty_list\": [], \"nested\": {\"x\": {\"y\": []}}}",
+    "indented": "{\n  \"empty_object\": {},\n  \"empty_list\": [],\n  \"nested\": {\n    \"x\": {\n      \"y\": []\n    }\n  }\n}\n",
+    "compact_ascii": "{\"empty_object\":{},\"empty_list\":[],\"nested\":{\"x\":{\"y\":[]}}}",
+    "sorted_compact_ascii": "{\"empty_list\":[],\"empty_object\":{},\"nested\":{\"x\":{\"y\":[]}}}",
+    "spaced_ascii": "{\"empty_object\": {}, \"empty_list\": [], \"nested\": {\"x\": {\"y\": []}}}",
+    "transcript_line": "{\"empty_object\":{},\"empty_list\":[],\"nested\":{\"x\":{\"y\":[]}}}"
+  },
+  {
+    "input": "[1, -2, 3.5, 1e5, 0.1, -0.0, 12345678901234567890]",
+    "indented": "[\n  1,\n  -2,\n  3.5,\n  100000.0,\n  0.1,\n  -0.0,\n  12345678901234567890\n]\n",
+    "compact_ascii": "[1,-2,3.5,100000.0,0.1,-0.0,12345678901234567890]",
+    "sorted_compact_ascii": "[1,-2,3.5,100000.0,0.1,-0.0,12345678901234567890]",
+    "spaced_ascii": "[1, -2, 3.5, 100000.0, 0.1, -0.0, 12345678901234567890]",
+    "transcript_line": "[1,-2,3.5,100000.0,0.1,-0.0,12345678901234567890]"
+  },
+  {
+    "input": "{\"lone\": \"\\ud800 and \\udfff\"}",
+    "indented": "{\n  \"lone\": \"\\ud800 and \\udfff\"\n}\n",
+    "compact_ascii": "{\"lone\":\"\\ud800 and \\udfff\"}",
+    "sorted_compact_ascii": "{\"lone\":\"\\ud800 and \\udfff\"}",
+    "spaced_ascii": "{\"lone\": \"\\ud800 and \\udfff\"}",
+    "transcript_line": "{\"lone\":\"\\ud800 and \\udfff\"}"
+  },
+  {
+    "input": "{\"z\": 1, \"a\": 2, \"m\": {\"b\": 1, \"a\": 2}}",
+    "indented": "{\n  \"z\": 1,\n  \"a\": 2,\n  \"m\": {\n    \"b\": 1,\n    \"a\": 2\n  }\n}\n",
+    "compact_ascii": "{\"z\":1,\"a\":2,\"m\":{\"b\":1,\"a\":2}}",
+    "sorted_compact_ascii": "{\"a\":2,\"m\":{\"a\":2,\"b\":1},\"z\":1}",
+    "spaced_ascii": "{\"z\": 1, \"a\": 2, \"m\": {\"b\": 1, \"a\": 2}}",
+    "transcript_line": "{\"z\":1,\"a\":2,\"m\":{\"b\":1,\"a\":2}}"
+  },
+  {
+    "input": "\"just a string\"",
+    "indented": "\"just a string\"\n",
+    "compact_ascii": "\"just a string\"",
+    "sorted_compact_ascii": "\"just a string\"",
+    "spaced_ascii": "\"just a string\"",
+    "transcript_line": "\"just a string\""
+  },
+  {
+    "input": "{\"del\": \"\\u007f\", \"nbsp\": \"\\u00a0\", \"bom\": \"\\ufeff\"}",
+    "indented": "{\n  \"del\": \"\\u007f\",\n  \"nbsp\": \"\\u00a0\",\n  \"bom\": \"\\ufeff\"\n}\n",
+    "compact_ascii": "{\"del\":\"\\u007f\",\"nbsp\":\"\\u00a0\",\"bom\":\"\\ufeff\"}",
+    "sorted_compact_ascii": "{\"bom\":\"\\ufeff\",\"del\":\"\\u007f\",\"nbsp\":\"\\u00a0\"}",
+    "spaced_ascii": "{\"del\": \"\\u007f\", \"nbsp\": \"\\u00a0\", \"bom\": \"\\ufeff\"}",
+    "transcript_line": "{\"del\":\"\u007f\",\"nbsp\":\"\u00a0\",\"bom\":\"\ufeff\"}"
+  }
+]
