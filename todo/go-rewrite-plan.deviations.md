@@ -187,3 +187,13 @@ The unit writes `ExecStart="<executable>" probe run-service`, double-quoted as t
 - `CurrentIdentity` takes a lookup function (`os.LookupEnv`) and accepts ASCII digits only for the pid (Python's `isdigit` also took other Unicode digits).
 - Every width, truncation, and clip counts code points, as Python's `len` and slicing did.
 - `ListRow`'s optional tick is a `Selection` (`NoSelector`, `Selected`, `Unselected`) on `SessionBlock`; an expanded row of `None` is `-1`.
+
+## discover: inputs, state, and refresh failures
+
+- Discovery reads an `Env` (FX, home directory, clock, a copy of `appconfig.State`, `profiles.Store`) and never changes the state: a refreshed npm or model cache and the pruned recent directories come back on the `Result`, and `Result.ApplyToState` writes them into the caller's state before it saves (the Python mutated the state dict it was given, and the TUI deep-copied it for the background thread).
+- A failed refresh still falls back to the cache however stale, as in the Python, but is no longer swallowed: the failure is `Result.RefreshError` (npm or gh missing, timed out, or failing; every token's models request failing; a profile enumeration or token read failing), for the bar to show. No profile holding a token is not a failure. A gh error other than "not found" or a timeout, an unreadable directory, and a corrupt token file during profile discovery are errors, as Python's uncaught exceptions were.
+- An unknown discovery type, and a declaration missing the field its type reads (`path`, `count`, `parents`, `field`), are errors; the Python skipped an unknown type and defaulted `count` to 15 and `parents` to none. `count` must be positive (Python's `[-0:]` returned the whole list). `state_field` and `field` may name only `recent_dirs`, the one list state.json holds.
+- A stat error other than a missing path (or a non-directory parent) is an error, where pathlib's `is_dir`/`is_file` read every error as false. A "~name" naming no user is left as written, as `expanduser` did; directory scan entries are joined with `filepath.Join`, which also resolves `..` where pathlib kept it.
+- npm and gh run with an empty stdin, so a background child never reads the bar's keys. An npm answer that is not a JSON list of strings is a refresh failure.
+- `GitHubToken(fx, account)` (launch's `fetch_gh_token`) lives here with the other gh call and returns an error when gh is missing, times out, exits nonzero, or prints nothing; the Python returned None and the launch went ahead without `GH_TOKEN`.
+- `EvaluateRequires` takes the per-segment requirements and the selections and returns the unavailable sets, instead of mutating the bar's segments.
