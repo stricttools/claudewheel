@@ -367,3 +367,7 @@ The miniclaude client adapter always passes `--model <id>` and `--permission-mod
 ## reconcile: MergeHooks refuses malformed canonical hooks
 
 `MergeHooks` checks the canonical hooks before changing anything: an event value or an entry's `hooks` that is not an array, or an entry or hook that is not an object, is a `*MalformedSettingsError` (the wizard passes `shared-settings.json`'s hand-editable hooks as canonical; such a value panicked). The signature is unchanged.
+
+## health: the token file mode comes from tokens
+
+The file-permissions check reads the token file's expected mode from `tokens.TokenFileMode` (which is `effects.SecretFileMode`, the mode `WriteSecretAtomic` leaves), replacing health's local 0600 constant. This overrides the health entry saying `tokens` exports none.

@@ -13,10 +13,6 @@ import (
 	"github.com/stricttools/claudewheel/internal/tokens"
 )
 
-// tokenFileMode is the mode the token store leaves the token file with (it
-// writes it through effects.WriteSecretAtomic).
-const tokenFileMode = 0o600
-
 // tokens checks that each managed profile that holds credentials or a token
 // holds a stored token of its own. A profile with neither is new and not yet
 // authenticated, and is not reported.
@@ -237,7 +233,7 @@ func (c *checker) filePermissions() Result {
 		}{
 			{filepath.Join(p.Path, profiles.CredentialsFileName), p.Name + "/" + profiles.CredentialsFileName, 0o600, true},
 			{data.DataDir(), p.Name + "/" + tokens.DataDirName, tokens.DataDirMode, dataIsDir},
-			{data.TokenFile(), p.Name + "/" + tokens.DataDirName + "/" + tokens.TokenFileName, tokenFileMode, true},
+			{data.TokenFile(), p.Name + "/" + tokens.DataDirName + "/" + tokens.TokenFileName, tokens.TokenFileMode, true},
 		}
 		for _, ch := range checks {
 			if !ch.applies {
