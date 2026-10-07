@@ -22,13 +22,13 @@ const (
 
 // The segment keys the launch reads values from.
 const (
-	segProfile     = "profile"
-	segGitHub      = "github"
-	segVersion     = "version"
-	segModel       = "model"
-	segDirectory   = "directory"
-	segMCP         = "mcp"
-	segPermissions = "permissions"
+	segProfile     = appconfig.SegmentKeyProfile
+	segGitHub      = appconfig.SegmentKeyGitHub
+	segVersion     = appconfig.SegmentKeyVersion
+	segModel       = appconfig.SegmentKeyModel
+	segDirectory   = appconfig.SegmentKeyDirectory
+	segMCP         = appconfig.SegmentKeyMCP
+	segPermissions = appconfig.SegmentKeyPermissions
 )
 
 // Binaries is what the adapters find their client binaries with.
