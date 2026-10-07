@@ -106,3 +106,13 @@ The unit writes `ExecStart="<executable>" probe run-service`, double-quoted as t
 - `ValidateToken(fx, token)` uses the fixed `ValidateTimeout` (Python's default argument, which no caller changed) and returns `(Status, error)`: an empty token is an error instead of a request (`effects` refuses an empty redaction value). Every failed request is still `Unreachable`, never an error.
 - `LooksLikeToken` no longer accepts a trailing newline after the token (Python's `$` matched before one).
 - `ExtractToken` returns `(string, bool)` for Python's `str | None`.
+
+## install: binaries, manifest checks, and failure cleanup
+
+- `install` holds binaries.py, the uninstall logic of `cli._do_uninstall` (`Uninstall(fx, locator, version)`, returning errors instead of printing), and `VersionSortKey` plus `CompareVersions` (from `segment.version_sort_key`), which option discovery imports from here.
+- `LocatorFor(ws)` derives the home directory as the parent of `ws.Root()`; `workspace` has no home accessor.
+- `CheckVersionName` refuses a version that is empty, `.`, `..`, or holds a `/` before install or uninstall touches a path (Python joined it unchecked, so `../x` escaped the versions directory).
+- Manifest fields are checked before any download: a non-string checksum or binary, or a size that is not a non-negative integer, is a malformed-manifest error (Python failed later, or formatted the value into the URL).
+- The staging file is removed after any failure from the download on (Python kept it after a mid-stream `OSError`). The binary is requested only after `mkdir` of the versions directory, since `fx.Download` opens the request and the file together.
+- The platform comes from `runtime.GOARCH`/`GOOS` (the binary's own platform) instead of `platform.machine()` (the kernel's); they differ only for a 32-bit binary on a 64-bit kernel.
+- `SymlinkTarget` keeps Python's non-strict resolve: a dangling `claude` link still names its target's version.
