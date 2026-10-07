@@ -133,6 +133,29 @@ def python_workspace(out):
     ws.appconfig()
 
 
+def lifecycle_lines():
+    from claudewheel import lifecycle as lc
+
+    session = "0b5d6c1e-7a3f-4c2d-9e8b-1f2a3b4c5d6e"
+    common = {"id": "18c0ffee00000000aaaa", "at": "2026-05-01T10:00:00.123Z", "session": session}
+    events = [
+        lc.StartedEvent(**common, source="hook", cwd="/home/m/Projects/caf\u00e9", config_dir="/home/m/.claudewheel/profiles/work",
+                        profile="work", claude_version="2.1.281", model="claude-opus-5", permissions="bypass",
+                        entry="startup", transcript="/t/x.jsonl", pid=4242),
+        lc.StartedEvent(**common, source="hook", cwd="/p", config_dir="/home/m/.claude", profile=None,
+                        claude_version=None, model=None, permissions=None, entry="resume", transcript=None, pid=None),
+        lc.EndedEvent(**common, source="hook", outcome="exited", reason="prompt_input_exit", detail=None),
+        lc.EndedEvent(**common, source="sweep", outcome="crashed", reason=None, detail="no live process and no SessionEnd recorded"),
+        lc.NamedEvent(**common, source="sweep", name="r\u00e9sum\u00e9 \U0001F600", name_source="derived"),
+        lc.NamedEvent(**common, source="sweep", name="plain", name_source=None),
+        lc.MarkEvent(**common, source="user", state="on-hold", note="waiting \"quoted\""),
+        lc.MarkEvent(**common, source="user", state=None, note=None),
+        lc.MovedEvent(**common, source="user", old_cwd="/a", new_cwd="/b", old_transcript="/s/a/x.jsonl", new_transcript="/s/b/x.jsonl"),
+        lc.MovedEvent(**common, source="user", old_cwd=None, new_cwd="/b", old_transcript="/s/a/x.jsonl", new_transcript="/s/b/x.jsonl"),
+    ]
+    return [lc.event_to_json(e) for e in events]
+
+
 # Generators that write a directory tree themselves rather than return data.
 TREE_GENERATORS = {
     "python-workspace": python_workspace,
@@ -143,6 +166,7 @@ GENERATORS = {
     "json-writers": json_writers,
     "guardrail-model": guardrail_model,
     "app-defaults": app_defaults,
+    "lifecycle-lines": lifecycle_lines,
 }
 
 if len(sys.argv) != 3 or sys.argv[1] not in {**GENERATORS, **TREE_GENERATORS}:
