@@ -1,0 +1,102 @@
+{
+  "name": "dark",
+  "global": {
+    "bg": null,
+    "fg": "#e0e0e0",
+    "label_fg": "#888888",
+    "separator_fg": "#444444",
+    "separator_char": " | ",
+    "empty_value_fg": "#555555",
+    "empty_value_text": "---"
+  },
+  "segments": {
+    "profile": {
+      "value_fg": "#7ec8e3",
+      "focus_bg": "#2a2a4e",
+      "focus_fg": "#ffffff",
+      "option_fg": "#5a8ea3",
+      "unavailable_fg": "#555555"
+    },
+    "github": {
+      "value_fg": "#a8d8a8",
+      "focus_bg": "#2a4e2a",
+      "focus_fg": "#ffffff",
+      "option_fg": "#6a9a6a"
+    },
+    "version": {
+      "value_fg": "#e8c87e",
+      "focus_bg": "#4e4a2a",
+      "focus_fg": "#ffffff",
+      "option_fg": "#a8984e",
+      "unavailable_fg": "#555555"
+    },
+    "model": {
+      "value_fg": "#b8e8b8",
+      "focus_bg": "#2a4e3a",
+      "focus_fg": "#ffffff",
+      "option_fg": "#6aaa7a"
+    },
+    "directory": {
+      "value_fg": "#c8a8e8",
+      "focus_bg": "#3a2a4e",
+      "focus_fg": "#ffffff",
+      "option_fg": "#8a6aa8"
+    },
+    "mcp": {
+      "value_fg": "#e8a88e",
+      "focus_bg": "#4e3a2a",
+      "focus_fg": "#ffffff",
+      "option_fg": "#a87a5e"
+    },
+    "permissions": {
+      "value_fg": "#e88e8e",
+      "focus_bg": "#4e2a2a",
+      "focus_fg": "#ffffff",
+      "option_fg": "#a85e5e",
+      "unavailable_fg": "#555555"
+    }
+  },
+  "search": {
+    "cursor_fg": "#ffffff",
+    "match_fg": "#ffff00",
+    "no_match_fg": "#ff4444"
+  },
+  "overflow": {
+    "arrow_fg": "#666666",
+    "minimap_fg": "#444444",
+    "minimap_focused_bg": "#ffffff",
+    "minimap_char": "\u25aa"
+  },
+  "forms": {
+    "title_fg": "#7ec8e3",
+    "focus_bg": "#2a2a4e",
+    "focus_fg": "#ffffff",
+    "field_fg": "#e0e0e0",
+    "error_fg": "#ff6464",
+    "hint_fg": "#555555",
+    "cursor_fg": "#ffffff",
+    "readonly_fg": "#888888"
+  },
+  "sessions": {
+    "frame_fg": "#555555",
+    "header_fg": "#e0e0e0",
+    "row_fg": "#d0d0d0",
+    "focus_bg": "#2a2a4e",
+    "focus_fg": "#ffffff",
+    "detail_fg": "#999999",
+    "hint_fg": "#555555",
+    "message_fg": "#7ec8e3",
+    "state_working_fg": "#e8c87e",
+    "state_shell_fg": "#e8a88e",
+    "state_idle_fg": "#a8d8a8",
+    "state_waiting_fg": "#e89ae8",
+    "state_running_fg": "#7ec8e3",
+    "state_unverified_fg": "#888888",
+    "state_starting_fg": "#999999",
+    "state_on_hold_fg": "#8ab4f8",
+    "state_blocked_fg": "#6a8ab8",
+    "state_done_fg": "#777777",
+    "state_crashed_fg": "#ff6464",
+    "state_exited_fg": "#666666"
+  }
+}

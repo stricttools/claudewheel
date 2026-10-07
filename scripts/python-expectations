@@ -121,6 +121,23 @@ def app_defaults():
     return out
 
 
+def python_workspace(out):
+    """A workspace as the Python's first run writes it, under out/.claudewheel."""
+    from claudewheel.workspace import Workspace
+
+    home = Path(out)
+    home.mkdir(parents=True)
+    ws = Workspace.open(home / ".claudewheel", claude_dir=home / ".claude",
+                        bin_dir=home / ".local" / "bin",
+                        systemd_user_dir=home / ".config" / "systemd" / "user")
+    ws.appconfig()
+
+
+# Generators that write a directory tree themselves rather than return data.
+TREE_GENERATORS = {
+    "python-workspace": python_workspace,
+}
+
 GENERATORS = {
     "encode-path": encode_path,
     "json-writers": json_writers,
@@ -128,9 +145,16 @@ GENERATORS = {
     "app-defaults": app_defaults,
 }
 
-if len(sys.argv) != 3 or sys.argv[1] not in GENERATORS:
-    sys.exit("usage: scripts/python-expectations <%s> <output-file>" % "|".join(GENERATORS))
+if len(sys.argv) != 3 or sys.argv[1] not in {**GENERATORS, **TREE_GENERATORS}:
+    sys.exit("usage: scripts/python-expectations <%s> <output-path>"
+             % "|".join([*GENERATORS, *TREE_GENERATORS]))
 out = Path(sys.argv[2])
+if sys.argv[1] in TREE_GENERATORS:
+    if out.exists():
+        sys.exit(f"{out} already exists")
+    TREE_GENERATORS[sys.argv[1]](out)
+    print(out)
+    sys.exit(0)
 out.parent.mkdir(parents=True, exist_ok=True)
 out.write_text(json.dumps(GENERATORS[sys.argv[1]](), indent=2, ensure_ascii=True) + "\n")
 print(out)

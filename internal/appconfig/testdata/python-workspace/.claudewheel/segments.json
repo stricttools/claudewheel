@@ -1,0 +1,90 @@
+[
+  {
+    "key": "profile",
+    "label": "Profile",
+    "show_options": true,
+    "wrap": true,
+    "min_width": 8,
+    "max_width": 16,
+    "required": true,
+    "print_mode": true,
+    "searchable": false,
+    "tab_advances": true,
+    "creatable": true
+  },
+  {
+    "key": "github",
+    "label": "GH",
+    "show_options": true,
+    "wrap": true,
+    "min_width": 4,
+    "max_width": 12,
+    "required": false,
+    "print_mode": false,
+    "searchable": false,
+    "tab_advances": true,
+    "creatable": true
+  },
+  {
+    "key": "version",
+    "label": "Ver",
+    "show_options": true,
+    "wrap": true,
+    "min_width": 6,
+    "max_width": 10,
+    "required": true,
+    "print_mode": true,
+    "searchable": false,
+    "tab_advances": true
+  },
+  {
+    "key": "model",
+    "label": "Model",
+    "show_options": true,
+    "wrap": true,
+    "min_width": 10,
+    "max_width": 24,
+    "required": false,
+    "print_mode": true,
+    "searchable": true,
+    "tab_advances": true,
+    "creatable": true
+  },
+  {
+    "key": "directory",
+    "label": "Dir",
+    "show_options": true,
+    "wrap": false,
+    "min_width": 10,
+    "max_width": 40,
+    "required": true,
+    "print_mode": true,
+    "searchable": true,
+    "freeform": true,
+    "tab_advances": true
+  },
+  {
+    "key": "mcp",
+    "label": "MCP",
+    "show_options": true,
+    "wrap": true,
+    "min_width": 6,
+    "max_width": 12,
+    "required": false,
+    "print_mode": false,
+    "searchable": false,
+    "tab_advances": true
+  },
+  {
+    "key": "permissions",
+    "label": "Perms",
+    "show_options": true,
+    "wrap": true,
+    "min_width": 6,
+    "max_width": 12,
+    "required": false,
+    "print_mode": false,
+    "searchable": false,
+    "tab_advances": true
+  }
+]

@@ -95,3 +95,34 @@ func ReadFile(t *testing.T, path string) string {
 	}
 	return string(data)
 }
+
+// CopyTree copies the directory tree src into dst (created), regular files
+// and directories only, keeping file modes.
+func CopyTree(t *testing.T, src, dst string) {
+	t.Helper()
+	err := filepath.WalkDir(src, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(dst, rel)
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return os.MkdirAll(target, 0o755)
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(target, data, info.Mode().Perm()|0o200)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}

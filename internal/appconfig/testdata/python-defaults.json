@@ -1,0 +1,400 @@
+{
+  "DEFAULT_CONFIG": {
+    "theme": "auto",
+    "enabled_segments": [
+      "profile",
+      "github",
+      "version",
+      "model",
+      "directory",
+      "mcp",
+      "permissions"
+    ],
+    "default_flags": [
+      "--dangerously-skip-permissions"
+    ],
+    "health_check_on_launch": true,
+    "minimap": "auto",
+    "default_client": "claude",
+    "tool_memory_max": "6G",
+    "tool_memory_swap_max": "1G",
+    "_schema_version": 0
+  },
+  "DEFAULT_OPTIONS": {
+    "profile": {
+      "values": [],
+      "pinned": [],
+      "discovery": {
+        "type": "claude_config_scan",
+        "base_dir": "~"
+      }
+    },
+    "github": {
+      "values": [],
+      "pinned": [],
+      "discovery": {
+        "type": "gh_auth"
+      }
+    },
+    "version": {
+      "values": [],
+      "pinned": [],
+      "discovery": {
+        "type": "npm_and_local",
+        "path": "~/.local/share/claude/versions",
+        "count": 15
+      }
+    },
+    "directory": {
+      "values": [],
+      "pinned": [],
+      "discovery": {
+        "type": "directory_scan",
+        "parents": [
+          "~/Projects",
+          "~/repos",
+          "~/src",
+          "~/code",
+          "~/dev",
+          "~/Work",
+          "~/work"
+        ],
+        "state_field": "recent_dirs"
+      }
+    },
+    "model": {
+      "values": [
+        "claude-opus-5",
+        "claude-opus-4-8",
+        "claude-opus-4-8[1m]",
+        "claude-fable-5",
+        "claude-sonnet-5",
+        "claude-opus-4-7",
+        "claude-opus-4-7[1m]",
+        "claude-opus-4-6",
+        "claude-opus-4-6[1m]",
+        "claude-sonnet-4-6",
+        "claude-sonnet-4-6[1m]",
+        "claude-haiku-4-5-20251001",
+        "claude-sonnet-4-5-20241022"
+      ],
+      "pinned": [],
+      "discovery": {
+        "type": "anthropic_models"
+      }
+    },
+    "mcp": {
+      "values": [
+        "default",
+        "strict"
+      ],
+      "pinned": []
+    },
+    "permissions": {
+      "values": [
+        "bypass",
+        "default"
+      ],
+      "pinned": []
+    }
+  },
+  "DEFAULT_SEGMENTS": [
+    {
+      "key": "profile",
+      "label": "Profile",
+      "show_options": true,
+      "wrap": true,
+      "min_width": 8,
+      "max_width": 16,
+      "required": true,
+      "print_mode": true,
+      "searchable": false,
+      "tab_advances": true,
+      "creatable": true
+    },
+    {
+      "key": "github",
+      "label": "GH",
+      "show_options": true,
+      "wrap": true,
+      "min_width": 4,
+      "max_width": 12,
+      "required": false,
+      "print_mode": false,
+      "searchable": false,
+      "tab_advances": true,
+      "creatable": true
+    },
+    {
+      "key": "version",
+      "label": "Ver",
+      "show_options": true,
+      "wrap": true,
+      "min_width": 6,
+      "max_width": 10,
+      "required": true,
+      "print_mode": true,
+      "searchable": false,
+      "tab_advances": true
+    },
+    {
+      "key": "model",
+      "label": "Model",
+      "show_options": true,
+      "wrap": true,
+      "min_width": 10,
+      "max_width": 24,
+      "required": false,
+      "print_mode": true,
+      "searchable": true,
+      "tab_advances": true,
+      "creatable": true
+    },
+    {
+      "key": "directory",
+      "label": "Dir",
+      "show_options": true,
+      "wrap": false,
+      "min_width": 10,
+      "max_width": 40,
+      "required": true,
+      "print_mode": true,
+      "searchable": true,
+      "freeform": true,
+      "tab_advances": true
+    },
+    {
+      "key": "mcp",
+      "label": "MCP",
+      "show_options": true,
+      "wrap": true,
+      "min_width": 6,
+      "max_width": 12,
+      "required": false,
+      "print_mode": false,
+      "searchable": false,
+      "tab_advances": true
+    },
+    {
+      "key": "permissions",
+      "label": "Perms",
+      "show_options": true,
+      "wrap": true,
+      "min_width": 6,
+      "max_width": 12,
+      "required": false,
+      "print_mode": false,
+      "searchable": false,
+      "tab_advances": true
+    }
+  ],
+  "DEFAULT_STATE": {
+    "last_config": {},
+    "recent_dirs": [],
+    "launch_count": 0
+  },
+  "DEFAULT_THEME_DARK": {
+    "name": "dark",
+    "global": {
+      "bg": null,
+      "fg": "#e0e0e0",
+      "label_fg": "#888888",
+      "separator_fg": "#444444",
+      "separator_char": " | ",
+      "empty_value_fg": "#555555",
+      "empty_value_text": "---"
+    },
+    "segments": {
+      "profile": {
+        "value_fg": "#7ec8e3",
+        "focus_bg": "#2a2a4e",
+        "focus_fg": "#ffffff",
+        "option_fg": "#5a8ea3",
+        "unavailable_fg": "#555555"
+      },
+      "github": {
+        "value_fg": "#a8d8a8",
+        "focus_bg": "#2a4e2a",
+        "focus_fg": "#ffffff",
+        "option_fg": "#6a9a6a"
+      },
+      "version": {
+        "value_fg": "#e8c87e",
+        "focus_bg": "#4e4a2a",
+        "focus_fg": "#ffffff",
+        "option_fg": "#a8984e",
+        "unavailable_fg": "#555555"
+      },
+      "model": {
+        "value_fg": "#b8e8b8",
+        "focus_bg": "#2a4e3a",
+        "focus_fg": "#ffffff",
+        "option_fg": "#6aaa7a"
+      },
+      "directory": {
+        "value_fg": "#c8a8e8",
+        "focus_bg": "#3a2a4e",
+        "focus_fg": "#ffffff",
+        "option_fg": "#8a6aa8"
+      },
+      "mcp": {
+        "value_fg": "#e8a88e",
+        "focus_bg": "#4e3a2a",
+        "focus_fg": "#ffffff",
+        "option_fg": "#a87a5e"
+      },
+      "permissions": {
+        "value_fg": "#e88e8e",
+        "focus_bg": "#4e2a2a",
+        "focus_fg": "#ffffff",
+        "option_fg": "#a85e5e",
+        "unavailable_fg": "#555555"
+      }
+    },
+    "search": {
+      "cursor_fg": "#ffffff",
+      "match_fg": "#ffff00",
+      "no_match_fg": "#ff4444"
+    },
+    "overflow": {
+      "arrow_fg": "#666666",
+      "minimap_fg": "#444444",
+      "minimap_focused_bg": "#ffffff",
+      "minimap_char": "\u25aa"
+    },
+    "forms": {
+      "title_fg": "#7ec8e3",
+      "focus_bg": "#2a2a4e",
+      "focus_fg": "#ffffff",
+      "field_fg": "#e0e0e0",
+      "error_fg": "#ff6464",
+      "hint_fg": "#555555",
+      "cursor_fg": "#ffffff",
+      "readonly_fg": "#888888"
+    },
+    "sessions": {
+      "frame_fg": "#555555",
+      "header_fg": "#e0e0e0",
+      "row_fg": "#d0d0d0",
+      "focus_bg": "#2a2a4e",
+      "focus_fg": "#ffffff",
+      "detail_fg": "#999999",
+      "hint_fg": "#555555",
+      "message_fg": "#7ec8e3",
+      "state_working_fg": "#e8c87e",
+      "state_shell_fg": "#e8a88e",
+      "state_idle_fg": "#a8d8a8",
+      "state_waiting_fg": "#e89ae8",
+      "state_running_fg": "#7ec8e3",
+      "state_unverified_fg": "#888888",
+      "state_starting_fg": "#999999",
+      "state_on_hold_fg": "#8ab4f8",
+      "state_blocked_fg": "#6a8ab8",
+      "state_done_fg": "#777777",
+      "state_crashed_fg": "#ff6464",
+      "state_exited_fg": "#666666"
+    }
+  },
+  "DEFAULT_THEME_LIGHT": {
+    "name": "light",
+    "global": {
+      "bg": null,
+      "fg": "#1a1a1a",
+      "label_fg": "#666666",
+      "separator_fg": "#cccccc",
+      "separator_char": " | ",
+      "empty_value_fg": "#aaaaaa",
+      "empty_value_text": "---"
+    },
+    "segments": {
+      "profile": {
+        "value_fg": "#1a6b8a",
+        "focus_bg": "#d0e8f0",
+        "focus_fg": "#000000",
+        "option_fg": "#4a8ba3",
+        "unavailable_fg": "#bbbbbb"
+      },
+      "github": {
+        "value_fg": "#2a7a2a",
+        "focus_bg": "#d0f0d0",
+        "focus_fg": "#000000",
+        "option_fg": "#4a9a4a"
+      },
+      "version": {
+        "value_fg": "#8a7a1a",
+        "focus_bg": "#f0e8d0",
+        "focus_fg": "#000000",
+        "option_fg": "#a89a4a",
+        "unavailable_fg": "#bbbbbb"
+      },
+      "model": {
+        "value_fg": "#2a6a3a",
+        "focus_bg": "#d0f0d8",
+        "focus_fg": "#000000",
+        "option_fg": "#4a8a5a"
+      },
+      "directory": {
+        "value_fg": "#6a3a8a",
+        "focus_bg": "#e8d0f0",
+        "focus_fg": "#000000",
+        "option_fg": "#8a5aa8"
+      },
+      "mcp": {
+        "value_fg": "#8a5a2a",
+        "focus_bg": "#f0e0d0",
+        "focus_fg": "#000000",
+        "option_fg": "#a87a4a"
+      },
+      "permissions": {
+        "value_fg": "#8a2a2a",
+        "focus_bg": "#f0d0d0",
+        "focus_fg": "#000000",
+        "option_fg": "#a85a5a",
+        "unavailable_fg": "#bbbbbb"
+      }
+    },
+    "search": {
+      "cursor_fg": "#000000",
+      "match_fg": "#0066cc",
+      "no_match_fg": "#cc0000"
+    },
+    "overflow": {
+      "arrow_fg": "#999999",
+      "minimap_fg": "#cccccc",
+      "minimap_focused_bg": "#000000",
+      "minimap_char": "\u25aa"
+    },
+    "forms": {
+      "title_fg": "#1a6b8a",
+      "focus_bg": "#d0e8f0",
+      "focus_fg": "#000000",
+      "field_fg": "#1a1a1a",
+      "error_fg": "#cc0000",
+      "hint_fg": "#aaaaaa",
+      "cursor_fg": "#000000",
+      "readonly_fg": "#666666"
+    },
+    "sessions": {
+      "frame_fg": "#aaaaaa",
+      "header_fg": "#1a1a1a",
+      "row_fg": "#2a2a2a",
+      "focus_bg": "#d0e8f0",
+      "focus_fg": "#000000",
+      "detail_fg": "#666666",
+      "hint_fg": "#aaaaaa",
+      "message_fg": "#1a6b8a",
+      "state_working_fg": "#8a6a1a",
+      "state_shell_fg": "#8a5a2a",
+      "state_idle_fg": "#2a7a2a",
+      "state_waiting_fg": "#8a2a8a",
+      "state_running_fg": "#1a6b8a",
+      "state_unverified_fg": "#999999",
+      "state_starting_fg": "#888888",
+      "state_on_hold_fg": "#1a4a9a",
+      "state_blocked_fg": "#4a6a9a",
+      "state_done_fg": "#888888",
+      "state_crashed_fg": "#cc0000",
+      "state_exited_fg": "#999999"
+    }
+  }
+}

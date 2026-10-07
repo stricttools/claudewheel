@@ -1,0 +1,21 @@
+{
+  "theme": "auto",
+  "enabled_segments": [
+    "profile",
+    "github",
+    "version",
+    "model",
+    "directory",
+    "mcp",
+    "permissions"
+  ],
+  "default_flags": [
+    "--dangerously-skip-permissions"
+  ],
+  "health_check_on_launch": true,
+  "minimap": "auto",
+  "default_client": "claude",
+  "tool_memory_max": "6G",
+  "tool_memory_swap_max": "1G",
+  "_schema_version": 8
+}

@@ -1,0 +1,78 @@
+{
+  "profile": {
+    "values": [],
+    "pinned": [],
+    "discovery": {
+      "type": "claude_config_scan",
+      "base_dir": "~"
+    }
+  },
+  "github": {
+    "values": [],
+    "pinned": [],
+    "discovery": {
+      "type": "gh_auth"
+    }
+  },
+  "version": {
+    "values": [],
+    "pinned": [],
+    "discovery": {
+      "type": "npm_and_local",
+      "path": "~/.local/share/claude/versions",
+      "count": 15
+    }
+  },
+  "directory": {
+    "values": [],
+    "pinned": [],
+    "discovery": {
+      "type": "directory_scan",
+      "parents": [
+        "~/Projects",
+        "~/repos",
+        "~/src",
+        "~/code",
+        "~/dev",
+        "~/Work",
+        "~/work"
+      ],
+      "state_field": "recent_dirs"
+    }
+  },
+  "model": {
+    "values": [
+      "claude-opus-5",
+      "claude-opus-4-8",
+      "claude-opus-4-8[1m]",
+      "claude-fable-5",
+      "claude-sonnet-5",
+      "claude-opus-4-7",
+      "claude-opus-4-7[1m]",
+      "claude-opus-4-6",
+      "claude-opus-4-6[1m]",
+      "claude-sonnet-4-6",
+      "claude-sonnet-4-6[1m]",
+      "claude-haiku-4-5-20251001",
+      "claude-sonnet-4-5-20241022"
+    ],
+    "pinned": [],
+    "discovery": {
+      "type": "anthropic_models"
+    }
+  },
+  "mcp": {
+    "values": [
+      "default",
+      "strict"
+    ],
+    "pinned": []
+  },
+  "permissions": {
+    "values": [
+      "bypass",
+      "default"
+    ],
+    "pinned": []
+  }
+}

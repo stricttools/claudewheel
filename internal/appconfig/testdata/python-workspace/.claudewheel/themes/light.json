@@ -1,0 +1,102 @@
+{
+  "name": "light",
+  "global": {
+    "bg": null,
+    "fg": "#1a1a1a",
+    "label_fg": "#666666",
+    "separator_fg": "#cccccc",
+    "separator_char": " | ",
+    "empty_value_fg": "#aaaaaa",
+    "empty_value_text": "---"
+  },
+  "segments": {
+    "profile": {
+      "value_fg": "#1a6b8a",
+      "focus_bg": "#d0e8f0",
+      "focus_fg": "#000000",
+      "option_fg": "#4a8ba3",
+      "unavailable_fg": "#bbbbbb"
+    },
+    "github": {
+      "value_fg": "#2a7a2a",
+      "focus_bg": "#d0f0d0",
+      "focus_fg": "#000000",
+      "option_fg": "#4a9a4a"
+    },
+    "version": {
+      "value_fg": "#8a7a1a",
+      "focus_bg": "#f0e8d0",
+      "focus_fg": "#000000",
+      "option_fg": "#a89a4a",
+      "unavailable_fg": "#bbbbbb"
+    },
+    "model": {
+      "value_fg": "#2a6a3a",
+      "focus_bg": "#d0f0d8",
+      "focus_fg": "#000000",
+      "option_fg": "#4a8a5a"
+    },
+    "directory": {
+      "value_fg": "#6a3a8a",
+      "focus_bg": "#e8d0f0",
+      "focus_fg": "#000000",
+      "option_fg": "#8a5aa8"
+    },
+    "mcp": {
+      "value_fg": "#8a5a2a",
+      "focus_bg": "#f0e0d0",
+      "focus_fg": "#000000",
+      "option_fg": "#a87a4a"
+    },
+    "permissions": {
+      "value_fg": "#8a2a2a",
+      "focus_bg": "#f0d0d0",
+      "focus_fg": "#000000",
+      "option_fg": "#a85a5a",
+      "unavailable_fg": "#bbbbbb"
+    }
+  },
+  "search": {
+    "cursor_fg": "#000000",
+    "match_fg": "#0066cc",
+    "no_match_fg": "#cc0000"
+  },
+  "overflow": {
+    "arrow_fg": "#999999",
+    "minimap_fg": "#cccccc",
+    "minimap_focused_bg": "#000000",
+    "minimap_char": "\u25aa"
+  },
+  "forms": {
+    "title_fg": "#1a6b8a",
+    "focus_bg": "#d0e8f0",
+    "focus_fg": "#000000",
+    "field_fg": "#1a1a1a",
+    "error_fg": "#cc0000",
+    "hint_fg": "#aaaaaa",
+    "cursor_fg": "#000000",
+    "readonly_fg": "#666666"
+  },
+  "sessions": {
+    "frame_fg": "#aaaaaa",
+    "header_fg": "#1a1a1a",
+    "row_fg": "#2a2a2a",
+    "focus_bg": "#d0e8f0",
+    "focus_fg": "#000000",
+    "detail_fg": "#666666",
+    "hint_fg": "#aaaaaa",
+    "message_fg": "#1a6b8a",
+    "state_working_fg": "#8a6a1a",
+    "state_shell_fg": "#8a5a2a",
+    "state_idle_fg": "#2a7a2a",
+    "state_waiting_fg": "#8a2a8a",
+    "state_running_fg": "#1a6b8a",
+    "state_unverified_fg": "#999999",
+    "state_starting_fg": "#888888",
+    "state_on_hold_fg": "#1a4a9a",
+    "state_blocked_fg": "#4a6a9a",
+    "state_done_fg": "#888888",
+    "state_crashed_fg": "#cc0000",
+    "state_exited_fg": "#999999"
+  }
+}

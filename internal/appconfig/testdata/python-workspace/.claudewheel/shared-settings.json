@@ -1,0 +1,184 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "internal/appconfig/testdata/python-workspace/.claudewheel/scripts/hook-timestamp"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "internal/appconfig/testdata/python-workspace/.claudewheel/scripts/hook-block-worktree"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "internal/appconfig/testdata/python-workspace/.claudewheel/scripts/hook-block-unsafe-commands"
+          },
+          {
+            "type": "command",
+            "command": "internal/appconfig/testdata/python-workspace/.claudewheel/scripts/hook-deliver-probe-reports"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "internal/appconfig/testdata/python-workspace/.claudewheel/scripts/hook-advise-commands"
+          }
+        ]
+      },
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "internal/appconfig/testdata/python-workspace/.claudewheel/scripts/hook-deliver-probe-reports"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "internal/appconfig/testdata/python-workspace/.claudewheel/scripts/hook-session-start"
+          },
+          {
+            "type": "command",
+            "command": "internal/appconfig/testdata/python-workspace/.claudewheel/scripts/hook-wait-for-probe-reports",
+            "asyncRewake": true,
+            "timeout": 604800,
+            "rewakeMessage": "claudewheel probe report:",
+            "rewakeSummary": "claudewheel probe report"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "internal/appconfig/testdata/python-workspace/.claudewheel/scripts/hook-session-end"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "internal/appconfig/testdata/python-workspace/.claudewheel/scripts/hook-wait-for-probe-reports",
+            "asyncRewake": true,
+            "timeout": 604800,
+            "rewakeMessage": "claudewheel probe report:",
+            "rewakeSummary": "claudewheel probe report"
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "internal/appconfig/testdata/python-workspace/.claudewheel/scripts/hook-deliver-probe-reports"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "internal/appconfig/testdata/python-workspace/.claudewheel/scripts/hook-deliver-probe-reports"
+          }
+        ]
+      }
+    ]
+  },
+  "disallowedTools": [
+    "Artifact",
+    "DesignSync",
+    "EnterPlanMode",
+    "EnterWorktree",
+    "ExitPlanMode",
+    "ExitWorktree",
+    "LSP",
+    "NotebookEdit",
+    "PushNotification",
+    "RemoteTrigger",
+    "ReportFindings",
+    "Skill",
+    "TaskCreate",
+    "TaskGet",
+    "TaskList",
+    "TaskOutput",
+    "TaskStop",
+    "TaskUpdate"
+  ],
+  "profileDefaults": {
+    "remoteControlAtStartup": false,
+    "spinnerTipsEnabled": false,
+    "disableAgentView": true,
+    "awaySummaryEnabled": false,
+    "cleanupPeriodDays": 3650,
+    "autoMemoryEnabled": false,
+    "includeGitInstructions": false,
+    "permissions": {
+      "deny": [
+        "Bash(rm:*)",
+        "Bash(git add .)",
+        "Bash(git add -A*)",
+        "Bash(git add --all*)",
+        "Bash(git add -u*)",
+        "Bash(git stash:*)",
+        "Bash(git restore:*)",
+        "Bash(git checkout:*)",
+        "Bash(git push origin --delete*)",
+        "Bash(sleep:*)"
+      ],
+      "ask": [
+        "Bash(git push:*)",
+        "Bash(safegit push:*)",
+        "Bash(./safegit push:*)",
+        "Bash(git reset *)",
+        "Bash(git switch -f*)",
+        "Bash(git switch --force*)",
+        "Bash(gh workflow run*)",
+        "Bash(saferm purge:*)",
+        "Bash(git rebase *)",
+        "Bash(safegit author rewrite:*)",
+        "Bash(./safegit author rewrite:*)",
+        "Bash(sudo:*)"
+      ],
+      "defaultMode": "default"
+    }
+  }
+}
