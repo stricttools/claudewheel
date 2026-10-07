@@ -264,7 +264,7 @@ const (
 )
 
 // Unavailable is why deletion cannot proceed. Every reason has the same
-// remedy: install or upgrade saferm.
+// fix: install or upgrade saferm.
 type Unavailable struct {
 	Reason Reason
 	// Binary is the saferm found, empty when absent.
