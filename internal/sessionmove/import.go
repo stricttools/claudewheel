@@ -119,7 +119,7 @@ func brokenLinks(source string) ([]string, error) {
 			}
 			if !bad {
 				info, err := os.Stat(entry)
-				if errors.Is(err, os.ErrNotExist) {
+				if pathstat.NotFoundOrParentNotDirectory(err) {
 					continue
 				}
 				if err != nil {
@@ -458,7 +458,7 @@ func (im *importer) scanSource(source string) ([]sessionBundle, error) {
 			}
 			entry := filepath.Join(dir, name)
 			info, err := os.Stat(entry)
-			if errors.Is(err, os.ErrNotExist) {
+			if pathstat.NotFoundOrParentNotDirectory(err) {
 				fmt.Fprintf(im.warn, "[import] WARNING: skipping %s: it disappeared during the scan\n", entry)
 				continue
 			}

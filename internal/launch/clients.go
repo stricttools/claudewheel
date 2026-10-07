@@ -3,7 +3,6 @@ package launch
 import (
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"slices"
 	"strings"
@@ -11,6 +10,7 @@ import (
 	"github.com/stricttools/claudewheel/internal/appconfig"
 	"github.com/stricttools/claudewheel/internal/effects"
 	"github.com/stricttools/claudewheel/internal/install"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/tui/bar"
 )
 
@@ -207,7 +207,7 @@ func claudeAvailable(b Binaries) (bool, error) {
 	switch {
 	case err == nil:
 		return true, nil
-	case errors.Is(err, fs.ErrNotExist):
+	case pathstat.NotFoundOrParentNotDirectory(err):
 		return false, nil
 	}
 	return false, err
@@ -224,7 +224,7 @@ func claudeArgv(ctx ClientContext) ([]string, error) {
 		}
 		binary = ctx.Binaries.Locator.BinaryFor(version)
 		info, err := os.Stat(binary)
-		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		if err != nil && !pathstat.NotFoundOrParentNotDirectory(err) {
 			return nil, err
 		}
 		if err != nil || !info.Mode().IsRegular() {

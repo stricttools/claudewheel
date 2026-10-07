@@ -26,9 +26,7 @@ package probe
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -40,6 +38,7 @@ import (
 	"github.com/stricttools/claudewheel/internal/effects"
 	"github.com/stricttools/claudewheel/internal/jsonfile"
 	"github.com/stricttools/claudewheel/internal/lifecycle"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 )
 
 // ProbeOOMKill is the one thing a probe watches for: systemd's result term
@@ -302,7 +301,7 @@ type jsonLine struct {
 // mid-write is dropped; an absent file has no lines.
 func readJSONL(path string, v validator) ([]jsonLine, error) {
 	data, err := os.ReadFile(path)
-	if errors.Is(err, fs.ErrNotExist) {
+	if pathstat.NotFoundOrParentNotDirectory(err) {
 		return nil, nil
 	}
 	if err != nil {

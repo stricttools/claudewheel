@@ -3,7 +3,6 @@ package launch
 import (
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/stricttools/claudewheel/internal/guardrail"
 	"github.com/stricttools/claudewheel/internal/hookscripts"
 	"github.com/stricttools/claudewheel/internal/jsonfile"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/profiles"
 	"github.com/stricttools/claudewheel/internal/reconcile"
 	"github.com/stricttools/claudewheel/internal/workspace"
@@ -30,7 +30,7 @@ func vanillaSettingsPath(ws workspace.Workspace) string {
 // an empty object and false.
 func loadVanillaSettings(path string) (*jsonfile.Object, bool, error) {
 	if _, err := os.Stat(path); err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
+		if pathstat.NotFoundOrParentNotDirectory(err) {
 			return jsonfile.NewObject(), false, nil
 		}
 		return nil, false, err

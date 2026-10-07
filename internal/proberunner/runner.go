@@ -36,6 +36,7 @@ import (
 	"time"
 
 	"github.com/stricttools/claudewheel/internal/effects"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/probe"
 	"github.com/stricttools/claudewheel/internal/workspace"
 )
@@ -72,7 +73,7 @@ func JournalArgv(cursor string) []string {
 // readCursor returns the saved journal cursor, "" when none was saved.
 func readCursor(store probe.Store) (string, error) {
 	data, err := os.ReadFile(store.CursorFile())
-	if errors.Is(err, os.ErrNotExist) {
+	if pathstat.NotFoundOrParentNotDirectory(err) {
 		return "", nil
 	}
 	if err != nil {

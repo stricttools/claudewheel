@@ -1,9 +1,7 @@
 package profiles
 
 import (
-	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 
@@ -34,7 +32,7 @@ const (
 // false when it does not exist. Errors never quote the file's content.
 func readCredentials(path string) (*jsonfile.Object, bool, error) {
 	data, err := os.ReadFile(path)
-	if errors.Is(err, fs.ErrNotExist) {
+	if pathstat.NotFoundOrParentNotDirectory(err) {
 		return nil, false, nil
 	}
 	if err != nil {

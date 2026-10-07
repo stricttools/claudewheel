@@ -1,7 +1,6 @@
 package sessionmove
 
 import (
-	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -126,7 +125,7 @@ func validateJournal(data []byte, where string) error {
 // and a damaged one is an error.
 func ReadJournal(path string) (*Journal, error) {
 	data, err := os.ReadFile(path)
-	if errors.Is(err, fs.ErrNotExist) {
+	if pathstat.NotFoundOrParentNotDirectory(err) {
 		return nil, nil
 	}
 	if err != nil {

@@ -3,7 +3,6 @@ package launch
 import (
 	"errors"
 	"fmt"
-	"io/fs"
 	"maps"
 	"os"
 	"path/filepath"
@@ -26,7 +25,7 @@ const hookTimeout = 10 * time.Second
 func userHooks(hooksDir, stage string) ([]string, error) {
 	entries, err := os.ReadDir(hooksDir)
 	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
+		if pathstat.NotFoundOrParentNotDirectory(err) {
 			return nil, nil
 		}
 		return nil, err

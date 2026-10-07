@@ -58,9 +58,12 @@ func (c *checker) tmpClaudeSize() Result {
 	if !exists {
 		return ok(label, "not present")
 	}
-	size, _, err := scratchpad.ScanTree(root)
+	size, _, found, err := scratchpad.ScanTree(root)
 	if err != nil {
 		return failed(label, err)
+	}
+	if !found {
+		return ok(label, "not present")
 	}
 	mb := float64(size) / (1024 * 1024)
 	if mb > 1024 {

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -18,6 +17,7 @@ import (
 	"github.com/stricttools/claudewheel/internal/effects"
 	"github.com/stricttools/claudewheel/internal/install"
 	"github.com/stricttools/claudewheel/internal/jsonfile"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/profiles"
 	"github.com/stricttools/claudewheel/internal/projecthooks"
 	"github.com/stricttools/claudewheel/internal/reconcile"
@@ -252,7 +252,7 @@ func releaseNotesSeen(pc PreflightContext) error {
 	path := filepath.Join(profiles.New(pc.Workspace).PathFor(pc.Selections[segProfile]), profiles.GlobalConfigName)
 	data, err := os.ReadFile(path)
 	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
+		if pathstat.NotFoundOrParentNotDirectory(err) {
 			return nil
 		}
 		return fmt.Errorf("reading %s to mark release notes as seen: %w", path, err)

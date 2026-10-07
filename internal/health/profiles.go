@@ -1,7 +1,6 @@
 package health
 
 import (
-	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -200,7 +199,7 @@ func brokenLinks(dir string) ([]string, error) {
 // other than want, "" when it matches or does not exist.
 func modeIssue(path, shown string, want fs.FileMode) (string, error) {
 	info, err := os.Stat(path)
-	if errors.Is(err, fs.ErrNotExist) {
+	if pathstat.NotFoundOrParentNotDirectory(err) {
 		return "", nil
 	}
 	if err != nil {

@@ -2,7 +2,6 @@ package probe
 
 import (
 	"encoding/json"
-	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -12,6 +11,7 @@ import (
 	"github.com/stricttools/claudewheel/internal/effects"
 	"github.com/stricttools/claudewheel/internal/jsonfile"
 	"github.com/stricttools/claudewheel/internal/lifecycle"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/schema/oomkillevent"
 	"github.com/stricttools/claudewheel/internal/schema/probeevent"
 	"github.com/stricttools/claudewheel/internal/schema/probereport"
@@ -211,7 +211,7 @@ func ReadProbe(store Store, probe string) (*ProbeState, error) {
 func LoadProbes(store Store) ([]*ProbeState, error) {
 	dir := store.ProbesDir()
 	info, err := os.Stat(dir)
-	if errors.Is(err, fs.ErrNotExist) {
+	if pathstat.NotFoundOrParentNotDirectory(err) {
 		return nil, nil
 	}
 	if err != nil {
@@ -442,7 +442,7 @@ func ListReports(store Store, states []string) ([]ReportFile, error) {
 		}
 		for _, sessionDir := range sessionDirs {
 			info, err := os.Stat(sessionDir)
-			if errors.Is(err, fs.ErrNotExist) {
+			if pathstat.NotFoundOrParentNotDirectory(err) {
 				continue
 			}
 			if err != nil {
@@ -479,7 +479,7 @@ func ListReports(store Store, states []string) ([]ReportFile, error) {
 // absent or not a directory has none.
 func listDir(dir string) ([]string, error) {
 	info, err := os.Stat(dir)
-	if errors.Is(err, fs.ErrNotExist) {
+	if pathstat.NotFoundOrParentNotDirectory(err) {
 		return nil, nil
 	}
 	if err != nil {
@@ -528,7 +528,7 @@ func WakeWaiter(fx *effects.FX, store Store, session string) error {
 		return err
 	}
 	info, err := os.Stat(fifo)
-	if errors.Is(err, fs.ErrNotExist) {
+	if pathstat.NotFoundOrParentNotDirectory(err) {
 		return nil
 	}
 	if err != nil {
@@ -543,7 +543,7 @@ func WakeWaiter(fx *effects.FX, store Store, session string) error {
 	// A raw descriptor, not an *os.File: the runtime poller would turn a
 	// write to a full pipe into a wait instead of EAGAIN.
 	fd, err := syscall.Open(fifo, syscall.O_WRONLY|syscall.O_NONBLOCK|syscall.O_CLOEXEC, 0)
-	if err == syscall.ENXIO || err == syscall.ENOENT {
+	if err == syscall.ENXIO || pathstat.NotFoundOrParentNotDirectory(err) {
 		return nil
 	}
 	if err != nil {

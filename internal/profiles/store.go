@@ -318,7 +318,7 @@ func (s Store) ClassifySharedDirs(name string) ([]SharedEntry, error) {
 		link := filepath.Join(profileDir, p.name)
 		info, err := os.Lstat(link)
 		switch {
-		case errors.Is(err, fs.ErrNotExist):
+		case pathstat.NotFoundOrParentNotDirectory(err):
 			out = append(out, SharedEntry{p.name, SharedMissing})
 			continue
 		case err != nil:
@@ -693,7 +693,7 @@ func (s Store) clearLastConfig(fx *effects.FX, name string) (bool, error) {
 // readDirIfExists lists dir sorted by name; a missing dir lists nothing.
 func readDirIfExists(dir string) ([]os.DirEntry, error) {
 	entries, err := os.ReadDir(dir)
-	if errors.Is(err, fs.ErrNotExist) {
+	if pathstat.NotFoundOrParentNotDirectory(err) {
 		return nil, nil
 	}
 	return entries, err

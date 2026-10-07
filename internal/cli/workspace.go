@@ -11,6 +11,7 @@ import (
 
 	"github.com/stricttools/claudewheel/internal/appconfig"
 	"github.com/stricttools/claudewheel/internal/effects"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 )
 
 // registerWorkspace adds the commands that show, edit, and convert the
@@ -128,7 +129,7 @@ func handleStats(c *call, kw map[string]interface{}) error {
 	log := func(line string) { c.say("[stats] " + line) }
 	shared := c.ws.SharedDir()
 	info, err := os.Stat(shared)
-	if errors.Is(err, fs.ErrNotExist) || (err == nil && !info.IsDir()) {
+	if pathstat.NotFoundOrParentNotDirectory(err) || (err == nil && !info.IsDir()) {
 		log("shared store not found")
 		return nil
 	}
@@ -186,7 +187,7 @@ func entryStats(path string) (files, bytes int64, counted bool, err error) {
 		return files, bytes, err == nil, err
 	}
 	info, err := os.Stat(path)
-	if errors.Is(err, fs.ErrNotExist) {
+	if pathstat.NotFoundOrParentNotDirectory(err) {
 		return 0, 0, false, nil
 	}
 	if err != nil {

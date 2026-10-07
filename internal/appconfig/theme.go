@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/stricttools/claudewheel/internal/jsonfile"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/workspace"
 )
 
@@ -199,7 +200,7 @@ func LoadTheme(ws workspace.Workspace, name string) (Theme, error) {
 		// A workspace setup creates only the built-in theme files, so a
 		// missing custom one is not repaired by `claudewheel launch`.
 		data, err = os.ReadFile(path)
-		if os.IsNotExist(err) {
+		if pathstat.NotFoundOrParentNotDirectory(err) {
 			err = fmt.Errorf("config.json selects the theme %q, and its file %s does not exist: create it, or select another theme in config.json: %w", name, path, err)
 		}
 	}

@@ -1,10 +1,8 @@
 package launch
 
 import (
-	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"maps"
 	"os"
 	"path/filepath"
@@ -191,7 +189,7 @@ func SweepEndedSessions(fx *effects.FX, now time.Time) ([]string, error) {
 		}
 		events, err := os.ReadFile(filepath.Join(cgroupRoot, strings.TrimLeft(cgroup, "/"), "cgroup.events"))
 		if err != nil {
-			if errors.Is(err, fs.ErrNotExist) {
+			if pathstat.NotFoundOrParentNotDirectory(err) {
 				continue
 			}
 			return stopped, err

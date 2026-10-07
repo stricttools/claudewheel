@@ -2,7 +2,6 @@ package appconfig
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -283,7 +282,7 @@ func RecordInode(fx *effects.FX, shared workspace.SharedStore, dir string) error
 // and found false.
 func readInodes(file string) (inodes *jsonfile.Object, found bool, err error) {
 	data, err := os.ReadFile(file)
-	if errors.Is(err, os.ErrNotExist) {
+	if pathstat.NotFoundOrParentNotDirectory(err) {
 		return jsonfile.NewObject(), false, nil
 	}
 	if err != nil {

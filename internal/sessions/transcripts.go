@@ -13,7 +13,6 @@ package sessions
 import (
 	"bufio"
 	"bytes"
-	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -244,7 +243,7 @@ func GetSessionCwd(jsonlPath string, maxLines int) (string, bool) {
 func FindSession(sessionID, sharedProjectsDir string) (*SessionInfo, error) {
 	entries, err := os.ReadDir(sharedProjectsDir)
 	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
+		if pathstat.NotFoundOrParentNotDirectory(err) {
 			return nil, nil
 		}
 		return nil, err

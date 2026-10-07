@@ -23,7 +23,6 @@ package appconfig
 import (
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 
@@ -188,11 +187,12 @@ func writeJSON(fx *effects.FX, path string, v any) error {
 // ErrNotSetUp is wrapped by the error a missing owned file produces.
 var ErrNotSetUp = errors.New("the claudewheel workspace is not set up")
 
-// readOwnedFile reads an owned file. A missing one is an error wrapping both
-// fs.ErrNotExist and ErrNotSetUp, naming the command that creates it.
+// readOwnedFile reads an owned file. A missing one (absence read as pathstat
+// reads it) is an error wrapping both the read error and ErrNotSetUp, naming
+// the command that creates it.
 func readOwnedFile(path string) ([]byte, error) {
 	data, err := os.ReadFile(path)
-	if errors.Is(err, fs.ErrNotExist) {
+	if pathstat.NotFoundOrParentNotDirectory(err) {
 		return nil, fmt.Errorf("%s does not exist: %w (`claudewheel launch` creates it): %w", path, ErrNotSetUp, err)
 	}
 	return data, err

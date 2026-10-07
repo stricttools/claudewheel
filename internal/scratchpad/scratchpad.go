@@ -64,19 +64,17 @@ func (d Dir) IsStale(now time.Time, staleDays int) bool {
 
 // ScanTree returns the allocated block usage of the regular files under root and
 // the newest lstat modification time of root and every entry under it. It
-// never descends into a symbolic link. A missing root has nothing, and an
-// entry that vanishes during the walk is skipped (Claude Code changes the
-// tree concurrently), absence read as pathstat reads it; any other error
-// reading the tree is returned.
-func ScanTree(root string) (int64, time.Time, error) {
-	var total int64
-	var newest time.Time
+// never descends into a symbolic link. found is false when nothing is at
+// root. An entry that vanishes during the walk is skipped (Claude Code
+// changes the tree concurrently), absence read as pathstat reads it; any
+// other error reading the tree is returned.
+func ScanTree(root string) (size int64, newest time.Time, found bool, err error) {
 	info, err := os.Lstat(root)
 	if pathstat.NotFoundOrParentNotDirectory(err) {
-		return 0, time.Time{}, nil
+		return 0, time.Time{}, false, nil
 	}
 	if err != nil {
-		return 0, time.Time{}, fmt.Errorf("cannot scan %s: %w", root, err)
+		return 0, time.Time{}, false, fmt.Errorf("cannot scan %s: %w", root, err)
 	}
 	newest = info.ModTime()
 	err = filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
@@ -101,20 +99,21 @@ func ScanTree(root string) (int64, time.Time, error) {
 		}
 		if info.Mode().IsRegular() {
 			if st, ok := info.Sys().(*syscall.Stat_t); ok {
-				total += st.Blocks * 512
+				size += st.Blocks * 512
 			}
 		}
 		return nil
 	})
 	if err != nil {
-		return 0, time.Time{}, fmt.Errorf("cannot scan %s: %w", root, err)
+		return 0, time.Time{}, false, fmt.Errorf("cannot scan %s: %w", root, err)
 	}
-	return total, newest, nil
+	return size, newest, true, nil
 }
 
 // ScanDirs returns one Dir per immediate subdirectory of root, sorted by
-// name, skipping other entries and top-level symbolic links. A missing root,
-// or one that is not a directory, has none.
+// name, skipping other entries and top-level symbolic links, and skipping a
+// subdirectory that vanishes before it is scanned (with a zero time it would
+// read as stale). A missing root, or one that is not a directory, has none.
 func ScanDirs(root string) ([]Dir, error) {
 	isDir, err := pathstat.IsDir(root)
 	if err != nil {
@@ -133,9 +132,12 @@ func ScanDirs(root string) ([]Dir, error) {
 			continue
 		}
 		path := filepath.Join(root, e.Name())
-		size, newest, err := ScanTree(path)
+		size, newest, found, err := ScanTree(path)
 		if err != nil {
 			return nil, err
+		}
+		if !found {
+			continue
 		}
 		dirs = append(dirs, Dir{Path: path, Name: e.Name(), SizeBytes: size, NewestMtime: newest})
 	}

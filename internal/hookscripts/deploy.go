@@ -1,7 +1,6 @@
 package hookscripts
 
 import (
-	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -127,7 +126,7 @@ func LinkPathCommands(fx *effects.FX, names []string, scriptsDir, binDir string,
 		link := filepath.Join(binDir, name)
 		target := filepath.Join(scriptsDir, name)
 		info, err := os.Lstat(link)
-		if errors.Is(err, fs.ErrNotExist) {
+		if pathstat.NotFoundOrParentNotDirectory(err) {
 			if err := fx.MkdirAll(binDir); err != nil {
 				return results, err
 			}

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -103,7 +102,7 @@ func resolveResume(ws workspace.Workspace, value, directory string) (string, err
 func storeDirs(projectsDir string) ([]string, error) {
 	entries, err := os.ReadDir(projectsDir)
 	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
+		if pathstat.NotFoundOrParentNotDirectory(err) {
 			return nil, nil
 		}
 		return nil, err
@@ -113,7 +112,7 @@ func storeDirs(projectsDir string) ([]string, error) {
 		path := filepath.Join(projectsDir, e.Name())
 		info, err := os.Stat(path)
 		if err != nil {
-			if errors.Is(err, fs.ErrNotExist) {
+			if pathstat.NotFoundOrParentNotDirectory(err) {
 				continue
 			}
 			return nil, err
@@ -130,7 +129,7 @@ func storeDirs(projectsDir string) ([]string, error) {
 func transcripts(storeDir string) (count int, size int64, err error) {
 	entries, err := os.ReadDir(storeDir)
 	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
+		if pathstat.NotFoundOrParentNotDirectory(err) {
 			return 0, 0, nil
 		}
 		return 0, 0, err
@@ -141,7 +140,7 @@ func transcripts(storeDir string) (count int, size int64, err error) {
 		}
 		info, err := os.Stat(filepath.Join(storeDir, e.Name()))
 		if err != nil {
-			if errors.Is(err, fs.ErrNotExist) {
+			if pathstat.NotFoundOrParentNotDirectory(err) {
 				continue
 			}
 			return 0, 0, err
@@ -224,7 +223,7 @@ func (m *sessionMover) checkResume(sessionID, directory string) error {
 	expected := filepath.Join(projectsDir, workspace.EncodePath(here), sessionID+".jsonl")
 	if _, err := os.Stat(expected); err == nil {
 		return nil
-	} else if !errors.Is(err, fs.ErrNotExist) {
+	} else if !pathstat.NotFoundOrParentNotDirectory(err) {
 		return err
 	}
 	info, err := sessions.FindSession(sessionID, projectsDir)

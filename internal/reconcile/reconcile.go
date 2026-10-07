@@ -22,7 +22,6 @@ package reconcile
 import (
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -31,6 +30,7 @@ import (
 	"github.com/stricttools/claudewheel/internal/guardrail"
 	"github.com/stricttools/claudewheel/internal/hookscripts"
 	"github.com/stricttools/claudewheel/internal/jsonfile"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/profiles"
 	"github.com/stricttools/claudewheel/internal/workspace"
 )
@@ -271,7 +271,7 @@ func deployMissingScripts(fx *effects.FX, ws workspace.Workspace, canonicalHooks
 func processFile(fx *effects.FX, t target, canonicalHooks *jsonfile.Object) (TargetReport, error) {
 	tr := TargetReport{Label: t.label}
 	data, err := os.ReadFile(t.path)
-	if errors.Is(err, fs.ErrNotExist) {
+	if pathstat.NotFoundOrParentNotDirectory(err) {
 		tr.SkipReason = "no settings.json"
 		return tr, nil
 	}

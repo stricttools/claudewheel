@@ -45,7 +45,7 @@ func (p PluginInventory) Path() string {
 // a real directory, not a link.
 func ownedPluginTree(configDir string) (bool, error) {
 	info, err := os.Lstat(filepath.Join(configDir, PluginsDirName))
-	if errors.Is(err, fs.ErrNotExist) {
+	if pathstat.NotFoundOrParentNotDirectory(err) {
 		return false, nil
 	}
 	if err != nil {

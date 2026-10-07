@@ -1,15 +1,14 @@
 package tokens
 
 import (
-	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/stricttools/claudewheel/internal/effects"
 	"github.com/stricttools/claudewheel/internal/jsonfile"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 )
 
 // The layout of claudewheel's data inside a profile directory: everything
@@ -61,7 +60,7 @@ func (s Store) TokenFile() string { return filepath.Join(s.DataDir(), TokenFileN
 // Exists reports whether the profile has a claudewheel data directory.
 func (s Store) Exists() (bool, error) {
 	info, err := os.Stat(s.DataDir())
-	if errors.Is(err, fs.ErrNotExist) {
+	if pathstat.NotFoundOrParentNotDirectory(err) {
 		return false, nil
 	}
 	if err != nil {
@@ -75,7 +74,7 @@ func (s Store) Exists() (bool, error) {
 func (s Store) Load() (entry Entry, found bool, err error) {
 	path := s.TokenFile()
 	data, err := os.ReadFile(path)
-	if errors.Is(err, fs.ErrNotExist) {
+	if pathstat.NotFoundOrParentNotDirectory(err) {
 		return Entry{}, false, nil
 	}
 	if err != nil {

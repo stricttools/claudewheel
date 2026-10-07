@@ -30,9 +30,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -45,6 +43,7 @@ import (
 
 	"github.com/stricttools/claudewheel/internal/effects"
 	"github.com/stricttools/claudewheel/internal/jsonfile"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 	"github.com/stricttools/claudewheel/internal/schema/lifecycleevent"
 )
 
@@ -404,7 +403,7 @@ func SplitLines(text string) (lines []string, complete bool) {
 // empty file yields no events, and an interrupted final write is dropped.
 func ReadSession(path string) ([]Event, error) {
 	data, err := os.ReadFile(path)
-	if errors.Is(err, fs.ErrNotExist) {
+	if pathstat.NotFoundOrParentNotDirectory(err) {
 		return nil, nil
 	}
 	if err != nil {
@@ -442,7 +441,7 @@ func ReadSession(path string) ([]Event, error) {
 // with a newline. An absent file needs none.
 func NeedsSeparator(path string) (bool, error) {
 	f, err := os.Open(path)
-	if errors.Is(err, fs.ErrNotExist) {
+	if pathstat.NotFoundOrParentNotDirectory(err) {
 		return false, nil
 	}
 	if err != nil {

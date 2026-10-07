@@ -2,9 +2,7 @@ package proberunner
 
 import (
 	"bytes"
-	"errors"
 	"io"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -185,7 +183,7 @@ func transcripts(transcript string) ([]string, error) {
 func mentions(paths []string, needle []byte) (bool, error) {
 	for _, path := range paths {
 		data, err := os.ReadFile(path)
-		if errors.Is(err, fs.ErrNotExist) {
+		if pathstat.NotFoundOrParentNotDirectory(err) {
 			continue
 		}
 		if err != nil {
@@ -204,7 +202,7 @@ func latestMtime(paths []string) (time.Time, error) {
 	var latest time.Time
 	for _, path := range paths {
 		info, err := os.Stat(path)
-		if errors.Is(err, fs.ErrNotExist) {
+		if pathstat.NotFoundOrParentNotDirectory(err) {
 			continue
 		}
 		if err != nil {

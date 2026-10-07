@@ -1,14 +1,13 @@
 package lifecycle
 
 import (
-	"errors"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 
 	"github.com/stricttools/claudewheel/internal/effects"
+	"github.com/stricttools/claudewheel/internal/pathstat"
 )
 
 // SessionLifecycle is what one session's whole file says, read latest-wins.
@@ -142,7 +141,7 @@ func LoadAll(dir string) (map[string]*SessionLifecycle, error) {
 // directory, lists nothing.
 func SessionFiles(dir string) ([]string, error) {
 	info, err := os.Stat(dir)
-	if errors.Is(err, fs.ErrNotExist) {
+	if pathstat.NotFoundOrParentNotDirectory(err) {
 		return nil, nil
 	}
 	if err != nil {

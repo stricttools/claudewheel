@@ -2,7 +2,6 @@ package profiles
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -151,7 +150,7 @@ func (r *Report) readSettings() error {
 // false when it does not exist.
 func readSettingsFile(path string) (*jsonfile.Object, bool, error) {
 	data, err := os.ReadFile(path)
-	if errors.Is(err, fs.ErrNotExist) {
+	if pathstat.NotFoundOrParentNotDirectory(err) {
 		return nil, false, nil
 	}
 	if err != nil {

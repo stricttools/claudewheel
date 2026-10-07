@@ -2,9 +2,7 @@ package wizard
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 
@@ -249,7 +247,7 @@ func setOnboardingFlag(fx *effects.FX, configDir string) error {
 		if global, err = jsonfile.DecodeObject(data); err != nil {
 			return fmt.Errorf("%s: %w", path, err)
 		}
-	case !errors.Is(err, fs.ErrNotExist):
+	case !pathstat.NotFoundOrParentNotDirectory(err):
 		return err
 	}
 	global.Set("hasCompletedOnboarding", true)
