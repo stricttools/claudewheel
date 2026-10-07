@@ -74,3 +74,7 @@ The templates' placeholders are filled from the packages that own the values, wh
 - `DeployScripts` checks every name before writing anything (the Python raised KeyError mid-loop). `MissingScripts` is the shared "registered and not deployed" filter of the reconcile, the vanilla opt-in, and the launch; `CheckDeployed` returns per-script states for the drift health check.
 - A stat error other than "does not exist" is an error (pathlib's `exists()` swallowed some).
 - `ServiceUnit(executable)` writes `ExecStart=<executable> probe run-service` unquoted, as the plan states, followed by `SuccessExitStatus=143`; it refuses a relative path and one holding whitespace, a control character, or any of `"'\%$;`, which systemd would not take literally.
+
+## hookscripts: the unit's ExecStart path stays quoted (orchestrating session)
+
+The unit writes `ExecStart="<executable>" probe run-service`, double-quoted as the Python wrote its path, so an executable path may hold spaces. A relative path, or one holding a control character, `"`, `\`, `%`, or `$`, is refused. This overrides the unquoted form recorded earlier.

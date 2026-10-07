@@ -10,9 +10,9 @@ import (
 	"github.com/stricttools/claudewheel/internal/probe"
 )
 
-// unsafeInExecStart are the characters systemd would quote, escape, or expand
-// (specifiers, environment variables) in an unquoted ExecStart path.
-const unsafeInExecStart = "\"'\\%$;"
+// unsafeInExecStart are the characters systemd would end, escape, or expand
+// (specifiers, environment variables) inside a double-quoted ExecStart path.
+const unsafeInExecStart = "\"\\%$"
 
 // ServiceUnit is the unit file of the probe runner's user service. It runs
 // executable (the claudewheel binary; the caller decides which) as
@@ -21,15 +21,15 @@ const unsafeInExecStart = "\"'\\%$;"
 // stop stops it with SIGTERM, and the unit counts exit status 143 (the exit
 // on SIGTERM) as success.
 //
-// The path is written unquoted, so a relative path, or one holding
-// whitespace, a control character, or a character systemd would interpret,
-// is refused.
+// The path is written double-quoted, as the Python wrote it, so it may hold
+// spaces; a relative path, or one holding a control character or a character
+// systemd would interpret inside the quotes, is refused.
 func ServiceUnit(executable string) (string, error) {
 	if !filepath.IsAbs(executable) {
 		return "", fmt.Errorf("the probe runner's executable must be an absolute path: %q", executable)
 	}
 	for _, r := range executable {
-		if unicode.IsSpace(r) || unicode.IsControl(r) || strings.ContainsRune(unsafeInExecStart, r) {
+		if unicode.IsControl(r) || strings.ContainsRune(unsafeInExecStart, r) {
 			return "", fmt.Errorf("the probe runner's executable path %q holds %q, which a systemd ExecStart line would not take literally", executable, r)
 		}
 	}
@@ -39,7 +39,7 @@ func ServiceUnit(executable string) (string, error) {
 		"\n" +
 		"[Service]\n" +
 		"Type=simple\n" +
-		"ExecStart=" + executable + " probe run-service\n" +
+		"ExecStart=\"" + executable + "\" probe run-service\n" +
 		"SuccessExitStatus=143\n" +
 		"Restart=on-failure\n" +
 		"RestartSec=5\n" +
