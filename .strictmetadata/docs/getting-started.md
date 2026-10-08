@@ -11,7 +11,7 @@ This tutorial walks through installing claudewheel, creating a profile, navigati
 
 ## Prerequisites
 
-- Linux or macOS
+- Linux with a systemd user session (claudewheel starts every session in systemd user scopes)
 - Claude Code installed (`npm install -g @anthropic-ai/claude-code`), or a version installed by `claudewheel install <version>`
 - A terminal that supports ANSI colors
 
@@ -21,7 +21,7 @@ This tutorial walks through installing claudewheel, creating a profile, navigati
 go install github.com/stricttools/claudewheel/cmd/claudewheel@v0
 ```
 
-Each GitHub Release also carries `claudewheel` archives for Linux and macOS (amd64 and arm64).
+Each GitHub Release also carries `claudewheel` archives for Linux (amd64 and arm64). claudewheel runs on Linux only.
 
 Verify the installation:
 

@@ -12,9 +12,11 @@ builds:
       - CGO_ENABLED=0
     ldflags:
       - -s -w -X main.Version={{.Version}}
+    # claudewheel runs only on Linux: it starts sessions in systemd user
+    # scopes and reads /proc and cgroups, and its terminal code uses Linux
+    # ioctls, so no darwin build exists.
     goos:
       - linux
-      - darwin
     goarch:
       - amd64
       - arm64
