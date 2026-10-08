@@ -2,16 +2,12 @@
   "version": "0.33.0",
   "source": [
     {
-      "path": "claudewheel/",
-      "language": "python"
+      "path": ".",
+      "language": "go"
     }
   ],
   "docs": ".strictmetadata/docs/",
   "output": ".strictmetadata/.docs-cache/build/",
-  "directives": {
-    "table-guardrails": ".strictmetadata/docs/_directives/guardrail_table.py",
-    "table-disallowed-tools": ".strictmetadata/docs/_directives/disallowed_tools_table.py"
-  },
   "base_url": "https://smmh.dev/claudewheel",
   "versions": [
     {
@@ -25,6 +21,11 @@
       "default": true
     }
   ],
+  "gen": {
+    "exclude": [
+      "*"
+    ]
+  },
   "description": "A TUI Claude Code Launcher that lets you have more than one profile, manage sessions lifecycle, pick the exact CC version, model to use (even older unlisted ones), pick which GitHub account to use, etc.",
   "author": {
     "name": "SMMH",

@@ -68,11 +68,8 @@ separately.
 Test suites, large builds, and verification runs can each take several
 gigabytes of memory, and several of them started at once from different
 sessions can exhaust the machine until the whole terminal session is killed.
-The `heavy-unwrapped` rule refuses such a command (`go test`, `pytest`,
-`npm test`, `cargo build`, `make`, Go's own toolchain builds `./make.bash`,
-`./all.bash`, and `./run.bash`, a project's `scripts/*test*.sh`, and the rest
-of the forms in the rule reference below) wherever it stands at a command
-position, and tells the agent to run it through `heavy` instead:
+Run such a command (`go test`, `pytest`, `npm test`, `cargo build`, `make`, Go's
+own toolchain builds, a project's full test script) through `heavy`:
 
 ```bash
 cd project && heavy -- go test ./...
@@ -90,7 +87,7 @@ such as a single test or a small build, starts sooner. A command whose need is
 not known is measured once with the largest cap that fits now, which `heavy`
 names when a cap does not fit or a command is killed at its cap, and a command
 killed at its cap is a defect to fix at the source, not a reason for a bigger
-cap. The rule's refusal says the same. The budget rule is checked when the
+cap. The budget rule is checked when the
 command would start:
 
 - the budget is `MemAvailable` from `/proc/meminfo` less a 2G margin, which
@@ -187,10 +184,10 @@ anything else already stands at
 
 ## A memory cap each session's commands share
 
-The `heavy-unwrapped` rule matches command names, so a heavy command it cannot
-see, such as a test suite started inside `bash -c`, still runs unwrapped. So
-that such a command is killed while the session goes on, claudewheel caps
-what a session runs, and not the session itself:
+No guardrail rule forces a heavy command through `heavy`, so a heavy command
+can still run unwrapped, directly or inside `bash -c`. So that such a command is
+killed while the session goes on, claudewheel caps what a session runs, and not
+the session itself:
 
 - **Claude Code runs uncapped** in the session scope,
   `claudewheel-session-<pid>-<time>.scope`, inside the session slice
@@ -283,20 +280,20 @@ The guardrail model evolves between releases. Existing profiles keep whatever
 rules were current when they were created, so after upgrading claudewheel you
 should re-apply the canonical model to bring older profiles up to date:
 
-- Run `claudewheel reconcile-permissions` to rewrite each profile's
-  `deny`/`ask`/`allow` permission arrays to match the current model.
-- Run `claudewheel patch-profiles` to sync the deployed hook scripts and
-  `disallowedTools` defaults into every profile and `shared-settings.json`.
+- Run `claudewheel patch-profiles --all-profiles` to rewrite each profile's
+  `deny`/`ask`/`allow` permission arrays, hooks, and `disallowedTools` to match
+  the current model, and `shared-settings.json` with them (`--profile <name>`
+  reconciles one profile and leaves `shared-settings.json` alone).
 
-Both commands support `--dry-run` so you can preview the changes before writing
-anything to disk, and you should: the reconciliation is exact, so it prunes any
+It supports `--dry-run` so you can preview the changes before writing anything
+to disk, and you should: the reconciliation is exact, so it prunes any
 permission rule, hook entry or `disallowedTools` entry you added by hand, and
 nothing is backed up.
 
-Because of that pruning both commands are declared *consequential*: the CLI
+Because of that pruning the command is declared *consequential*: the CLI
 framework asks `Proceed? [y/N]` before writing, and when there is no terminal
-to answer at it refuses with `error: stdin is not interactive; pass
---approve-consequential to confirm`. A script or hook that means to reconcile
+to answer at it refuses with `error: stdin is not interactive; a consequential
+command must be confirmed at a terminal`. A script or hook that means to reconcile
 passes `--approve-consequential`. `--dry-run` is never gated.
 
 ## Rule reference
@@ -306,7 +303,29 @@ reflects the guardrails shipped in this version. "Settings coverage" reports how
 completely a rule's `deny`/`ask` glob(s) track its hook surface as 1 of 3
 levels (FULL, PARTIAL, or NONE), or `n/a` for tiers with no settings backstop.
 
-:-: table-guardrails
+<!-- rule-table: generated from the guardrail model by scripts/gen-guardrail-docs; do not edit -->
+
+| Key | Tier | Settings coverage | Advice |
+| --- | --- | --- | --- |
+| `rm` | HARD_DENY | PARTIAL | Use 'saferm delete --description "why" file1 file2' instead of 'rm'. |
+| `git-add-bulk` | HARD_DENY | PARTIAL | Use 'safegit commit -m "msg" -- file1 file2' instead of 'git add'. |
+| `git-stash` | HARD_DENY | FULL | Never 'git stash'. Commit the work in progress on the current branch with 'safegit commit' instead. |
+| `git-restore` | HARD_DENY | FULL | Use the Edit tool to revert specific lines instead of 'git restore'. |
+| `git-checkout-file` | HARD_DENY | NONE | Use the Edit tool to revert specific lines instead of 'git checkout -- file'. |
+| `git-checkout` | HARD_DENY | FULL | 'git checkout' is deprecated here; use 'git switch' for branches (plain git switch is allowed) or the Edit tool to revert files. |
+| `git-push-delete` | HARD_DENY | PARTIAL | Deleting remote branches is destructive; ask the user to do this deliberately. |
+| `sleep` | HARD_DENY | PARTIAL | Never 'sleep' to wait: the harness notifies you when background work finishes, so read the state you are waiting on or do other work instead of padding the turn with a wait. |
+| `push` | ESCALATE | FULL | Pushes happen only via rlsbl release run. |
+| `git-reset` | ESCALATE | PARTIAL | git reset is destructive in shared worktrees. |
+| `git-switch-force` | ESCALATE | FULL | Forced switch destroys uncommitted work in shared worktrees. |
+| `gh-workflow-run` | ESCALATE | FULL | Triggering CI workflows is an outward-facing action. |
+| `saferm-purge` | ESCALATE | FULL | saferm purge permanently destroys archived files. |
+| `git-rebase` | ESCALATE | PARTIAL | Rebase rewrites history in shared worktrees. |
+| `safegit-author-rewrite` | ESCALATE | FULL | Author rewriting is history rewriting. |
+| `kill` | ADVISE | n/a | This kill/pkill ran, but prefer building graceful stop commands or PID-file-based stop scripts into your tooling instead of killing processes directly. |
+| `sudo` | ASK | n/a | Prompted via the settings ask rule (no hook). |
+
+<!-- end of rule-table -->
 
 ## Stripped tools
 
@@ -320,10 +339,31 @@ calls the ones that remain.
 The table below is generated directly from the canonical model, so it always
 reflects the strip list shipped in this version.
 
-:-: table-disallowed-tools
+<!-- stripped-tool-table: generated from the guardrail model by scripts/gen-guardrail-docs; do not edit -->
+
+| Tool | Why |
+| --- | --- |
+| `Artifact` | Artifacts are unwanted; when an HTML report is wanted, it will be asked for explicitly. |
+| `DesignSync` | Serves Claude Design, which is unwanted -- and it only works with short-term logins, never the long-lived OAuth tokens claudewheel prefers. |
+| `EnterPlanMode` | Plan mode hijacks the session lifecycle: accepting a plan clears the session and makes the previous messages unreachable in the TUI. Fresh context for implementation is better achieved deliberately -- a new session or a subagent orchestrator. |
+| `EnterWorktree` | Exposing worktrees as tools invites silent, unauthorized use: work strays into a temp worktree, later sessions cannot find it, tokens are wasted rebuilding it, and stale files linger. Bash covers the rare legitimate case, explicitly. |
+| `ExitPlanMode` | Counterpart of EnterPlanMode; banned with it. |
+| `ExitWorktree` | Counterpart of EnterWorktree; banned with it. |
+| `LSP` | Injects compile-time diagnostics mid-work that are stale by the time the agent finishes; real errors surface at build time anyway. A net distraction left over from the era of slow human typing. |
+| `NotebookEdit` | No Jupyter notebooks here -- and their non-plaintext format is a reason to avoid them entirely. Plain file writes cover everything. |
+| `PushNotification` | Belongs to Remote Control, which is rejected wholesale. When a Remote Control pairing exists it also pushes model-authored text to phone and email with no permission prompt. |
+| `RemoteTrigger` | Client for claude.ai routines: autonomous cloud agents acting as the user with no in-run approvals, self-approving locally. Stays banned even while dormant behind a server-side feature flag, as insurance against the flag flipping. |
+| `ReportFindings` | Exists solely to serve /code-review, which is unwanted; inert in terminal sessions regardless. |
+| `Skill` | Bloatware: injected prompt payloads. Instructions worth having live in the repository. |
+| `TaskCreate` | The task-tracking system is dead weight: a months-long usage survey found this was the only family member ever used (thousands of calls) while the conversation itself served as the real task history -- so even the one used tool goes. |
+| `TaskGet` | Task-tracking family: never used once over months of active work; the conversation is the task history. |
+| `TaskList` | Task-tracking family: never used once over months of active work; the conversation is the task history. |
+| `TaskOutput` | Task-tracking family: never used once over months of active work; the conversation is the task history. |
+| `TaskStop` | Task-tracking family: never used once over months of active work; the conversation is the task history. |
+| `TaskUpdate` | Task-tracking family: never used once over months of active work; the conversation is the task history. |
+
+<!-- end of stripped-tool-table -->
 
 The list is a declaration, not a measurement: a name stays banned even while
 the installed Claude Code version happens not to offer that tool (such an
-entry is dormant insurance, not an error). For live numbers against the
-installed binary -- baseline versus stripped tool counts, and which entries
-are currently inert -- run `scripts/tool-strip-report`.
+entry is dormant insurance, not an error).

@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Rewrites the rule table and the stripped-tool table of the guardrails
+# documentation page from the guardrail model. A test in internal/guardrail
+# refuses a page whose tables differ from the model.
+set -euo pipefail
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "${root}"
+go run ./internal/guardrail/gendocs .strictmetadata/docs/guardrails.md
