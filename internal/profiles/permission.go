@@ -282,7 +282,8 @@ type ProfileRules struct {
 }
 
 // ListRules reads each target's rules: the one category named, or every
-// category in order when category is empty.
+// category in order when category is empty. A target whose settings.json is
+// missing has no rules in any category.
 func ListRules(targets []PermissionTarget, category string) ([]ProfileRules, error) {
 	categories := permissionCategories()
 	if category != "" {
@@ -293,9 +294,12 @@ func ListRules(targets []PermissionTarget, category string) ([]ProfileRules, err
 	}
 	out := make([]ProfileRules, 0, len(targets))
 	for _, t := range targets {
-		settings, err := LoadSettings(t.SettingsPath)
+		settings, found, err := readSettingsFile(t.SettingsPath)
 		if err != nil {
 			return nil, err
+		}
+		if !found {
+			settings = jsonfile.NewObject()
 		}
 		p := ProfileRules{Profile: t.Name}
 		for _, c := range categories {

@@ -209,6 +209,25 @@ func TestPermissionCommands(t *testing.T) {
 	}
 }
 
+func TestPermissionListProfileWithoutSettings(t *testing.T) {
+	e := newEnv(t)
+	e.setUp("work")
+	e.ok("permission", "add", "Read(//home/**)", "--profile", "work")
+	// The default profile's directory exists, its settings.json does not:
+	// it has no rules, which the listing shows instead of refusing.
+	if err := os.MkdirAll(e.ws.ClaudeDir(), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	r := e.ok("permission", "list", "--all-profiles", "--format", "grouped")
+	if !strings.Contains(r.Stdout, "[default]\n  allow:\n    (none)") || !strings.Contains(r.Stdout, "Read(//home/**)") {
+		t.Fatalf("list:\n%s", r.Stdout)
+	}
+	r = e.ok("permission", "list", "--profile", "default", "--format", "flat")
+	if r.Stdout != "" {
+		t.Fatalf("flat:\n%s", r.Stdout)
+	}
+}
+
 func TestProfileCommands(t *testing.T) {
 	e := newEnv(t)
 	e.setUp("work")

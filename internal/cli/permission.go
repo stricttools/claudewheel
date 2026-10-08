@@ -68,7 +68,8 @@ func registerPermission(app *strictcli.App) {
 		"list the permission rules of a profile's settings.json in the format"+
 			" --format names. Use --category to list a single category. Use"+
 			" --profile to inspect a single profile or --all-profiles to show the"+
-			" rules of every registered profile, each under a header. The"+
+			" rules of every registered profile, each under a header; a profile"+
+			" without a settings.json is listed with no rules. The"+
 			" framework-owned --json answers a machine instead: one envelope"+
 			" carrying every listed profile, whatever --format the human form"+
 			" would have used",
