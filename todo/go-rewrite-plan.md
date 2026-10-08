@@ -104,7 +104,7 @@ Elsewhere: `~/.claude` (`settings.json` written only by the vanilla opt-in; `las
 - `~/Projects/dialog-demo` (README and `scripts/request*.json`) uses `claudewheel patch-profiles`.
 - `~/Projects/CONTEXT/afk.md` uses `claudewheel afk status|on|off`, which exists in neither version.
 - `~/Projects/CONTEXT/claudewheel-profiles.md` is out of date (describes `~/.claudewheel/tokens.json` and an old discovery rule).
-- a private project reads the `~/.claudewheel/profiles` layout directly; the layout does not change.
+- A private project reads the `~/.claudewheel/profiles` layout directly; the layout does not change.
 - The selfdoc directives `.strictmetadata/docs/_directives/{guardrail_table,disallowed_tools_table}.py` import the Python guardrail model.
 - `scripts/{patch-profiles,argv-sweep,gates/check-autospec}` and the CI workflow are Python.
 - The site pages `stricttools/site/tools/claudewheel/index.html` and `data/tools.json`.
