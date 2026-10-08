@@ -1,9 +1,9 @@
 # The next release of claudewheel. Fill in bump and description, then run `rlsbl release run --watch`.
 format_version = 2
 # How the release moves the version: patch, minor, major, or infra (moved as a patch, recorded as infra).
-bump = ""
+bump = "patch"
 # What this release is, in a sentence or two. Required.
-description = ""
+description = "The release archives for Linux, which 0.34.0 failed to publish: claudewheel runs only on Linux, and its macOS builds failed."
 # Why these changes were made. Optional.
 context = ""
 # The targets released, and the ones left out; between them they name every target of the releasable's members.
