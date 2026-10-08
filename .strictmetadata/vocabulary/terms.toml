@@ -17,6 +17,10 @@ word = "rewake"
 meaning = "Claude Code's asyncRewake: a background hook that exits 2 wakes the session with its output"
 
 [[accepted]]
+word = "rlsbl"
+meaning = "the release tool claudewheel is released with"
+
+[[accepted]]
 word = "safegit"
 meaning = "the concurrency-safe git commit tool claudewheel's guardrails point agents to"
 
