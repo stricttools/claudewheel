@@ -145,7 +145,7 @@ Which session a launch starts in is one selection with five alternatives, exactl
 claudewheel --cont                                        # --continue: resume the most recent session
 claudewheel --resume 0123abcd-0123-4567-89ab-0123456789ab # --resume <id>: jump to a specific session
 claudewheel --resume ""                                   # --resume: open Claude Code's own session picker
-claudewheel --picker                                      # browse this profile's sessions and pick one
+claudewheel --picker                                      # pick the session from Claude Code's session picker
 claudewheel --print-prompt "summarize this repo"          # --print: non-interactive print mode
 claudewheel --new-session                                 # start a new session -- what a bare `claudewheel` does
 ```

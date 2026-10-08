@@ -1,6 +1,6 @@
 +++
 title = "Getting Started"
-description = "Install claudewheel, create your first profile, understand the segment bar and the machine-wide sessions table behind its S key, work with a model list that keeps itself current from the Anthropic API -- including models dimmed because they need a newer Claude Code than you are launching -- and launch a Claude Code session with the right model, context window, and permissions."
+description = "Install claudewheel with go install, create your first profile, understand the segment bar and the machine-wide sessions table behind its S key, work with a model list that keeps itself current from the Anthropic API -- including models dimmed because they need a newer Claude Code than you are launching -- and launch a Claude Code session with the right model, context window, and permissions."
 nav_group = "Guides"
 nav_order = 2
 +++
@@ -156,7 +156,7 @@ exactly one of them is elected per launch:
 claudewheel --cont                                        # resume the most recent session
 claudewheel --resume 0123abcd-0123-4567-89ab-0123456789ab # resume a specific session by ID or title
 claudewheel --resume ""                                   # open Claude Code's own session picker
-claudewheel --picker                                      # browse this profile's sessions and pick one
+claudewheel --picker                                      # pick the session from Claude Code's session picker
 claudewheel --print-prompt "summarize this repo"          # non-interactive print mode
 claudewheel --new-session                                 # start a new session, as a bare launch does
 ```
