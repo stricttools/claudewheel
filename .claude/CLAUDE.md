@@ -8,152 +8,89 @@ A TUI Claude Code Launcher that lets you have more than one profile, manage sess
 
 This project uses [rlsbl](https://github.com/stricttools/rlsbl) for release orchestration.
 
-- Cover every commit with an entry in `.rlsbl/changes/unreleased.jsonl`, added via `rlsbl changelog add`
-- `CHANGELOG.md` is generated from those entries -- never edit it by hand
-- Scaffold `.rlsbl/releases/unreleased.toml` with `rlsbl release init`, then set the bump type and description in it
-- Release with `rlsbl release run --watch --approve-consequential`
-- CI publishes to both npm and PyPI, but the two authenticate differently: PyPI uses OIDC Trusted Publishing (no token, no secret), while npm authenticates with the repository's `NPM_TOKEN` secret passed as `NODE_AUTH_TOKEN`. The `--provenance` flag on `npm publish` is a signed-attestation feature, not an auth mechanism, so it does not remove the token requirement. Never run `npm publish` or `uv publish` by hand
-- Use the framework-owned `--dry-run` flag to preview a release without making changes
+- Cover every commit with an entry in `.strictmetadata/changelog/claudewheel/unreleased.jsonl`, added with `rlsbl changelog add`
+- `CHANGELOG.md` is generated from those entries and the release archives -- never edit it by hand
+- Write `.strictmetadata/releases/claudewheel/unreleased.toml` with `rlsbl release init`, set the bump and description in it, and commit it
+- Release with `rlsbl release run --watch --approve-consequential`; CI builds the Linux and macOS archives with GoReleaser, and the Go module is served from its tag
+- Build a local binary with `scripts/build <output>`, which stamps the version in `VERSION`
 
-## Architecture
+## Layout
 
-- **claudewheel** (`claudewheel/__init__.py`): Package version detection from package.json or installed metadata.
-- **claudewheel.__main__** (`claudewheel/__main__.py`): Entry point for `python -m claudewheel` invocation.
-- **claudewheel.app** (`claudewheel/app.py`): TUI event loop, keyboard dispatch, and segment interaction.
-- **claudewheel.appdata** (`claudewheel/appdata.py`): Atomic single-owner accessors for options.json and state.json.
-- **claudewheel.archiver** (`claudewheel/archiver.py`): Delegate profile deletion to saferm, so a deleted profile can be restored.
-- **claudewheel.auth** (`claudewheel/auth.py`): Validate OAuth tokens against the Anthropic API and extract them from captured output.
-- **claudewheel.binaries** (`claudewheel/binaries.py`): Locate installed Claude Code binaries and the active `claude` symlink.
-- **claudewheel.cli** (`claudewheel/cli.py`): CLI argument parsing, subcommand routing, and launch orchestration.
-- **claudewheel.clients** (`claudewheel/clients.py`): Client adapters: map resolved launch inputs to a client-specific argv.
-- **claudewheel.config** (`claudewheel/config.py`): The app-config store: the TUI's config/segments/options/state hub.
-- **claudewheel.constants** (`claudewheel/constants.py`): ANSI escape sequences and terminal color helpers.
-- **claudewheel.defaults** (`claudewheel/defaults.py`): Default values for config, segments, options, state, and themes; canonical permission rules, hook wiring, and the disallowed-tools list are derived from the guardrail model.
-- **claudewheel.deletion_checklist** (`claudewheel/deletion_checklist.py`): Present everything holding a profile, and stop exactly what the user ticks.
-- **claudewheel.discovery** (`claudewheel/discovery.py`): Detect installed web browsers across native, flatpak, and snap sources.
-- **claudewheel.effects** (`claudewheel/effects.py`): The single authorized surface for effectful calls in claudewheel production code.
-- **claudewheel.fuzzy** (`claudewheel/fuzzy.py`): Score, rank, and highlight fuzzy matches between queries and option lists.
-- **claudewheel.guardrail** (`claudewheel/guardrail.py`): Canonical guardrail protocol model.
-- **claudewheel.health** (`claudewheel/health.py`): Pre-launch diagnostics: symlinks, tokens, disk usage, and permission/hook drift against the canonical guardrail model.
-- **claudewheel.hook_scripts** (`claudewheel/hook_scripts.py`): Registry of the scripts deploy-hooks deploys: the hook scripts, with blocker/advise generated from the guardrail model, the heavy wrapper, and the claudewheel-tool-scope shell prefix.
-- **claudewheel.hooks** (`claudewheel/hooks.py`): Run user-defined hook scripts at pre-launch and other lifecycle stages.
-- **claudewheel.import_** (`claudewheel/import_.py`): Import Claude Code session data from an external directory into the shared store.
-- **claudewheel.install** (`claudewheel/install.py`): Download, verify, and install Claude Code binaries from Google Cloud Storage.
-- **claudewheel.launch** (`claudewheel/launch.py`): Map TUI selections to binary path, env vars, flags, and exec.
-- **claudewheel.lifecycle** (`claudewheel/lifecycle.py`): The per-session lifecycle store: what happened to one Claude Code session.
-- **claudewheel.migrate** (`claudewheel/migrate.py`): Move session artifacts between profiles.
-- **claudewheel.mv** (`claudewheel/mv.py`): Move session data after a project directory rename.
-- **claudewheel.patch_profiles** (`claudewheel/patch_profiles.py`): Wizard hook-merge helper plus a thin delegate to the unified reconcile core.
-- **claudewheel.permission** (`claudewheel/permission.py`): Core logic for managing profile permission rules.
-- **claudewheel.plugins** (`claudewheel/plugins.py`): Claude Code's plugin tree inside a profile: inventory it, and remove it.
-- **claudewheel.preflight** (`claudewheel/preflight.py`): Pre-launch step framework: a deterministic sequence of gate steps.
-- **claudewheel.probe** (`claudewheel/probe.py`): Probes: watch Claude Code sessions for an event and report it to the sessions that asked.
-- **claudewheel.probe_runner** (`claudewheel/probe_runner.py`): The probe runner: the one process that hosts every probe (claudewheel-probe-runner.service).
-- **claudewheel.processes** (`claudewheel/processes.py`): Measure and stop the processes holding a profile.
-- **claudewheel.profile** (`claudewheel/profile.py`): Resolve a profile name to its launch environment (see ProfileStore.env).
-- **claudewheel.profile_data** (`claudewheel/profile_data.py`): claudewheel's own data, stored inside each profile directory.
-- **claudewheel.profile_info** (`claudewheel/profile_info.py`): Gather and format a detailed inspection report for a single profile.
-- **claudewheel.profile_ops** (`claudewheel/profile_ops.py`): Profile auth-shadow repair and running-state detection.
-- **claudewheel.profile_store** (`claudewheel/profile_store.py`): The profile store: enumerate, resolve, create, delete, and rename profiles.
-- **claudewheel.project_hooks** (`claudewheel/project_hooks.py`): Read and fingerprint a target project's Claude Code hooks.
-- **claudewheel.pty_runner** (`claudewheel/pty_runner.py`): Run a child process under a PTY, proxying the real terminal and capturing its output.
-- **claudewheel.reconcile** (`claudewheel/reconcile.py`): Unified reconcile core: make every managed target EXACTLY canonical.
-- **claudewheel.renderer** (`claudewheel/renderer.py`): Draw the segment bar, fan-out options, minimap, and scroll arrows.
-- **claudewheel.scratchpad** (`claudewheel/scratchpad.py`): Scan the per-user Claude Code scratchpad tree under /tmp for stale data.
-- **claudewheel.segment** (`claudewheel/segment.py`): Segment and SegmentBar dataclasses, option discovery, and cross-segment constraints.
-- **claudewheel.session** (`claudewheel/session.py`): Session lookup: locate session JSONL files and extract metadata.
-- **claudewheel.session_list** (`claudewheel/session_list.py`): The scrolling column of session blocks the deletion checklist is drawn with.
-- **claudewheel.session_move** (`claudewheel/session_move.py`): Move one Claude Code session to another project directory's session store.
-- **claudewheel.session_registry** (`claudewheel/session_registry.py`): Read Claude Code's per-session registry into typed, liveness-checked records.
-- **claudewheel.session_rows** (`claudewheel/session_rows.py`): Render one session registry record as a block of lines, collapsed or expanded.
-- **claudewheel.session_stores** (`claudewheel/session_stores.py`): Find every Claude Code session store on this machine.
-- **claudewheel.sessions_overview** (`claudewheel/sessions_overview.py`): Every Claude Code session on this machine, on one framed scrolling table.
-- **claudewheel.sessions_table** (`claudewheel/sessions_table.py`): Lay every Claude Code session on this machine out as one framed table.
-- **claudewheel.shared_store** (`claudewheel/shared_store.py`): Thin path owner for the ~/.claudewheel/shared store layout.
-- **claudewheel.state** (`claudewheel/state.py`): Persist launch state (selections, counts, recent dirs) and project inodes.
-- **claudewheel.stats** (`claudewheel/stats.py`): Report shared-store statistics and clean up legacy data.
-- **claudewheel.strictspec_gen** (`claudewheel/strictspec_gen/__init__.py`): strictspec-generated validators.
-- **claudewheel.strictspec_gen.lifecycle_event_validator** (`claudewheel/strictspec_gen/lifecycle_event_validator.py`)
-- **claudewheel.strictspec_gen.oom_kill_event_validator** (`claudewheel/strictspec_gen/oom_kill_event_validator.py`)
-- **claudewheel.strictspec_gen.probe_event_validator** (`claudewheel/strictspec_gen/probe_event_validator.py`)
-- **claudewheel.strictspec_gen.probe_report_validator** (`claudewheel/strictspec_gen/probe_report_validator.py`)
-- **claudewheel.strictspec_gen.probe_session_event_validator** (`claudewheel/strictspec_gen/probe_session_event_validator.py`)
-- **claudewheel.strictspec_gen.session_move_journal_validator** (`claudewheel/strictspec_gen/session_move_journal_validator.py`)
-- **claudewheel.terminal** (`claudewheel/terminal.py`): Raw terminal I/O: cbreak mode, escape sequence decoding, and alt screen.
-- **claudewheel.theme** (`claudewheel/theme.py`): Parse hex color themes into pre-computed ANSI escape sequences.
-- **claudewheel.tokens** (`claudewheel/tokens.py`): The OAuth token entry format: build one, date it, and read its tier fields.
-- **claudewheel.ui** (`claudewheel/ui.py`): Themed widget layer: form fields, a form runner, and fullscreen pages.
-- **claudewheel.vertical_viewport** (`claudewheel/vertical_viewport.py`): Scroll a column of variable-height row blocks, as arithmetic over dimensions.
-- **claudewheel.wizard** (`claudewheel/wizard.py`): Interactive form wizard for creating and configuring new profiles.
-- **claudewheel.workspace** (`claudewheel/workspace.py`): Workspace: the single root object owning all claudewheel filesystem paths.
+- `cmd/claudewheel` is the binary; a bare `claudewheel` runs `launch`. `internal/cli` holds its strictcli commands, one file per command family.
+- `internal/tui` holds the terminal screens: `bar` (the launch bar), `sessionsview`, `wizard` (profile creation), `deletion` (the deletion checklist), and `widgets` (themes and shared widgets); `internal/terminal` is the raw terminal I/O under them.
+- `internal/launch` starts a session; `internal/discover` finds each segment's options; `internal/appconfig` owns the workspace's own files and `internal/workspace` every path.
+- `internal/guardrail` is the canonical guardrail model; `internal/reconcile` makes every managed profile and `shared-settings.json` exactly canonical; `internal/hookscripts` deploys the hook scripts, the `heavy` wrapper, and the probe runner's unit.
+- `internal/profiles`, `internal/tokens`, and `internal/auth` are the profile store and its tokens; `internal/sessions`, `internal/sessionmove`, `internal/lifecycle`, `internal/probe`, and `internal/proberunner` cover sessions, their moves, their lifecycle, and OOM kill reports.
+- `internal/effects` is where every write, subprocess, and network call happens, so `--dry-run` records them; `internal/schema` holds the strictspec-generated validators.
 
 ## Commands
 
 | Command | Description |
 | --- | --- |
-| `health` | run diagnostic health checks on profiles, tokens, and hooks, then exit |
-| `config` | open the ~/.claudewheel/ config directory in your $EDITOR |
 | `versions` | list all installed Claude Code versions, marking the current symlink target |
 | `install` | download and install a specific Claude Code version |
 | `uninstall` | delete an installed Claude Code version binary from the versions directory |
-| `reset-options` | delete options.json so it regenerates from defaults |
 | `show` | print a summary of current segment selections, theme, and recent directories |
-| `migrate` | move session data files from one profile to another, optionally filtered by UUID |
-| `stats` | report shared-store stats and clean up legacy data |
+| `config` | open the ~/.claudewheel/ config directory in the editor $EDITOR names; refuses when $EDITOR is unset |
+| `reset-options` | replace options.json with the default options a first run writes, dropping every value added to it since |
+| `stats` | report the shared store's file count and size, by top-level entry |
+| `upgrade-workspace` | convert a workspace an older claudewheel wrote: remove the retired keys (_schema_version from config.json, scratchpad_snooze_until from state.json, and a vanilla_guardrails_opt_in that is not a boolean) and add the keys the defaults declare that a file lacks, never changing a value already present. Commands refuse a workspace that needs converting and name this command. Every file is checked to convert before any is written; preview the changes with --dry-run |
+| `migrate` | move session data files from one profile to another: one session (--session) or every session (--all-sessions). Every destination is checked before anything moves: a file or folder already there in the destination profile refuses the whole migration, listing every collision, and nothing is moved |
 | `mv` | rename a project directory and migrate session data |
 | `move-session` | move one Claude Code session, by its id, to another project directory's session store, so Claude Code resumes it from that directory: its transcript and folder move together, the paths in its transcript that point into its own store folder follow it, and Claude Code's relocated record is appended. Refuses a session that is running or starting, one a background job or another session's symlink refers to, and one that more than one store dir holds. An interrupted move is finished by running the same command again |
-| `import` | import session data from an external Claude Code directory |
-| `deploy-hooks` | deploy built-in hook scripts, the heavy wrapper, and claudewheel-tool-scope (the shell prefix every launched session runs its commands through; a launch deploys it when it is missing) to the ~/.claudewheel/scripts/ directory, linking heavy into ~/.local/bin so it is on PATH, and install the probe runner's user service (claudewheel-probe-runner.service, in ~/.config/systemd/user), enabled and started; systemctl --user stop claudewheel-probe-runner.service stops it gracefully |
-| `patch-profiles` | reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask, canonical settings keys); prunes drift and user-added extras -- the old additive, extras-preserving behavior is gone. Deploys any missing guardrail hook scripts. The 'default' profile (~/.claude) is never touched. Preview with --dry-run; writing needs a terminal or --approve-consequential. |
-| `reconcile-permissions` | reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask and the canonical settings keys made exact; allow keeps only its non-conflicting entries); prunes all drift and user-added extras. The 'default' profile (~/.claude) is never touched. Pass --dry-run to preview the per-target diff without writing; writing needs a terminal to confirm at, or --approve-consequential. |
-| `purge-plugins` | remove the Claude Code plugin tree from the selected profiles: the official-marketplace clone and every plugin installed from it, six to ten megabytes per profile. Opt-in and separate from the canonical reconciliation, which is exact and would otherwise delete plugin state on every run. Names the marketplaces and plugins it finds before removing them; --dry-run reports the inventory without touching anything. New launches do not collect a new tree -- the launch environment suppresses the auto-install, one-way per profile. The 'default' profile (~/.claude) is never touched. |
-| `launch` | start the interactive TUI launcher to select a profile, model, and directory |
-| **profile** | create, inspect, rename, delete, and manage Claude Code profiles and their stored tokens |
-| `profile create` | run the create-profile wizard in one continuous alt-screen session: prompt for the profile name, config directory and launch options, write the profile directory together with its symlinks into the shared store, then drive an interactive Claude Code OAuth login so the profile is authenticated before you leave. Requires a real terminal, and prints the summary and auth outcome afterwards |
-| `profile delete` | remove a registered profile: hand its directory to saferm, which archives it (the stored token among it) and then removes it, unlink its shared-store symlinks, drop its options.json registration, and clear any last_config reference in state.json. Prints the archive handle that restores it. Refuses a profile holding a live interactive Claude Code session unless --force-delete (background jobs and daemons do not block it), and takes conversation history only with --force-delete-data. saferm must be installed: without it the deletion would be irreversible, so it is refused rather than performed |
-| `profile show` | print a detailed report for one profile: whether its directory exists on disk, whether it is registered or pinned in options.json, the state of its stored token, its resolved configuration and the session data it holds. Inspects default (~/.claude) like any other profile, and exits non-zero when the name matches no directory, registration or token |
-| `profile rename` | move a profile to a new name, taking its directory (with the token stored inside it), its options.json registration and its session data with it. Validates that the old name exists, that the new one is free in both the directory tree and the options file, and that it fits the lowercase-letters-digits-hyphens charset. Refuses a profile holding a live interactive Claude Code session, and the reserved name default |
-| `profile fix-auth` | repair one profile's authentication: strip the session credentials that shadow its stored long-lived token so the token is used again. Says so plainly when there is nothing to repair, and refuses a name with no profile directory behind it |
-| `profile set-plan` | declare which plan a profile's Claude account is on, without a prompt. Claude Code resolves its subscription tier from the launch environment and only from there when auth is a stored setup token, so an undeclared profile launches with the tier null and tier-dependent features failing closed. Writes both plan fields into the profile's token entry, leaving the token itself alone; the interactive picker in the create flow and the pre-launch prompt write exactly the same thing |
-| `profile check-tokens` | read every discovered profile's own stored OAuth token and validate each one against the Anthropic API, then print a table of profile name, status and a truncated token preview. The status distinguishes a valid token from an invalid one, an unreachable API and an indeterminate answer, and profiles holding no token are listed too |
-| **permission** | add, remove, and list permission rules across Claude profiles |
-| `permission add` | Add a permission rule to a profile's settings.json. Takes a category (allow, deny, or ask) and a rule string such as Bash or Read(//home/**). Writes the rule into the specified category array. Use --profile to target a single profile or --all-profiles to apply the rule across every registered profile. Skips duplicates if the rule already exists in the category. |
-| `permission remove` | Remove a permission rule from a profile's settings.json. Takes a category (allow, deny, or ask) and the exact rule string to delete. The rule is removed from the specified category array and the file is saved. Use --profile to target a single profile or --all-profiles to remove the rule from every registered profile. Reports whether the rule was found. |
-| `permission list` | List permission rules from a profile's settings.json. Displays rules in grouped or flat format controlled by --format. Use --category to filter output to a single category (allow, deny, or ask). Use --profile to inspect a single profile or --all-profiles to show rules from every registered profile, with each profile's rules displayed under a header. The framework-owned --json answers a machine instead: one envelope carrying every listed profile, whatever --format the human form would have used. |
-| **probe** | watch Claude Code sessions for OOM kills and report them to the sessions subscribed: create, list, stop, subscribe, and unsubscribe probes. Every session is told of its own commands' OOM kills without a probe |
+| `import` | import session data from an external Claude Code directory. The source is checked before anything is copied: a symlink the import would read whose target does not exist (a transcript, a session's folder or anything in it, its todos, session-env, file-history, or tasks entries, a paste-cache file) refuses the whole import, listing every broken link, and nothing is copied |
+| `deploy-hooks` | deploy built-in hook scripts, the heavy wrapper, and claudewheel-tool-scope (the shell prefix every launched session runs its commands through; a launch deploys it when it is missing) to the ~/.claudewheel/scripts/ directory, linking heavy into ~/.local/bin so it is on PATH, and install the probe runner's user service (claudewheel-probe-runner.service, in ~/.config/systemd/user, running this claudewheel binary), enabled and started; systemctl --user stop claudewheel-probe-runner.service stops it gracefully |
+| `health` | run diagnostic health checks on profiles, tokens, and hooks, print one line per check, and exit 1 when any check is not OK |
+| `patch-profiles` | reconcile one managed profile (--profile) or every managed profile and shared-settings.json (--all-profiles) to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask and the canonical settings keys made exact; allow keeps only its non-conflicting entries); prunes drift and user-added extras. Only --all-profiles touches shared-settings.json. Deploys any missing guardrail hook scripts. The 'default' profile (~/.claude) is never touched and cannot be named. Preview the per-target diff with --dry-run; writing needs a terminal to confirm at, or --approve-consequential |
+| `purge-plugins` | remove the Claude Code plugin tree from the selected profiles: the official-marketplace clone and every plugin installed from it, six to ten megabytes per profile. Opt-in and separate from the canonical reconciliation, which is exact and would otherwise delete plugin state on every run. Names the marketplaces and plugins it finds before removing them; --dry-run reports the inventory without touching anything. New launches do not collect a new tree -- the launch environment suppresses the auto-install, one-way per profile. The 'default' profile (~/.claude) is never touched |
+| `launch` | start a Claude Code session: the launch bar picks the profile, version, model, directory, and the rest, unless -s presets every required segment or --print-prompt runs one prompt; then the health check, the pre-launch hooks in ~/.claudewheel/hooks, and the preflight steps run, and the client starts in the session's systemd units. A bare claudewheel runs it. Arguments after -- go to the client |
+| **probe** | watch Claude Code sessions for OOM kills and report them to the sessions subscribed: create, list, stop, subscribe, and unsubscribe probes, and run the probe runner. Every session is told of its own commands' OOM kills without a probe |
 | `probe create` | create a probe of one kind (oom-kill: a unit's process killed by the kernel's OOM killer, as systemd reports it) watching one session (--session) or every session (--all-sessions), until its --deadline or an earlier stop (--count, --until-watched-ends, --until-file, or probe stop), and subscribe the session this runs in to it. A probe runs no command: an arbitrary command is refused. Run it from a Bash tool call of a claudewheel session, whose cgroup names the session; the reports go to the conversation that made the call, the main one or a subagent, once the hook that reads the call's payload binds the subscription to it |
 | `probe list` | list every probe with its stops and subscriptions, every report not yet confirmed delivered (with why), every expired report, and every OOM kill no session or subscription took; runs anywhere |
 | `probe stop` | end a live probe the session this runs in created; its undelivered reports to sessions that have ended are expired |
 | `probe subscribe` | subscribe the session this runs in to a live probe; the reports go to the conversation that made the call, once the hook that reads the call's payload binds the subscription to it |
 | `probe unsubscribe` | remove one of the subscriptions of the session this runs in; the probe reports nothing more to it |
+| `probe run-service` | run the probe runner, the process claudewheel-probe-runner.service starts: follow the user journal for OOM kills, report each to the sessions it concerns, and keep the probe store moving, until SIGTERM or SIGINT. systemctl --user stop claudewheel-probe-runner.service stops it gracefully; deploy-hooks claudewheel-probe-runner.service installs the service |
+| **profile** | create, inspect, rename, delete, and manage Claude Code profiles and their stored tokens, and run commands in a profile's environment |
+| `profile create` | run the create-profile wizard in one continuous alt-screen session: prompt for the profile name, config directory and launch options, write the profile directory together with its symlinks into the shared store, then drive an interactive Claude Code OAuth login so the profile is authenticated before you leave. Requires a real terminal, and prints the summary and auth outcome afterwards |
+| `profile delete` | remove a registered profile: hand its directory to saferm, which archives it (the stored token among it) and then removes it, unlink its shared-store symlinks, drop its options.json registration, and clear any last_config reference in state.json. Prints the archive handle that restores it. At a terminal (outside --dry-run) the deletion checklist first lists every process holding the profile and stops the ones ticked (the daemon and its workers come ticked), and a missing saferm is offered for install. Refuses a profile still holding a live interactive Claude Code session unless --force-delete (background jobs and daemons do not block it), and takes conversation history only with --force-delete-data. saferm must be installed: without it the deletion would be irreversible, so it is refused rather than performed |
+| `profile show` | print a detailed report for one profile: whether its directory exists on disk, whether it is registered or pinned in options.json, the state of its stored token, its resolved configuration and the session data it holds. Inspects default (~/.claude) like any other profile, and exits non-zero when the name matches no directory, registration or token |
+| `profile rename` | move a profile to a new name, taking its directory (with the token stored inside it), its options.json registration and its session data with it. Validates that the old name exists, that the new one is free in both the directory tree and the options file, and that it fits the lowercase-letters-digits-hyphens charset. Refuses a profile holding a live interactive Claude Code session, and the reserved name default. A rename interrupted part way leaves a breadcrumb every other command refuses to work past; running the same rename again finishes it |
+| `profile fix-auth` | repair one profile's authentication: strip the session credentials that shadow its stored long-lived token so the token is used again. Says so plainly when there is nothing to repair, and refuses a name with no profile directory behind it |
+| `profile set-plan` | declare which plan a profile's Claude account is on, without a prompt. Claude Code resolves its subscription tier from the launch environment and only from there when auth is a stored setup token, so an undeclared profile launches with the tier null and tier-dependent features failing closed. Writes both plan fields into the profile's token entry, leaving the token itself alone; the interactive picker in the create flow and the pre-launch prompt write exactly the same thing |
+| `profile check-tokens` | read every discovered profile's own stored OAuth token and validate each one against the Anthropic API, then print a table of profile name, status and a truncated token preview. The status distinguishes a valid token from an invalid one, an unreachable API and an indeterminate answer, and profiles holding no token are listed too. Exits 1 when any stored token is not valid |
+| `profile exec` | run a command in a profile's launch environment by replacing this process with it (exec: pipes, the process id, and signals pass straight through), for programs that start Claude Code themselves. The environment is the one a launch of the profile gets: CLAUDE_CONFIG_DIR, the profile's stored OAuth token, its declared plan tier, and the switches a launch sets; a variable of that set the profile does not set is removed, and for default every one of them is removed. An unknown profile is refused, listing the profiles. Prints nothing on success. The command follows a bare --, e.g. claudewheel profile exec --name work -- claude -p hello |
+| **permission** | add and remove allow rules, and list permission rules, across Claude profiles |
+| `permission add` | add a rule to the allow list of a profile's settings.json, such as Bash or Read(//home/**). Use --profile to target a single profile or --all-profiles to add it to every registered profile. A profile that already allows the rule is left unchanged. Only allow is edited: every launch resets deny and ask to the canonical guardrail lists. A rule the guardrail lists as an allow conflict (one patch-profiles would remove again) is refused |
+| `permission remove` | remove a rule from the allow list of a profile's settings.json, by its exact string. Use --profile to target a single profile or --all-profiles to remove it from every registered profile. Reports for each profile whether the rule was found; a profile without it is left unchanged |
+| `permission list` | list the permission rules of a profile's settings.json in the format --format names. Use --category to list a single category. Use --profile to inspect a single profile or --all-profiles to show the rules of every registered profile, each under a header; a profile without a settings.json is listed with no rules. The framework-owned --json answers a machine instead: one envelope carrying every listed profile, whatever --format the human form would have used |
 
 ### Confirmation and preview
 
 - Ordinary commands need no approval flag. `claudewheel launch`, `claudewheel deploy-hooks --all`, `claudewheel stats` and `claudewheel permission add` are the bare, correct invocations from a script, hook or agent -- including the bare `claudewheel` that starts a session, which prompts for nothing.
-- The CLI framework prompts only for commands that declare themselves `consequential`, and in claudewheel that is exactly three: `profile delete`, `reconcile-permissions` and `patch-profiles`. Each refuses with `error: stdin is not interactive; pass --approve-consequential to confirm` when there is no terminal, so a script that means to run one passes `--approve-consequential`.
-- `profile delete` is there because the profile stops existing: its directory goes with its `.credentials.json`, `settings.json` and stored OAuth token, every process holding it loses its configuration directory, and it is de-registered. It is recoverable rather than irreversible -- the directory is handed to [saferm](https://github.com/stricttools/saferm), which archives it before removing it, and the deletion prints the `saferm undelete <uuid>` that puts all of it back, token included. saferm is a **precondition**, not an optimisation: with it absent, too old to answer `saferm capabilities`, or missing one of the four features the delegation uses (`machine-payloads`, `on-error-modes`, `git-index-switches`, `uuid-handles`), the deletion is refused. At a terminal claudewheel offers to install it, verifying the download's SHA-256 against the release's published checksum manifest; without one the refusal is a hard error naming the install, because there is deliberately no flag that deletes without the archive. `reconcile-permissions` and `patch-profiles` -- two names for one operation -- are there because the reconciliation is EXACT: a single bare run rewrites every managed profile plus `shared-settings.json`, pruning hand-authored permission rules, hook entries and `disallowedTools` drift, with nothing backed up and nothing that reconstructs a pruned entry. Run them with `--dry-run` first; the per-target diff is the informative preview a blind `Proceed?` is not.
+- The CLI framework prompts only for commands that declare themselves `consequential`: in claudewheel, `profile delete` and `patch-profiles`. Each refuses with `error: stdin is not interactive; pass --approve-consequential to confirm` when there is no terminal, so a script that means to run one passes `--approve-consequential`.
+- `profile delete` is there because the profile stops existing: its directory goes with its `.credentials.json`, `settings.json` and stored OAuth token, every process holding it loses its configuration directory, and it is de-registered. It is recoverable rather than irreversible -- the directory is handed to [saferm](https://github.com/stricttools/saferm), which archives it before removing it, and the deletion prints the `saferm undelete <uuid>` that puts all of it back, token included. saferm is a **precondition**, not an optimisation: with it absent, too old to answer `saferm capabilities`, or missing one of the four features the delegation uses (`machine-payloads`, `on-error-modes`, `git-index-switches`, `uuid-handles`), the deletion is refused. At a terminal claudewheel offers to install it, verifying the download's SHA-256 against the release's published checksum manifest; without one the refusal is a hard error naming the install, because there is deliberately no flag that deletes without the archive. `patch-profiles` is there because the reconciliation is EXACT: a run with `--all-profiles` rewrites every managed profile plus `shared-settings.json`, pruning hand-authored permission rules, hook entries and `disallowedTools` drift, with nothing backed up and nothing that reconstructs a pruned entry. Run it with `--dry-run` first; the per-target diff is the informative preview a blind `Proceed?` is not.
 - `--quiet`, `--verbose`, `--dry-run` and `--approve-consequential` are framework-owned: no short forms, recognized anywhere in the command line, and never valid as claudewheel's own flag names.
 - `--dry-run` previews instead of writing: every subprocess launch, filesystem mutation and network call is recorded in a would-do log and nothing under `~/.claudewheel/` is touched. It also suppresses the confirmation, so a preview never has to be consented to.
 
 ### Selections, and what absence means
 
-- **Two selections are declared, and each elects exactly one member per invocation.** `--profile <name>` / `--all-profiles` chooses what `purge-plugins` and the three `permission` commands act on, and naming neither is refused with `one of --profile, --all-profiles is required`. `--cont` / `--resume <session>` / `--print-prompt <prompt>` / `--picker` / `--new-session` chooses which session a launch starts in, and naming none of them elects `--new-session`, the plain launch a bare `claudewheel` performs. Naming two is a parse error naming both.
+- **Two selections are declared, and each elects exactly one member per invocation.** `--profile <name>` / `--all-profiles` chooses what `patch-profiles`, `purge-plugins`, and the three `permission` commands act on, and naming neither is refused with `one of --profile, --all-profiles is required`. `--cont` / `--resume <session>` / `--print-prompt <prompt>` / `--picker` / `--new-session` chooses which session a launch starts in, and naming none of them elects `--new-session`, the plain launch a bare `claudewheel` performs. Naming two is a parse error naming both.
 - **The session members keep their short forms.** `-c` elects `--cont`, `-r <session>` elects `--resume`, `-p <prompt>` elects `--print-prompt`, and `-s` (`--set`) is an ordinary flag with its own short. A short takes its value as the next argument, so `-r <id>` is the spelling and `-r=<id>` is not one -- the `=` form belongs to the long flag.
 - **`--no-<member>` declines rather than chooses.** `--no-all-profiles` selects nothing and is refused; `--no-cont` leaves the launch on its default member.
 - **Every flag and positional argument declares whether it is required, optional, or defaulted.** No mutating command carries a value default -- a value the framework picks is a value the framework writes -- so an opt-in switch (`--all`, `--force-overwrite`, `--reid`, `--post-hoc`) is optional and names in its own help what its absence means.
 
 ## Config system
 
-- Config files live in `~/.claudewheel/` (config.json, segments.json, options.json, state.json, themes/)
-- On startup, `_migrate()` adds missing keys from DEFAULT_* without overwriting user values
-- `_run_versioned_migrations()` applies one-time value fixes keyed by `_schema_version` in config.json
-- New migrations go in the `_MIGRATIONS` list in config.py with an incremented version number
+- Config files live in `~/.claudewheel/` (config.json, segments.json, options.json, state.json, themes/); `internal/appconfig` decodes them strictly.
+- A launch writes the defaults for a missing file; read-only commands write nothing and refuse a workspace that is not set up.
+- `claudewheel upgrade-workspace` removes retired keys and adds the keys the defaults declare that a file lacks, never changing a value already present; every other command refuses a workspace holding a retired key and names it.
 
 ## Viewport scrolling
 
-When the segment bar overflows the terminal width, the renderer activates a scrolling viewport:
-- `_compute_bar_layout()` pre-computes logical column positions for all segments
-- `_compute_viewport()` centers the focused segment with ARROW_MARGIN (4 chars) reserved on each side
+When the segment bar overflows the terminal width, the renderer (`internal/tui/bar/render.go`) activates a scrolling viewport:
+- `computeLayout` pre-computes logical column positions for all segments
+- `computeViewport` centers the focused segment with `ArrowMargin` (4 columns) reserved on each side
 - Segments outside the viewport are skipped; partially visible ones are clipped at the margins
 - Edge arrows show off-screen segment counts; minimap shows colored squares in the top-right
 - Config key `"minimap"` controls visibility: `"auto"` (only when scrolling) or `"always"`

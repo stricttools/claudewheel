@@ -1,8 +1,7 @@
 +++
 title = "claudewheel probe"
-description = "watch Claude Code sessions for OOM kills and report them to the sessions subscribed: create, list, stop, subscribe, and unsubscribe probes."
+description = "Watch Claude Code sessions for OOM kills and report them to the sessions subscribed: create, list, stop, subscribe to, and unsubscribe from probes, and run the probe runner service."
 generated = true
-seeded = true
 nav_group = "CLI Reference"
 nav_order = 12
 +++
@@ -10,7 +9,7 @@ nav_order = 12
 
 # claudewheel probe
 
-watch Claude Code sessions for OOM kills and report them to the sessions subscribed: create, list, stop, subscribe, and unsubscribe probes. Every session is told of its own commands' OOM kills without a probe
+watch Claude Code sessions for OOM kills and report them to the sessions subscribed: create, list, stop, subscribe, and unsubscribe probes, and run the probe runner. Every session is told of its own commands' OOM kills without a probe
 
 ## probe create
 
@@ -22,19 +21,19 @@ create a probe of one kind (oom-kill: a unit's process killed by the kernel's OO
 
 | Name | Short | Type | Presence | Env | Description |
 | --- | --- | --- | --- | --- | --- |
+| `watch` |  | choice | required |  | Selection (not typed as a flag). Elect exactly one of `--session`, `--all-sessions`. which sessions the probe watches |
+| &nbsp;&nbsp;&nbsp;&nbsp;`--session` |  | str | required |  | Elects `watch` = `session`. watch one Claude Code session, by its uuid Its value: the uuid of the session to watch, as the lifecycle store records it |
+| &nbsp;&nbsp;&nbsp;&nbsp;`--all-sessions` |  |  | required |  | Elects `watch` = `all-sessions`. watch every Claude Code session on this machine |
 | `--deadline` |  | str | required |  | how long the probe lives at the latest, from now: a whole number with an s, m, h, or d suffix (90s, 30m, 2h, 7d). Every probe states one |
 | `--count` |  | int | optional |  | end the probe once it has seen this many kills; when omitted, the count never ends it |
 | `--until-watched-ends`, `--no-until-watched-ends` |  | bool | optional |  | end the probe when the watched session ends (needs --session); when omitted, the session ending does not end it |
 | `--until-file` |  | str | optional |  | end the probe once this absolute path exists; when omitted, no file ends it |
-| `watch` |  | choice | required |  | Selection (not typed as a flag). Elect exactly one of `--session`, `--all-sessions`. which sessions the probe watches |
-| &nbsp;&nbsp;&nbsp;&nbsp;`--session` |  | str | required |  | Elects `watch` = `session`. watch one Claude Code session, by its uuid Its value: the uuid of the session to watch, as the lifecycle store records it |
-| &nbsp;&nbsp;&nbsp;&nbsp;`--all-sessions` |  |  | required |  | Elects `watch` = `all-sessions`. watch every Claude Code session on this machine |
 
 ### Arguments
 
 | Name | Type | Presence | Description |
 | --- | --- | --- | --- |
-| `kind` | str | required | what the probe watches for Values: `oom-kill` (a process in a systemd user unit killed by the kernel's OOM killer (systemd's result term)). |
+| `probe-type` | str | required | what the probe watches for Values: `oom-kill` (a process in a systemd user unit killed by the kernel's OOM killer (systemd's result term)). |
 
 ## probe list
 
@@ -77,3 +76,11 @@ remove one of the subscriptions of the session this runs in; the probe reports n
 | Name | Type | Presence | Description |
 | --- | --- | --- | --- |
 | `subscription` | str | required | the subscription's id, as probe create, probe subscribe, and probe list print it |
+
+## probe run-service
+
+run the probe runner, the process claudewheel-probe-runner.service starts: follow the user journal for OOM kills, report each to the sessions it concerns, and keep the probe store moving, until SIGTERM or SIGINT. systemctl --user stop claudewheel-probe-runner.service stops it gracefully; deploy-hooks claudewheel-probe-runner.service installs the service
+
+**Effect:** mutating
+
+**Dry run:** not supported — the probe runner is a long-running service that follows the journal and acts on every entry; there is nothing to preview

@@ -1,6 +1,6 @@
 +++
 title = "claudewheel config"
-description = "Reference for the c config command — usage, flags, arguments, and examples for the config subcommand of the c CLI."
+description = "Open the ~/.claudewheel/ config directory in the editor $EDITOR names; the command refuses when $EDITOR is unset."
 generated = true
 nav_group = "CLI Reference"
 nav_order = 1
@@ -9,6 +9,6 @@ nav_order = 1
 
 # claudewheel config
 
-open the ~/.claudewheel/ config directory in your $EDITOR
+open the ~/.claudewheel/ config directory in the editor $EDITOR names; refuses when $EDITOR is unset
 
 **Effect:** mutating

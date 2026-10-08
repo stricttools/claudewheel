@@ -1,6 +1,6 @@
 +++
 title = "claudewheel profile"
-description = "Create, inspect, rename, repair and recoverably delete Claude Code profiles, declare which plan an account is on, and manage their stored tokens; deletion archives the profile through saferm and prints the handle that restores it."
+description = "Create, inspect, rename, repair and recoverably delete Claude Code profiles, declare which plan an account is on, manage their stored tokens, and run commands in a profile's environment; deletion archives the profile through saferm and prints the handle that restores it."
 generated = true
 nav_group = "CLI Reference"
 nav_order = 13
@@ -9,7 +9,7 @@ nav_order = 13
 
 # claudewheel profile
 
-create, inspect, rename, delete, and manage Claude Code profiles and their stored tokens
+create, inspect, rename, delete, and manage Claude Code profiles and their stored tokens, and run commands in a profile's environment
 
 ## profile create
 
@@ -25,7 +25,7 @@ run the create-profile wizard in one continuous alt-screen session: prompt for t
 
 ## profile delete
 
-remove a registered profile: hand its directory to saferm, which archives it (the stored token among it) and then removes it, unlink its shared-store symlinks, drop its options.json registration, and clear any last_config reference in state.json. Prints the archive handle that restores it. Refuses a profile holding a live interactive Claude Code session unless --force-delete (background jobs and daemons do not block it), and takes conversation history only with --force-delete-data. saferm must be installed: without it the deletion would be irreversible, so it is refused rather than performed
+remove a registered profile: hand its directory to saferm, which archives it (the stored token among it) and then removes it, unlink its shared-store symlinks, drop its options.json registration, and clear any last_config reference in state.json. Prints the archive handle that restores it. At a terminal (outside --dry-run) the deletion checklist first lists every process holding the profile and stops the ones ticked (the daemon and its workers come ticked), and a missing saferm is offered for install. Refuses a profile still holding a live interactive Claude Code session unless --force-delete (background jobs and daemons do not block it), and takes conversation history only with --force-delete-data. saferm must be installed: without it the deletion would be irreversible, so it is refused rather than performed
 
 **Effect:** mutating · **consequential** (prompts before running; `--approve-consequential` skips)
 
@@ -33,7 +33,7 @@ remove a registered profile: hand its directory to saferm, which archives it (th
 
 | Name | Short | Type | Presence | Env | Description |
 | --- | --- | --- | --- | --- | --- |
-| `--force-delete`, `--no-force-delete` |  | bool | required |  | delete anyway when the profile holds a live interactive Claude Code session (background jobs and daemons never block deletion) |
+| `--force-delete`, `--no-force-delete` |  | bool | required |  | delete anyway when the profile holds a live interactive Claude Code session (at a terminal: one still running after the deletion checklist); background jobs and daemons never block deletion |
 | `--force-delete-data`, `--no-force-delete-data` |  | bool | required |  | delete even when shared-dir names hold REAL data instead of symlinks; this DESTROYS that data (e.g. conversation history) |
 
 ### Arguments
@@ -62,7 +62,7 @@ print a detailed report for one profile: whether its directory exists on disk, w
 
 ## profile rename
 
-move a profile to a new name, taking its directory (with the token stored inside it), its options.json registration and its session data with it. Validates that the old name exists, that the new one is free in both the directory tree and the options file, and that it fits the lowercase-letters-digits-hyphens charset. Refuses a profile holding a live interactive Claude Code session, and the reserved name default
+move a profile to a new name, taking its directory (with the token stored inside it), its options.json registration and its session data with it. Validates that the old name exists, that the new one is free in both the directory tree and the options file, and that it fits the lowercase-letters-digits-hyphens charset. Refuses a profile holding a live interactive Claude Code session, and the reserved name default. A rename interrupted part way leaves a breadcrumb every other command refuses to work past; running the same rename again finishes it
 
 **Effect:** mutating
 
@@ -100,6 +100,26 @@ declare which plan a profile's Claude account is on, without a prompt. Claude Co
 
 ## profile check-tokens
 
-read every discovered profile's own stored OAuth token and validate each one against the Anthropic API, then print a table of profile name, status and a truncated token preview. The status distinguishes a valid token from an invalid one, an unreachable API and an indeterminate answer, and profiles holding no token are listed too
+read every discovered profile's own stored OAuth token and validate each one against the Anthropic API, then print a table of profile name, status and a truncated token preview. The status distinguishes a valid token from an invalid one, an unreachable API and an indeterminate answer, and profiles holding no token are listed too. Exits 1 when any stored token is not valid
 
 **Effect:** read_only
+
+## profile exec
+
+run a command in a profile's launch environment by replacing this process with it (exec: pipes, the process id, and signals pass straight through), for programs that start Claude Code themselves. The environment is the one a launch of the profile gets: CLAUDE_CONFIG_DIR, the profile's stored OAuth token, its declared plan tier, and the switches a launch sets; a variable of that set the profile does not set is removed, and for default every one of them is removed. An unknown profile is refused, listing the profiles. Prints nothing on success. The command follows a bare --, e.g. claudewheel profile exec --name work -- claude -p hello
+
+**Effect:** mutating
+
+**Dry run:** not supported — it replaces this process with the command it is given, so nothing would be left to show what the command did
+
+### Flags
+
+| Name | Short | Type | Presence | Env | Description |
+| --- | --- | --- | --- | --- | --- |
+| `--name` |  | str | required |  | the profile whose launch environment the command runs in (default is Claude Code's own ~/.claude) |
+
+### Arguments
+
+| Name | Type | Presence | Description |
+| --- | --- | --- | --- |
+| `argv` | list[str] (variadic) | required | the command to run and its arguments, after a bare -- so its own flags are not read as this command's |

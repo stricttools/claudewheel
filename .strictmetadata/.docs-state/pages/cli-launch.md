@@ -1,6 +1,6 @@
 +++
 title = "claudewheel launch"
-description = "Start the TUI launcher or preset segments via flags; supports session resume by session id or title, and print mode."
+description = "Start a Claude Code session from the launch bar, or skip the bar when -s presets every required segment; resume by session id or title, open Claude Code's session picker, or run one prompt in print mode."
 generated = true
 nav_group = "CLI Reference"
 nav_order = 6
@@ -9,7 +9,7 @@ nav_order = 6
 
 # claudewheel launch
 
-start the interactive TUI launcher to select a profile, model, and directory
+start a Claude Code session: the launch bar picks the profile, version, model, directory, and the rest, unless -s presets every required segment or --print-prompt runs one prompt; then the health check, the pre-launch hooks in ~/.claudewheel/hooks, and the preflight steps run, and the client starts in the session's systemd units. A bare claudewheel runs it. Arguments after -- go to the client
 
 **Effect:** mutating
 
@@ -21,24 +21,16 @@ start the interactive TUI launcher to select a profile, model, and directory
 | &nbsp;&nbsp;&nbsp;&nbsp;`--cont` |  |  | required |  | Elects `session` = `cont`. continue the most recent conversation in the current directory |
 | &nbsp;&nbsp;&nbsp;&nbsp;`--resume` |  | str | required |  | Elects `session` = `resume`. resume one specific session Its value: session to resume, by its session id (a lowercase UUID) or by title; an empty string opens Claude Code's own picker |
 | &nbsp;&nbsp;&nbsp;&nbsp;`--print-prompt` |  | str | required |  | Elects `session` = `print-prompt`. run one prompt in non-interactive print mode and exit Its value: the prompt to run non-interactively |
-| &nbsp;&nbsp;&nbsp;&nbsp;`--picker` |  |  | required |  | Elects `session` = `picker`. browse this profile's sessions and pick one to resume |
+| &nbsp;&nbsp;&nbsp;&nbsp;`--picker` |  |  | required |  | Elects `session` = `picker`. pick the session to resume from Claude Code's session picker |
 | &nbsp;&nbsp;&nbsp;&nbsp;`--new-session` |  |  | required |  | Elects `session` = `new-session`. start a new session (what a bare launch does) |
-| `--profile` |  | str | optional |  | preset the Profile segment to this value, skipping TUI selection for it |
-| `--github` |  | str | optional |  | preset the GitHub account segment to this value, skipping TUI selection for it |
-| `--model` |  | str | optional |  | preset the Model segment to this value (e.g. opus, sonnet), skipping TUI selection |
-| `--directory` |  | str | optional |  | preset the Directory segment to this path, skipping TUI selection for it |
-| `--mcp` |  | str | optional |  | preset the MCP mode segment to this value, skipping TUI selection for it |
-| `--permissions` |  | str | optional |  | preset the Permissions segment to this value, skipping TUI selection for it |
-| `--set` | `-s` | list[str] | default: `[]` |  | set any segment value as KEY=VALUE (e.g. -s version=2.1.119); repeatable |
-| `--client` |  | str | optional |  | launch target client (one of: claude, miniclaude). When omitted, the interactive launcher prompts with a Client step (cursor on config default_client, else claude) and non-interactive launches use default_client. Passing it explicitly skips that step. 'miniclaude' launches the miniclaude REPL instead; version and strict-MCP selections, config default_flags, and the disallowedTools list are claude-client-only |
-
-Flag sets:
-
-- `segments` -- `--profile`, `--github`, `--model`, `--directory`, `--mcp`, `--permissions`, `--set`
-- `client` -- `--client`
+| `--set` | `-s` | list[str] | default: `[]` |  | preset a segment as KEY=VALUE (e.g. -s version=2.1.119, -s profile=work); repeatable, one per segment. A value a fixed-choice segment does not offer, once its discovery has run, is refused, naming the values it offers; a freeform segment such as directory takes any value. permissions=plan is never offered, because accepting a plan wipes the session's history |
+| `--client` |  | str | optional |  | the client to launch; when omitted, the launch bar asks (focused on config.json's default_client), and a launch that skips the bar uses default_client. Given, it skips that question Values: `claude` (the official Claude Code CLI, the version selected on the bar or the claude link), `miniclaude` (the miniclaude REPL (clients.miniclaude.binary in config.json, else miniclaude on PATH); the version segment, strict MCP, config.json default_flags, and the disallowed tools do not apply to it). |
 
 ## Grants
 
 | Kind | Name | Reason |
 | --- | --- | --- |
 | proc_mutate | `exec-client` | the launcher replaces this process with the selected client binary |
+| proc_mutate | `auth-login` | the launch bar offers an interactive Claude Code login for a profile that is not authenticated, and for a profile it creates |
+| net_mutate | `download` | the launch bar installs a Claude Code version it is asked for, an executable fetched from the Claude Code release bucket |
+| proc_mutate | `archive-delegation` | the launch bar deletes a profile by handing its whole directory, its stored OAuth token included, to saferm, which archives it and then removes it |

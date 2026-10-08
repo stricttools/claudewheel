@@ -1,6 +1,6 @@
 +++
 title = "claudewheel patch-profiles"
-description = "Reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model, pruning all drift; deploys missing hook scripts."
+description = "Reconcile one managed profile (--profile) or every managed profile and shared-settings.json (--all-profiles) to EXACTLY the canonical guardrail model, pruning all drift; deploys missing hook scripts."
 generated = true
 nav_group = "CLI Reference"
 nav_order = 10
@@ -9,6 +9,14 @@ nav_order = 10
 
 # claudewheel patch-profiles
 
-reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask, canonical settings keys); prunes drift and user-added extras -- the old additive, extras-preserving behavior is gone. Deploys any missing guardrail hook scripts. The 'default' profile (~/.claude) is never touched. Preview with --dry-run; writing needs a terminal or --approve-consequential.
+reconcile one managed profile (--profile) or every managed profile and shared-settings.json (--all-profiles) to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask and the canonical settings keys made exact; allow keeps only its non-conflicting entries); prunes drift and user-added extras. Only --all-profiles touches shared-settings.json. Deploys any missing guardrail hook scripts. The 'default' profile (~/.claude) is never touched and cannot be named. Preview the per-target diff with --dry-run; writing needs a terminal to confirm at, or --approve-consequential
 
 **Effect:** mutating · **consequential** (prompts before running; `--approve-consequential` skips)
+
+## Flags
+
+| Name | Short | Type | Presence | Env | Description |
+| --- | --- | --- | --- | --- | --- |
+| `target` |  | choice | required |  | Selection (not typed as a flag). Elect exactly one of `--profile`, `--all-profiles`. which profiles the operation applies to |
+| &nbsp;&nbsp;&nbsp;&nbsp;`--profile` |  | str | required |  | Elects `target` = `profile`. target one profile, by name Its value: name of the profile to target (e.g. work, personal, research) |
+| &nbsp;&nbsp;&nbsp;&nbsp;`--all-profiles` |  |  | required |  | Elects `target` = `all-profiles`. reconcile every managed profile and shared-settings.json |

@@ -9,7 +9,7 @@ nav_order = 14
 
 # claudewheel purge-plugins
 
-remove the Claude Code plugin tree from the selected profiles: the official-marketplace clone and every plugin installed from it, six to ten megabytes per profile. Opt-in and separate from the canonical reconciliation, which is exact and would otherwise delete plugin state on every run. Names the marketplaces and plugins it finds before removing them; --dry-run reports the inventory without touching anything. New launches do not collect a new tree -- the launch environment suppresses the auto-install, one-way per profile. The 'default' profile (~/.claude) is never touched.
+remove the Claude Code plugin tree from the selected profiles: the official-marketplace clone and every plugin installed from it, six to ten megabytes per profile. Opt-in and separate from the canonical reconciliation, which is exact and would otherwise delete plugin state on every run. Names the marketplaces and plugins it finds before removing them; --dry-run reports the inventory without touching anything. New launches do not collect a new tree -- the launch environment suppresses the auto-install, one-way per profile. The 'default' profile (~/.claude) is never touched
 
 **Effect:** mutating
 

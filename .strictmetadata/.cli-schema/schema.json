@@ -52,6 +52,7 @@
       "flags": [],
       "flag_sets": [],
       "args": [],
+      "args_after_separator": null,
       "tags": [],
       "constraints": [],
       "hidden": false,
@@ -81,21 +82,11 @@
       "connections": []
     }
   },
-  "project_id": "claudewheel",
+  "project_id": "github.com/stricttools/claudewheel",
   "name": "claudewheel",
   "version": "0.33.0",
   "help": "A TUI Claude Code Launcher that lets you have more than one profile, manage sessions lifecycle, pick the exact CC version, model to use (even older unlisted ones), pick which GitHub account to use, etc.",
   "commands": {
-    "health": {
-      "name": "health",
-      "help": "run diagnostic health checks on profiles, tokens, and hooks, then exit",
-      "effect": "read_only"
-    },
-    "config": {
-      "name": "config",
-      "help": "open the ~/.claudewheel/ config directory in your $EDITOR",
-      "effect": "mutating"
-    },
     "versions": {
       "name": "versions",
       "help": "list all installed Claude Code versions, marking the current symlink target",
@@ -138,20 +129,63 @@
         }
       ]
     },
-    "reset-options": {
-      "name": "reset-options",
-      "help": "delete options.json so it regenerates from defaults",
-      "effect": "mutating"
-    },
     "show": {
       "name": "show",
       "help": "print a summary of current segment selections, theme, and recent directories",
       "effect": "read_only"
     },
+    "config": {
+      "name": "config",
+      "help": "open the ~/.claudewheel/ config directory in the editor $EDITOR names; refuses when $EDITOR is unset",
+      "effect": "mutating"
+    },
+    "reset-options": {
+      "name": "reset-options",
+      "help": "replace options.json with the default options a first run writes, dropping every value added to it since",
+      "effect": "mutating"
+    },
+    "stats": {
+      "name": "stats",
+      "help": "report the shared store's file count and size, by top-level entry",
+      "effect": "read_only"
+    },
+    "upgrade-workspace": {
+      "name": "upgrade-workspace",
+      "help": "convert a workspace an older claudewheel wrote: remove the retired keys (_schema_version from config.json, scratchpad_snooze_until from state.json, and a vanilla_guardrails_opt_in that is not a boolean) and add the keys the defaults declare that a file lacks, never changing a value already present. Commands refuse a workspace that needs converting and name this command. Every file is checked to convert before any is written; preview the changes with --dry-run",
+      "effect": "mutating"
+    },
     "migrate": {
       "name": "migrate",
-      "help": "move session data files from one profile to another, optionally filtered by UUID",
+      "help": "move session data files from one profile to another: one session (--session) or every session (--all-sessions). Every destination is checked before anything moves: a file or folder already there in the destination profile refuses the whole migration, listing every collision, and nothing is moved",
       "effect": "mutating",
+      "flags": [
+        {
+          "name": "sessions",
+          "help": "which sessions move",
+          "presence": "required",
+          "choices": [
+            {
+              "name": "session",
+              "help": "move one session, by its id",
+              "flags": [
+                {
+                  "name": "value",
+                  "help": "the session's id: a full lowercase UUID, as Claude Code records it; a prefix or any other spelling is refused",
+                  "value_schema": {
+                    "type": "string"
+                  },
+                  "presence": "required"
+                }
+              ]
+            },
+            {
+              "name": "all-sessions",
+              "help": "move every session the source profile holds"
+            }
+          ],
+          "elect_by": "member-flags"
+        }
+      ],
       "args": [
         {
           "name": "src",
@@ -168,21 +202,8 @@
             "type": "string"
           },
           "presence": "required"
-        },
-        {
-          "name": "uuid",
-          "help": "UUID substring to migrate only matching sessions; when omitted, every session moves",
-          "value_schema": {
-            "type": "string"
-          },
-          "presence": "optional"
         }
       ]
-    },
-    "stats": {
-      "name": "stats",
-      "help": "report shared-store stats and clean up legacy data",
-      "effect": "mutating"
     },
     "mv": {
       "name": "mv",
@@ -243,12 +264,12 @@
     },
     "import": {
       "name": "import",
-      "help": "import session data from an external Claude Code directory",
+      "help": "import session data from an external Claude Code directory. The source is checked before anything is copied: a symlink the import would read whose target does not exist (a transcript, a session's folder or anything in it, its todos, session-env, file-history, or tasks entries, a paste-cache file) refuses the whole import, listing every broken link, and nothing is copied",
       "effect": "mutating",
       "flags": [
         {
           "name": "reid",
-          "help": "assign new UUIDs to sessions that collide with existing local sessions; when omitted, a collision is reported instead",
+          "help": "assign new UUIDs to sessions that collide with existing local sessions; when omitted, a collision is reported and nothing is imported",
           "value_schema": {
             "type": "boolean"
           },
@@ -320,7 +341,7 @@
     },
     "deploy-hooks": {
       "name": "deploy-hooks",
-      "help": "deploy built-in hook scripts, the heavy wrapper, and claudewheel-tool-scope (the shell prefix every launched session runs its commands through; a launch deploys it when it is missing) to the ~/.claudewheel/scripts/ directory, linking heavy into ~/.local/bin so it is on PATH, and install the probe runner's user service (claudewheel-probe-runner.service, in ~/.config/systemd/user), enabled and started; systemctl --user stop claudewheel-probe-runner.service stops it gracefully",
+      "help": "deploy built-in hook scripts, the heavy wrapper, and claudewheel-tool-scope (the shell prefix every launched session runs its commands through; a launch deploys it when it is missing) to the ~/.claudewheel/scripts/ directory, linking heavy into ~/.local/bin so it is on PATH, and install the probe runner's user service (claudewheel-probe-runner.service, in ~/.config/systemd/user, running this claudewheel binary), enabled and started; systemctl --user stop claudewheel-probe-runner.service stops it gracefully",
       "effect": "mutating",
       "flags": [
         {
@@ -371,31 +392,48 @@
         }
       ]
     },
+    "health": {
+      "name": "health",
+      "help": "run diagnostic health checks on profiles, tokens, and hooks, print one line per check, and exit 1 when any check is not OK",
+      "effect": "read_only"
+    },
     "patch-profiles": {
       "name": "patch-profiles",
-      "help": "reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask, canonical settings keys); prunes drift and user-added extras -- the old additive, extras-preserving behavior is gone. Deploys any missing guardrail hook scripts. The 'default' profile (~/.claude) is never touched. Preview with --dry-run; writing needs a terminal or --approve-consequential.",
-      "effect": "mutating",
-      "consequential": true
-    },
-    "reconcile-permissions": {
-      "name": "reconcile-permissions",
-      "help": "reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask and the canonical settings keys made exact; allow keeps only its non-conflicting entries); prunes all drift and user-added extras. The 'default' profile (~/.claude) is never touched. Pass --dry-run to preview the per-target diff without writing; writing needs a terminal to confirm at, or --approve-consequential.",
+      "help": "reconcile one managed profile (--profile) or every managed profile and shared-settings.json (--all-profiles) to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask and the canonical settings keys made exact; allow keeps only its non-conflicting entries); prunes drift and user-added extras. Only --all-profiles touches shared-settings.json. Deploys any missing guardrail hook scripts. The 'default' profile (~/.claude) is never touched and cannot be named. Preview the per-target diff with --dry-run; writing needs a terminal to confirm at, or --approve-consequential",
       "effect": "mutating",
       "consequential": true,
       "flags": [
         {
-          "name": "profile",
-          "help": "reconcile only this single profile; when given, shared-settings.json is left untouched (omit to reconcile every profile AND shared-settings.json)",
-          "value_schema": {
-            "type": "string"
-          },
-          "presence": "optional"
+          "name": "target",
+          "help": "which profiles the operation applies to",
+          "presence": "required",
+          "choices": [
+            {
+              "name": "profile",
+              "help": "target one profile, by name",
+              "flags": [
+                {
+                  "name": "value",
+                  "help": "name of the profile to target (e.g. work, personal, research)",
+                  "value_schema": {
+                    "type": "string"
+                  },
+                  "presence": "required"
+                }
+              ]
+            },
+            {
+              "name": "all-profiles",
+              "help": "reconcile every managed profile and shared-settings.json"
+            }
+          ],
+          "elect_by": "member-flags"
         }
       ]
     },
     "purge-plugins": {
       "name": "purge-plugins",
-      "help": "remove the Claude Code plugin tree from the selected profiles: the official-marketplace clone and every plugin installed from it, six to ten megabytes per profile. Opt-in and separate from the canonical reconciliation, which is exact and would otherwise delete plugin state on every run. Names the marketplaces and plugins it finds before removing them; --dry-run reports the inventory without touching anything. New launches do not collect a new tree -- the launch environment suppresses the auto-install, one-way per profile. The 'default' profile (~/.claude) is never touched.",
+      "help": "remove the Claude Code plugin tree from the selected profiles: the official-marketplace clone and every plugin installed from it, six to ten megabytes per profile. Opt-in and separate from the canonical reconciliation, which is exact and would otherwise delete plugin state on every run. Names the marketplaces and plugins it finds before removing them; --dry-run reports the inventory without touching anything. New launches do not collect a new tree -- the launch environment suppresses the auto-install, one-way per profile. The 'default' profile (~/.claude) is never touched",
       "effect": "mutating",
       "flags": [
         {
@@ -428,7 +466,7 @@
     },
     "launch": {
       "name": "launch",
-      "help": "start the interactive TUI launcher to select a profile, model, and directory",
+      "help": "start a Claude Code session: the launch bar picks the profile, version, model, directory, and the rest, unless -s presets every required segment or --print-prompt runs one prompt; then the health check, the pre-launch hooks in ~/.claudewheel/hooks, and the preflight steps run, and the client starts in the session's systemd units. A bare claudewheel runs it. Arguments after -- go to the client",
       "effect": "mutating",
       "flags": [
         {
@@ -475,7 +513,7 @@
             },
             {
               "name": "picker",
-              "help": "browse this profile's sessions and pick one to resume"
+              "help": "pick the session to resume from Claude Code's session picker"
             },
             {
               "name": "new-session",
@@ -485,56 +523,8 @@
           "elect_by": "member-flags"
         },
         {
-          "name": "profile",
-          "help": "preset the Profile segment to this value, skipping TUI selection for it",
-          "value_schema": {
-            "type": "string"
-          },
-          "presence": "optional"
-        },
-        {
-          "name": "github",
-          "help": "preset the GitHub account segment to this value, skipping TUI selection for it",
-          "value_schema": {
-            "type": "string"
-          },
-          "presence": "optional"
-        },
-        {
-          "name": "model",
-          "help": "preset the Model segment to this value (e.g. opus, sonnet), skipping TUI selection",
-          "value_schema": {
-            "type": "string"
-          },
-          "presence": "optional"
-        },
-        {
-          "name": "directory",
-          "help": "preset the Directory segment to this path, skipping TUI selection for it",
-          "value_schema": {
-            "type": "string"
-          },
-          "presence": "optional"
-        },
-        {
-          "name": "mcp",
-          "help": "preset the MCP mode segment to this value, skipping TUI selection for it",
-          "value_schema": {
-            "type": "string"
-          },
-          "presence": "optional"
-        },
-        {
-          "name": "permissions",
-          "help": "preset the Permissions segment to this value, skipping TUI selection for it",
-          "value_schema": {
-            "type": "string"
-          },
-          "presence": "optional"
-        },
-        {
           "name": "set",
-          "help": "set any segment value as KEY=VALUE (e.g. -s version=2.1.119); repeatable",
+          "help": "preset a segment as KEY=VALUE (e.g. -s version=2.1.119, -s profile=work); repeatable, one per segment. A value a fixed-choice segment does not offer, once its discovery has run, is refused, naming the values it offers; a freeform segment such as directory takes any value. permissions=plan is never offered, because accepting a plan wipes the session's history",
           "value_schema": {
             "type": "array",
             "items": {
@@ -547,46 +537,207 @@
         },
         {
           "name": "client",
-          "help": "launch target client (one of: claude, miniclaude). When omitted, the interactive launcher prompts with a Client step (cursor on config default_client, else claude) and non-interactive launches use default_client. Passing it explicitly skips that step. 'miniclaude' launches the miniclaude REPL instead; version and strict-MCP selections, config default_flags, and the disallowedTools list are claude-client-only",
+          "help": "the client to launch; when omitted, the launch bar asks (focused on config.json's default_client), and a launch that skips the bar uses default_client. Given, it skips that question",
           "value_schema": {
-            "type": "string"
+            "type": "string",
+            "enum": [
+              "claude",
+              "miniclaude"
+            ]
           },
-          "presence": "optional"
-        }
-      ],
-      "flag_sets": [
-        {
-          "name": "segments",
-          "flags": [
-            "profile",
-            "github",
-            "model",
-            "directory",
-            "mcp",
-            "permissions",
-            "set"
-          ]
-        },
-        {
-          "name": "client",
-          "flags": [
-            "client"
+          "presence": "optional",
+          "choices": [
+            {
+              "value": "claude",
+              "help": "the official Claude Code CLI, the version selected on the bar or the claude link"
+            },
+            {
+              "value": "miniclaude",
+              "help": "the miniclaude REPL (clients.miniclaude.binary in config.json, else miniclaude on PATH); the version segment, strict MCP, config.json default_flags, and the disallowed tools do not apply to it"
+            }
           ]
         }
       ],
+      "args_after_separator": {
+        "name": "client-args",
+        "help": "arguments for the client, given after --, passed to it as they are (the miniclaude client takes none)"
+      },
       "grants": [
         {
           "name": "exec-client",
           "reason": "the launcher replaces this process with the selected client binary",
+          "kind": "proc_mutate"
+        },
+        {
+          "name": "auth-login",
+          "reason": "the launch bar offers an interactive Claude Code login for a profile that is not authenticated, and for a profile it creates",
+          "kind": "proc_mutate"
+        },
+        {
+          "name": "download",
+          "reason": "the launch bar installs a Claude Code version it is asked for, an executable fetched from the Claude Code release bucket",
+          "kind": "net_mutate"
+        },
+        {
+          "name": "archive-delegation",
+          "reason": "the launch bar deletes a profile by handing its whole directory, its stored OAuth token included, to saferm, which archives it and then removes it",
           "kind": "proc_mutate"
         }
       ]
     }
   },
   "groups": {
+    "probe": {
+      "name": "probe",
+      "help": "watch Claude Code sessions for OOM kills and report them to the sessions subscribed: create, list, stop, subscribe, and unsubscribe probes, and run the probe runner. Every session is told of its own commands' OOM kills without a probe",
+      "commands": {
+        "create": {
+          "name": "create",
+          "help": "create a probe of one kind (oom-kill: a unit's process killed by the kernel's OOM killer, as systemd reports it) watching one session (--session) or every session (--all-sessions), until its --deadline or an earlier stop (--count, --until-watched-ends, --until-file, or probe stop), and subscribe the session this runs in to it. A probe runs no command: an arbitrary command is refused. Run it from a Bash tool call of a claudewheel session, whose cgroup names the session; the reports go to the conversation that made the call, the main one or a subagent, once the hook that reads the call's payload binds the subscription to it",
+          "effect": "mutating",
+          "flags": [
+            {
+              "name": "watch",
+              "help": "which sessions the probe watches",
+              "presence": "required",
+              "choices": [
+                {
+                  "name": "session",
+                  "help": "watch one Claude Code session, by its uuid",
+                  "flags": [
+                    {
+                      "name": "value",
+                      "help": "the uuid of the session to watch, as the lifecycle store records it",
+                      "value_schema": {
+                        "type": "string"
+                      },
+                      "presence": "required"
+                    }
+                  ]
+                },
+                {
+                  "name": "all-sessions",
+                  "help": "watch every Claude Code session on this machine"
+                }
+              ],
+              "elect_by": "member-flags"
+            },
+            {
+              "name": "deadline",
+              "help": "how long the probe lives at the latest, from now: a whole number with an s, m, h, or d suffix (90s, 30m, 2h, 7d). Every probe states one",
+              "value_schema": {
+                "type": "string"
+              },
+              "presence": "required"
+            },
+            {
+              "name": "count",
+              "help": "end the probe once it has seen this many kills; when omitted, the count never ends it",
+              "value_schema": {
+                "type": "integer"
+              },
+              "presence": "optional"
+            },
+            {
+              "name": "until-watched-ends",
+              "help": "end the probe when the watched session ends (needs --session); when omitted, the session ending does not end it",
+              "value_schema": {
+                "type": "boolean"
+              },
+              "presence": "optional",
+              "negatable": true
+            },
+            {
+              "name": "until-file",
+              "help": "end the probe once this absolute path exists; when omitted, no file ends it",
+              "value_schema": {
+                "type": "string"
+              },
+              "presence": "optional"
+            }
+          ],
+          "args": [
+            {
+              "name": "probe-type",
+              "help": "what the probe watches for",
+              "value_schema": {
+                "type": "string",
+                "enum": [
+                  "oom-kill"
+                ]
+              },
+              "presence": "required",
+              "choices": [
+                {
+                  "value": "oom-kill",
+                  "help": "a process in a systemd user unit killed by the kernel's OOM killer (systemd's result term)"
+                }
+              ]
+            }
+          ]
+        },
+        "list": {
+          "name": "list",
+          "help": "list every probe with its stops and subscriptions, every report not yet confirmed delivered (with why), every expired report, and every OOM kill no session or subscription took; runs anywhere",
+          "effect": "read_only"
+        },
+        "stop": {
+          "name": "stop",
+          "help": "end a live probe the session this runs in created; its undelivered reports to sessions that have ended are expired",
+          "effect": "mutating",
+          "args": [
+            {
+              "name": "probe_id",
+              "help": "the probe's id, as probe create and probe list print it",
+              "value_schema": {
+                "type": "string"
+              },
+              "presence": "required"
+            }
+          ]
+        },
+        "subscribe": {
+          "name": "subscribe",
+          "help": "subscribe the session this runs in to a live probe; the reports go to the conversation that made the call, once the hook that reads the call's payload binds the subscription to it",
+          "effect": "mutating",
+          "args": [
+            {
+              "name": "probe_id",
+              "help": "the probe's id, as probe create and probe list print it",
+              "value_schema": {
+                "type": "string"
+              },
+              "presence": "required"
+            }
+          ]
+        },
+        "unsubscribe": {
+          "name": "unsubscribe",
+          "help": "remove one of the subscriptions of the session this runs in; the probe reports nothing more to it",
+          "effect": "mutating",
+          "args": [
+            {
+              "name": "subscription",
+              "help": "the subscription's id, as probe create, probe subscribe, and probe list print it",
+              "value_schema": {
+                "type": "string"
+              },
+              "presence": "required"
+            }
+          ]
+        },
+        "run-service": {
+          "name": "run-service",
+          "help": "run the probe runner, the process claudewheel-probe-runner.service starts: follow the user journal for OOM kills, report each to the sessions it concerns, and keep the probe store moving, until SIGTERM or SIGINT. systemctl --user stop claudewheel-probe-runner.service stops it gracefully; deploy-hooks claudewheel-probe-runner.service installs the service",
+          "effect": "mutating",
+          "dry_run_supported": false,
+          "dry_run_unsupported_reason": "the probe runner is a long-running service that follows the journal and acts on every entry; there is nothing to preview"
+        }
+      }
+    },
     "profile": {
       "name": "profile",
-      "help": "create, inspect, rename, delete, and manage Claude Code profiles and their stored tokens",
+      "help": "create, inspect, rename, delete, and manage Claude Code profiles and their stored tokens, and run commands in a profile's environment",
       "commands": {
         "create": {
           "name": "create",
@@ -602,13 +753,13 @@
         },
         "delete": {
           "name": "delete",
-          "help": "remove a registered profile: hand its directory to saferm, which archives it (the stored token among it) and then removes it, unlink its shared-store symlinks, drop its options.json registration, and clear any last_config reference in state.json. Prints the archive handle that restores it. Refuses a profile holding a live interactive Claude Code session unless --force-delete (background jobs and daemons do not block it), and takes conversation history only with --force-delete-data. saferm must be installed: without it the deletion would be irreversible, so it is refused rather than performed",
+          "help": "remove a registered profile: hand its directory to saferm, which archives it (the stored token among it) and then removes it, unlink its shared-store symlinks, drop its options.json registration, and clear any last_config reference in state.json. Prints the archive handle that restores it. At a terminal (outside --dry-run) the deletion checklist first lists every process holding the profile and stops the ones ticked (the daemon and its workers come ticked), and a missing saferm is offered for install. Refuses a profile still holding a live interactive Claude Code session unless --force-delete (background jobs and daemons do not block it), and takes conversation history only with --force-delete-data. saferm must be installed: without it the deletion would be irreversible, so it is refused rather than performed",
           "effect": "mutating",
           "consequential": true,
           "flags": [
             {
               "name": "force-delete",
-              "help": "delete anyway when the profile holds a live interactive Claude Code session (background jobs and daemons never block deletion)",
+              "help": "delete anyway when the profile holds a live interactive Claude Code session (at a terminal: one still running after the deletion checklist); background jobs and daemons never block deletion",
               "value_schema": {
                 "type": "boolean"
               },
@@ -660,7 +811,7 @@
         },
         "rename": {
           "name": "rename",
-          "help": "move a profile to a new name, taking its directory (with the token stored inside it), its options.json registration and its session data with it. Validates that the old name exists, that the new one is free in both the directory tree and the options file, and that it fits the lowercase-letters-digits-hyphens charset. Refuses a profile holding a live interactive Claude Code session, and the reserved name default",
+          "help": "move a profile to a new name, taking its directory (with the token stored inside it), its options.json registration and its session data with it. Validates that the old name exists, that the new one is free in both the directory tree and the options file, and that it fits the lowercase-letters-digits-hyphens charset. Refuses a profile holding a live interactive Claude Code session, and the reserved name default. A rename interrupted part way leaves a breadcrumb every other command refuses to work past; running the same rename again finishes it",
           "effect": "mutating",
           "args": [
             {
@@ -750,18 +901,49 @@
         },
         "check-tokens": {
           "name": "check-tokens",
-          "help": "read every discovered profile's own stored OAuth token and validate each one against the Anthropic API, then print a table of profile name, status and a truncated token preview. The status distinguishes a valid token from an invalid one, an unreachable API and an indeterminate answer, and profiles holding no token are listed too",
+          "help": "read every discovered profile's own stored OAuth token and validate each one against the Anthropic API, then print a table of profile name, status and a truncated token preview. The status distinguishes a valid token from an invalid one, an unreachable API and an indeterminate answer, and profiles holding no token are listed too. Exits 1 when any stored token is not valid",
           "effect": "read_only"
+        },
+        "exec": {
+          "name": "exec",
+          "help": "run a command in a profile's launch environment by replacing this process with it (exec: pipes, the process id, and signals pass straight through), for programs that start Claude Code themselves. The environment is the one a launch of the profile gets: CLAUDE_CONFIG_DIR, the profile's stored OAuth token, its declared plan tier, and the switches a launch sets; a variable of that set the profile does not set is removed, and for default every one of them is removed. An unknown profile is refused, listing the profiles. Prints nothing on success. The command follows a bare --, e.g. claudewheel profile exec --name work -- claude -p hello",
+          "effect": "mutating",
+          "dry_run_supported": false,
+          "dry_run_unsupported_reason": "it replaces this process with the command it is given, so nothing would be left to show what the command did",
+          "flags": [
+            {
+              "name": "name",
+              "help": "the profile whose launch environment the command runs in (default is Claude Code's own ~/.claude)",
+              "value_schema": {
+                "type": "string"
+              },
+              "presence": "required"
+            }
+          ],
+          "args": [
+            {
+              "name": "argv",
+              "help": "the command to run and its arguments, after a bare -- so its own flags are not read as this command's",
+              "value_schema": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "presence": "required",
+              "variadic": true
+            }
+          ]
         }
       }
     },
     "permission": {
       "name": "permission",
-      "help": "add, remove, and list permission rules across Claude profiles",
+      "help": "add and remove allow rules, and list permission rules, across Claude profiles",
       "commands": {
         "add": {
           "name": "add",
-          "help": "Add a permission rule to a profile's settings.json. Takes a category (allow, deny, or ask) and a rule string such as Bash or Read(//home/**). Writes the rule into the specified category array. Use --profile to target a single profile or --all-profiles to apply the rule across every registered profile. Skips duplicates if the rule already exists in the category.",
+          "help": "add a rule to the allow list of a profile's settings.json, such as Bash or Read(//home/**). Use --profile to target a single profile or --all-profiles to add it to every registered profile. A profile that already allows the rule is left unchanged. Only allow is edited: every launch resets deny and ask to the canonical guardrail lists. A rule the guardrail lists as an allow conflict (one patch-profiles would remove again) is refused",
           "effect": "mutating",
           "flags": [
             {
@@ -785,7 +967,7 @@
                 },
                 {
                   "name": "all-profiles",
-                  "help": "target every registered profile at once"
+                  "help": "add the rule to every registered profile at once"
                 }
               ],
               "elect_by": "member-flags"
@@ -793,16 +975,8 @@
           ],
           "args": [
             {
-              "name": "category",
-              "help": "permission category to add the rule to: allow, deny, or ask",
-              "value_schema": {
-                "type": "string"
-              },
-              "presence": "required"
-            },
-            {
               "name": "rule",
-              "help": "permission rule string to add (e.g. Bash, Read(//home/**), Edit)",
+              "help": "permission rule string to allow (e.g. Bash, Read(//home/**), Edit)",
               "value_schema": {
                 "type": "string"
               },
@@ -812,7 +986,7 @@
         },
         "remove": {
           "name": "remove",
-          "help": "Remove a permission rule from a profile's settings.json. Takes a category (allow, deny, or ask) and the exact rule string to delete. The rule is removed from the specified category array and the file is saved. Use --profile to target a single profile or --all-profiles to remove the rule from every registered profile. Reports whether the rule was found.",
+          "help": "remove a rule from the allow list of a profile's settings.json, by its exact string. Use --profile to target a single profile or --all-profiles to remove it from every registered profile. Reports for each profile whether the rule was found; a profile without it is left unchanged",
           "effect": "mutating",
           "flags": [
             {
@@ -836,7 +1010,7 @@
                 },
                 {
                   "name": "all-profiles",
-                  "help": "target every registered profile at once"
+                  "help": "remove the rule from every registered profile at once"
                 }
               ],
               "elect_by": "member-flags"
@@ -844,16 +1018,8 @@
           ],
           "args": [
             {
-              "name": "category",
-              "help": "permission category to remove the rule from: allow, deny, or ask",
-              "value_schema": {
-                "type": "string"
-              },
-              "presence": "required"
-            },
-            {
               "name": "rule",
-              "help": "exact permission rule string to remove (must match an existing entry)",
+              "help": "exact permission rule string to remove from allow (must match an existing entry)",
               "value_schema": {
                 "type": "string"
               },
@@ -863,58 +1029,84 @@
         },
         "list": {
           "name": "list",
-          "help": "List permission rules from a profile's settings.json. Displays rules in grouped or flat format controlled by --format. Use --category to filter output to a single category (allow, deny, or ask). Use --profile to inspect a single profile or --all-profiles to show rules from every registered profile, with each profile's rules displayed under a header. The framework-owned --json answers a machine instead: one envelope carrying every listed profile, whatever --format the human form would have used.",
+          "help": "list the permission rules of a profile's settings.json in the format --format names. Use --category to list a single category. Use --profile to inspect a single profile or --all-profiles to show the rules of every registered profile, each under a header; a profile without a settings.json is listed with no rules. The framework-owned --json answers a machine instead: one envelope carrying every listed profile, whatever --format the human form would have used",
           "effect": "read_only",
           "payload_schema": {
-            "type": "object",
+            "additionalProperties": false,
             "properties": {
               "profiles": {
-                "type": "array",
                 "items": {
-                  "type": "object",
+                  "additionalProperties": false,
                   "properties": {
                     "name": {
                       "type": "string"
                     },
                     "permissions": {
-                      "type": "object",
+                      "additionalProperties": false,
                       "properties": {
                         "allow": {
-                          "type": "array",
                           "items": {
                             "type": "string"
-                          }
-                        },
-                        "deny": {
-                          "type": "array",
-                          "items": {
-                            "type": "string"
-                          }
+                          },
+                          "type": "array"
                         },
                         "ask": {
-                          "type": "array",
                           "items": {
                             "type": "string"
-                          }
+                          },
+                          "type": "array"
+                        },
+                        "deny": {
+                          "items": {
+                            "type": "string"
+                          },
+                          "type": "array"
                         }
                       },
-                      "additionalProperties": false
+                      "type": "object"
                     }
                   },
                   "required": [
                     "name",
                     "permissions"
                   ],
-                  "additionalProperties": false
-                }
+                  "type": "object"
+                },
+                "type": "array"
               }
             },
             "required": [
               "profiles"
             ],
-            "additionalProperties": false
+            "type": "object"
           },
           "flags": [
+            {
+              "name": "target",
+              "help": "which profiles the operation applies to",
+              "presence": "required",
+              "choices": [
+                {
+                  "name": "profile",
+                  "help": "target one profile, by name",
+                  "flags": [
+                    {
+                      "name": "value",
+                      "help": "name of the profile to target (e.g. work, personal, research)",
+                      "value_schema": {
+                        "type": "string"
+                      },
+                      "presence": "required"
+                    }
+                  ]
+                },
+                {
+                  "name": "all-profiles",
+                  "help": "list the rules of every registered profile"
+                }
+              ],
+              "elect_by": "member-flags"
+            },
             {
               "name": "format",
               "help": "output format: grouped (indented tree) or flat (tsv)",
@@ -939,187 +1131,34 @@
             },
             {
               "name": "category",
-              "help": "restrict output to a single permission category (allow, deny, or ask)",
-              "value_schema": {
-                "type": "string"
-              },
-              "presence": "optional"
-            },
-            {
-              "name": "target",
-              "help": "which profiles the operation applies to",
-              "presence": "required",
-              "choices": [
-                {
-                  "name": "profile",
-                  "help": "target one profile, by name",
-                  "flags": [
-                    {
-                      "name": "value",
-                      "help": "name of the profile to target (e.g. work, personal, research)",
-                      "value_schema": {
-                        "type": "string"
-                      },
-                      "presence": "required"
-                    }
-                  ]
-                },
-                {
-                  "name": "all-profiles",
-                  "help": "target every registered profile at once"
-                }
-              ],
-              "elect_by": "member-flags"
-            }
-          ]
-        }
-      }
-    },
-    "probe": {
-      "name": "probe",
-      "help": "watch Claude Code sessions for OOM kills and report them to the sessions subscribed: create, list, stop, subscribe, and unsubscribe probes. Every session is told of its own commands' OOM kills without a probe",
-      "commands": {
-        "create": {
-          "name": "create",
-          "help": "create a probe of one kind (oom-kill: a unit's process killed by the kernel's OOM killer, as systemd reports it) watching one session (--session) or every session (--all-sessions), until its --deadline or an earlier stop (--count, --until-watched-ends, --until-file, or probe stop), and subscribe the session this runs in to it. A probe runs no command: an arbitrary command is refused. Run it from a Bash tool call of a claudewheel session, whose cgroup names the session; the reports go to the conversation that made the call, the main one or a subagent, once the hook that reads the call's payload binds the subscription to it",
-          "effect": "mutating",
-          "flags": [
-            {
-              "name": "deadline",
-              "help": "how long the probe lives at the latest, from now: a whole number with an s, m, h, or d suffix (90s, 30m, 2h, 7d). Every probe states one",
-              "value_schema": {
-                "type": "string"
-              },
-              "presence": "required"
-            },
-            {
-              "name": "count",
-              "help": "end the probe once it has seen this many kills; when omitted, the count never ends it",
-              "value_schema": {
-                "type": "integer"
-              },
-              "presence": "optional"
-            },
-            {
-              "name": "until-watched-ends",
-              "help": "end the probe when the watched session ends (needs --session); when omitted, the session ending does not end it",
-              "value_schema": {
-                "type": "boolean"
-              },
-              "presence": "optional",
-              "negatable": true
-            },
-            {
-              "name": "until-file",
-              "help": "end the probe once this absolute path exists; when omitted, no file ends it",
-              "value_schema": {
-                "type": "string"
-              },
-              "presence": "optional"
-            },
-            {
-              "name": "watch",
-              "help": "which sessions the probe watches",
-              "presence": "required",
-              "choices": [
-                {
-                  "name": "session",
-                  "help": "watch one Claude Code session, by its uuid",
-                  "flags": [
-                    {
-                      "name": "value",
-                      "help": "the uuid of the session to watch, as the lifecycle store records it",
-                      "value_schema": {
-                        "type": "string"
-                      },
-                      "presence": "required"
-                    }
-                  ]
-                },
-                {
-                  "name": "all-sessions",
-                  "help": "watch every Claude Code session on this machine"
-                }
-              ],
-              "elect_by": "member-flags"
-            }
-          ],
-          "args": [
-            {
-              "name": "kind",
-              "help": "what the probe watches for",
+              "help": "list only this permission category; when omitted, every category is listed",
               "value_schema": {
                 "type": "string",
                 "enum": [
-                  "oom-kill"
+                  "allow",
+                  "deny",
+                  "ask"
                 ]
               },
-              "presence": "required",
+              "presence": "optional",
               "choices": [
                 {
-                  "value": "oom-kill",
-                  "help": "a process in a systemd user unit killed by the kernel's OOM killer (systemd's result term)"
+                  "value": "allow",
+                  "help": "the rules Claude Code follows without asking"
+                },
+                {
+                  "value": "deny",
+                  "help": "the rules Claude Code refuses"
+                },
+                {
+                  "value": "ask",
+                  "help": "the rules Claude Code asks about first"
                 }
               ]
-            }
-          ]
-        },
-        "list": {
-          "name": "list",
-          "help": "list every probe with its stops and subscriptions, every report not yet confirmed delivered (with why), every expired report, and every OOM kill no session or subscription took; runs anywhere",
-          "effect": "read_only"
-        },
-        "stop": {
-          "name": "stop",
-          "help": "end a live probe the session this runs in created; its undelivered reports to sessions that have ended are expired",
-          "effect": "mutating",
-          "args": [
-            {
-              "name": "probe_id",
-              "help": "the probe's id, as probe create and probe list print it",
-              "value_schema": {
-                "type": "string"
-              },
-              "presence": "required"
-            }
-          ]
-        },
-        "subscribe": {
-          "name": "subscribe",
-          "help": "subscribe the session this runs in to a live probe; the reports go to the conversation that made the call, once the hook that reads the call's payload binds the subscription to it",
-          "effect": "mutating",
-          "args": [
-            {
-              "name": "probe_id",
-              "help": "the probe's id, as probe create and probe list print it",
-              "value_schema": {
-                "type": "string"
-              },
-              "presence": "required"
-            }
-          ]
-        },
-        "unsubscribe": {
-          "name": "unsubscribe",
-          "help": "remove one of the subscriptions of the session this runs in; the probe reports nothing more to it",
-          "effect": "mutating",
-          "args": [
-            {
-              "name": "subscription",
-              "help": "the subscription's id, as probe create, probe subscribe, and probe list print it",
-              "value_schema": {
-                "type": "string"
-              },
-              "presence": "required"
             }
           ]
         }
       }
     }
-  },
-  "deprecated": {
-    "delete-profile": "Renamed: use 'claudewheel profile delete <name>' instead.",
-    "new-profile": "Renamed: use 'claudewheel profile create' instead.",
-    "show-profile": "Renamed: use 'claudewheel profile show <name>' instead."
   }
 }

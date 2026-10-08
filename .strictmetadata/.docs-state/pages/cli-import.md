@@ -1,6 +1,6 @@
 +++
 title = "claudewheel import"
-description = "Import Claude Code session data from an external directory into the shared store, remapping recorded project paths and reassigning colliding session UUIDs."
+description = "Import Claude Code session data from an external directory into the shared store, remapping recorded project paths and reassigning colliding session UUIDs; a source holding a broken symlink is refused before anything is copied."
 generated = true
 nav_group = "CLI Reference"
 nav_order = 4
@@ -9,7 +9,7 @@ nav_order = 4
 
 # claudewheel import
 
-import session data from an external Claude Code directory
+import session data from an external Claude Code directory. The source is checked before anything is copied: a symlink the import would read whose target does not exist (a transcript, a session's folder or anything in it, its todos, session-env, file-history, or tasks entries, a paste-cache file) refuses the whole import, listing every broken link, and nothing is copied
 
 **Effect:** mutating
 
@@ -17,7 +17,7 @@ import session data from an external Claude Code directory
 
 | Name | Short | Type | Presence | Env | Description |
 | --- | --- | --- | --- | --- | --- |
-| `--reid`, `--no-reid` |  | bool | optional |  | assign new UUIDs to sessions that collide with existing local sessions; when omitted, a collision is reported instead |
+| `--reid`, `--no-reid` |  | bool | optional |  | assign new UUIDs to sessions that collide with existing local sessions; when omitted, a collision is reported and nothing is imported |
 | `--from` |  | list[str] | default: `[]` |  | original project path as recorded in the source session data (repeatable) |
 | `--to` |  | list[str] | default: `[]` |  | local directory path that corresponds to the --from path on this machine (repeatable) |
 

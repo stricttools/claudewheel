@@ -10,30 +10,24 @@ It is for developers who keep several Claude Code profiles on one machine -- sep
 
 ## Installation
 
-Install from PyPI:
-
 ```bash
-pipx install claudewheel
+go install github.com/stricttools/claudewheel/cmd/claudewheel@v0
 ```
 
-Or with `uv`:
+Each GitHub Release also carries `claudewheel` archives for Linux and macOS (amd64 and arm64).
+
+### Upgrading from the Python package
+
+Versions up to 0.33.0 were a Python package, published to PyPI and npm; those releases stay there, and nothing newer is published to either. To move a workspace the Python wrote to the Go binary, install the Go binary as above, then:
 
 ```bash
-uv tool install claudewheel
+uv tool uninstall claudewheel             # or pipx uninstall claudewheel; npm uninstall -g claudewheel for the old Node shim
+claudewheel upgrade-workspace --dry-run   # preview the conversion
+claudewheel upgrade-workspace             # remove the retired keys, add the missing ones
+claudewheel deploy-hooks claudewheel-probe-runner.service --force-overwrite
 ```
 
-Requires Python 3.14+.
-
-### Upgrading from the Node package
-
-Early versions of claudewheel were distributed as an npm package (`npm install -g claudewheel`). The Node wrapper is deprecated -- it only exists as a thin shim that calls `python3 -m claudewheel`. Install the Python package directly instead:
-
-```bash
-npm uninstall -g claudewheel    # remove the old Node wrapper
-pipx install claudewheel        # install the Python package
-```
-
-If you have the old Node binary at `/opt/homebrew/bin/claudewheel` or a similar npm global path, removing the npm package will clean it up.
+Every other command refuses a workspace that still needs converting and names `upgrade-workspace`. The last line points the probe runner's user service at the Go binary (`claudewheel probe run-service`) and restarts it.
 
 ## Quick start
 
@@ -121,7 +115,7 @@ The viewport activates automatically and deactivates when the terminal is resize
 | `model`       | Model   | Passes the model id as `--model`; an Opus/Sonnet `[1m]` suffix selects 1M-context |
 | `directory`   | Dir     | Working directory to `cd` into before launch                                   |
 | `mcp`         | MCP     | MCP profile mode (`default`, `strict`)                                         |
-| `permissions` | Perms   | Permission mode passed to Claude Code. Offered: `bypass`, `default`. Accepted when pinned in `options.json` or passed with `--set`: `plan`, `auto` |
+| `permissions` | Perms   | Permission mode passed to Claude Code. Offered: `bypass`, `default`, `auto`. `plan` is never offered, pinned, or accepted from `--set`: accepting a plan wipes the session's history |
 
 Profile, GitHub, and Model are *creatable*: their option lists end with a `+` sentinel that prompts for a new value and persists it to `options.json`. Directory is *freeform*: you can type any path. Version pulls a live npm listing merged with the locally installed binaries.
 
@@ -131,52 +125,54 @@ Model discovers itself: claudewheel asks the Anthropic API which models your acc
 
 | Command | Description |
 | --- | --- |
-| `health` | run diagnostic health checks on profiles, tokens, and hooks, then exit |
-| `config` | open the ~/.claudewheel/ config directory in your $EDITOR |
 | `versions` | list all installed Claude Code versions, marking the current symlink target |
 | `install` | download and install a specific Claude Code version |
 | `uninstall` | delete an installed Claude Code version binary from the versions directory |
-| `reset-options` | delete options.json so it regenerates from defaults |
 | `show` | print a summary of current segment selections, theme, and recent directories |
-| `migrate` | move session data files from one profile to another, optionally filtered by UUID |
-| `stats` | report shared-store stats and clean up legacy data |
+| `config` | open the ~/.claudewheel/ config directory in the editor $EDITOR names; refuses when $EDITOR is unset |
+| `reset-options` | replace options.json with the default options a first run writes, dropping every value added to it since |
+| `stats` | report the shared store's file count and size, by top-level entry |
+| `upgrade-workspace` | convert a workspace an older claudewheel wrote: remove the retired keys (_schema_version from config.json, scratchpad_snooze_until from state.json, and a vanilla_guardrails_opt_in that is not a boolean) and add the keys the defaults declare that a file lacks, never changing a value already present. Commands refuse a workspace that needs converting and name this command. Every file is checked to convert before any is written; preview the changes with --dry-run |
+| `migrate` | move session data files from one profile to another: one session (--session) or every session (--all-sessions). Every destination is checked before anything moves: a file or folder already there in the destination profile refuses the whole migration, listing every collision, and nothing is moved |
 | `mv` | rename a project directory and migrate session data |
 | `move-session` | move one Claude Code session, by its id, to another project directory's session store, so Claude Code resumes it from that directory: its transcript and folder move together, the paths in its transcript that point into its own store folder follow it, and Claude Code's relocated record is appended. Refuses a session that is running or starting, one a background job or another session's symlink refers to, and one that more than one store dir holds. An interrupted move is finished by running the same command again |
-| `import` | import session data from an external Claude Code directory |
-| `deploy-hooks` | deploy built-in hook scripts, the heavy wrapper, and claudewheel-tool-scope (the shell prefix every launched session runs its commands through; a launch deploys it when it is missing) to the ~/.claudewheel/scripts/ directory, linking heavy into ~/.local/bin so it is on PATH, and install the probe runner's user service (claudewheel-probe-runner.service, in ~/.config/systemd/user), enabled and started; systemctl --user stop claudewheel-probe-runner.service stops it gracefully |
-| `patch-profiles` | reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask, canonical settings keys); prunes drift and user-added extras -- the old additive, extras-preserving behavior is gone. Deploys any missing guardrail hook scripts. The 'default' profile (~/.claude) is never touched. Preview with --dry-run; writing needs a terminal or --approve-consequential. |
-| `reconcile-permissions` | reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask and the canonical settings keys made exact; allow keeps only its non-conflicting entries); prunes all drift and user-added extras. The 'default' profile (~/.claude) is never touched. Pass --dry-run to preview the per-target diff without writing; writing needs a terminal to confirm at, or --approve-consequential. |
-| `purge-plugins` | remove the Claude Code plugin tree from the selected profiles: the official-marketplace clone and every plugin installed from it, six to ten megabytes per profile. Opt-in and separate from the canonical reconciliation, which is exact and would otherwise delete plugin state on every run. Names the marketplaces and plugins it finds before removing them; --dry-run reports the inventory without touching anything. New launches do not collect a new tree -- the launch environment suppresses the auto-install, one-way per profile. The 'default' profile (~/.claude) is never touched. |
-| `launch` | start the interactive TUI launcher to select a profile, model, and directory |
-| **profile** | create, inspect, rename, delete, and manage Claude Code profiles and their stored tokens |
-| `profile create` | run the create-profile wizard in one continuous alt-screen session: prompt for the profile name, config directory and launch options, write the profile directory together with its symlinks into the shared store, then drive an interactive Claude Code OAuth login so the profile is authenticated before you leave. Requires a real terminal, and prints the summary and auth outcome afterwards |
-| `profile delete` | remove a registered profile: hand its directory to saferm, which archives it (the stored token among it) and then removes it, unlink its shared-store symlinks, drop its options.json registration, and clear any last_config reference in state.json. Prints the archive handle that restores it. Refuses a profile holding a live interactive Claude Code session unless --force-delete (background jobs and daemons do not block it), and takes conversation history only with --force-delete-data. saferm must be installed: without it the deletion would be irreversible, so it is refused rather than performed |
-| `profile show` | print a detailed report for one profile: whether its directory exists on disk, whether it is registered or pinned in options.json, the state of its stored token, its resolved configuration and the session data it holds. Inspects default (~/.claude) like any other profile, and exits non-zero when the name matches no directory, registration or token |
-| `profile rename` | move a profile to a new name, taking its directory (with the token stored inside it), its options.json registration and its session data with it. Validates that the old name exists, that the new one is free in both the directory tree and the options file, and that it fits the lowercase-letters-digits-hyphens charset. Refuses a profile holding a live interactive Claude Code session, and the reserved name default |
-| `profile fix-auth` | repair one profile's authentication: strip the session credentials that shadow its stored long-lived token so the token is used again. Says so plainly when there is nothing to repair, and refuses a name with no profile directory behind it |
-| `profile set-plan` | declare which plan a profile's Claude account is on, without a prompt. Claude Code resolves its subscription tier from the launch environment and only from there when auth is a stored setup token, so an undeclared profile launches with the tier null and tier-dependent features failing closed. Writes both plan fields into the profile's token entry, leaving the token itself alone; the interactive picker in the create flow and the pre-launch prompt write exactly the same thing |
-| `profile check-tokens` | read every discovered profile's own stored OAuth token and validate each one against the Anthropic API, then print a table of profile name, status and a truncated token preview. The status distinguishes a valid token from an invalid one, an unreachable API and an indeterminate answer, and profiles holding no token are listed too |
-| **permission** | add, remove, and list permission rules across Claude profiles |
-| `permission add` | Add a permission rule to a profile's settings.json. Takes a category (allow, deny, or ask) and a rule string such as Bash or Read(//home/**). Writes the rule into the specified category array. Use --profile to target a single profile or --all-profiles to apply the rule across every registered profile. Skips duplicates if the rule already exists in the category. |
-| `permission remove` | Remove a permission rule from a profile's settings.json. Takes a category (allow, deny, or ask) and the exact rule string to delete. The rule is removed from the specified category array and the file is saved. Use --profile to target a single profile or --all-profiles to remove the rule from every registered profile. Reports whether the rule was found. |
-| `permission list` | List permission rules from a profile's settings.json. Displays rules in grouped or flat format controlled by --format. Use --category to filter output to a single category (allow, deny, or ask). Use --profile to inspect a single profile or --all-profiles to show rules from every registered profile, with each profile's rules displayed under a header. The framework-owned --json answers a machine instead: one envelope carrying every listed profile, whatever --format the human form would have used. |
-| **probe** | watch Claude Code sessions for OOM kills and report them to the sessions subscribed: create, list, stop, subscribe, and unsubscribe probes. Every session is told of its own commands' OOM kills without a probe |
+| `import` | import session data from an external Claude Code directory. The source is checked before anything is copied: a symlink the import would read whose target does not exist (a transcript, a session's folder or anything in it, its todos, session-env, file-history, or tasks entries, a paste-cache file) refuses the whole import, listing every broken link, and nothing is copied |
+| `deploy-hooks` | deploy built-in hook scripts, the heavy wrapper, and claudewheel-tool-scope (the shell prefix every launched session runs its commands through; a launch deploys it when it is missing) to the ~/.claudewheel/scripts/ directory, linking heavy into ~/.local/bin so it is on PATH, and install the probe runner's user service (claudewheel-probe-runner.service, in ~/.config/systemd/user, running this claudewheel binary), enabled and started; systemctl --user stop claudewheel-probe-runner.service stops it gracefully |
+| `health` | run diagnostic health checks on profiles, tokens, and hooks, print one line per check, and exit 1 when any check is not OK |
+| `patch-profiles` | reconcile one managed profile (--profile) or every managed profile and shared-settings.json (--all-profiles) to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask and the canonical settings keys made exact; allow keeps only its non-conflicting entries); prunes drift and user-added extras. Only --all-profiles touches shared-settings.json. Deploys any missing guardrail hook scripts. The 'default' profile (~/.claude) is never touched and cannot be named. Preview the per-target diff with --dry-run; writing needs a terminal to confirm at, or --approve-consequential |
+| `purge-plugins` | remove the Claude Code plugin tree from the selected profiles: the official-marketplace clone and every plugin installed from it, six to ten megabytes per profile. Opt-in and separate from the canonical reconciliation, which is exact and would otherwise delete plugin state on every run. Names the marketplaces and plugins it finds before removing them; --dry-run reports the inventory without touching anything. New launches do not collect a new tree -- the launch environment suppresses the auto-install, one-way per profile. The 'default' profile (~/.claude) is never touched |
+| `launch` | start a Claude Code session: the launch bar picks the profile, version, model, directory, and the rest, unless -s presets every required segment or --print-prompt runs one prompt; then the health check, the pre-launch hooks in ~/.claudewheel/hooks, and the preflight steps run, and the client starts in the session's systemd units. A bare claudewheel runs it. Arguments after -- go to the client |
+| **probe** | watch Claude Code sessions for OOM kills and report them to the sessions subscribed: create, list, stop, subscribe, and unsubscribe probes, and run the probe runner. Every session is told of its own commands' OOM kills without a probe |
 | `probe create` | create a probe of one kind (oom-kill: a unit's process killed by the kernel's OOM killer, as systemd reports it) watching one session (--session) or every session (--all-sessions), until its --deadline or an earlier stop (--count, --until-watched-ends, --until-file, or probe stop), and subscribe the session this runs in to it. A probe runs no command: an arbitrary command is refused. Run it from a Bash tool call of a claudewheel session, whose cgroup names the session; the reports go to the conversation that made the call, the main one or a subagent, once the hook that reads the call's payload binds the subscription to it |
 | `probe list` | list every probe with its stops and subscriptions, every report not yet confirmed delivered (with why), every expired report, and every OOM kill no session or subscription took; runs anywhere |
 | `probe stop` | end a live probe the session this runs in created; its undelivered reports to sessions that have ended are expired |
 | `probe subscribe` | subscribe the session this runs in to a live probe; the reports go to the conversation that made the call, once the hook that reads the call's payload binds the subscription to it |
 | `probe unsubscribe` | remove one of the subscriptions of the session this runs in; the probe reports nothing more to it |
+| `probe run-service` | run the probe runner, the process claudewheel-probe-runner.service starts: follow the user journal for OOM kills, report each to the sessions it concerns, and keep the probe store moving, until SIGTERM or SIGINT. systemctl --user stop claudewheel-probe-runner.service stops it gracefully; deploy-hooks claudewheel-probe-runner.service installs the service |
+| **profile** | create, inspect, rename, delete, and manage Claude Code profiles and their stored tokens, and run commands in a profile's environment |
+| `profile create` | run the create-profile wizard in one continuous alt-screen session: prompt for the profile name, config directory and launch options, write the profile directory together with its symlinks into the shared store, then drive an interactive Claude Code OAuth login so the profile is authenticated before you leave. Requires a real terminal, and prints the summary and auth outcome afterwards |
+| `profile delete` | remove a registered profile: hand its directory to saferm, which archives it (the stored token among it) and then removes it, unlink its shared-store symlinks, drop its options.json registration, and clear any last_config reference in state.json. Prints the archive handle that restores it. At a terminal (outside --dry-run) the deletion checklist first lists every process holding the profile and stops the ones ticked (the daemon and its workers come ticked), and a missing saferm is offered for install. Refuses a profile still holding a live interactive Claude Code session unless --force-delete (background jobs and daemons do not block it), and takes conversation history only with --force-delete-data. saferm must be installed: without it the deletion would be irreversible, so it is refused rather than performed |
+| `profile show` | print a detailed report for one profile: whether its directory exists on disk, whether it is registered or pinned in options.json, the state of its stored token, its resolved configuration and the session data it holds. Inspects default (~/.claude) like any other profile, and exits non-zero when the name matches no directory, registration or token |
+| `profile rename` | move a profile to a new name, taking its directory (with the token stored inside it), its options.json registration and its session data with it. Validates that the old name exists, that the new one is free in both the directory tree and the options file, and that it fits the lowercase-letters-digits-hyphens charset. Refuses a profile holding a live interactive Claude Code session, and the reserved name default. A rename interrupted part way leaves a breadcrumb every other command refuses to work past; running the same rename again finishes it |
+| `profile fix-auth` | repair one profile's authentication: strip the session credentials that shadow its stored long-lived token so the token is used again. Says so plainly when there is nothing to repair, and refuses a name with no profile directory behind it |
+| `profile set-plan` | declare which plan a profile's Claude account is on, without a prompt. Claude Code resolves its subscription tier from the launch environment and only from there when auth is a stored setup token, so an undeclared profile launches with the tier null and tier-dependent features failing closed. Writes both plan fields into the profile's token entry, leaving the token itself alone; the interactive picker in the create flow and the pre-launch prompt write exactly the same thing |
+| `profile check-tokens` | read every discovered profile's own stored OAuth token and validate each one against the Anthropic API, then print a table of profile name, status and a truncated token preview. The status distinguishes a valid token from an invalid one, an unreachable API and an indeterminate answer, and profiles holding no token are listed too. Exits 1 when any stored token is not valid |
+| `profile exec` | run a command in a profile's launch environment by replacing this process with it (exec: pipes, the process id, and signals pass straight through), for programs that start Claude Code themselves. The environment is the one a launch of the profile gets: CLAUDE_CONFIG_DIR, the profile's stored OAuth token, its declared plan tier, and the switches a launch sets; a variable of that set the profile does not set is removed, and for default every one of them is removed. An unknown profile is refused, listing the profiles. Prints nothing on success. The command follows a bare --, e.g. claudewheel profile exec --name work -- claude -p hello |
+| **permission** | add and remove allow rules, and list permission rules, across Claude profiles |
+| `permission add` | add a rule to the allow list of a profile's settings.json, such as Bash or Read(//home/**). Use --profile to target a single profile or --all-profiles to add it to every registered profile. A profile that already allows the rule is left unchanged. Only allow is edited: every launch resets deny and ask to the canonical guardrail lists. A rule the guardrail lists as an allow conflict (one patch-profiles would remove again) is refused |
+| `permission remove` | remove a rule from the allow list of a profile's settings.json, by its exact string. Use --profile to target a single profile or --all-profiles to remove it from every registered profile. Reports for each profile whether the rule was found; a profile without it is left unchanged |
+| `permission list` | list the permission rules of a profile's settings.json in the format --format names. Use --category to list a single category. Use --profile to inspect a single profile or --all-profiles to show the rules of every registered profile, each under a header; a profile without a settings.json is listed with no rules. The framework-owned --json answers a machine instead: one envelope carrying every listed profile, whatever --format the human form would have used |
 
-### Segment overrides
+### Segment presets
 
-Every enabled segment gets its own `--<key>` flag. These pre-fill the TUI:
+`-s KEY=VALUE` (`--set`) presets one segment, once per segment. Presets pre-fill the TUI:
 
 ```bash
-claudewheel --profile myprofile --github myhandle
-claudewheel --directory ~/Projects/foo --model claude-opus-4-7
+claudewheel -s profile=myprofile -s github=myhandle
+claudewheel -s directory=~/Projects/foo -s model=claude-opus-4-7
 ```
 
-If the override set covers every *required* segment, the TUI is skipped entirely and Claude Code launches directly.
+If the presets cover every *required* segment, the TUI is skipped entirely and Claude Code launches directly. A value a fixed-choice segment does not offer is refused, naming the values it offers; a freeform segment such as `directory` takes any value.
 
 ### Session passthrough
 
@@ -186,7 +182,7 @@ Which session a launch starts in is one selection with five alternatives, exactl
 claudewheel --cont                                        # --continue: resume the most recent session
 claudewheel --resume 0123abcd-0123-4567-89ab-0123456789ab # --resume <id>: jump to a specific session
 claudewheel --resume ""                                   # --resume: open Claude Code's own session picker
-claudewheel --picker                                      # browse this profile's sessions and pick one
+claudewheel --picker                                      # pick the session from Claude Code's session picker
 claudewheel --print-prompt "summarize this repo"          # --print: non-interactive print mode
 claudewheel --new-session                                 # start a new session -- what a bare `claudewheel` does
 ```
@@ -195,9 +191,9 @@ Three of them carry a short form: `-c`, `-r <session>`, and `-p <prompt>` are `-
 
 Naming two of them is refused: `--cont --picker` is `--cont and --picker are mutually exclusive`, from the parser rather than from claudewheel.
 
-These compose with segment overrides: `claudewheel --profile personal --picker` opens the picker against the personal profile.
+These compose with segment presets: `claudewheel -s profile=personal --picker` opens the picker against the personal profile.
 
-Print mode (`--print-prompt`) skips the TUI and launches Claude Code non-interactively. Extra flags after `--` are passed through:
+Print mode (`--print-prompt`) skips the TUI and launches Claude Code non-interactively; a required segment the presets leave unset is an error. Extra arguments after `--` are passed to the client:
 
 ```bash
 claudewheel --print-prompt "explain auth.py" -- --output-format json --allowedTools "Read,Bash"
@@ -216,9 +212,7 @@ claudewheel --print-prompt "explain auth.py" -- --output-format json --allowedTo
 | `themes/*.json`  | Colour schemes (`dark.json`, `light.json` ship by default)  | No                |
 | `hooks/*`        | Executable scripts -- see below                             | No                |
 
-Defaults are regenerated on first run if any file is missing.
-
-On startup, missing keys from the current defaults are merged into existing files (config, segments, themes) without overwriting user values. Schema-versioned migrations handle value changes that must be applied once (e.g. correcting a default).
+A launch writes the defaults for any file that is missing; read-only commands such as `show` and `health` write nothing. `claudewheel upgrade-workspace` adds the keys the current defaults declare that a file lacks, without changing a value already present, and removes retired keys; every other command refuses a workspace holding a retired key and names it.
 
 ## Hooks
 
@@ -257,7 +251,5 @@ Themes also include an `overflow` section for viewport chrome:
 ## Tests
 
 ```bash
-heavy -- uv run pytest tests/
+heavy -- go test ./...
 ```
-
-The suite includes an integration test that runs a real interactive Claude Code of each version in `claudewheel.probe.VERIFIED_CLIENT_VERSIONS` under a pty against a mock API, to verify the probe report delivery; it fails, naming `claudewheel install <version>`, when that version is not installed.

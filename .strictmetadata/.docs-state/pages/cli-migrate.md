@@ -1,6 +1,6 @@
 +++
 title = "claudewheel migrate"
-description = "Reference for the c migrate command — usage, flags, arguments, and examples for the migrate subcommand of the c CLI."
+description = "Move one session (--session) or every session (--all-sessions) from one profile to another, refusing before anything moves when a destination already exists."
 generated = true
 nav_group = "CLI Reference"
 nav_order = 7
@@ -9,9 +9,17 @@ nav_order = 7
 
 # claudewheel migrate
 
-move session data files from one profile to another, optionally filtered by UUID
+move session data files from one profile to another: one session (--session) or every session (--all-sessions). Every destination is checked before anything moves: a file or folder already there in the destination profile refuses the whole migration, listing every collision, and nothing is moved
 
 **Effect:** mutating
+
+## Flags
+
+| Name | Short | Type | Presence | Env | Description |
+| --- | --- | --- | --- | --- | --- |
+| `sessions` |  | choice | required |  | Selection (not typed as a flag). Elect exactly one of `--session`, `--all-sessions`. which sessions move |
+| &nbsp;&nbsp;&nbsp;&nbsp;`--session` |  | str | required |  | Elects `sessions` = `session`. move one session, by its id Its value: the session's id: a full lowercase UUID, as Claude Code records it; a prefix or any other spelling is refused |
+| &nbsp;&nbsp;&nbsp;&nbsp;`--all-sessions` |  |  | required |  | Elects `sessions` = `all-sessions`. move every session the source profile holds |
 
 ## Arguments
 
@@ -19,4 +27,3 @@ move session data files from one profile to another, optionally filtered by UUID
 | --- | --- | --- | --- |
 | `src` | str | required | source profile name whose sessions will be moved (e.g. work) |
 | `dst` | str | required | destination profile name to receive the migrated sessions (e.g. personal) |
-| `uuid` | str | optional | UUID substring to migrate only matching sessions; when omitted, every session moves |

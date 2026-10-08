@@ -1,6 +1,6 @@
 +++
 title = "claudewheel permission"
-description = "Reference for the c permission command group — subcommands, flags, arguments, and usage details for the permission group in the c CLI."
+description = "Add and remove allow rules, and list the permission rules, of one profile's settings.json or every profile's."
 generated = true
 nav_group = "CLI Reference"
 nav_order = 11
@@ -9,11 +9,11 @@ nav_order = 11
 
 # claudewheel permission
 
-add, remove, and list permission rules across Claude profiles
+add and remove allow rules, and list permission rules, across Claude profiles
 
 ## permission add
 
-Add a permission rule to a profile's settings.json. Takes a category (allow, deny, or ask) and a rule string such as Bash or Read(//home/**). Writes the rule into the specified category array. Use --profile to target a single profile or --all-profiles to apply the rule across every registered profile. Skips duplicates if the rule already exists in the category.
+add a rule to the allow list of a profile's settings.json, such as Bash or Read(//home/**). Use --profile to target a single profile or --all-profiles to add it to every registered profile. A profile that already allows the rule is left unchanged. Only allow is edited: every launch resets deny and ask to the canonical guardrail lists. A rule the guardrail lists as an allow conflict (one patch-profiles would remove again) is refused
 
 **Effect:** mutating
 
@@ -23,18 +23,17 @@ Add a permission rule to a profile's settings.json. Takes a category (allow, den
 | --- | --- | --- | --- | --- | --- |
 | `target` |  | choice | required |  | Selection (not typed as a flag). Elect exactly one of `--profile`, `--all-profiles`. which profiles the operation applies to |
 | &nbsp;&nbsp;&nbsp;&nbsp;`--profile` |  | str | required |  | Elects `target` = `profile`. target one profile, by name Its value: name of the profile to target (e.g. work, personal, research) |
-| &nbsp;&nbsp;&nbsp;&nbsp;`--all-profiles` |  |  | required |  | Elects `target` = `all-profiles`. target every registered profile at once |
+| &nbsp;&nbsp;&nbsp;&nbsp;`--all-profiles` |  |  | required |  | Elects `target` = `all-profiles`. add the rule to every registered profile at once |
 
 ### Arguments
 
 | Name | Type | Presence | Description |
 | --- | --- | --- | --- |
-| `category` | str | required | permission category to add the rule to: allow, deny, or ask |
-| `rule` | str | required | permission rule string to add (e.g. Bash, Read(//home/**), Edit) |
+| `rule` | str | required | permission rule string to allow (e.g. Bash, Read(//home/**), Edit) |
 
 ## permission remove
 
-Remove a permission rule from a profile's settings.json. Takes a category (allow, deny, or ask) and the exact rule string to delete. The rule is removed from the specified category array and the file is saved. Use --profile to target a single profile or --all-profiles to remove the rule from every registered profile. Reports whether the rule was found.
+remove a rule from the allow list of a profile's settings.json, by its exact string. Use --profile to target a single profile or --all-profiles to remove it from every registered profile. Reports for each profile whether the rule was found; a profile without it is left unchanged
 
 **Effect:** mutating
 
@@ -44,18 +43,17 @@ Remove a permission rule from a profile's settings.json. Takes a category (allow
 | --- | --- | --- | --- | --- | --- |
 | `target` |  | choice | required |  | Selection (not typed as a flag). Elect exactly one of `--profile`, `--all-profiles`. which profiles the operation applies to |
 | &nbsp;&nbsp;&nbsp;&nbsp;`--profile` |  | str | required |  | Elects `target` = `profile`. target one profile, by name Its value: name of the profile to target (e.g. work, personal, research) |
-| &nbsp;&nbsp;&nbsp;&nbsp;`--all-profiles` |  |  | required |  | Elects `target` = `all-profiles`. target every registered profile at once |
+| &nbsp;&nbsp;&nbsp;&nbsp;`--all-profiles` |  |  | required |  | Elects `target` = `all-profiles`. remove the rule from every registered profile at once |
 
 ### Arguments
 
 | Name | Type | Presence | Description |
 | --- | --- | --- | --- |
-| `category` | str | required | permission category to remove the rule from: allow, deny, or ask |
-| `rule` | str | required | exact permission rule string to remove (must match an existing entry) |
+| `rule` | str | required | exact permission rule string to remove from allow (must match an existing entry) |
 
 ## permission list
 
-List permission rules from a profile's settings.json. Displays rules in grouped or flat format controlled by --format. Use --category to filter output to a single category (allow, deny, or ask). Use --profile to inspect a single profile or --all-profiles to show rules from every registered profile, with each profile's rules displayed under a header. The framework-owned --json answers a machine instead: one envelope carrying every listed profile, whatever --format the human form would have used.
+list the permission rules of a profile's settings.json in the format --format names. Use --category to list a single category. Use --profile to inspect a single profile or --all-profiles to show the rules of every registered profile, each under a header; a profile without a settings.json is listed with no rules. The framework-owned --json answers a machine instead: one envelope carrying every listed profile, whatever --format the human form would have used
 
 **Effect:** read_only
 
@@ -63,8 +61,8 @@ List permission rules from a profile's settings.json. Displays rules in grouped 
 
 | Name | Short | Type | Presence | Env | Description |
 | --- | --- | --- | --- | --- | --- |
-| `--format` |  | str | required |  | output format: grouped (indented tree) or flat (tsv) Values: `grouped` (one indented block per category, one rule per line), `flat` (one tab-separated category-and-rule pair per line). |
-| `--category` |  | str | optional |  | restrict output to a single permission category (allow, deny, or ask) |
 | `target` |  | choice | required |  | Selection (not typed as a flag). Elect exactly one of `--profile`, `--all-profiles`. which profiles the operation applies to |
 | &nbsp;&nbsp;&nbsp;&nbsp;`--profile` |  | str | required |  | Elects `target` = `profile`. target one profile, by name Its value: name of the profile to target (e.g. work, personal, research) |
-| &nbsp;&nbsp;&nbsp;&nbsp;`--all-profiles` |  |  | required |  | Elects `target` = `all-profiles`. target every registered profile at once |
+| &nbsp;&nbsp;&nbsp;&nbsp;`--all-profiles` |  |  | required |  | Elects `target` = `all-profiles`. list the rules of every registered profile |
+| `--format` |  | str | required |  | output format: grouped (indented tree) or flat (tsv) Values: `grouped` (one indented block per category, one rule per line), `flat` (one tab-separated category-and-rule pair per line). |
+| `--category` |  | str | optional |  | list only this permission category; when omitted, every category is listed Values: `allow` (the rules Claude Code follows without asking), `deny` (the rules Claude Code refuses), `ask` (the rules Claude Code asks about first). |

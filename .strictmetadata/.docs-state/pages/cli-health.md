@@ -1,6 +1,6 @@
 +++
 title = "claudewheel health"
-description = "Reference for the c health command — usage, flags, arguments, and examples for the health subcommand of the c CLI."
+description = "Run the diagnostic health checks on profiles, tokens, hooks, and the probe runner, one line per check, exiting 1 when any check is not OK."
 generated = true
 nav_group = "CLI Reference"
 nav_order = 3
@@ -9,6 +9,6 @@ nav_order = 3
 
 # claudewheel health
 
-run diagnostic health checks on profiles, tokens, and hooks, then exit
+run diagnostic health checks on profiles, tokens, and hooks, print one line per check, and exit 1 when any check is not OK
 
 **Effect:** read_only

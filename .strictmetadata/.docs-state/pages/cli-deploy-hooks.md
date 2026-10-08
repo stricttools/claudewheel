@@ -1,6 +1,6 @@
 +++
 title = "claudewheel deploy-hooks"
-description = "Reference for the c deploy-hooks command — usage, flags, arguments, and examples for the deploy-hooks subcommand of the c CLI."
+description = "Deploy the hook scripts, the heavy wrapper, and claudewheel-tool-scope, link heavy onto PATH, and install the probe runner's user service running this binary."
 generated = true
 nav_group = "CLI Reference"
 nav_order = 2
@@ -9,7 +9,7 @@ nav_order = 2
 
 # claudewheel deploy-hooks
 
-deploy built-in hook scripts, the heavy wrapper, and claudewheel-tool-scope (the shell prefix every launched session runs its commands through; a launch deploys it when it is missing) to the ~/.claudewheel/scripts/ directory, linking heavy into ~/.local/bin so it is on PATH, and install the probe runner's user service (claudewheel-probe-runner.service, in ~/.config/systemd/user), enabled and started; systemctl --user stop claudewheel-probe-runner.service stops it gracefully
+deploy built-in hook scripts, the heavy wrapper, and claudewheel-tool-scope (the shell prefix every launched session runs its commands through; a launch deploys it when it is missing) to the ~/.claudewheel/scripts/ directory, linking heavy into ~/.local/bin so it is on PATH, and install the probe runner's user service (claudewheel-probe-runner.service, in ~/.config/systemd/user, running this claudewheel binary), enabled and started; systemctl --user stop claudewheel-probe-runner.service stops it gracefully
 
 **Effect:** mutating
 

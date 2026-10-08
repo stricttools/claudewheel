@@ -15,29 +15,29 @@ Version: :-: var key="project.version"
 
 ## Commands
 
-- [health](../cli-health/) -- run diagnostic health checks on profiles, tokens, and hooks, then exit
-- [config](../cli-config/) -- open the ~/.claudewheel/ config directory in your $EDITOR
 - [versions](../cli-versions/) -- list all installed Claude Code versions, marking the current symlink target
 - [install](../cli-install/) -- download and install a specific Claude Code version
 - [uninstall](../cli-uninstall/) -- delete an installed Claude Code version binary from the versions directory
-- [reset-options](../cli-reset-options/) -- delete options.json so it regenerates from defaults
 - [show](../cli-show/) -- print a summary of current segment selections, theme, and recent directories
-- [migrate](../cli-migrate/) -- move session data files from one profile to another, optionally filtered by UUID
-- [stats](../cli-stats/) -- report shared-store stats and clean up legacy data
+- [config](../cli-config/) -- open the ~/.claudewheel/ config directory in the editor $EDITOR names; refuses when $EDITOR is unset
+- [reset-options](../cli-reset-options/) -- replace options.json with the default options a first run writes, dropping every value added to it since
+- [stats](../cli-stats/) -- report the shared store's file count and size, by top-level entry
+- [upgrade-workspace](../cli-upgrade-workspace/) -- convert a workspace an older claudewheel wrote: remove the retired keys (_schema_version from config.json, scratchpad_snooze_until from state.json, and a vanilla_guardrails_opt_in that is not a boolean) and add the keys the defaults declare that a file lacks, never changing a value already present. Commands refuse a workspace that needs converting and name this command. Every file is checked to convert before any is written; preview the changes with --dry-run
+- [migrate](../cli-migrate/) -- move session data files from one profile to another: one session (--session) or every session (--all-sessions). Every destination is checked before anything moves: a file or folder already there in the destination profile refuses the whole migration, listing every collision, and nothing is moved
 - [mv](../cli-mv/) -- rename a project directory and migrate session data
 - [move-session](../cli-move-session/) -- move one Claude Code session, by its id, to another project directory's session store, so Claude Code resumes it from that directory: its transcript and folder move together, the paths in its transcript that point into its own store folder follow it, and Claude Code's relocated record is appended. Refuses a session that is running or starting, one a background job or another session's symlink refers to, and one that more than one store dir holds. An interrupted move is finished by running the same command again
-- [import](../cli-import/) -- import session data from an external Claude Code directory
-- [deploy-hooks](../cli-deploy-hooks/) -- deploy built-in hook scripts, the heavy wrapper, and claudewheel-tool-scope (the shell prefix every launched session runs its commands through; a launch deploys it when it is missing) to the ~/.claudewheel/scripts/ directory, linking heavy into ~/.local/bin so it is on PATH, and install the probe runner's user service (claudewheel-probe-runner.service, in ~/.config/systemd/user), enabled and started; systemctl --user stop claudewheel-probe-runner.service stops it gracefully
-- [patch-profiles](../cli-patch-profiles/) -- reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask, canonical settings keys); prunes drift and user-added extras -- the old additive, extras-preserving behavior is gone. Deploys any missing guardrail hook scripts. The 'default' profile (~/.claude) is never touched. Preview with --dry-run; writing needs a terminal or --approve-consequential.
-- [reconcile-permissions](../cli-reconcile-permissions/) -- reconcile every managed profile and shared-settings.json to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask and the canonical settings keys made exact; allow keeps only its non-conflicting entries); prunes all drift and user-added extras. The 'default' profile (~/.claude) is never touched. Pass --dry-run to preview the per-target diff without writing; writing needs a terminal to confirm at, or --approve-consequential.
-- [purge-plugins](../cli-purge-plugins/) -- remove the Claude Code plugin tree from the selected profiles: the official-marketplace clone and every plugin installed from it, six to ten megabytes per profile. Opt-in and separate from the canonical reconciliation, which is exact and would otherwise delete plugin state on every run. Names the marketplaces and plugins it finds before removing them; --dry-run reports the inventory without touching anything. New launches do not collect a new tree -- the launch environment suppresses the auto-install, one-way per profile. The 'default' profile (~/.claude) is never touched.
-- [launch](../cli-launch/) -- start the interactive TUI launcher to select a profile, model, and directory
+- [import](../cli-import/) -- import session data from an external Claude Code directory. The source is checked before anything is copied: a symlink the import would read whose target does not exist (a transcript, a session's folder or anything in it, its todos, session-env, file-history, or tasks entries, a paste-cache file) refuses the whole import, listing every broken link, and nothing is copied
+- [deploy-hooks](../cli-deploy-hooks/) -- deploy built-in hook scripts, the heavy wrapper, and claudewheel-tool-scope (the shell prefix every launched session runs its commands through; a launch deploys it when it is missing) to the ~/.claudewheel/scripts/ directory, linking heavy into ~/.local/bin so it is on PATH, and install the probe runner's user service (claudewheel-probe-runner.service, in ~/.config/systemd/user, running this claudewheel binary), enabled and started; systemctl --user stop claudewheel-probe-runner.service stops it gracefully
+- [health](../cli-health/) -- run diagnostic health checks on profiles, tokens, and hooks, print one line per check, and exit 1 when any check is not OK
+- [patch-profiles](../cli-patch-profiles/) -- reconcile one managed profile (--profile) or every managed profile and shared-settings.json (--all-profiles) to EXACTLY the canonical guardrail model (hooks, disallowedTools, permissions deny/ask and the canonical settings keys made exact; allow keeps only its non-conflicting entries); prunes drift and user-added extras. Only --all-profiles touches shared-settings.json. Deploys any missing guardrail hook scripts. The 'default' profile (~/.claude) is never touched and cannot be named. Preview the per-target diff with --dry-run; writing needs a terminal to confirm at, or --approve-consequential
+- [purge-plugins](../cli-purge-plugins/) -- remove the Claude Code plugin tree from the selected profiles: the official-marketplace clone and every plugin installed from it, six to ten megabytes per profile. Opt-in and separate from the canonical reconciliation, which is exact and would otherwise delete plugin state on every run. Names the marketplaces and plugins it finds before removing them; --dry-run reports the inventory without touching anything. New launches do not collect a new tree -- the launch environment suppresses the auto-install, one-way per profile. The 'default' profile (~/.claude) is never touched
+- [launch](../cli-launch/) -- start a Claude Code session: the launch bar picks the profile, version, model, directory, and the rest, unless -s presets every required segment or --print-prompt runs one prompt; then the health check, the pre-launch hooks in ~/.claudewheel/hooks, and the preflight steps run, and the client starts in the session's systemd units. A bare claudewheel runs it. Arguments after -- go to the client
 
 ## Command Groups
 
-- [profile](../cli-profile/) -- create, inspect, rename, delete, and manage Claude Code profiles and their stored tokens
-- [permission](../cli-permission/) -- add, remove, and list permission rules across Claude profiles
-- [probe](../cli-probe/) -- watch Claude Code sessions for OOM kills and report them to the sessions subscribed: create, list, stop, subscribe, and unsubscribe probes. Every session is told of its own commands' OOM kills without a probe
+- [probe](../cli-probe/) -- watch Claude Code sessions for OOM kills and report them to the sessions subscribed: create, list, stop, subscribe, and unsubscribe probes, and run the probe runner. Every session is told of its own commands' OOM kills without a probe
+- [profile](../cli-profile/) -- create, inspect, rename, delete, and manage Claude Code profiles and their stored tokens, and run commands in a profile's environment
+- [permission](../cli-permission/) -- add and remove allow rules, and list permission rules, across Claude profiles
 
 ## Framework flags
 
@@ -49,9 +49,3 @@ These flags are owned by the strictcli framework, not by the app. No command may
 | `--approve-consequential` | Skips the confirmation prompt a consequential command shows before it runs. |
 | `--quiet` | Hides informational output. Warnings, errors, structured data and the dry-run log are never suppressed. |
 | `--verbose` | Shows debug output. `--quiet` wins when both are passed. |
-
-## Deprecated
-
-- `delete-profile` -- Renamed: use 'claudewheel profile delete <name>' instead.
-- `new-profile` -- Renamed: use 'claudewheel profile create' instead.
-- `show-profile` -- Renamed: use 'claudewheel profile show <name>' instead.
