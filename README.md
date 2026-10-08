@@ -14,7 +14,7 @@ It is for developers who keep several Claude Code profiles on one machine -- sep
 go install github.com/stricttools/claudewheel/cmd/claudewheel@v0
 ```
 
-Each GitHub Release also carries `claudewheel` archives for Linux and macOS (amd64 and arm64).
+Each GitHub Release also carries `claudewheel` archives for Linux (amd64 and arm64). claudewheel runs on Linux only: it starts every session in systemd user scopes.
 
 ### Upgrading from the Python package
 

@@ -1,8 +1,8 @@
 {
   "schema_version": 2,
-  "name": "release-checkout",
+  "name": "claudewheel",
   "slug": "claudewheel",
-  "version": "0.33.0",
+  "version": "0.34.0",
   "description": "A TUI Claude Code Launcher that lets you have more than one profile, manage sessions lifecycle, pick the exact CC version, model to use (even older unlisted ones), pick which GitHub account to use, etc.",
   "language": "go",
   "base_url": "https://smmh.dev/claudewheel",
@@ -1339,7 +1339,7 @@
     }
   ],
   "posts": [],
-  "last_gen": "2026-10-08T18:13:42.264738+00:00",
+  "last_gen": "2026-10-08T18:21:41.317834+00:00",
   "theme": "minimal",
   "vocabulary": {
     "accepted": [

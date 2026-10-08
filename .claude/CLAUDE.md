@@ -11,7 +11,7 @@ This project uses [rlsbl](https://github.com/stricttools/rlsbl) for release orch
 - Cover every commit with an entry in `.strictmetadata/changelog/claudewheel/unreleased.jsonl`, added with `rlsbl changelog add`
 - `CHANGELOG.md` is generated from those entries and the release archives -- never edit it by hand
 - Write `.strictmetadata/releases/claudewheel/unreleased.toml` with `rlsbl release init`, set the bump and description in it, and commit it
-- Release with `rlsbl release run --watch --approve-consequential`; CI builds the Linux and macOS archives with GoReleaser, and the Go module is served from its tag
+- Release with `rlsbl release run --watch --approve-consequential`; CI builds the Linux archives with GoReleaser (claudewheel is Linux-only), and the Go module is served from its tag
 - Build a local binary with `scripts/build <output>`, which stamps the version in `VERSION`
 
 ## Layout
