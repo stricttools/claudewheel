@@ -133,3 +133,4 @@
 {"format_version":2,"id":"18dc8da5bd9c0c04b2d7185045484b59877ff40c906f7cb2","commits":["20fca50cd88c365fc9555922eb32dca8a8d914b6"],"user_facing":false}
 {"format_version":2,"id":"18dc9ae001093f0c286a92013a6545fd9b43511748477291","commits":["298050211bb42d073cbb84b8f194bf83bc549bf3"],"user_facing":false}
 {"format_version":2,"id":"18dc9f7760809903d60b46151e32470bb643a8350ac2b029","commits":["ca5fdcea43122b9241fdf89521a31058ab056f05","acb1b25ad22b3f106cc76f74a33de6b30c80063c","acd7e429fa7f88b8df03024ace087bf23c6d2a6f"],"user_facing":false}
+{"format_version":2,"id":"18dc9f9186b140ff4de4ed27074748cdb8f540366e403dc7","commits":["6f44a64fced5db9e23ac3a4312363dc19c254827"],"user_facing":true,"description":"`permission list --all-profiles` no longer crashes when a profile (such as the default `~/.claude`) has no `settings.json`; that profile is listed with no rules.","type":"fix"}
