@@ -12,6 +12,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+	// The recording's zone must load wherever the suite runs.
+	_ "time/tzdata"
 
 	"github.com/stricttools/claudewheel/internal/testkit"
 	"github.com/stricttools/claudewheel/internal/workspace"
@@ -141,7 +143,18 @@ func snapshot(t *testing.T, root string) []snapEntry {
 	return out
 }
 
+// recordedZone is the local time zone the recording was made in: the reports
+// and kill labels print the kill time in local time.
+const recordedZone = "Europe/Rome"
+
 func TestRunnerCallsMatchThePython(t *testing.T) {
+	zone, err := time.LoadLocation(recordedZone)
+	if err != nil {
+		t.Fatal(err)
+	}
+	saved := time.Local
+	time.Local = zone
+	t.Cleanup(func() { time.Local = saved })
 	data, err := os.ReadFile("testdata/python-calls.json")
 	if err != nil {
 		t.Fatal(err)
