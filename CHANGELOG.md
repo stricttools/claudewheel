@@ -2,11 +2,13 @@
 
 # Changelog
 
-## Unreleased
+## 0.34.1
+
+The release archives for Linux, which 0.34.0 failed to publish: claudewheel runs only on Linux, and its macOS builds failed.
 
 ### Fixes
 
-- **The release archives are built again, for Linux only.** 0.34.0 published no archives: claudewheel runs only on Linux (it starts sessions in systemd user scopes), and its macOS builds failed. Each GitHub Release now carries `claudewheel` archives for Linux on amd64 and arm64.
+- **Each GitHub Release carries `claudewheel` archives for Linux on amd64 and arm64.** 0.34.0 published none: its macOS builds failed, and claudewheel runs only on Linux (it starts sessions in systemd user scopes), so no macOS archive is built.
 
 ## 0.34.0
 
