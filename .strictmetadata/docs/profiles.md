@@ -32,10 +32,9 @@ under `default`, and no token is injected.
 
 ## The `~/.claudewheel/` layout
 
-All claudewheel data lives under a single root directory, defaulting to
-`~/.claudewheel`. The root can be overridden by setting the
-`CLAUDEWHEEL_CONFIG_DIR` environment variable. The `Workspace` class
-(`workspace.py`) owns every path derivation from this root.
+All claudewheel data lives under a single root directory,
+`$HOME/.claudewheel`; an unset `HOME` is an error. The `Workspace` type
+(`internal/workspace`) owns every path derivation from this root.
 
 ```
 ~/.claudewheel/
@@ -83,8 +82,8 @@ All claudewheel data lives under a single root directory, defaulting to
 - **`profiles/<name>/.claudewheel/token.json`**: the profile's own OAuth
   token entry -- a single JSON object with `token`, `created`, `expires_at`,
   and optional `rateLimitTier`/`subscriptionType` fields. The file is 0600 and
-  its directory 0700 (owner-only). Managed by `ProfileDataStore`
-  (`profile_data.py`); the entry format lives in `tokens.py`.
+  its directory 0700 (owner-only). Managed by the token store in
+  `internal/tokens`, which also defines the entry format.
 
 - **`shared-settings.json`**: hooks and `disallowedTools` arrays inherited by
   all profiles. When a new profile is created, the wizard reads
@@ -123,7 +122,7 @@ takes an explicit policy for that error, applied per profile.
 ## Profile creation wizard
 
 The `profile create` command launches an interactive form wizard
-(`wizard.py`) that collects:
+(`internal/tui/wizard`) that collects:
 
 - **Name**: lowercase letters, digits, and hyphens. `default` is reserved.
   The config directory path (`~/.claudewheel/profiles/<name>`) is derived
@@ -190,7 +189,7 @@ logically shared across all profiles. Rather than duplicating data per
 profile, claudewheel creates symlinks inside each profile directory pointing
 to the shared store.
 
-The `SharedStore` class (`shared_store.py`) defines six canonical
+The shared store (`internal/workspace/shared_store.go`) defines six canonical
 subdirectories:
 
 | Subdirectory   | Purpose                                            |
@@ -224,9 +223,8 @@ actual data rather than just unlinking a symlink.
 ## Token management
 
 Each profile stores its own token inside its own directory, at
-`profiles/<name>/.claudewheel/token.json`, managed by the `ProfileDataStore`
-class (`profile_data.py`). The file is written 0600 and its directory 0700
-(atomic writes via `write_json_atomic_secret`). Because the entry lives inside
+`profiles/<name>/.claudewheel/token.json`, managed by the token store in
+`internal/tokens`. The file is written 0600 and its directory 0700, atomically. Because the entry lives inside
 the profile directory, a rename carries it along and a delete removes it --
 there is no second place to keep in step.
 
@@ -551,9 +549,7 @@ Installing it yourself works just as well:
 
 ```bash
 go install github.com/stricttools/saferm@v0
-npm install -g saferemove
-uv tool install saferm
-brew install smm-h/tap/saferm
+brew install stricttools/tap/saferm
 ```
 
 - **Inspect** (`profile show`): gathers a detailed report including

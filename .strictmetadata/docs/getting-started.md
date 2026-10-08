@@ -11,21 +11,17 @@ This tutorial walks through installing claudewheel, creating a profile, navigati
 
 ## Prerequisites
 
-- Python 3.14 or later
-- Claude Code installed (`npm install -g @anthropic-ai/claude-code`)
+- Linux or macOS
+- Claude Code installed (`npm install -g @anthropic-ai/claude-code`), or a version installed by `claudewheel install <version>`
 - A terminal that supports ANSI colors
 
 ## Install claudewheel
 
-Install from PyPI using `pipx` (recommended) or `uv`:
-
 ```bash
-pipx install claudewheel
+go install github.com/stricttools/claudewheel/cmd/claudewheel@v0
 ```
 
-```bash
-uv tool install claudewheel
-```
+Each GitHub Release also carries `claudewheel` archives for Linux and macOS (amd64 and arm64).
 
 Verify the installation:
 
@@ -33,10 +29,14 @@ Verify the installation:
 claudewheel --help
 ```
 
-If you previously used the deprecated npm package, remove it first:
+Versions up to 0.33.0 were a Python package. If you used it, uninstall it
+(`uv tool uninstall claudewheel`, `pipx uninstall claudewheel`, or
+`npm uninstall -g claudewheel` for the old Node shim), then convert the
+workspace it wrote and point the probe runner's service at the new binary:
 
 ```bash
-npm uninstall -g claudewheel
+claudewheel upgrade-workspace
+claudewheel deploy-hooks claudewheel-probe-runner.service --force-overwrite
 ```
 
 ## First run
@@ -88,7 +88,7 @@ The segment bar is the core of the claudewheel interface -- a horizontal row of 
 | Model | Model | The model ID (e.g. `claude-fable-5`); on Opus and Sonnet a `[1m]` suffix selects the 1M-context window. Fable 5 runs at 1M unconditionally and takes no suffix |
 | Directory | Dir | The working directory Claude Code starts in |
 | MCP | MCP | MCP profile mode (`default` or `strict`) |
-| Permissions | Perms | Permission mode. The picker offers `bypass` and `default`; `plan` and `auto` are accepted only when pinned in `options.json` or passed with `--set permissions=<value>` |
+| Permissions | Perms | Permission mode. The picker offers `bypass`, `default`, and `auto`; `plan` is never offered or accepted, because accepting a plan wipes the session's history |
 
 ### Navigation
 
@@ -139,13 +139,13 @@ Your selections persist in `state.json`, so the next time you launch, the bar st
 
 ### Skipping the TUI
 
-If you already know what you want, pass segment values as flags to skip the TUI entirely:
+If you already know what you want, preset segment values with `-s KEY=VALUE` to skip the TUI entirely:
 
 ```bash
-claudewheel --profile work --model claude-opus-4-7 --directory ~/Projects/myapp
+claudewheel -s profile=work -s model=claude-opus-4-7 -s directory=~/Projects/myapp
 ```
 
-When every required segment is covered by flags, the TUI is skipped and Claude Code launches directly.
+When every required segment is preset, the TUI is skipped and Claude Code launches directly.
 
 ### Session passthrough
 
@@ -168,10 +168,10 @@ plain launch `--new-session` spells out.
 and `-p <prompt>`. A short form takes its value as the next argument, so
 `-r 0123abcd-0123-4567-89ab-0123456789ab` works and `-r=0123abcd-0123-4567-89ab-0123456789ab` does not.
 
-These compose with segment overrides:
+These compose with segment presets:
 
 ```bash
-claudewheel --profile personal --picker      # session picker against the personal profile
+claudewheel -s profile=personal --picker     # session picker against the personal profile
 ```
 
 ## Common workflows
@@ -181,7 +181,7 @@ claudewheel --profile personal --picker      # session picker against the person
 You have two main ways to switch between profiles:
 
 - **In the TUI** -- focus the Profile segment (Left/Right keys) and cycle through options (Up/Down) or type to fuzzy-search.
-- **Via flags** -- pass `--profile <name>` to pre-select or skip selection entirely.
+- **Via presets** -- pass `-s profile=<name>` to pre-select or skip selection entirely.
 
 Each profile carries its own `settings.json` with permissions, hooks, and preferences. Switching profiles is how you move between different permission setups (strict for production work, relaxed for experiments) or different GitHub accounts.
 
@@ -198,7 +198,7 @@ Some models need a minimum Claude Code version. One of those shows up dimmed whe
 From the command line:
 
 ```bash
-claudewheel --model claude-opus-4-7
+claudewheel -s model=claude-opus-4-7
 ```
 
 ### Running health checks
@@ -232,12 +232,11 @@ In the TUI, the Version segment shows both installed and available versions. Sel
 After upgrading claudewheel, reconcile your profiles with the latest guardrail rules:
 
 ```bash
-claudewheel reconcile-permissions --dry-run   # preview changes
-claudewheel reconcile-permissions             # apply, confirming at the prompt
-claudewheel patch-profiles                    # sync hooks and disallowedTools
+claudewheel patch-profiles --all-profiles --dry-run   # preview changes
+claudewheel patch-profiles --all-profiles             # apply, confirming at the prompt
 ```
 
-Both writing forms confirm before they touch anything -- the reconciliation is
+The writing form confirms before it touches anything -- the reconciliation is
 exact, so it prunes hand-added permission rules and hook entries and nothing is
 backed up. From a script, where there is no terminal to confirm at, pass
 `--approve-consequential`.
@@ -246,4 +245,3 @@ backed up. From a script, where there is no terminal to confirm at, pass
 
 - [CLI Reference](../cli-index/) -- full documentation for every command and flag
 - [Guardrails](../guardrails/) -- how the enforcement tiers, hooks, and permission arrays work
-- [API Reference](../gen-index/) -- module-level documentation for contributors

@@ -1,6 +1,6 @@
 +++
 title = "Configuration"
-description = "How the claudewheel configuration system works: the root file layout, per-profile directories and their claudewheel data, segments and options, discovery with its caches -- including model discovery from the Anthropic API, the release-date ordering it feeds, and the built-in minimum-version table that dims models needing a newer Claude Code than the version you have selected or installed (a dimmed model refuses to launch, while a version neither selection nor symlink can resolve dims nothing) -- the migration framework with the one-time versioned fixes it replays from the list registered in the code, schema versioning, flag-driven launches, and how interactivity is derived from a controlling terminal."
+description = "How the claudewheel configuration system works: the root file layout, per-profile directories and their claudewheel data, segments and options, discovery with its caches -- including model discovery from the Anthropic API, the release-date ordering it feeds, and the built-in minimum-version table that dims models needing a newer Claude Code than the version you have selected or installed (a dimmed model refuses to launch, while a version neither selection nor symlink can resolve dims nothing) -- converting a workspace an older claudewheel wrote with upgrade-workspace, flag-driven launches, and how interactivity is derived from a controlling terminal."
 nav_group = "Concepts"
 nav_order = 4
 +++
@@ -8,18 +8,19 @@ nav_order = 4
 # Configuration
 
 claudewheel's configuration lives in four JSON files under `~/.claudewheel/`.
-On first run, each file is created from built-in defaults. On subsequent runs, a
-migration system adds new keys and applies one-time schema fixes without
-overwriting existing user values.
+The first launch creates each file from built-in defaults. Every file is
+decoded strictly: an unknown key, a missing key, or a value of the wrong type is
+an error. A workspace an older claudewheel wrote is converted once with
+`claudewheel upgrade-workspace` (see "Converting an older workspace" below).
 
 ## File layout
 
-All configuration lives under `~/.claudewheel/` (overridable via the
-`CLAUDEWHEEL_CONFIG_DIR` environment variable).
+All configuration lives under `$HOME/.claudewheel/`; an unset `HOME` is an
+error.
 
 | File | Purpose |
 | --- | --- |
-| `config.json` | Global settings: enabled segments, theme, default flags, default client, minimap mode, health check toggle, and the internal `_schema_version` counter |
+| `config.json` | Global settings: enabled segments, theme, default flags, default client, minimap mode, health check toggle, and the session memory caps |
 | `segments.json` | Segment definitions: one entry per segment with its key, label, layout constraints (min/max width, wrap, searchable, creatable, freeform), and behavior flags (required, tab_advances, show_options) |
 | `options.json` | Per-segment option data: static values, pinned values, discovery configuration, and segment metadata |
 | `state.json` | Runtime state: last-selected values (`last_config`), recent directories, launch count, auth browser preference, per-project hook approvals, and the npm version and model list caches |
@@ -45,7 +46,6 @@ The main configuration file controls global behavior.
 | `default_client` | string | `"claude"` | Pre-selected client for the interactive launcher and fallback for non-interactive launches |
 | `tool_memory_max` | string | `"6G"` | Memory cap a launched session's Bash commands, and everything they start, share in the session's tools slice; Claude Code itself is not capped. A whole number with a `K`, `M`, `G`, or `T` suffix (see "A memory cap each session's commands share" in the guardrails page) |
 | `tool_memory_swap_max` | string | `"1G"` | Swap cap of that slice: a size in the same form, or `"0"` for none |
-| `_schema_version` | int | `0` | Internal migration counter (do not edit manually) |
 
 Remove a segment key from `enabled_segments` to hide it from the bar entirely.
 
@@ -65,8 +65,8 @@ Each segment maintains four option collections:
   restarts and are never overwritten by discovery.
 - **discovered** -- values found at runtime by the segment's discovery function
   (scanning directories, querying npm, enumerating profiles, etc.).
-- **defaults** -- static fallback values from the built-in `DEFAULT_OPTIONS` in
-  `defaults.py`. These are the baseline options that ship with claudewheel. The
+- **defaults** -- static fallback values from the built-in `DefaultOptions` in
+  `internal/appconfig/defaults.go`. These are the baseline options that ship with claudewheel. The
   `model` segment is the exception: its defaults collection comes from the
   accumulated `values` list in `options.json` (see "Model discovery" below),
   and the built-in list is only the seed that list starts from.
@@ -141,21 +141,22 @@ verification are kept; values that fail are dropped.
 ### Cross-segment constraints
 
 An option can carry constraints that reference another segment's selection.
-The `evaluate_requires` function runs every render cycle, computing the
+`EvaluateRequires` (in `internal/discover`) runs every render cycle, computing the
 `unavailable` set for each segment; unavailable options are dimmed in the UI
 and refuse to launch -- the cursor can still reach them, but confirming the
 launch with one selected is rejected with a flash.
 
 The model segment is the one that uses this, and its constraints are not
 declared in `options.json` at all -- they are derived from claudewheel's own
-table of model minimum CLI versions (`MODEL_MIN_CLI_VERSION` in
-`defaults.py`), which is the single place that fact is written down:
+table of model minimum CLI versions (`ModelMinCLIVersion` in
+`internal/appconfig/defaults.go`), which is the single place that fact is
+written down:
 
 - A model listed there is dimmed whenever the effective Claude Code version is
   older than its minimum, and so is the model's `[1m]` spelling, which
   inherits the base model's minimum.
-- The effective version is resolved by `effective_cli_version` in
-  `binaries.py`: the version segment's selection if there is one, otherwise
+- The effective version is resolved by `EffectiveCLIVersion` in
+  `internal/install/binaries.go`: the version segment's selection if there is one, otherwise
   the version the `claude` symlink points at, which is the binary a launch
   with no selection would run. Nothing dims when that is new enough, and the
   fallback applies just as well when the version segment is not enabled at
@@ -209,17 +210,15 @@ Each segment key maps to an object with:
 }
 ```
 
-- `values` -- for every segment but `model`, a legacy list superseded by the
-  pinned/discovered/defaults split and kept for backward compatibility;
-  migration 3 classifies existing values into the appropriate collection. For
+- `values` -- for every segment but `model`, a list the picker does not read:
+  those segments offer their pinned, discovered, and shipped default values. For
   `model` it is the accumulated option list the picker actually offers: the
   models claudewheel shipped with, plus every model discovery has since
   reported. It is append-only -- entries are added at the end and never
-  removed, and the built-in list in `defaults.py` is only the first-run seed
-  and the source new shipped defaults are appended from. The picker reads this
-  list and nothing else: an empty one is an empty picker, never a silent
-  fallback to the built-in list -- the startup sync is what keeps it
-  populated.
+  removed, and the built-in list in `internal/appconfig/defaults.go` is only
+  the first-run seed. The picker reads this list and nothing else: an empty one
+  is an empty picker, never a silent fallback to the built-in list -- model
+  discovery is what keeps it populated.
 - `pinned` -- user-added values that persist across restarts.
 - `discovery` -- configuration for the segment's discovery function (type plus
   type-specific parameters like `path`, `parents`, `count`, `state_field`).
@@ -259,7 +258,7 @@ Runtime state persisted between sessions:
 | `auth_browser` | Browser path chosen in the auth wizard (written out-of-band). |
 | `project_hook_approvals` | Per-project hook approval decisions, keyed by canonical project path. |
 | `vanilla_guardrails_opt_in` | Machine-global opt-in state for vanilla profile guardrails. |
-| `scratchpad_snooze_until` | ISO-8601 deadline for snoozing the scratchpad cleanup prompt. |
+| `scratchpad_dismissed` | Per-project scratchpad directories the cleanup prompt no longer offers, each dismissed by answering `n`. |
 
 Some state keys are "out-of-band": they are written directly to disk by
 subsystems (the auth wizard, preflight steps) while the TUI holds its own
@@ -267,83 +266,42 @@ in-memory copy. When the TUI saves state, it re-reads these keys from disk
 and lets the disk values win, preventing stale in-memory state from clobbering
 concurrent writes.
 
-## Schema migration
+## Converting an older workspace
 
-claudewheel uses two migration mechanisms that run at startup.
+`claudewheel upgrade-workspace` converts a workspace an older claudewheel wrote
+so this one can read it. It removes the retired keys (`_schema_version` from
+`config.json`, `scratchpad_snooze_until` from `state.json`, and a
+`vanilla_guardrails_opt_in` that is not a boolean), and adds to each file the
+keys the defaults declare that it lacks, never changing a value already present.
+Every converted file is checked to decode before any file is written, so a file
+it cannot convert leaves the workspace unchanged. `--dry-run` previews the
+changes.
 
-### Key-additive migration (`_migrate`)
-
-The first pass adds missing keys to existing config files without overwriting
-user values. It runs every startup and is idempotent:
-
-- **config.json** -- missing top-level keys are added from `DEFAULT_CONFIG`.
-- **segments.json** -- for each segment matched by `key`, missing attributes
-  are added from `DEFAULT_SEGMENTS`.
-- **Theme files** -- missing keys are deep-merged from the default theme dicts.
-- **options.json** -- new model values from `DEFAULT_OPTIONS` are appended to
-  the user's model list, and the model segment is given its discovery config
-  when it has none (a file written before model discovery existed). The segment
-  entry and its `values` list are created when absent.
-
-Files are written only when something actually changed.
-
-### Versioned migrations (`_run_versioned_migrations`)
-
-The second pass runs one-time schema fixes keyed by `_schema_version` in
-`config.json`. Each migration has a version number and runs exactly once (when
-the config's `_schema_version` is less than the migration's version). After all
-applicable migrations run, `_schema_version` is bumped to the highest applied
-version.
-
-The migrations themselves are not reproduced here. The `_MIGRATIONS` list in
-`config.py` is the authority: it holds every migration in replay order, and each
-entry carries its version number, a `description` of what it fixes, and the
-function that applies it. Read that list to see which fixes exist.
-
-### Adding a new migration
-
-1. Write a function with the signature
-   `(config, segments_def, theme, options_def, state) -> None` that mutates in
-   place. `state` is the in-memory `state.json`, so a migration that retires an
-   option can repair a launch selection naming it in the same pass. Every file
-   the migrations touch is written back only when one actually changed it.
-2. Append an entry to the `_MIGRATIONS` list in `config.py` with the next
-   version number.
-3. The migration runs against all theme files uniformly (not just the
-   terminal-resolved one), so schema fixes are deterministic regardless of
-   which theme the user renders.
+Every other command refuses a workspace holding a retired key or lacking a key
+the defaults declare, and names `upgrade-workspace`. Theme files are the
+exception: their missing keys are filled in on every read, so a theme file
+never blocks one.
 
 ## Non-interactive overrides (the `--set` flag)
 
 The `launch` command supports setting segment values from the command line,
 bypassing the TUI entirely when all required segments are covered.
 
-### Per-segment flags
-
-Each segment has a dedicated flag:
-
-```
-claudewheel --profile work --model claude-opus-4-8 --directory ~/Projects/myapp
-```
-
 ### The `-s` / `--set` flag
 
-The generic `--set` (short: `-s`) flag sets any segment as `KEY=VALUE`:
+`--set` (short: `-s`) presets any segment as `KEY=VALUE`:
 
 ```
-claudewheel -s profile=work -s model=claude-opus-4-8
+claudewheel -s profile=work -s model=claude-opus-4-8 -s directory=~/Projects/myapp
 ```
 
-It is repeatable but each segment can only be set once. Setting the same
-segment via both a dedicated flag and `-s` is an error:
-
-```
-claudewheel --profile work -s profile=personal   # error: duplicate
-```
+It is repeatable, and each segment can be set only once. A value a fixed-choice
+segment does not offer, once its discovery has run, is refused, naming the
+values it offers; a freeform segment such as `directory` takes any value.
 
 ### TUI bypass
 
-When all required segments have values (from flags, `-s`, or defaults), the TUI
+When all required segments have values (from `-s` or defaults), the TUI
 is skipped entirely. The `directory` segment defaults to the current working
 directory when not explicitly set.
 
@@ -354,28 +312,28 @@ launch from a script or a daemon takes the non-interactive branch of every
 step rather than trying to open a terminal that does not exist.
 
 Values from `last_config` in `state.json` fill in any segments not covered by
-flags, so a user who always uses the same profile and model can launch with no
+presets, so a user who always uses the same profile and model can launch with no
 flags at all after the first interactive session.
 
 ### Interaction with `--print-prompt`
 
 The `--print-prompt` member of the session selection activates non-interactive
 print mode. In this
-mode, only segments marked `print_mode: true` in segments.json are used.
-Missing required print-mode segments trigger a warning but do not block the
-launch.
+mode, only segments marked `print_mode: true` in segments.json are used. A
+required print-mode segment with no value (from `-s` or the last launch) is an
+error naming it; nothing is launched.
 
 ## Resetting configuration
 
-The `reset-options` command deletes `options.json` so it regenerates from
-defaults on the next run:
+The `reset-options` command replaces `options.json` with the default options a
+first run writes, dropping every value added to it since:
 
 ```
 claudewheel reset-options
 ```
 
-The `config` command opens `~/.claudewheel/` in your `$EDITOR` for manual
-editing:
+The `config` command opens `~/.claudewheel/` in the editor `$EDITOR` names, for
+manual editing; it refuses when `$EDITOR` is unset:
 
 ```
 claudewheel config

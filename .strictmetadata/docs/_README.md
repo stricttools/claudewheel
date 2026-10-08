@@ -11,30 +11,24 @@ It is for developers who keep several Claude Code profiles on one machine -- sep
 
 ## Installation
 
-Install from PyPI:
-
 ```bash
-pipx install claudewheel
+go install github.com/stricttools/claudewheel/cmd/claudewheel@v0
 ```
 
-Or with `uv`:
+Each GitHub Release also carries `claudewheel` archives for Linux and macOS (amd64 and arm64).
+
+### Upgrading from the Python package
+
+Versions up to 0.33.0 were a Python package, published to PyPI and npm; those releases stay there, and nothing newer is published to either. To move a workspace the Python wrote to the Go binary, install the Go binary as above, then:
 
 ```bash
-uv tool install claudewheel
+uv tool uninstall claudewheel             # or pipx uninstall claudewheel; npm uninstall -g claudewheel for the old Node shim
+claudewheel upgrade-workspace --dry-run   # preview the conversion
+claudewheel upgrade-workspace             # remove the retired keys, add the missing ones
+claudewheel deploy-hooks claudewheel-probe-runner.service --force-overwrite
 ```
 
-Requires Python 3.14+.
-
-### Upgrading from the Node package
-
-Early versions of claudewheel were distributed as an npm package (`npm install -g claudewheel`). The Node wrapper is deprecated -- it only exists as a thin shim that calls `python3 -m claudewheel`. Install the Python package directly instead:
-
-```bash
-npm uninstall -g claudewheel    # remove the old Node wrapper
-pipx install claudewheel        # install the Python package
-```
-
-If you have the old Node binary at `/opt/homebrew/bin/claudewheel` or a similar npm global path, removing the npm package will clean it up.
+Every other command refuses a workspace that still needs converting and names `upgrade-workspace`. The last line points the probe runner's user service at the Go binary (`claudewheel probe run-service`) and restarts it.
 
 ## Quick start
 
@@ -122,7 +116,7 @@ The viewport activates automatically and deactivates when the terminal is resize
 | `model`       | Model   | Passes the model id as `--model`; an Opus/Sonnet `[1m]` suffix selects 1M-context |
 | `directory`   | Dir     | Working directory to `cd` into before launch                                   |
 | `mcp`         | MCP     | MCP profile mode (`default`, `strict`)                                         |
-| `permissions` | Perms   | Permission mode passed to Claude Code. Offered: `bypass`, `default`. Accepted when pinned in `options.json` or passed with `--set`: `plan`, `auto` |
+| `permissions` | Perms   | Permission mode passed to Claude Code. Offered: `bypass`, `default`, `auto`. `plan` is never offered, pinned, or accepted from `--set`: accepting a plan wipes the session's history |
 
 Profile, GitHub, and Model are *creatable*: their option lists end with a `+` sentinel that prompts for a new value and persists it to `options.json`. Directory is *freeform*: you can type any path. Version pulls a live npm listing merged with the locally installed binaries.
 
@@ -132,16 +126,16 @@ Model discovers itself: claudewheel asks the Anthropic API which models your acc
 
 :-: table-commands
 
-### Segment overrides
+### Segment presets
 
-Every enabled segment gets its own `--<key>` flag. These pre-fill the TUI:
+`-s KEY=VALUE` (`--set`) presets one segment, once per segment. Presets pre-fill the TUI:
 
 ```bash
-claudewheel --profile myprofile --github myhandle
-claudewheel --directory ~/Projects/foo --model claude-opus-4-7
+claudewheel -s profile=myprofile -s github=myhandle
+claudewheel -s directory=~/Projects/foo -s model=claude-opus-4-7
 ```
 
-If the override set covers every *required* segment, the TUI is skipped entirely and Claude Code launches directly.
+If the presets cover every *required* segment, the TUI is skipped entirely and Claude Code launches directly. A value a fixed-choice segment does not offer is refused, naming the values it offers; a freeform segment such as `directory` takes any value.
 
 ### Session passthrough
 
@@ -160,9 +154,9 @@ Three of them carry a short form: `-c`, `-r <session>`, and `-p <prompt>` are `-
 
 Naming two of them is refused: `--cont --picker` is `--cont and --picker are mutually exclusive`, from the parser rather than from claudewheel.
 
-These compose with segment overrides: `claudewheel --profile personal --picker` opens the picker against the personal profile.
+These compose with segment presets: `claudewheel -s profile=personal --picker` opens the picker against the personal profile.
 
-Print mode (`--print-prompt`) skips the TUI and launches Claude Code non-interactively. Extra flags after `--` are passed through:
+Print mode (`--print-prompt`) skips the TUI and launches Claude Code non-interactively; a required segment the presets leave unset is an error. Extra arguments after `--` are passed to the client:
 
 ```bash
 claudewheel --print-prompt "explain auth.py" -- --output-format json --allowedTools "Read,Bash"
@@ -181,9 +175,7 @@ claudewheel --print-prompt "explain auth.py" -- --output-format json --allowedTo
 | `themes/*.json`  | Colour schemes (`dark.json`, `light.json` ship by default)  | No                |
 | `hooks/*`        | Executable scripts -- see below                             | No                |
 
-Defaults are regenerated on first run if any file is missing.
-
-On startup, missing keys from the current defaults are merged into existing files (config, segments, themes) without overwriting user values. Schema-versioned migrations handle value changes that must be applied once (e.g. correcting a default).
+A launch writes the defaults for any file that is missing; read-only commands such as `show` and `health` write nothing. `claudewheel upgrade-workspace` adds the keys the current defaults declare that a file lacks, without changing a value already present, and removes retired keys; every other command refuses a workspace holding a retired key and names it.
 
 ## Hooks
 
@@ -222,7 +214,5 @@ Themes also include an `overflow` section for viewport chrome:
 ## Tests
 
 ```bash
-heavy -- uv run pytest tests/
+heavy -- go test ./...
 ```
-
-The suite includes an integration test that runs a real interactive Claude Code of each version in `claudewheel.probe.VERIFIED_CLIENT_VERSIONS` under a pty against a mock API, to verify the probe report delivery; it fails, naming `claudewheel install <version>`, when that version is not installed.

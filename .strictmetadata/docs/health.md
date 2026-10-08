@@ -22,7 +22,8 @@ claudewheel health
 ```
 
 The command runs every registered check, prints a one-line result for each,
-and exits. There is no `--fix` flag; checks only report. Remediation
+and exits 1 when any check is not OK. There is no `--fix` flag; checks only
+report. Remediation
 commands are suggested in the output where applicable.
 
 ### Output format
@@ -146,7 +147,7 @@ seeds new profiles).
 Reports missing canonical entries, extra non-canonical entries, and
 conflicting allows per profile.
 
-Fix: `claudewheel reconcile-permissions`
+Fix: `claudewheel patch-profiles --all-profiles`
 
 #### hook-drift
 
@@ -345,24 +346,23 @@ stored per-project approval:
 #### 7. scratchpad-cleanup
 
 Interactive-only. Scans `/tmp/claude-$UID/` for stale per-project scratchpad
-directories. When stale directories are found, renders a confirmation page
-listing each one with its size and age. Confirm deletes them all (per-dir
-errors are reported but do not abort). Decline sets a 7-day snooze so the
-prompt does not appear on every launch.
+directories. Each stale directory gets its own confirmation, showing its size
+and age: `y` deletes it, `n` keeps it and never offers it again (it is recorded
+in `state.json`'s `scratchpad_dismissed`), and Escape keeps it for now.
 
-This step never aborts.
+A deletion that fails aborts the launch.
 
 
 ## The reconciliation model
 
 claudewheel maintains a canonical guardrail model (defined in
-`guardrail.py` and `defaults.py`) that specifies the exact state every
-managed profile's settings must converge to. Two CLI commands and one
-preflight step enforce this convergence.
+`internal/guardrail`) that specifies the exact state every managed profile's
+settings must converge to. One CLI command and one preflight step enforce this
+convergence.
 
 ### What is reconciled
 
-The reconcile core (`reconcile.py`) brings each target file's guardrail
+The reconcile core (`internal/reconcile`) brings each target file's guardrail
 sections into exact agreement with the canonical model:
 
 - **hooks**: the entire hooks structure is replaced with the canonical
@@ -408,23 +408,21 @@ is left byte-identical (no write happens). All writes go through
 mode-preserving atomic write paths, so sensitive file permissions are not
 accidentally loosened.
 
-### CLI commands
+### The CLI command
 
-Both commands perform the same reconciliation; they exist as separate entry
-points for historical reasons and are interchangeable.
+**`claudewheel patch-profiles`** takes a required `--profile <name>`, which
+reconciles that one profile and leaves `shared-settings.json` alone, or
+`--all-profiles`, which reconciles every managed profile and
+`shared-settings.json`. The `default` profile (`~/.claude`) is never touched
+and cannot be named.
 
-**`claudewheel reconcile-permissions`** accepts an optional `--profile <name>`
-to scope to a single profile (shared-settings is left alone in that case).
-
-**`claudewheel patch-profiles`** takes no flags of its own.
-
-Both are declared *consequential*, because the reconciliation is exact and
-prunes hand-added permission rules, hook entries and `disallowedTools` drift
-with nothing backed up. So both confirm before writing, and both refuse
-outright when stdin is not a terminal:
+It is declared *consequential*, because the reconciliation is exact and prunes
+hand-added permission rules, hook entries and `disallowedTools` drift with
+nothing backed up. So it confirms before writing, and refuses outright when
+stdin is not a terminal:
 
 ```
-error: stdin is not interactive; pass --approve-consequential to confirm
+error: stdin is not interactive; a consequential command must be confirmed at a terminal
 ```
 
 `--approve-consequential` is the way a script consents. `--dry-run` previews
@@ -473,7 +471,7 @@ The profile's permission arrays have diverged from the canonical guardrail
 model. This happens when claudewheel is upgraded and the canonical model
 gains new rules, or when something edits the profile's settings directly.
 
-**Fix**: `claudewheel reconcile-permissions` (or `claudewheel patch-profiles`).
+**Fix**: `claudewheel patch-profiles --all-profiles`.
 Use `--dry-run` first to preview what would change; the write itself confirms,
 and needs `--approve-consequential` when there is no terminal.
 
@@ -483,8 +481,9 @@ and needs `--approve-consequential` when there is no terminal.
 `[WARN] /tmp/claude: 1500 MB (>1 GB threshold)`
 
 Claude Code scratchpad data under `/tmp` can accumulate. The scratchpad
-cleanup preflight step offers to delete stale directories, but if it was
-snoozed or the session was non-interactive, cleanup does not happen.
+cleanup preflight step offers to delete stale directories, but a directory
+answered with `n` is never offered again, and a non-interactive launch offers
+none.
 
 **Fix**: Manually delete stale directories under `/tmp/claude-$UID/`, or
 launch an interactive session to trigger the scratchpad cleanup prompt.

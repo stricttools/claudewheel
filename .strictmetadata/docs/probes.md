@@ -106,7 +106,8 @@ the session went away without it; and expires the undelivered reports of an
 ended probe once their session has ended too.
 
 `claudewheel deploy-hooks claudewheel-probe-runner.service` (or `--all`)
-writes the unit to `~/.config/systemd/user/`, enables it so it starts with the
+writes the unit, which runs `claudewheel probe run-service` with the binary
+that deployed it, to `~/.config/systemd/user/`, enables it so it starts with the
 user's systemd manager after every reboot, and starts it; it restarts after a
 failure. `systemctl --user stop claudewheel-probe-runner.service` stops it
 gracefully: it saves its cursor and exits. `claudewheel health` checks that
@@ -175,7 +176,7 @@ strictspec schema under `.strictspec/`:
 | `waiters/<session>.lock`, `waiters/<session>.fifo` | the lock that keeps one waiter per session, and the FIFO the runner wakes it through |
 | `journal-cursor` | where the runner resumes |
 
-The delivery mechanics are verified against each Claude Code version listed
-in `claudewheel.probe.VERIFIED_CLIENT_VERSIONS`: the test suite runs a real
-interactive session of each one and checks the idle wake with its custom
-texts, print mode, subagent injection, the 137 label, and delivery on resume.
+The delivery mechanics were verified against each Claude Code version listed
+in `VerifiedClientVersions` (`internal/probe`), by running a real interactive
+session of each one and checking the idle wake with its custom texts, print
+mode, subagent injection, the 137 label, and delivery on resume.

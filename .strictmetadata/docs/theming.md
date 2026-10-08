@@ -209,9 +209,9 @@ To create a custom theme:
    ```
 
 4. Launch claudewheel. The custom theme file is loaded and any missing keys
-   are filled from `DEFAULT_THEME_DARK`.
+   are filled from the built-in dark theme.
 
-Custom themes are not overwritten by upgrades or migrations. The config
-store's deep-merge logic only adds keys that are absent -- it never replaces
-existing values. If a future version adds a new theme key, it will appear in
-the custom theme file on next startup with its dark-theme default.
+Custom themes are never overwritten. A key a theme file lacks is filled from
+the built-in theme for each read only, and the file itself is not changed, so a
+theme key a future version adds takes its built-in default until the file sets
+it.
