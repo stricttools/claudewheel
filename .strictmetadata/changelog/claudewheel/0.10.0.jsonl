@@ -1,0 +1,6 @@
+{"format_version":2,"id":"18dc880d9b527a9a0c4d3695c563470c81601904bc9354f8","commits":["e4e0d3692668d717a4597bc2ebf65c07af6eba5c","b2065111867014ce7f9f728691376cbfc4a920b5"],"user_facing":true,"description":"**New command group.** `permission add`, `permission remove`, and `permission list` subcommands for managing profile permission rules from the CLI.","type":"feature"}
+{"format_version":2,"id":"18dc880d9b54680c5468860f8a0f448b8dc7e4257f783cbc","commits":["db6903036e1ce160fa786afcfdd6b751d8b8572e"],"user_facing":false}
+{"format_version":2,"id":"18dc880d9b54fdefb93a6a9280cb422ba5dc685055d4519b","commits":["2d2ea72f060cf52ac391f6cccf2c27d9a55c9547","ee6e312d8ae1c09e500ab7b6f815942be98cc981"],"user_facing":false}
+{"format_version":2,"id":"18dc880d9b558a31e9e8e37581ce4fe585a714eaed749651","commits":["917d8f3d8fc219596759f3de80ac1731442eead7","b9e588e0c2218ffff19e10d19499e66a1d25ea95"],"user_facing":false}
+{"format_version":2,"id":"18dc880d9b5619b20d91dad8cf6a49e5b7f9f4d7b91e72c3","commits":["795a956d3f4ac8628fd311a6be75b3fb334aa47a"],"user_facing":false}
+{"format_version":2,"id":"18dc880d9b57040989ba8de41110409d9d065c81d96bdf24","commits":["5675f3442f7944f11d9a9b2681268e72fb6209a2"],"user_facing":false}

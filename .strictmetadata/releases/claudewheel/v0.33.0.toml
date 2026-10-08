@@ -1,0 +1,30 @@
+# strictspec document version gate (do not remove)
+format_version = 2
+# Version bump type: patch, minor, major, infra, or prerelease
+#   prerelease: advance an existing pre-release (0.6.0-beta.0 -> -beta.1)
+bump = "minor"
+# Short description of this release (required)
+description = "A guardrail rule that refuses a shell sleep in every managed profile."
+# Optional context explaining why these changes were made
+context = """
+An agent that runs `sleep` to wait for something is spending a turn on
+nothing: the harness reports background work when it finishes, and the
+state being waited on can simply be read. The new hard-deny rule refuses
+`sleep` wherever it begins a shell command and answers with that steering,
+while a word that merely contains "sleep" -- `nosleep`, `./sleepwalker`,
+`echo sleep`, `grep sleep file` -- still runs.
+"""
+# Pre-release channel: alpha, beta, rc, or stable (ordered;
+# demotion is an error). With patch/minor/major it ENTERS the
+# channel (0.5.2 + minor + alpha -> 0.6.0-alpha.0); with
+# bump = "prerelease" it promotes, and "stable" strips the
+# suffix. See docs/release-workflow.md#the-pre-release-channel.
+# preid = ""
+# Set to true to generate a blog post for this release
+# blog = false
+include = ["npm", "pypi"]
+exclude = []
+release_commit = "ced4dc3afa9c71f7b3b0fbc8365b6cc8f449c882"
+
+[released_trees]
+"." = "178d7372127d660d8d3a146f2fe4eb0da24f11b4"

@@ -1,19 +1,19 @@
 format_version = 1
 
 [[entry]]
-id = "rlsbl:type-check"
+id = "strictcode:type-check"
 current = "error"
 ideal = "error"
 reason = "claudewheel is type-annotated and mypy-clean; releases keep it so"
 
 [[entry]]
-id = "rlsbl:lint"
+id = "strictcode:lint"
 current = "error"
 ideal = "error"
 reason = "claudewheel is ruff-clean; releases keep it so"
 
 [[entry]]
-id = "rlsbl:format"
+id = "strictcode:format"
 current = "error"
 ideal = "error"
 reason = "claudewheel's code is formatted; releases keep it so"

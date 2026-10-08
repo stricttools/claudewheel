@@ -1,0 +1,18 @@
+# strictspec document version gate (do not remove)
+format_version = 2
+# Version bump type: patch, minor, major, hotfix, or prerelease
+bump = "patch"
+# Short description of this release (required)
+description = "Hint bar now automatically reflects available keybindings and wraps on narrow terminals."
+# Optional context explaining why these changes were made
+context = ""
+# Pre-release identifier: alpha, beta, rc, or stable
+# preid = ""
+# Set to true to generate a blog post for this release
+# blog = false
+include = ["npm", "pypi"]
+exclude = []
+release_commit = "d2d6413b0ab01794537acf1b0755e266d4b6e589"
+
+[released_trees]
+"." = "d154400c1157c48956795e19e14bd4f4021b8c63"

@@ -1,0 +1,12 @@
+[python_tools.format]
+paths = [".strictmetadata/docs", "claudewheel", "scripts", "tests"]
+[python_tools.lint]
+paths = [".strictmetadata/docs", "claudewheel", "scripts", "tests"]
+[python_tools.type-check]
+paths = [".strictmetadata/docs", "claudewheel", "tests"]
+[[rules.dead-modules.suppressions]]
+path = ".strictmetadata/docs/_directives/guardrail_table.py"
+reason = "selfdoc custom directive. Loaded by selfdoc via the 'directives' map in selfdoc.json (table-guardrails -> .strictmetadata/docs/_directives/guardrail_table.py), not by any Python import. It is invoked as a documentation directive at doc-generation time, so no module imports it -- it is an entry point for selfdoc, not dead code."
+[[rules.dead-modules.suppressions]]
+path = ".strictmetadata/docs/_directives/disallowed_tools_table.py"
+reason = "selfdoc custom directive. Loaded by selfdoc via the 'directives' map in selfdoc.json (table-disallowed-tools -> .strictmetadata/docs/_directives/disallowed_tools_table.py), not by any Python import. It is invoked as a documentation directive at doc-build time, so no production module imports it -- it is an entry point for selfdoc, not dead code."

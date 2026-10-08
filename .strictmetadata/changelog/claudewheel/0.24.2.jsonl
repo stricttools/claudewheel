@@ -1,0 +1,6 @@
+{"format_version":2,"id":"18c9eddd47e51b89fab8788af63140c3b60e9d6594d4768b","commits":["fad75d04791d5966dfab67e503fc594904224c29"],"user_facing":false}
+{"format_version":2,"id":"18c9eef3a01dcc789e1c0c6a90f64821b2cdd1e30117a553","commits":["0dd1511de668a2341454488eb81a97096b6554ca"],"user_facing":true,"description":"**Removed the `claude-fable-5[1m]` model option.** Fable 5 runs at 1M context unconditionally, so the suffix was discarded by Claude Code and the option could never differ from plain `claude-fable-5` — while making an entitlement wall look like the reason. Existing `options.json` files are cleaned automatically.","type":"fix"}
+{"format_version":2,"id":"18c9eef3a929c60ec190a871e2e040639348aca28ea3f0ac","commits":["67db37aa2284ab8ee3282160be1c819b11534cc1"],"user_facing":false}
+{"format_version":2,"id":"18c9eef7e53f7bdb9157eaab8e26424e925b7855e77abdcd","commits":["40072efe2a877ecd950905e88e1c06e86c228ef7"],"user_facing":false}
+{"format_version":2,"id":"18c9eeffa5ab1fd1c19862e81b44450db36d5b5de96f7a19","commits":["38c93afed5ed8bb026e635e6ade3c006319bc66e"],"user_facing":false}
+{"format_version":2,"id":"18c9ef566f455b0d6a7cf9a546894a3ba0836cfdb283062c","commits":["c7e3a473d8512630192ba6aa4728200156a763ec"],"user_facing":false}

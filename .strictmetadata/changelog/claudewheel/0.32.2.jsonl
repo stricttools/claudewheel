@@ -1,0 +1,6 @@
+{"format_version":2,"id":"18d598feb3e83cc630778aaccf9a4eed8cde240db49166d5","commits":["40574eabf5de1c7cad3405b3c4146dcdadf854c1"],"user_facing":true,"description":"**The tool describes itself with one sentence everywhere, including `--help`.** The `--help` header, package metadata, README and docs site now carry the same description.","type":"fix"}
+{"format_version":2,"id":"18d59d85e714f35d009c21111fb7499994063fbffa7ce6ef","commits":["34d73290603bfb8dad625b6d6b6539024f75703b"],"user_facing":false}
+{"format_version":2,"id":"18d59dc4868fb7ac6fc969fd302f469591ad9ef9a085f127","commits":["e3aa1a75e9f58f3f21a69ad2e7175afc3009cb51"],"user_facing":false}
+{"format_version":2,"id":"18d59ddffa3f84797eae51b3e6224f4897d157862cd4564a","commits":["8f94c934c90d27ce18a2885b41ec5c179ad1ac3c","14680671d4f4b23bde44bb821497d84e2b2c774d","870bdd2fa1468eff416aff68a5ad2ca80756ed6a"],"user_facing":false}
+{"format_version":2,"id":"18d59df04270f502de3fe615f4b04e9bb8e319d556d0c87a","commits":["4df8c9f05fcad017c005e4873267ab9b851f076d"],"user_facing":false}
+{"format_version":2,"id":"18d59e0106402a89a5cbd772a1064e05b74014e3269d8b74","commits":["e287f60b1faabf9af83a260622b8c4a0f074e6c6"],"user_facing":false}

@@ -1,0 +1,29 @@
+format_version = 1
+[[lifecycle]]
+subject = "claudewheel"
+status = "active"
+from = 2026-10-08
+reason = "active when rlsbl's records moved to the .strictmetadata layout"
+[[licenses]]
+subject = "claudewheel"
+license = "MIT"
+from = 2026-10-08
+reason = "read from the package manifests when rlsbl's records moved to the .strictmetadata layout"
+[[registry_names]]
+registry = "npm"
+name = "claudewheel"
+subject = "claudewheel"
+recorded_since = 2026-10-08
+[[registry_names]]
+registry = "pypi"
+name = "claudewheel"
+subject = "claudewheel"
+recorded_since = 2026-10-08
+[[identities]]
+subject = "claudewheel"
+facet = "releasable-name"
+value = "claudewheel"
+registry = ""
+tag_patterns = ["v*"]
+from = 2026-04-22
+reason = "recorded when rlsbl's records moved to the .strictmetadata layout"
