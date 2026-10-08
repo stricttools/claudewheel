@@ -1,374 +1,32 @@
 {
   "_hash_version": 3,
-  "en/claudewheel-__main__.md": {
-    "content": "75ffb8f986ba5381c189eafd10ddde5c50824c12789fab9142a7a8c9df7f6124",
-    "description": "73ddbcf4460b6621f8ea63f6c9ee3347bae99829d0b735d81d2c48d43348d683",
-    "source_docstring": "4b051601da86ac139067cc140ecdd831ad78293849883c377b61652e4d099684"
-  },
-  "en/claudewheel-app.md": {
-    "content": "4c1f83ebbbd01fc95e69d5507202073b80904b9451b08b26f5aadaca2527ec3f",
-    "description": "255794f10d9b631b49d3645f2e479421bc9ed92c4037a88fdd1a8c4bab35b1cb",
-    "source_docstring": "4e2ec590e8bb8f536f49f1ab524871b61160e1a9909d31e29f036b0c7c15ee3f"
-  },
-  "en/claudewheel-appdata.md": {
-    "content": "cbf957189c6f9f65eb6c0bd98f37686e34813305b745f81d66ea2dcfe6e3cab4",
-    "description": "81a033a9803c1239547a4dc8b24c849f72b431b5b5227e05e1cbe41d34714793",
-    "source_docstring": "81a033a9803c1239547a4dc8b24c849f72b431b5b5227e05e1cbe41d34714793"
-  },
-  "en/claudewheel-archiver.md": {
-    "content": "3232f0023907d61aca2011ad4895d455d73b5ad9e771e9fcc4a473f854aeb599",
-    "description": "4544de3fb56e7c65da3fa323952d206a4650f4260f6cc9296b3e75d71e0811cb",
-    "source_docstring": "93198a50e645e91803317549b5ce6b022a398de1a0fb6e41c3b5f3a75381538a"
-  },
-  "en/claudewheel-auth.md": {
-    "content": "23bfef7a3817f6c4a44dddb5210338b27d79f9fa510c37367a72ec50621b1773",
-    "description": "ca641129d1878dd10142c06f0685f3d864ef6625e7a2b34d37c2d565b55f714f",
-    "source_docstring": "ca641129d1878dd10142c06f0685f3d864ef6625e7a2b34d37c2d565b55f714f"
-  },
-  "en/claudewheel-binaries.md": {
-    "content": "1dbf72ac3373f3e43ec497518fd74f2ee8a4d00dbba88d73ee17d9bd2ea74e14",
-    "description": "689a884422cba7f6bee6edd348bfad1d9f9d8fa96a5e8270bafe0b9120131d5f",
-    "source_docstring": "689a884422cba7f6bee6edd348bfad1d9f9d8fa96a5e8270bafe0b9120131d5f"
-  },
-  "en/claudewheel-cli.md": {
-    "content": "ec29fee9ccc17de078e1e53ed44be2cf427531b24fe485f145fd9829b4eb1764",
-    "description": "4768880d63c711fbb9f597142d82801d803e7d5915b48c16fe1bf306f7d3bdec",
-    "source_docstring": "5c368c06c67e09b80e33be9cf75a2b187ad21e418c9f424711530530b8176bb5"
-  },
-  "en/claudewheel-clients.md": {
-    "content": "6505137182b8cd981edef36ad7232e853157b3bdaca3bdf2f8a3190c71caf292",
-    "description": "faef543beab4c2af3f221f91149cdeb56647824ecf3829dd0f55e6a0f59cc519",
-    "source_docstring": "5390985774de5807882b4e18b59d5e53519aa175e6dd72d3de88f4b9e25eee49"
-  },
-  "en/claudewheel-config.md": {
-    "content": "285471e5a7fb5d11bf1ed1b40dc419bb5ed1dcd633e81bbe60b7f692c090b548",
-    "description": "af5ddadf4796445eeae26d48344973a7cb317978ddbdb30dfea501c4aab8a9b1",
-    "source_docstring": "925a7277de771157a8fd52e7ae6b3cbdb916c0a774f5fa9e73206ff6481beb1f"
-  },
-  "en/claudewheel-constants.md": {
-    "content": "87d3c70649d67b950411c6e76569504af9f17c899d11b616d9c1912ce99fa27f",
-    "description": "a72bd54e09ad25d8c7d74bbfc98d6469badbe9ed4e1b2836282d0ac93d07a796",
-    "source_docstring": "b8ffe44aa9e6fa8aabbcfeaaf9cac07b9940dc72c05bc92b60f165c4927bab45"
-  },
-  "en/claudewheel-defaults.md": {
-    "content": "40b864816e396c5110549afe14f24ffab138202d9b767f700b0c13315d3132ce",
-    "description": "042258339d9d79365f0e00f101bfb88ccc21a78f8d38ff0972d8e62c5d3d930c",
-    "source_docstring": "042258339d9d79365f0e00f101bfb88ccc21a78f8d38ff0972d8e62c5d3d930c"
-  },
-  "en/claudewheel-deletion_checklist.md": {
-    "content": "7797f7c5c3114158f98592ae2ce1b0bda47cd5a22fed80e40ccf28d5a1dec6e0",
-    "description": "bb1ec46e84fa91a7fb04b8e5cbfe32eb750136dade3742a13657d7c2aeced0c6",
-    "source_docstring": "ef30d15a2389559a6b1a60e1017603062bef3cc07a6e4c954ebfeee89a254481"
-  },
-  "en/claudewheel-discovery.md": {
-    "content": "576d3f1784788a0857b95b5cbd85b568ebd549210d0ed241f8e9a0f0d0dfe1e1",
-    "description": "7e7fb434a504cf3fa3085cff75f2cf05d84c88c7373bd0058a4d9cc2858033a0",
-    "source_docstring": "9b86caf9f080d7d373cd0d65538af865a5dd47dddfac9679b6f47e49b957ab96"
-  },
-  "en/claudewheel-effects.md": {
-    "content": "41e8cf11c65dc03599b3417cc228099bbbd3b25c418dd686b119c141c6350474",
-    "description": "afbe3f0b9d19696a874859e6197efe68ed002b403906c065018ece01eb0ff330",
-    "source_docstring": "1dc086bc708e931012e1c0921552d8b5f8634ae9eb210320d77f8018ded9de99"
-  },
   "en/claudewheel-fsutil.md": {
     "content": "e92aff2708ca2702758a8f9410c6e765612be2d14c294e59f8ab023150af572e",
     "description": "c30b7b20c332043d70652121c81c7caa9b2221653ff175d3192bdbd71ba28fb2",
     "source_docstring": "c30b7b20c332043d70652121c81c7caa9b2221653ff175d3192bdbd71ba28fb2"
   },
-  "en/claudewheel-fuzzy.md": {
-    "content": "f8666fc49d5d3730dbbf2aa2246206fecf10633a5eaa51ae3b4ee6c9ddf2ee43",
-    "description": "833666bcf9072a587717fd1a0c2d8d651aa8d8c4d16b3c0f7a336b7e2a55ebbd",
-    "source_docstring": "41331b24c4cd158e6096f392392ba5048c66abb6561f57284025f40d47b83c2a"
-  },
-  "en/claudewheel-guardrail.md": {
-    "content": "59573216acdf6fa7337e680a605c83555c497310509cf611ad0e23a042f3c5a0",
-    "description": "8d28dd183b8482085c8d3335f2085c108fdd5af79c534c51e8b5f4538d7f0a7f",
-    "source_docstring": "083716df52c781a059c8168415a25566895d06aa74332b86016473e382ed3d08"
-  },
-  "en/claudewheel-health.md": {
-    "content": "2580e05af82238ce022b579628d99536630d921437cdab941770ade384448a68",
-    "description": "0e786c0902c9fc2087944724a1996badcc97d66c5bf549a4de0df7c74fd3a413",
-    "source_docstring": "8b0075cdea5b303473f6df72a681c9b80b938152803d7ceb6be8b11dccba89a6"
-  },
-  "en/claudewheel-hook_scripts.md": {
-    "content": "7154896d393432fb7db8a043c4e7207039c72f721dac55b3f3f2c76e683391b6",
-    "description": "4b6953136fe91fa37f32298d90c2c4c41de742c915b3769d046c9746c5ad48db",
-    "source_docstring": "7ef399f41d7a67f5b96f6f5cea690a79b276cbd1be315c8ee0e55509dc87ce44"
-  },
-  "en/claudewheel-hooks.md": {
-    "content": "27c22750e771eebb7a748dd4211c7b070accfc544a8d0255db669a4342d40955",
-    "description": "c494d8f683c87168f53f5d0648452740cd4e3208223e979dfdcbb6b482d89fae",
-    "source_docstring": "741f435a391a3e2a8f462ec77a39efe5e6a313f36a920bbcf7f46f3e7c825b0c"
-  },
-  "en/claudewheel-import_.md": {
-    "content": "7c1ac37de071ad8238bfc3a33ce4060b6b88bfe0dac95271ab19a0bd27473dc0",
-    "description": "299fbcdb7eed0572abc79fe5c76d5e59291584bf5599c446d2d30a66f580d598",
-    "source_docstring": "299fbcdb7eed0572abc79fe5c76d5e59291584bf5599c446d2d30a66f580d598"
-  },
-  "en/claudewheel-install.md": {
-    "content": "9c1d0fb478cf382a2056532bbd3b260ccf27c5cea73fa720048a5fcde33b66b5",
-    "description": "a601e30cbc843c5710a250f9fb11f02f8d054a8bcc42ce1d38a89c9a49801f96",
-    "source_docstring": "eb3fb1132bdd89c901f78b2bc25193414f3a3b48f13b0880a850f31d8009c65c"
-  },
-  "en/claudewheel-launch.md": {
-    "content": "bb8e18b639f53ab48b7d8e6852b785ed7e3d9a7208e2ecb6a9e0deb50940eda8",
-    "description": "e86ee61b4b17818b564c9d270c16e63a9b24ee5110a4084295356acd47bcc266",
-    "source_docstring": "65c4febd91bc6c929fab1c39ad759ef23c9aa0e9499a443e8f3ed2b486084ced"
-  },
-  "en/claudewheel-lifecycle.md": {
-    "content": "e157b2614bce0e224d30bb80e388d5d2f7e07399afad835a54ca13637100dc4b",
-    "description": "7469f0791484f7ee49e3d704efffa91d58b79c8e63b97efd0a24bec827e79671",
-    "source_docstring": "2452428a969b7b77e6e7812138da37817d72bebe25d32445ed033dabf3f58b02"
-  },
-  "en/claudewheel-migrate.md": {
-    "content": "3e56ee84b4442a58957bcc93094aef393633dbc3cb3f9e45c8d3e7ed50bd79ff",
-    "description": "6ccfe6ece2e0043144fac3bef340be8a2a536feedfc8a0c7f609cf8ce3a39a7c",
-    "source_docstring": "0cf5a6833eadf9720cea4a9d10c2cf8add22fa9cb4da7f4b433e3aa19cc5db65"
-  },
-  "en/claudewheel-mv.md": {
-    "content": "dc6e59fefbe828f56ed9ba7de9a3afe45806d4d2efc38695c714c081b0dc389c",
-    "description": "7dae71bbe81fcb3b09bd9354e7fc50d60b867b93fbbe1fd18c72f1cdd4b35999",
-    "source_docstring": "7dae71bbe81fcb3b09bd9354e7fc50d60b867b93fbbe1fd18c72f1cdd4b35999"
-  },
-  "en/claudewheel-patch_profiles.md": {
-    "content": "c448ca21c38bce415e6f5639803895a94a381b6a5065b4dc2329574abbe50365",
-    "description": "6deb93869bdca66c8eae169e452492857dce2588bf4c694c9fb142ef7bc091c3",
-    "source_docstring": "ff8e19f53fe21a6f13b62ecbf58ceb22e5c4571c3d3a387e01408dbed4e76f40"
-  },
-  "en/claudewheel-permission.md": {
-    "content": "998fe12c1af340a42848b6c29531d703978f69ddcf527738cd5d4864cf205fe5",
-    "description": "d0c760be58f3455ca4fd73a3ab6041550a3d3fd858f701bdd43a5f8f67b87819",
-    "source_docstring": "d0c760be58f3455ca4fd73a3ab6041550a3d3fd858f701bdd43a5f8f67b87819"
-  },
-  "en/claudewheel-plugins.md": {
-    "content": "0e54ada9a404efc7462151a0b53a8c3f0210cbf91f34e33702565373d323cdac",
-    "description": "6d671bf0dc63b454a3f2e4067070bc0f64889b8ae2b753af273aa5a91b1b592a",
-    "source_docstring": "540927f73f3b533999ea4da3259964203a0db42523247b603d519aac3b04f967"
-  },
-  "en/claudewheel-preflight.md": {
-    "content": "1a6e7b30d2c5d9df45b7fd04c7cf0778fb960a0ce2875a029536eab399422a42",
-    "description": "9bca9cbb0cac41c335a79f3df73c07702e8117213796061bd91218baae3ef8cb",
-    "source_docstring": "878d2be6f5657b6d8eadc1e66a941f3654478335b1f25f1b1aeca4481614bf80"
-  },
-  "en/claudewheel-probe.md": {
-    "content": "3f635c56968bc1417f6600d31d11c0af1407926b6f17395bf29ed3c89e426f09",
-    "description": "8d9dae67a19e0bdafcb6834307f580f3a2b31fd8cd68bc37248c9e2373aba891",
-    "source_docstring": "e979891015012195864ec366964b653119f4cf9e84d69206ba45600811cc30bf"
-  },
-  "en/claudewheel-probe_runner.md": {
-    "content": "70fac0e1bd48ad7f4ffc001b11b256b4d77754dcfdcb6e48f6f6851cb20c3156",
-    "description": "a1864b0b3b2a55ad669ac9d25eeb1445f21bba71b6968b433534225746917eed",
-    "source_docstring": "6dc4fe6ebcfc7b67960d89d61f2c6ff0170e1e0bef817272032c159dc10bede1"
-  },
-  "en/claudewheel-processes.md": {
-    "content": "4d63367764f8b822798894bd46a60223e8871274b7709f4cd4b5a38b5fcd5e05",
-    "description": "ada1f6428261490f0d4f961408e885fd836d2795ffd3af47bc049f474b36c992",
-    "source_docstring": "031218f2e15b7838ef5f853482eb007d30c9f884748d4ba166297971cbb4245c"
-  },
-  "en/claudewheel-profile.md": {
-    "content": "912b63113198ae7bf75a1f7e93eb44e1cd65892c713336d14cd193afce5602f4",
-    "description": "542bb527d8ac6a6f89a6217fcf916c3b1c04043aedfe8fb14d6cd3d0b0fb3787",
-    "source_docstring": "457c59a3b7c47a52ceabff76cd199930585de60da26bcd8e1f50cf5998532e2c"
-  },
-  "en/claudewheel-profile_data.md": {
-    "content": "332d0de032be696ced75fd9384e86b23e133f0560bd90d9f3d19a809a1cd8ede",
-    "description": "1fccb044aef283fb420f55506fa73355de8d716b7152d5d2a7f235c9903a9097",
-    "source_docstring": "b3461b5d3bdb1138eb3a116cf448f7157c5712d35162a298e63b19264ff7f527"
-  },
-  "en/claudewheel-profile_info.md": {
-    "content": "56225136bf8b0b26dc85b72fe0977e7fe0a22c262a84389c6134eb650caa004f",
-    "description": "8588e5034a8b98bb6d780f8a9c035fa050b05caf847d49cce21561338cc60e8c",
-    "source_docstring": "8588e5034a8b98bb6d780f8a9c035fa050b05caf847d49cce21561338cc60e8c"
-  },
-  "en/claudewheel-profile_ops.md": {
-    "content": "14d77988dff251776860b3353ff147fb3069703abaf0ae7e6dc32d8b3eb6ba72",
-    "description": "532837db7ac772bdb7185dbea3f49f82e5d8e2cf8b7595206d1eea816e7763e3",
-    "source_docstring": "5615a210d6ffb512c30c2fa07aa64ecfe51f20665b4343d155318628c6acfbe2"
-  },
-  "en/claudewheel-profile_store.md": {
-    "content": "1fbd0bd4e82bbec196d259f411be94c7643fbf3d468310882ffccb4d5f4e84a5",
-    "description": "857c4a0b3f6405af0ad4de15e042414c4808ab9fe13768041216903b14b283da",
-    "source_docstring": "62514529cd5c3d8be67665a2319c52228fb6caf42510aa3f46111cd42d29bbde"
-  },
-  "en/claudewheel-project_hooks.md": {
-    "content": "f7337f3f3f39c265ccb78e1a723ee35556d00267c03643c3cb0fdf4e47f7e940",
-    "description": "b8808dea5cec486db4d735117477706274553c1a62b3bac143525209c8335a27",
-    "source_docstring": "a3541a1c3fb30b66f6fc9542339c79a7c1b5cc86bb4953b3eb3ef157a9b8b803"
-  },
-  "en/claudewheel-pty_runner.md": {
-    "content": "e9c887c827b760c359ad23d514669d48695c32a463759c87df51261703edc803",
-    "description": "bb09a63764c7e627189bff8f5da5a55294f015d7e90bf20f048755e6014a822f",
-    "source_docstring": "bb09a63764c7e627189bff8f5da5a55294f015d7e90bf20f048755e6014a822f"
-  },
-  "en/claudewheel-reconcile.md": {
-    "content": "ee843350031617c1b70c5470fc21b565db62712ea6a348e615626ac0c72770f0",
-    "description": "64f275043655f77ada83b3a8bab1f114784eb2b3e3ca9555db2a69cbb3555e2a",
-    "source_docstring": "eca373894d2d7cde3b2e78df09273bfcb474452c005a7e9d215c5c6e07451058"
-  },
-  "en/claudewheel-renderer.md": {
-    "content": "e93f5949aac032de7f90d05fce49e32ebf5e006bafef8be14a803b360f92922a",
-    "description": "a93485650012e103fb8fc3aec2fbaeae37254a3da1c28d22670f7ffde5b8832c",
-    "source_docstring": "a85b2b5125feb8bc92eddef4b5444ce37744ee8cf80ae0c38a34194e12475980"
-  },
-  "en/claudewheel-scratchpad.md": {
-    "content": "9bec7a5e230199ca139f276d51cbd81ad498c6066d96317356b7f15fff92715d",
-    "description": "c27a1562486388760eccb1df6f1d39eea65fa032c0c6ea6ecb8d634293837e57",
-    "source_docstring": "6ca9d2b339fea1d123ebd9e7f99c531179dff0c0a0ba2158043507ac4415d36b"
-  },
-  "en/claudewheel-segment.md": {
-    "content": "8b9464748f76033d0dd8e1c47b83404f1fab7f33fe16db171a219f6b17fee106",
-    "description": "448c8892eb6d7a402e282ab8b408191b15a6d51c889e897ed3712bf48389b1fd",
-    "source_docstring": "4c69ff76029cf89be2b01c4d713a5a25f8c8f6c26f010a4a2345608094d2656d"
-  },
-  "en/claudewheel-session.md": {
-    "content": "3edf921a6676a721aacccdc1d7a2029b5837e8977e39cd440d935a6848f40a3d",
-    "description": "2b08ce2cb44ae42f935be1df46ccdf734ad62753410397b0188e4997c914b491",
-    "source_docstring": "2b08ce2cb44ae42f935be1df46ccdf734ad62753410397b0188e4997c914b491"
-  },
-  "en/claudewheel-session_list.md": {
-    "content": "fa57fbf5360da708544d26829a5fb46bb3ee817eda033a7cb5c170cff008866b",
-    "description": "b6428e2cd34eb19ee7c2d27cc09d3ec5012ccae12c7e435e61d26a5a5542ad90",
-    "source_docstring": "571a1a284c5f0f186466a955fe5ef0e8c9c044487b317f48a3c241035e731893"
-  },
-  "en/claudewheel-session_move.md": {
-    "content": "cbb72635bf8bb4bced29577266cc3050333610bd8b32fb5132747d32f42dccc8",
-    "description": "4ac031f3cf9eaf6917320de47e51b2420842cab554069edbd90b1d5cbbaead9d",
-    "seed_hash": "cd327c90b71f30812acf0d74965e2c7fe1046ec8b7f2536ab2fbb3b412c24025",
-    "source_docstring": "b3c07b3495331c8fe0a665dece7bb26da647bf83c4932336227af3898448865d"
-  },
-  "en/claudewheel-session_registry.md": {
-    "content": "0486585a854d87b39e3a73f4deac0a57b70ed7d977aaf51efe9c4059cd228a3e",
-    "description": "84b5187de75fe8d35210b59a3c177a3fb5f4459624535162684289d8df5c9762",
-    "source_docstring": "33579ac6e7eb5a8cedc9b2faf16bbf0710ef8af0974277ac00a44452d9d8b781"
-  },
-  "en/claudewheel-session_rows.md": {
-    "content": "1b917e134ac5857362cf88a10461efcd9b462fdf3dc1c6e91e44191b51f3aa86",
-    "description": "f0d241694fa8e1ce0cba5c62607b032619eb8e8dfba416edacece648d75d8e6e",
-    "source_docstring": "9b7dd533c3b5664f26553499078ef62b718e521c6d6897883cfcec66d62da293"
-  },
-  "en/claudewheel-session_stores.md": {
-    "content": "522ef7c729a44f18110da0f8452f38a41528be1945235d7aa1a740a61bd63c59",
-    "description": "0312d11fa100aa442bd1181fb67cc356f72181237a71cf01ceaa43128e8b7c29",
-    "seed_hash": "4ed1b455710aeca84ff937c0ff6f6425d94d7ac1eacb24b7b26dd0b56a95d9f4",
-    "source_docstring": "4a6930927ad68781406e6d9d996fbc8a9493bf29508a517e7da3ee135d7f0858"
-  },
-  "en/claudewheel-sessions_overview.md": {
-    "content": "80c5f61cf0fc2702ecea5d34e9d4654dc8cb69c71bf727034eb1bc90923c47ac",
-    "description": "4f23d50e12f888379a64ecf943c2cb4bcc47b7242e14239dd8a25adde7b892a4",
-    "source_docstring": "f45099f2a08f6be3e6219465eb4ee636bba6e71943a36a441ab5b3c943dcdbe6"
-  },
-  "en/claudewheel-sessions_table.md": {
-    "content": "158fbe0bb98ac714144c4f152a362501cb6fbfba56232a17934cecf30b775f09",
-    "description": "94ca0a4b9c63acc479621afafedc846d00451c4e3cb7916362de9b56a543417d",
-    "source_docstring": "3ace0842c65181631f55b2f57fba633807f0686618c301168b2b6cab218723dc"
-  },
-  "en/claudewheel-shared_store.md": {
-    "content": "76677400b8845fa21b2ac4884c8c1a332769516052bfb202754898c50b9feb62",
-    "description": "ef53b0563a748e0608084f919d1d6db14bd4a4250b84dc7c8a65d7b7d541589c",
-    "source_docstring": "ef53b0563a748e0608084f919d1d6db14bd4a4250b84dc7c8a65d7b7d541589c"
-  },
-  "en/claudewheel-state.md": {
-    "content": "4326765e1fc18299f6647ace24ea834b783adba7b2b20ccbe505dc8e47cc7e11",
-    "description": "239f013899e63575fd49ddeb2719dc6b7722b21b1ab5268846e81e562d39eece",
-    "source_docstring": "be357c4b3f210464f155554733e154b907bfa77585337df3e0b8d0d52f993996"
-  },
-  "en/claudewheel-stats.md": {
-    "content": "4869258353f8bc76c1fe9b057353a2f8c8969e891290391a22b72c026b9da1ef",
-    "description": "a9f6eaee04f2e791702591ab6479bc794f8161ba7b25322fca5d45466e984969",
-    "source_docstring": "a9f6eaee04f2e791702591ab6479bc794f8161ba7b25322fca5d45466e984969"
-  },
-  "en/claudewheel-strictspec_gen-lifecycle_event_validator.md": {
-    "content": "1edc2a7d55dd30d726e057a88de801d0f625f17c876a20417446afe5d8d9cf9b",
-    "description": "835fb8fb3408bf1f08a43debf1b5bd89bc3033340fc7e1c62e8a7cfb75c6d257"
-  },
-  "en/claudewheel-strictspec_gen-oom_kill_event_validator.md": {
-    "content": "404b32dbae8b34a16ee4bb6125f03f8c1fbf20035288209ca07da039e3ec181c",
-    "description": "1675f878eb2a805a564f9dd521296f57351c930f73c383af704b31d909b68d0d"
-  },
-  "en/claudewheel-strictspec_gen-probe_event_validator.md": {
-    "content": "7f6b000ebdb2594c9ef798d24e1a68ea62de0ba5676dd9aea33fe3e2c5ab0d2c",
-    "description": "576fdab76925e9852a50c606d96a1a634fbbf62f64f06d781a2452a09a7af9fa"
-  },
-  "en/claudewheel-strictspec_gen-probe_report_validator.md": {
-    "content": "8a1cd623efe7b474e590184c1ec64f6be6f8a48166267c02ad1fcdd2a26ac05c",
-    "description": "f31deb0f909d051dbf42f37f14378bca22b620b6b15a58571efad5df33a49adb"
-  },
-  "en/claudewheel-strictspec_gen-probe_session_event_validator.md": {
-    "content": "4b2294c134d4e839aa1a87049193139041cfe113ba764db39cbd6e03a38631bb",
-    "description": "b09509d494fcbb20fff6873791b457655ba5fd59162bc228852bce76e45d257c"
-  },
-  "en/claudewheel-strictspec_gen-session_move_journal_validator.md": {
-    "content": "4a685b71d67568b96b407afdba9ad83f945fb93e5fb3d43146faa9f687fcbf9f",
-    "description": "d77164be05c03fc5cccf94247d06bb538288613af5c85134de212264355a0906",
-    "seed_hash": "238821f20ff1ea2c462a1ee2ed62d6b894cd81a1b708f5d191e1589c76457916"
-  },
-  "en/claudewheel-strictspec_gen.md": {
-    "content": "c9285aaafece2499d5562e749939f0f5acc9d8558aac9c165e5439f790dae935",
-    "description": "62a28b2b7a72650a6d4822b07c6c8244ca693dd78467d41df5f7b1be0e5a9be6",
-    "source_docstring": "338f64fb94645a93998d791d5bdfa893594a54a3160ee69e279b8602eed71ea3"
-  },
-  "en/claudewheel-terminal.md": {
-    "content": "0933d187937b7ec58900501e87ef417791093148d80733fe4565fc84c07cdf94",
-    "description": "1f2e019617bdd8cb808ed5cd847c5a664b9ab86489893607a05b0ac0755f8a7c",
-    "source_docstring": "2a50c194a23b9f061e2f5da42528262776050b9d19960b9d377ec118d13b30f3"
-  },
-  "en/claudewheel-theme.md": {
-    "content": "68198bbb9903ae0d7854dc164a4cbd4b322407e47ceddc9a649c718ebf852d33",
-    "description": "df45f15b2f36f1ac7301bcb215c0eb3e91f0a18d9eda5f26dd5c889a214de823",
-    "source_docstring": "34b63fe6bd3010df4e68ccbbcb9529846486cb07f261094ec02aa96c8ce905c7"
-  },
-  "en/claudewheel-tokens.md": {
-    "content": "a019880d68a5d2a9e134aef3dc639d3d14808ba410ea5278630b8605367a2de1",
-    "description": "8e627da0fe7ca91cd2fc6f27744c8d490cef5059082ae8b3c161f752591b0cda",
-    "source_docstring": "08fce578ea232a28c34f3c1f8a55701048d2559c19e2ada6878541e9a4833b6c"
-  },
-  "en/claudewheel-ui.md": {
-    "content": "1d4ebde63065fefc3f1dfb7f8a3fa52ed77f09770dc06a3e38d0636d7aa2c208",
-    "description": "0f707c6803540c1f7727e03b21e4a8b88c28bcd95279edb036c3d3b3501c54df",
-    "source_docstring": "46ffa38f5545094227dc45cd1893a6a265c03c2ff09863fc2c1893facca303d1"
-  },
-  "en/claudewheel-vertical_viewport.md": {
-    "content": "6a2acc7fa9194c7928730297b72c7edd28c5b72eb0da83eb7bc6095cddb7b2f1",
-    "description": "8a78756e9707b85c93adc1a058a0d2544f0e5f1e86d1ea7f7a8eb5ad20b10edd",
-    "source_docstring": "ce35c6ed79997742a3c383871e20309fcd1e90db0afe9b9118ad6393ca6ca4de"
-  },
-  "en/claudewheel-wizard.md": {
-    "content": "cacc41f56290e8e9477d2c057fb56450f76d6e8820581eb7564b8cc7e15a4308",
-    "description": "eca7f4921ead7eaf93171d55d82c1ca107076a68c60f12db8c52178569756027",
-    "source_docstring": "d6fb7afbdb80f4d5c36bdecbf5d1ebf4d0c4b4965567049a91a9b0c2c9aa8946"
-  },
-  "en/claudewheel-workspace.md": {
-    "content": "524ca42873e49cdcf13828856b8fcb56f2c5ef761ccc64f265bb74f4075b1f45",
-    "description": "77ecb5b51de80a11f06d91c7c2f06cdb9a9890fc9768501e0e117dabb7fd6ef1",
-    "source_docstring": "77ecb5b51de80a11f06d91c7c2f06cdb9a9890fc9768501e0e117dabb7fd6ef1"
-  },
-  "en/claudewheel.md": {
-    "content": "3c621d0f141d1e300d0e1de46325a6c1d567b78631652d00c16efb4e68f8cac1",
-    "description": "4ea4bca14c981110aad9c02ee914affd74fc022f6c8f42beb596c7b5c01ec5b5",
-    "source_docstring": "fe18bab92438b4b951c568eb30ffbf901e9f67cc2194d536a753c5dbd0934455"
-  },
   "en/cli-config.md": {
-    "content": "f8f830db924977ed29afe92f9d50dfc17d0b58f97edda247ec3a6f7491aa9737",
-    "description": "7388a4eecb4b78175d5a7dcc97630a9743a9ab4243f1a47433b4535b65a8c8ad",
-    "schema_hash": "0a952a4a9f48e1ba3543b9bbfeb70b472234ae6416cd744db3e7e40249b21866"
+    "content": "92b3e3040e442df9eed5c044266250f34343f5a53f06fd0cf8bcb8607286cddf",
+    "description": "d7d4c4141bf04f0a273fcab0634ea7a118438e9838d05a6757f8c260140b989a",
+    "schema_hash": "fe224461be570f7003eba0a24909d55ec7dc136d02a327ac348aa4466ac66e46"
   },
   "en/cli-deploy-hooks.md": {
-    "content": "5389fc859b09ad0b6869a0b4a7e797d55691aa33f2dfc970bb342801872e1801",
-    "description": "e268b8ee16d6c2925e4a1854dffa32bd98b32cd5d3624f984bd37df900bb95bc",
-    "schema_hash": "77d405b8617b48214a01ae8df8967184391fc81e4d91a3858d1b4e38e77c1119"
+    "content": "776b617d574fa85f68d97b81b93e8d706c58e11755da90083dab692aea726244",
+    "description": "26e56382c9ed7b442592e156698b4c9bdfefc5e91e65970913866da69a6d19a0",
+    "schema_hash": "f924d232f4cfee919e8e3ca71d55fbd8ee10501e583368ca7c6ee577bdb5cc3d"
   },
   "en/cli-health.md": {
-    "content": "a0cb8a4f2ecfd3db84e1471b0f023bd31fc37ab3298a505ff8d32f18898cb653",
-    "description": "bce660b2830d459ded0337e6af14bc0215f80ff3a85cd9ece389b405bb2a5c9b",
-    "schema_hash": "800f197c80cbc6f108d12b446ed69ea85d63def4b10a5cb8343ff8bccf29efe6"
+    "content": "ec40b77b5ced275521da10da43b50a41f09dcf87ec7d8f2857c8ebba8a8a9e60",
+    "description": "b3905e2d8a1767e3a8719488d33ba2af58c69ab0391f3a010ca33ee75d22e194",
+    "schema_hash": "08b214263caab3e78d9a9009ea6cad178b30bb037e9b61fa2df2e4f8435ee653"
   },
   "en/cli-import.md": {
-    "content": "4bfc7a6d036bcb332dacf276e97da49d6b23746d82a5280c685c38afdd14dea3",
-    "description": "c2e616f64eae0fd89852be6a8b7afeadb9f470404ff4642278d96383fb67b0b7",
-    "schema_hash": "efa5282bb3796a5e6d993f6ad91d1236f58c0cb39822d23b833ad11d08886b8d"
+    "content": "12d6ad3715b438b5428b67bc99c8981087bdd1b7a05472263750417ad2149284",
+    "description": "70fb520c524e4120da7de4b17d4d672bf328788581b693e39941dababca9cb1e",
+    "schema_hash": "6f6f864f7a21c5e2ce1a83de81dfb0fcf1cedeb62c9a52cece379ac5d34598ef"
   },
   "en/cli-index.md": {
-    "content": "ca9bb607938e91343b2a1d9effc253b91093ac77311835d9d969bc061138ae83",
+    "content": "222af6ba5e9273ea49cae14cd67979e864e5d27cf92ef6035db0cd7ee26b3f55",
     "description": "f51789bc955adf454eddb8a98154f1b9f822049c3e11162a30159710bd6d75d7"
   },
   "en/cli-install.md": {
@@ -377,14 +35,14 @@
     "schema_hash": "46e34893e893a3e0e300d697dee5b8298dcd1ccc841a4fd2f319d6849472960e"
   },
   "en/cli-launch.md": {
-    "content": "133ee28f4d87d0c79b571941614bec42aa5d3eb211e496d33b4f1ed4bbc0cc15",
-    "description": "0b3d38d192a58c0acb6cf204f2a51cb94d5daa7a9d6647683b6cc71840cf04c2",
-    "schema_hash": "407996689b8c8b677436695cbc0285e172a2c298d35da771fa04bc81da869496"
+    "content": "2df7b293e04c0e55a4419160dca85bb058d49fcb65bac4624b1736a824ef3d61",
+    "description": "ea0a5b671ea348c8326eed6e8361bb6d571c4fac492f6686ff26a586258cc0ba",
+    "schema_hash": "f39cb7ae91107b1b30342dad4f3ce95978fb6155f2d4a9c5eb2d1200aae67825"
   },
   "en/cli-migrate.md": {
-    "content": "3072bb01c5471c4fe9e75243c0b1fa87ee70b31932e28dee1abb63c193b643fa",
-    "description": "78134e3259a9e8294116b956a6a8ca5cc432c01e8da927081b0f2fa2d8013633",
-    "schema_hash": "41efaba86339a1be740a96f1bc830627f95fbcfaf7568136158eb8551eb179e2"
+    "content": "b1344b6783aa3162e91b2f60afbfedd2d1cc298c09f5188e4e6e699d79bb6c49",
+    "description": "bf35c09b8654cbdb26c2346f7808493114ab9cadee7ba1f52e8dc9bfc2bf41cb",
+    "schema_hash": "0634576bfc6a35f0cd862154bdf31b99e52d706178f77842dc7b782d6f3ad3d9"
   },
   "en/cli-move-session.md": {
     "content": "360e33e95f20a075d835c298c188d5a7f9f4d6c709611852bbff6dc733835b0a",
@@ -398,40 +56,34 @@
     "schema_hash": "8502782597ca1f430f23840373323f92324c439077cc7c431e745aedf8e61e1e"
   },
   "en/cli-patch-profiles.md": {
-    "content": "f067a05faef080bf20d6765795d9de82ee466c9b3776bdb9286649992f871843",
-    "description": "06c48839bdd2cd785a449f655feb17faba37a9bcfc92010df5859f5b35656c7b",
-    "schema_hash": "eb0490db5d35cda79c6d0e15058594565f908b8c36df3e9e8cd5000e9534b95b"
+    "content": "70cefad224b26f42e9bb1f127c2c818340f50e87a9e83991c598f0841cc4a02a",
+    "description": "7d7d632941300bb4ccd1d914901e321095b0f0508a08ef6981bfdbe288c52496",
+    "schema_hash": "359cb9ff0ca2055b6457bdc7aecc028040ca932f8dbaa268b1b7a96731f9f29e"
   },
   "en/cli-permission.md": {
-    "content": "362933037a0650bf5de673ad17b023fffbea63b31acf027a6347202b86a6311b",
-    "description": "96f33d3b151540d78d242b54b7c282d5bf0c1b82d959677a381d87dcdb0b2792",
-    "schema_hash": "5a36ab7c0aa752f5700640f2f074d0c19d410a1fb2f5315d5ab8c7cc80ce882f"
+    "content": "2f8df2cbecc58e7da18f4ffb7ab4b4e1002a5b186c972df339eb96b963e81ac0",
+    "description": "5ec71afb52695800bb33c4e648df1e8ae1ab5d87cdbefee276da13db5eb922a8",
+    "schema_hash": "68d6b4de933848269af447dbe41a5b0727c56267255489101e56b89c28f140a3"
   },
   "en/cli-probe.md": {
-    "content": "e37141a305198b901ff0182f46006b658ad38e4536cca5b36521cee02de0f646",
-    "description": "2508a557cb967410290b735cd3179c5fcd6e0fdfd98a03be13d5fbbbc50ba689",
-    "schema_hash": "eef18041648c58fe7ade6b6b1588d958e603f56a30afebbf88f47d007b4fb2db",
-    "seed_hash": "2508a557cb967410290b735cd3179c5fcd6e0fdfd98a03be13d5fbbbc50ba689"
+    "content": "8b361933c62cd495eca3a192a0fbe79a9a4d9d39c481aa7a48ed80fd66354a4d",
+    "description": "fdeb360bb6a76dc520562d163ba59dbf753980c95e948715408513e754e5419f",
+    "schema_hash": "9927bf92baf823280f08cdf6d11143837a47551adafb3805759b8f2151a2362d"
   },
   "en/cli-profile.md": {
-    "content": "34a2d18ddd6d36bdc911077f5e6de407bbf75e1374141c8e8f1b539dce79ac65",
-    "description": "433f493782f4dce9217087cfaa19a8e51abd35a17cfbd6abe7dea8decb7434c7",
-    "schema_hash": "3951ff76d4dc2002a30a0f13986d768b5729c478f7b372666c2817f0213ff4b9"
+    "content": "84e8d07d2381f6e2ae61cf6fcda54ebe71c8ec85c5140063f4f71536057b1520",
+    "description": "d9acd1d1313364d0a9827b83a45705244980f4c8d5f081042079d921a18e8fb4",
+    "schema_hash": "ee81f1076567b65d507de2a6022ea85c1b9c13a82893f097f9093ad4e2c10145"
   },
   "en/cli-purge-plugins.md": {
-    "content": "00c07355cccd5a9774c8f0276473d29b32fea6befadc93408525443d70942c05",
+    "content": "300738d095ab1762fbbf1d75efbbc3eb0c6a2a91512ee063db314cd48c09ee61",
     "description": "9454877fc7f7b8d2d1b892ab1d4129751860f86583c20776e8107feca574a894",
-    "schema_hash": "27870e86181c8964d996a1353c6b5d579cf3b21466c455f52b650352a06e28ff"
-  },
-  "en/cli-reconcile-permissions.md": {
-    "content": "8e3daddfd3aa4cc3a0f53e91bfb6db9079547d0b25560912178f7e2f00944dbb",
-    "description": "b750ed1786859f15ba3590fe52745b0e0d5d2a20c7a4fa5ec4bab7ad176d46e2",
-    "schema_hash": "cb3d0d2e0367740c88c87656771ef5985a708ecd1ea8c90ffddd6490f07b7591"
+    "schema_hash": "70f8b4db3b2e00ceb858fee2d7574407ecc5ba0866876a582d01cf71774b59d4"
   },
   "en/cli-reset-options.md": {
-    "content": "d93fb3ad21887810839d8aec23fdcbda9898e47e6c4bb00baf63376b5970952e",
-    "description": "b1540aaa2e1902de5a232890c6a8f6f5168c4ee206d81207075cf5a59b532236",
-    "schema_hash": "efe86d7eb5156648144b5b037c9b63f96f875061d8c17f9b2c2cbbb2d7c776f9"
+    "content": "49740e81accc910adc7829541d7e51c4ee9f766fa2ee74b55a3f51a33bf1d874",
+    "description": "f76ac577df396dff358a994cc55a48ea3cf525442612fba078ee6d64638b0fcc",
+    "schema_hash": "52ab42135e1899be3d1d765a23f9e9db06e001fa5afcfbfbffb74eacbf206c7d"
   },
   "en/cli-show.md": {
     "content": "84cdc691c5ef4e5d99040bc6d483afdd1f02f5763a11c1ac2b1fc72ec3386796",
@@ -439,14 +91,20 @@
     "schema_hash": "d671956b3156b5d51c11e15741f8a3629a26b1b9d664fcf153015ae0d4b9be31"
   },
   "en/cli-stats.md": {
-    "content": "b1ab315371b5b02ab1ebe6582bb0ef4c6a87a6dc05e0ce175787e2147aa6a92b",
-    "description": "630091caa267ab4f474b2c1409c0974e24f1884ac6e9dd7d50938dc3d10b0a2a",
-    "schema_hash": "bf204cd2f22c8f40a95b50aad629cae7bed67d4310d29eee41a1e3a9e5bc49f7"
+    "content": "5c34ca3da482bbdb26387fbe54110c74aa4887d5ebc69c82149be6dc5f945163",
+    "description": "ddf37794aa466c9a30340f6339c60f3510fd2fbd79bbcd15bbf462764e4ac8e6",
+    "schema_hash": "5d57f893c536009d1daa8e0f570fd778f7a6440b2944a82ebc3321e4bf26367e"
   },
   "en/cli-uninstall.md": {
     "content": "975d93674afa52870b8c9fd23d15f20c5e9265ce7f2baa80bdd76c8f67ace915",
     "description": "030379bc7788bf3c986cdeb315529152c19d5a45afa6c8a4830786d96ca2c5ca",
     "schema_hash": "1b495a6b48a52c9e20547fadba524cde176d4a2d207848970d1e00303d434097"
+  },
+  "en/cli-upgrade-workspace.md": {
+    "content": "d020b6333b320f7988f2a2a1782588e57c4247a0e89642f58f7b11530998e966",
+    "description": "bc7efb577d868aa8a17274142d8535b2ccb5e8346186dc23b58d1960010c1b2f",
+    "schema_hash": "285b9b935e34ea94c612ccd0b0bc9f1df98d34a2c9fb73e59b8fa88c6d2d55b0",
+    "seed_hash": "bc7efb577d868aa8a17274142d8535b2ccb5e8346186dc23b58d1960010c1b2f"
   },
   "en/cli-versions.md": {
     "content": "0847b9698d84bf58cab41b12659693653b048973f27228779fe26e0c2e595d67",
@@ -454,41 +112,41 @@
     "schema_hash": "a4180181b38e4869af1a0fb3db224510b5d05539bd29d388094d73ce6cf91c65"
   },
   "en/config.md": {
-    "content": "1571302db11065c8e201ba70fac33f2fab711dc0e379cef6667c706b93b56f06",
-    "description": "84aec6c3a090c8c277496b729bab04b3dcb5fb7a3729c3006f307ad9ddb345a3"
+    "content": "0a352e7383af7f0b9a2d7a273bc091069349bad8db3781b5240a2e626809de6e",
+    "description": "4de299678b573cf52e4f40290f8c906713d9f957b57f67e3504908da83907c2b"
   },
   "en/gen-index.md": {
-    "content": "c84d0c4708e680a85d2ac24f17a12bd8e1fb83869ecb54381909cb646ffc7cee",
-    "description": "ccbe1dd99f9fe61eba48dfb01a2b0c88d1f78e7a6a66648f4ea5b9db4ec12514",
-    "seed_hash": "ccbe1dd99f9fe61eba48dfb01a2b0c88d1f78e7a6a66648f4ea5b9db4ec12514"
+    "content": "77b26abe69da3a05549e49ce64a424607918ca7cfb8913353870f1d7ae523870",
+    "description": "e1bf2cce6e8161a370eeed3be5f3849f59381d2a7e15ae9b861fe23efb6c57a5",
+    "seed_hash": "e1bf2cce6e8161a370eeed3be5f3849f59381d2a7e15ae9b861fe23efb6c57a5"
   },
   "en/getting-started.md": {
-    "content": "490292a3c1c043ae7b907e7cf749aeffb91cb63fa8c6872f13f1e85837ec7eaa",
-    "description": "f74cf1ae70dab24e4743abd25647b9facf4c45fdc54920698a8598358a351939"
+    "content": "58944b309ff1a9ca3b48a221dcdd0399b718493f40360d4f9ca0a08cadc3020b",
+    "description": "6de1b491d276635364ccaf362205d1f2e9eaf1f7309c86569337bf80a1a9ea9a"
   },
   "en/guardrails.md": {
-    "content": "872b3e82d2207d9ef74010dc928da3916b1510baa87738d52485ada8bb0739a0",
+    "content": "9f2fbdbb29a55a0c549b3550118cc3b9429457e3865d636ecb72f8867153d6ac",
     "description": "0d56caa73b0ff282bb3ef48e559fb1e0efc1c431f55d35fe26517e9952548698"
   },
   "en/health.md": {
-    "content": "15724a25873cf2702fdcdf7d678178070040d728b732222db36cb14ebc5d4d6a",
+    "content": "d4dffaf9cb07aca72be5ed4712586a5d9ae39ac11c7eb45d7b67577186052efd",
     "description": "0be49d55e9586e7aa54441445dc9f7b9d0627a7889dd21ca8a56998d199ee26f"
   },
   "en/index.md": {
-    "content": "6a11558fccd6230eb8a4f964535e7c45352a9af83032b03fc50672188d27d75b",
+    "content": "adde96be234c2239d6f02592af5594027fb232dbb302b1ed80ef247987586bf2",
     "description": "82190c27b0b3a0598bd31e63823029a3cdac30d8bb218bae022c9a1256cf69b0",
     "source_docstring": "fe18bab92438b4b951c568eb30ffbf901e9f67cc2194d536a753c5dbd0934455"
   },
   "en/probes.md": {
-    "content": "49f5a14e2e2f76ded98d58353f62157a88fa41bfd4cef35a3eee0eb22ea3cbb0",
+    "content": "0318ce195d21722144ff85106eb58476ccbd9702ae400533ea2ef7a1b0c53dd8",
     "description": "084ea41892c3f560c423ee237e0fc63d9b61a6975cea9a7cc2cc6353d19d0243"
   },
   "en/profiles.md": {
-    "content": "53dfc20011e563888fb20316e923939c8ab49b626b89a6b773a5802690e11c51",
+    "content": "dc7d070017bf0ab58ab04df667441982c32baf7ac2df40885aac733cce86fb7a",
     "description": "df4568e7a804a7bca067683de7b5b55180e7f7ab39f3d9c36338cb71a0deb845"
   },
   "en/theming.md": {
-    "content": "e679187a093ae5be254e7ab7276507fa17b380f28108f85b67c16d3bdea8fc47",
+    "content": "e5d7d2a99f7494422724559987b88cb088278e698e2e2fa4e6e568ae68a69d30",
     "description": "a42f3301f964ce42d084ff34a78024fae86bda43e69b9e9ce063c7dc3778c1d4"
   }
 }
