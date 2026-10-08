@@ -1,11 +1,11 @@
 # The next release of claudewheel. Fill in bump and description, then run `rlsbl release run --watch`.
 format_version = 2
 # How the release moves the version: patch, minor, major, or infra (moved as a patch, recorded as infra).
-bump = ""
+bump = "minor"
 # What this release is, in a sentence or two. Required.
-description = ""
+description = "claudewheel rewritten in Go: one binary installed with go install or from the release archives, a workspace converted once with upgrade-workspace, segments preset with -s, patch-profiles with an explicit --profile or --all-profiles, and the probe runner run by probe run-service. The Python and npm packages are no longer published; PyPI and npm keep 0.33.0."
 # Why these changes were made. Optional.
-context = ""
+context = "The stricttools projects are moving to Go; the Python and npm releases stop at 0.33.0."
 # The targets released, and the ones left out; between them they name every target of the releasable's members.
 include = ["go"]
 exclude = []
