@@ -24,3 +24,5 @@ dist/
 
 build/
 target/
+
+coverage/

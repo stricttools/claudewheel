@@ -1,8 +1,15 @@
 format_version = 1
-rlsbl_version = "0.124.1"
+rlsbl_version = "0.131.0"
 
 [files]
-".github/workflows/ci-pypi.yml" = "eaa88b8b02598890921bb77186af2ca537d5eacc820cff4157eb95b63bb7d391"
-".github/workflows/publish.yml" = "84a902c63583e07b50c3f43573ea2264f1288d5157fc8206d2bd5a61475db891"
-".gitignore" = "acd4d1503d94120d245423b49fec65d6d8e84c7237ca6b6eb02b0c0c4f90134f"
-".npmignore" = "1aaec672b9f03f3ac51ec023e2b272d238f6fc7956c4e3bae36f017492b9dbc4"
+".claude/go.mod" = "dd4165ab2ea2c7f27698a1b1ca5bfa8e08cfb21aae5c390b1675e65aab3cac27"
+".github/workflows/ci.yml" = "ee4c37969434108cbfb7464040f88564b06186e3dce95a0592f0c2c084a6d0eb"
+".github/workflows/publish.yml" = "2353d0603c5a2fe01e7b72890d9ab1e5fc9a6748f136d7edd689cf64cfcbaf8f"
+".goreleaser.yml" = "75a86312a0db03e1b72f5c981971cd574d7edded22c96989e333341115713cb6"
+".strictmetadata/go.mod" = "dd4165ab2ea2c7f27698a1b1ca5bfa8e08cfb21aae5c390b1675e65aab3cac27"
+"VERSION" = "d553a58a6837c95f31bae39ac344e63cc82fa81cc524966a7cd5174db38c8fa6"
+"experiments/.gitignore" = "315847fcdb038a16ecf2773e67ed8c8fe88479b37062d7a72ed1732f09062633"
+"experiments/go.mod" = "559c21464c216881d2a25931481a9d4fb2f4df2ebcf9425642252d56a2fc1300"
+"screenshots/.gitignore" = "315847fcdb038a16ecf2773e67ed8c8fe88479b37062d7a72ed1732f09062633"
+"screenshots/go.mod" = "559c21464c216881d2a25931481a9d4fb2f4df2ebcf9425642252d56a2fc1300"
+"todo/go.mod" = "dd4165ab2ea2c7f27698a1b1ca5bfa8e08cfb21aae5c390b1675e65aab3cac27"
