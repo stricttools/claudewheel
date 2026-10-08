@@ -15,20 +15,12 @@ publish_mode = "ci"
 path = "."
 name = "root"
 releasable = "claudewheel"
-internal_dep_floors = ["strictcli", "testisolation", "strictspec"]
-targets = [{ name = "npm" }, { name = "pypi" }]
-external_checks = [{ name = "autospec-tests", tag = "preflight", command = "python3 scripts/gates/check-autospec" }]
+targets = [{ name = "go" }]
 
 [[members.pipelines]]
-name = "npm"
-type = "npm"
-target = "npm"
+name = "go"
+type = "go"
+target = "go"
 local = false
-artifact = "package"
-
-[[members.pipelines]]
-name = "pypi"
-type = "pypi"
-target = "pypi"
-local = false
-artifact = "package"
+artifact = "binary"
+install_paths = ["./cmd/claudewheel"]

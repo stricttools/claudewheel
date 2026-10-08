@@ -8,7 +8,7 @@ import (
 )
 
 // writerCase is one document and the text each of the Python's json.dumps
-// layouts writes for it, from scripts/python-expectations json-writers.
+// layouts writes for it, recorded by a generator deleted with the Python.
 type writerCase struct {
 	Input              string `json:"input"`
 	Indented           string `json:"indented"`

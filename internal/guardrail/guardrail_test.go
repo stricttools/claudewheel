@@ -11,8 +11,8 @@ import (
 	"github.com/stricttools/claudewheel/internal/jsonfile"
 )
 
-// pythonModel is the Python guardrail model, written by
-// scripts/python-expectations guardrail-model. The Go model must equal it:
+// pythonModel is the Python guardrail model, recorded by a generator
+// deleted with the Python. The Go model must equal it:
 // a difference in canonical order would rewrite every profile on the first
 // Go reconcile.
 type pythonModel struct {

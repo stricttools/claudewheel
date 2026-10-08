@@ -14,8 +14,8 @@ import (
 	"github.com/stricttools/claudewheel/internal/workspace"
 )
 
-// pythonWorkspace copies the workspace the Python's first run writes
-// (scripts/python-expectations python-workspace) under a fresh home.
+// pythonWorkspace copies the workspace the Python's first run wrote,
+// recorded by a generator deleted with the Python, under a fresh home.
 func pythonWorkspace(t *testing.T) workspace.Workspace {
 	t.Helper()
 	ws := testkit.Workspace(t)

@@ -12,8 +12,7 @@ import (
 )
 
 // hookCase is one run of a hook the Python's hook execution tests made, and
-// what the hook printed and exited with (scripts/python-expectations
-// hook-cases).
+// what the hook printed and exited with, recorded by a generator deleted with the Python.
 type hookCase struct {
 	Script string `json:"script"`
 	Stdin  string `json:"stdin"`

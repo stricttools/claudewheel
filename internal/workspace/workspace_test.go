@@ -8,8 +8,7 @@ import (
 	"testing"
 )
 
-// The Python's store-dir names for the same paths, written by
-// scripts/python-expectations encode-path.
+// The Python's store-dir names for the same paths, recorded by a generator deleted with the Python.
 type encodeCase struct {
 	PathB64     string `json:"path_b64"`
 	Untruncated string `json:"untruncated"`

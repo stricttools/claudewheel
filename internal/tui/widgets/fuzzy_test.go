@@ -8,7 +8,7 @@ import (
 )
 
 // The fuzzy matching calls the Python's tests made, with their results
-// (scripts/python-expectations tui-calls).
+// (recorded by a generator deleted with the Python).
 func TestFuzzyMatchesThePython(t *testing.T) {
 	data, err := os.ReadFile("../testdata/python-tui-calls.json")
 	if err != nil {

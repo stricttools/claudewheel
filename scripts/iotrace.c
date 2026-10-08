@@ -1,6 +1,6 @@
 /* LD_PRELOAD interposer logging file syscalls (open/write/fsync/rename/chmod)
  * for machines without strace. Used to verify the atomic-write commit
- * sequence in claudewheel/effects.py; keep it for the pending fsync-durability
+ * sequence in internal/effects; keep it for the pending fsync-durability
  * work (todo/residual-decisions-and-housekeeping.md).
  *
  * Build:  gcc -shared -fPIC -o libiotrace.so scripts/iotrace.c -ldl

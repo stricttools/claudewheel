@@ -7,7 +7,7 @@ import (
 )
 
 // pythonCall is one call of a pure TUI function the Python's tests made,
-// with its result (scripts/python-expectations tui-calls).
+// with its result, recorded by a generator deleted with the Python.
 type pythonCall struct {
 	Fn     string            `json:"fn"`
 	Args   []json.RawMessage `json:"args"`

@@ -9,8 +9,8 @@ import (
 	"github.com/stricttools/claudewheel/internal/guardrail"
 )
 
-// pythonDir holds every script the Python claudewheel generates, written by
-// scripts/python-hook-scripts. The deployed scripts must stay byte-identical
+// pythonDir holds every script the Python claudewheel generated, recorded by
+// a generator deleted with the Python. The deployed scripts must stay byte-identical
 // to them, so a Go deploy changes no deployed hook.
 const pythonDir = "testdata/python"
 

@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # Builds the claudewheel binary to the given path, stamping the version
-# recorded in package.json into it at link time, so no copy of the version is
-# committed beside the code.
+# recorded in VERSION into it at link time (main.Version).
 set -euo pipefail
 
 if [[ $# -ne 1 ]]; then
@@ -15,23 +14,11 @@ if [[ "${out}" != /* ]]; then
 	out="${PWD}/${out}"
 fi
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-manifest="${root}/package.json"
-
-# The top-level "version" member is the one line indented by two spaces that
-# names it; anything else is refused rather than guessed at.
-pattern='^  "version": "([^"]+)",?$'
-version=""
-matches=0
-while IFS= read -r line || [[ -n "${line}" ]]; do
-	if [[ "${line}" =~ ${pattern} ]]; then
-		version="${BASH_REMATCH[1]}"
-		matches=$((matches + 1))
-	fi
-done < "${manifest}"
-if [[ "${matches}" -ne 1 ]]; then
-	echo "scripts/build: expected one top-level \"version\" line in ${manifest}, found ${matches}" >&2
+version="$(<"${root}/VERSION")"
+if [[ ! "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+	echo "scripts/build: ${root}/VERSION must hold one MAJOR.MINOR.PATCH version, found '${version}'" >&2
 	exit 1
 fi
 
 cd "${root}"
-go build -ldflags "-X main.version=${version}" -o "${out}" ./cmd/claudewheel
+go build -ldflags "-X main.Version=${version}" -o "${out}" ./cmd/claudewheel

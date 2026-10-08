@@ -1,7 +1,0 @@
-format_version = 1
-
-[[entry]]
-id = "rlsbl:dep-floors"
-current = "error"
-ideal = "error"
-reason = "claudewheel depends on sibling packages (strictcli, testisolation, strictspec) whose lock must not drift above the declared floor"

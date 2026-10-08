@@ -10,8 +10,7 @@ import (
 	"github.com/stricttools/claudewheel/internal/testkit"
 )
 
-// pythonDefaults are the Python's DEFAULT_* values, written by
-// scripts/python-expectations app-defaults.
+// pythonDefaults are the Python's DEFAULT_* values, recorded by a generator deleted with the Python.
 func pythonDefaults(t *testing.T) map[string]jsonfile.Value {
 	t.Helper()
 	data, err := os.ReadFile("testdata/python-defaults.json")

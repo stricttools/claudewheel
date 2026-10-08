@@ -43,7 +43,7 @@ func moved(ms int64, cwd string) MovedEvent {
 		NewCwd: cwd, OldTranscript: "/s/a.jsonl", NewTranscript: "/s/" + cwd + ".jsonl"}
 }
 
-// The Python wrote these lines (scripts/python-expectations lifecycle-lines);
+// The Python wrote these lines (recorded by a generator deleted with the Python);
 // Go reads each and writes it back byte for byte.
 func TestPythonLinesRoundTrip(t *testing.T) {
 	data, err := os.ReadFile("testdata/python-lines.json")

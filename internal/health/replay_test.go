@@ -26,7 +26,7 @@ type snapEntry struct {
 }
 
 // healthCall is one check the Python's health tests ran, the home directory
-// it ran on, and its result (scripts/python-expectations health-calls).
+// it ran on, and its result, recorded by a generator deleted with the Python.
 type healthCall struct {
 	Fn     string      `json:"fn"`
 	Today  string      `json:"today"`

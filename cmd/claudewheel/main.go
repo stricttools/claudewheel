@@ -4,17 +4,12 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/stricttools/strictcli/go/strictcli"
 
 	"github.com/stricttools/claudewheel/internal/cli"
 )
-
-// version is stamped at link time by scripts/build
-// (-ldflags "-X main.version=..."); it has no fallback.
-var version string
 
 // launchCommand is the command a bare invocation runs: strictcli has no
 // default-command declaration, so main inserts its name into the argument
@@ -38,11 +33,7 @@ var passThroughFlags = map[string]bool{
 }
 
 func main() {
-	if version == "" {
-		fmt.Fprintln(os.Stderr, "error: this claudewheel binary carries no version: build it with scripts/build, which stamps the version recorded in package.json")
-		os.Exit(1)
-	}
-	app := cli.NewApp(version)
+	app := cli.NewApp(Version)
 	// strictcli's Run reads os.Args and takes no argument list, so the
 	// launch insertion rewrites os.Args before it.
 	os.Args = append([]string{os.Args[0]}, injectLaunch(os.Args[1:], routingNames(app))...)

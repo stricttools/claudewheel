@@ -10,8 +10,8 @@ import (
 	"github.com/stricttools/claudewheel/internal/jsonfile"
 )
 
-// The Python's reconcile of the same settings trees, written by
-// scripts/python-expectations reconcile-cases.
+// The Python's reconcile of the same settings trees, recorded by
+// a generator deleted with the Python.
 type pythonCases struct {
 	ScriptsDir string `json:"scripts_dir"`
 	Cases      []struct {

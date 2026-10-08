@@ -28,8 +28,7 @@ type snapEntry struct {
 }
 
 // recordedCall is one call the Python's probe runner tests made, with the
-// workspace before and after it (scripts/python-expectations
-// probe-runner-calls).
+// workspace before and after it, recorded by a generator deleted with the Python.
 type recordedCall struct {
 	Fn        string             `json:"fn"`
 	Before    []snapEntry        `json:"before"`

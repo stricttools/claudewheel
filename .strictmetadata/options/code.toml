@@ -1,12 +1,6 @@
 format_version = 1
 
 [[entry]]
-id = "strictcode:type-check"
-current = "error"
-ideal = "error"
-reason = "claudewheel is type-annotated and mypy-clean; releases keep it so"
-
-[[entry]]
 id = "strictcode:lint"
 current = "error"
 ideal = "error"

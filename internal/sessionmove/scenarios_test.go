@@ -27,7 +27,7 @@ type treeEntry struct {
 }
 
 // scenario is one session operation the Python ran on a tree, and the tree
-// it left (scripts/python-expectations session-scenarios).
+// it left, recorded by a generator deleted with the Python.
 type scenario struct {
 	Name   string            `json:"name"`
 	Tree   []treeEntry       `json:"tree"`
