@@ -27,7 +27,6 @@ developed against an unpublished dependency.
 # blog = false
 include = ["npm", "pypi"]
 exclude = []
-release_commit = "149d41ed45f8725b7a0d7716bda8e5bae2d16242"
-
+release_commit = "a667617b6cf807b34fe0bd662f51f90a841e09db"
 [released_trees]
 "." = "4b5ebcd9b6706a623d9289224f21ffb5f2fe4940"

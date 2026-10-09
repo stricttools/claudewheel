@@ -8,7 +8,6 @@ description = "mv now renames directories by default, --post-hoc for session-onl
 context = ""
 include = ["npm", "pypi"]
 exclude = []
-release_commit = "8c26d6f9b48cd1c7e872e51430b3959a3ab29b05"
-
+release_commit = "9f188d061a1776d078e3bde2b445501632dbad87"
 [released_trees]
 "." = "20e1697fd1844479e5c8361cf87e517edef71857"

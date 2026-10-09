@@ -15,7 +15,6 @@ bump = "patch"
 include = ["npm", "pypi"]
 exclude = []
 description = "Fix backspace in freeform segments trapping arrow keys (emptying the buffer now exits edit mode; LEFT/RIGHT work mid-edit)"
-release_commit = "b3c13ad9b3ef9cb02df1cc7ab5be547843f2788b"
-
+release_commit = "12d963545c1486e6bf5b245f942b198da12a2be0"
 [released_trees]
-"." = "b0aa4492500714ed6c6515ca98deb8dda2537b7a"
+"." = "90a6e039bade277f772f392583c62b32385fec26"

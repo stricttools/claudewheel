@@ -8,7 +8,6 @@ description = "CI workflow improvements: idempotent publish steps for npm and Py
 context = "Scaffold update added skip-if-already-published checks to both npm and PyPI publish workflows, making CI re-runs safe. Also added separate CI check workflows."
 include = ["npm", "pypi"]
 exclude = []
-release_commit = "fdaacc202087b2c69a8564fa74c2fe1f53a1f55f"
-
+release_commit = "0af52de5ec306d56421509bc7c92fc13198a392a"
 [released_trees]
 "." = "f8779f44daad32bc972ff9818e0003d508a75ab6"

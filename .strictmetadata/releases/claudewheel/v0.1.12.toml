@@ -15,7 +15,6 @@ bump = "patch"
 include = ["npm", "pypi"]
 exclude = []
 description = "Fix minimap: use small square (▪) instead of full block so focused segment's background highlight is visible"
-release_commit = "835b5911a0f5e78c08e5b1cb5b2d7c13aa8d3888"
-
+release_commit = "2c37eee538361c8090bb4e5594c51275b79f923e"
 [released_trees]
-"." = "e018e135100ef03bfc7701abd6edb3a8e6baf38b"
+"." = "39987311d4c5b25a133454ec5d5570a09834b8eb"

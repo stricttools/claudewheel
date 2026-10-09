@@ -15,7 +15,6 @@ bump = "patch"
 include = ["npm", "pypi"]
 exclude = []
 description = "No user-facing changes."
-release_commit = "9f1f2a8d13f35a96da1c985d8cc2a3798833a958"
-
+release_commit = "cd09b9f6abc1d3d363eccffda8d2ea34fddbf99b"
 [released_trees]
-"." = "832c681df1e246865b917d1d03f7a7dc2a877f13"
+"." = "75f4307b9dcd7fa2d14ad83ef4b27816387de15c"

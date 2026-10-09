@@ -15,7 +15,6 @@ bump = "patch"
 include = ["npm", "pypi"]
 exclude = []
 description = "Viewport scrolling for narrow terminals: bar scrolls horizontally with focused segment centered"
-release_commit = "8d6a7262b79d6d941259b49d96b00141d40b0748"
-
+release_commit = "edc1b50969f79e515120979726a2909eb6461b48"
 [released_trees]
-"." = "9fecfe3708e9b66cfc77169f0733950188a542de"
+"." = "78f87594a44d48298e65029fb772a25d25255533"

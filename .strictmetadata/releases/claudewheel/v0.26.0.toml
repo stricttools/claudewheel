@@ -31,7 +31,6 @@ where `permission list` now puts its machine output.
 # blog = false
 include = ["npm", "pypi"]
 exclude = []
-release_commit = "851719cc98e94243b2e067e4d5c5b4208135f73b"
-
+release_commit = "fe8d75688ab702e8f0e5538b09b1c1125239fcfc"
 [released_trees]
 "." = "35314c18f73561e8bf37db9b4558140a0ad8d82f"

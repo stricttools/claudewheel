@@ -24,7 +24,6 @@ divergence.
 # blog = false
 include = ["npm", "pypi"]
 exclude = []
-release_commit = "80538ca269e0f1cc7722b6bd2cc7518fddaad256"
-
+release_commit = "c897d5c588e77e265ceb231b0830664737993f0b"
 [released_trees]
 "." = "0af8c65187d68b639d407b20fb51bd4a7a708858"

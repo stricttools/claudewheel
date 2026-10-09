@@ -18,7 +18,6 @@ Fixes: CSI decoder handles private-mode sequences without byte leakage, and SIGT
 # blog = false
 include = ["npm", "pypi"]
 exclude = []
-release_commit = "4f441f6d58698ad4d8916a241089f87dc82513a8"
-
+release_commit = "0fb65597a21a7bcb157bd07d9a57266622d61842"
 [released_trees]
 "." = "c9bc416bf9412f56415e0613b23502dd0a35950a"

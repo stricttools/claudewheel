@@ -15,7 +15,6 @@ Documentation website at claudewheel.smmh.dev with auto-generated API/CLI refere
 """
 include = ["npm", "pypi"]
 exclude = []
-release_commit = "d82d22a435060a6813ddf5019505310a1772a152"
-
+release_commit = "3b010775c3dec68d38ffa472fda9481f8bb83611"
 [released_trees]
-"." = "be97d59c75b653562e718e649d5431e6cdffb94e"
+"." = "7af0bb1226b98851730c4b1cf360faf8684addf3"

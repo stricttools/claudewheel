@@ -22,7 +22,6 @@ silently drift.
 # blog = false
 include = ["npm", "pypi"]
 exclude = []
-release_commit = "45e455dcf3ede6655fcd66700735f8a5bdf1de86"
-
+release_commit = "a8f8ec02e1578ca43c2b85f8ad39f98da206055a"
 [released_trees]
 "." = "89f0ffa68197b996e64f8c51d7d695266e0b4189"

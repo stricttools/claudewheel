@@ -15,7 +15,6 @@ bump = "patch"
 include = ["npm", "pypi"]
 exclude = []
 description = "Add `print_mode` toggle to segment definitions; segments declare whether they participate in `-p` mode"
-release_commit = "b2caa3de048da1f7f11ed006fd07d20ce9a42836"
-
+release_commit = "803461969fe9de467d44bc56ac6b2f7f5eec4b84"
 [released_trees]
-"." = "74579e75d44ddb2a713b843b7ee053ddd3f5ca01"
+"." = "48e486578a49729db6463983f3b48aef3b2887f8"

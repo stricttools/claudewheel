@@ -26,7 +26,6 @@ launch through CLAUDE_CODE_DISABLE_TERMINAL_TITLE.
 # blog = false
 include = ["npm", "pypi"]
 exclude = []
-release_commit = "29ba2e859eb98462e2da65a5db11850c1831dbc6"
-
+release_commit = "94d083638aae235047d3f498a96b0bff4dfb289d"
 [released_trees]
 "." = "efb596405ff21de37efca7343a53c462576f1d8d"

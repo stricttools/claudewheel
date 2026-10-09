@@ -34,7 +34,6 @@ value.
 # blog = false
 include = ["npm", "pypi"]
 exclude = []
-release_commit = "de4b804d86a922c3a2c7ea4682a86fcb40201411"
-
+release_commit = "58c4965899618846cf6dc13b4230404217bf638c"
 [released_trees]
 "." = "023eb2e3154dbb11071a299537c471eee00d3ecb"

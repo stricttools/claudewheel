@@ -15,7 +15,6 @@ bump = "patch"
 include = ["npm", "pypi"]
 exclude = []
 description = "Rename all internal references from ClaudeLauncher to claudewheel (docstrings, CLI output, User-Agent, tests)"
-release_commit = "5527c31d0f0189934a7b1bb32fa4a99b898c36f5"
-
+release_commit = "f178af713522a2575f6e8863774c1cca14b7eda3"
 [released_trees]
-"." = "ac0d70dddbf577fb4002140b3d2c35d7025c8b3a"
+"." = "2eb869fc1eef432da3a82cfeb7a5bf19cf49a7f3"

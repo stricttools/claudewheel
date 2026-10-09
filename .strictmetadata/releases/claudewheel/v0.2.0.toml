@@ -15,7 +15,6 @@ bump = "minor"
 include = ["npm", "pypi"]
 exclude = []
 description = "Enforce disallowedTools across all profiles: 19 Claude Code tools disabled via settings.json (plan mode, worktree, task tracking, cron, notebook, push notifications, remote triggers, LSP, skill auto-invoke)"
-release_commit = "8326a350c6dcd3de2aab726b31dddb0b454a42e0"
-
+release_commit = "684f5035bc72eb889c5df3438352c76c56410d2a"
 [released_trees]
-"." = "ba9d4f6d3177efa26b15bc52e183c0a9bcf744ff"
+"." = "01c3e53470d3c30b6802a037d6b27f0cd9f1b719"

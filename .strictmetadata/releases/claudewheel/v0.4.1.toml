@@ -15,7 +15,6 @@ bump = "patch"
 include = ["npm", "pypi"]
 exclude = []
 description = "**CI fix.** Resolved dependency resolution failure by removing local path override for strictcli."
-release_commit = "4f75b32a39a022677f0041442092e5100c17dc9d"
-
+release_commit = "9c7d82f1d1f14677e6105a7cd0149833e95e9f62"
 [released_trees]
-"." = "255c0a85df9890817490c59c2741bc9789c8a549"
+"." = "7672afb7ba87b0b2ad24f6157c73426670aeed9e"

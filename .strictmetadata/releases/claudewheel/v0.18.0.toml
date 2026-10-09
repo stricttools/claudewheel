@@ -18,7 +18,6 @@ Breaking: delete-profile now requires --force-delete-data (in addition to --forc
 # blog = false
 include = ["npm", "pypi"]
 exclude = []
-release_commit = "56582f20dc2faafebb3c1134a288707f2eca5750"
-
+release_commit = "73edaa5b4d56fede12c96c99b4b2cc4866a8623b"
 [released_trees]
 "." = "49cbe8426ba91823fbd32ecb41afe24f7846029f"

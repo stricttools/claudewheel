@@ -34,7 +34,6 @@ identical to declaring nothing at all.
 # blog = false
 include = ["npm", "pypi"]
 exclude = []
-release_commit = "e74ce7c6e23da2e557acd3908d2fec3890c235ad"
-
+release_commit = "0cb4f77649b2e65ea4e459d7b4d500ba5be448fc"
 [released_trees]
 "." = "5ccb29b1e4207fa2b87a2afa3668b3d3a1a5f445"

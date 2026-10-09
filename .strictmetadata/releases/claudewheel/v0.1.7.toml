@@ -15,7 +15,6 @@ bump = "patch"
 include = ["npm", "pypi"]
 exclude = []
 description = "Add `-p`/`--print` flag for non-interactive print mode"
-release_commit = "47946b6027b250480d17c8cfc74250541b3b1b40"
-
+release_commit = "44b68a06f1002f0b156eea09022519488101847a"
 [released_trees]
-"." = "0982a35be3e97f6ea87c5252342bd206c958630f"
+"." = "9c13a711c31af61bd43478fef0d51244e09669ad"

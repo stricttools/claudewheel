@@ -2,6 +2,10 @@
 
 # Changelog
 
+## Unreleased
+
+- No user-facing changes.
+
 ## 0.34.1
 
 The release archives for Linux, which 0.34.0 failed to publish: claudewheel runs only on Linux, and its macOS builds failed.

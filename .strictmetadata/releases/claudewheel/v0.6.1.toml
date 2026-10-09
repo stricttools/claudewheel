@@ -14,7 +14,6 @@ _clean_origins_file) removed. Origins file dual-location bug fixed.
 """
 include = ["npm", "pypi"]
 exclude = []
-release_commit = "089f3fed58a347a5b8623124cc5deed93d6af880"
-
+release_commit = "88004aaf12fa4736e68cbcf86f9df51f1140b2d5"
 [released_trees]
-"." = "64aff79b948c82e988f2bc3f79c885858ca5dc4e"
+"." = "2162a81e5658ff3cf13cec7788cce742884c4e01"

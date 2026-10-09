@@ -15,7 +15,6 @@ bump = "patch"
 include = ["npm", "pypi"]
 exclude = []
 description = "**Fix.** Profiles set up before claudewheel (without `.credentials.json`) were invisible to health checks and the TUI profile picker. They are now discovered via `tokens.json`."
-release_commit = "a2534ac0b1ab71538da4de78f916c74acad927c8"
-
+release_commit = "fbe8ca74c65102d756a40b8731787fe19e3ec489"
 [released_trees]
-"." = "9ea2653767268fc58279e0ad9188beccde6373af"
+"." = "fa0818f48294962432ee321889a93fa99713fb30"

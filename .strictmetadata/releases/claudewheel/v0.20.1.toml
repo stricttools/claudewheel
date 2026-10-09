@@ -25,7 +25,6 @@ gains a deployed-hook drift check.
 # blog = false
 include = ["npm", "pypi"]
 exclude = []
-release_commit = "30e8fcc4deffdc4f3a5e0dd448bbf1a1358b44c6"
-
+release_commit = "f48ea203ba6a9ee12f822fcd744b297577337e93"
 [released_trees]
 "." = "755955eca3ac787197ba1828fb80647869009cf9"

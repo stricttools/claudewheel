@@ -8,7 +8,6 @@ description = "Instant TUI startup via async discovery, KeyboardInterrupt fix, S
 context = ""
 include = ["npm", "pypi"]
 exclude = []
-release_commit = "d91ebf84d9d47739984bba743637947706a6edbb"
-
+release_commit = "dee84985e6c1be7d133491fe90cc35fcf8b59483"
 [released_trees]
 "." = "b5c5076ffa53b28f67c0610f8962e504ec7ebbd8"

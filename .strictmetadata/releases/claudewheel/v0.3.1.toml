@@ -15,7 +15,6 @@ bump = "patch"
 include = ["npm", "pypi"]
 exclude = []
 description = "Show README on the PyPI package page"
-release_commit = "c98d54d484f2345d41b27e9d75cd12b8027e7bef"
-
+release_commit = "479425c3673b035c43ee0232f1c0a13470abe9f8"
 [released_trees]
-"." = "a63daaa26110d68c90cda2746909b7e2ed692ec2"
+"." = "7e16a932ddadb8255b37349be373e764835ee0ac"

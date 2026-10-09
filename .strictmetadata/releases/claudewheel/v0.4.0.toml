@@ -15,7 +15,6 @@ bump = "minor"
 include = ["npm", "pypi"]
 exclude = []
 description = "**Python 3.11 required.** Bumped minimum Python version from 3.10 to 3.11 for strictcli compatibility."
-release_commit = "8b4d7acaedec235ecfd68d43c05ce256e2cd449a"
-
+release_commit = "6fa0070c1bab5bb16b020968e3d76a12c0fcffd7"
 [released_trees]
-"." = "1d895935ebb168ba39da6521ed23e5a7df731a17"
+"." = "c2e11cd27ae1b19682f1388b601179bfe5644403"

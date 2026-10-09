@@ -12,7 +12,6 @@ context = "Maintenance items riding along with this release: strictcli dependenc
 # blog = false
 include = ["npm", "pypi"]
 exclude = []
-release_commit = "72e8380fb8f3e7f2bc48f9aa5363eb22d6a81cfd"
-
+release_commit = "c5dc13b004029c79d752c20d0d129e9173ae68ba"
 [released_trees]
 "." = "1ed34e02a5469d67b67c63b59da3fc1cee8d3081"

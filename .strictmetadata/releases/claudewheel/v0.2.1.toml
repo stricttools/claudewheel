@@ -15,7 +15,6 @@ bump = "patch"
 include = ["npm", "pypi"]
 exclude = []
 description = "Fix: disallowedTools were never enforced -- the wizard wrote to a top-level `disallowedTools` key in settings.json that Claude Code silently ignores"
-release_commit = "9be7486044361257ba3fb100058dcb78af33ff9d"
-
+release_commit = "6274ca3c34502f759165c333e9586800893c1852"
 [released_trees]
-"." = "2d983762900870c472ddf79cd9caef4e3f97e6cd"
+"." = "a675f109dc8d94e2abbf1bdaabf12ca4e212385e"

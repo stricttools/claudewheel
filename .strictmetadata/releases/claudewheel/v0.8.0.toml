@@ -8,7 +8,6 @@ description = "Rename gc command to stats"
 context = "The gc command only reports shared-store statistics now (sentinel cleanup and origins compaction were removed in v0.7.0). Renamed to reflect its actual purpose."
 include = ["npm", "pypi"]
 exclude = []
-release_commit = "d791ad2f7a3bb62b0710483992b197bd03dc8518"
-
+release_commit = "10727c3590650315a30fad8003043c1c34a3f6f2"
 [released_trees]
 "." = "11b4c552a77bbaab8446605d814fae0239879115"

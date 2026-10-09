@@ -38,7 +38,6 @@ refused.
 # blog = false
 include = ["npm", "pypi"]
 exclude = []
-release_commit = "637129fa136e5c3158abde500a5f14b6b176dda5"
-
+release_commit = "c4e79458a5f1a583fe28ea76e2ba05f13e2ab022"
 [released_trees]
 "." = "c94f1db979304ff28a0950b59b02f0b4b5272b6a"

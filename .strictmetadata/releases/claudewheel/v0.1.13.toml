@@ -15,7 +15,6 @@ bump = "patch"
 include = ["npm", "pypi"]
 exclude = []
 description = "Schema-versioned config migrations: existing users' github segment automatically fixed to optional"
-release_commit = "3ca359746675394deb660005f22ba3e0d828ce34"
-
+release_commit = "39be8b430aa02271dd1ac9d5aed562b29bc0e28c"
 [released_trees]
-"." = "d868a5273654c2d1b00c3af5efdec54643147472"
+"." = "f361b51b7257a8c1d602de0fdab4c4dac39d5bbc"

@@ -20,7 +20,6 @@ and the text input has visible brackets. The Cancel button was removed (ESC suff
 # blog = false
 include = ["npm", "pypi"]
 exclude = []
-release_commit = "f1b02ff0c64955fbd536c27f5bbe51ab23e00103"
-
+release_commit = "4dbad8f626ee959b3019ccbb10bac2e2c09cdeeb"
 [released_trees]
 "." = "d79e64e9ee7e84c94c0e8285d233c9ae250b0618"

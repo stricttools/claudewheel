@@ -15,7 +15,6 @@ bump = "patch"
 include = ["npm", "pypi"]
 exclude = []
 description = "Add `--redir OLD NEW` subcommand for redirecting session data after a project directory rename"
-release_commit = "460cbae4fa58b126f0ca9dde845d687f1a30ef64"
-
+release_commit = "a6a5f16cacb7284535d4d463e413cec9eb3a8df6"
 [released_trees]
-"." = "c0e607c92130f234f00859ad0689690ebda51dbf"
+"." = "f4c6f5e12fcd41ef5ff488ca11da8ffeaa797227"

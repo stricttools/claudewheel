@@ -8,7 +8,6 @@ description = "--cont interception, mv merge fix, cleaner dry-run UX"
 context = ""
 include = ["npm", "pypi"]
 exclude = []
-release_commit = "234df590e9e2ff4414ed91adadb2109e293869c5"
-
+release_commit = "6df273a0c72567bc5883a2243ffa907175b6f5d9"
 [released_trees]
 "." = "d49f1ec5df59257d0f96d555cc22af49f92d5134"

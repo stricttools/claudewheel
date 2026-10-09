@@ -8,7 +8,6 @@ description = "Remove profile attribution system, add --picker flag, unify share
 context = "The profile attribution system (hook-stamp-origin, xattr stamping, sentinels, origins log) had unfixable race conditions and 30% of session files could never be attributed. Removed entirely rather than patching. Also adds --picker for argless session resume and unifies shared settings with drift detection."
 include = ["npm", "pypi"]
 exclude = []
-release_commit = "93e74f9628ac8d6897becce3b01199bc5ebad864"
-
+release_commit = "0a960f6d41a71d4d8d47a63a30819b3d924b2e7d"
 [released_trees]
 "." = "66082342457d27d084ae753f9b4167d4022c8ee6"

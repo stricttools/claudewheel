@@ -28,7 +28,6 @@ shared version resolution, so the two can no longer disagree.
 # blog = false
 include = ["npm", "pypi"]
 exclude = []
-release_commit = "068b8409426a36a88ed2f049516a923060ecd163"
-
+release_commit = "d7aa4dfef6984494a3e3a690f080bb9febdb99dc"
 [released_trees]
 "." = "131dcb45949d0bf9d8b6a1ecf2e130c1b94a43b4"

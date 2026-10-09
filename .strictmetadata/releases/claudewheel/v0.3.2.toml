@@ -15,7 +15,6 @@ bump = "patch"
 include = ["npm", "pypi"]
 exclude = []
 description = "Auto-generated API docs deployed to Cloudflare Pages on each release"
-release_commit = "bef92c53e2e8a06d33f497eebb14619810fab9bd"
-
+release_commit = "00fe6aeede87a3bb1c64c8c878c91b894cee54c3"
 [released_trees]
-"." = "55f59e44376b2df98abf52a8f6224d3547a2bcd5"
+"." = "136e2ed3f55aab33c84d40ef38c4e9e3bab5e3fb"

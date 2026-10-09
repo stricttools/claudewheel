@@ -18,7 +18,6 @@ destination before touching anything, and hard-errors on ambiguous encoded names
 # blog = false
 include = ["npm", "pypi"]
 exclude = []
-release_commit = "51c28fa3516b28c0fd076355546007fcc6cbcc21"
-
+release_commit = "7c27754621cfd7aecf990208941c4fd80f487196"
 [released_trees]
 "." = "895c7d6fe70d96f2d88ca0e4e07ff3b153921d62"

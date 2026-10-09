@@ -16,7 +16,6 @@ Also includes a breaking rename of `--force` to `--force-delete`/`--force-overwr
 # blog = false
 include = ["npm", "pypi"]
 exclude = []
-release_commit = "eda43e2db9180d8a1986ce065e19666091af1fb1"
-
+release_commit = "dc6fda8cad22099595602e9c60844f6a714ebe4b"
 [released_trees]
 "." = "ff473db1700d0a56a6bf8ad196079468be5204d8"

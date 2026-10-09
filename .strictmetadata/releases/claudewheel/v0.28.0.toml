@@ -30,7 +30,6 @@ audit round before release.
 # blog = false
 include = ["npm", "pypi"]
 exclude = []
-release_commit = "a4b178584632d29edd78c4ffcd4ec148cc27efdc"
-
+release_commit = "aaaa3e94d4b5e5caf8967fe38c7ddcba58a57d5c"
 [released_trees]
 "." = "28eac3bd2929b7293064c2eb31a40e7a1992fe3d"

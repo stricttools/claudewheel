@@ -15,7 +15,6 @@ bump = "minor"
 include = ["npm", "pypi"]
 exclude = []
 description = "Publish to PyPI: `pip install claudewheel` or `uv pip install claudewheel` now works alongside the existing npm distribution"
-release_commit = "b0621b4ff915f4a9eb8b834a4f616e93de40645e"
-
+release_commit = "7db50bec5403b3e0a43130ec789b6a2ad76f671e"
 [released_trees]
-"." = "bcfa386af6c62f1d3f04eebd453aae416acaa78c"
+"." = "c468de4b94d59a445d28e5e5dd878c0d4cf855d8"

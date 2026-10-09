@@ -8,7 +8,6 @@ description = "Proactive directory rename detection via inode tracking"
 context = ""
 include = ["npm", "pypi"]
 exclude = []
-release_commit = "6f024abd43f38edb6af2613891efe9435701d17a"
-
+release_commit = "d45a23a4ac34398e3f673a9985524a211ff2e1dc"
 [released_trees]
 "." = "0dad2f8136b7e5bd6e676a89cc49797adef5f892"

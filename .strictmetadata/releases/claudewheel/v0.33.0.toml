@@ -24,7 +24,6 @@ while a word that merely contains "sleep" -- `nosleep`, `./sleepwalker`,
 # blog = false
 include = ["npm", "pypi"]
 exclude = []
-release_commit = "ced4dc3afa9c71f7b3b0fbc8365b6cc8f449c882"
-
+release_commit = "536ecdf87df982503fecd02661c3e064eeafeb78"
 [released_trees]
 "." = "178d7372127d660d8d3a146f2fe4eb0da24f11b4"

@@ -8,7 +8,6 @@ description = "Fable 5 model support, model auto-sync, full orphan scan for --co
 context = ""
 include = ["npm", "pypi"]
 exclude = []
-release_commit = "e60374c20d5b8ab85086d7a3f4532cd880b66d4b"
-
+release_commit = "31c4df3beb70477f626c921be1025b59392357c0"
 [released_trees]
 "." = "f22085e71aade45b9bbb0ebaa17c89fcb19fa5eb"

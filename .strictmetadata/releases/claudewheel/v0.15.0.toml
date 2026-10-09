@@ -31,7 +31,6 @@ A provenance overlay (toggle with ?) shows where each option came from.
 # blog = false
 include = ["npm", "pypi"]
 exclude = []
-release_commit = "9ea2d47e901e494dd99a8030c8f4a50d8f9a9d70"
-
+release_commit = "06d8226dd2a9ef68bdc973d082658f7c942422ec"
 [released_trees]
 "." = "77729f1b415212655af4b507498ebd1c057d11ee"

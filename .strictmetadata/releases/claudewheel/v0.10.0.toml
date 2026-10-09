@@ -8,7 +8,6 @@ description = "New permission command group for managing profile permission rule
 context = ""
 include = ["npm", "pypi"]
 exclude = []
-release_commit = "99483695007392c2e3bdf37e633d98ce79fed7ba"
-
+release_commit = "7251f777dfd6e3e612a04f069e503748a2af1363"
 [released_trees]
 "." = "38ee4a2958283e428049185c6eb9c1d536c05063"

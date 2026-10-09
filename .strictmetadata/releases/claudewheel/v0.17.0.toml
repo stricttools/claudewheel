@@ -14,7 +14,6 @@ The v0.16.x auth flow worked but was rough: a bare numbered input() prompt, forc
 # blog = false
 include = ["npm", "pypi"]
 exclude = []
-release_commit = "72050a47313e60b2de74a8913ade6fe296b3a0b9"
-
+release_commit = "95aeae01a004afeb915618b92f0bb26026cdd2d9"
 [released_trees]
 "." = "4cc96d6f04ad86bd7b22c24fae808aa58211acc2"

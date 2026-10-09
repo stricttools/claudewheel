@@ -15,7 +15,6 @@ bump = "patch"
 include = ["npm", "pypi"]
 exclude = []
 description = "Add `--version` flag (prints app version)"
-release_commit = "129544b80a59292d30cf9b67e57eeeeda7608b41"
-
+release_commit = "7be75064f883b22aa19dc436242e86ac8457b19e"
 [released_trees]
-"." = "6d1012d685140e9f5e69cd94435588cc105231e1"
+"." = "6d3793be6bd73713c887704b57e89286893af5f2"

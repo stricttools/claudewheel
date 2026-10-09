@@ -19,7 +19,6 @@ fixed, zero suppressions) wired as a hard release preflight gate.
 # blog = false
 include = ["npm", "pypi"]
 exclude = []
-release_commit = "a0ffafaab05c6699a40ba62093ce3b6e92aff8d7"
-
+release_commit = "10a39e87aec1c7d6d69dade1a660320d0d417775"
 [released_trees]
 "." = "85d876d53be776fe907a569bcab1b1fc4bcf75b9"
